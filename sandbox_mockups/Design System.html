@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Harakiri Sandbox · Design System</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles-ds.css">
+</head>
+<body>
+
+<div class="ds-page">
+  <aside class="ds-side">
+    <a href="Harakiri Sandbox.html" class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name"><b>harakiri</b> <span style="color:var(--muted)">sandbox</span></span>
+    </a>
+    <div class="ds-side-version">design system · v0.41 · may 2026</div>
+
+    <div class="ds-nav">
+      <div class="ds-nav-h">Foundations</div>
+      <a href="#brand">Brand</a>
+      <a href="#color">Color</a>
+      <a href="#type">Typography</a>
+      <a href="#space">Spacing &amp; radii</a>
+      <a href="#elevation">Elevation</a>
+      <a href="#icons">Iconography</a>
+
+      <div class="ds-nav-h">Components</div>
+      <a href="#buttons">Buttons</a>
+      <a href="#inputs">Inputs &amp; fields</a>
+      <a href="#pills">Pills &amp; tags</a>
+      <a href="#meters">Meters &amp; bars</a>
+      <a href="#cards">Cards</a>
+      <a href="#kbd">Keyboard hints</a>
+      <a href="#terminal">Terminal block</a>
+      <a href="#placeholder">Image placeholders</a>
+
+      <div class="ds-nav-h">Patterns</div>
+      <a href="#topnav">Top nav</a>
+      <a href="#sidebar">Sidebar nav</a>
+      <a href="#tables">Tables &amp; rows</a>
+      <a href="#filters">Filter bars</a>
+      <a href="#empty">Empty &amp; loading</a>
+
+      <div class="ds-nav-h">Templates</div>
+      <a href="#pages">Page templates</a>
+
+      <div class="ds-nav-h">Code</div>
+      <a href="#react">React reference</a>
+    </div>
+  </aside>
+
+  <main class="ds-body">
+
+    <header class="ds-hero" id="brand">
+      <div class="ds-eyebrow"><span class="ds-eyebrow-bar"></span><span>v0.41 · Hi-fi design system</span></div>
+      <h1 class="ds-h1">Harakiri Sandbox<br/>Design System.</h1>
+      <p class="ds-lede">
+        Tokens, components, and patterns for an AI-agent sandbox platform. Minimal,
+        light-mode-first, hairline borders, a single sharp accent. Designed to read
+        like Linear or Vercel at first glance — and feel like a terminal under the hood.
+      </p>
+      <div class="ds-hero-meta">
+        <span><b>1</b> primary accent</span>
+        <span><b>2</b> typefaces</span>
+        <span><b>14</b> components</span>
+        <span><b>5</b> page templates</span>
+      </div>
+    </header>
+
+    <!-- ─────────── COLOR ─────────── -->
+    <section class="ds-section" id="color">
+      <div class="ds-section-h"><h2>Color</h2><span class="num">01 / foundations</span></div>
+      <p class="ds-section-sub">
+        A warm off-white ground and near-black ink, separated by a single hairline border tone.
+        One accent — a deep crimson — that nods to the brand without dragging the rest of the
+        palette into a saturated direction. Everything is defined as CSS custom properties
+        rooted on <code>:root</code> so theming is one rule deep.
+      </p>
+
+      <div class="ds-sub-h">Surfaces &amp; ink</div>
+      <div class="swatch-grid">
+        <div class="swatch"><div class="swatch-top" style="background:#fafaf7"></div><div class="swatch-meta"><div class="swatch-name">Background</div><div class="swatch-token">--bg</div><div class="swatch-hex">#fafaf7</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#ffffff"></div><div class="swatch-meta"><div class="swatch-name">Surface</div><div class="swatch-token">--surface</div><div class="swatch-hex">#ffffff</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#f4f3ee"></div><div class="swatch-meta"><div class="swatch-name">Surface 2</div><div class="swatch-token">--surface-2</div><div class="swatch-hex">#f4f3ee</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#0f0f0e"></div><div class="swatch-meta"><div class="swatch-name">Ink</div><div class="swatch-token">--ink</div><div class="swatch-hex">#0f0f0e</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#2a2a27"></div><div class="swatch-meta"><div class="swatch-name">Ink 2</div><div class="swatch-token">--ink-2</div><div class="swatch-hex">#2a2a27</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#7a7a72"></div><div class="swatch-meta"><div class="swatch-name">Muted</div><div class="swatch-token">--muted</div><div class="swatch-hex">#7a7a72</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#a8a89f"></div><div class="swatch-meta"><div class="swatch-name">Muted 2</div><div class="swatch-token">--muted-2</div><div class="swatch-hex">#a8a89f</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#ecebe5"></div><div class="swatch-meta"><div class="swatch-name">Border</div><div class="swatch-token">--border</div><div class="swatch-hex">#ecebe5</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:#d9d8d0"></div><div class="swatch-meta"><div class="swatch-name">Border strong</div><div class="swatch-token">--border-strong</div><div class="swatch-hex">#d9d8d0</div></div></div>
+      </div>
+
+      <div class="ds-sub-h">Accent &amp; semantic</div>
+      <div class="swatch-grid">
+        <div class="swatch"><div class="swatch-top" style="background:oklch(0.52 0.18 25)"></div><div class="swatch-meta"><div class="swatch-name">Accent</div><div class="swatch-token">--accent</div><div class="swatch-hex">oklch(0.52 0.18 25)</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:oklch(0.95 0.04 25)"></div><div class="swatch-meta"><div class="swatch-name">Accent soft</div><div class="swatch-token">--accent-soft</div><div class="swatch-hex">oklch(0.95 0.04 25)</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:oklch(0.58 0.13 155)"></div><div class="swatch-meta"><div class="swatch-name">OK</div><div class="swatch-token">--ok</div><div class="swatch-hex">oklch(0.58 0.13 155)</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:oklch(0.72 0.15 75)"></div><div class="swatch-meta"><div class="swatch-name">Warn</div><div class="swatch-token">--warn</div><div class="swatch-hex">oklch(0.72 0.15 75)</div></div></div>
+        <div class="swatch"><div class="swatch-top" style="background:oklch(0.55 0.20 25)"></div><div class="swatch-meta"><div class="swatch-name">Error</div><div class="swatch-token">--err</div><div class="swatch-hex">oklch(0.55 0.20 25)</div></div></div>
+      </div>
+
+      <div class="ds-callout">
+        <b>Note.</b> Semantic colors are authored in <code>oklch()</code> so they shift in
+        perceptual lightness consistently. All accents share <code>chroma ≈ 0.18</code> and
+        <code>lightness ≈ 0.55</code>; only hue varies. Avoid introducing new colors outside
+        this rule.
+      </div>
+    </section>
+
+    <!-- ─────────── TYPOGRAPHY ─────────── -->
+    <section class="ds-section" id="type">
+      <div class="ds-section-h"><h2>Typography</h2><span class="num">02 / foundations</span></div>
+      <p class="ds-section-sub">
+        Two families. <b>Hanken Grotesk</b> for prose, headings, and UI. <b>JetBrains Mono</b>
+        for ids, numbers, terminals, and anything machine-flavored. Numbers always use
+        tabular-nums so they line up in tables.
+      </p>
+
+      <div class="demo">
+        <div class="demo-canvas" style="display:block; background-image:none">
+          <div class="type-row"><div class="type-meta"><b>Display</b><br/>64 / 1.02<br/>-0.035em<br/>600</div><div class="type-sample" style="font-size:64px; line-height:1.02; letter-spacing:-0.035em; font-weight:600">Disposable VMs</div></div>
+          <div class="type-row"><div class="type-meta"><b>H1</b><br/>44 / 1.05<br/>-0.030em<br/>600</div><div class="type-sample" style="font-size:44px; line-height:1.05; letter-spacing:-0.03em; font-weight:600">Sealed micro&#8209;VMs</div></div>
+          <div class="type-row"><div class="type-meta"><b>H2</b><br/>32 / 1.10<br/>-0.020em<br/>600</div><div class="type-sample" style="font-size:32px; line-height:1.1; letter-spacing:-0.02em; font-weight:600">Live sandboxes</div></div>
+          <div class="type-row"><div class="type-meta"><b>H3</b><br/>22 / 1.20<br/>-0.015em<br/>600</div><div class="type-sample" style="font-size:22px; line-height:1.2; letter-spacing:-0.015em; font-weight:600">Egress allowlist</div></div>
+          <div class="type-row"><div class="type-meta"><b>Body</b><br/>14.5 / 1.55<br/>—<br/>400</div><div class="type-sample" style="font-size:14.5px; line-height:1.55">Harakiri spins up a sealed micro-VM in 137ms, runs whatever your model writes, and ends itself when the turn is over.</div></div>
+          <div class="type-row"><div class="type-meta"><b>Body small</b><br/>13 / 1.55<br/>—<br/>400</div><div class="type-sample" style="font-size:13px; line-height:1.55; color:var(--ink-2)">Disks are zeroed when a sandbox terminates. Snapshots are encrypted at rest with per-org keys.</div></div>
+          <div class="type-row"><div class="type-meta"><b>Caption</b><br/>12 / 1.45<br/>—<br/>400</div><div class="type-sample" style="font-size:12px; color:var(--muted)">created Apr 12 · last used 2m ago</div></div>
+          <div class="type-row"><div class="type-meta"><b>Eyebrow</b><br/>11 / —<br/>0.08em uppercase<br/>600</div><div class="type-sample" style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; font-weight:600; color:var(--accent)">Primitives</div></div>
+          <div class="type-row"><div class="type-meta"><b>Mono</b><br/>12.5 / 1.65<br/>—<br/>400</div><div class="type-sample" style="font-family:var(--font-mono); font-size:12.5px">sbx_jt29kf01x4 · template=python-3.12 · ttl=300s</div></div>
+        </div>
+      </div>
+
+      <div class="ds-sub-h">CSS tokens</div>
+      <table class="tok-table">
+        <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><code>--font-sans</code></td><td><code>"Hanken Grotesk", ui-sans-serif, system-ui</code></td><td>All UI &amp; prose</td></tr>
+          <tr><td><code>--font-mono</code></td><td><code>"JetBrains Mono", ui-monospace</code></td><td>IDs, numbers, code, terminals</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ─────────── SPACING ─────────── -->
+    <section class="ds-section" id="space">
+      <div class="ds-section-h"><h2>Spacing &amp; radii</h2><span class="num">03 / foundations</span></div>
+      <p class="ds-section-sub">
+        A modest 4px-based scale. Layouts breathe — generous outer gutters, tight inner
+        rhythm. Radii are conservative: 4–10px. Buttons get 6px, cards 10px, never larger.
+      </p>
+
+      <div class="ds-sub-h">Spacing scale</div>
+      <div class="demo">
+        <div class="demo-canvas" style="background-image:none; display:block">
+          <div class="space-row"><div>4 px</div><div><div class="space-bar" style="width:4px"></div></div><div style="color:var(--muted)">tight inline gaps (icon ↔ label)</div></div>
+          <div class="space-row"><div>8 px</div><div><div class="space-bar" style="width:8px"></div></div><div style="color:var(--muted)">control inner padding, chip gaps</div></div>
+          <div class="space-row"><div>12 px</div><div><div class="space-bar" style="width:12px"></div></div><div style="color:var(--muted)">card row gap, form field rows</div></div>
+          <div class="space-row"><div>16 px</div><div><div class="space-bar" style="width:16px"></div></div><div style="color:var(--muted)">section to section, card padding</div></div>
+          <div class="space-row"><div>24 px</div><div><div class="space-bar" style="width:24px"></div></div><div style="color:var(--muted)">page top padding, card head ↔ body</div></div>
+          <div class="space-row"><div>32 px</div><div><div class="space-bar" style="width:32px"></div></div><div style="color:var(--muted)">page-level vertical rhythm</div></div>
+          <div class="space-row"><div>48 px</div><div><div class="space-bar" style="width:48px"></div></div><div style="color:var(--muted)">major section breaks (marketing)</div></div>
+          <div class="space-row"><div>64 px</div><div><div class="space-bar" style="width:64px"></div></div><div style="color:var(--muted)">page gutters (marketing)</div></div>
+        </div>
+      </div>
+
+      <div class="ds-sub-h">Border radius</div>
+      <div class="radii-grid">
+        <div class="radii-cell"><div class="radii-box" style="border-radius:0"></div><div class="radii-name">none</div><div class="radii-label">0px — tags, dividers</div></div>
+        <div class="radii-cell"><div class="radii-box" style="border-radius:4px"></div><div class="radii-name">sm</div><div class="radii-label">4px — kbd, tag</div></div>
+        <div class="radii-cell"><div class="radii-box" style="border-radius:6px"></div><div class="radii-name">md</div><div class="radii-label">6px — buttons, inputs</div></div>
+        <div class="radii-cell"><div class="radii-box" style="border-radius:10px"></div><div class="radii-name">lg</div><div class="radii-label">10px — cards, modals</div></div>
+      </div>
+    </section>
+
+    <!-- ─────────── ELEVATION ─────────── -->
+    <section class="ds-section" id="elevation">
+      <div class="ds-section-h"><h2>Elevation</h2><span class="num">04 / foundations</span></div>
+      <p class="ds-section-sub">
+        Three layers. Most surfaces sit flat with a 1px hairline; shadows show up only on
+        floating UI (modals, popovers, toasts). No blurry drop-shadows on hover.
+      </p>
+      <div class="shadow-grid">
+        <div class="shadow-cell shadow-1"><div><b>--shadow-1</b>Hairline + 1px lift<br/>Cards, hover</div></div>
+        <div class="shadow-cell shadow-2"><div><b>--shadow-2</b>Floating UI<br/>Modals, dropdowns</div></div>
+        <div class="shadow-cell shadow-3"><div><b>--shadow-3</b>Top-most<br/>Toasts, overlays</div></div>
+      </div>
+    </section>
+
+    <!-- ─────────── ICONS ─────────── -->
+    <section class="ds-section" id="icons">
+      <div class="ds-section-h"><h2>Iconography</h2><span class="num">05 / foundations</span></div>
+      <p class="ds-section-sub">
+        A small custom set of 16×16 line icons, 1.5px stroke, rounded caps/joins. Drawn
+        on a 16-unit grid with 1.5px-aligned anchors. Color follows <code>currentColor</code>.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" id="icon-grid" style="background-image:none; display:grid; grid-template-columns:repeat(8, 1fr); gap:8px"></div>
+        <pre class="demo-code">&lt;Icon name="terminal" size={14} stroke={1.5} /&gt;</pre>
+      </div>
+    </section>
+
+    <!-- ─────────── BUTTONS ─────────── -->
+    <section class="ds-section" id="buttons">
+      <div class="ds-section-h"><h2>Buttons</h2><span class="num">01 / components</span></div>
+      <p class="ds-section-sub">
+        Five flavors. Primary is solid ink. Secondary is hairline-bordered. Ghost is
+        transparent until hover. Accent is reserved for go-actions inside flows. Destructive
+        is text-colored, not solid.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas">
+          <button class="btn btn-primary">Create sandbox</button>
+          <button class="btn">Cancel</button>
+          <button class="btn btn-ghost">Refresh</button>
+          <button class="btn btn-accent">Run first sandbox</button>
+          <button class="btn" style="color:var(--err); border-color:oklch(0.55 0.2 25 / 0.35)">Kill</button>
+        </div>
+        <div class="demo-canvas">
+          <button class="btn btn-primary btn-lg">Get started →</button>
+          <button class="btn btn-lg">Read the docs</button>
+          <button class="btn">Default</button>
+          <button class="btn btn-sm">Small</button>
+        </div>
+        <pre class="demo-code">&lt;button class="btn btn-primary"&gt;Create sandbox&lt;/button&gt;
+&lt;button class="btn"&gt;Cancel&lt;/button&gt;
+&lt;button class="btn btn-ghost"&gt;Refresh&lt;/button&gt;
+&lt;button class="btn btn-accent"&gt;Run first sandbox&lt;/button&gt;</pre>
+      </div>
+
+      <div class="ds-sub-h">Sizes</div>
+      <table class="tok-table">
+        <thead><tr><th>Class</th><th>Height</th><th>Padding</th><th>Font</th></tr></thead>
+        <tbody>
+          <tr><td><code>.btn-sm</code></td><td>26px</td><td>0 10px</td><td>12px</td></tr>
+          <tr><td><code>.btn</code> (default)</td><td>32px</td><td>0 14px</td><td>13px</td></tr>
+          <tr><td><code>.btn-lg</code></td><td>40px</td><td>0 18px</td><td>14px</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ─────────── INPUTS ─────────── -->
+    <section class="ds-section" id="inputs">
+      <div class="ds-section-h"><h2>Inputs &amp; fields</h2><span class="num">02 / components</span></div>
+      <p class="ds-section-sub">
+        Inputs are 32px tall to match buttons. Labels sit above, hints below. Focus ring is
+        a 3px shadow in near-black with low alpha — never a saturated halo.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas stack" style="background-image:none">
+          <div class="field" style="max-width:360px">
+            <div class="field-l">Organization name</div>
+            <input class="input" value="lyra-labs" />
+            <div class="field-h">Used in your API endpoint. Lowercase, no spaces.</div>
+          </div>
+          <div class="field" style="max-width:360px">
+            <div class="field-l">API key</div>
+            <input class="input mono" value="hk_live_28fcf__c81ed_b0a4e…" />
+          </div>
+          <div class="field" style="max-width:360px">
+            <div class="field-l">Resources</div>
+            <select class="input">
+              <option>2 vCPU · 2 GiB</option>
+              <option>4 vCPU · 4 GiB</option>
+              <option>8 vCPU · 8 GiB</option>
+            </select>
+          </div>
+          <div class="search-input" style="max-width:300px">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="m10 10 3 3"/></svg>
+            <input placeholder="Filter by name or id…" />
+          </div>
+        </div>
+        <pre class="demo-code">&lt;div class="field"&gt;
+  &lt;div class="field-l"&gt;Organization name&lt;/div&gt;
+  &lt;input class="input" value="lyra-labs" /&gt;
+  &lt;div class="field-h"&gt;Used in your API endpoint. Lowercase, no spaces.&lt;/div&gt;
+&lt;/div&gt;</pre>
+      </div>
+    </section>
+
+    <!-- ─────────── PILLS / TAGS ─────────── -->
+    <section class="ds-section" id="pills">
+      <div class="ds-section-h"><h2>Pills &amp; tags</h2><span class="num">03 / components</span></div>
+      <p class="ds-section-sub">
+        Pills are status-bearing (running / idle / errored), tags are flat metadata
+        (template names, sizes). Both use mono type to read as machine-output.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas">
+          <span class="pill live"><span class="dot"></span> running</span>
+          <span class="pill idle"><span class="dot"></span> idle</span>
+          <span class="pill err"><span class="dot"></span> error</span>
+          <span class="pill"><span class="dot"></span> terminated</span>
+          <span class="pill muted"><span class="dot"></span> draft</span>
+        </div>
+        <div class="demo-canvas">
+          <span class="tag">python-3.12-data</span>
+          <span class="tag">node-20</span>
+          <span class="tag">2 vCPU · 2 GiB</span>
+          <span class="tag">2.1 KB</span>
+          <span class="tag">modified 2m ago</span>
+        </div>
+        <pre class="demo-code">&lt;span class="pill live"&gt;&lt;span class="dot"&gt;&lt;/span&gt; running&lt;/span&gt;
+&lt;span class="tag"&gt;python-3.12-data&lt;/span&gt;</pre>
+      </div>
+    </section>
+
+    <!-- ─────────── METERS ─────────── -->
+    <section class="ds-section" id="meters">
+      <div class="ds-section-h"><h2>Meters &amp; bars</h2><span class="num">04 / components</span></div>
+      <p class="ds-section-sub">
+        Use the inline meter for table cells, the bar for usage cards. Color shifts at 50%
+        (warn) and 80% (error) thresholds — never use red below 80%.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas stack" style="background-image:none">
+          <div style="display:flex; align-items:center; gap:14px"><span class="meter"><span class="meter-fill" style="width:38%; background:var(--ok)"></span></span><span class="num" style="font-size:12.5px">38% · healthy</span></div>
+          <div style="display:flex; align-items:center; gap:14px"><span class="meter"><span class="meter-fill" style="width:61%; background:var(--warn)"></span></span><span class="num" style="font-size:12.5px">61% · warn</span></div>
+          <div style="display:flex; align-items:center; gap:14px"><span class="meter"><span class="meter-fill" style="width:88%; background:var(--err)"></span></span><span class="num" style="font-size:12.5px">88% · critical</span></div>
+          <div style="max-width:300px; margin-top:14px">
+            <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px"><span>Memory</span><span class="num">412 / 2048 MB</span></div>
+            <div class="bar"><div class="bar-fill" style="width:62%"></div></div>
+          </div>
+        </div>
+        <pre class="demo-code">&lt;span class="meter"&gt;
+  &lt;span class="meter-fill" style="width:38%; background:var(--ok)" /&gt;
+&lt;/span&gt;
+
+&lt;div class="bar"&gt;
+  &lt;div class="bar-fill" style="width:62%"&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+      </div>
+    </section>
+
+    <!-- ─────────── CARDS ─────────── -->
+    <section class="ds-section" id="cards">
+      <div class="ds-section-h"><h2>Cards</h2><span class="num">05 / components</span></div>
+      <p class="ds-section-sub">
+        A card is just a hairline-bordered white surface with 10px radius. Never give cards
+        drop-shadows in the static state. Use <code>.card-h</code> for an inset heading.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" style="display:grid; grid-template-columns:1fr 1fr; gap:14px; background-image:none">
+          <div class="card" style="padding:22px">
+            <div class="card-h">Sandbox · sbx_jt29kf01x4</div>
+            <div style="display:flex; align-items:baseline; gap:14px; margin-top:12px">
+              <span class="num" style="font-size:36px; letter-spacing:-0.02em">3.41s</span>
+              <span style="color:var(--muted)">runtime, 2,148 tokens</span>
+            </div>
+            <div class="bar" style="margin-top:14px"><div class="bar-fill" style="width:38%"></div></div>
+            <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11.5px; color:var(--muted)">
+              <span>CPU 38%</span><span>Mem 412 / 2048 MB</span>
+            </div>
+          </div>
+          <div class="card" style="padding:22px">
+            <div class="card-h">Active templates</div>
+            <div class="num" style="font-size:24px; margin-top:8px">6</div>
+            <div style="font-size:12px; color:var(--muted); margin-top:2px">across the org</div>
+            <hr class="hr" style="margin:16px 0">
+            <div class="card-h">Most used</div>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
+              <div style="width:36px; height:24px; background:var(--ink); border-radius:4px; color:#f7f7f3; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:600">PY</div>
+              <div>
+                <div style="font-size:13px; font-weight:500">python-3.12-data</div>
+                <div style="font-size:11px; color:var(--muted)">~142ms cold start</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── KBD ─────────── -->
+    <section class="ds-section" id="kbd">
+      <div class="ds-section-h"><h2>Keyboard hints</h2><span class="num">06 / components</span></div>
+      <p class="ds-section-sub">
+        Mono, double bottom border. Use sparingly in search affordances and tooltips. Never
+        in body copy.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas">
+          <span>Open command palette</span>
+          <span class="kbd">⌘</span><span class="kbd">K</span>
+          <span style="margin-left:24px">Navigate</span>
+          <span class="kbd">↑</span><span class="kbd">↓</span>
+          <span style="margin-left:24px">Confirm</span>
+          <span class="kbd">↵</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── TERMINAL ─────────── -->
+    <section class="ds-section" id="terminal">
+      <div class="ds-section-h"><h2>Terminal block</h2><span class="num">07 / components</span></div>
+      <p class="ds-section-sub">
+        The signature surface. Dark, monospace, with a three-dot title bar. Two flavors:
+        the marketing &ldquo;hterm&rdquo; (light-mode background, white terminal body) and
+        the in-app &ldquo;term&rdquo; (full dark).
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" style="background-image:none; padding:24px">
+          <div class="hterm card" style="width:100%">
+            <div class="hterm-bar">
+              <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+              <span class="hterm-title">sbx_jt29kf01x4 — agent-eval-runner</span>
+              <span class="pill live" style="margin-left:auto"><span class="dot"></span> running</span>
+            </div>
+            <div class="hterm-body" style="min-height:0">
+              <div class="hterm-line">$ <em>harakiri</em> create --template python-3.12-data</div>
+              <div class="hterm-line muted">→ provisioning microVM… <span class="num">137ms</span></div>
+              <div class="hterm-line muted">→ sealed. id=<b>sbx_jt29kf01x4</b></div>
+              <div class="hterm-line">$ <em>harakiri</em> run --stdin agent.py</div>
+              <div class="hterm-line"><span class="ok">✓</span> rmse=<span class="num">0.0418</span> · runtime=<span class="num">3.41s</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── PLACEHOLDER ─────────── -->
+    <section class="ds-section" id="placeholder">
+      <div class="ds-section-h"><h2>Image placeholders</h2><span class="num">08 / components</span></div>
+      <p class="ds-section-sub">
+        For missing imagery: a diagonal stripe pattern with mono explainer text. Never use a
+        gray block. Never use a generated illustration — ask for real assets.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" style="background-image:none; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
+          <div class="placeholder" style="aspect-ratio:16/10">product hero shot<br/>1920×1080</div>
+          <div class="placeholder" style="aspect-ratio:1">team headshot</div>
+          <div class="placeholder" style="aspect-ratio:4/3">case study diagram</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── TOPNAV ─────────── -->
+    <section class="ds-section" id="topnav">
+      <div class="ds-section-h"><h2>Top navigation</h2><span class="num">01 / patterns</span></div>
+      <p class="ds-section-sub">
+        56px high, hairline bottom, soft-blur backdrop. Brand left, links center, account
+        actions right. Sticky to top, never sits below content.
+      </p>
+      <div class="demo">
+        <div style="border-bottom:1px solid var(--border)">
+          <div class="topnav" style="position:static">
+            <div style="display:flex; align-items:center; gap:28px">
+              <span class="brand"><span class="brand-mark"></span><span class="brand-name"><b>harakiri</b> <span style="color:var(--muted)">sandbox</span></span></span>
+              <div class="links" style="margin-left:8px">
+                <a class="active">Product</a>
+                <a>Customers</a>
+                <a>Docs</a>
+                <a>Changelog</a>
+              </div>
+            </div>
+            <div class="right">
+              <button class="btn btn-ghost btn-sm">Sign in</button>
+              <button class="btn btn-primary btn-sm">Get started →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── SIDEBAR ─────────── -->
+    <section class="ds-section" id="sidebar">
+      <div class="ds-section-h"><h2>Sidebar nav</h2><span class="num">02 / patterns</span></div>
+      <p class="ds-section-sub">
+        240px, white surface, hairline right border. Org switcher sits in a card at top.
+        Active rows get a surface-2 background plus a 2px accent inset on the left.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" style="background-image:none; padding:0">
+          <div style="width:260px; border-right:1px solid var(--border); padding:16px 12px; background:var(--surface)">
+            <div class="org-switcher">
+              <div class="org-ava">L</div>
+              <div style="flex:1; min-width:0">
+                <div class="org-name">lyra-labs</div>
+                <div class="org-plan">Team · 4 seats</div>
+              </div>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m4 6 4 4 4-4"/></svg>
+            </div>
+            <nav class="side-nav">
+              <a class="side-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 4.5 8 1.5l5.5 3v7L8 14.5l-5.5-3v-7Z"/></svg> Sandboxes</a>
+              <a class="side-link active"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 1.5h6a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V4Z"/></svg> Templates</a>
+              <a class="side-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 13h12M4 11V7M7 11V4M10 11V8M13 11V5"/></svg> Usage</a>
+              <a class="side-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="11" r="2.5"/><path d="m7 9 5-5M11 5l1.5 1.5"/></svg> API keys</a>
+              <a class="side-link"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/></svg> Settings</a>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── TABLES ─────────── -->
+    <section class="ds-section" id="tables">
+      <div class="ds-section-h"><h2>Tables &amp; rows</h2><span class="num">03 / patterns</span></div>
+      <p class="ds-section-sub">
+        Rows use CSS grid, not a real <code>&lt;table&gt;</code>, so we can mix mono and
+        sans cells, embed pills and meters, and keep alignment stable. Heads sit on
+        surface-2, body rows on white, hairline separators.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" style="background-image:none; padding:0">
+          <div class="sbx-table card" style="border-radius:0; border:0">
+            <div class="sbx-tr sbx-head">
+              <div>Name</div><div>Status</div><div>Template</div>
+              <div>CPU</div><div>Mem</div><div>Started</div><div></div>
+            </div>
+            <div class="sbx-tr">
+              <div><div class="sbx-name">agent-eval-runner</div><div class="sbx-id num">sbx_jt29kf01x4</div></div>
+              <div><span class="pill running"><span class="dot"></span> running</span></div>
+              <div><span class="tag">python-3.12-data</span></div>
+              <div class="num"><span class="meter"><span class="meter-fill" style="width:38%; background:var(--ok)"></span></span> 38%</div>
+              <div class="num">412 MB</div>
+              <div class="num" style="color:var(--muted)">2m 14s</div>
+              <div class="ta-r"><button class="btn btn-ghost btn-sm">Open →</button></div>
+            </div>
+            <div class="sbx-tr">
+              <div><div class="sbx-name">browser-use-pool-04</div><div class="sbx-id num">sbx_b8m4qa3eyl</div></div>
+              <div><span class="pill running"><span class="dot" style="background:var(--warn)"></span> warn</span></div>
+              <div><span class="tag">node-20-chromium</span></div>
+              <div class="num"><span class="meter"><span class="meter-fill" style="width:71%; background:var(--warn)"></span></span> 71%</div>
+              <div class="num">980 MB</div>
+              <div class="num" style="color:var(--muted)">14m 02s</div>
+              <div class="ta-r"><button class="btn btn-ghost btn-sm">Open →</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── FILTERS ─────────── -->
+    <section class="ds-section" id="filters">
+      <div class="ds-section-h"><h2>Filter bars</h2><span class="num">04 / patterns</span></div>
+      <p class="ds-section-sub">
+        Segmented tabs on the left for primary state, dropdowns + search on the right for
+        secondary filters. Tabs go inside their own bordered container.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas" style="background-image:none">
+          <div class="filter-bar" style="flex:1; width:100%">
+            <div class="filter-tabs">
+              <button class="filter-tab active">All</button>
+              <button class="filter-tab">Running</button>
+              <button class="filter-tab">Idle</button>
+              <button class="filter-tab">Errored</button>
+            </div>
+            <div class="filter-right">
+              <div class="search-input">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4"/><path d="m10 10 3 3"/></svg>
+                <input placeholder="Filter by name or id…" />
+              </div>
+              <button class="btn btn-ghost btn-sm">Owner ▾</button>
+              <button class="btn btn-ghost btn-sm">Template ▾</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── EMPTY / LOADING ─────────── -->
+    <section class="ds-section" id="empty">
+      <div class="ds-section-h"><h2>Empty &amp; loading</h2><span class="num">05 / patterns</span></div>
+      <p class="ds-section-sub">
+        Loading states are unstyled spinners next to action labels. Empty states stay quiet
+        — a single line of muted copy, never an illustration.
+      </p>
+      <div class="demo">
+        <div class="demo-canvas">
+          <button class="btn btn-primary" disabled><span class="spinner"></span> Provisioning…</button>
+          <button class="btn" disabled><span class="spinner"></span> Saving</button>
+          <span style="color:var(--muted); font-size:13px; margin-left:18px">No sandboxes match your filter.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────── PAGE TEMPLATES ─────────── -->
+    <section class="ds-section" id="pages">
+      <div class="ds-section-h"><h2>Page templates</h2><span class="num">01 / templates</span></div>
+      <p class="ds-section-sub">
+        Five core surfaces. Click any to open it in the live prototype.
+      </p>
+      <div class="tmpl-thumbs">
+        <a class="tmpl-thumb" href="Harakiri Sandbox.html#landing">
+          <div class="tmpl-thumb-img"><img src="screenshots/thumb-landing.png" alt="Landing"/></div>
+          <div class="tmpl-thumb-meta"><span class="tmpl-thumb-name">Landing</span><span class="tmpl-thumb-sub">#landing</span></div>
+        </a>
+        <a class="tmpl-thumb" href="Harakiri Sandbox.html#onboarding">
+          <div class="tmpl-thumb-img"><img src="screenshots/thumb-onboarding.png" alt="Onboarding"/></div>
+          <div class="tmpl-thumb-meta"><span class="tmpl-thumb-name">Onboarding</span><span class="tmpl-thumb-sub">#onboarding</span></div>
+        </a>
+        <a class="tmpl-thumb" href="Harakiri Sandbox.html#dashboard">
+          <div class="tmpl-thumb-img"><img src="screenshots/thumb-dashboard.png" alt="Dashboard"/></div>
+          <div class="tmpl-thumb-meta"><span class="tmpl-thumb-name">Dashboard · Sandboxes</span><span class="tmpl-thumb-sub">#dashboard</span></div>
+        </a>
+        <a class="tmpl-thumb" href="Harakiri Sandbox.html#dashboard/metrics">
+          <div class="tmpl-thumb-img"><img src="screenshots/thumb-metrics.png" alt="Metrics"/></div>
+          <div class="tmpl-thumb-meta"><span class="tmpl-thumb-name">Dashboard · Usage</span><span class="tmpl-thumb-sub">#dashboard/metrics</span></div>
+        </a>
+        <a class="tmpl-thumb" href="Harakiri Sandbox.html#detail">
+          <div class="tmpl-thumb-img"><img src="screenshots/thumb-detail.png" alt="Sandbox detail"/></div>
+          <div class="tmpl-thumb-meta"><span class="tmpl-thumb-name">Sandbox detail</span><span class="tmpl-thumb-sub">#detail</span></div>
+        </a>
+        <a class="tmpl-thumb" href="Harakiri Sandbox.html#docs" style="grid-column:span 2">
+          <div class="tmpl-thumb-img"><img src="screenshots/thumb-docs.png" alt="Docs"/></div>
+          <div class="tmpl-thumb-meta"><span class="tmpl-thumb-name">Docs &amp; API reference</span><span class="tmpl-thumb-sub">#docs</span></div>
+        </a>
+      </div>
+    </section>
+
+    <!-- ─────────── REACT REFERENCE ─────────── -->
+    <section class="ds-section" id="react">
+      <div class="ds-section-h"><h2>React reference</h2><span class="num">01 / code</span></div>
+      <p class="ds-section-sub">
+        Core components live in <code>components/shared.jsx</code>. They're plain functions —
+        no hooks, no providers, no theme objects — and pair directly with the CSS classes
+        documented above. Copy what you need.
+      </p>
+
+      <div class="ds-sub-h">Brand</div>
+      <pre class="demo-code">const Brand = ({ size = 15 }) =&gt; (
+  &lt;span className="brand" style={{ fontSize: size }}&gt;
+    &lt;span className="brand-mark" /&gt;
+    &lt;span className="brand-name"&gt;
+      &lt;b&gt;harakiri&lt;/b&gt; &lt;span style={{color:'var(--muted)'}}&gt;sandbox&lt;/span&gt;
+    &lt;/span&gt;
+  &lt;/span&gt;
+);</pre>
+
+      <div class="ds-sub-h">Icon (the whole set)</div>
+      <pre class="demo-code">// 16×16 line icons, 1.5px stroke, rounded caps.
+// All names: box, play, stop, plus, search, chevron, chevDown, arrowR,
+//   terminal, file, folder, logs, cpu, chart, key, book, settings,
+//   user, bell, copy, check, x, dot, refresh, git, py, node, lock, bolt, globe
+&lt;Icon name="terminal" size={14} stroke={1.5} /&gt;</pre>
+
+      <div class="ds-sub-h">Field</div>
+      <pre class="demo-code">const Field = ({ label, hint, children }) =&gt; (
+  &lt;div className="field"&gt;
+    &lt;div className="field-l"&gt;{label}&lt;/div&gt;
+    {children}
+    {hint &amp;&amp; &lt;div className="field-h"&gt;{hint}&lt;/div&gt;}
+  &lt;/div&gt;
+);
+
+// Use:
+&lt;Field label="Organization name" hint="Lowercase, no spaces."&gt;
+  &lt;input className="input" defaultValue="lyra-labs" /&gt;
+&lt;/Field&gt;</pre>
+
+      <div class="ds-sub-h">Meter &amp; bar</div>
+      <pre class="demo-code">const MeterBar = ({ v, max }) =&gt; (
+  &lt;span className="meter"&gt;
+    &lt;span className="meter-fill" style={{
+      width: Math.min(100, (v/max)*100) + '%',
+      background: v &gt; 80 ? 'var(--err)' :
+                  v &gt; 50 ? 'var(--warn)' : 'var(--ok)'
+    }} /&gt;
+  &lt;/span&gt;
+);</pre>
+
+      <div class="ds-sub-h">Section head</div>
+      <pre class="demo-code">const SectionHead = ({ eyebrow, title }) =&gt; (
+  &lt;div className="sec-head"&gt;
+    &lt;div className="eyebrow"&gt;
+      &lt;span className="eyebrow-bar" /&gt;
+      &lt;span&gt;{eyebrow}&lt;/span&gt;
+    &lt;/div&gt;
+    &lt;h2 className="sec-title"&gt;{title}&lt;/h2&gt;
+  &lt;/div&gt;
+);</pre>
+
+      <div class="ds-callout">
+        <b>File map.</b> <code>styles.css</code> holds tokens + primitives.
+        <code>styles-landing.css</code> is marketing-page-only. <code>styles-app.css</code>
+        is the in-app shell (dashboard, sandbox detail, onboarding, docs). The React
+        components live in <code>components/*.jsx</code> and are loaded together by
+        <code>Harakiri Sandbox.html</code>.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// Render the icon grid from the same set as the React Icon component
+const ICONS = {
+  box: '<path d="M2.5 4.5 8 1.5l5.5 3v7L8 14.5l-5.5-3v-7Z"/><path d="M2.5 4.5 8 7.5l5.5-3"/><path d="M8 7.5v7"/>',
+  play: '<path d="M4 3v10l9-5-9-5Z"/>',
+  stop: '<rect x="3.5" y="3.5" width="9" height="9" rx="1"/>',
+  plus: '<path d="M8 3v10M3 8h10"/>',
+  search: '<circle cx="7" cy="7" r="4"/><path d="m10 10 3 3"/>',
+  chevron: '<path d="m6 4 4 4-4 4"/>',
+  chevDown: '<path d="m4 6 4 4 4-4"/>',
+  arrowR: '<path d="M3 8h10M9 4l4 4-4 4"/>',
+  terminal: '<rect x="1.5" y="2.5" width="13" height="11" rx="1"/><path d="m4 6 2 2-2 2M8 10h4"/>',
+  file: '<path d="M4 1.5h5L13 5v9.5H4z"/><path d="M9 1.5V5h4"/>',
+  folder: '<path d="M1.5 4a1 1 0 0 1 1-1H6l1.5 1.5h6a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H2.5a1 1 0 0 1-1-1V4Z"/>',
+  logs: '<path d="M2.5 3h11M2.5 6h11M2.5 9h7M2.5 12h11"/>',
+  cpu: '<rect x="3" y="3" width="10" height="10" rx="1"/><rect x="6" y="6" width="4" height="4"/><path d="M6 1v2M10 1v2M6 13v2M10 13v2M1 6h2M1 10h2M13 6h2M13 10h2"/>',
+  chart: '<path d="M2 13h12M4 11V7M7 11V4M10 11V8M13 11V5"/>',
+  key: '<circle cx="5" cy="11" r="2.5"/><path d="m7 9 5-5M11 5l1.5 1.5M9.5 6.5 11 8"/>',
+  book: '<path d="M2.5 2.5h4a2 2 0 0 1 2 2v9a1.5 1.5 0 0 0-1.5-1.5H2.5v-9.5Z"/><path d="M13.5 2.5h-4a2 2 0 0 0-2 2v9a1.5 1.5 0 0 1 1.5-1.5h4.5v-9.5Z"/>',
+  settings: '<circle cx="8" cy="8" r="2"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5 13 13M3 13l1.5-1.5M11.5 4.5 13 3"/>',
+  user: '<circle cx="8" cy="6" r="2.5"/><path d="M3 13.5c.5-2 2.5-3.5 5-3.5s4.5 1.5 5 3.5"/>',
+  bell: '<path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3L4 11Z"/><path d="M6.5 13.5a1.5 1.5 0 0 0 3 0"/>',
+  copy: '<rect x="5" y="5" width="9" height="9" rx="1"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2"/>',
+  check: '<path d="m3 8 3.5 3.5L13 5"/>',
+  x: '<path d="m4 4 8 8M12 4l-8 8"/>',
+  refresh: '<path d="M13.5 8a5.5 5.5 0 0 1-9.4 3.9M2.5 8a5.5 5.5 0 0 1 9.4-3.9"/><path d="M13.5 2.5v3h-3M2.5 13.5v-3h3"/>',
+  git: '<circle cx="4" cy="3.5" r="1.5"/><circle cx="4" cy="12.5" r="1.5"/><circle cx="12" cy="8" r="1.5"/><path d="M4 5v6M5.5 8H10"/>',
+  py: '<path d="M3 8h7a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2V8Z"/><path d="M13 8H6a2 2 0 0 0-2 2v2.5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V8Z"/>',
+  node: '<path d="M8 1.5 2.5 4.5v7L8 14.5l5.5-3v-7L8 1.5Z"/>',
+  lock: '<rect x="3" y="7" width="10" height="7" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+  bolt: '<path d="M9 1.5 3 9h4l-1 5.5L13 7H9l1-5.5h-1Z"/>',
+  globe: '<circle cx="8" cy="8" r="6.5"/><path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13"/>',
+};
+const grid = document.getElementById('icon-grid');
+for (const [name, path] of Object.entries(ICONS)) {
+  const cell = document.createElement('div');
+  cell.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 6px; border:1px solid var(--border); border-radius:6px; background:var(--surface);';
+  cell.innerHTML = `
+    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${path}</svg>
+    <span style="font-family:var(--font-mono); font-size:10px; color:var(--muted)">${name}</span>
+  `;
+  grid.appendChild(cell);
+}
+
+// Scrollspy
+const links = [...document.querySelectorAll('.ds-nav a')];
+const sections = links.map(l => {
+  const t = l.getAttribute('href');
+  return t.startsWith('#') ? document.querySelector(t) : null;
+}).filter(Boolean);
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const link = links.find(l => l.getAttribute('href') === '#' + e.target.id);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => io.observe(s));
+</script>
+</body>
+</html>

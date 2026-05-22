@@ -1,0 +1,19 @@
+export const config = {
+  port: Number(process.env.API_PORT ?? 8080),
+  host: process.env.API_HOST ?? "0.0.0.0",
+  databaseUrl: process.env.DATABASE_URL ?? "postgres://harakiri:harakiri@127.0.0.1:15432/harakiri",
+  publicApiUrl: process.env.PUBLIC_API_URL ?? "http://127.0.0.1:18082",
+  keycloakIssuer: process.env.KEYCLOAK_ISSUER,
+  keycloakIssuerAllowlist: (process.env.KEYCLOAK_ISSUER_ALLOWLIST ?? process.env.KEYCLOAK_ISSUER ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean),
+  keycloakJwksUrl: process.env.KEYCLOAK_JWKS_URL,
+  authDevAllow: process.env.AUTH_DEV_ALLOW === "1",
+  openSandboxBaseUrl: process.env.OPEN_SANDBOX_BASE_URL ?? "http://127.0.0.1:8088",
+  publicOpenSandboxUrl: process.env.PUBLIC_OPEN_SANDBOX_URL ?? "http://127.0.0.1:18083",
+  openSandboxApiKey: process.env.OPEN_SANDBOX_API_KEY ?? "dev-opensandbox-key",
+  openSandboxAllowFallback: process.env.OPEN_SANDBOX_ALLOW_FALLBACK !== "0",
+  autoMigrate: process.env.AUTO_MIGRATE === "1",
+  seedOnBoot: process.env.SEED_ON_BOOT === "1"
+};

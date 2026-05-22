@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: harakiri-sandbox-exec
+  namespace: opensandbox
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["get", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: harakiri-sandbox-exec
+  namespace: opensandbox
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: harakiri
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: harakiri-sandbox-exec

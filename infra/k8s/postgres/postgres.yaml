@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harakiri-postgres
+  namespace: harakiri
+type: Opaque
+stringData:
+  POSTGRES_DB: harakiri
+  POSTGRES_USER: harakiri
+  POSTGRES_PASSWORD: harakiri
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: harakiri-postgres
+  namespace: harakiri
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harakiri-postgres
+  namespace: harakiri
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harakiri-postgres
+  template:
+    metadata:
+      labels:
+        app: harakiri-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: harakiri-postgres
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "harakiri"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: harakiri-postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harakiri-postgres
+  namespace: harakiri
+spec:
+  selector:
+    app: harakiri-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+

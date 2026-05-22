@@ -1,0 +1,45 @@
+# Execution Plan: {Title}
+
+**Created**: {date}
+**Author**: {name}
+**Status**: Not Started | In Progress | Completed | Abandoned
+**Priority**: {P0-P3}
+**Estimated effort**: {hours/days}
+
+## Context
+{Why this work is needed. Link to product spec, issue tracker, or prior discussion.}
+
+## Success Criteria
+- [ ] {Criterion 1}
+- [ ] {Criterion 2}
+- [ ] {Criterion 3}
+
+## Phases
+
+### Phase 1: {Phase Name}
+**Status**: Not Started | In Progress | Complete
+- [ ] {Task 1.1}
+- [ ] {Task 1.2}
+- [ ] {Task 1.3}
+
+### Phase 2: {Phase Name}
+**Status**: Not Started
+- [ ] {Task 2.1}
+- [ ] {Task 2.2}
+
+### Phase 3: {Phase Name}
+**Status**: Not Started
+- [ ] {Task 3.1}
+- [ ] {Task 3.2}
+
+## Decision Log
+| Date | Decision | Rationale | Alternatives Considered |
+|------|----------|-----------|------------------------|
+| {date} | {what was decided} | {why} | {what else was considered} |
+
+## Tech Debt Incurred
+{List any shortcuts taken or suboptimal choices that should be addressed later.
+If none, delete this section or write "None."}
+
+## Completion Notes
+{Fill in when complete: what was delivered, what was deferred, lessons learned}

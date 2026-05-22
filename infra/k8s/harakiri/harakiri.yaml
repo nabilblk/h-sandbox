@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harakiri-api
+  namespace: harakiri
+type: Opaque
+stringData:
+  DATABASE_URL: postgres://harakiri:harakiri@harakiri-postgres.harakiri.svc.cluster.local:5432/harakiri
+  OPEN_SANDBOX_API_KEY: dev-opensandbox-key
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: harakiri-config
+  namespace: harakiri
+data:
+  API_PORT: "8080"
+  PUBLIC_API_URL: "http://harakiri-api.harakiri.svc.cluster.local:8080"
+  PUBLIC_KEYCLOAK_URL: "http://127.0.0.1:18084"
+  PUBLIC_KEYCLOAK_REALM: "harakiri"
+  PUBLIC_KEYCLOAK_CLIENT_ID: "harakiri-web"
+  PUBLIC_OPEN_SANDBOX_URL: "http://127.0.0.1:18083"
+  KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
+  KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
+  KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
+  OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
+  OPEN_SANDBOX_ALLOW_FALLBACK: "0"
+  AUTH_DEV_ALLOW: "0"
+  AUTO_MIGRATE: "1"
+  SEED_ON_BOOT: "0"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harakiri-api
+  namespace: harakiri
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harakiri-api
+  template:
+    metadata:
+      labels:
+        app: harakiri-api
+    spec:
+      containers:
+        - name: api
+          image: harakiri-api:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: harakiri-config
+            - secretRef:
+                name: harakiri-api
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harakiri-scheduler
+  namespace: harakiri
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harakiri-scheduler
+  template:
+    metadata:
+      labels:
+        app: harakiri-scheduler
+    spec:
+      containers:
+        - name: scheduler
+          image: harakiri-api:dev
+          imagePullPolicy: IfNotPresent
+          command: ["node", "apps/api/dist/scheduler.js"]
+          envFrom:
+            - configMapRef:
+                name: harakiri-config
+            - secretRef:
+                name: harakiri-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harakiri-web
+  namespace: harakiri
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harakiri-web
+  template:
+    metadata:
+      labels:
+        app: harakiri-web
+    spec:
+      containers:
+        - name: web
+          image: harakiri-web:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harakiri-api
+  namespace: harakiri
+spec:
+  selector:
+    app: harakiri-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harakiri-web
+  namespace: harakiri
+spec:
+  selector:
+    app: harakiri-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

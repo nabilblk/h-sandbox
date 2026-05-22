@@ -1,0 +1,19 @@
+# Lightweight Plan: {Title}
+
+**Created**: {date}
+**Scope**: {brief scope description}
+**Estimated**: {time estimate}
+
+## Goal
+{1-2 sentences describing what this work accomplishes and why}
+
+## Steps
+- [ ] {Step 1}
+- [ ] {Step 2}
+- [ ] {Step 3}
+
+## Notes
+{Any context, constraints, or decisions made along the way}
+
+## Outcome
+{Fill in when complete: what was delivered, any follow-up needed}

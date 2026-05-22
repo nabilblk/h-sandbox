@@ -1,0 +1,27 @@
+{
+  "name": "@harakiri/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "harakiri": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/chmod.mjs",
+    "dev": "tsx src/index.ts",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "pack:tgz": "pnpm build && pnpm pack --pack-destination ../../dist-packages",
+    "test": "node --test --import tsx src/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "commander": "^14.0.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}

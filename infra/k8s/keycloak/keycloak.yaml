@@ -1,0 +1,487 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-admin
+  namespace: keycloak
+type: Opaque
+stringData:
+  KEYCLOAK_ADMIN: admin
+  KEYCLOAK_ADMIN_PASSWORD: admin
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+  namespace: keycloak
+data:
+  harakiri-realm.json: |
+    {
+      "realm": "harakiri",
+      "enabled": true,
+      "displayName": "Harakiri Sandbox",
+      "loginTheme": "harakiri",
+      "clients": [
+        {
+          "clientId": "harakiri-web",
+          "enabled": true,
+          "publicClient": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"],
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true
+        }
+      ],
+      "users": [
+        {
+          "username": "lyra@k.ai",
+          "email": "lyra@k.ai",
+          "firstName": "Lyra",
+          "lastName": "Ito",
+          "enabled": true,
+          "credentials": [
+            { "type": "password", "value": "harakiri-dev", "temporary": false }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-theme-harakiri
+  namespace: keycloak
+data:
+  theme.properties: |
+    parent=base
+    styles=css/harakiri-login.css
+    locales=en
+  login.ftl: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Sign in - Harakiri Sandbox</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Fraunces:wght@500;600&amp;display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="${url.resourcesPath}/css/harakiri-login.css">
+    </head>
+    <body>
+      <main class="hk-shell">
+        <section class="hk-copy" aria-label="Harakiri Sandbox">
+          <div class="hk-brand">
+            <span class="hk-mark"></span>
+            <span><strong>harakiri</strong> <em>sandbox</em></span>
+          </div>
+          <div class="hk-eyebrow">
+            <span class="hk-pulse"></span>
+            OpenSandbox control plane
+          </div>
+          <h1>Disposable runtimes, sealed on demand.</h1>
+          <p>Sign in to create sandboxes, inspect runtime output, rotate API keys, and route exposed ports from one PostgreSQL-backed control plane.</p>
+          <div class="hk-terminal" aria-hidden="true">
+            <div class="hk-terminal-bar">
+              <span></span><span></span><span></span>
+              <b>sbx_jt29kf01x4 - login</b>
+              <i>running</i>
+            </div>
+            <div class="hk-terminal-body">
+              <code>$ harakiri create --template python-3.12-data</code>
+              <code class="muted">-&gt; provisioning microVM... 137ms</code>
+              <code class="muted">-&gt; sealed. id=sbx_jt29kf01x4</code>
+              <code>$ harakiri run --stdin agent.py</code>
+              <code class="ok">ok rmse=0.0418 - runtime=3.41s</code>
+            </div>
+          </div>
+        </section>
+        <section class="hk-panel">
+          <div class="hk-panel-head">
+            <div>
+              <span class="hk-caption">Keycloak SSO</span>
+              <h2>Sign in</h2>
+            </div>
+            <span class="hk-badge">realm: harakiri</span>
+          </div>
+          <#if message?has_content>
+            <div class="hk-alert hk-alert-${message.type}">
+              ${message.summary}
+            </div>
+          </#if>
+          <form id="kc-form-login" class="hk-form" action="${url.loginAction}" method="post">
+            <label for="username">Work email</label>
+            <input id="username" name="username" type="text" value="${(login.username!'')}" autocomplete="username" autofocus>
+
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="current-password">
+
+            <#if auth.selectedCredential??>
+              <input type="hidden" name="credentialId" value="${auth.selectedCredential}">
+            </#if>
+
+            <button id="kc-login" name="login" type="submit">Continue to dashboard</button>
+          </form>
+          <div class="hk-foot">
+            <span>Protected by Keycloak.</span>
+            <span>Tenant scoped API access.</span>
+          </div>
+        </section>
+      </main>
+    </body>
+    </html>
+  harakiri-login.css: |
+    :root {
+      color-scheme: light;
+      --bg: #fafaf7;
+      --surface: #ffffff;
+      --surface-2: #f4f3ee;
+      --ink: #0f0f0e;
+      --ink-2: #2a2a27;
+      --muted: #7a7a72;
+      --muted-2: #a8a89f;
+      --border: #ecebe5;
+      --border-strong: #d9d8d0;
+      --accent: #b8331f;
+      --accent-soft: oklch(0.95 0.04 25);
+      --accent-ink: #ffffff;
+      --ok: oklch(0.58 0.13 155);
+      --warn: oklch(0.72 0.15 75);
+      --err: oklch(0.55 0.2 25);
+      --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+      --r-sm: 4px;
+      --r-md: 6px;
+      --r-lg: 10px;
+      --shadow-1: 0 1px 0 rgba(15,15,14,0.04), 0 0 0 1px var(--border);
+      --shadow-2: 0 4px 24px -8px rgba(15,15,14,0.12), 0 0 0 1px var(--border);
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-feature-settings: "ss01", "cv11";
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .hk-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(390px, 0.72fr);
+      gap: 56px;
+      align-items: center;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 56px;
+    }
+    .hk-copy { min-width: 0; }
+    .hk-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 42px;
+      white-space: nowrap;
+    }
+    .hk-brand em {
+      color: var(--muted);
+      font-style: normal;
+      font-weight: 400;
+    }
+    .hk-brand strong {
+      letter-spacing: -0.03em;
+    }
+    .hk-mark {
+      width: 18px;
+      height: 18px;
+      background: var(--accent);
+      color: #fff7f0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font: 700 10.5px/1 var(--font-mono);
+      letter-spacing: -0.8px;
+    }
+    .hk-mark::before {
+      content: "h.";
+    }
+    .hk-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      height: 28px;
+      padding: 0 12px 0 9px;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--ink-2);
+      font-size: 12px;
+      width: fit-content;
+    }
+    .hk-pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--ok);
+      box-shadow: 0 0 0 3px oklch(0.58 0.13 155 / 0.18);
+    }
+    h1 {
+      margin: 22px 0 0;
+      max-width: 660px;
+      font-size: clamp(44px, 6vw, 64px);
+      line-height: 1.02;
+      letter-spacing: -0.035em;
+      font-weight: 600;
+      text-wrap: pretty;
+    }
+    p {
+      max-width: 560px;
+      margin: 22px 0 0;
+      color: var(--ink-2);
+      font-size: 17px;
+      line-height: 1.5;
+    }
+    .hk-terminal {
+      margin-top: 38px;
+      max-width: 620px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      overflow: hidden;
+      box-shadow: var(--shadow-2);
+    }
+    .hk-terminal-bar {
+      height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .hk-terminal-bar span {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .hk-terminal-bar span:nth-child(1) { background: #e8a097; }
+    .hk-terminal-bar span:nth-child(2) { background: #e6c97f; }
+    .hk-terminal-bar span:nth-child(3) { background: #a8c89b; }
+    .hk-terminal-bar b {
+      margin-left: 10px;
+      color: var(--muted);
+      font: 11.5px var(--font-mono);
+      font-weight: 500;
+    }
+    .hk-terminal-bar i {
+      margin-left: auto;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      height: 22px;
+      padding: 0 8px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--ink-2);
+      background: var(--surface);
+      font: 10.5px var(--font-mono);
+      font-style: normal;
+    }
+    .hk-terminal-body {
+      padding: 18px 18px 20px;
+      display: grid;
+      gap: 4px;
+      font: 12.5px/1.7 var(--font-mono);
+    }
+    .hk-terminal code { color: var(--ink); }
+    .hk-terminal .muted { color: var(--muted); }
+    .hk-terminal .ok { color: var(--ok); }
+    .hk-panel {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-2);
+      padding: 28px;
+    }
+    .hk-panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .hk-caption {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent);
+      font-size: 11.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    h2 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+    }
+    .hk-badge {
+      display: inline-flex;
+      height: 22px;
+      align-items: center;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      padding: 0 8px;
+      color: var(--muted);
+      background: var(--surface-2);
+      font: 10.5px var(--font-mono);
+      white-space: nowrap;
+    }
+    .hk-form {
+      display: grid;
+      gap: 10px;
+    }
+    label {
+      color: var(--ink-2);
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+    input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      color: var(--ink);
+      outline: 0;
+      padding: 0 12px;
+      font: 14px var(--font-sans);
+      transition: border-color .12s ease, box-shadow .12s ease;
+    }
+    input:focus {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px oklch(0.15 0.01 90 / 0.06);
+    }
+    button {
+      margin-top: 12px;
+      height: 42px;
+      border: 1px solid var(--ink);
+      border-radius: var(--r-md);
+      background: var(--ink);
+      color: #f7f7f3;
+      cursor: pointer;
+      font: 500 14px var(--font-sans);
+      transition: background .12s ease, border-color .12s ease, transform .06s ease;
+    }
+    button:hover { background: #1d1d1a; }
+    button:active { transform: translateY(0.5px); }
+    .hk-alert {
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: var(--surface-2);
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      color: var(--ink-2);
+      font-size: 12.5px;
+    }
+    .hk-alert-error { border-color: oklch(0.75 0.12 25); color: var(--err); background: oklch(0.97 0.03 25); }
+    .hk-foot {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+    }
+    @media (max-width: 860px) {
+      .hk-shell {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 28px;
+        padding: 24px;
+      }
+      .hk-brand { margin-bottom: 26px; }
+      h1 { font-size: 42px; }
+      p { font-size: 15px; }
+      .hk-panel { padding: 22px; }
+      .hk-foot { flex-direction: column; }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.4
+          args:
+            - start-dev
+            - --import-realm
+            - --hostname-strict=false
+            - --http-enabled=true
+            - --spi-theme-cache-themes=false
+            - --spi-theme-cache-templates=false
+          envFrom:
+            - secretRef:
+                name: keycloak-admin
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: realm
+              mountPath: /opt/keycloak/data/import
+            - name: harakiri-theme
+              mountPath: /opt/keycloak/themes/harakiri/login
+          readinessProbe:
+            httpGet:
+              path: /realms/harakiri
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+      volumes:
+        - name: realm
+          configMap:
+            name: keycloak-realm
+        - name: harakiri-theme
+          configMap:
+            name: keycloak-theme-harakiri
+            items:
+              - key: theme.properties
+                path: theme.properties
+              - key: login.ftl
+                path: login.ftl
+              - key: harakiri-login.css
+                path: resources/css/harakiri-login.css
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: keycloak
+spec:
+  selector:
+    app: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

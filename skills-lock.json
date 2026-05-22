@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "exec-plan": {
+      "source": "nabilblk/skills",
+      "sourceType": "github",
+      "skillPath": "skills/exec-plan/SKILL.md",
+      "computedHash": "75a97ba13f273135b7ff96f2c09196c2c338b097602713e579163006354d9bdd"
+    }
+  }
+}
