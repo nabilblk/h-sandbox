@@ -1,0 +1,33 @@
+opensandbox-controller:
+  controller:
+    logLevel: info
+    replicaCount: 1
+
+opensandbox-server:
+  server:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 512Mi
+    gateway:
+      enabled: true
+      host: harakiri.io
+      gatewayRouteMode: header
+      image:
+        repository: opensandbox-ingress
+        tag: local
+      replicaCount: 1
+      dataplaneNamespace: opensandbox
+      providerType: batchsandbox
+      logLevel: info
+      resources:
+        limits:
+          cpu: "500m"
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi

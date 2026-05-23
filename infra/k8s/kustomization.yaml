@@ -6,3 +6,5 @@ resources:
   - keycloak/keycloak.yaml
   - harakiri/harakiri.yaml
   - opensandbox/harakiri-exec-rbac.yaml
+  - opensandbox/sandbox-gateway-rbac.yaml
+  - opensandbox/sandbox-wildcard-ingress.yaml

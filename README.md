@@ -35,3 +35,20 @@ pnpm e2e
 
 See [docs/runbook.md](docs/runbook.md) for the full cluster workflow.
 See [docs/test-report.md](docs/test-report.md) for the latest self-test evidence and deployed URLs.
+
+## Expose A Sandbox Port
+
+```bash
+harakiri create --template python-3.12 --name web-preview
+harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"
+harakiri expose sbx_... --port 3000
+```
+
+The deployed k0s prototype uses OpenSandbox gateway host routing and returns URLs like `https://<route-key>.harakiri.io`.
+
+For local k0s HTTPS ingress verification:
+
+```bash
+pnpm route:tls-dev
+pnpm smoke:route-ingress
+```

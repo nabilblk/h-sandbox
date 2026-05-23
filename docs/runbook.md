@@ -22,6 +22,7 @@ Useful local URLs:
 - API: `http://127.0.0.1:18082`
 - Keycloak: `http://127.0.0.1:18084`
 - OpenSandbox proxy: `http://127.0.0.1:18083`
+- OpenSandbox gateway: `http://127.0.0.1:18085`
 
 ## k0s Bootstrap
 
@@ -52,9 +53,11 @@ The deploy script:
 - builds `harakiri-api:dev`
 - builds `harakiri-web:dev`
 - imports both images into the k0s containerd image store
+- installs `ingress-nginx` with a NodePort service
+- builds the official OpenSandbox ingress component locally as `opensandbox-ingress:local` for the k0s node architecture
 - applies PostgreSQL, Keycloak, API, scheduler, and web manifests
 - applies the Harakiri Keycloak login theme from the `keycloak-theme-harakiri` ConfigMap
-- attempts to install the official OpenSandbox all-in-one Helm chart
+- installs or upgrades the official OpenSandbox all-in-one Helm chart with gateway mode enabled
 
 If OpenSandbox cannot run in the local VM, the control-plane adapter remains usable with development fallback enabled. Disable fallback by setting `OPEN_SANDBOX_ALLOW_FALLBACK=0` in `infra/k8s/harakiri/harakiri.yaml`.
 
@@ -64,7 +67,7 @@ If OpenSandbox cannot run in the local VM, the control-plane adapter remains usa
 pnpm ports
 ```
 
-This uses kubeconfig `infra/k0s/harakiri.kubeconfig`, opens all four forwards, and stores logs/PIDs under `/tmp/harakiri-portforwards`.
+This uses kubeconfig `infra/k0s/harakiri.kubeconfig`, opens the API, web, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards, and stores logs/PIDs under `/tmp/harakiri-portforwards`.
 When `tmux` is available, the forwards run in a persistent `harakiri-port-forwards` tmux session.
 
 ```bash
@@ -79,12 +82,78 @@ bash infra/scripts/port-forward.sh attach
 ```bash
 pnpm smoke
 pnpm smoke:ttl
+pnpm smoke:route-preflight
 pnpm smoke:route
+pnpm smoke:route-ingress
 pnpm e2e
 pnpm screenshots
 ```
 
-The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox proxy. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
+The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
+
+## Sandbox Routes
+
+Route creation is explicit:
+
+```bash
+harakiri expose sbx_... --port 3000
+harakiri routes sbx_...
+```
+
+Or through the API:
+
+```bash
+curl http://127.0.0.1:18082/v1/sandboxes/sbx_.../routes \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"port":3000,"protocol":"http"}'
+```
+
+The k0s deployment configures:
+
+- `SANDBOX_ROUTE_MODE=opensandbox-gateway`
+- `SANDBOX_ROUTE_BASE_DOMAIN=harakiri.io`
+- `SANDBOX_ROUTE_PUBLIC_SCHEME=https`
+- wildcard Ingress `*.harakiri.io -> opensandbox-ingress-gateway`
+- route limits `SANDBOX_MAX_ROUTES_PER_SANDBOX=8` and `SANDBOX_MAX_ROUTES_PER_ORG=200`
+
+For public access, Cloudflare resolves `*.harakiri.io` to the Cloudflare Tunnel that reaches the k0s ingress. This route shape intentionally stays one label below `harakiri.io`, so the existing `*.harakiri.io` Cloudflare edge certificate covers generated sandbox hosts. Exact Cloudflare Tunnel host rules for `app.harakiri.io`, `auth.harakiri.io`, and other services must remain above the wildcard sandbox rule.
+
+TLS secret `harakiri-sandbox-wildcard-tls` must exist in `opensandbox-system`. For local k0s verification, the deploy script creates a short-lived self-signed wildcard secret by default:
+
+
+```bash
+pnpm route:tls-dev
+pnpm smoke:route-ingress
+```
+
+For a real origin certificate, install cert-manager and request a Let's Encrypt wildcard certificate through Cloudflare DNS-01:
+
+```bash
+export CLOUDFLARE_API_TOKEN=... # Zone:DNS:Edit and Zone:Zone:Read
+export LETSENCRYPT_EMAIL=nabilblk@gmail.com
+pnpm route:tls-letsencrypt
+kubectl -n opensandbox-system describe certificate harakiri-sandbox-wildcard-tls
+```
+
+To upsert the Cloudflare wildcard DNS record when credentials are available:
+
+```bash
+export CLOUDFLARE_API_TOKEN=...
+export CLOUDFLARE_ZONE_ID=...
+export HARAKIRI_SANDBOX_DNS_TARGET=<ingress-or-tunnel-hostname>
+pnpm route:cloudflare-dns
+pnpm smoke:route-preflight
+```
+
+Local route verification uses the gateway forward:
+
+```bash
+pnpm ports:restart
+pnpm smoke:route
+```
+
+`pnpm smoke:route` creates a sandbox, starts `python -m http.server 3000`, exposes port 3000, and curls `http://127.0.0.1:18085/` with the generated route host header.
 
 ## CLI
 
@@ -95,6 +164,7 @@ npm install -g ./dist-packages/harakiri-cli-0.1.0.tgz
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_demo_lyra_labs_0000000000000000000000000000000000
 harakiri create --template python-3.12-data
 harakiri run --stdin agent.py
+harakiri expose sbx_... --port 3000
 harakiri list
 ```
 

@@ -45,6 +45,16 @@ export type SandboxMetricsSnapshot = {
   series: Array<{ ts: string; cpu: number; mem: number }>;
 };
 
+export type SandboxRouteTarget = {
+  routeKey: string;
+  host: string;
+  url: string;
+  targetUrl: string;
+  provider: string;
+  providerRouteId: string | null;
+  state: "provisioning" | "ready" | "unhealthy";
+};
+
 class OpenSandboxHttpError extends Error {
   constructor(
     public readonly status: number,
@@ -77,6 +87,30 @@ const publicRouteTarget = (target: string | null) => {
   const withScheme = /^https?:\/\//.test(target) ? target : `http://${target}`;
   return withScheme.replace("http://opensandbox-server.opensandbox-system.svc.cluster.local", config.publicOpenSandboxUrl);
 };
+
+const dnsSafe = (value: string) => {
+  const safe = value
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 58);
+  return safe || "sandbox";
+};
+
+const routeKeyFor = (opensandboxId: string, port: number) => `${dnsSafe(opensandboxId)}-${port}`;
+
+const routeUrl = (hostOrUrl: string, scheme = config.sandboxRoutePublicScheme) => (/^https?:\/\//.test(hostOrUrl) ? hostOrUrl : `${scheme}://${hostOrUrl}`);
+
+const routeHost = (hostOrUrl: string) => {
+  try {
+    return new URL(routeUrl(hostOrUrl)).host;
+  } catch {
+    return hostOrUrl.replace(/^https?:\/\//, "").split("/")[0] ?? hostOrUrl;
+  }
+};
+
+const serverProxyUrl = (opensandboxId: string, port: number) =>
+  `${config.sandboxRouteLocalFallbackUrl.replace(/\/+$/, "")}/v1/sandboxes/${opensandboxId}/proxy/${port}/`;
 
 const labelSafeValue = (value: string) => {
   const cleaned = value
@@ -367,6 +401,7 @@ export const openSandbox = {
     try {
       return await callOpenSandbox<ProviderSandbox>(`/v1/sandboxes/${opensandboxId}`);
     } catch (error) {
+      if (error instanceof OpenSandboxHttpError && error.status === 404) return null;
       if (!config.openSandboxAllowFallback) throw error;
       return null;
     }
@@ -392,15 +427,98 @@ export const openSandbox = {
   },
 
   async getRoute(opensandboxId: string, port: number) {
+    return (await this.ensureRoute(opensandboxId, port)).targetUrl;
+  },
+
+  async ensureRoute(opensandboxId: string, port: number): Promise<SandboxRouteTarget> {
+    const routeKey = routeKeyFor(opensandboxId, port);
+    const gatewayHost = `${routeKey}.${config.sandboxRouteBaseDomain}`;
+    const gatewayUrl = routeUrl(gatewayHost);
+
     if (opensandboxId.startsWith("osbx_")) {
-      return `http://${opensandboxId}.sandbox.localhost:${port}`;
+      const targetUrl = `http://${routeKey}.sandbox.localhost:${port}`;
+      return {
+        routeKey,
+        host: routeHost(targetUrl),
+        url: targetUrl,
+        targetUrl,
+        provider: "fallback-local",
+        providerRouteId: null,
+        state: "ready"
+      };
     }
+
+    if (["opensandbox-ingress", "opensandbox-gateway", "gateway"].includes(config.sandboxRouteMode)) {
+      try {
+        await callOpenSandbox<{ url?: string; endpoint?: string; headers?: Record<string, string> | null }>(`/v1/sandboxes/${opensandboxId}/endpoints/${port}`);
+        return {
+          routeKey,
+          host: gatewayHost,
+          url: gatewayUrl,
+          targetUrl: gatewayUrl,
+          provider: "opensandbox-gateway",
+          providerRouteId: routeKey,
+          state: "ready"
+        };
+      } catch (error) {
+        if (!config.openSandboxAllowFallback) {
+          return {
+            routeKey,
+            host: gatewayHost,
+            url: gatewayUrl,
+            targetUrl: gatewayUrl,
+            provider: "opensandbox-gateway",
+            providerRouteId: routeKey,
+            state: "provisioning"
+          };
+        }
+      }
+      return {
+        routeKey,
+        host: gatewayHost,
+        url: gatewayUrl,
+        targetUrl: gatewayUrl,
+        provider: "opensandbox-gateway",
+        providerRouteId: routeKey,
+        state: "provisioning"
+      };
+    }
+
     try {
       const result = await callOpenSandbox<{ url?: string; endpoint?: string }>(`/v1/sandboxes/${opensandboxId}/endpoints/${port}?use_server_proxy=true`);
-      return publicRouteTarget(result.url ?? result.endpoint ?? null);
+      const targetUrl = publicRouteTarget(result.url ?? result.endpoint ?? null) ?? serverProxyUrl(opensandboxId, port);
+      return {
+        routeKey,
+        host: routeHost(targetUrl),
+        url: targetUrl,
+        targetUrl,
+        provider: "opensandbox-server-proxy",
+        providerRouteId: routeKey,
+        state: "ready"
+      };
     } catch (error) {
-      if (!config.openSandboxAllowFallback) throw error;
-      return null;
+      if (!config.openSandboxAllowFallback) {
+        const targetUrl = serverProxyUrl(opensandboxId, port);
+        return {
+          routeKey,
+          host: routeHost(targetUrl),
+          url: targetUrl,
+          targetUrl,
+          provider: "opensandbox-server-proxy",
+          providerRouteId: routeKey,
+          state: "provisioning"
+        };
+      }
+      const targetUrl = serverProxyUrl(opensandboxId, port);
+      return {
+        routeKey,
+        host: routeHost(targetUrl),
+        url: targetUrl,
+        targetUrl,
+        provider: "opensandbox-server-proxy",
+        providerRouteId: routeKey,
+        state: "provisioning"
+      };
     }
   },
 

@@ -1,4 +1,4 @@
-import type { ApiKeySummary, RunResult, SandboxSummary, Template, UsageSummary } from "@harakiri/shared";
+import type { ApiKeySummary, RunResult, SandboxRouteSummary, SandboxSummary, Template, UsageSummary } from "@harakiri/shared";
 
 export type HarakiriClientOptions = {
   apiUrl: string;
@@ -15,6 +15,11 @@ export type CreateSandboxInput = {
 export type RunSandboxInput = {
   command?: string;
   stdin?: string;
+};
+
+export type ExposePortInput = {
+  port: number;
+  protocol?: "http" | "https";
 };
 
 export class HarakiriApiError extends Error {
@@ -85,6 +90,22 @@ export class HarakiriClient {
 
   killSandbox(id: string) {
     return this.request<{ ok: boolean }>(`/v1/sandboxes/${id}`, { method: "DELETE" });
+  }
+
+  listRoutes(id: string) {
+    return this.request<{ routes: SandboxRouteSummary[] }>(`/v1/sandboxes/${id}/routes`);
+  }
+
+  exposePort(id: string, input: ExposePortInput) {
+    return this.request<{ route: SandboxRouteSummary }>(`/v1/sandboxes/${id}/routes`, {
+      method: "POST",
+      body: JSON.stringify({ port: input.port, protocol: input.protocol ?? "http" })
+    });
+  }
+
+  async getHost(id: string, port: number) {
+    const result = await this.exposePort(id, { port });
+    return result.route.url;
   }
 
   listApiKeys() {

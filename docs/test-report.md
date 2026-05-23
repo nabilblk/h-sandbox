@@ -1,6 +1,6 @@
 # Test Report
 
-Date: 2026-05-22
+Date: 2026-05-23
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -10,20 +10,31 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - API: `http://127.0.0.1:18082`
 - Keycloak: `http://127.0.0.1:18084`
 - OpenSandbox proxy: `http://127.0.0.1:18083`
+- OpenSandbox gateway: `http://127.0.0.1:18085`
 
 ## Commands Verified
 
-- `pnpm deploy:k0s` passed.
+- `pnpm deploy:k0s` passed after building the official OpenSandbox ingress component locally as `opensandbox-ingress:local` for the k0s node architecture.
 - `pnpm typecheck` passed across the workspace.
 - `pnpm test` passed all package tests.
 - `pnpm build` passed for shared, API, web, CLI, and SDK packages.
-- `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, and OpenSandbox forwards.
+- `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards.
 - `pnpm smoke` passed sandbox create, real command execution, and kill through OpenSandbox with adapter fallback disabled.
 - `pnpm smoke:ttl` passed scheduler termination of a 10-second Harakiri TTL sandbox while using a provider-safe OpenSandbox lease.
-- `pnpm smoke:route` passed exposed-port routing through the OpenSandbox proxy.
-- `HARAKIRI_CLI_BIN=harakiri pnpm e2e` passed Keycloak browser login, dashboard API key creation, and real sandbox workflows via Web, API, CLI, and SDK.
+- `pnpm smoke:route` passed exposed-port routing through the OpenSandbox gateway host route.
+- `pnpm route:tls-dev` created `opensandbox-system/harakiri-sandbox-wildcard-tls` as a k0s-local wildcard TLS secret.
+- `pnpm smoke:route-ingress` passed HTTPS termination through `ingress-nginx` and forwarding to OpenSandbox gateway.
+- `pnpm cert-manager:install` installed cert-manager v1.20.2 and rolled out `cert-manager`, `cert-manager-cainjector`, and `cert-manager-webhook`.
+- `pnpm smoke:route-preflight` passed for `preflight-3000.harakiri.io`, proving Cloudflare DNS/TLS reaches k0s/OpenSandbox.
+- `pnpm smoke:route-public` passed with a real generated route such as `https://0e3a7657-b7a2-426c-9806-ba477796ae30-3000.harakiri.io`.
+- `pnpm e2e` passed Keycloak browser login, dashboard API key creation, and real sandbox workflows via Web, API, CLI, and SDK.
+- CLI route exposure passed with `harakiri expose <sandbox-id> --port 3000` and `harakiri routes <sandbox-id>`.
+- Dashboard Network tab route creation passed in Playwright; screenshot: `/tmp/harakiri-network-tab.png`.
+- API route lifecycle passed: repeated `POST /routes` was idempotent and sandbox kill changed the persisted route state to `terminated`.
+- Route limit smoke passed: the ninth active route on one sandbox returned `429 sandbox_route_limit_exceeded` with limit `8`.
+- Protocol route smoke passed through OpenSandbox gateway for HTTP, SSE, and WebSocket.
 - Global CLI install from the local package was verified with `harakiri --version`.
-- Post-test database audit: `active_api_keys=0`, `fallback_sandboxes=0`, `running_sandboxes=0`.
+- Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
 
@@ -33,6 +44,8 @@ The installed `harakiri` CLI was tested against the deployed API with a real das
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
 harakiri create --template python-3.12 --name cli-real-... --ttl 90
 harakiri run sbx_... --cmd "python -c \"print('cli-ok')\""
+harakiri expose sbx_... --port 3000
+harakiri routes sbx_...
 harakiri kill sbx_...
 ```
 
@@ -61,9 +74,17 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - `docs/artifacts/12-dashboard-mobile.png`
 - `docs/artifacts/playwright-report/index.html`
 
+## Route Evidence
+
+- OpenSandbox Helm config is `[ingress] mode = "gateway"` with `gateway.address = "harakiri.io"` and header routing.
+- `ingress-nginx` is installed, and `opensandbox-sandbox-routes` maps `*.harakiri.io` to `opensandbox-ingress-gateway`.
+- k0s contains TLS secret `opensandbox-system/harakiri-sandbox-wildcard-tls` for local HTTPS ingress verification.
+- cert-manager v1.20.2 is installed; `pnpm route:tls-letsencrypt` can request the wildcard origin certificate once `CLOUDFLARE_API_TOKEN` is available.
+- Cloudflare DNS for concrete `*.harakiri.io` names resolves to Cloudflare anycast, TLS is covered by the existing `*.harakiri.io` edge certificate, and the tunnel reaches k0s ingress.
+
 ## Known Prototype Limits
 
-- Routing uses the OpenSandbox server port-forward, not wildcard DNS or an ingress controller.
+- Public sandbox routes are intentionally placed directly under `*.harakiri.io` to use the existing Cloudflare wildcard edge certificate. Exact host rules in Cloudflare Tunnel still take precedence for app/auth/service subdomains.
 - Keycloak runs with `start-dev`, a development login fixture user, and the Harakiri login theme mounted from `keycloak-theme-harakiri`.
 - PostgreSQL uses local-path storage.
-- Filesystem and metrics panels are prototype control-plane views; command execution and HTTP route proxying are live.
+- Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.

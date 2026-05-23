@@ -1,4 +1,4 @@
-import type { ApiKeySummary, SandboxSummary, UsageSummary } from "@harakiri/shared";
+import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, UsageSummary } from "@harakiri/shared";
 import { auth } from "./auth";
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? import.meta.env.VITE_PUBLIC_API_URL ?? "http://127.0.0.1:18082";
@@ -43,7 +43,9 @@ export const api = {
     request<{ current: { cpu: number; mem: number; diskIo: number; networkOut: number; cpuCount?: number; memTotal?: number }; series: Array<{ ts: string; cpu: number; mem: number }> }>(
       `/v1/sandboxes/${id}/metrics`
     ),
-  routes: (id: string) => request<{ routes: Array<{ port: number; protocol: string; host: string; targetUrl: string }> }>(`/v1/sandboxes/${id}/routes`),
+  routes: (id: string) => request<{ routes: SandboxRouteSummary[] }>(`/v1/sandboxes/${id}/routes`),
+  exposeRoute: (id: string, body: { port: number; protocol?: "http" | "https" }) =>
+    request<{ route: SandboxRouteSummary }>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),
   templates: () => request<{ templates: Array<{ id: string; name: string; description: string; icon: string; tags: string[]; bootMs: number; visibility: string }> }>("/v1/templates"),
   keys: () => request<{ keys: ApiKeySummary[] }>("/v1/api-keys"),
   createKey: (name: string) => request<{ key: ApiKeySummary; token: string }>("/v1/api-keys", { method: "POST", body: JSON.stringify({ name }) }),

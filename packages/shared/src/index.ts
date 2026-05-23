@@ -29,6 +29,23 @@ export type SandboxSummary = {
   createdAt: string;
 };
 
+export type SandboxRouteState = "provisioning" | "ready" | "unhealthy" | "terminated";
+
+export type SandboxRouteSummary = {
+  port: number;
+  protocol: "http" | "https";
+  routeKey: string;
+  host: string;
+  url: string;
+  targetUrl: string;
+  state: SandboxRouteState;
+  provider: string;
+  providerRouteId: string | null;
+  createdAt: string;
+  lastCheckedAt: string | null;
+  terminatedAt: string | null;
+};
+
 export type ApiKeySummary = {
   id: string;
   name: string;

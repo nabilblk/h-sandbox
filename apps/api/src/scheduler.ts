@@ -18,7 +18,16 @@ const reconcile = async () => {
   );
   for (const row of rows.rows) {
     const provider = await openSandbox.get(row.opensandbox_id);
-    if (!provider) continue;
+    if (!provider) {
+      await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [row.id]);
+      await query(
+        `UPDATE sandbox_routes
+         SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
+         WHERE sandbox_id = $1 AND state <> 'terminated'`,
+        [row.id]
+      );
+      continue;
+    }
     const status = normalizeState(provider.status?.state);
     await query(
       `UPDATE sandboxes
@@ -26,6 +35,14 @@ const reconcile = async () => {
        WHERE id = $1 AND status IS DISTINCT FROM $2`,
       [row.id, status, provider.expiresAt ?? null]
     );
+    if (status === "terminated") {
+      await query(
+        `UPDATE sandbox_routes
+         SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
+         WHERE sandbox_id = $1 AND state <> 'terminated'`,
+        [row.id]
+      );
+    }
   }
 };
 
@@ -49,6 +66,12 @@ const tick = async () => {
   for (const item of due.rows) {
     if (item.opensandbox_id) await openSandbox.delete(item.opensandbox_id);
     await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [item.sandbox_id]);
+    await query(
+      `UPDATE sandbox_routes
+       SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
+       WHERE sandbox_id = $1`,
+      [item.sandbox_id]
+    );
     await query("UPDATE sandbox_schedules SET completed_at = now() WHERE id = $1", [item.schedule_id]);
     await query(
       `INSERT INTO sandbox_events (sandbox_id, organization_id, type, message)

@@ -18,6 +18,11 @@ const runSchema = z.object({
   stdin: z.string().optional()
 });
 
+const routeSchema = z.object({
+  port: z.coerce.number().int().min(1).max(65535),
+  protocol: z.enum(["http", "https"]).default("http")
+});
+
 const apiKeySchema = z.object({
   name: z.string().min(1).default("cli")
 });
@@ -37,6 +42,17 @@ const sandboxSelect = `
          s.owner_label AS owner, s.cost_usd::float AS cost, s.ttl_seconds AS "ttlSeconds",
          s.expires_at AS "expiresAt", s.public_url AS "publicUrl", s.created_at AS "createdAt"
   FROM sandboxes s
+`;
+
+const routeSelect = `
+  SELECT port, protocol, route_key AS "routeKey", host,
+         COALESCE(url, target_url) AS url,
+         target_url AS "targetUrl",
+         state, provider, provider_route_id AS "providerRouteId",
+         created_at AS "createdAt",
+         last_checked_at AS "lastCheckedAt",
+         terminated_at AS "terminatedAt"
+  FROM sandbox_routes
 `;
 
 const audit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) => {
@@ -170,6 +186,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
     if (!result.rowCount) return reply.code(404).send({ error: "sandbox_not_found" });
     if (result.rows[0].opensandbox_id) await openSandbox.delete(result.rows[0].opensandbox_id);
     await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [id]);
+    await query("UPDATE sandbox_routes SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now() WHERE sandbox_id = $1", [id]);
     await event(request.auth.organizationId, id, "terminated", "sandbox terminated - disk zeroed");
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "sandbox.kill", "sandbox", id);
     return { ok: true };
@@ -261,17 +278,109 @@ export const registerRoutes = async (app: FastifyInstance) => {
       [id, request.auth.organizationId]
     );
     if (!sandbox.rowCount) return reply.code(404).send({ error: "sandbox_not_found" });
-    const existing = await query('SELECT port, protocol, host, target_url AS "targetUrl" FROM sandbox_routes WHERE sandbox_id = $1', [id]);
-    if (existing.rowCount) return { routes: existing.rows };
-    const target = sandbox.rows[0].opensandbox_id ? await openSandbox.getRoute(sandbox.rows[0].opensandbox_id, 8080) : null;
-    const host = `${id}.sandbox.harakiri.local`;
-    await query(
-      `INSERT INTO sandbox_routes (sandbox_id, organization_id, port, protocol, host, target_url)
-       VALUES ($1, $2, 8080, 'http', $3, $4)
-       ON CONFLICT (sandbox_id, port) DO NOTHING`,
-      [id, request.auth.organizationId, host, target ?? `http://${host}:8080`]
+    const existing = await query(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 ORDER BY port ASC`, [id, request.auth.organizationId]);
+    return { routes: existing.rows };
+  });
+
+  app.post("/v1/sandboxes/:id/routes", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = routeSchema.parse(request.body ?? {});
+    const sandbox = await query<{ id: string; opensandbox_id: string | null; status: string }>(
+      "SELECT id, opensandbox_id, status FROM sandboxes WHERE id = $1 AND organization_id = $2",
+      [id, request.auth.organizationId]
     );
-    return { routes: [{ port: 8080, protocol: "http", host, targetUrl: target ?? `http://${host}:8080` }] };
+    if (!sandbox.rowCount) return reply.code(404).send({ error: "sandbox_not_found" });
+    if (sandbox.rows[0].status === "terminated") return reply.code(409).send({ error: "sandbox_terminated" });
+
+    const existing = await query(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`, [
+      id,
+      request.auth.organizationId,
+      body.port
+    ]);
+    if (existing.rowCount) return { route: existing.rows[0] };
+
+    const [sandboxRouteCount, orgRouteCount] = await Promise.all([
+      query<{ count: string }>("SELECT count(*) FROM sandbox_routes WHERE sandbox_id = $1 AND state <> 'terminated'", [id]),
+      query<{ count: string }>("SELECT count(*) FROM sandbox_routes WHERE organization_id = $1 AND state <> 'terminated'", [request.auth.organizationId])
+    ]);
+    if (Number(sandboxRouteCount.rows[0]?.count ?? 0) >= config.sandboxMaxRoutesPerSandbox) {
+      return reply.code(429).send({ error: "sandbox_route_limit_exceeded", limit: config.sandboxMaxRoutesPerSandbox });
+    }
+    if (Number(orgRouteCount.rows[0]?.count ?? 0) >= config.sandboxMaxRoutesPerOrg) {
+      return reply.code(429).send({ error: "organization_route_limit_exceeded", limit: config.sandboxMaxRoutesPerOrg });
+    }
+
+    const providerRoute = sandbox.rows[0].opensandbox_id
+      ? await openSandbox.ensureRoute(sandbox.rows[0].opensandbox_id, body.port)
+      : {
+          routeKey: `${id.replace(/[^A-Za-z0-9-]+/g, "-")}-${body.port}`,
+          host: `${id.replace(/[^A-Za-z0-9-]+/g, "-")}-${body.port}.sandbox.localhost`,
+          url: `http://${id.replace(/[^A-Za-z0-9-]+/g, "-")}-${body.port}.sandbox.localhost:${body.port}`,
+          targetUrl: `http://${id.replace(/[^A-Za-z0-9-]+/g, "-")}-${body.port}.sandbox.localhost:${body.port}`,
+          provider: "fallback-local",
+          providerRouteId: null,
+          state: "ready" as const
+        };
+
+    await query(
+      `INSERT INTO sandbox_routes
+       (sandbox_id, organization_id, port, protocol, route_key, host, url, target_url, state, provider, provider_route_id, last_checked_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
+       ON CONFLICT (sandbox_id, port) DO NOTHING`,
+      [
+        id,
+        request.auth.organizationId,
+        body.port,
+        body.protocol,
+        providerRoute.routeKey,
+        providerRoute.host,
+        providerRoute.url,
+        providerRoute.targetUrl,
+        providerRoute.state,
+        providerRoute.provider,
+        providerRoute.providerRouteId
+      ]
+    );
+    await event(request.auth.organizationId, id, "route.created", `exposed ${body.protocol} port ${body.port}`, {
+      port: body.port,
+      routeKey: providerRoute.routeKey,
+      provider: providerRoute.provider
+    });
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "sandbox.route.create", "sandbox", id, {
+      port: body.port,
+      routeKey: providerRoute.routeKey
+    });
+    const created = await query(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`, [
+      id,
+      request.auth.organizationId,
+      body.port
+    ]);
+    return reply.code(201).send({ route: created.rows[0] });
+  });
+
+  app.delete("/v1/sandboxes/:id/routes/:port", async (request, reply) => {
+    const { id, port } = request.params as { id: string; port: string };
+    const parsed = routeSchema.pick({ port: true }).parse({ port });
+    const result = await query(
+      `${routeSelect}
+       WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`,
+      [id, request.auth.organizationId, parsed.port]
+    );
+    if (!result.rowCount) return reply.code(404).send({ error: "route_not_found" });
+    await query(
+      `UPDATE sandbox_routes
+       SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
+       WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`,
+      [id, request.auth.organizationId, parsed.port]
+    );
+    await event(request.auth.organizationId, id, "route.terminated", `route for port ${parsed.port} disabled`, { port: parsed.port });
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "sandbox.route.delete", "sandbox", id, { port: parsed.port });
+    const updated = await query(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`, [
+      id,
+      request.auth.organizationId,
+      parsed.port
+    ]);
+    return { route: updated.rows[0] };
   });
 
   app.get("/v1/api-keys", async (request) => {

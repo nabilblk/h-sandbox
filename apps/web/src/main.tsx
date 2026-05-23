@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { TEMPLATES, type SandboxSummary } from "@harakiri/shared";
+import { TEMPLATES, type SandboxRouteSummary, type SandboxSummary } from "@harakiri/shared";
 import { api } from "./api";
 import { auth, type UserProfile } from "./auth";
 import "./styles.css";
@@ -313,7 +313,7 @@ const Detail = ({ id, go }: { id: string; go: (route: Route) => void }) => {
   const [tab, setTab] = useState("terminal");
   useEffect(() => { api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, [id]);
   if (!sandbox) return <div className="dash-page">Loading...</div>;
-  return <div className="detail"><aside className="dash-side" style={{ padding: "16px 0" }}><div className="dash-side-brand" style={{ padding: "6px 20px 16px" }}><Brand /></div><div style={{ padding: "0 12px 12px" }}><button className="btn btn-sm" style={{ width: "100%" }} onClick={() => go("dashboard/sandboxes")}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> All sandboxes</button></div></aside><main className="detail-main"><div className="detail-top"><div style={{ display: "flex", alignItems: "baseline", gap: 10, flex: 1 }}><span className="detail-name">{sandbox.name}</span><span className="detail-id">{sandbox.id}</span><span className={`pill ${sandbox.status === "running" ? "live" : ""}`}><span className="dot" /> {sandbox.status}</span><span className="tag">{sandbox.template}</span></div><button className="btn btn-sm" style={{ color: "var(--err)" }} onClick={() => api.killSandbox(sandbox.id).then(() => api.sandbox(id).then((r) => setSandbox(r.sandbox)))}><Icon name="stop" size={11} /> Kill</button></div><div className="detail-tabs">{[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"]].map(([k, label, icon]) => <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}><Icon name={icon} size={12} /> {label}</button>)}</div><div className="detail-body">{tab === "terminal" ? <TerminalPane sandbox={sandbox} /> : null}{tab === "files" ? <FilesPane id={sandbox.id} /> : null}{tab === "logs" ? <LogsPane id={sandbox.id} /> : null}{tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}{tab === "network" ? <NetworkPane id={sandbox.id} /> : null}</div></main></div>;
+  return <div className="detail"><aside className="dash-side" style={{ padding: "16px 0" }}><div className="dash-side-brand" style={{ padding: "6px 20px 16px" }}><Brand /></div><div style={{ padding: "0 12px 12px" }}><button className="btn btn-sm" style={{ width: "100%" }} onClick={() => go("dashboard/sandboxes")}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> All sandboxes</button></div></aside><main className="detail-main"><div className="detail-top"><div style={{ display: "flex", alignItems: "baseline", gap: 10, flex: 1 }}><span className="detail-name">{sandbox.name}</span><span className="detail-id">{sandbox.id}</span><span className={`pill ${sandbox.status === "running" ? "live" : ""}`}><span className="dot" /> {sandbox.status}</span><span className="tag">{sandbox.template}</span></div><button className="btn btn-sm" style={{ color: "var(--err)" }} onClick={() => api.killSandbox(sandbox.id).then(() => api.sandbox(id).then((r) => setSandbox(r.sandbox)))}><Icon name="stop" size={11} /> Kill</button></div><div className="detail-tabs">{[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"]].map(([k, label, icon]) => <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}><Icon name={icon} size={12} /> {label}</button>)}</div><div className="detail-body">{tab === "terminal" ? <TerminalPane sandbox={sandbox} /> : null}{tab === "files" ? <FilesPane id={sandbox.id} /> : null}{tab === "logs" ? <LogsPane id={sandbox.id} /> : null}{tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}{tab === "network" ? <NetworkPane sandbox={sandbox} /> : null}</div></main></div>;
 };
 
 type TerminalLine = { kind: "cmd" | "stdout" | "stderr" | "muted" | "ok"; text: string };
@@ -378,7 +378,58 @@ const LogsPane = ({ id }: { id: string }) => {
 };
 
 const MetricsPane = ({ id }: { id: string }) => { const [metrics, setMetrics] = useState<any>(null); useEffect(() => { api.metrics(id).then(setMetrics); }, [id]); return <div style={{ padding: 24, overflow: "auto", height: "100%" }}><div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}><KPI label="CPU" v={`${metrics?.current.cpu ?? 0}%`} delta={`${metrics?.current.cpuCount ?? 1} vCPU visible`} /><KPI label="Memory" v={`${metrics?.current.mem ?? 0} MB`} delta={metrics?.current.memTotal ? `of ${metrics.current.memTotal} MB node memory` : "live snapshot"} /><KPI label="Disk I/O" v={`${metrics?.current.diskIo ?? 0} KB/s`} delta="not exposed by execd" /><KPI label="Network out" v={`${metrics?.current.networkOut ?? 0} KB/s`} delta="not exposed by execd" /></div><div className="card" style={{ padding: 22 }}><div className="card-h">CPU snapshot</div><Chart data={(metrics?.series ?? []).map((m: any) => m.cpu)} /></div></div>; };
-const NetworkPane = ({ id }: { id: string }) => { const [routes, setRoutes] = useState<any[]>([]); useEffect(() => { api.routes(id).then((r) => setRoutes(r.routes)); }, [id]); return <div style={{ padding: 24, overflow: "auto", height: "100%" }}><div className="card" style={{ padding: 22 }}><div className="card-h">Public URLs</div>{routes.map((r) => <div key={r.port} style={{ marginTop: 12 }}><span className="tag">{r.protocol}</span> <code>{r.host}:{r.port}</code><div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>target {r.targetUrl}</div></div>)}</div></div>; };
+const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
+  const [routes, setRoutes] = useState<SandboxRouteSummary[]>([]);
+  const [port, setPort] = useState(3000);
+  const [protocol, setProtocol] = useState<"http" | "https">("http");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = () => api.routes(sandbox.id).then((r) => setRoutes(r.routes));
+  useEffect(() => { void load(); }, [sandbox.id]);
+  const expose = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api.exposeRoute(sandbox.id, { port, protocol });
+      setRoutes((current) => [...current.filter((route) => route.port !== result.route.port), result.route].sort((a, b) => a.port - b.port));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to expose route");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copy = async (value: string) => { await navigator.clipboard?.writeText(value); };
+  return (
+    <div className="network-pane">
+      <div className="network-toolbar card">
+        <div>
+          <div className="card-h">Expose port</div>
+          <div className="network-sub">Public while the sandbox is alive.</div>
+        </div>
+        <select className="input network-protocol" value={protocol} onChange={(e) => setProtocol(e.target.value as "http" | "https")}>
+          <option value="http">HTTP</option>
+          <option value="https">HTTPS</option>
+        </select>
+        <input className="input mono network-port" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
+        <button className="btn btn-primary btn-sm" onClick={expose} disabled={busy || sandbox.status === "terminated"}><Icon name="globe" size={12} /> {busy ? "Exposing..." : "Expose"}</button>
+      </div>
+      {error ? <div className="network-error">{error}</div> : null}
+      <div className="network-table card">
+        <div className="network-row network-head"><span>Port</span><span>URL</span><span>State</span><span>Provider</span><span /></div>
+        {routes.map((route) => (
+          <div key={`${route.port}-${route.host}`} className="network-row">
+            <span className="num">{route.port}/{route.protocol}</span>
+            <span className="network-url"><a href={route.url} target="_blank" rel="noreferrer">{route.url}</a><small>{route.targetUrl !== route.url ? `target ${route.targetUrl}` : route.host}</small></span>
+            <span><span className={`pill ${route.state === "ready" ? "live" : route.state === "terminated" ? "" : "idle"}`}><span className="dot" /> {route.state}</span></span>
+            <span className="tag">{route.provider}</span>
+            <span className="network-actions"><button className="btn btn-ghost btn-sm" onClick={() => copy(route.url)}><Icon name="copy" size={12} /></button><button className="btn btn-ghost btn-sm" onClick={() => window.open(route.url, "_blank", "noopener,noreferrer")}>Open <Icon name="arrowR" size={11} /></button></span>
+          </div>
+        ))}
+        {routes.length ? null : <div className="empty-state">No exposed ports yet.</div>}
+      </div>
+    </div>
+  );
+};
 
 const Onboarding = ({ go, profile }: { go: (route: Route) => void; profile?: UserProfile | null }) => {
   const [step, setStep] = useState(0);

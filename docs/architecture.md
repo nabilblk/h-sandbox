@@ -49,6 +49,20 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 
 ## OpenSandbox Adapter
 
-`apps/api/src/opensandbox.ts` isolates provider calls. It uses the OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew and Kubernetes `pods/exec` for command execution inside the sandbox container. Exposed-port route targets come from OpenSandbox endpoint lookup and are rewritten to the documented local proxy port, `http://127.0.0.1:18083`, for the k0s prototype.
+`apps/api/src/opensandbox.ts` isolates provider calls. It uses the OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew and Kubernetes `pods/exec` for command execution inside the sandbox container.
+
+## Sandbox Routes
+
+Routes are stored in `sandbox_routes` with provider metadata: `route_key`, `host`, `url`, `state`, `provider`, and `provider_route_id`. A route is created explicitly by `POST /v1/sandboxes/:id/routes` and is idempotent for `(sandbox_id, port)`.
+
+The deployed k0s path uses the official OpenSandbox ingress gateway in header/host mode:
+
+1. Harakiri derives a DNS-safe route key from the OpenSandbox provider ID and port.
+2. Harakiri returns `https://<route-key>.harakiri.io`.
+3. `ingress-nginx` forwards wildcard `*.harakiri.io` traffic to `opensandbox-ingress-gateway`.
+4. OpenSandbox resolves the host header to the sandbox pod and port.
+5. When the sandbox is killed or expires, Harakiri marks its routes `terminated` and OpenSandbox removes the backend.
+
+The route smoke suite verifies both the local gateway path and the public Cloudflare Tunnel path. Exact Cloudflare Tunnel host rules for product services take precedence, while the wildcard rule catches generated sandbox route hosts.
 
 Filesystem and metrics panels are prototype control-plane views where the deployed OpenSandbox runtime does not expose a richer portable API yet. Command execution, lifecycle operations, TTL cleanup, and HTTP route proxying are exercised against the live k0s/OpenSandbox deployment.

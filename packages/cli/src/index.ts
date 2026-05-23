@@ -12,6 +12,16 @@ type Config = {
   lastSandboxId?: string;
 };
 
+type RouteResult = {
+  port: number;
+  protocol: string;
+  host: string;
+  url: string;
+  targetUrl: string;
+  state: string;
+  provider: string;
+};
+
 const configPath = join(homedir(), ".config", "harakiri", "config.json");
 const defaultApiUrl = process.env.HARAKIRI_API_URL ?? "http://127.0.0.1:8080";
 const defaultKey = process.env.HARAKIRI_API_KEY;
@@ -107,6 +117,35 @@ program
   .action(async (id) => {
     const result = await api<{ sandbox: { id: string; status: string; template: string; publicUrl: string | null } }>(`/v1/sandboxes/${id}`);
     console.log(`${result.sandbox.id} ${result.sandbox.status} ${result.sandbox.template} ${result.sandbox.publicUrl ?? ""}`.trim());
+  });
+
+program
+  .command("expose")
+  .argument("<id>", "sandbox id")
+  .description("Expose a sandbox HTTP port")
+  .requiredOption("--port <port>", "port inside the sandbox")
+  .option("--protocol <protocol>", "route protocol", "http")
+  .action(async (id, options) => {
+    const port = Number(options.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be an integer from 1 to 65535");
+    printProgress(`exposing port ${port}`);
+    const result = await api<{ route: RouteResult }>(`/v1/sandboxes/${id}/routes`, {
+      method: "POST",
+      body: JSON.stringify({ port, protocol: options.protocol })
+    });
+    printProgress(`${result.route.state}. provider=${result.route.provider}`);
+    console.log(result.route.url);
+  });
+
+program
+  .command("routes")
+  .argument("<id>", "sandbox id")
+  .description("List exposed sandbox ports")
+  .action(async (id) => {
+    const result = await api<{ routes: RouteResult[] }>(`/v1/sandboxes/${id}/routes`);
+    for (const route of result.routes) {
+      console.log(`${route.port}\t${route.state}\t${route.provider}\t${route.url}`);
+    }
   });
 
 program

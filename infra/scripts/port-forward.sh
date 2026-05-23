@@ -13,6 +13,8 @@ forwards=(
   "web 15173 harakiri svc/harakiri-web 80 http://127.0.0.1:15173/"
   "keycloak 18084 keycloak svc/keycloak 8080 http://127.0.0.1:18084/realms/harakiri/.well-known/openid-configuration"
   "opensandbox 18083 opensandbox-system svc/opensandbox-server 80 http://127.0.0.1:18083/health"
+  "gateway 18085 opensandbox-system svc/opensandbox-ingress-gateway 80 http://127.0.0.1:18085/status.ok"
+  "ingress-https 18087 ingress-nginx svc/ingress-nginx-controller 443 tcp://127.0.0.1:18087"
 )
 
 is_kubectl_forward_pid() {
@@ -63,6 +65,7 @@ start_tmux() {
     local namespace="$3"
     local service="$4"
     local target="$5"
+    local url="$6"
     local log="${STATE_DIR}/${port}.log"
     : >"${log}"
 
@@ -75,7 +78,7 @@ start_tmux() {
     else
       tmux new-window -t "${SESSION_NAME}" -n "${name}" "bash -lc $(quote "${shell_cmd}")"
     fi
-    echo "started ${name}: http://127.0.0.1:${port}"
+    echo "started ${name}: ${url}"
   done
 }
 
@@ -85,6 +88,7 @@ start_one() {
   local namespace="$3"
   local service="$4"
   local target="$5"
+  local url="$6"
 
   local existing
   existing="$(lsof -tiTCP:"${port}" -sTCP:LISTEN 2>/dev/null || true)"
@@ -95,7 +99,19 @@ start_one() {
 
   nohup kubectl -n "${namespace}" port-forward "${service}" "${port}:${target}" >"${STATE_DIR}/${port}.log" 2>&1 &
   echo "$!" >"${STATE_DIR}/${port}.pid"
-  echo "started ${name}: http://127.0.0.1:${port}"
+  echo "started ${name}: ${url}"
+}
+
+check_one() {
+  local port="$1"
+  local url="$2"
+
+  if [[ "${url}" == tcp://* ]]; then
+    lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+    return
+  fi
+
+  curl -fsS "${url}" >/dev/null 2>&1
 }
 
 wait_one() {
@@ -104,7 +120,7 @@ wait_one() {
   local url="$6"
 
   for _ in $(seq 1 30); do
-    if curl -fsS "${url}" >/dev/null 2>&1; then
+    if check_one "${port}" "${url}"; then
       echo "ready ${name}: ${url}"
       return
     fi
@@ -121,7 +137,7 @@ status_one() {
   local url="$6"
 
   if lsof -tiTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
-    if curl -fsS "${url}" >/dev/null 2>&1; then
+    if check_one "${port}" "${url}"; then
       echo "up   ${name} ${url}"
     else
       echo "open ${name} ${url} (health check failed)"

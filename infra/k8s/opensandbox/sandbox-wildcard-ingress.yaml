@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: opensandbox-sandbox-routes
+  namespace: opensandbox-system
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "*.harakiri.io"
+      secretName: harakiri-sandbox-wildcard-tls
+  rules:
+    - host: "*.harakiri.io"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: opensandbox-ingress-gateway
+                port:
+                  number: 80

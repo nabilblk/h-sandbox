@@ -18,13 +18,20 @@
     "k0s:bootstrap": "bash infra/k0s/bootstrap.sh",
     "k0s:verify": "bash infra/k0s/verify.sh",
     "deploy:k0s": "bash infra/scripts/deploy-k0s.sh",
+    "cert-manager:install": "bash infra/scripts/cert-manager-install.sh",
     "ports": "bash infra/scripts/port-forward.sh",
     "ports:stop": "bash infra/scripts/port-forward.sh stop",
     "ports:restart": "bash infra/scripts/port-forward.sh restart",
     "ports:status": "bash infra/scripts/port-forward.sh status",
     "smoke": "bash infra/scripts/smoke.sh",
     "smoke:ttl": "bash infra/scripts/ttl-smoke.sh",
-    "smoke:route": "bash infra/scripts/route-smoke.sh"
+    "route:cloudflare-dns": "bash infra/scripts/cloudflare-sandbox-dns.sh",
+    "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
+    "route:tls-letsencrypt": "bash infra/scripts/route-tls-letsencrypt-cloudflare.sh",
+    "smoke:route-preflight": "bash infra/scripts/route-preflight.sh",
+    "smoke:route": "bash infra/scripts/route-smoke.sh",
+    "smoke:route-ingress": "bash infra/scripts/route-ingress-smoke.sh",
+    "smoke:route-public": "bash infra/scripts/route-public-smoke.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
