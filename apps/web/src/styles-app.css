@@ -212,6 +212,263 @@
   border: 1px solid var(--border);
 }
 
+/* TEMPLATES WORKSPACE */
+.tmpl-workspace { max-width: none; }
+.tmpl-topline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+.tmpl-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.tmpl-tab {
+  appearance: none;
+  border: 0;
+  border-bottom: 1.5px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.tmpl-tab:hover { color: var(--ink); }
+.tmpl-tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+.tmpl-live {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.tmpl-live-label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tmpl-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.tmpl-toolbar .btn.active {
+  background: var(--surface-2);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+.tmpl-search { width: min(380px, 100%); }
+.tmpl-total {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tmpl-list,
+.tmpl-builds {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.tmpl-row {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1.6fr) minmax(150px, 1fr) 86px 110px 148px 110px 124px
+    minmax(196px, 0.9fr);
+  align-items: center;
+  gap: 14px;
+  min-width: 1180px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.tmpl-row:first-child { border-top: 0; }
+.tmpl-head {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: default;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.tmpl-main-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tmpl-main-name b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tmpl-main-name small {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag-lock {
+  gap: 4px;
+  color: var(--ink-2);
+}
+.tmpl-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.tmpl-actions .btn-sm { height: 24px; }
+.build-toolbar { align-items: stretch; }
+.tmpl-build-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 14px;
+  align-items: start;
+}
+.build-row {
+  display: grid;
+  grid-template-columns: 110px minmax(150px, 1fr) 138px 90px 160px minmax(180px, 1fr) 132px;
+  align-items: center;
+  gap: 12px;
+  min-width: 1040px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12.5px;
+  text-align: left;
+}
+.build-row:first-child { border-top: 0; }
+.build-row[role="button"] {
+  cursor: pointer;
+  outline: none;
+}
+.build-row[role="button"]:hover,
+.build-row[role="button"]:focus-visible {
+  background: var(--surface-2);
+}
+.build-row.active {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.build-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.build-head {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: default;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.build-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.build-badge.queued { color: var(--ink-2); }
+.build-badge.building {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.build-badge.success {
+  color: oklch(0.43 0.13 155);
+  background: oklch(0.94 0.05 155);
+}
+.build-badge.failed {
+  color: var(--err);
+  background: oklch(0.94 0.06 25);
+}
+.build-badge.canceled,
+.build-badge.cancelled {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.build-detail {
+  min-width: 0;
+  padding: 16px;
+  position: sticky;
+  top: 66px;
+}
+.build-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.build-meta {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.build-meta b {
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.build-log {
+  min-height: 260px;
+  max-height: 460px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: #18181a;
+  color: #e6e3da;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.build-log > div {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+}
+.build-log .num {
+  color: #7f7b72;
+  user-select: none;
+}
+.build-log .muted {
+  display: block;
+  color: #8c887e;
+}
+
 /* MODAL */
 .modal-wrap {
   position: fixed; inset: 0; z-index: 100;
@@ -850,6 +1107,44 @@
   .sbx-id {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .tmpl-topline {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .tmpl-tabs {
+    overflow-x: auto;
+    margin-top: 10px;
+  }
+
+  .tmpl-live {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .tmpl-toolbar {
+    align-items: stretch;
+  }
+
+  .tmpl-toolbar .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .tmpl-total {
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+
+  .tmpl-build-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .build-detail {
+    position: static;
   }
 
   .keys-row {

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { TEMPLATES, type SandboxRouteSummary, type SandboxSummary } from "@harakiri/shared";
+import { TEMPLATES, type SandboxRouteSummary, type SandboxSummary, type Template, type TemplateBuildLogEntry, type TemplateBuildSummary, type UsageSummary } from "@harakiri/shared";
 import { api } from "./api";
 import { auth, type UserProfile } from "./auth";
 import "./styles.css";
@@ -209,7 +209,7 @@ const DashboardShell = ({ route, go, openSandbox, profile, onSignOut }: { route:
       <main className="dash-main">
         <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm"><Icon name="search" size={13} /><span className="kbd">CmdK</span></button><button className="btn btn-ghost btn-sm" onClick={() => go("docs")}><Icon name="book" size={13} /></button><button className="btn btn-ghost btn-sm"><Icon name="bell" size={13} /></button><button className="ava-sm" onClick={onSignOut} title={profile?.email ?? "Sign out"}>{orgInitial}</button></div></div>
         {sub === "sandboxes" ? <Sandboxes openSandbox={openSandbox} /> : null}
-        {sub === "templates" ? <Templates /> : null}
+        {sub === "templates" ? <Templates openSandbox={openSandbox} /> : null}
         {sub === "metrics" ? <Usage /> : null}
         {sub === "keys" ? <Keys /> : null}
         {sub === "settings" ? <Settings /> : null}
@@ -277,10 +277,227 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
   );
 };
 
-const Templates = () => {
-  const [templates, setTemplates] = useState(TEMPLATES);
-  useEffect(() => { api.templates().then((r) => setTemplates(r.templates as typeof TEMPLATES)).catch(() => undefined); }, []);
-  return <div className="dash-page"><div className="page-head"><div><h1 className="page-h">Templates</h1><div className="page-sub"><span style={{ color: "var(--muted)" }}>Pre-built images for fast cold starts.</span></div></div><button className="btn btn-primary btn-sm"><Icon name="plus" size={12} /> New template</button></div><div className="tmpl-grid" style={{ maxWidth: "unset" }}>{templates.map((t) => <div key={t.id} className="tmpl card" style={{ padding: 22 }}><div className="tmpl-head"><span className="tmpl-ico"><Icon name={t.icon} /></span><span className="tmpl-name">{t.name}</span></div><div className="tmpl-desc">{t.description}</div><div style={{ display: "flex", gap: 8, marginTop: 10 }}><span className="tag num">{t.bootMs}ms boot</span><span className="tag">{t.visibility}</span></div><button className="btn btn-sm" style={{ marginTop: 12 }}>Use template</button></div>)}</div></div>;
+const shortDigest = (value?: string | null) => value ? value.replace(/^sha256:/, "").slice(0, 12) : "-";
+const buildDuration = (build: TemplateBuildSummary) => {
+  const start = build.startedAt ?? build.createdAt;
+  const end = build.completedAt ?? null;
+  if (!start || !end) return "-";
+  const ms = Date.parse(end) - Date.parse(start);
+  if (!Number.isFinite(ms) || ms < 0) return "-";
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+};
+
+const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
+  const [tab, setTab] = useState<"list" | "builds">("list");
+  const [templates, setTemplates] = useState<Template[]>(TEMPLATES);
+  const [templateTotal, setTemplateTotal] = useState(TEMPLATES.length);
+  const [builds, setBuilds] = useState<TemplateBuildSummary[]>([]);
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
+  const [q, setQ] = useState("");
+  const [visibility, setVisibility] = useState("all");
+  const [buildQ, setBuildQ] = useState("");
+  const [buildStatus, setBuildStatus] = useState("all");
+  const [selectedBuild, setSelectedBuild] = useState<TemplateBuildSummary | null>(null);
+  const [buildLogs, setBuildLogs] = useState<TemplateBuildLogEntry[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const loadTemplates = async () => {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    if (visibility !== "all") params.set("visibility", visibility);
+    params.set("limit", "100");
+    try {
+      const result = await api.templates(`?${params.toString()}`);
+      setTemplates(result.templates);
+      setTemplateTotal(result.page?.total ?? result.templates.length);
+    } catch {
+      // Keep the bootstrap catalog visible if the API is temporarily unavailable.
+    }
+  };
+  const loadBuilds = async () => {
+    const params = new URLSearchParams();
+    if (buildQ.trim()) params.set("q", buildQ.trim());
+    if (buildStatus !== "all") params.set("status", buildStatus);
+    const query = params.toString();
+    try {
+      const result = await api.templateBuilds(query ? `?${query}` : "");
+      setBuilds(result.builds);
+    } catch {
+      setBuilds([]);
+    }
+  };
+  useEffect(() => { void loadTemplates(); }, [q, visibility]);
+  useEffect(() => { void loadBuilds(); }, [buildQ, buildStatus]);
+  useEffect(() => { api.usage().then(setUsage).catch(() => undefined); }, []);
+  useEffect(() => {
+    if (!selectedBuild) { setBuildLogs([]); return; }
+    api.templateBuildLogs(selectedBuild.id).then((r) => setBuildLogs(r.logs)).catch(() => setBuildLogs([]));
+  }, [selectedBuild]);
+
+  const buildCounts = useMemo(() => ({
+    all: builds.length,
+    queued: builds.filter((build) => build.status === "queued").length,
+    building: builds.filter((build) => build.status === "building").length,
+    success: builds.filter((build) => build.status === "success").length,
+    failed: builds.filter((build) => build.status === "failed").length,
+    canceled: builds.filter((build) => build.status === "canceled").length
+  }), [builds]);
+
+  const createFromTemplate = async (templateId: string) => {
+    setBusy(`use:${templateId}`);
+    try {
+      const result = await api.createSandbox({ template: templateId, ttlSeconds: 300, name: `${templateId}-runner` });
+      openSandbox(result.sandbox.id);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const queueBuild = async (templateId: string) => {
+    setBusy(`build:${templateId}`);
+    try {
+      const result = await api.createTemplateBuild(templateId, { sourceType: "dockerfile", dockerfilePath: "Dockerfile" });
+      setSelectedBuild(result.build);
+      setTab("builds");
+      await loadBuilds();
+    } finally {
+      setBusy(null);
+    }
+  };
+  const retryBuild = async (id: string) => {
+    setBusy(`retry:${id}`);
+    try {
+      const result = await api.retryTemplateBuild(id);
+      setSelectedBuild(result.build);
+      await loadBuilds();
+    } finally {
+      setBusy(null);
+    }
+  };
+  const cancelBuild = async (id: string) => {
+    setBusy(`cancel:${id}`);
+    try {
+      const result = await api.cancelTemplateBuild(id);
+      setSelectedBuild(result.build);
+      await loadBuilds();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="dash-page tmpl-workspace">
+      <div className="tmpl-topline">
+        <div>
+          <h1 className="page-h">Templates</h1>
+          <div className="tmpl-tabs">
+            <button className={`tmpl-tab ${tab === "list" ? "active" : ""}`} onClick={() => setTab("list")}><Icon name="logs" size={13} /> List</button>
+            <button className={`tmpl-tab ${tab === "builds" ? "active" : ""}`} onClick={() => setTab("builds")}><Icon name="settings" size={13} /> Builds</button>
+          </div>
+        </div>
+        <div className="tmpl-live">
+          <button className="btn btn-ghost btn-sm" onClick={() => { loadTemplates(); loadBuilds(); void api.usage().then(setUsage); }}><Icon name="refresh" size={12} /> Refresh</button>
+          <span className="pill live"><span className="dot" /> live</span>
+          <span className="num">{usage?.concurrentNow ?? 0}</span>
+          <span className="tmpl-live-label">concurrent sandboxes</span>
+        </div>
+      </div>
+
+      {tab === "list" ? (
+        <>
+          <div className="tmpl-toolbar">
+            <div className="search-input tmpl-search"><Icon name="search" size={12} /><input placeholder="Search by name or ID..." value={q} onChange={(e) => setQ(e.target.value)} /></div>
+            <button className={`btn btn-sm ${visibility === "all" ? "active" : ""}`} onClick={() => setVisibility("all")}>All</button>
+            <button className={`btn btn-sm ${visibility === "internal" ? "active" : ""}`} onClick={() => setVisibility("internal")}>Internal</button>
+            <button className={`btn btn-sm ${visibility === "public" ? "active" : ""}`} onClick={() => setVisibility("public")}>Public</button>
+            <button className={`btn btn-sm ${visibility === "private" ? "active" : ""}`} onClick={() => setVisibility("private")}>Private</button>
+            <span className="tmpl-total num">{templateTotal} total</span>
+          </div>
+          <div className="tmpl-list card">
+            <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Updated</span><span>Visibility</span><span>Version</span><span /></div>
+            {templates.map((template) => (
+              <div className="tmpl-row" key={template.id}>
+                <span className="tmpl-main-name"><b>{template.name}</b><small>{template.aliases?.length ? template.aliases.join(", ") : template.description}</small></span>
+                <span className="num muted">{template.id}</span>
+                <span>{template.cpuCount ?? 1} Cores</span>
+                <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
+                <span className="num muted">{formatDateTime(template.updatedAt)}</span>
+                <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span></span>
+                <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
+                <span className="tmpl-actions">
+                  <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={busy === `use:${template.id}`}>Use</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template.id)} disabled={busy === `build:${template.id}`}>Build</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
+                </span>
+              </div>
+            ))}
+            {templates.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No templates found.</div><div className="sbx-empty-sub">Clear filters or create a template from the CLI.</div></div>}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="tmpl-toolbar build-toolbar">
+            <div className="search-input tmpl-search"><Icon name="search" size={12} /><input placeholder="Build ID, Template ID or Name" value={buildQ} onChange={(e) => setBuildQ(e.target.value)} /></div>
+            {(["all", "queued", "building", "success", "failed", "canceled"] as const).map((status) => (
+              <button key={status} className={`btn btn-sm ${buildStatus === status ? "active" : ""}`} onClick={() => setBuildStatus(status)}>
+                {status} <span className="filter-count">{buildCounts[status]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="tmpl-build-layout">
+            <div className="tmpl-builds card">
+              <div className="build-row build-head"><span>Status</span><span>Template</span><span>Started</span><span>Duration</span><span>ID</span><span>Result</span><span /></div>
+              {builds.map((build) => (
+                <div
+                  className={`build-row ${selectedBuild?.id === build.id ? "active" : ""}`}
+                  key={build.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedBuild(build)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedBuild(build);
+                    }
+                  }}
+                >
+                  <span><span className={`build-badge ${build.status}`}>{build.status}</span></span>
+                  <span>{build.templateId}</span>
+                  <span className="num muted">{formatDateTime(build.startedAt ?? build.createdAt)}</span>
+                  <span className="num">{buildDuration(build)}</span>
+                  <span className="num muted">{build.id}</span>
+                  <span className="muted">{build.error ?? shortDigest(build.imageDigest)}</span>
+                  <span className="tmpl-actions">
+                    {build.status === "queued" || build.status === "building" ? <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void cancelBuild(build.id); }} disabled={busy === `cancel:${build.id}`}>Cancel</button> : null}
+                    <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void retryBuild(build.id); }} disabled={busy === `retry:${build.id}`}>Retry</button>
+                  </span>
+                </div>
+              ))}
+              {builds.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No builds found.</div><div className="sbx-empty-sub">Queue a build from the List tab or use the CLI.</div></div>}
+            </div>
+            <div className="build-detail card">
+              {selectedBuild ? (
+                <>
+                  <div className="build-detail-head"><div><div className="card-h">Build details</div><div className="num muted">{selectedBuild.id}</div></div><span className={`build-badge ${selectedBuild.status}`}>{selectedBuild.status}</span></div>
+                  <div className="build-meta">
+                    <span>Template <b>{selectedBuild.templateId}</b></span>
+                    <span>Dockerfile <b>{selectedBuild.dockerfilePath ?? "Dockerfile"}</b></span>
+                    <span>Image <b>{selectedBuild.imageDestination ?? "pending"}</b></span>
+                  </div>
+                  <div className="build-log">
+                    {buildLogs.length ? buildLogs.map((line) => <div key={line.lineNo}><span className="num">{line.lineNo}</span><span>{line.message}</span></div>) : <div className="muted">No build logs yet. The builder worker has not started this record.</div>}
+                  </div>
+                </>
+              ) : (
+                <div className="sbx-empty"><div className="sbx-empty-title">Select a build.</div><div className="sbx-empty-sub">Logs and result metadata appear here.</div></div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 };
 
 const Usage = () => {

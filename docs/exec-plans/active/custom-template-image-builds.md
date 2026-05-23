@@ -62,27 +62,32 @@ the same agent/browser/editor surface without depending on E2B internals.
       internals.
 
 ## Product And UI Backlog
-- [ ] Replace the current card-only Templates page with a denser operational
+- [x] Replace the current card-only Templates page with a denser operational
       Templates workspace inspired by the E2B screenshots.
-- [ ] Add a Templates header with List and Builds tabs, matching the existing
+- [x] Add a Templates header with List and Builds tabs, matching the existing
       Harakiri visual language rather than copying E2B branding.
-- [ ] Add top-right live status and concurrent sandbox count to the Templates
+- [x] Add top-right live status and concurrent sandbox count to the Templates
       area, reusing the dashboard count source.
 - [ ] List tab:
-  - [ ] Search by template name, ID, owner/name, or alias.
-  - [ ] Filter by visibility, owner/team, runtime family, and status.
-  - [ ] Table columns: name, ID, CPU, memory, created, updated, visibility,
-        latest image version/digest short hash, build status, and row actions.
+  - [x] Search by template name, ID, or alias.
+  - [x] Filter by visibility.
+  - [ ] Add owner/team, runtime family, and status filters.
+  - [x] Table columns: name, ID, CPU, memory, updated, visibility, latest image
+        version/digest short hash, and row actions.
+  - [ ] Add created timestamp and latest build status columns.
   - [ ] Show template aliases such as `open-agents-dev` and `team/template`.
-  - [ ] Show internal/private/public visibility badges.
-  - [ ] Provide actions for Use, Build, View builds, Copy ID, Promote, Archive.
+  - [x] Show internal/private/public visibility badges.
+  - [x] Provide actions for Use, Build, and Copy ID.
+  - [ ] Provide actions for View builds, Promote, and Archive.
 - [ ] Builds tab:
-  - [ ] Search by build ID, template ID, or template name.
-  - [ ] Filter by status with counts for queued/building/success/failed/canceled.
-  - [ ] Table columns: status, template, started, duration, build ID, version,
-        image digest, and failure summary.
-  - [ ] Build detail drawer/page with live log stream, Dockerfile/context
-        metadata, resulting digest, builder node, and cancel/retry actions.
+  - [x] Search by build ID, template ID, or template name.
+  - [x] Filter by status with counts for queued/building/success/failed/canceled.
+  - [x] Table columns: status, template, started, duration, build ID, image
+        digest, and failure summary.
+  - [ ] Add template version/result version column.
+  - [x] Build detail drawer/page with log stream, Dockerfile metadata, resulting
+        digest, and cancel/retry actions.
+  - [ ] Add builder node and full build context metadata to build detail.
 - [ ] Template detail page:
   - [ ] Overview with default create command and SDK snippets.
   - [ ] Versions tab with latest/stable aliases and immutable version IDs.
@@ -93,10 +98,14 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [ ] Create from existing OCI image reference.
   - [ ] Clone/fork existing template.
   - [ ] Preview generated `harakiri.toml`.
-- [ ] Empty/error/loading states for no templates, no builds, failed build, and
-      registry pull failure.
+- [x] Empty states for no templates, no builds, and no selected build.
+- [ ] Add loading/error states for failed build and registry pull failure.
 
 ## Documentation Backlog
+Documentation is a first-class deliverable for this feature, split between
+repo-facing engineering documentation and product-facing website documentation.
+
+### Code Documentation: README And Dedicated Markdown
 - [ ] Repository README updates:
   - [ ] Add a quickstart for creating and using a custom template.
   - [ ] Document the recommended `harakiri.toml` shape and how it maps to E2B's
@@ -122,6 +131,8 @@ the same agent/browser/editor surface without depending on E2B internals.
         cancel endpoints.
   - [ ] Update `docs/runbook.md` with operator commands for builder health,
         registry cleanup, build-log inspection, and failed pull debugging.
+
+### Product Documentation: Website And In-App Docs
 - [ ] Website product docs:
   - [ ] Add a Templates section to the in-app/docs website navigation.
   - [ ] Add "Create a custom template" guide with `harakiri template init`,
@@ -136,6 +147,13 @@ the same agent/browser/editor surface without depending on E2B internals.
         image digest pinning, registry access, and secret handling.
   - [ ] Ensure website docs match Harakiri's design tokens and do not use E2B
         branding or copy.
+
+### Documentation Acceptance Criteria
+- [ ] A new user can create and run a custom template using only the website docs.
+- [ ] A contributor can understand the build pipeline and data model using only
+      the README plus dedicated markdown docs.
+- [ ] Every documented CLI/API example is verified against the deployed k0s
+      environment before the plan is completed.
 
 ## Phases
 
@@ -172,7 +190,7 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [x] Add `GET /v1/templates` with DB-backed list filters and pagination.
 - [x] Add `POST /v1/templates` to create a template definition.
 - [x] Add `GET /v1/templates/:id` and `GET /v1/templates/:id/versions`.
-- [ ] Add `POST /v1/templates/:id/builds` to enqueue a build from Dockerfile,
+- [x] Add `POST /v1/templates/:id/builds` to enqueue a build from Dockerfile,
       local-uploaded context, Git reference, or existing image reference.
 - [x] Add `GET /v1/template-builds` and `GET /v1/template-builds/:id`.
 - [x] Add `GET /v1/template-builds/:id/logs` with polling first and SSE later.
@@ -224,13 +242,17 @@ the same agent/browser/editor surface without depending on E2B internals.
       and failure output.
 
 ### Phase 7: Dashboard Templates UI
-**Status**: Not Started
-- [ ] Refactor the existing Templates view into a tabbed List/Builds workspace.
-- [ ] Implement the List tab table and filters from the Product And UI Backlog.
-- [ ] Implement the Builds tab table and status filter counts.
-- [ ] Add build detail drawer/page with log viewer and retry/cancel actions.
-- [ ] Add New Template flow and use-template action wired to sandbox creation.
-- [ ] Add design-token-consistent badges, table density, iconography, and empty
+**Status**: In Progress
+- [x] Refactor the existing Templates view into a tabbed List/Builds workspace.
+- [x] Implement the initial List tab table with search, visibility filters, and
+      Use/Build/Copy actions.
+- [ ] Add remaining List filters and actions: owner/team, runtime family, status,
+      View builds, Promote, and Archive.
+- [x] Implement the Builds tab table and status filter counts.
+- [x] Add build detail panel with log viewer and retry/cancel actions.
+- [x] Wire use-template action to sandbox creation.
+- [ ] Add New Template flow.
+- [x] Add design-token-consistent badges, table density, iconography, and empty
       states based on Harakiri's current theme.
 - [ ] Add Playwright screenshot coverage for Templates List, Builds, build
       detail, new template, and mobile/narrow layouts.
@@ -264,12 +286,14 @@ the same agent/browser/editor surface without depending on E2B internals.
 
 ### Phase 10: Documentation
 **Status**: Not Started
-- [ ] Update repository `README.md` with the custom template quickstart.
-- [ ] Add dedicated repo markdown docs from the Documentation Backlog.
+- [ ] Update repository `README.md` with the custom template quickstart and
+      links to the deeper template docs.
+- [ ] Add dedicated repo markdown docs from the Code Documentation backlog.
 - [ ] Update `docs/api.md`, `docs/architecture.md`, `docs/runbook.md`, and
       `docs/test-report.md`.
-- [ ] Add product-facing website docs pages for Templates, Builds, SDK usage,
-      Open Agents template, and Security model.
+- [ ] Add product-facing website docs pages from the Product Documentation
+      backlog: Templates, Builds, SDK usage, Open Agents template, and Security
+      model.
 - [ ] Add CLI help examples and ensure docs examples match implemented command
       names and JSON payloads.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
@@ -296,6 +320,7 @@ the same agent/browser/editor surface without depending on E2B internals.
 | 2026-05-23 | Make immutable template versions the runtime contract | Sandboxes must be reproducible and auditable; mutable tags are unsafe as the long-term source of truth. | Store only template name and mutable image tag on sandbox records |
 | 2026-05-23 | Build OCI images first, defer snapshots | OpenSandbox image-based creation is already working; Kubernetes snapshot semantics need more validation and should become acceleration/checkpointing later. | Implement E2B-style snapshots as the first template primitive |
 | 2026-05-23 | Include E2B-like List and Builds UI in the first-class backlog | The user explicitly wants the E2B Templates UI experience, and custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
+| 2026-05-24 | Treat documentation as a first-class phase split between repo engineering docs and website product docs | Users need product docs to use templates, while contributors need README and dedicated markdown to operate the build pipeline. | Keep documentation as loose backlog notes only |
 
 ## Tech Debt Incurred
 None yet. Expected risks to watch during implementation:

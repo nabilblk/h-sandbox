@@ -1,4 +1,4 @@
-import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, UsageSummary } from "@harakiri/shared";
+import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, Template, TemplateBuildLogEntry, TemplateBuildSummary, UsageSummary } from "@harakiri/shared";
 import { auth } from "./auth";
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? import.meta.env.VITE_PUBLIC_API_URL ?? "http://127.0.0.1:18082";
@@ -46,7 +46,16 @@ export const api = {
   routes: (id: string) => request<{ routes: SandboxRouteSummary[] }>(`/v1/sandboxes/${id}/routes`),
   exposeRoute: (id: string, body: { port: number; protocol?: "http" | "https" }) =>
     request<{ route: SandboxRouteSummary }>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),
-  templates: () => request<{ templates: Array<{ id: string; name: string; description: string; icon: string; tags: string[]; bootMs: number; visibility: string }> }>("/v1/templates"),
+  templates: (params = "") => request<{ templates: Template[]; page?: { total: number; limit: number; offset: number } }>(`/v1/templates${params}`),
+  createTemplateBuild: (id: string, body: { sourceType?: "dockerfile" | "git" | "image"; dockerfilePath?: string; imageDestination?: string; metadata?: Record<string, unknown> } = {}) =>
+    request<{ build: TemplateBuildSummary }>(`/v1/templates/${encodeURIComponent(id)}/builds`, {
+      method: "POST",
+      body: JSON.stringify(body)
+    }),
+  templateBuilds: (params = "") => request<{ builds: TemplateBuildSummary[] }>(`/v1/template-builds${params}`),
+  templateBuildLogs: (id: string) => request<{ logs: TemplateBuildLogEntry[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`),
+  cancelTemplateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  retryTemplateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/retry`, { method: "POST" }),
   keys: () => request<{ keys: ApiKeySummary[] }>("/v1/api-keys"),
   createKey: (name: string) => request<{ key: ApiKeySummary; token: string }>("/v1/api-keys", { method: "POST", body: JSON.stringify({ name }) }),
   revokeKey: (id: string) => request<{ ok: boolean }>(`/v1/api-keys/${id}`, { method: "DELETE" }),
