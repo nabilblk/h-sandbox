@@ -1,0 +1,64 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { openSandbox } from "./opensandbox.js";
+import type { RuntimeTemplate } from "./templates.js";
+
+const originalFetch = globalThis.fetch;
+
+test.afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+test("openSandbox.create sends the resolved DB template image, entrypoint, and resources", async () => {
+  const requests: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    requests.push({ input, init });
+    return Response.json({
+      id: "provider-template-test",
+      status: { state: "Running" },
+      expiresAt: "2026-05-24T12:00:00.000Z"
+    });
+  };
+
+  const template: RuntimeTemplate = {
+    id: "db-template",
+    name: "DB Template",
+    description: "Template loaded from PostgreSQL",
+    image: "registry.local/harakiri/db-template@sha256:abc123",
+    imageDigest: "sha256:abc123",
+    icon: "file",
+    tags: ["custom"],
+    aliases: ["db-template:stable"],
+    bootMs: 111,
+    visibility: "internal",
+    status: "ready",
+    defaultEntrypoint: ["/bin/sleep", "99"],
+    cpuCount: 2,
+    memoryMb: 2048,
+    workdir: "/workspace",
+    defaultPorts: [3000],
+    runtimeFamily: "custom",
+    latestVersionId: "tplv_db_template_1",
+    templateVersionId: "tplv_db_template_1"
+  };
+
+  const result = await openSandbox.create({
+    template,
+    ttlSeconds: 90,
+    name: "db-template-runner",
+    metadata: { "harakiri.id": "sbx_template" }
+  });
+
+  assert.equal(result.id, "provider-template-test");
+  const request = requests[0];
+  assert.ok(request);
+  assert.equal(String(request.input), "http://127.0.0.1:8088/v1/sandboxes");
+  const body = JSON.parse(String(request.init?.body));
+  assert.deepEqual(body.image, { uri: "registry.local/harakiri/db-template@sha256:abc123" });
+  assert.deepEqual(body.entrypoint, ["/bin/sleep", "99"]);
+  assert.equal(body.timeout, 90);
+  assert.deepEqual(body.resourceLimits, { cpu: "2000m", memory: "2048Mi" });
+  assert.equal(body.metadata["harakiri.template"], "db-template");
+  assert.equal(body.metadata["harakiri.template_version"], "tplv_db_template_1");
+  assert.equal(body.metadata["harakiri.image_digest"], "sha256-abc123");
+});

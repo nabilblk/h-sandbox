@@ -1,7 +1,8 @@
-import { TEMPLATES, type RunResult } from "@harakiri/shared";
+import type { RunResult } from "@harakiri/shared";
 import { Writable, Readable } from "node:stream";
 import { CoreV1Api, Exec, KubeConfig, type V1Pod, type V1Status } from "@kubernetes/client-node";
 import { config } from "./config.js";
+import type { RuntimeTemplate } from "./templates.js";
 
 type ProviderSandbox = {
   id: string;
@@ -356,8 +357,8 @@ const sandboxMetrics = async (opensandboxId: string): Promise<SandboxMetricsSnap
 };
 
 export const openSandbox = {
-  async create(input: { templateId: string; ttlSeconds: number; name: string; metadata?: Record<string, string> }) {
-    const template = TEMPLATES.find((item) => item.id === input.templateId) ?? TEMPLATES[0];
+  async create(input: { template: RuntimeTemplate; ttlSeconds: number; name: string; metadata?: Record<string, string> }) {
+    const template = input.template;
     try {
       const result = await callOpenSandbox<ProviderSandbox>("/v1/sandboxes", {
         method: "POST",
@@ -365,9 +366,11 @@ export const openSandbox = {
           image: { uri: template.image },
           entrypoint: template.defaultEntrypoint,
           timeout: Math.max(input.ttlSeconds, 60),
-          resourceLimits: { cpu: "1000m", memory: "1Gi" },
+          resourceLimits: { cpu: `${Math.max(template.cpuCount, 1) * 1000}m`, memory: `${Math.max(template.memoryMb, 128)}Mi` },
           metadata: labelSafeMetadata({
             "harakiri.template": template.id,
+            ...(template.templateVersionId ? { "harakiri.template_version": template.templateVersionId } : {}),
+            ...(template.imageDigest ? { "harakiri.image_digest": template.imageDigest } : {}),
             "harakiri.name": input.name,
             ...(input.metadata ?? {})
           })

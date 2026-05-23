@@ -1,4 +1,14 @@
-import type { ApiKeySummary, RunResult, SandboxRouteSummary, SandboxSummary, Template, UsageSummary } from "@harakiri/shared";
+import type {
+  ApiKeySummary,
+  RunResult,
+  SandboxRouteSummary,
+  SandboxSummary,
+  Template,
+  TemplateBuildLogEntry,
+  TemplateBuildSummary,
+  TemplateVersionSummary,
+  UsageSummary
+} from "@harakiri/shared";
 
 export type HarakiriClientOptions = {
   apiUrl: string;
@@ -20,6 +30,32 @@ export type RunSandboxInput = {
 export type ExposePortInput = {
   port: number;
   protocol?: "http" | "https";
+};
+
+export type CreateTemplateInput = {
+  id?: string;
+  name: string;
+  description?: string;
+  image?: string;
+  icon?: Template["icon"];
+  tags?: string[];
+  aliases?: string[];
+  visibility?: Template["visibility"];
+  defaultEntrypoint?: string[];
+  cpuCount?: number;
+  memoryMb?: number;
+  workdir?: string;
+  defaultPorts?: number[];
+  runtimeFamily?: string;
+};
+
+export type CreateTemplateBuildInput = {
+  sourceType?: "dockerfile" | "git" | "image";
+  contextHash?: string;
+  dockerfilePath?: string;
+  buildArgs?: Record<string, unknown>;
+  imageDestination?: string;
+  metadata?: Record<string, unknown>;
 };
 
 export class HarakiriApiError extends Error {
@@ -60,6 +96,55 @@ export class HarakiriClient {
 
   listTemplates() {
     return this.request<{ templates: Template[] }>("/v1/templates");
+  }
+
+  createTemplate(input: CreateTemplateInput) {
+    return this.request<{ template: Template }>("/v1/templates", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  getTemplate(id: string) {
+    return this.request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}`);
+  }
+
+  listTemplateVersions(id: string) {
+    return this.request<{ versions: TemplateVersionSummary[] }>(`/v1/templates/${encodeURIComponent(id)}/versions`);
+  }
+
+  createTemplateBuild(id: string, input: CreateTemplateBuildInput = {}) {
+    return this.request<{ build: TemplateBuildSummary }>(`/v1/templates/${encodeURIComponent(id)}/builds`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  listTemplateBuilds(params = "") {
+    return this.request<{ builds: TemplateBuildSummary[] }>(`/v1/template-builds${params}`);
+  }
+
+  getTemplateBuild(id: string) {
+    return this.request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}`);
+  }
+
+  getTemplateBuildLogs(id: string) {
+    return this.request<{ logs: TemplateBuildLogEntry[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`);
+  }
+
+  cancelTemplateBuild(id: string) {
+    return this.request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+  }
+
+  retryTemplateBuild(id: string) {
+    return this.request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/retry`, { method: "POST" });
+  }
+
+  promoteTemplateVersion(id: string, versionId: string, alias = "stable") {
+    return this.request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}/promote`, {
+      method: "POST",
+      body: JSON.stringify({ versionId, alias })
+    });
   }
 
   listSandboxes(params = "") {

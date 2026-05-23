@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { TEMPLATES } from "@harakiri/shared";
 import { requireAuth } from "./auth.js";
 import { config } from "./config.js";
 import { createApiKey, makeId } from "./crypto.js";
 import { query } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
+import { averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
 
 const createSandboxSchema = z.object({
   template: z.string().default("python-3.12-data"),
@@ -21,6 +21,40 @@ const runSchema = z.object({
 const routeSchema = z.object({
   port: z.coerce.number().int().min(1).max(65535),
   protocol: z.enum(["http", "https"]).default("http")
+});
+
+const templateVisibilitySchema = z.enum(["public", "private", "internal"]);
+const templateIconSchema = z.enum(["py", "node", "globe", "box", "file"]);
+
+const templateCreateSchema = z.object({
+  id: z.string().min(2).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/).optional(),
+  name: z.string().min(1).max(120),
+  description: z.string().min(1).max(500).default("Custom sandbox template."),
+  image: z.string().min(1).default("ubuntu:24.04"),
+  icon: templateIconSchema.default("file"),
+  tags: z.array(z.string().min(1).max(40)).default([]),
+  aliases: z.array(z.string().min(1).max(100)).default([]),
+  visibility: templateVisibilitySchema.default("private"),
+  defaultEntrypoint: z.array(z.string().min(1)).default(["sleep", "3600"]),
+  cpuCount: z.number().int().min(1).max(64).default(2),
+  memoryMb: z.number().int().min(128).max(262144).default(2048),
+  workdir: z.string().min(1).default("/workspace"),
+  defaultPorts: z.array(z.number().int().min(1).max(65535)).default([]),
+  runtimeFamily: z.string().min(1).max(80).default("custom")
+});
+
+const templateBuildSchema = z.object({
+  sourceType: z.enum(["dockerfile", "git", "image"]).default("dockerfile"),
+  contextHash: z.string().optional(),
+  dockerfilePath: z.string().default("Dockerfile"),
+  buildArgs: z.record(z.string(), z.unknown()).default({}),
+  imageDestination: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({})
+});
+
+const templatePromoteSchema = z.object({
+  versionId: z.string().min(1),
+  alias: z.string().min(1).max(80).default("stable")
 });
 
 const apiKeySchema = z.object({
@@ -40,7 +74,9 @@ const sandboxSelect = `
          s.status, s.cpu_pct AS cpu, s.memory_mb AS mem,
          COALESCE(to_char(now() - s.started_at, 'HH24"h "MI"m"'), '-') AS started,
          s.owner_label AS owner, s.cost_usd::float AS cost, s.ttl_seconds AS "ttlSeconds",
-         s.expires_at AS "expiresAt", s.public_url AS "publicUrl", s.created_at AS "createdAt"
+         s.expires_at AS "expiresAt", s.public_url AS "publicUrl",
+         s.template_version_id AS "templateVersionId", s.template_image_digest AS "templateImageDigest",
+         s.created_at AS "createdAt"
   FROM sandboxes s
 `;
 
@@ -53,6 +89,27 @@ const routeSelect = `
          last_checked_at AS "lastCheckedAt",
          terminated_at AS "terminatedAt"
   FROM sandbox_routes
+`;
+
+const templateVersionSelect = `
+  SELECT id, template_id AS "templateId", build_id AS "buildId",
+         version_number AS "versionNumber", aliases, image_uri AS "imageUri",
+         image_digest AS "imageDigest", status, default_entrypoint AS "defaultEntrypoint",
+         cpu_count AS "cpuCount", memory_mb AS "memoryMb", workdir,
+         default_ports AS "defaultPorts", env_schema AS "envSchema", metadata,
+         created_at AS "createdAt", promoted_at AS "promotedAt"
+  FROM template_versions
+`;
+
+const templateBuildSelect = `
+  SELECT id, organization_id AS "organizationId", template_id AS "templateId",
+         status, source_type AS "sourceType", context_hash AS "contextHash",
+         dockerfile_path AS "dockerfilePath", build_args AS "buildArgs",
+         image_destination AS "imageDestination", image_digest AS "imageDigest",
+         log_ref AS "logRef", error, metadata,
+         started_at AS "startedAt", completed_at AS "completedAt",
+         created_at AS "createdAt", updated_at AS "updatedAt"
+  FROM template_builds
 `;
 
 const audit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) => {
@@ -70,6 +127,13 @@ const event = async (organizationId: string, sandboxId: string, type: string, me
     [sandboxId, organizationId, type, message, metadata]
   );
 };
+
+const slugFor = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || makeId("tpl", 8);
 
 export const registerRoutes = async (app: FastifyInstance) => {
   app.get("/health", async () => ({ status: "ok" }));
@@ -115,13 +179,251 @@ export const registerRoutes = async (app: FastifyInstance) => {
     return { user: result.rows[0] };
   });
 
-  app.get("/v1/templates", async () => {
-    const result = await query<{ id: string; name: string; prefix: string; lastFour: string; createdAt: Date }>(
-      `SELECT id, name, description, image, icon, tags, boot_ms AS "bootMs",
-              visibility, default_entrypoint AS "defaultEntrypoint"
-       FROM templates ORDER BY boot_ms ASC`
+  app.get("/v1/templates", async (request) => {
+    const { q, visibility, status, limit, offset } = request.query as {
+      q?: string;
+      visibility?: string;
+      status?: string;
+      limit?: string;
+      offset?: string;
+    };
+    return listTemplates(request.auth.organizationId, {
+      q,
+      visibility,
+      status,
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined
+    });
+  });
+
+  app.post("/v1/templates", async (request, reply) => {
+    const body = templateCreateSchema.parse(request.body ?? {});
+    const id = body.id ?? slugFor(body.name);
+    const exists = await query("SELECT id FROM templates WHERE id = $1", [id]);
+    if (exists.rowCount) return reply.code(409).send({ error: "template_exists", template: id });
+
+    await query(
+      `INSERT INTO templates
+       (id, organization_id, name, description, image, icon, tags, aliases, boot_ms,
+        visibility, default_entrypoint, cpu_count, memory_mb, workdir, default_ports,
+        runtime_family, status, source_kind)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15, 'ready', 'custom')`,
+      [
+        id,
+        request.auth.organizationId,
+        body.name,
+        body.description,
+        body.image,
+        body.icon,
+        body.tags,
+        body.aliases,
+        body.visibility,
+        body.defaultEntrypoint,
+        body.cpuCount,
+        body.memoryMb,
+        body.workdir,
+        body.defaultPorts,
+        body.runtimeFamily
+      ]
     );
-    return { templates: result.rows.length ? result.rows : TEMPLATES };
+
+    const versionId = makeId("tplv", 12);
+    await query(
+      `INSERT INTO template_versions
+       (id, template_id, organization_id, version_number, aliases, image_uri, status,
+        default_entrypoint, cpu_count, memory_mb, workdir, default_ports, metadata, promoted_at)
+       VALUES ($1, $2, $3, 1, ARRAY['latest', 'stable'], $4, 'ready', $5, $6, $7, $8, $9, $10, now())`,
+      [
+        versionId,
+        id,
+        request.auth.organizationId,
+        body.image,
+        body.defaultEntrypoint,
+        body.cpuCount,
+        body.memoryMb,
+        body.workdir,
+        body.defaultPorts,
+        { source: "template.create" }
+      ]
+    );
+    await query("UPDATE templates SET latest_version_id = $2, updated_at = now() WHERE id = $1", [id, versionId]);
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.create", "template", id, {
+      versionId
+    });
+    const template = await resolveTemplate(id, request.auth.organizationId);
+    return reply.code(201).send({ template });
+  });
+
+  app.get("/v1/templates/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const template = await resolveTemplate(id, request.auth.organizationId);
+    if (!template) return reply.code(404).send({ error: "template_not_found" });
+    return { template };
+  });
+
+  app.get("/v1/templates/:id/versions", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const template = await resolveTemplate(id, request.auth.organizationId);
+    if (!template) return reply.code(404).send({ error: "template_not_found" });
+    const result = await query(
+      `${templateVersionSelect}
+       WHERE template_id = $1 AND (organization_id IS NULL OR organization_id = $2)
+       ORDER BY created_at DESC`,
+      [template.id, request.auth.organizationId]
+    );
+    return { versions: result.rows };
+  });
+
+  app.post("/v1/templates/:id/builds", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const template = await resolveTemplate(id, request.auth.organizationId);
+    if (!template) return reply.code(404).send({ error: "template_not_found" });
+    const body = templateBuildSchema.parse(request.body ?? {});
+    const buildId = makeId("bld", 12);
+    await query(
+      `INSERT INTO template_builds
+       (id, organization_id, template_id, status, source_type, context_hash,
+        dockerfile_path, build_args, image_destination, metadata)
+       VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)`,
+      [
+        buildId,
+        request.auth.organizationId,
+        template.id,
+        body.sourceType,
+        body.contextHash ?? null,
+        body.dockerfilePath,
+        body.buildArgs,
+        body.imageDestination ?? null,
+        body.metadata
+      ]
+    );
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.create", "template", template.id, {
+      buildId
+    });
+    const result = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [buildId, request.auth.organizationId]);
+    return reply.code(201).send({ build: result.rows[0] });
+  });
+
+  app.get("/v1/template-builds", async (request) => {
+    const { status, q } = request.query as { status?: string; q?: string };
+    const params: unknown[] = [request.auth.organizationId];
+    let where = "WHERE organization_id = $1";
+    if (status && status !== "all") {
+      params.push(status);
+      where += ` AND status = $${params.length}`;
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      where += ` AND (id ILIKE $${params.length} OR template_id ILIKE $${params.length})`;
+    }
+    const result = await query(`${templateBuildSelect} ${where} ORDER BY created_at DESC LIMIT 100`, params);
+    return { builds: result.rows };
+  });
+
+  app.get("/v1/template-builds/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [id, request.auth.organizationId]);
+    if (!result.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
+    return { build: result.rows[0] };
+  });
+
+  app.get("/v1/template-builds/:id/logs", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const build = await query("SELECT id FROM template_builds WHERE id = $1 AND organization_id = $2", [id, request.auth.organizationId]);
+    if (!build.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
+    const logs = await query(
+      `SELECT line_no AS "lineNo", stream, message, created_at AS "createdAt"
+       FROM template_build_logs WHERE build_id = $1 ORDER BY line_no ASC`,
+      [id]
+    );
+    return { logs: logs.rows };
+  });
+
+  app.post("/v1/template-builds/:id/cancel", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await query(
+      `UPDATE template_builds
+       SET status = CASE WHEN status IN ('queued', 'building') THEN 'canceled' ELSE status END,
+           completed_at = CASE WHEN status IN ('queued', 'building') THEN now() ELSE completed_at END,
+           error = CASE WHEN status IN ('queued', 'building') THEN 'canceled by user' ELSE error END,
+           updated_at = now()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING *`,
+      [id, request.auth.organizationId]
+    );
+    if (!result.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.cancel", "template_build", id);
+    const build = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [id, request.auth.organizationId]);
+    return { build: build.rows[0] };
+  });
+
+  app.post("/v1/template-builds/:id/retry", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await query<{
+      template_id: string;
+      source_type: string;
+      context_hash: string | null;
+      dockerfile_path: string | null;
+      build_args: Record<string, unknown>;
+      image_destination: string | null;
+      metadata: Record<string, unknown>;
+    }>("SELECT * FROM template_builds WHERE id = $1 AND organization_id = $2", [id, request.auth.organizationId]);
+    if (!existing.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
+    const buildId = makeId("bld", 12);
+    const row = existing.rows[0];
+    await query(
+      `INSERT INTO template_builds
+       (id, organization_id, template_id, status, source_type, context_hash,
+        dockerfile_path, build_args, image_destination, metadata)
+       VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)`,
+      [
+        buildId,
+        request.auth.organizationId,
+        row.template_id,
+        row.source_type,
+        row.context_hash,
+        row.dockerfile_path,
+        row.build_args,
+        row.image_destination,
+        { ...row.metadata, retryOf: id }
+      ]
+    );
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.retry", "template_build", id, {
+      buildId
+    });
+    const build = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [buildId, request.auth.organizationId]);
+    return reply.code(201).send({ build: build.rows[0] });
+  });
+
+  app.post("/v1/templates/:id/promote", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = templatePromoteSchema.parse(request.body ?? {});
+    const template = await resolveTemplate(id, request.auth.organizationId);
+    if (!template) return reply.code(404).send({ error: "template_not_found" });
+    const version = await query(
+      `${templateVersionSelect}
+       WHERE id = $1 AND template_id = $2 AND status = 'ready'
+         AND (organization_id IS NULL OR organization_id = $3)`,
+      [body.versionId, template.id, request.auth.organizationId]
+    );
+    if (!version.rowCount) return reply.code(404).send({ error: "template_version_not_found" });
+    await query(
+      `UPDATE template_versions
+       SET aliases = CASE
+             WHEN $2 = ANY(aliases) THEN aliases
+             ELSE array_append(aliases, $2)
+           END,
+           promoted_at = now()
+       WHERE id = $1`,
+      [body.versionId, body.alias]
+    );
+    await query("UPDATE templates SET latest_version_id = $2, updated_at = now() WHERE id = $1", [template.id, body.versionId]);
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.promote", "template", template.id, {
+      versionId: body.versionId,
+      alias: body.alias
+    });
+    const promoted = await resolveTemplate(body.versionId, request.auth.organizationId);
+    return { template: promoted };
   });
 
   app.get("/v1/sandboxes", async (request) => {
@@ -142,11 +444,12 @@ export const registerRoutes = async (app: FastifyInstance) => {
 
   app.post("/v1/sandboxes", async (request, reply) => {
     const body = createSandboxSchema.parse(request.body ?? {});
-    const template = TEMPLATES.find((item) => item.id === body.template) ?? TEMPLATES[0];
+    const template = await resolveTemplate(body.template, request.auth.organizationId);
+    if (!template) return reply.code(404).send({ error: "template_not_found", template: body.template });
     const id = makeId("sbx", 10);
     const name = body.name?.trim() || `${template.id}-runner`;
     const provider = await openSandbox.create({
-      templateId: template.id,
+      template,
       ttlSeconds: body.ttlSeconds,
       name,
       metadata: { "harakiri.id": id, "harakiri.org": request.auth.organizationId }
@@ -155,9 +458,22 @@ export const registerRoutes = async (app: FastifyInstance) => {
     await query(
       `INSERT INTO sandboxes
        (id, opensandbox_id, organization_id, template_id, name, status, cpu_pct, memory_mb,
-        owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url)
-       VALUES ($1, $2, $3, $4, $5, 'running', 3, 128, $6, $7, $8, now(), now(), now() + make_interval(secs => $8::int), $9)`,
-      [id, provider.id, request.auth.organizationId, template.id, name, request.auth.userId, request.auth.actorLabel, body.ttlSeconds, publicUrl]
+        owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url,
+        template_version_id, template_image_digest)
+       VALUES ($1, $2, $3, $4, $5, 'running', 3, 128, $6, $7, $8, now(), now(), now() + make_interval(secs => $8::int), $9, $10, $11)`,
+      [
+        id,
+        provider.id,
+        request.auth.organizationId,
+        template.id,
+        name,
+        request.auth.userId,
+        request.auth.actorLabel,
+        body.ttlSeconds,
+        publicUrl,
+        template.templateVersionId,
+        template.imageDigest
+      ]
     );
     await query(
       `INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at)
@@ -437,10 +753,11 @@ export const registerRoutes = async (app: FastifyInstance) => {
     );
     const total = counts.rows.reduce((sum, row) => sum + Number(row.count), 0);
     const concurrentNow = Number(counts.rows.find((row) => row.status === "running")?.count ?? 0);
+    const avgColdStartMs = total ? await averageTemplateBootMs(request.auth.organizationId) : 0;
     return {
       sandboxesSpawned: total,
       computeHours: Number(runtime.rows[0]?.compute_hours ?? 0),
-      avgColdStartMs: total ? Math.round(TEMPLATES.reduce((sum, template) => sum + template.bootMs, 0) / TEMPLATES.length) : 0,
+      avgColdStartMs,
       avgRuntimeSeconds: Number(runtime.rows[0]?.avg_runtime_seconds ?? 0),
       concurrentNow,
       concurrentPeak: concurrentNow,

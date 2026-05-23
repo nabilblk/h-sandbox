@@ -1,0 +1,312 @@
+# Execution Plan: Custom Template Images And Builds
+
+**Created**: 2026-05-23
+**Author**: Codex
+**Status**: In Progress
+**Priority**: {P0-P3}
+**Estimated effort**: 5-8 days
+
+## Context
+Harakiri currently exposes templates as a mostly static catalog. PostgreSQL has a
+`templates` table, but sandbox creation still resolves the requested template
+against the hardcoded shared `TEMPLATES` array and sends only `image: { uri }`
+plus a default entrypoint to OpenSandbox. This is enough for static base images,
+but it does not provide the E2B-like experience where a team can define,
+build, inspect, version, and use custom sandbox templates.
+
+The immediate product benchmark is E2B's custom template workflow:
+
+- `e2b.toml` declares template name, ID, Dockerfile, CPU, and memory.
+- `e2b template build --name open-agents-dev` builds the custom sandbox image.
+- `Sandbox.create("open-agents-dev")` starts a sandbox from the named template.
+- The dashboard has a Templates section with List and Builds tabs, search,
+  filters, build status, resource columns, visibility, version metadata, and
+  row actions.
+
+The local reference template is
+`/Users/labs/project/trash/background-agents/e2b-template`, which builds
+`open-agents-dev` from `e2bdev/code-interpreter:latest` and adds Chromium, Bun,
+`agent-browser`, `code-server`, `jq`, and a writable workspace. The preferred
+Harakiri/OpenSandbox direction is to copy the E2B developer workflow while using
+native OpenSandbox OCI images underneath. The neighboring
+`/Users/labs/project/trash/background-agents/opensandbox-template` is a better
+runtime base for Harakiri because it starts from a normal OCI image and defines
+the same agent/browser/editor surface without depending on E2B internals.
+
+## Success Criteria
+- [ ] A team can run `harakiri template init` and get a Harakiri template config
+      equivalent in ergonomics to `e2b.toml`.
+- [ ] A team can run `harakiri template build --name open-agents-dev <path>` and
+      get a persisted build record with streamed logs, final image digest, CPU,
+      memory, default ports, default workdir, and status.
+- [ ] A sandbox can be created by template name, stable alias, or immutable
+      version ID, and the sandbox record stores the exact template version and
+      image digest used.
+- [ ] The `open-agents-dev` template builds from the OpenSandbox-native Dockerfile,
+      runs in k0s through OpenSandbox, and passes smoke checks for `bun`, `jq`,
+      `agent-browser`, Chromium headless, `code-server`, workspace write access,
+      terminal commands, logs/files/metrics tabs, and public route exposure.
+- [ ] The dashboard Templates page has E2B-like List and Builds tabs with search,
+      filters, status badges, visibility, CPU, memory, created/updated timestamps,
+      latest build/version metadata, and row actions.
+- [ ] Build failures are visible in API, CLI, and UI with useful error messages
+      and retained logs.
+- [ ] Template images are reproducible and auditable: mutable tags are resolved
+      to immutable digests before use.
+- [ ] The default static templates continue to work during rollout.
+- [ ] Repo documentation explains how template definitions, builds, image
+      digests, registry credentials, BuildKit, and OpenSandbox runtime
+      integration work.
+- [ ] Product documentation is available inside the Harakiri website/docs area
+      so users can learn the template workflow without reading repository
+      internals.
+
+## Product And UI Backlog
+- [ ] Replace the current card-only Templates page with a denser operational
+      Templates workspace inspired by the E2B screenshots.
+- [ ] Add a Templates header with List and Builds tabs, matching the existing
+      Harakiri visual language rather than copying E2B branding.
+- [ ] Add top-right live status and concurrent sandbox count to the Templates
+      area, reusing the dashboard count source.
+- [ ] List tab:
+  - [ ] Search by template name, ID, owner/name, or alias.
+  - [ ] Filter by visibility, owner/team, runtime family, and status.
+  - [ ] Table columns: name, ID, CPU, memory, created, updated, visibility,
+        latest image version/digest short hash, build status, and row actions.
+  - [ ] Show template aliases such as `open-agents-dev` and `team/template`.
+  - [ ] Show internal/private/public visibility badges.
+  - [ ] Provide actions for Use, Build, View builds, Copy ID, Promote, Archive.
+- [ ] Builds tab:
+  - [ ] Search by build ID, template ID, or template name.
+  - [ ] Filter by status with counts for queued/building/success/failed/canceled.
+  - [ ] Table columns: status, template, started, duration, build ID, version,
+        image digest, and failure summary.
+  - [ ] Build detail drawer/page with live log stream, Dockerfile/context
+        metadata, resulting digest, builder node, and cancel/retry actions.
+- [ ] Template detail page:
+  - [ ] Overview with default create command and SDK snippets.
+  - [ ] Versions tab with latest/stable aliases and immutable version IDs.
+  - [ ] Dockerfile/config tab with redacted build args and env metadata.
+  - [ ] Runs tab showing recent sandboxes created from the template version.
+- [ ] New Template flow:
+  - [ ] Create from Dockerfile upload/path.
+  - [ ] Create from existing OCI image reference.
+  - [ ] Clone/fork existing template.
+  - [ ] Preview generated `harakiri.toml`.
+- [ ] Empty/error/loading states for no templates, no builds, failed build, and
+      registry pull failure.
+
+## Documentation Backlog
+- [ ] Repository README updates:
+  - [ ] Add a quickstart for creating and using a custom template.
+  - [ ] Document the recommended `harakiri.toml` shape and how it maps to E2B's
+        `e2b.toml`.
+  - [ ] Explain the difference between template definitions, template versions,
+        builds, images, aliases, and snapshots.
+  - [ ] Document local k0s prerequisites: registry, BuildKit, image pull
+        secrets, and OpenSandbox connectivity.
+- [ ] Dedicated repo markdown docs:
+  - [ ] Add `docs/templates.md` for developer-facing template concepts and CLI/API
+        workflows.
+  - [ ] Add `docs/template-builds.md` for build pipeline architecture, state
+        transitions, logs, failure modes, retries, and cancellation.
+  - [ ] Add `docs/template-security.md` for registry credentials, secret
+        redaction, base-image policy, digest pinning, SBOM/scanning, and audit
+        events.
+  - [ ] Add `docs/template-runtime-contract.md` for image expectations: user,
+        workdir, writable paths, entrypoint behavior, ports, envs, `execd`,
+        browser automation, code-server, and smoke tests.
+  - [ ] Update `docs/architecture.md` with the template build subsystem and data
+        flow from CLI/UI to BuildKit, registry, PostgreSQL, and OpenSandbox.
+  - [ ] Update `docs/api.md` with template, version, build, log, promote, and
+        cancel endpoints.
+  - [ ] Update `docs/runbook.md` with operator commands for builder health,
+        registry cleanup, build-log inspection, and failed pull debugging.
+- [ ] Website product docs:
+  - [ ] Add a Templates section to the in-app/docs website navigation.
+  - [ ] Add "Create a custom template" guide with `harakiri template init`,
+        Dockerfile example, `harakiri template build`, and `harakiri create`.
+  - [ ] Add "Template builds" guide explaining build statuses, logs, retries,
+        cancellation, and how to read common errors.
+  - [ ] Add "Using templates from SDKs" with JS and Python-style examples where
+        applicable.
+  - [ ] Add "Open Agents template" guide covering the `open-agents-dev` runtime,
+        included tools, exposed ports, and smoke-test commands.
+  - [ ] Add "Security model" page covering public/private/internal visibility,
+        image digest pinning, registry access, and secret handling.
+  - [ ] Ensure website docs match Harakiri's design tokens and do not use E2B
+        branding or copy.
+
+## Phases
+
+### Phase 1: Current-State Hardening
+**Status**: In Progress
+- [x] Change API sandbox creation to resolve templates from PostgreSQL instead
+      of the static shared `TEMPLATES` array.
+- [x] Keep the shared static `TEMPLATES` array only as bootstrap/fallback
+      metadata, not as the source of truth for runtime creation.
+- [x] Add API tests proving a DB template image and entrypoint are what
+      OpenSandbox receives.
+- [x] Add a migration that records template CPU, memory, workdir, default ports,
+      and runtime family, keeping existing rows compatible.
+- [x] Update SDK/CLI types to expose the expanded template fields.
+- [ ] Verify `python-3.12`, `python-3.12-data`, `node-20`, and existing sandbox
+      flows still work.
+
+### Phase 2: Template Version Data Model
+**Status**: In Progress
+- [x] Add `template_versions` with immutable version ID, template ID, image URI,
+      image digest, build ID, status, aliases, default entrypoint, resources,
+      ports, workdir, env schema, metadata, created/promoted timestamps.
+- [x] Add `template_builds` with build ID, organization ID, template ID, status,
+      source type, context hash, dockerfile path, build args metadata, log
+      storage pointer, image destination, started/completed timestamps, error.
+- [x] Add `template_build_logs` or object-storage-backed log references.
+- [ ] Add `template_registry_credentials` or org-level registry credentials with
+      encrypted secret material and least-privilege pull/push scope.
+- [x] Store `template_version_id` and `template_image_digest` on `sandboxes`.
+- [x] Add indexes for org/template/build status queries used by List and Builds UI.
+
+### Phase 3: Template Build API
+**Status**: In Progress
+- [x] Add `GET /v1/templates` with DB-backed list filters and pagination.
+- [x] Add `POST /v1/templates` to create a template definition.
+- [x] Add `GET /v1/templates/:id` and `GET /v1/templates/:id/versions`.
+- [ ] Add `POST /v1/templates/:id/builds` to enqueue a build from Dockerfile,
+      local-uploaded context, Git reference, or existing image reference.
+- [x] Add `GET /v1/template-builds` and `GET /v1/template-builds/:id`.
+- [x] Add `GET /v1/template-builds/:id/logs` with polling first and SSE later.
+- [x] Add `POST /v1/template-builds/:id/cancel` and retry endpoint.
+- [x] Add `POST /v1/templates/:id/promote` to move aliases such as `latest` and
+      `stable` to a successful version.
+- [ ] Enforce org authorization, template visibility, route/resource limits, and
+      build concurrency limits.
+
+### Phase 4: k0s Build Infrastructure
+**Status**: Not Started
+- [ ] Choose and deploy a local registry for k0s development, with a clear
+      production path for external registries.
+- [ ] Deploy rootless BuildKit in k0s or an equivalent Kubernetes-native builder.
+- [ ] Configure cache storage for builds so repeated template builds are fast.
+- [ ] Configure registry push/pull credentials and namespace isolation.
+- [ ] Add image digest resolution after push, and persist the digest before a
+      version can be marked ready.
+- [ ] Add cleanup policy for unreferenced build cache and abandoned images.
+- [ ] Add smoke scripts for build infrastructure health.
+
+### Phase 5: OpenSandbox Runtime Integration
+**Status**: Not Started
+- [ ] Resolve sandbox create input from template alias/name/version to an
+      immutable `template_version`.
+- [ ] Pass `image.uri` as a digest-pinned OCI reference to OpenSandbox.
+- [ ] Pass default entrypoint, CPU/memory, env, metadata, workdir, and registry
+      auth when supported by OpenSandbox.
+- [ ] Ensure metadata includes Harakiri sandbox ID, template ID, template version
+      ID, image digest, organization ID, and route policy.
+- [ ] Add preflight validation that the image can be pulled by OpenSandbox before
+      marking a version ready.
+- [ ] Add optional image pre-pull/warm pool support for hot templates.
+- [ ] Keep OpenSandbox snapshots as a later acceleration/checkpointing feature,
+      not as the initial template build foundation.
+
+### Phase 6: CLI Developer Experience
+**Status**: In Progress
+- [x] Add `harakiri template init` that writes `harakiri.toml` with fields similar
+      to E2B's `e2b.toml`: name, CPU, memory, Dockerfile, ports, workdir,
+      start/ready commands, env schema, visibility.
+- [x] Add `harakiri template build --name <name> [path]`.
+- [ ] Stream build logs in the CLI and print build ID, template version ID, image
+      digest, duration, and next create command on success.
+- [x] Add `harakiri template list`, `harakiri template builds`, `harakiri template logs`,
+      `harakiri template promote`, and `harakiri template inspect`.
+- [x] Add `harakiri create --template open-agents-dev` resolution by name/alias.
+- [ ] Add CLI tests for config parsing, build command payloads, logs formatting,
+      and failure output.
+
+### Phase 7: Dashboard Templates UI
+**Status**: Not Started
+- [ ] Refactor the existing Templates view into a tabbed List/Builds workspace.
+- [ ] Implement the List tab table and filters from the Product And UI Backlog.
+- [ ] Implement the Builds tab table and status filter counts.
+- [ ] Add build detail drawer/page with log viewer and retry/cancel actions.
+- [ ] Add New Template flow and use-template action wired to sandbox creation.
+- [ ] Add design-token-consistent badges, table density, iconography, and empty
+      states based on Harakiri's current theme.
+- [ ] Add Playwright screenshot coverage for Templates List, Builds, build
+      detail, new template, and mobile/narrow layouts.
+
+### Phase 8: Open Agents Template Pilot
+**Status**: Not Started
+- [ ] Copy or vendor the OpenSandbox-native `open-agents-dev` Dockerfile into a
+      Harakiri examples/templates area.
+- [ ] Build it through the new Harakiri template build path.
+- [ ] Publish it as an internal template with 2 CPU, 2048 MB memory, workdir
+      `/workspace`, and default ports `3000`, `5173`, `4321`, `8000`.
+- [ ] Create a sandbox from `open-agents-dev` and verify `bun`, `jq`,
+      `agent-browser`, Chromium, `code-server`, git, pnpm/yarn/npm, Python, and
+      workspace write access.
+- [ ] Expose a dev server route and verify public access through the existing
+      OpenSandbox gateway/Cloudflare path.
+- [ ] Record evidence in `docs/test-report.md`.
+
+### Phase 9: Security, Governance, And Operations
+**Status**: Not Started
+- [ ] Add maximum Dockerfile/context size limits.
+- [ ] Redact build args, env vars, registry credentials, and secrets in logs.
+- [ ] Add deny/allow policy for base images and registries.
+- [ ] Add vulnerability scanning hook and persist scan status on versions.
+- [ ] Add SBOM/provenance fields even if scanner/signing integration is deferred.
+- [ ] Add audit events for template create, build, cancel, promote, archive, and
+      sandbox creation from a template version.
+- [ ] Add retention policies for old builds, logs, and image versions.
+- [ ] Add admin/operator docs for registry credentials, BuildKit, cleanup, and
+      troubleshooting.
+
+### Phase 10: Documentation
+**Status**: Not Started
+- [ ] Update repository `README.md` with the custom template quickstart.
+- [ ] Add dedicated repo markdown docs from the Documentation Backlog.
+- [ ] Update `docs/api.md`, `docs/architecture.md`, `docs/runbook.md`, and
+      `docs/test-report.md`.
+- [ ] Add product-facing website docs pages for Templates, Builds, SDK usage,
+      Open Agents template, and Security model.
+- [ ] Add CLI help examples and ensure docs examples match implemented command
+      names and JSON payloads.
+- [ ] Add screenshots or short visual references for Templates List, Builds, and
+      build detail where useful.
+- [ ] Run link/path checks for repo docs and website docs.
+
+### Phase 11: Verification And Release
+**Status**: Not Started
+- [ ] Unit tests for schema helpers, template resolution, build state transitions,
+      and CLI config parsing.
+- [ ] API integration tests for template create/build/list/logs/promote and
+      sandbox creation from an immutable template version.
+- [ ] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs
+      runtime checks, exposes a route, and deletes the sandbox.
+- [ ] UI Playwright tests for Templates List/Builds and build detail flows.
+- [ ] Regression tests for existing sandbox create/run/kill/routes/TTL flows.
+- [ ] Verify documentation examples against the deployed k0s environment.
+- [ ] Commit and push once deployed and verified in k0s.
+
+## Decision Log
+| Date | Decision | Rationale | Alternatives Considered |
+|------|----------|-----------|------------------------|
+| 2026-05-23 | Copy E2B's developer workflow, not the E2B base image dependency | Harakiri runs on OpenSandbox and should produce normal OCI images that OpenSandbox can pull and run. | Use `e2bdev/code-interpreter` directly for all custom templates |
+| 2026-05-23 | Make immutable template versions the runtime contract | Sandboxes must be reproducible and auditable; mutable tags are unsafe as the long-term source of truth. | Store only template name and mutable image tag on sandbox records |
+| 2026-05-23 | Build OCI images first, defer snapshots | OpenSandbox image-based creation is already working; Kubernetes snapshot semantics need more validation and should become acceleration/checkpointing later. | Implement E2B-style snapshots as the first template primitive |
+| 2026-05-23 | Include E2B-like List and Builds UI in the first-class backlog | The user explicitly wants the E2B Templates UI experience, and custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
+
+## Tech Debt Incurred
+None yet. Expected risks to watch during implementation:
+
+- Keeping static shared template constants during migration may temporarily
+  duplicate source-of-truth behavior.
+- A local k0s registry is enough for development but production will need a
+  registry architecture decision with retention, scanning, and auth.
+- Polling build logs is simpler for v1; SSE/WebSocket log streaming should
+  follow once the build state model is stable.
+
+## Completion Notes
+Fill in when complete: what was delivered, what was deferred, deployment/test
+evidence, and any follow-up debt.
