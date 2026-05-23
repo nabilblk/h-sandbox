@@ -206,7 +206,7 @@ Delivered in k0s:
 - OpenSandbox Helm release upgraded to `[ingress] mode = "gateway"` with `gateway.address = "harakiri.io"` and header routing.
 - `ingress-nginx` installed and wildcard Ingress `*.harakiri.io -> opensandbox-ingress-gateway` applied.
 - k0s-local wildcard TLS secret creation and HTTPS ingress smoke added.
-- cert-manager v1.20.2 installed in k0s, with a repeatable `pnpm route:tls-letsencrypt` path for a Let's Encrypt wildcard origin certificate using Cloudflare DNS-01.
+- cert-manager v1.20.2 installed in k0s, with a repeatable `pnpm env:harakiri:route-tls-letsencrypt` path for a Let's Encrypt wildcard origin certificate using Cloudflare DNS-01.
 - Harakiri API route model now supports `GET/POST/DELETE /v1/sandboxes/:id/routes` with provider metadata and lifecycle cleanup.
 - Harakiri route creation enforces per-sandbox and per-org route limits.
 - CLI supports `harakiri expose` and `harakiri routes`.
@@ -222,8 +222,8 @@ Verification run:
 - `pnpm smoke:route`
 - `pnpm route:tls-dev`
 - `pnpm smoke:route-ingress`
-- `pnpm smoke:route-preflight`
-- `pnpm smoke:route-public`
+- `pnpm env:harakiri:route-preflight`
+- `pnpm env:harakiri:route-public`
 - `pnpm cert-manager:install`
 - route-limit smoke for `SANDBOX_MAX_ROUTES_PER_SANDBOX=8`
 - `pnpm e2e`
@@ -233,8 +233,8 @@ Verification run:
 - HTTP, SSE, and WebSocket protocol smoke through OpenSandbox gateway
 
 Final public route evidence:
-- `pnpm smoke:route-preflight` returned Cloudflare TLS headers for `preflight-3000.harakiri.io` and reached k0s/OpenSandbox.
-- `pnpm smoke:route-public` created a sandbox, started `python -m http.server 3000`, exposed port 3000, and fetched HTML from `https://0e3a7657-b7a2-426c-9806-ba477796ae30-3000.harakiri.io`.
+- `pnpm env:harakiri:route-preflight` returned Cloudflare TLS headers for `preflight-3000.harakiri.io` and reached k0s/OpenSandbox.
+- `pnpm env:harakiri:route-public` created a sandbox, started `python -m http.server 3000`, exposed port 3000, and fetched HTML from `https://0e3a7657-b7a2-426c-9806-ba477796ae30-3000.harakiri.io`.
 
 Optional follow-up:
-- Provide a Cloudflare DNS API token if `pnpm route:tls-letsencrypt` should issue the k0s origin wildcard cert through Let's Encrypt DNS-01 instead of using the local dev origin certificate with tunnel `noTLSVerify`.
+- Provide a Cloudflare DNS API token if `pnpm env:harakiri:route-tls-letsencrypt` should issue the k0s origin wildcard cert through Let's Encrypt DNS-01 instead of using the local dev origin certificate with tunnel `noTLSVerify`.

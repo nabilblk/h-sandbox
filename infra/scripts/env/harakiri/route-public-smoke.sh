@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 API_URL="${HARAKIRI_API_URL:-http://127.0.0.1:18082}"
 ROUTE_PORT="${HARAKIRI_ROUTE_PORT:-3000}"

@@ -25,13 +25,13 @@
     "ports:status": "bash infra/scripts/port-forward.sh status",
     "smoke": "bash infra/scripts/smoke.sh",
     "smoke:ttl": "bash infra/scripts/ttl-smoke.sh",
-    "route:cloudflare-dns": "bash infra/scripts/cloudflare-sandbox-dns.sh",
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
-    "route:tls-letsencrypt": "bash infra/scripts/route-tls-letsencrypt-cloudflare.sh",
-    "smoke:route-preflight": "bash infra/scripts/route-preflight.sh",
     "smoke:route": "bash infra/scripts/route-smoke.sh",
     "smoke:route-ingress": "bash infra/scripts/route-ingress-smoke.sh",
-    "smoke:route-public": "bash infra/scripts/route-public-smoke.sh"
+    "env:harakiri:cloudflare-dns": "bash infra/scripts/env/harakiri/cloudflare-sandbox-dns.sh",
+    "env:harakiri:route-tls-letsencrypt": "bash infra/scripts/env/harakiri/route-tls-letsencrypt-cloudflare.sh",
+    "env:harakiri:route-preflight": "bash infra/scripts/env/harakiri/route-preflight.sh",
+    "env:harakiri:route-public": "bash infra/scripts/env/harakiri/route-public-smoke.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

@@ -53,7 +53,7 @@ case "${HARAKIRI_ROUTE_TLS_MODE:-dev}" in
     "${ROOT}/infra/scripts/route-tls-dev-secret.sh"
     ;;
   letsencrypt-cloudflare)
-    "${ROOT}/infra/scripts/route-tls-letsencrypt-cloudflare.sh"
+    "${ROOT}/infra/scripts/env/harakiri/route-tls-letsencrypt-cloudflare.sh"
     ;;
   none)
     echo "skipping sandbox route TLS secret creation"

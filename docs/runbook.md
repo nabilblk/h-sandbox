@@ -79,10 +79,11 @@ bash infra/scripts/port-forward.sh attach
 
 ## Smoke Test
 
+Core platform checks:
+
 ```bash
 pnpm smoke
 pnpm smoke:ttl
-pnpm smoke:route-preflight
 pnpm smoke:route
 pnpm smoke:route-ingress
 pnpm e2e
@@ -90,6 +91,15 @@ pnpm screenshots
 ```
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
+
+Harakiri.io environment checks:
+
+```bash
+pnpm env:harakiri:route-preflight
+pnpm env:harakiri:route-public
+```
+
+These environment checks assume the current `harakiri.io` Cloudflare Tunnel, DNS, and edge TLS setup. They are not required for a generic core-platform deployment.
 
 ## Sandbox Routes
 
@@ -132,7 +142,7 @@ For a real origin certificate, install cert-manager and request a Let's Encrypt 
 ```bash
 export CLOUDFLARE_API_TOKEN=... # Zone:DNS:Edit and Zone:Zone:Read
 export LETSENCRYPT_EMAIL=nabilblk@gmail.com
-pnpm route:tls-letsencrypt
+pnpm env:harakiri:route-tls-letsencrypt
 kubectl -n opensandbox-system describe certificate harakiri-sandbox-wildcard-tls
 ```
 
@@ -142,8 +152,8 @@ To upsert the Cloudflare wildcard DNS record when credentials are available:
 export CLOUDFLARE_API_TOKEN=...
 export CLOUDFLARE_ZONE_ID=...
 export HARAKIRI_SANDBOX_DNS_TARGET=<ingress-or-tunnel-hostname>
-pnpm route:cloudflare-dns
-pnpm smoke:route-preflight
+pnpm env:harakiri:cloudflare-dns
+pnpm env:harakiri:route-preflight
 ```
 
 Local route verification uses the gateway forward:

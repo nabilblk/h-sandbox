@@ -52,3 +52,6 @@ For local k0s HTTPS ingress verification:
 pnpm route:tls-dev
 pnpm smoke:route-ingress
 ```
+
+Harakiri.io Cloudflare/DNS checks are kept as environment-specific scripts under
+`infra/scripts/env/harakiri` and exposed as `pnpm env:harakiri:*` commands.
