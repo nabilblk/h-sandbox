@@ -178,6 +178,47 @@ harakiri expose sbx_... --port 3000
 harakiri list
 ```
 
+## Custom Templates
+
+Create a local template config:
+
+```bash
+harakiri template init --name open-agents-dev --dockerfile Dockerfile
+```
+
+Create a template definition and queued build record:
+
+```bash
+harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template builds --query open-agents-dev
+harakiri template logs bld_...
+harakiri template inspect open-agents-dev
+```
+
+Create a sandbox from a template alias or immutable version:
+
+```bash
+harakiri create --template open-agents-dev --name agent-runner
+harakiri create --template tplv_... --name pinned-runner
+```
+
+Operator inspection:
+
+```bash
+export KUBECONFIG="$PWD/infra/k0s/harakiri.kubeconfig"
+kubectl -n harakiri exec deploy/postgres -- psql "$DATABASE_URL" -c \
+  "select id, template_id, status, image_destination, image_digest, error from template_builds order by created_at desc limit 10;"
+
+kubectl -n harakiri exec deploy/postgres -- psql "$DATABASE_URL" -c \
+  "select id, template_id, aliases, image_uri, image_digest, status from template_versions order by created_at desc limit 10;"
+```
+
+Current limitation: the API persists queued build records, but the k0s BuildKit
+worker that consumes those records is still part of the active custom template
+execution plan. Until that worker is deployed, use image-based template
+definitions for runtime testing and treat `template build` as control-plane
+record creation.
+
 ## Teardown
 
 ```bash

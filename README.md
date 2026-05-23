@@ -36,6 +36,36 @@ pnpm e2e
 See [docs/runbook.md](docs/runbook.md) for the full cluster workflow.
 See [docs/test-report.md](docs/test-report.md) for the latest self-test evidence and deployed URLs.
 
+## Custom Template Quickstart
+
+Templates are the Harakiri equivalent of E2B templates: a named runtime image
+plus CPU, memory, workdir, default ports, aliases, and immutable versions stored
+in PostgreSQL. The CLI writes `harakiri.toml`, which intentionally stays close
+to E2B's `e2b.toml` shape while targeting OpenSandbox-compatible OCI images.
+
+```bash
+harakiri template init --name open-agents-dev --dockerfile Dockerfile
+harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template builds --query open-agents-dev
+harakiri template logs bld_...
+harakiri create --template open-agents-dev --name agent-runner
+```
+
+Current v1 behavior persists template definitions, versions, build records, and
+build logs in PostgreSQL. The k0s BuildKit worker that turns queued build
+records into pushed digest-pinned OCI images is tracked in
+[docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).
+The k0s template-build path will require a registry, BuildKit or equivalent
+builder, pull secrets for OpenSandbox, and digest resolution before production
+promotion.
+
+For the implementation contract, read:
+
+- [docs/templates.md](docs/templates.md)
+- [docs/template-builds.md](docs/template-builds.md)
+- [docs/template-security.md](docs/template-security.md)
+- [docs/template-runtime-contract.md](docs/template-runtime-contract.md)
+
 ## Expose A Sandbox Port
 
 ```bash

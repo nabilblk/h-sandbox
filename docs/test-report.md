@@ -18,6 +18,12 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - `pnpm typecheck` passed across the workspace.
 - `pnpm test` passed all package tests.
 - `pnpm build` passed for shared, API, web, CLI, and SDK packages.
+- Documentation checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`, and
+  `pnpm build` passed after adding custom template docs. A Playwright docs
+  navigation smoke check opened the product docs and verified "Create a custom
+  template", "Template builds", "Using templates from SDKs", "Open Agents
+  template", "Security model", and "API reference" render with no console
+  errors.
 - `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards.
 - `pnpm smoke` passed sandbox create, real command execution, and kill through OpenSandbox with adapter fallback disabled.
 - `pnpm smoke:ttl` passed scheduler termination of a 10-second Harakiri TTL sandbox while using a provider-safe OpenSandbox lease.
@@ -34,6 +40,9 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Route limit smoke passed: the ninth active route on one sandbox returned `429 sandbox_route_limit_exceeded` with limit `8`.
 - Protocol route smoke passed through OpenSandbox gateway for HTTP, SSE, and WebSocket.
 - Global CLI install from the local package was verified with `harakiri --version`.
+- Template control-plane smoke was verified locally: template create, queued
+  build creation, build list, build logs, retry/cancel/promote endpoints, SDK
+  methods, and CLI `template init/list/build/builds/logs/promote/inspect`.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
@@ -88,3 +97,6 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Keycloak runs with `start-dev`, a development login fixture user, and the Harakiri login theme mounted from `keycloak-theme-harakiri`.
 - PostgreSQL uses local-path storage.
 - Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
+- Custom template build records are live in the control plane, but the k0s
+  BuildKit worker, registry cache, digest resolution, and `open-agents-dev`
+  image build smoke remain pending in the active execution plan.

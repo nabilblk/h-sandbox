@@ -11,6 +11,8 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 - Keycloak: OIDC identity provider for browser users.
 - OpenSandbox: runtime provider for sandbox lifecycle.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
+- Template builder: planned k0s BuildKit worker that consumes queued template
+  build records and writes immutable template versions.
 
 ## Data Flow
 
@@ -21,6 +23,26 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 5. The scheduler reconciles provider state, TTL, and idle schedules.
 6. The web app and CLI read the persisted control-plane state.
 
+## Template Build Subsystem
+
+Templates are a separate control-plane subsystem from live sandboxes:
+
+1. A user creates a template definition from the CLI, API, or dashboard.
+2. Harakiri stores the definition in `templates` and creates an initial
+   `template_versions` row for image-based definitions.
+3. A user enqueues a build in `template_builds`.
+4. The planned builder worker claims queued records, streams logs into
+   `template_build_logs`, builds or imports the image, pushes it to a registry,
+   resolves the immutable digest, and writes a ready `template_versions` row.
+5. Promotion moves aliases such as `latest` or `stable` to the ready version.
+6. Sandbox creation resolves a template name, alias, or version ID through
+   `resolveTemplate()` and stores the exact version/digest selected.
+
+The currently committed API, CLI, SDK, and dashboard support the definition,
+build-record, log, cancel, retry, promote, and version-read surfaces. The actual
+k0s BuildKit worker, registry cache, and digest resolution are tracked as the
+next infrastructure phase.
+
 ## Database
 
 The schema is in `db/migrations/001_control_plane.sql` and includes:
@@ -30,6 +52,10 @@ The schema is in `db/migrations/001_control_plane.sql` and includes:
 - `memberships`
 - `api_keys`
 - `templates`
+- `template_versions`
+- `template_builds`
+- `template_build_logs`
+- `template_registry_credentials`
 - `sandboxes`
 - `sandbox_events`
 - `sandbox_routes`
@@ -50,6 +76,12 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 ## OpenSandbox Adapter
 
 `apps/api/src/opensandbox.ts` isolates provider calls. It uses the OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew and Kubernetes `pods/exec` for command execution inside the sandbox container.
+
+For templates, the adapter receives the resolved runtime template: image URI,
+entrypoint, CPU, memory, TTL, name, and Harakiri metadata. Once the builder
+phase writes digest-pinned versions, the adapter should prefer digest-pinned
+image references and pass registry auth/workdir/env when OpenSandbox supports
+those fields.
 
 ## Sandbox Routes
 

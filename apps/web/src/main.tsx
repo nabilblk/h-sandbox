@@ -661,7 +661,198 @@ const Onboarding = ({ go, profile }: { go: (route: Route) => void; profile?: Use
   return <div className="onb"><div className="onb-bar"><Brand /><div className="right"><a onClick={() => go("landing")}>Exit setup -&gt;</a></div></div><div className="onb-wrap"><div className="onb-steps">{["Account", "Workspace", "API key", "Hello, sandbox"].map((label, i) => <div key={label} className={`onb-step ${i === step ? "active" : i < step ? "done" : ""}`}><div className="onb-num">{i < step ? <Icon name="check" size={11} /> : i + 1}</div><div><div className="onb-step-l">{label}</div><div className="onb-step-s">{i === 0 ? "Keycloak profile." : i === 1 ? "Org defaults." : i === 2 ? "Drop this in .env." : "Run code."}</div></div></div>)}</div><div className="onb-body">{step === 0 ? <div><h1 className="onb-h">Welcome to Harakiri.</h1><p className="onb-sub">Keycloak owns sign-in. Your profile comes from the deployed realm.</p><div className="onb-section" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 560 }}><Field label="Full name"><input className="input" readOnly value={profile?.name ?? "Lyra Ito"} /></Field><Field label="Work email"><input className="input" readOnly value={profile?.email ?? "lyra@k.ai"} /></Field></div><div className="onb-foot"><button className="btn btn-primary" onClick={() => setStep(1)}>Continue <Icon name="arrowR" size={11} /></button></div></div> : null}{step === 1 ? <div><h1 className="onb-h">Your workspace.</h1><p className="onb-sub">Sandboxes live in an org. Defaults are saved to PostgreSQL.</p><div className="onb-section" style={{ maxWidth: 560 }}><Field label="Organization name"><input className="input" value={workspace.name} onChange={(e) => setWorkspace({ ...workspace, name: e.target.value })} /></Field><div style={{ height: 14 }} /><Field label="Slug"><input className="input mono" value={workspace.slug} onChange={(e) => setWorkspace({ ...workspace, slug: e.target.value })} /></Field></div><div className="onb-foot"><button className="btn" onClick={() => setStep(0)}>Back</button><button className="btn btn-primary" onClick={saveWorkspace}>Continue <Icon name="arrowR" size={11} /></button></div></div> : null}{step === 2 ? <div><h1 className="onb-h">Your first API key.</h1><p className="onb-sub">This is shown once and stored hashed in PostgreSQL.</p><div className="onb-foot"><button className="btn" onClick={() => setStep(1)}>Back</button><button className="btn btn-primary" onClick={createKey}>Create key <Icon name="key" size={11} /></button></div></div> : null}{step === 3 ? <div><h1 className="onb-h">Hello, sandbox.</h1>{token ? <div className="card" style={{ padding: 16, maxWidth: 680, marginBottom: 16 }}><div className="field-l">API key</div><div className="num" style={{ wordBreak: "break-all" }}>{token}</div></div> : null}<div className="hterm card" style={{ maxWidth: 780 }}><div className="hterm-bar"><span className="dot r" /><span className="dot y" /><span className="dot g" /><span className="hterm-title">first-sandbox.py</span></div><div className="hterm-body" style={{ minHeight: 220 }}>{out.length ? out.map((line) => <div key={line} className="hterm-line">{line}</div>) : <><div className="hterm-line muted"># Click Run to spawn your first sandbox</div><div className="hterm-line">print(2+2)</div></>}</div></div><div className="onb-foot"><button className="btn btn-accent" onClick={run}><Icon name="play" size={11} /> Run first sandbox</button><button className="btn btn-primary" onClick={openDashboard}>Open dashboard <Icon name="arrowR" size={11} /></button></div></div> : null}</div></div></div>;
 };
 
-const Docs = ({ go, profile, onSignIn, onSignOut }: { go: (route: Route) => void; profile?: UserProfile | null; onSignIn: () => void; onSignOut: () => void }) => <div className="app"><TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} /><div className="docs"><aside className="docs-side"><div className="docs-section-h">Getting started</div>{["Quickstart", "Create a sandbox", "Run code", "Filesystem", "Templates", "Security model"].map((x, i) => <a key={x} className={`docs-link ${i === 0 ? "active" : ""}`}>{x}</a>)}</aside><main className="docs-body"><article><h1>Quickstart</h1><p className="lede">Spawn a sealed Python sandbox, run code in it, and end it from the dashboard or CLI.</p><h2>Install the CLI</h2><pre>{`pnpm --filter @harakiri/cli build\nharakiri login --api-key hk_live_...`}</pre><h2>Create your first sandbox</h2><pre>{`harakiri create --template python-3.12-data\nharakiri run --stdin agent.py\nharakiri kill sbx_...`}</pre><h2>API</h2><span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code></span><pre>{`curl $PUBLIC_API_URL/v1/sandboxes \\\n  -H "x-api-key: $HK_KEY" \\\n  -d '{"template":"python-3.12-data","ttlSeconds":300}'`}</pre></article></main><aside className="docs-toc"><div className="docs-toc-h">On this page</div><a className="active">Install the CLI</a><a>Create your first sandbox</a><a>API</a></aside></div></div>;
+type DocPage = {
+  id: string;
+  section: string;
+  title: string;
+  lede: string;
+  toc: string[];
+  body: React.ReactNode;
+};
+
+const docPages: DocPage[] = [
+  {
+    id: "quickstart",
+    section: "Getting started",
+    title: "Quickstart",
+    lede: "Spawn a sealed Python sandbox, run code in it, expose a port, and end it from the dashboard or CLI.",
+    toc: ["Install", "Create", "Expose"],
+    body: (
+      <>
+        <h2>Install</h2>
+        <pre>{`pnpm --filter @harakiri/cli build\nharakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...`}</pre>
+        <h2>Create</h2>
+        <pre>{`harakiri create --template python-3.12-data --name first-agent\nharakiri run --stdin agent.py\nharakiri kill sbx_...`}</pre>
+        <h2>Expose</h2>
+        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0"\nharakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
+      </>
+    )
+  },
+  {
+    id: "create-sandbox",
+    section: "Sandboxes",
+    title: "Create a sandbox",
+    lede: "Create sandboxes from catalog templates, custom template aliases, or immutable template version IDs.",
+    toc: ["CLI", "API", "Routing"],
+    body: (
+      <>
+        <h2>CLI</h2>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300\nharakiri status sbx_...`}</pre>
+        <h2>API</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code></span>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300}'`}</pre>
+        <h2>Routing</h2>
+        <p>Expose a port only when a process is listening on `0.0.0.0` inside the sandbox.</p>
+        <pre>{`harakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
+      </>
+    )
+  },
+  {
+    id: "custom-templates",
+    section: "Templates",
+    title: "Create a custom template",
+    lede: "Define an OpenSandbox-compatible runtime once, build it, then create sandboxes by template name or alias.",
+    toc: ["Config", "Build", "Run"],
+    body: (
+      <>
+        <h2>Config</h2>
+        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile`}</pre>
+        <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\nstart_command = "sleep 3600"`}</pre>
+        <h2>Build</h2>
+        <pre>{`harakiri template build --name open-agents-dev . \\\n  --image registry.example.com/harakiri/open-agents-dev:dev\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
+        <p>The current control plane stores build records and logs. The k0s BuildKit worker that turns queued records into pushed digest-pinned images is part of the active template-build rollout.</p>
+        <h2>Run</h2>
+        <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
+      </>
+    )
+  },
+  {
+    id: "template-builds",
+    section: "Templates",
+    title: "Template builds",
+    lede: "Build records make template image creation inspectable from the API, CLI, and dashboard.",
+    toc: ["Statuses", "Logs", "Retry"],
+    body: (
+      <>
+        <h2>Statuses</h2>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. Retry creates a new queued build linked to the original.</p>
+        <pre>{`harakiri template builds --status queued\nharakiri template builds --query open-agents-dev`}</pre>
+        <h2>Logs</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
+        <pre>{`harakiri template logs bld_...`}</pre>
+        <h2>Retry</h2>
+        <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
+        <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
+      </>
+    )
+  },
+  {
+    id: "sdk-usage",
+    section: "Templates",
+    title: "Using templates from SDKs",
+    lede: "The SDK uses the same API surface as the dashboard and CLI, so template aliases work consistently.",
+    toc: ["JavaScript", "HTTP", "Python"],
+    body: (
+      <>
+        <h2>JavaScript</h2>
+        <pre>{`import { HarakiriClient } from "@harakiri/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({ template: "open-agents-dev", ttlSeconds: 300 });\nawait client.run(sandbox.id, { command: "python --version" });`}</pre>
+        <h2>HTTP</h2>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev","ttlSeconds":300}'`}</pre>
+        <h2>Python</h2>
+        <p>A Python SDK is not shipped in this prototype yet. Use the HTTP API from Python until the SDK package is added.</p>
+      </>
+    )
+  },
+  {
+    id: "open-agents-template",
+    section: "Templates",
+    title: "Open Agents template",
+    lede: "The planned pilot template packages browser automation, code editing, JavaScript, and Python tools for agent runtimes.",
+    toc: ["Included tools", "Ports", "Smoke test"],
+    body: (
+      <>
+        <h2>Included tools</h2>
+        <ul><li>`bun`, `node`, `pnpm`, `npm`, and `yarn`</li><li>`agent-browser` and Chromium headless dependencies</li><li>`code-server`, `git`, `jq`, and Python</li><li>Writable `/workspace` directory</li></ul>
+        <h2>Ports</h2>
+        <p>Use `3000`, `5173`, `4321`, and `8000` as default exposed-port candidates for web apps, Vite, code-server, and API servers.</p>
+        <h2>Smoke test</h2>
+        <pre>{`harakiri create --template open-agents-dev --name pilot\nharakiri run sbx_... --cmd "bun --version && jq --version && python --version"\nharakiri run sbx_... --cmd "echo ok >/workspace/write.txt && cat /workspace/write.txt"`}</pre>
+      </>
+    )
+  },
+  {
+    id: "security-model",
+    section: "Reference",
+    title: "Security model",
+    lede: "Custom templates are untrusted inputs until the builder, registry, digest, and promotion checks succeed.",
+    toc: ["Visibility", "Digests", "Secrets"],
+    body: (
+      <>
+        <h2>Visibility</h2>
+        <p>`private`, `internal`, and `public` control product visibility. API authorization still enforces organization scope on template definitions, builds, logs, and versions.</p>
+        <h2>Digests</h2>
+        <p>Mutable tags can be accepted as input, but ready versions should store an immutable image digest before production use.</p>
+        <h2>Secrets</h2>
+        <p>Registry passwords and build secrets should live in Kubernetes Secrets or an external secret manager. PostgreSQL should store only credential references and redacted metadata.</p>
+      </>
+    )
+  },
+  {
+    id: "api-reference",
+    section: "Reference",
+    title: "API reference",
+    lede: "The template APIs share authentication with the rest of the Harakiri control plane.",
+    toc: ["Templates", "Builds", "Promotion"],
+    body: (
+      <>
+        <h2>Templates</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates/:id/versions</code></span>
+        <h2>Builds</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/builds</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
+        <h2>Promotion</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
+      </>
+    )
+  }
+];
+
+const Docs = ({ go, profile, onSignIn, onSignOut }: { go: (route: Route) => void; profile?: UserProfile | null; onSignIn: () => void; onSignOut: () => void }) => {
+  const [active, setActive] = useState("quickstart");
+  const page = docPages.find((item) => item.id === active) ?? docPages[0];
+  const sections = Array.from(new Set(docPages.map((item) => item.section)));
+  return (
+    <div className="app">
+      <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} />
+      <div className="docs">
+        <aside className="docs-side">
+          {sections.map((section) => (
+            <div key={section}>
+              <div className="docs-section-h">{section}</div>
+              {docPages.filter((item) => item.section === section).map((item) => (
+                <button key={item.id} className={`docs-link ${item.id === page.id ? "active" : ""}`} onClick={() => setActive(item.id)}>{item.title}</button>
+              ))}
+            </div>
+          ))}
+        </aside>
+        <main className="docs-body">
+          <article>
+            <h1>{page.title}</h1>
+            <p className="lede">{page.lede}</p>
+            {page.body}
+          </article>
+        </main>
+        <aside className="docs-toc">
+          <div className="docs-toc-h">On this page</div>
+          {page.toc.map((item, index) => <a key={item} className={index === 0 ? "active" : ""}>{item}</a>)}
+        </aside>
+      </div>
+    </div>
+  );
+};
 
 const SignInGate = ({ onSignIn }: { onSignIn: () => void }) => (
   <div className="onb">

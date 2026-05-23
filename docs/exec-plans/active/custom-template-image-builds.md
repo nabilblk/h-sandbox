@@ -106,51 +106,53 @@ Documentation is a first-class deliverable for this feature, split between
 repo-facing engineering documentation and product-facing website documentation.
 
 ### Code Documentation: README And Dedicated Markdown
-- [ ] Repository README updates:
-  - [ ] Add a quickstart for creating and using a custom template.
-  - [ ] Document the recommended `harakiri.toml` shape and how it maps to E2B's
+- [x] Repository README updates:
+  - [x] Add a quickstart for creating and using a custom template.
+  - [x] Document the recommended `harakiri.toml` shape and how it maps to E2B's
         `e2b.toml`.
-  - [ ] Explain the difference between template definitions, template versions,
+  - [x] Explain the difference between template definitions, template versions,
         builds, images, aliases, and snapshots.
-  - [ ] Document local k0s prerequisites: registry, BuildKit, image pull
+  - [x] Document local k0s prerequisites: registry, BuildKit, image pull
         secrets, and OpenSandbox connectivity.
-- [ ] Dedicated repo markdown docs:
-  - [ ] Add `docs/templates.md` for developer-facing template concepts and CLI/API
+- [x] Dedicated repo markdown docs:
+  - [x] Add `docs/templates.md` for developer-facing template concepts and CLI/API
         workflows.
-  - [ ] Add `docs/template-builds.md` for build pipeline architecture, state
+  - [x] Add `docs/template-builds.md` for build pipeline architecture, state
         transitions, logs, failure modes, retries, and cancellation.
-  - [ ] Add `docs/template-security.md` for registry credentials, secret
+  - [x] Add `docs/template-security.md` for registry credentials, secret
         redaction, base-image policy, digest pinning, SBOM/scanning, and audit
         events.
-  - [ ] Add `docs/template-runtime-contract.md` for image expectations: user,
+  - [x] Add `docs/template-runtime-contract.md` for image expectations: user,
         workdir, writable paths, entrypoint behavior, ports, envs, `execd`,
         browser automation, code-server, and smoke tests.
-  - [ ] Update `docs/architecture.md` with the template build subsystem and data
+  - [x] Update `docs/architecture.md` with the template build subsystem and data
         flow from CLI/UI to BuildKit, registry, PostgreSQL, and OpenSandbox.
-  - [ ] Update `docs/api.md` with template, version, build, log, promote, and
+  - [x] Update `docs/api.md` with template, version, build, log, promote, and
         cancel endpoints.
-  - [ ] Update `docs/runbook.md` with operator commands for builder health,
-        registry cleanup, build-log inspection, and failed pull debugging.
+  - [x] Update `docs/runbook.md` with operator commands for build-log
+        inspection.
+  - [ ] Update `docs/runbook.md` with builder health, registry cleanup, and
+        failed pull debugging commands once the k0s builder exists.
 
 ### Product Documentation: Website And In-App Docs
-- [ ] Website product docs:
-  - [ ] Add a Templates section to the in-app/docs website navigation.
-  - [ ] Add "Create a custom template" guide with `harakiri template init`,
+- [x] Website product docs:
+  - [x] Add a Templates section to the in-app/docs website navigation.
+  - [x] Add "Create a custom template" guide with `harakiri template init`,
         Dockerfile example, `harakiri template build`, and `harakiri create`.
-  - [ ] Add "Template builds" guide explaining build statuses, logs, retries,
+  - [x] Add "Template builds" guide explaining build statuses, logs, retries,
         cancellation, and how to read common errors.
-  - [ ] Add "Using templates from SDKs" with JS and Python-style examples where
+  - [x] Add "Using templates from SDKs" with JS and Python-style examples where
         applicable.
-  - [ ] Add "Open Agents template" guide covering the `open-agents-dev` runtime,
+  - [x] Add "Open Agents template" guide covering the `open-agents-dev` runtime,
         included tools, exposed ports, and smoke-test commands.
-  - [ ] Add "Security model" page covering public/private/internal visibility,
+  - [x] Add "Security model" page covering public/private/internal visibility,
         image digest pinning, registry access, and secret handling.
-  - [ ] Ensure website docs match Harakiri's design tokens and do not use E2B
+  - [x] Ensure website docs match Harakiri's design tokens and do not use E2B
         branding or copy.
 
 ### Documentation Acceptance Criteria
 - [ ] A new user can create and run a custom template using only the website docs.
-- [ ] A contributor can understand the build pipeline and data model using only
+- [x] A contributor can understand the build pipeline and data model using only
       the README plus dedicated markdown docs.
 - [ ] Every documented CLI/API example is verified against the deployed k0s
       environment before the plan is completed.
@@ -285,20 +287,20 @@ repo-facing engineering documentation and product-facing website documentation.
       troubleshooting.
 
 ### Phase 10: Documentation
-**Status**: Not Started
-- [ ] Update repository `README.md` with the custom template quickstart and
+**Status**: In Progress
+- [x] Update repository `README.md` with the custom template quickstart and
       links to the deeper template docs.
-- [ ] Add dedicated repo markdown docs from the Code Documentation backlog.
-- [ ] Update `docs/api.md`, `docs/architecture.md`, `docs/runbook.md`, and
+- [x] Add dedicated repo markdown docs from the Code Documentation backlog.
+- [x] Update `docs/api.md`, `docs/architecture.md`, `docs/runbook.md`, and
       `docs/test-report.md`.
-- [ ] Add product-facing website docs pages from the Product Documentation
+- [x] Add product-facing website docs pages from the Product Documentation
       backlog: Templates, Builds, SDK usage, Open Agents template, and Security
       model.
 - [ ] Add CLI help examples and ensure docs examples match implemented command
       names and JSON payloads.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
-- [ ] Run link/path checks for repo docs and website docs.
+- [x] Run link/path checks for repo docs and website docs.
 
 ### Phase 11: Verification And Release
 **Status**: Not Started
