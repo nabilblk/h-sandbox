@@ -113,6 +113,24 @@ Documentation is a first-class deliverable for this feature, split between
 repo-facing engineering documentation and product-facing website documentation.
 It must be planned and verified alongside code, not added as a release-afterthought.
 
+### Documentation Definition Of Done
+Every remaining feature checkpoint must ship with both documentation tracks unless
+the change is provably invisible to one audience.
+
+- Code documentation track: update `README.md` or a dedicated Markdown file under
+  `docs/` in the same checkpoint as API, CLI, database, scheduler, builder,
+  routing, deployment, or operational behavior changes. These docs are the
+  source of truth for contributors and operators.
+- Product documentation track: update the website docs surface in the same
+  checkpoint as user-visible dashboard, CLI, SDK, sandbox routing, template
+  creation, template build, failure handling, or troubleshooting behavior
+  changes. These docs are the source of truth for Harakiri users.
+- If one documentation track is not touched, the checkpoint notes must state why
+  it is not affected.
+- Verification must include at least one command, API payload, UI path, or route
+  from the changed docs, recorded in `docs/test-report.md` before marking the
+  related plan item complete.
+
 ### Documentation Surface Inventory
 - Code documentation must be maintained in `README.md` plus dedicated Markdown
   files under `docs/`: `templates.md`, `template-builds.md`,
@@ -138,6 +156,17 @@ It must be planned and verified alongside code, not added as a release-afterthou
   user workflow changes update the website docs surface.
 - Code documentation and product documentation are tracked as separate
   deliverables. Completing one does not imply the other is complete.
+
+### Documentation Workstream Map
+| Feature slice | Code documentation | Website product documentation | Verification evidence |
+| --- | --- | --- | --- |
+| Template config and CLI build workflow | `README.md`, `docs/templates.md`, `docs/template-builds.md`, example README | Templates guide, build guide, SDK usage guide | CLI `template init`, `template build`, `create`, and matching dashboard path |
+| Template versioning and aliases | `docs/templates.md`, `docs/api.md`, data model notes in `docs/architecture.md` | Templates list/detail docs explaining latest, stable, aliases, and immutable IDs | API list/get version calls and UI screenshot |
+| Dashboard Templates List, Builds, and detail pages | UI notes in `README.md` only if local setup changes; otherwise `docs/templates.md` for behavior | Website docs for List, Builds, build detail, new template, and template detail workflows | Playwright screenshots plus docs link/path check |
+| Build failure handling and retries | `docs/template-builds.md`, `docs/runbook.md`, `docs/template-security.md` when policy-related | Troubleshooting page and build failure recovery copy | Failed-build smoke in API, CLI, and UI |
+| Runtime image contract and Open Agents template | `docs/template-runtime-contract.md`, `examples/templates/open-agents-dev/README.md` | Open Agents template guide and user-facing runtime expectations | Sandbox smoke for tools, workspace, terminal, logs/files/metrics, and routes |
+| Public route exposure for template sandboxes | `docs/templates.md`, `docs/api.md`, `docs/runbook.md`, routing notes in `docs/architecture.md` | User-facing route exposure guide and troubleshooting page | k0s route smoke with documented hostname pattern |
+| Registry credentials, cleanup, scanning, retention | `docs/template-security.md`, `docs/runbook.md`, `docs/architecture.md` | Product docs only for user-visible configuration or error recovery | Operator command output and audit/test-report notes |
 
 ### Code Documentation: README And Dedicated Markdown
 - [x] Repository README updates:
@@ -459,6 +488,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 | 2026-05-23 | Build OCI images first, defer snapshots | OpenSandbox image-based creation is already working; Kubernetes snapshot semantics need more validation and should become acceleration/checkpointing later. | Implement E2B-style snapshots as the first template primitive |
 | 2026-05-23 | Include E2B-like List and Builds UI in the first-class backlog | The user explicitly wants the E2B Templates UI experience, and custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
 | 2026-05-24 | Treat documentation as a first-class phase split between repo engineering docs and website product docs | Users need product docs to use templates, while contributors need README and dedicated markdown to operate the build pipeline. | Keep documentation as loose backlog notes only |
+| 2026-05-24 | Require dual-track docs in every remaining checkpoint | Documentation should move with the feature slice that changes behavior so README/dedicated Markdown and website docs stay consistent. | Batch all documentation at the end of the plan |
 | 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the E2B-like runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
 | 2026-05-24 | Make the dashboard Dockerfile path a single-file browser upload for the prototype | Browser-created tar+gzip contexts prove the dashboard flow without implementing directory upload complexity; the CLI remains the full multi-file context path. | Add drag-and-drop directory upload before validating the end-to-end product flow |
 
