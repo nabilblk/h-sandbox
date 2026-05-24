@@ -70,6 +70,11 @@ if ! grep -q -- "-> image=sha256:" <<<"${BUILD_OUTPUT}"; then
   echo "template build ${BUILD_ID} did not print an image digest" >&2
   exit 1
 fi
+VERSION_ID="$(printf '%s\n' "${BUILD_OUTPUT}" | awk -F= '/^-> version=/ {print $2}' | tail -1)"
+if [[ -z "${VERSION_ID}" ]]; then
+  echo "template build ${BUILD_ID} did not print a template version id" >&2
+  exit 1
+fi
 
 CREATE_OUTPUT="$(HOME="${CLI_HOME}" HARAKIRI_API_URL="${API_URL}" HARAKIRI_API_KEY="${HARAKIRI_API_KEY}" \
   node "${CLI}" create --template "${NAME}" --name "runtime-${NAME}")"
@@ -93,6 +98,12 @@ VERSION_SECURITY="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "
   psql -U harakiri -d harakiri -qAtc "select scan_status || '|' || coalesce(provenance->>'buildId', '') || '|' || coalesce(scan_summary->>'reason', '') from template_versions where build_id = '${BUILD_ID}' order by created_at desc limit 1;")"
 if [[ "${VERSION_SECURITY}" != "not_scanned|${BUILD_ID}|scanner_not_configured" ]]; then
   echo "template version security fields were not populated for ${BUILD_ID}: ${VERSION_SECURITY}" >&2
+  exit 1
+fi
+BUILD_AUDIT_COUNT="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \
+  psql -U harakiri -d harakiri -qAtc "select count(*) from audit_events where action = 'template.build.success' and target_id = '${BUILD_ID}' and metadata->>'versionId' = '${VERSION_ID}';")"
+if [[ "${BUILD_AUDIT_COUNT}" != "1" ]]; then
+  echo "template build success audit event missing for ${BUILD_ID}/${VERSION_ID}: ${BUILD_AUDIT_COUNT}" >&2
   exit 1
 fi
 

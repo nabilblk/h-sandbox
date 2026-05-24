@@ -285,6 +285,24 @@ kubectl -n harakiri logs job/<job-name> -c context-exporter
 kubectl -n harakiri logs job/<job-name> -c kaniko
 ```
 
+Inspect recent template audit events:
+
+```bash
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
+  "select action, target_type, target_id, actor_label, metadata, created_at from audit_events where action like 'template.%' order by created_at desc limit 20;"
+```
+
+Archive a custom template when it should no longer be used for new sandboxes:
+
+```bash
+harakiri template archive open-agents-dev
+curl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"
+```
+
+Archiving hides the template from default lists, prevents future sandbox
+creation by that template alias or version, and cancels queued/building builds
+for the template. Existing sandboxes are not killed by archive.
+
 Run the end-to-end Dockerfile builder smoke:
 
 ```bash

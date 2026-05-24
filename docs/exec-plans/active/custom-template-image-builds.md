@@ -54,10 +54,10 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [ ] Template images are reproducible and auditable: mutable tags are resolved
       to immutable digests before use.
 - [ ] The default static templates continue to work during rollout.
-- [ ] Repo documentation explains how template definitions, builds, image
+- [x] Repo documentation explains how template definitions, builds, image
       digests, registry credentials, the Kubernetes builder, and OpenSandbox runtime
       integration work.
-- [ ] Product documentation is available inside the Harakiri website/docs area
+- [x] Product documentation is available inside the Harakiri website/docs area
       so users can learn the template workflow without reading repository
       internals.
 - [ ] Any change to template behavior, CLI flags, API payloads, route exposure,
@@ -81,7 +81,8 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [ ] Show template aliases such as `open-agents-dev` and `team/template`.
   - [x] Show internal/private/public visibility badges.
   - [x] Provide actions for Use, Build, and Copy ID.
-  - [ ] Provide actions for View builds, Promote, and Archive.
+  - [ ] Provide actions for View builds and Promote.
+  - [x] Provide an Archive action for private active templates.
 - [ ] Builds tab:
   - [x] Search by build ID, template ID, or template name.
   - [x] Filter by status with counts for queued/building/success/failed/canceled.
@@ -375,7 +376,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
       Dockerfile base images.
 - [ ] Add vulnerability scanning hook and persist scan status on versions.
 - [x] Add SBOM/provenance fields even if scanner/signing integration is deferred.
-- [ ] Add audit events for template create, build, cancel, promote, archive, and
+- [x] Add audit events for template create, build, cancel, promote, archive, and
       sandbox creation from a template version.
 - [ ] Add retention policies for old builds, logs, and image versions.
 - [ ] Add admin/operator docs for registry credentials, builder cleanup, and
@@ -408,6 +409,8 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Add a documentation verification note to `docs/test-report.md` after
       running the Dockerfile builder CLI/API examples against k0s.
 - [x] Run link/path checks for repo docs and website docs.
+- [x] Verify the audit/archive documentation slice in both repo docs
+      (`README.md` and dedicated `docs/*.md`) and the deployed website docs.
 
 ### Phase 11: Verification And Release
 **Status**: In Progress

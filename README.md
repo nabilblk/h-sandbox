@@ -48,6 +48,7 @@ harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri create --template open-agents-dev --name agent-runner
+harakiri template archive open-agents-dev
 ```
 
 Current v1 behavior persists template definitions, versions, build records,

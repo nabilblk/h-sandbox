@@ -207,7 +207,14 @@ behavior for CI or custom polling scripts.
 The `harakiri-template-builder` deployment handles public image imports and
 Dockerfile builds. It claims queued records, writes logs, stores
 `image_digest`, creates a ready `template_versions` row, and updates the
-template's `latest_version_id`.
+template's `latest_version_id`. Build success and failure are recorded in
+`audit_events` as `template.build.success` and `template.build.failed` with the
+builder actor label `harakiri-template-builder`.
+
+If a template is archived while a queued or building record exists, the API
+marks those active builds `canceled`. If a Kubernetes build job finishes after
+the record was canceled, the builder ignores the result instead of promoting it
+back onto the archived template.
 
 For Dockerfile builds, the worker creates a short-lived Kubernetes Job in the
 `harakiri` namespace. The Job uses the API image as a context-exporter init

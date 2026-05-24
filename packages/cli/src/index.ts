@@ -397,6 +397,17 @@ template
     printProgress(`promoted ${result.template.id} -> ${result.template.latestVersionId ?? options.versionId}`);
   });
 
+template
+  .command("archive")
+  .argument("<template-id>", "template id, name, or alias")
+  .description("Archive a custom template")
+  .action(async (id) => {
+    const result = await api<{ template: TemplateResult }>(`/v1/templates/${encodeURIComponent(id)}/archive`, {
+      method: "POST"
+    });
+    printProgress(`archived ${result.template.id}`);
+  });
+
 program
   .command("create")
   .description("Create a sandbox")

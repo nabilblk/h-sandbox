@@ -182,6 +182,38 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `security_columns=4`, no active smoke API keys, no running/pending/idle
   sandboxes, no `kaniko-smoke-*` templates, no `runtime-kaniko-smoke-*` sandbox
   rows, and `ready_routes=0`.
+- Template audit/archive checkpoint on 2026-05-24: `pnpm test`, `pnpm
+  typecheck`, `pnpm build`, `bash -n infra/scripts/template-audit-smoke.sh`,
+  and `git diff --check` passed after adding shared audit recording, template
+  archive lifecycle handling, CLI/SDK archive support, and repo/product docs.
+  After the final dashboard Archive gating change, `pnpm --filter
+  @harakiri/web typecheck`, `pnpm --filter @harakiri/web build`, and
+  `git diff --check` also passed. `pnpm deploy:k0s` rolled out the changes and
+  `pnpm ports:restart && pnpm ports:status` reported every forward healthy.
+- Template audit/archive smoke on 2026-05-24: `pnpm smoke:template-audit`
+  created template `audit-smoke-1779592676`, version `tplv_LEDIGAz8ZIMP`,
+  sandbox `sbx_xakrl7ZAyp`, and build `bld_7cElfT0xdNqG`; it verified
+  `template.create`, `sandbox.create`, `template.build.create`,
+  `template.build.cancel`, `template.promote`, and `template.archive` audit
+  actions, confirmed archived templates are hidden from active lists, and
+  confirmed archived aliases cannot create new sandboxes.
+- Template builder audit regression on 2026-05-24: `pnpm smoke:template-build`
+  created build `bld_OX0O6AhycXhu`, version `tplv_vlbIfShYV_0l`, digest
+  `sha256:8df8e8c8192981c9462fa34c50e13d01b9b8b1094756ffcdd154fa3775622de0`,
+  and sandbox `sbx_PJOkPeRHEh`; `harakiri run` returned `harakiri-built` and
+  the smoke verified the `template.build.success` audit event points at the
+  produced version.
+- Template archive UI/docs browser checkpoint on 2026-05-24: a Playwright smoke
+  created `ui-archive-1779592978983`, verified the deployed Templates List can
+  archive a private active template, verified the archived row appears only
+  under the Archived filter with Use/Build disabled and no Archive action, and
+  wrote `/tmp/harakiri-template-archive-ui.png`. The same browser run verified
+  the website docs include the Template Builds archive workflow, Security Model
+  audit wording, and API Reference `/v1/templates/:id/archive`, then wrote
+  `/tmp/harakiri-template-audit-docs.png`.
+- Post-audit/archive cleanup audit on 2026-05-24: PostgreSQL reported
+  `active_smoke_keys=0`, `live_sandboxes=0`, `smoke_templates=0`,
+  `runtime_smoke_rows=0`, and `ready_routes=0`.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

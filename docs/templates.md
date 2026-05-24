@@ -52,6 +52,7 @@ harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template inspect open-agents-dev
 harakiri create --template open-agents-dev --name agent-runner
+harakiri template archive open-agents-dev
 ```
 
 `template build` creates or reuses the template definition, then enqueues a build
@@ -63,6 +64,10 @@ ID, image digest, duration, and next `harakiri create` command. Use
 Image-import builds resolve an immutable source digest. Dockerfile builds upload
 their local context, run a Kaniko Job in k0s, push to the local registry, and
 create a digest-pinned ready template version.
+
+`template archive` hides a custom template from active lists and prevents new
+sandbox creation by that template alias or version. Existing sandboxes keep
+running, and queued/building builds for the archived template are canceled.
 
 The API enforces workspace policy before accepting template definitions or
 build records. By default custom templates are capped at 8 vCPU, 32768 MiB

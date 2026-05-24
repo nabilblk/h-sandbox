@@ -1,5 +1,6 @@
 import type { V1Job } from "@kubernetes/client-node";
 import path from "node:path";
+import { recordAuditEvent } from "./audit.js";
 import { config } from "./config.js";
 import { makeId } from "./crypto.js";
 import { closeDb, withClient } from "./db.js";
@@ -125,6 +126,20 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
   withClient(async (client) => {
     await client.query("BEGIN");
     try {
+      const current = await client.query<{ status: string }>(
+        `SELECT b.status
+         FROM template_builds b
+         JOIN templates t ON t.id = b.template_id
+         WHERE b.id = $1
+         FOR UPDATE OF b, t`,
+        [build.id]
+      );
+      if (current.rows[0]?.status === "canceled") {
+        await appendBuildLog(client, build.id, "stdout", "builder result ignored because build was canceled");
+        await client.query("COMMIT");
+        return { versionId: null, digest: ready.imageDigest, imageUri: ready.imageUri, skipped: true };
+      }
+
       const version = await client.query<{ next: number }>("SELECT COALESCE(MAX(version_number), 0) + 1 AS next FROM template_versions WHERE template_id = $1", [build.template_id]);
       const versionId = makeId("tplv", 12);
       const versionNumber = Number(version.rows[0]?.next ?? 1);
@@ -154,10 +169,10 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
       );
       await client.query(
         `UPDATE templates
-         SET latest_version_id = $2,
-             image = $3,
-             image_digest = $4,
-             status = 'ready',
+         SET latest_version_id = CASE WHEN status = 'archived' THEN latest_version_id ELSE $2 END,
+             image = CASE WHEN status = 'archived' THEN image ELSE $3 END,
+             image_digest = CASE WHEN status = 'archived' THEN image_digest ELSE $4 END,
+             status = CASE WHEN status = 'archived' THEN status ELSE 'ready' END,
              updated_at = now()
          WHERE id = $1`,
         [build.template_id, versionId, ready.imageUri, ready.imageDigest]
@@ -174,8 +189,26 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
         [build.id, ready.imageUri, ready.imageDigest, JSON.stringify(redactRecord({ templateVersionId: versionId, readyImage: ready.metadata }))]
       );
       await appendBuildLog(client, build.id, "stdout", `created template version ${versionId}`);
+      await recordAuditEvent(
+        {
+          organizationId: build.organization_id,
+          actorUserId: null,
+          actorLabel: "harakiri-template-builder",
+          action: "template.build.success",
+          targetType: "template_build",
+          targetId: build.id,
+          metadata: {
+            templateId: build.template_id,
+            sourceType: build.source_type,
+            versionId,
+            imageUri: ready.imageUri,
+            imageDigest: ready.imageDigest
+          }
+        },
+        client
+      );
       await client.query("COMMIT");
-      return { versionId, digest: ready.imageDigest, imageUri: ready.imageUri };
+      return { versionId, digest: ready.imageDigest, imageUri: ready.imageUri, skipped: false };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -187,16 +220,38 @@ const failBuild = async (build: BuildRow, error: unknown) =>
     const message = redactText(error instanceof Error ? error.message : String(error));
     await client.query("BEGIN");
     try {
-      await client.query(
+      const failed = await client.query<{ id: string }>(
         `UPDATE template_builds
          SET status = 'failed',
              error = $2,
              completed_at = now(),
              updated_at = now()
-         WHERE id = $1`,
+         WHERE id = $1 AND status <> 'canceled'
+         RETURNING id`,
         [build.id, message]
       );
+      if (!failed.rowCount) {
+        await appendBuildLog(client, build.id, "stderr", `ignored failure after cancellation: ${message}`);
+        await client.query("COMMIT");
+        return;
+      }
       await appendBuildLog(client, build.id, "stderr", message);
+      await recordAuditEvent(
+        {
+          organizationId: build.organization_id,
+          actorUserId: null,
+          actorLabel: "harakiri-template-builder",
+          action: "template.build.failed",
+          targetType: "template_build",
+          targetId: build.id,
+          metadata: {
+            templateId: build.template_id,
+            sourceType: build.source_type,
+            error: message
+          }
+        },
+        client
+      );
       await client.query("COMMIT");
     } catch (rollbackError) {
       await client.query("ROLLBACK");
@@ -373,7 +428,7 @@ const processBuild = async (sourceType: "image" | "dockerfile", readyImage: (bui
   try {
     const ready = await readyImage(build);
     const result = await completeBuild(build, ready);
-    console.log(`template build ${build.id} completed as ${result.imageUri}`);
+    console.log(result.skipped ? `template build ${build.id} result ignored after cancellation` : `template build ${build.id} completed as ${result.imageUri}`);
     return result;
   } catch (error) {
     await failBuild(build, error);

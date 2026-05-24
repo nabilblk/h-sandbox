@@ -172,6 +172,10 @@ export class HarakiriClient {
     });
   }
 
+  archiveTemplate(id: string) {
+    return this.request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}/archive`, { method: "POST" });
+  }
+
   listSandboxes(params = "") {
     return this.request<{ sandboxes: SandboxSummary[] }>(`/v1/sandboxes${params}`);
   }

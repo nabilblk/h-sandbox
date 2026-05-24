@@ -103,9 +103,11 @@ const templateWhere = (organizationId: string, filters: TemplateListFilters) => 
     params.push(filters.visibility);
     where.push(`t.visibility = $${params.length}`);
   }
-  if (filters.status && filters.status !== "all") {
+  if (filters.status && filters.status !== "all" && filters.status !== "active") {
     params.push(filters.status);
     where.push(`t.status = $${params.length}`);
+  } else if (!filters.status || filters.status === "active") {
+    where.push("t.status <> 'archived'");
   }
   if (filters.q) {
     params.push(`%${filters.q}%`);
@@ -162,6 +164,7 @@ export const resolveTemplate = async (templateRef: string, organizationId: strin
      LEFT JOIN template_versions v_latest ON v_latest.id = t.latest_version_id
      LEFT JOIN template_versions v ON v.id = COALESCE(v_match.id, v_latest.id)
      WHERE (t.organization_id IS NULL OR t.organization_id = $2)
+       AND t.status <> 'archived'
        AND (t.id = $1 OR t.name = $1 OR $1 = ANY(t.aliases) OR v_match.id IS NOT NULL)
      ORDER BY "scopeRank" ASC, rank ASC, t.updated_at DESC
      LIMIT 1`,
@@ -169,6 +172,29 @@ export const resolveTemplate = async (templateRef: string, organizationId: strin
   );
   if (result.rows[0]) return mapTemplate(result.rows[0]);
   return fallbackTemplate(templateRef);
+};
+
+export const archiveTemplate = async (templateRef: string, organizationId: string): Promise<RuntimeTemplate | null> => {
+  const archived = await query<{ id: string }>(
+    `UPDATE templates
+     SET status = 'archived',
+         updated_at = now()
+     WHERE organization_id = $1
+       AND (id = $2 OR name = $2 OR $2 = ANY(aliases))
+     RETURNING id`,
+    [organizationId, templateRef]
+  );
+  const id = archived.rows[0]?.id;
+  if (!id) return null;
+
+  const result = await query<TemplateRow>(
+    `SELECT ${templateFields}
+     FROM templates t
+     LEFT JOIN template_versions v ON v.id = t.latest_version_id
+     WHERE t.id = $1 AND t.organization_id = $2`,
+    [id, organizationId]
+  );
+  return result.rows[0] ? mapTemplate(result.rows[0]) : null;
 };
 
 export const averageTemplateBootMs = async (organizationId: string) => {

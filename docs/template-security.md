@@ -143,7 +143,18 @@ private build logs across tenants.
 
 ## Audit Events
 
-The plan requires audit events for template create, build, cancel, promote,
-archive, and sandbox creation from a template version. Current code records
-create, build create, cancel, retry, promote, and sandbox create. Archive and
-builder-completion audit events still need to be added with the builder phase.
+Harakiri records template lifecycle events in `audit_events`:
+
+- `template.create`
+- `template.build.create`
+- `template.build.cancel`
+- `template.build.retry`
+- `template.build.success`
+- `template.build.failed`
+- `template.promote`
+- `template.archive`
+- `sandbox.create`
+
+Builder-completion events use the system actor label
+`harakiri-template-builder`. User-triggered events use the authenticated
+Keycloak or API-key actor label. Audit metadata is redacted before storage.

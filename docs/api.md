@@ -28,6 +28,7 @@ Authorization: Bearer <keycloak-jwt>
 - `POST /v1/template-builds/:id/cancel`
 - `POST /v1/template-builds/:id/retry`
 - `POST /v1/templates/:id/promote`
+- `POST /v1/templates/:id/archive`
 - `GET /v1/sandboxes`
 - `POST /v1/sandboxes`
 - `GET /v1/sandboxes/:id`
@@ -75,6 +76,8 @@ Supported filters:
 - `q`: template ID, name, or alias search.
 - `visibility`: `public`, `private`, `internal`, or `all`.
 - `status`: template status or `all`.
+  If omitted, archived templates are hidden. Use `status=archived` to inspect
+  archived templates or `status=all` to include every status.
 - `limit`: `1..200`.
 - `offset`: pagination offset.
 
@@ -199,6 +202,17 @@ curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/promote \
   -H "content-type: application/json" \
   -d '{"versionId":"tplv_...","alias":"stable"}'
 ```
+
+Archive a custom template:
+
+```bash
+curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/archive \
+  -H "x-api-key: $HK_KEY"
+```
+
+Archived templates are hidden from default template lists, cannot be resolved
+for new sandbox creation, and cancel any queued/building builds for that
+template. They remain queryable with `GET /v1/templates?status=archived`.
 
 Current v1 API behavior persists build records, uploaded Dockerfile contexts,
 and logs. The deployed template builder consumes queued `sourceType=image`

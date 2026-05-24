@@ -56,6 +56,7 @@ export const api = {
   templateBuildLogs: (id: string) => request<{ logs: TemplateBuildLogEntry[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`),
   cancelTemplateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   retryTemplateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/retry`, { method: "POST" }),
+  archiveTemplate: (id: string) => request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}/archive`, { method: "POST" }),
   keys: () => request<{ keys: ApiKeySummary[] }>("/v1/api-keys"),
   createKey: (name: string) => request<{ key: ApiKeySummary; token: string }>("/v1/api-keys", { method: "POST", body: JSON.stringify({ name }) }),
   revokeKey: (id: string) => request<{ ok: boolean }>(`/v1/api-keys/${id}`, { method: "DELETE" }),

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
+import { recordAuditEvent } from "./audit.js";
 import { requireAuth } from "./auth.js";
 import { decodeBuildContextUpload, dockerfileBaseImages, readTextFileFromTarGzipBuildContext } from "./build-context.js";
 import { appendBuildLog } from "./build-logs.js";
@@ -15,7 +16,7 @@ import {
   templateImagePolicyViolation,
   templateResourceLimitViolations
 } from "./template-policy.js";
-import { averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
+import { archiveTemplate, averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
 
 const createSandboxSchema = z.object({
   template: z.string().default("python-3.12-data"),
@@ -201,13 +202,8 @@ const withTemplateBuildSlot = async <T>(organizationId: string, insertBuild: (cl
     }
   });
 
-const audit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) => {
-  await query(
-    `INSERT INTO audit_events (organization_id, actor_user_id, actor_label, action, target_type, target_id, metadata)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [organizationId, actorUserId, actorLabel, action, targetType, targetId ?? null, metadata]
-  );
-};
+const audit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) =>
+  recordAuditEvent({ organizationId, actorUserId, actorLabel, action, targetType, targetId, metadata });
 
 const event = async (organizationId: string, sandboxId: string, type: string, message: string, metadata = {}) => {
   await query(
@@ -675,6 +671,29 @@ export const registerRoutes = async (app: FastifyInstance) => {
     });
     const promoted = await resolveTemplate(body.versionId, request.auth.organizationId);
     return { template: promoted };
+  });
+
+  app.post("/v1/templates/:id/archive", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const archived = await archiveTemplate(id, request.auth.organizationId);
+    if (!archived) return reply.code(404).send({ error: "template_not_found" });
+    const canceled = await query<{ id: string }>(
+      `UPDATE template_builds
+       SET status = 'canceled',
+           completed_at = COALESCE(completed_at, now()),
+           error = COALESCE(error, 'canceled by template archive'),
+           updated_at = now()
+       WHERE organization_id = $1
+         AND template_id = $2
+         AND status = ANY($3::text[])
+       RETURNING id`,
+      [request.auth.organizationId, archived.id, activeTemplateBuildStatuses]
+    );
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.archive", "template", archived.id, {
+      latestVersionId: archived.latestVersionId,
+      canceledBuildIds: canceled.rows.map((row) => row.id)
+    });
+    return { template: archived };
   });
 
   app.get("/v1/sandboxes", async (request) => {

@@ -297,6 +297,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [q, setQ] = useState("");
   const [visibility, setVisibility] = useState("all");
+  const [templateStatus, setTemplateStatus] = useState("active");
   const [buildQ, setBuildQ] = useState("");
   const [buildStatus, setBuildStatus] = useState("all");
   const [selectedBuild, setSelectedBuild] = useState<TemplateBuildSummary | null>(null);
@@ -307,6 +308,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (visibility !== "all") params.set("visibility", visibility);
+    if (templateStatus !== "active") params.set("status", templateStatus);
     params.set("limit", "100");
     try {
       const result = await api.templates(`?${params.toString()}`);
@@ -328,7 +330,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBuilds([]);
     }
   };
-  useEffect(() => { void loadTemplates(); }, [q, visibility]);
+  useEffect(() => { void loadTemplates(); }, [q, visibility, templateStatus]);
   useEffect(() => { void loadBuilds(); }, [buildQ, buildStatus]);
   useEffect(() => { api.usage().then(setUsage).catch(() => undefined); }, []);
   useEffect(() => {
@@ -385,6 +387,15 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBusy(null);
     }
   };
+  const archiveTemplate = async (templateId: string) => {
+    setBusy(`archive:${templateId}`);
+    try {
+      await api.archiveTemplate(templateId);
+      await loadTemplates();
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <div className="dash-page tmpl-workspace">
@@ -412,6 +423,9 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
             <button className={`btn btn-sm ${visibility === "internal" ? "active" : ""}`} onClick={() => setVisibility("internal")}>Internal</button>
             <button className={`btn btn-sm ${visibility === "public" ? "active" : ""}`} onClick={() => setVisibility("public")}>Public</button>
             <button className={`btn btn-sm ${visibility === "private" ? "active" : ""}`} onClick={() => setVisibility("private")}>Private</button>
+            <button className={`btn btn-sm ${templateStatus === "active" ? "active" : ""}`} onClick={() => setTemplateStatus("active")}>Active</button>
+            <button className={`btn btn-sm ${templateStatus === "archived" ? "active" : ""}`} onClick={() => setTemplateStatus("archived")}>Archived</button>
+            <button className={`btn btn-sm ${templateStatus === "all" ? "active" : ""}`} onClick={() => setTemplateStatus("all")}>All status</button>
             <span className="tmpl-total num">{templateTotal} total</span>
           </div>
           <div className="tmpl-list card">
@@ -423,11 +437,12 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                 <span>{template.cpuCount ?? 1} Cores</span>
                 <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
                 <span className="num muted">{formatDateTime(template.updatedAt)}</span>
-                <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span></span>
+                <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status === "archived" ? <span className="tag" style={{ marginLeft: 4 }}>archived</span> : null}</span>
                 <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
                 <span className="tmpl-actions">
-                  <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={busy === `use:${template.id}`}>Use</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={busy === `build:${template.id}`}>Build</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || busy === `build:${template.id}`}>Build</button>
+                  {template.status !== "archived" && template.visibility === "private" ? <button className="btn btn-ghost btn-sm" onClick={() => archiveTemplate(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
                   <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
                 </span>
               </div>
@@ -731,7 +746,7 @@ const docPages: DocPage[] = [
     section: "Templates",
     title: "Template builds",
     lede: "Build records make template image creation inspectable from the API, CLI, and dashboard.",
-    toc: ["Statuses", "Logs", "Retry", "Limits"],
+    toc: ["Statuses", "Logs", "Retry", "Archive", "Limits"],
     body: (
       <>
         <h2>Statuses</h2>
@@ -743,6 +758,9 @@ const docPages: DocPage[] = [
         <h2>Retry</h2>
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
         <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
+        <h2>Archive</h2>
+        <p>Archive a template when it should no longer appear in active lists or be used for new sandboxes. Existing sandboxes keep running; queued or building template builds are canceled.</p>
+        <pre>{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</pre>
         <h2>Limits</h2>
         <p>If a template asks for more CPU, memory, or default ports than the workspace allows, the API returns `template_resource_limit_exceeded`. If too many builds are already queued or building, it returns `template_build_concurrency_limit_exceeded`. Image and Dockerfile base-image policy failures return `template_image_policy_violation`.</p>
       </>
@@ -792,7 +810,7 @@ const docPages: DocPage[] = [
     section: "Reference",
     title: "Security model",
     lede: "Custom templates are untrusted inputs until the builder, registry, digest, and promotion checks succeed.",
-    toc: ["Visibility", "Digests", "Secrets", "Runtime metadata", "Image policy", "Provenance", "Limits"],
+    toc: ["Visibility", "Digests", "Secrets", "Runtime metadata", "Image policy", "Provenance", "Audit", "Limits"],
     body: (
       <>
         <h2>Visibility</h2>
@@ -807,6 +825,8 @@ const docPages: DocPage[] = [
         <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run.</p>
         <h2>Provenance</h2>
         <p>Template versions keep SBOM references, provenance, scan status, and scan summaries. Until a scanner is connected, new versions are marked `not_scanned` with the reason `scanner_not_configured`.</p>
+        <h2>Audit</h2>
+        <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, and sandbox create actions are stored as audit events with redacted metadata.</p>
         <h2>Limits</h2>
         <p>Template CPU, memory, default ports, and active queued/building builds are capped by the workspace policy so one team cannot exhaust builder capacity.</p>
       </>
@@ -817,7 +837,7 @@ const docPages: DocPage[] = [
     section: "Reference",
     title: "API reference",
     lede: "The template APIs share authentication with the rest of the Harakiri control plane.",
-    toc: ["Templates", "Builds", "Promotion"],
+    toc: ["Templates", "Builds", "Promotion", "Archive"],
     body: (
       <>
         <h2>Templates</h2>
@@ -831,6 +851,8 @@ const docPages: DocPage[] = [
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
         <h2>Promotion</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
+        <h2>Archive</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/archive</code></span>
       </>
     )
   }

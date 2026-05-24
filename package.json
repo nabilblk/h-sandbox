@@ -29,6 +29,7 @@
     "smoke:template-redaction": "bash infra/scripts/template-redaction-smoke.sh",
     "smoke:template-limits": "bash infra/scripts/template-limits-smoke.sh",
     "smoke:template-policy": "bash infra/scripts/template-image-policy-smoke.sh",
+    "smoke:template-audit": "bash infra/scripts/template-audit-smoke.sh",
     "smoke:template-build": "bash infra/scripts/template-build-smoke.sh",
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
     "smoke:route": "bash infra/scripts/route-smoke.sh",
