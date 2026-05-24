@@ -440,6 +440,7 @@ spec:
             - --import-realm
             - --hostname-strict=false
             - --http-enabled=true
+            - --proxy-headers=xforwarded
             - --spi-theme-cache-themes=false
             - --spi-theme-cache-templates=false
           envFrom:

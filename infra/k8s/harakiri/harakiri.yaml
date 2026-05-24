@@ -15,8 +15,8 @@ metadata:
   namespace: harakiri
 data:
   API_PORT: "8080"
-  PUBLIC_API_URL: "http://harakiri-api.harakiri.svc.cluster.local:8080"
-  PUBLIC_KEYCLOAK_URL: "http://127.0.0.1:18084"
+  PUBLIC_API_URL: "https://sb-api.harakiri.io"
+  PUBLIC_KEYCLOAK_URL: "https://sb-auth.harakiri.io"
   PUBLIC_KEYCLOAK_REALM: "harakiri"
   PUBLIC_KEYCLOAK_CLIENT_ID: "harakiri-web"
   PUBLIC_OPEN_SANDBOX_URL: "http://127.0.0.1:18083"
@@ -64,7 +64,7 @@ data:
   TEMPLATE_RETENTION_DELETE_BUILDER_JOBS: "1"
   TEMPLATE_BUILDER_POLL_MS: "5000"
   KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
-  KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
+  KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri"
   KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
   OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_ALLOW_FALLBACK: "0"

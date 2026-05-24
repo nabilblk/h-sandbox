@@ -1,7 +1,12 @@
 import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, Template, TemplateBuildContextSummary, TemplateBuildLogEntry, TemplateBuildSummary, TemplateVersionSummary, UsageSummary } from "@harakiri/shared";
 import { auth } from "./auth";
 
-const API_URL = import.meta.env.PUBLIC_API_URL ?? import.meta.env.VITE_PUBLIC_API_URL ?? "http://127.0.0.1:18082";
+const defaultApiUrl = () => {
+  if (typeof location !== "undefined" && location.hostname === "sb.harakiri.io") return "https://sb-api.harakiri.io";
+  return "http://127.0.0.1:18082";
+};
+
+const API_URL = import.meta.env.PUBLIC_API_URL ?? import.meta.env.VITE_PUBLIC_API_URL ?? defaultApiUrl();
 const API_KEY = import.meta.env.PUBLIC_API_KEY ?? import.meta.env.VITE_PUBLIC_API_KEY;
 
 const request = async <T>(path: string, init: RequestInit = {}) => {

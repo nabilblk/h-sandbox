@@ -121,6 +121,17 @@ pnpm env:harakiri:route-public
 
 These environment checks assume the current `harakiri.io` Cloudflare Tunnel, DNS, and edge TLS setup. They are not required for a generic core-platform deployment.
 
+The `harakiri-dev` Cloudflare Tunnel uses these prototype hostnames for the
+public developer surface:
+
+- Web: `https://sb.harakiri.io` -> local k0s web forward `127.0.0.1:15173`
+- Keycloak: `https://sb-auth.harakiri.io` -> local k0s Keycloak forward
+  `127.0.0.1:18084`
+- API: `https://sb-api.harakiri.io` -> local k0s API forward
+  `127.0.0.1:18082`
+- Sandbox routes: `https://<route-key>.harakiri.io` -> local k0s HTTPS ingress
+  forward `127.0.0.1:18087`
+
 ## Sandbox Routes
 
 Route creation is explicit:
