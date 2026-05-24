@@ -62,6 +62,20 @@ template version ID, or version alias. The sandbox response includes
 `templateVersionId` and `templateImageDigest` when the selected version has
 those fields.
 
+List sandbox history with optional filters:
+
+```bash
+curl "http://127.0.0.1:18082/v1/sandboxes?template=open-agents-dev&limit=20" \
+  -H "x-api-key: $HK_KEY"
+
+curl "http://127.0.0.1:18082/v1/sandboxes?templateVersionId=tplv_..." \
+  -H "x-api-key: $HK_KEY"
+```
+
+Supported list filters are `status`, `q`, `template`, `templateVersionId`, and
+`limit`. The dashboard template detail Runs tab uses the `template` filter to
+show recent sandboxes created from the selected template.
+
 ## Templates
 
 List templates:
@@ -189,6 +203,9 @@ List, inspect, and read logs:
 curl "http://127.0.0.1:18082/v1/template-builds?status=queued&q=open-agents-dev" \
   -H "x-api-key: $HK_KEY"
 
+curl "http://127.0.0.1:18082/v1/template-builds?template=open-agents-dev&limit=20" \
+  -H "x-api-key: $HK_KEY"
+
 curl http://127.0.0.1:18082/v1/template-builds/bld_... \
   -H "x-api-key: $HK_KEY"
 
@@ -201,6 +218,9 @@ Build inspect responses include redacted `metadata`, the resulting
 Dockerfile builds also include Kubernetes builder fields in `metadata`:
 `builderJobName`, `builderPodName`, `builderPodUid`, `builderNodeName`, and
 `builderNamespace`.
+Supported build list filters are `status`, `q`, `template`, and `limit`. The
+dashboard template detail Config tab uses `template` to show the latest redacted
+build args and metadata for a selected template.
 
 Cancel, retry, and promote:
 

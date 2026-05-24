@@ -461,18 +461,24 @@ export const registerRoutes = async (app: FastifyInstance) => {
   });
 
   app.get("/v1/template-builds", async (request) => {
-    const { status, q } = request.query as { status?: string; q?: string };
+    const { status, q, template, limit: rawLimit } = request.query as { status?: string; q?: string; template?: string; limit?: string };
     const params: unknown[] = [request.auth.organizationId];
     let where = "WHERE organization_id = $1";
+    const limit = Math.min(Math.max(Number(rawLimit ?? 100) || 100, 1), 200);
     if (status && status !== "all") {
       params.push(status);
       where += ` AND status = $${params.length}`;
+    }
+    if (template) {
+      params.push(template);
+      where += ` AND template_id = $${params.length}`;
     }
     if (q) {
       params.push(`%${q}%`);
       where += ` AND (id ILIKE $${params.length} OR template_id ILIKE $${params.length})`;
     }
-    const result = await query(`${templateBuildSelect} ${where} ORDER BY created_at DESC LIMIT 100`, params);
+    params.push(limit);
+    const result = await query(`${templateBuildSelect} ${where} ORDER BY created_at DESC LIMIT $${params.length}`, params);
     return { builds: result.rows.map(redactTemplateBuildRow) };
   });
 
@@ -723,18 +729,34 @@ export const registerRoutes = async (app: FastifyInstance) => {
   });
 
   app.get("/v1/sandboxes", async (request) => {
-    const { status, q } = request.query as { status?: string; q?: string };
+    const { status, q, template, templateVersionId, limit: rawLimit } = request.query as {
+      status?: string;
+      q?: string;
+      template?: string;
+      templateVersionId?: string;
+      limit?: string;
+    };
     const params: unknown[] = [request.auth.organizationId];
     let where = "WHERE s.organization_id = $1";
+    const limit = Math.min(Math.max(Number(rawLimit ?? 100) || 100, 1), 200);
     if (status && status !== "all") {
       params.push(status);
       where += ` AND s.status = $${params.length}`;
+    }
+    if (template) {
+      params.push(template);
+      where += ` AND s.template_id = $${params.length}`;
+    }
+    if (templateVersionId) {
+      params.push(templateVersionId);
+      where += ` AND s.template_version_id = $${params.length}`;
     }
     if (q) {
       params.push(`%${q}%`);
       where += ` AND (s.id ILIKE $${params.length} OR s.name ILIKE $${params.length})`;
     }
-    const result = await query(`${sandboxSelect} ${where} ORDER BY s.created_at DESC`, params);
+    params.push(limit);
+    const result = await query(`${sandboxSelect} ${where} ORDER BY s.created_at DESC LIMIT $${params.length}`, params);
     return { sandboxes: result.rows };
   });
 

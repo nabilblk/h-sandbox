@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { TEMPLATES, type SandboxRouteSummary, type SandboxSummary, type Template, type TemplateBuildLogEntry, type TemplateBuildSummary, type UsageSummary } from "@harakiri/shared";
+import { TEMPLATES, type SandboxRouteSummary, type SandboxSummary, type Template, type TemplateBuildLogEntry, type TemplateBuildSummary, type TemplateVersionSummary, type UsageSummary } from "@harakiri/shared";
 import { api } from "./api";
 import { auth, type UserProfile } from "./auth";
 import "./styles.css";
@@ -656,6 +656,36 @@ const metadataLabel = (value: unknown, fallback = "-") => {
   if (value === null || value === undefined) return fallback;
   return String(value);
 };
+const templateRefForCreate = (template: Template) => template.aliases?.[0] ?? template.id;
+const tomlArray = (values: Array<string | number>) => `[${values.map((value) => typeof value === "number" ? value : tomlString(value)).join(", ")}]`;
+const formatJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
+const templateConfigToml = (template: Template, latestBuild?: TemplateBuildSummary | null) => [
+  `name = ${tomlString(template.id)}`,
+  `visibility = ${tomlString(template.visibility)}`,
+  `image = ${tomlString(template.image)}`,
+  `cpu_count = ${template.cpuCount ?? 1}`,
+  `memory_mb = ${template.memoryMb ?? 1024}`,
+  `workdir = ${tomlString(template.workdir || "/")}`,
+  `ports = ${tomlArray(template.defaultPorts ?? [])}`,
+  `start_command = ${tomlString((template.defaultEntrypoint ?? ["sleep", "3600"]).join(" "))}`,
+  `aliases = ${tomlArray(template.aliases ?? [])}`,
+  latestBuild?.dockerfilePath ? `dockerfile = ${tomlString(latestBuild.dockerfilePath)}` : null
+].filter(Boolean).join("\n");
+const templateCreateCommand = (template: Template) => `harakiri create --template ${templateRefForCreate(template)} --name agent-runner`;
+const templateSdkSnippet = (template: Template) => `import { HarakiriClient } from "@harakiri/sdk";
+
+const client = new HarakiriClient({
+  apiUrl: process.env.PUBLIC_API_URL!,
+  apiKey: process.env.HK_KEY!
+});
+
+const { sandbox } = await client.createSandbox({
+  template: "${templateRefForCreate(template)}",
+  ttlSeconds: 300
+});
+
+await client.run(sandbox.id, { command: "python --version" });`;
+type TemplateDetailTab = "overview" | "versions" | "config" | "runs";
 
 const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [tab, setTab] = useState<"list" | "builds">("list");
@@ -671,6 +701,13 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [buildQ, setBuildQ] = useState("");
   const [buildStatus, setBuildStatus] = useState("all");
   const [selectedBuild, setSelectedBuild] = useState<TemplateBuildSummary | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [templateDetailTab, setTemplateDetailTab] = useState<TemplateDetailTab>("overview");
+  const [templateVersions, setTemplateVersions] = useState<TemplateVersionSummary[]>([]);
+  const [templateDetailBuilds, setTemplateDetailBuilds] = useState<TemplateBuildSummary[]>([]);
+  const [templateRuns, setTemplateRuns] = useState<SandboxSummary[]>([]);
+  const [templateDetailLoading, setTemplateDetailLoading] = useState(false);
+  const [templateDetailError, setTemplateDetailError] = useState("");
   const [buildLogs, setBuildLogs] = useState<TemplateBuildLogEntry[]>([]);
   const [buildLogsLoading, setBuildLogsLoading] = useState(false);
   const [buildLogsError, setBuildLogsError] = useState("");
@@ -736,6 +773,43 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       .finally(() => { if (!cancelled) setBuildLogsLoading(false); });
     return () => { cancelled = true; };
   }, [selectedBuild]);
+  useEffect(() => {
+    if (!selectedTemplate) {
+      setTemplateVersions([]);
+      setTemplateDetailBuilds([]);
+      setTemplateRuns([]);
+      setTemplateDetailError("");
+      setTemplateDetailLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const templateId = selectedTemplate.id;
+    setTemplateDetailLoading(true);
+    setTemplateDetailError("");
+    const params = new URLSearchParams({ template: templateId, limit: "20" });
+    Promise.all([
+      api.template(templateId),
+      api.templateVersions(templateId),
+      api.templateBuilds(`?${params.toString()}`),
+      api.sandboxes(`?${params.toString()}`)
+    ])
+      .then(([templateResult, versionResult, buildResult, sandboxResult]) => {
+        if (cancelled) return;
+        setSelectedTemplate(templateResult.template);
+        setTemplateVersions(versionResult.versions);
+        setTemplateDetailBuilds(buildResult.builds);
+        setTemplateRuns(sandboxResult.sandboxes);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setTemplateVersions([]);
+        setTemplateDetailBuilds([]);
+        setTemplateRuns([]);
+        setTemplateDetailError(error instanceof Error ? error.message : "Failed to load template details.");
+      })
+      .finally(() => { if (!cancelled) setTemplateDetailLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedTemplate?.id]);
 
   const buildCounts = useMemo(() => ({
     all: builds.length,
@@ -772,11 +846,16 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
     setSelectedBuild(null);
     setTab("builds");
   };
+  const viewTemplate = (template: Template, detailTab: TemplateDetailTab = "overview") => {
+    setSelectedTemplate(template);
+    setTemplateDetailTab(detailTab);
+  };
   const promoteTemplate = async (template: Template) => {
     if (!template.latestVersionId) return;
     setBusy(`promote:${template.id}`);
     try {
-      await api.promoteTemplateVersion(template.id, { versionId: template.latestVersionId, alias: "stable" });
+      const result = await api.promoteTemplateVersion(template.id, { versionId: template.latestVersionId, alias: "stable" });
+      if (selectedTemplate?.id === template.id) setSelectedTemplate(result.template);
       await loadTemplates();
     } finally {
       setBusy(null);
@@ -805,7 +884,8 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const archiveTemplate = async (templateId: string) => {
     setBusy(`archive:${templateId}`);
     try {
-      await api.archiveTemplate(templateId);
+      const result = await api.archiveTemplate(templateId);
+      if (selectedTemplate?.id === templateId) setSelectedTemplate(result.template);
       await loadTemplates();
     } finally {
       setBusy(null);
@@ -825,6 +905,8 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBuilds((current) => [build, ...current.filter((item) => item.id !== build.id)]);
       setTab("builds");
     } else {
+      setSelectedTemplate(template);
+      setTemplateDetailTab("overview");
       setTab("list");
     }
     void loadTemplates();
@@ -876,31 +958,49 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
             <button className={`btn btn-sm ${templateStatus === "all" ? "active" : ""}`} onClick={() => setTemplateStatus("all")}>All status</button>
             <span className="tmpl-total num">{templateTotal} total</span>
           </div>
-          <div className="tmpl-list card">
-            <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Created</span><span>Updated</span><span>Visibility</span><span>Build</span><span>Version</span><span>Aliases</span><span /></div>
-            {templates.map((template) => (
-              <div className="tmpl-row" key={template.id}>
-                <span className="tmpl-main-name"><b>{template.name}</b><small>{template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""} - {template.description}</small></span>
-                <span className="num muted">{template.id}</span>
-                <span>{template.cpuCount ?? 1} Cores</span>
-                <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
-                <span className="num muted">{formatDateTime(template.createdAt)}</span>
-                <span className="num muted">{formatDateTime(template.updatedAt)}</span>
-                <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status === "archived" ? <span className="tag" style={{ marginLeft: 4 }}>archived</span> : null}</span>
-                <span>{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">-</span>}</span>
-                <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
-                <span className="alias-list">{template.aliases?.length ? template.aliases.slice(0, 3).map((alias) => <span className="tag" key={alias}>{alias}</span>) : <span className="num muted">-</span>}</span>
-                <span className="tmpl-actions">
-                  <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || template.ownerScope !== "team" || busy === `build:${template.id}`} title={template.ownerScope === "team" ? "Queue a build" : "Builds are available for team templates"}>Build</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => viewBuilds(template.id)}>Builds</button>
-                  {template.status !== "archived" && template.visibility === "private" && template.latestVersionId ? <button className="btn btn-ghost btn-sm" onClick={() => promoteTemplate(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
-                  {template.status !== "archived" && template.visibility === "private" ? <button className="btn btn-ghost btn-sm" onClick={() => archiveTemplate(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
-                  <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
-                </span>
-              </div>
-            ))}
-            {templates.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No templates found.</div><div className="sbx-empty-sub">Clear filters or create a template from the dashboard.</div><div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button><button className="btn btn-sm" onClick={() => openDocsPage("custom-templates")}>Docs</button></div></div>}
+          <div className="tmpl-list-layout">
+            <div className="tmpl-list card">
+              <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Created</span><span>Updated</span><span>Visibility</span><span>Build</span><span>Version</span><span>Aliases</span><span /></div>
+              {templates.map((template) => (
+                <div className={`tmpl-row ${selectedTemplate?.id === template.id ? "active" : ""}`} key={template.id}>
+                  <span className="tmpl-main-name"><b>{template.name}</b><small>{template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""} - {template.description}</small></span>
+                  <span className="num muted">{template.id}</span>
+                  <span>{template.cpuCount ?? 1} Cores</span>
+                  <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
+                  <span className="num muted">{formatDateTime(template.createdAt)}</span>
+                  <span className="num muted">{formatDateTime(template.updatedAt)}</span>
+                  <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status === "archived" ? <span className="tag" style={{ marginLeft: 4 }}>archived</span> : null}</span>
+                  <span>{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">-</span>}</span>
+                  <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
+                  <span className="alias-list">{template.aliases?.length ? template.aliases.slice(0, 3).map((alias) => <span className="tag" key={alias}>{alias}</span>) : <span className="num muted">-</span>}</span>
+                  <span className="tmpl-actions">
+                    <button className="btn btn-ghost btn-sm" onClick={() => viewTemplate(template)}>Open</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || template.ownerScope !== "team" || busy === `build:${template.id}`} title={template.ownerScope === "team" ? "Queue a build" : "Builds are available for team templates"}>Build</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => viewBuilds(template.id)}>Builds</button>
+                    {template.status !== "archived" && template.visibility === "private" && template.latestVersionId ? <button className="btn btn-ghost btn-sm" onClick={() => promoteTemplate(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
+                    {template.status !== "archived" && template.visibility === "private" ? <button className="btn btn-ghost btn-sm" onClick={() => archiveTemplate(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
+                    <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
+                  </span>
+                </div>
+              ))}
+              {templates.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No templates found.</div><div className="sbx-empty-sub">Clear filters or create a template from the dashboard.</div><div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button><button className="btn btn-sm" onClick={() => openDocsPage("custom-templates")}>Docs</button></div></div>}
+            </div>
+            <TemplateDetailPanel
+              template={selectedTemplate}
+              tab={templateDetailTab}
+              onTab={setTemplateDetailTab}
+              versions={templateVersions}
+              builds={templateDetailBuilds}
+              runs={templateRuns}
+              loading={templateDetailLoading}
+              error={templateDetailError}
+              busy={busy}
+              onUse={createFromTemplate}
+              onBuild={queueBuild}
+              onViewBuilds={viewBuilds}
+              onOpenSandbox={openSandbox}
+            />
           </div>
         </>
       ) : (
@@ -990,6 +1090,175 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
         </>
       )}
       {showNewTemplate ? <NewTemplateModal templates={templates} onClose={() => setShowNewTemplate(false)} onCreate={handleTemplateCreated} /> : null}
+    </div>
+  );
+};
+
+const TemplateDetailPanel = ({
+  template,
+  tab,
+  onTab,
+  versions,
+  builds,
+  runs,
+  loading,
+  error,
+  busy,
+  onUse,
+  onBuild,
+  onViewBuilds,
+  onOpenSandbox
+}: {
+  template: Template | null;
+  tab: TemplateDetailTab;
+  onTab: (tab: TemplateDetailTab) => void;
+  versions: TemplateVersionSummary[];
+  builds: TemplateBuildSummary[];
+  runs: SandboxSummary[];
+  loading: boolean;
+  error: string;
+  busy: string | null;
+  onUse: (id: string) => Promise<void>;
+  onBuild: (template: Template) => Promise<void>;
+  onViewBuilds: (templateId: string) => void;
+  onOpenSandbox: (id: string) => void;
+}) => {
+  if (!template) {
+    return (
+      <div className="template-detail-panel card">
+        <div className="sbx-empty">
+          <div className="sbx-empty-title">Open a template.</div>
+          <div className="sbx-empty-sub">Select Open on a row to inspect commands, versions, config, and recent runs.</div>
+          <div className="sbx-empty-actions"><button className="btn btn-sm" onClick={() => openDocsPage("custom-templates")}>Docs</button></div>
+        </div>
+      </div>
+    );
+  }
+
+  const latestBuild = builds[0] ?? null;
+  const canBuild = template.status !== "archived" && template.ownerScope === "team";
+  return (
+    <div className="template-detail-panel card">
+      <div className="template-detail-head">
+        <div>
+          <div className="card-h">Template detail</div>
+          <div className="template-detail-title">{template.name}</div>
+          <div className="template-detail-sub num">{template.id}</div>
+        </div>
+        <div className="template-detail-actions">
+          <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
+          <button className="btn btn-primary btn-sm" onClick={() => void onUse(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
+        </div>
+      </div>
+
+      <div className="template-detail-tabs">
+        {(["overview", "versions", "config", "runs"] as const).map((item) => (
+          <button key={item} className={`template-detail-tab ${tab === item ? "active" : ""}`} onClick={() => onTab(item)}>{item}</button>
+        ))}
+      </div>
+
+      {loading ? <div className="build-progress-note"><span className="spinner" /> Loading template control-plane data.</div> : null}
+      {error ? <div className="build-inline-alert template-detail-alert"><span>{error}</span><button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("template-troubleshooting")}>Docs</button></div> : null}
+
+      {tab === "overview" ? (
+        <div className="template-detail-section">
+          <div className="template-detail-kpis">
+            <div><span>CPU</span><b>{template.cpuCount ?? 1} cores</b></div>
+            <div><span>Memory</span><b>{(template.memoryMb ?? 1024).toLocaleString()} MB</b></div>
+            <div><span>Visibility</span><b>{template.visibility}</b></div>
+            <div><span>Status</span><b>{template.status}</b></div>
+          </div>
+          <div className="template-detail-meta">
+            <span>Image <b>{template.image}</b></span>
+            <span>Digest <b>{template.imageDigest ?? "pending"}</b></span>
+            <span>Latest version <b>{template.latestVersionId ?? "pending"}</b></span>
+            <span>Workdir <b>{template.workdir || "/"}</b></span>
+            <span>Entrypoint <b>{(template.defaultEntrypoint ?? []).join(" ") || "-"}</b></span>
+            <span>Ports <b>{template.defaultPorts?.length ? template.defaultPorts.join(", ") : "none"}</b></span>
+          </div>
+          <div className="template-code-block">
+            <div className="template-code-head"><span>Create command</span><button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(templateCreateCommand(template))}><Icon name="copy" size={12} /></button></div>
+            <pre>{templateCreateCommand(template)}</pre>
+          </div>
+          <div className="template-code-block">
+            <div className="template-code-head"><span>JavaScript SDK</span><button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(templateSdkSnippet(template))}><Icon name="copy" size={12} /></button></div>
+            <pre>{templateSdkSnippet(template)}</pre>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "versions" ? (
+        <div className="template-detail-section">
+          {versions.map((version) => (
+            <div className="template-version-row" key={version.id}>
+              <div>
+                <div className="template-version-title"><span className="num">{version.id}</span>{version.id === template.latestVersionId ? <span className="tag">latest</span> : null}{version.aliases.map((alias) => <span className="tag" key={alias}>{alias}</span>)}</div>
+                <div className="template-version-sub">{version.imageUri}</div>
+                <div className="template-version-sub">digest {version.imageDigest ?? "pending"} - scan {version.scanStatus}</div>
+              </div>
+              <div className="template-version-side">
+                <span className={`build-badge ${version.status}`}>{version.status}</span>
+                <span className="num muted">v{version.versionNumber}</span>
+                <span className="num muted">{formatDateTime(version.createdAt)}</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(version.id)}><Icon name="copy" size={12} /></button>
+              </div>
+            </div>
+          ))}
+          {versions.length ? null : <div className="empty-state">No versions have been recorded for this template yet.</div>}
+        </div>
+      ) : null}
+
+      {tab === "config" ? (
+        <div className="template-detail-section">
+          <div className="template-code-block">
+            <div className="template-code-head"><span>harakiri.toml</span><button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(templateConfigToml(template, latestBuild))}><Icon name="copy" size={12} /></button></div>
+            <pre>{templateConfigToml(template, latestBuild)}</pre>
+          </div>
+          <div className="template-config-grid">
+            <div>
+              <div className="field-l">Latest build</div>
+              <div className="template-detail-meta compact">
+                <span>ID <b>{latestBuild?.id ?? "-"}</b></span>
+                <span>Source <b>{latestBuild?.sourceType ?? "-"}</b></span>
+                <span>Status <b>{latestBuild?.status ?? "-"}</b></span>
+                <span>Dockerfile <b>{latestBuild?.dockerfilePath ?? "Dockerfile"}</b></span>
+              </div>
+            </div>
+            <div>
+              <div className="field-l">Redacted build args</div>
+              <pre className="template-json">{formatJson(latestBuild?.buildArgs ?? {})}</pre>
+            </div>
+            <div>
+              <div className="field-l">Redacted metadata</div>
+              <pre className="template-json">{formatJson(latestBuild?.metadata ?? {})}</pre>
+            </div>
+          </div>
+          <div className="template-detail-actions-row">
+            <button className="btn btn-sm" onClick={() => void onBuild(template)} disabled={!canBuild || busy === `build:${template.id}`}>Queue build</button>
+            <button className="btn btn-sm" onClick={() => onViewBuilds(template.id)}>View builds</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("custom-templates")}>Docs</button>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === "runs" ? (
+        <div className="template-detail-section">
+          <div className="template-run-list">
+            {runs.map((run) => (
+              <div className="template-run-row" key={run.id}>
+                <div>
+                  <div className="template-run-title">{run.name}<span className="num muted">{run.id}</span></div>
+                  <div className="template-run-sub">version {run.templateVersionId ?? "unversioned"} - digest {shortDigest(run.templateImageDigest)}</div>
+                </div>
+                <span className={`pill ${run.status === "running" ? "live" : ""}`}><span className="dot" /> {run.status}</span>
+                <span className="num muted">{formatDateTime(run.createdAt)}</span>
+                <button className="btn btn-ghost btn-sm" onClick={() => onOpenSandbox(run.id)}>Open <Icon name="arrowR" size={11} /></button>
+              </div>
+            ))}
+            {runs.length ? null : <div className="empty-state">No recent sandboxes were created from this template.</div>}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -1219,7 +1488,8 @@ const docPages: DocPage[] = [
         <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
-        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
+        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
       </>
     )
   },
@@ -1344,7 +1614,7 @@ const docPages: DocPage[] = [
     section: "Reference",
     title: "API reference",
     lede: "The template APIs share authentication with the rest of the Harakiri control plane.",
-    toc: ["Templates", "Builds", "Promotion", "Archive"],
+    toc: ["Templates", "Builds", "Sandboxes", "Promotion", "Archive"],
     body: (
       <>
         <h2>Templates</h2>
@@ -1356,6 +1626,11 @@ const docPages: DocPage[] = [
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/template-builds/:id/context</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
+        <p>Use `GET /v1/template-builds?template=open-agents-dev&limit=20` when a UI or script needs recent build records for one template.</p>
+        <h2>Sandboxes</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?template=:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?templateVersionId=:id</code></span>
+        <p>The template detail Runs tab uses these filters to show recent sandboxes for a template or an immutable version.</p>
         <h2>Promotion</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
         <h2>Archive</h2>

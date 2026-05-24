@@ -78,6 +78,17 @@ Use creates a sandbox, Build queues an image-import build, Builds opens the
 Builds tab filtered to that template, Promote marks the current ready version as
 `stable`, and Archive retires the template from active creation.
 
+Open a row to inspect the template detail panel. The Overview tab shows the
+canonical `harakiri create` command, SDK snippet, image, digest, workdir,
+entrypoint, resources, and default ports. The Versions tab reads
+`GET /v1/templates/:id/versions` and lists immutable version IDs, aliases,
+image URI/digest, scan state, creation time, and copy actions. The Config tab
+generates a `harakiri.toml` view from the control-plane row plus the latest
+redacted build args and metadata. The Runs tab uses
+`GET /v1/sandboxes?template=<id>&limit=20` to show recent sandboxes created
+from that template, including the stored version ID and image digest selected
+at create time.
+
 The dashboard New Template flow covers the same user-facing sources as the CLI:
 
 - Dockerfile: paste a Dockerfile or choose a local `Dockerfile` in the browser.

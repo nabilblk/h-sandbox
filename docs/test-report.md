@@ -340,6 +340,21 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `cli_fail_active_templates=0`, `failed_smoke_builds=5`, and
   `ready_routes=0`. The failed smoke builds are retained archived history for
   failure inspection.
+- Template detail checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
+  `pnpm --filter @harakiri/web build`, and `git diff --check` passed after
+  adding the dashboard Template detail panel, `GET /v1/template-builds` exact
+  `template` filtering, `GET /v1/sandboxes` `template`/`templateVersionId`
+  filtering, repo docs, and website product docs. `pnpm deploy:k0s` completed,
+  `pnpm ports:restart && pnpm ports:status` reported every forward healthy,
+  and deployed API checks against `open-agents-dev` returned one template,
+  3 versions, 3 filtered builds, and 2 filtered sandbox runs. An agent-browser
+  smoke logged into `http://127.0.0.1:15173` with the Keycloak token, opened the
+  deployed Templates page, selected `open-agents-dev`, and verified the Overview
+  tab create command and SDK snippet, the Versions tab immutable version data,
+  the Config tab generated `harakiri.toml`/redacted build metadata, the Runs tab
+  sandbox history, and the website docs. Screenshots:
+  `/tmp/harakiri-template-detail-dashboard.png` and
+  `/tmp/harakiri-template-detail-runs.png`.
 - Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
   `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
   and `pnpm smoke:template-redaction` passed after adding API redaction for

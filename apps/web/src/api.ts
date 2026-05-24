@@ -1,4 +1,4 @@
-import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, Template, TemplateBuildContextSummary, TemplateBuildLogEntry, TemplateBuildSummary, UsageSummary } from "@harakiri/shared";
+import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, Template, TemplateBuildContextSummary, TemplateBuildLogEntry, TemplateBuildSummary, TemplateVersionSummary, UsageSummary } from "@harakiri/shared";
 import { auth } from "./auth";
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? import.meta.env.VITE_PUBLIC_API_URL ?? "http://127.0.0.1:18082";
@@ -47,6 +47,8 @@ export const api = {
   exposeRoute: (id: string, body: { port: number; protocol?: "http" | "https" }) =>
     request<{ route: SandboxRouteSummary }>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),
   templates: (params = "") => request<{ templates: Template[]; page?: { total: number; limit: number; offset: number } }>(`/v1/templates${params}`),
+  template: (id: string) => request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}`),
+  templateVersions: (id: string) => request<{ versions: TemplateVersionSummary[] }>(`/v1/templates/${encodeURIComponent(id)}/versions`),
   createTemplate: (body: {
     id?: string;
     name: string;

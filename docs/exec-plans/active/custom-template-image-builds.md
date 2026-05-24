@@ -95,11 +95,11 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [x] Add build context metadata to build detail.
   - [x] Add Kubernetes builder pod/node metadata to build detail once the worker
         persists that runtime information.
-- [ ] Template detail page:
-  - [ ] Overview with default create command and SDK snippets.
-  - [ ] Versions tab with latest/stable aliases and immutable version IDs.
-  - [ ] Dockerfile/config tab with redacted build args and env metadata.
-  - [ ] Runs tab showing recent sandboxes created from the template version.
+- [x] Template detail page:
+  - [x] Overview with default create command and SDK snippets.
+  - [x] Versions tab with latest/stable aliases and immutable version IDs.
+  - [x] Dockerfile/config tab with redacted build args and env metadata.
+  - [x] Runs tab showing recent sandboxes created from the template version.
 - [x] New Template flow:
   - [x] Create from Dockerfile upload/path.
   - [x] Create from existing OCI image reference.
