@@ -203,7 +203,7 @@ harakiri list
 Create a local template config:
 
 ```bash
-harakiri template init --name open-agents-dev --dockerfile Dockerfile
+harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 ```
 
 Create a template definition and Dockerfile build record:

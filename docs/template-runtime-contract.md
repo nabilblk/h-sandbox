@@ -18,13 +18,16 @@ runtime; the image itself is responsible for exposing useful tools and services.
 
 ```toml
 name = "open-agents-dev"
+id = "open-agents-dev"
 dockerfile = "Dockerfile"
 visibility = "private"
+runtime_family = "custom"
 cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
 tags = ["custom", "hot"]
+aliases = ["open-agents-dev"]
 start_command = "sleep 3600"
 ready_command = "true"
 ```

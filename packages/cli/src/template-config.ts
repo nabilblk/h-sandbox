@@ -1,4 +1,5 @@
 export type HarakiriTemplateConfig = {
+  id?: string;
   name?: string;
   dockerfile?: string;
   visibility?: "public" | "private" | "internal";
@@ -53,6 +54,7 @@ export const parseHarakiriTemplateConfig = (input: string): HarakiriTemplateConf
   }
 
   const parsed: HarakiriTemplateConfig = {};
+  if (typeof config.id === "string") parsed.id = config.id;
   if (typeof config.name === "string") parsed.name = config.name;
   if (typeof config.dockerfile === "string") parsed.dockerfile = config.dockerfile;
   if (config.visibility === "public" || config.visibility === "private" || config.visibility === "internal") parsed.visibility = config.visibility;

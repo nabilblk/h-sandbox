@@ -28,27 +28,32 @@ template workflow while keeping the runtime contract portable.
 
 ```toml
 name = "open-agents-dev"
+id = "open-agents-dev"
 dockerfile = "Dockerfile"
 visibility = "private"
+runtime_family = "custom"
 cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
 tags = ["custom", "hot"]
+aliases = ["open-agents-dev"]
 start_command = "sleep 3600"
 ready_command = "true"
 ```
 
-Current CLI support reads the command flags first. For Dockerfile builds, it
-archives the local context as tar+gzip, uploads it to the API, and stores a
-verified `sha256:` context hash on the build record. Full `harakiri.toml`
-parsing and validation still belong to a later CLI polish phase.
+Current CLI support reads command flags first, then `harakiri.toml`. The
+config supports `id`, `name`, `dockerfile`, `image`, `visibility`, CPU, memory,
+workdir, ports, aliases, tags, runtime family, `start_command`, and
+`ready_command`. For Dockerfile builds, the CLI archives the local context as
+tar+gzip, uploads it to the API, and stores a verified `sha256:` context hash
+on the build record.
 
 ## CLI Workflow
 
 ```bash
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
-harakiri template init --name open-agents-dev --dockerfile Dockerfile
+harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template inspect open-agents-dev

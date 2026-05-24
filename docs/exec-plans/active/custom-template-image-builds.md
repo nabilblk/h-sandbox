@@ -34,7 +34,7 @@ runtime base for Harakiri because it starts from a normal OCI image and defines
 the same agent/browser/editor surface without depending on E2B internals.
 
 ## Success Criteria
-- [ ] A team can run `harakiri template init` and get a Harakiri template config
+- [x] A team can run `harakiri template init` and get a Harakiri template config
       equivalent in ergonomics to `e2b.toml`.
 - [ ] A team can run `harakiri template build --name open-agents-dev <path>` and
       get a persisted build record with streamed logs, final image digest, CPU,
@@ -587,6 +587,7 @@ making it clear that both were reviewed in the same checkpoint.
 | 2026-05-24 | Publish generated template images under organization-scoped registry namespaces | Teams should not share a flat repository path, and build/cache cleanup plus audit trails need a stable namespace derived from organization ID. | Keep `harakiri/templates/<template>` flat paths; use user-provided repository paths only |
 | 2026-05-24 | Pass sandbox env and encrypted registry image auth through OpenSandbox; keep workdir as image contract metadata | OpenSandbox create supports env and `image.auth`, but does not expose a stable create-time workdir field. Harakiri can still record the template workdir and require Dockerfile `WORKDIR`/smoke checks. | Build a custom runtime wrapper to `cd` before entrypoint; invent a Harakiri-only workdir field ignored by OpenSandbox |
 | 2026-05-24 | Implement hot-template image pre-pull as disposable Kubernetes pull Pods per ready node | This warms the node image cache using native Kubernetes primitives and keeps OpenSandbox snapshots/pre-started pools as a later acceleration feature. | Implement a custom cache daemon; create pre-started OpenSandbox sandboxes before snapshot support is proven |
+| 2026-05-24 | Let `harakiri.toml` carry an explicit template ID and richer runtime metadata | Generated configs should be usable without repeated CLI flags, and template identity should be stable across display-name changes. | Keep deriving IDs only from `--name`; require users to pass resource, tag, and alias flags at build time |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

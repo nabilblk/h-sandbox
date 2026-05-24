@@ -692,15 +692,18 @@ const templateRefForCreate = (template: Template) => template.aliases?.[0] ?? te
 const tomlArray = (values: Array<string | number>) => `[${values.map((value) => typeof value === "number" ? value : tomlString(value)).join(", ")}]`;
 const formatJson = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 const templateConfigToml = (template: Template, latestBuild?: TemplateBuildSummary | null) => [
-  `name = ${tomlString(template.id)}`,
+  `name = ${tomlString(template.name ?? template.id)}`,
+  `id = ${tomlString(template.id)}`,
   `visibility = ${tomlString(template.visibility)}`,
+  `runtime_family = ${tomlString(template.runtimeFamily ?? "custom")}`,
   `image = ${tomlString(template.image)}`,
   `cpu_count = ${template.cpuCount ?? 1}`,
   `memory_mb = ${template.memoryMb ?? 1024}`,
   `workdir = ${tomlString(template.workdir || "/")}`,
   `ports = ${tomlArray(template.defaultPorts ?? [])}`,
-  `start_command = ${tomlString((template.defaultEntrypoint ?? ["sleep", "3600"]).join(" "))}`,
+  `tags = ${tomlArray(template.tags ?? [])}`,
   `aliases = ${tomlArray(template.aliases ?? [])}`,
+  `start_command = ${tomlString((template.defaultEntrypoint ?? ["sleep", "3600"]).join(" "))}`,
   latestBuild?.dockerfilePath ? `dockerfile = ${tomlString(latestBuild.dockerfilePath)}` : null
 ].filter(Boolean).join("\n");
 const templateCreateCommand = (template: Template) => `harakiri create --template ${templateRefForCreate(template)} --name agent-runner`;
@@ -1515,8 +1518,8 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Config</h2>
-        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile`}</pre>
-        <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\ntags = ["custom", "hot"]\nstart_command = "sleep 3600"`}</pre>
+        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot`}</pre>
+        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\nstart_command = "sleep 3600"\nready_command = "true"`}</pre>
         <h2>Dashboard</h2>
         <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>

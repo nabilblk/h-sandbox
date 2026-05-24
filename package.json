@@ -33,6 +33,7 @@
     "smoke:template-audit": "bash infra/scripts/template-audit-smoke.sh",
     "smoke:template-registry-credentials": "bash infra/scripts/template-registry-credentials-smoke.sh",
     "smoke:template-build": "bash infra/scripts/template-build-smoke.sh",
+    "smoke:template-init": "bash infra/scripts/template-init-smoke.sh",
     "smoke:template-prepull": "bash infra/scripts/template-prepull-smoke.sh",
     "smoke:sandbox-env": "bash infra/scripts/sandbox-env-smoke.sh",
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",

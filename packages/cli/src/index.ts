@@ -118,20 +118,47 @@ const templateIdFor = (value: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 100) || "custom-template";
 
-const templateConfig = (name: string, dockerfile: string) => `# Harakiri sandbox template.
+const tomlString = (value: string) => JSON.stringify(value);
+const tomlArray = (values: Array<string | number>) => `[${values.map((value) => typeof value === "number" ? value : tomlString(value)).join(", ")}]`;
+const uniqueStrings = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+
+type TemplateInitOptions = {
+  name: string;
+  id?: string;
+  dockerfile?: string;
+  image?: string;
+  visibility: "public" | "private" | "internal";
+  cpuCount: number;
+  memoryMb: number;
+  workdir: string;
+  ports: number[];
+  tags: string[];
+  aliases: string[];
+  runtimeFamily: string;
+  startCommand: string;
+  readyCommand: string;
+};
+
+const templateConfig = (options: TemplateInitOptions) => {
+  const id = templateIdFor(options.id ?? options.name);
+  return `# Harakiri sandbox template.
 # This is intentionally close to E2B's e2b.toml while using OpenSandbox images.
 
-name = "${name}"
-dockerfile = "${dockerfile}"
-visibility = "private"
-cpu_count = 2
-memory_mb = 2048
-workdir = "/workspace"
-ports = [3000, 5173, 4321, 8000]
-tags = ["custom"]
-start_command = "sleep 3600"
-ready_command = "true"
+name = ${tomlString(options.name)}
+id = ${tomlString(id)}
+visibility = ${tomlString(options.visibility)}
+runtime_family = ${tomlString(options.runtimeFamily)}
+${options.image ? `image = ${tomlString(options.image)}` : `dockerfile = ${tomlString(options.dockerfile ?? "Dockerfile")}`}
+cpu_count = ${options.cpuCount}
+memory_mb = ${options.memoryMb}
+workdir = ${tomlString(options.workdir)}
+ports = ${tomlArray(options.ports)}
+tags = ${tomlArray(options.tags)}
+aliases = ${tomlArray(options.aliases)}
+start_command = ${tomlString(options.startCommand)}
+ready_command = ${tomlString(options.readyCommand)}
 `;
+};
 
 const loadTemplateConfig = async (contextPath: string) => {
   const path = join(resolve(contextPath), "harakiri.toml");
@@ -144,6 +171,8 @@ const collectPort = (value: string, previous: number[]) => {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be an integer from 1 to 65535");
   return [...previous, port];
 };
+
+const collectString = (value: string, previous: string[]) => [...previous, value];
 
 const envNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -271,17 +300,48 @@ template
   .command("init")
   .description("Create a harakiri.toml template config")
   .option("--name <name>", "template name", "open-agents-dev")
-  .option("--dockerfile <file>", "Dockerfile path", "Dockerfile")
+  .option("--id <id>", "template id; defaults to a slug derived from --name")
+  .option("--dockerfile <file>", "Dockerfile path")
+  .option("--image <ref>", "existing OCI image reference for image-import templates")
+  .option("--visibility <visibility>", "template visibility: public, private, or internal", "private")
+  .option("--cpu-count <count>", "default vCPU count", parsePositiveInt, 2)
+  .option("--memory-mb <mb>", "default memory in MiB", parsePositiveInt, 2048)
+  .option("--workdir <path>", "default workdir", "/workspace")
+  .option("--port <port>", "default exposed port; can be repeated", collectPort, [])
+  .option("--tag <tag>", "template tag; can be repeated", collectString, [])
+  .option("--alias <alias>", "template alias; can be repeated", collectString, [])
+  .option("--runtime-family <family>", "runtime family label", "custom")
+  .option("--start-command <command>", "default command to keep the sandbox alive", "sleep 3600")
+  .option("--ready-command <command>", "readiness command stored in config", "true")
   .option("--force", "overwrite an existing harakiri.toml")
   .addHelpText("after", `
 Examples:
   $ harakiri template init --name open-agents-dev --dockerfile Dockerfile
-  $ harakiri template init --name browser-agent --dockerfile Containerfile --force
+  $ harakiri template init --name browser-agent --dockerfile Containerfile --port 3000 --port 5173 --tag hot --force
+  $ harakiri template init --name ubuntu-import --image ubuntu:24.04 --runtime-family linux
 `)
   .action(async (options) => {
+    if (!["public", "private", "internal"].includes(options.visibility)) throw new Error("--visibility must be public, private, or internal");
     const path = join(process.cwd(), "harakiri.toml");
     if (existsSync(path) && !options.force) throw new Error(`${path} already exists. Use --force to overwrite.`);
-    await writeFile(path, templateConfig(options.name, options.dockerfile));
+    const tags = uniqueStrings(options.tag.length ? options.tag : ["custom"]);
+    const aliases = uniqueStrings(options.alias.length ? options.alias : [templateIdFor(options.id ?? options.name)]);
+    await writeFile(path, templateConfig({
+      name: options.name,
+      id: options.id,
+      dockerfile: options.dockerfile ?? (options.image ? undefined : "Dockerfile"),
+      image: options.image,
+      visibility: options.visibility,
+      cpuCount: options.cpuCount,
+      memoryMb: options.memoryMb,
+      workdir: options.workdir,
+      ports: options.port.length ? options.port : [3000, 5173, 4321, 8000],
+      tags,
+      aliases,
+      runtimeFamily: options.runtimeFamily,
+      startCommand: options.startCommand,
+      readyCommand: options.readyCommand
+    }));
     printProgress(`wrote ${path}`);
   });
 
@@ -342,12 +402,12 @@ Examples:
     if (!["dockerfile", "git", "image"].includes(options.source)) throw new Error("--source must be dockerfile, git, or image");
     const image = options.image ?? templateFile.image;
     if (options.source === "image" && !image) throw new Error("--source image requires --image <ref>");
-    const name = options.name ?? templateFile.name;
+    const name = options.name ?? templateFile.name ?? templateFile.id;
     if (!name) throw new Error("missing template name. Pass --name or add name to harakiri.toml.");
     const dockerfile = options.dockerfile ?? templateFile.dockerfile ?? "Dockerfile";
     const ports = options.port.length ? options.port : (templateFile.ports ?? [3000, 5173, 4321, 8000]);
     const aliases = Array.from(new Set([name, ...(templateFile.aliases ?? [])]));
-    const id = templateIdFor(name);
+    const id = templateIdFor(templateFile.id ?? name);
     try {
       await api<{ template: TemplateResult }>("/v1/templates", {
         method: "POST",

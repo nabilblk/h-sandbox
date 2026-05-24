@@ -44,7 +44,7 @@ in PostgreSQL. The CLI writes `harakiri.toml`, which intentionally stays close
 to E2B's `e2b.toml` shape while targeting OpenSandbox-compatible OCI images.
 
 ```bash
-harakiri template init --name open-agents-dev --dockerfile Dockerfile
+harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV_SMOKE=env-ok

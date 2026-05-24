@@ -574,6 +574,17 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   fixture. Website/product docs and New Template UI were checked with
   Playwright: screenshots saved to `/tmp/harakiri-prepull-docs.png` and
   `/tmp/harakiri-prepull-modal.png`.
+- Template init ergonomics checkpoint on 2026-05-24:
+  `pnpm --filter @harakiri/cli test`, `pnpm --filter @harakiri/cli typecheck`,
+  `pnpm --filter @harakiri/web typecheck`, `pnpm --filter @harakiri/cli build`,
+  `pnpm --filter @harakiri/web build`, and `pnpm deploy:k0s` passed.
+  `pnpm smoke:template-init` generated `harakiri.toml` with `id`, visibility,
+  runtime family, CPU, memory, workdir, ports, tags, aliases, start command,
+  and ready command; built Dockerfile build `bld_sfuYnrpJxwNO` from that
+  generated config; verified hot image pre-pull in the build logs; created
+  sandbox `sbx_vGY-peTj7k`; and read `harakiri-init-built` from the image.
+  Deployed product docs were verified at `http://127.0.0.1:15173/#docs`, and
+  the screenshot was saved to `/tmp/harakiri-template-init-docs.png`.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo

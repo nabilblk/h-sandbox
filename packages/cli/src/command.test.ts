@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -21,6 +21,7 @@ type MockApi = {
 
 const cliPath = fileURLToPath(new URL("./index.ts", import.meta.url));
 const packageRoot = dirname(dirname(cliPath));
+const tsxImport = import.meta.resolve("tsx");
 
 const readBody = async (request: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -55,7 +56,7 @@ const startMockApi = async (handler: (request: RecordedRequest) => { status?: nu
 
 const runCli = async (args: string[], options: { api: MockApi; cwd?: string }) => {
   const home = await mkdtemp(join(tmpdir(), "harakiri-cli-home-"));
-  const child = spawn(process.execPath, ["--import", "tsx", cliPath, ...args], {
+  const child = spawn(process.execPath, ["--import", tsxImport, cliPath, ...args], {
     cwd: options.cwd ?? packageRoot,
     env: {
       ...process.env,
@@ -94,6 +95,65 @@ const buildRow = (overrides: Record<string, unknown>) => ({
   createdAt: "2026-05-24T00:00:00.000Z",
   updatedAt: "2026-05-24T00:00:00.000Z",
   ...overrides
+});
+
+test("template init writes an e2b-like Harakiri config with runtime metadata", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "harakiri-cli-init-"));
+  const api = await startMockApi(() => ({ status: 500, body: { error: "init should not call api" } }));
+  try {
+    const result = await runCli([
+      "template",
+      "init",
+      "--name",
+      "Browser Agent",
+      "--id",
+      "browser-agent",
+      "--dockerfile",
+      "Containerfile",
+      "--visibility",
+      "internal",
+      "--cpu-count",
+      "4",
+      "--memory-mb",
+      "4096",
+      "--workdir",
+      "/workspace",
+      "--port",
+      "3000",
+      "--port",
+      "5173",
+      "--tag",
+      "custom",
+      "--tag",
+      "hot",
+      "--alias",
+      "agents/browser",
+      "--runtime-family",
+      "browser",
+      "--start-command",
+      "sleep 3600",
+      "--ready-command",
+      "test -d /workspace"
+    ], { api, cwd });
+
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /wrote .*harakiri\.toml/);
+    assert.equal(api.requests.length, 0);
+    const contents = await readFile(join(cwd, "harakiri.toml"), "utf8");
+    assert.match(contents, /name = "Browser Agent"/);
+    assert.match(contents, /id = "browser-agent"/);
+    assert.match(contents, /dockerfile = "Containerfile"/);
+    assert.match(contents, /visibility = "internal"/);
+    assert.match(contents, /runtime_family = "browser"/);
+    assert.match(contents, /cpu_count = 4/);
+    assert.match(contents, /memory_mb = 4096/);
+    assert.match(contents, /ports = \[3000, 5173\]/);
+    assert.match(contents, /tags = \["custom", "hot"\]/);
+    assert.match(contents, /aliases = \["agents\/browser"\]/);
+    assert.match(contents, /ready_command = "test -d \/workspace"/);
+  } finally {
+    await api.close();
+  }
 });
 
 test("template build sends config-derived create, build, and context payloads", async () => {
