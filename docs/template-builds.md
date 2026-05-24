@@ -16,7 +16,8 @@ Kaniko Kubernetes Job in k0s. Git builds remain future work.
    `POST /v1/template-builds/:id/context`; the API verifies size and sha256
    before storing the archive.
 5. A builder worker claims supported queued records, marks them `building`, and
-   streams logs into `template_build_logs`.
+   streams logs into `template_build_logs`; the CLI follows those logs by
+   polling `GET /v1/template-builds/:id/logs` while the build is active.
 6. For `sourceType=image`, the builder resolves the registry
    manifest digest and creates a digest-pinned runtime version.
 7. For `sourceType=dockerfile`, the builder creates a Kubernetes Job with a
@@ -134,10 +135,16 @@ curl "$PUBLIC_API_URL/v1/template-builds/bld_.../logs" -H "x-api-key: $HK_KEY"
 ```bash
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
+harakiri template build --name open-agents-dev . --no-wait
 harakiri template builds --status queued
 harakiri template logs bld_...
 harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 ```
+
+By default, `harakiri template build` waits for completion, prints streamed log
+lines, and ends with the build ID, template version ID, image digest, duration,
+and the next `harakiri create` command. `--no-wait` preserves the enqueue-only
+behavior for CI or custom polling scripts.
 
 ## Failure Modes
 

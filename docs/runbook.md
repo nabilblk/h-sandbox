@@ -190,18 +190,19 @@ Create a template definition and Dockerfile build record:
 
 ```bash
 harakiri template build --name open-agents-dev .
-harakiri template builds --query open-agents-dev
-harakiri template logs bld_...
 harakiri template inspect open-agents-dev
 ```
+
+`harakiri template build` follows the build by default and prints log lines plus
+the final version ID, digest, duration, and next create command. For detached
+operator polling, pass `--no-wait`, then use `harakiri template builds --query
+open-agents-dev` and `harakiri template logs bld_...`.
 
 Import an existing image and let the template builder resolve an immutable
 digest:
 
 ```bash
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
-harakiri template builds --query ubuntu-import
-harakiri template logs bld_...
 kubectl -n harakiri logs deploy/harakiri-template-builder
 ```
 

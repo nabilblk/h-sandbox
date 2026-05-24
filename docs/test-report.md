@@ -95,6 +95,20 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   the CLI config parser, Open Agents docs, and website product docs. The run
   produced `bld_yb6B4nHTIwbO`, `sbx_B4m1LnRZaw`, command output
   `harakiri-built`, and left `running_sandboxes=0` and `ready_routes=0`.
+- CLI build-follow checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
+  `pnpm build`, and `pnpm smoke:template-build` passed after changing
+  `harakiri template build` to wait by default, stream build-log lines, and
+  print the final build ID, template version ID, image digest, duration, and
+  next create command. The k0s smoke produced `bld_0fWVYnUctnhu`,
+  `tplv_D61gc5TeRzLe`,
+  `sha256:fe1704f4798a46f18499978c6a6b21e30f1ff6fb5849b846e6ec2a33b705a107`,
+  `sbx_kQmOmE8_Pt`, command output `harakiri-built`, and left
+  `running_sandboxes=0` and `ready_routes=0`.
+- Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
+  `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
+  a Playwright smoke check verified the deployed Docs pages mention
+  `--no-wait`, the default build-log follow behavior, and the Template Builds
+  status guidance with no console errors.
 - Open Agents template pilot was verified against k0s on 2026-05-24:
   `harakiri template build examples/templates/open-agents-dev` produced build
   `bld_Tv1jbVKB4TAD` and digest

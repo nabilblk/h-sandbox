@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { Command } from "commander";
 import { createBuildContextArchive } from "./context.js";
-import { initBanner, progressLine, runtimeLine, shouldUseColor } from "./format.js";
+import { initBanner, progressLine, runtimeLine, shouldUseColor, templateBuildLogLine, templateBuildSuccessLines } from "./format.js";
 import { commandToEntrypoint, parseHarakiriTemplateConfig } from "./template-config.js";
 
 type Config = {
@@ -40,14 +40,22 @@ type TemplateResult = {
 
 type TemplateBuildResult = {
   id: string;
+  organizationId?: string;
   templateId: string;
   status: string;
   sourceType: string;
+  contextHash?: string | null;
   dockerfilePath?: string | null;
+  buildArgs?: Record<string, unknown>;
   imageDestination?: string | null;
   imageDigest?: string | null;
+  logRef?: string | null;
   error?: string | null;
+  metadata?: Record<string, unknown>;
+  startedAt?: string | null;
+  completedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 };
 
 type TemplateBuildLog = {
@@ -136,6 +144,76 @@ const collectPort = (value: string, previous: number[]) => {
   return [...previous, port];
 };
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const parsePositiveInt = (value: string) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error("expected a positive integer");
+  return parsed;
+};
+
+const terminalBuildStatuses = new Set(["success", "failed", "canceled"]);
+
+const templateVersionIdFromBuild = (build: TemplateBuildResult) => {
+  const value = build.metadata?.templateVersionId;
+  return typeof value === "string" ? value : null;
+};
+
+const buildDurationMs = (build: TemplateBuildResult) => {
+  const startedAt = build.startedAt ?? build.createdAt;
+  const completedAt = build.completedAt ?? build.updatedAt;
+  if (!startedAt || !completedAt) return null;
+  const started = Date.parse(startedAt);
+  const completed = Date.parse(completedAt);
+  if (!Number.isFinite(started) || !Number.isFinite(completed) || completed < started) return null;
+  return completed - started;
+};
+
+const streamTemplateBuildLogs = async (buildId: string, lastLineNo: number) => {
+  const result = await api<{ logs: TemplateBuildLog[] }>(`/v1/template-builds/${encodeURIComponent(buildId)}/logs`);
+  let nextLineNo = lastLineNo;
+  for (const line of result.logs) {
+    if (line.lineNo <= lastLineNo) continue;
+    console.log(templateBuildLogLine(line.stream, line.message));
+    nextLineNo = Math.max(nextLineNo, line.lineNo);
+  }
+  return nextLineNo;
+};
+
+const followTemplateBuild = async (build: TemplateBuildResult, options: { pollIntervalMs: number; timeoutSeconds: number }) => {
+  let lastLineNo = 0;
+  let lastStatus = build.status;
+  const deadline = Date.now() + options.timeoutSeconds * 1000;
+  let current = build;
+  while (true) {
+    lastLineNo = await streamTemplateBuildLogs(build.id, lastLineNo);
+    const refreshed = await api<{ build: TemplateBuildResult }>(`/v1/template-builds/${encodeURIComponent(build.id)}`);
+    current = refreshed.build;
+    if (current.status !== lastStatus) {
+      if (!terminalBuildStatuses.has(current.status)) printProgress(`${current.status}. build=${current.id}`);
+      lastStatus = current.status;
+    }
+    if (terminalBuildStatuses.has(current.status)) {
+      lastLineNo = await streamTemplateBuildLogs(build.id, lastLineNo);
+      return current;
+    }
+    if (Date.now() > deadline) throw new Error(`template build ${build.id} did not finish within ${options.timeoutSeconds}s`);
+    await sleep(options.pollIntervalMs);
+  }
+};
+
+const printTemplateBuildSuccess = (build: TemplateBuildResult) => {
+  for (const line of templateBuildSuccessLines({
+    buildId: build.id,
+    templateId: build.templateId,
+    templateVersionId: templateVersionIdFromBuild(build),
+    imageDigest: build.imageDigest,
+    durationMs: buildDurationMs(build)
+  })) {
+    printProgress(line);
+  }
+};
+
 const program = new Command();
 program.name("harakiri").description("Harakiri Sandbox CLI").version("0.41.2");
 
@@ -204,6 +282,9 @@ template
   .option("--workdir <path>", "default workdir")
   .option("--port <port>", "default exposed port; can be repeated", collectPort, [])
   .option("--source <type>", "build source type: dockerfile, git, or image", "dockerfile")
+  .option("--no-wait", "enqueue the build and return without following logs")
+  .option("--poll-interval-ms <ms>", "build status polling interval while waiting", parsePositiveInt, 2000)
+  .option("--timeout <seconds>", "maximum time to wait for build completion", parsePositiveInt, 900)
   .action(async (contextPath, options) => {
     const templateFile = await loadTemplateConfig(contextPath);
     if (!["dockerfile", "git", "image"].includes(options.source)) throw new Error("--source must be dockerfile, git, or image");
@@ -264,6 +345,17 @@ template
     }
     printProgress(`${result.build.status}. build=${result.build.id}`);
     console.log(result.build.id);
+    if (!options.wait) return;
+    const finalBuild = await followTemplateBuild(result.build, {
+      pollIntervalMs: options.pollIntervalMs,
+      timeoutSeconds: options.timeout
+    });
+    if (finalBuild.status === "success") {
+      printTemplateBuildSuccess(finalBuild);
+      return;
+    }
+    printProgress(`${finalBuild.status}. build=${finalBuild.id}`);
+    throw new Error(`template build ${finalBuild.id} ${finalBuild.status}: ${finalBuild.error ?? "see build logs"}`);
   });
 
 template

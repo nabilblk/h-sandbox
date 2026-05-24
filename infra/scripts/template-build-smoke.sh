@@ -39,28 +39,19 @@ CMD ["sleep", "3600"]
 DOCKERFILE
 
 BUILD_OUTPUT="$(HOME="${CLI_HOME}" HARAKIRI_API_URL="${API_URL}" HARAKIRI_API_KEY="${HARAKIRI_API_KEY}" \
-  node "${CLI}" template build "${CONTEXT_DIR}" --name "${NAME}" --dockerfile Dockerfile)"
+  node "${CLI}" template build "${CONTEXT_DIR}" --name "${NAME}" --dockerfile Dockerfile --timeout "${BUILD_TIMEOUT_SECONDS}")"
 printf '%s\n' "${BUILD_OUTPUT}"
 BUILD_ID="$(printf '%s\n' "${BUILD_OUTPUT}" | awk '/^bld_/ {print $1}' | tail -1)"
 if [[ -z "${BUILD_ID}" ]]; then
   echo "template build did not print a build id" >&2
   exit 1
 fi
-
-deadline=$((SECONDS + BUILD_TIMEOUT_SECONDS))
-while (( SECONDS < deadline )); do
-  BUILD_STATUS="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" "${API_URL}/v1/template-builds/${BUILD_ID}" |
-    node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const b=JSON.parse(s).build; console.log([b.status,b.imageDigest||"",b.imageDestination||""].join("\t"));})')"
-  printf '%s\n' "${BUILD_STATUS}"
-  case "${BUILD_STATUS}" in
-    success*) break ;;
-    failed*|canceled*) exit 1 ;;
-  esac
-  sleep 2
-done
-
-if [[ "${BUILD_STATUS}" != success* ]]; then
-  echo "template build ${BUILD_ID} did not finish within ${BUILD_TIMEOUT_SECONDS}s" >&2
+if ! grep -q -- "-> success. build=${BUILD_ID}" <<<"${BUILD_OUTPUT}"; then
+  echo "template build ${BUILD_ID} did not report success" >&2
+  exit 1
+fi
+if ! grep -q -- "-> image=sha256:" <<<"${BUILD_OUTPUT}"; then
+  echo "template build ${BUILD_ID} did not print an image digest" >&2
   exit 1
 fi
 

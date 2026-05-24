@@ -305,7 +305,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
       OCI image imports.
 - [x] Package and upload Dockerfile build contexts from the CLI for
       `sourceType=dockerfile` builds.
-- [ ] Stream build logs in the CLI and print build ID, template version ID, image
+- [x] Stream build logs in the CLI and print build ID, template version ID, image
       digest, duration, and next create command on success.
 - [x] Add `harakiri template list`, `harakiri template builds`, `harakiri template logs`,
       `harakiri template promote`, and `harakiri template inspect`.

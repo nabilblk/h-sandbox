@@ -48,17 +48,19 @@ harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
-harakiri template builds --query open-agents-dev
-harakiri template logs bld_...
 harakiri template inspect open-agents-dev
 harakiri create --template open-agents-dev --name agent-runner
 ```
 
 `template build` creates or reuses the template definition, then enqueues a build
-record through `POST /v1/templates/:id/builds`. Image-import builds resolve an
-immutable source digest. Dockerfile builds upload their local context, run a
-Kaniko Job in k0s, push to the local registry, and create a digest-pinned ready
-template version.
+record through `POST /v1/templates/:id/builds`. By default the CLI follows the
+build, prints new log lines, and finishes with the build ID, template version
+ID, image digest, duration, and next `harakiri create` command. Use
+`--no-wait` to enqueue and return immediately, then inspect with
+`harakiri template builds --query ...` and `harakiri template logs bld_...`.
+Image-import builds resolve an immutable source digest. Dockerfile builds upload
+their local context, run a Kaniko Job in k0s, push to the local registry, and
+create a digest-pinned ready template version.
 
 ## API Workflow
 
