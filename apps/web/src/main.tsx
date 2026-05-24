@@ -367,6 +367,22 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBusy(null);
     }
   };
+  const viewBuilds = (templateId: string) => {
+    setBuildQ(templateId);
+    setBuildStatus("all");
+    setSelectedBuild(null);
+    setTab("builds");
+  };
+  const promoteTemplate = async (template: Template) => {
+    if (!template.latestVersionId) return;
+    setBusy(`promote:${template.id}`);
+    try {
+      await api.promoteTemplateVersion(template.id, { versionId: template.latestVersionId, alias: "stable" });
+      await loadTemplates();
+    } finally {
+      setBusy(null);
+    }
+  };
   const retryBuild = async (id: string) => {
     setBusy(`retry:${id}`);
     try {
@@ -442,6 +458,8 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                 <span className="tmpl-actions">
                   <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || busy === `build:${template.id}`}>Build</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => viewBuilds(template.id)}>Builds</button>
+                  {template.status !== "archived" && template.visibility === "private" && template.latestVersionId ? <button className="btn btn-ghost btn-sm" onClick={() => promoteTemplate(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
                   {template.status !== "archived" && template.visibility === "private" ? <button className="btn btn-ghost btn-sm" onClick={() => archiveTemplate(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
                   <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
                 </span>
@@ -727,7 +745,7 @@ const docPages: DocPage[] = [
     section: "Templates",
     title: "Create a custom template",
     lede: "Define an OpenSandbox-compatible runtime once, build it, then create sandboxes by template name or alias.",
-    toc: ["Config", "Build", "Run"],
+    toc: ["Config", "Build", "Run", "Dashboard"],
     body: (
       <>
         <h2>Config</h2>
@@ -738,6 +756,8 @@ const docPages: DocPage[] = [
         <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
+        <h2>Dashboard</h2>
+        <p>The Templates List provides row actions for Use, Build, Builds, Promote, Archive, and Copy ID. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
       </>
     )
   },

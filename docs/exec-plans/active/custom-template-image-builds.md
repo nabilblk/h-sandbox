@@ -81,7 +81,7 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [ ] Show template aliases such as `open-agents-dev` and `team/template`.
   - [x] Show internal/private/public visibility badges.
   - [x] Provide actions for Use, Build, and Copy ID.
-  - [ ] Provide actions for View builds and Promote.
+  - [x] Provide actions for View builds and Promote.
   - [x] Provide an Archive action for private active templates.
 - [ ] Builds tab:
   - [x] Search by build ID, template ID, or template name.
@@ -343,8 +343,8 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Refactor the existing Templates view into a tabbed List/Builds workspace.
 - [x] Implement the initial List tab table with search, visibility filters, and
       Use/Build/Copy actions.
-- [ ] Add remaining List filters and actions: owner/team, runtime family, status,
-      View builds, Promote, and Archive.
+- [ ] Add remaining List filters: owner/team, runtime family, and status.
+- [x] Add remaining List actions: View builds, Promote, and Archive.
 - [x] Implement the Builds tab table and status filter counts.
 - [x] Add build detail panel with log viewer and retry/cancel actions.
 - [x] Wire use-template action to sandbox creation.

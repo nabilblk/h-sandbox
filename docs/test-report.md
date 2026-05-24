@@ -214,6 +214,20 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Post-audit/archive cleanup audit on 2026-05-24: PostgreSQL reported
   `active_smoke_keys=0`, `live_sandboxes=0`, `smoke_templates=0`,
   `runtime_smoke_rows=0`, and `ready_routes=0`.
+- Template List actions checkpoint on 2026-05-24: `pnpm --filter
+  @harakiri/web typecheck`, `pnpm --filter @harakiri/web build`, and
+  `git diff --check` passed after adding deployed dashboard row actions for
+  Builds and Promote plus matching repo and website docs. `pnpm deploy:k0s`
+  completed, `pnpm ports:restart && pnpm ports:status` reported every forward
+  healthy, and a Playwright browser smoke created `ui-actions-1779593529748`
+  with canceled build `bld_kVqM5iyPSoMI`. The smoke verified Builds opens the
+  Builds tab filtered to the template, Promote records a `template.promote`
+  audit event, and the product docs describe the row actions. Screenshots:
+  `/tmp/harakiri-template-list-actions.png` and
+  `/tmp/harakiri-template-actions-docs.png`.
+- Post-Template-List-actions cleanup audit on 2026-05-24: PostgreSQL reported
+  `active_smoke_keys=0`, `live_sandboxes=0`, `ui_action_templates=0`, and
+  `ready_routes=0`.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

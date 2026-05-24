@@ -69,6 +69,11 @@ create a digest-pinned ready template version.
 sandbox creation by that template alias or version. Existing sandboxes keep
 running, and queued/building builds for the archived template are canceled.
 
+The dashboard Templates List exposes the same workflow for custom templates:
+Use creates a sandbox, Build queues an image-import build, Builds opens the
+Builds tab filtered to that template, Promote marks the current ready version
+as `stable`, and Archive retires the template from active creation.
+
 The API enforces workspace policy before accepting template definitions or
 build records. By default custom templates are capped at 8 vCPU, 32768 MiB
 memory, 16 default ports, and 3 active queued/building template builds per
