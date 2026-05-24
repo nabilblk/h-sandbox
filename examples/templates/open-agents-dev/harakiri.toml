@@ -1,0 +1,16 @@
+# Harakiri Open Agents template.
+# Equivalent in purpose to an E2B custom template, but built as a normal
+# OpenSandbox-compatible OCI image.
+
+name = "open-agents-dev"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "OpenSandbox-native runtime for browser-capable coding agents."
+runtime_family = "open-agents"
+cpu_count = 2
+memory_mb = 2048
+workdir = "/workspace"
+ports = [3000, 5173, 4321, 8000]
+aliases = ["open-agents-dev", "agents/open-agents-dev"]
+start_command = "sleep 3600"
+ready_command = "true"

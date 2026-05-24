@@ -1,6 +1,7 @@
 # Test Report
 
 Date: 2026-05-23
+Last updated: 2026-05-24
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -28,6 +29,12 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   template", "Template builds", "Using templates from SDKs", "Open Agents
   template", "Security model", and "API reference" render with no console
   errors.
+- Open Agents documentation checkpoint on 2026-05-24: after redeploying with
+  `pnpm deploy:k0s` and restarting port-forwards, a Playwright smoke check
+  opened `http://127.0.0.1:15173/#docs`, selected "Open Agents template", and
+  verified the deployed product docs include the build command, the
+  `harakiri-open-agents-smoke` command, and the route exposure section with no
+  console errors.
 - `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards.
 - `pnpm smoke` passed sandbox create, real command execution, and kill through OpenSandbox with adapter fallback disabled.
 - `pnpm smoke:ttl` passed scheduler termination of a 10-second Harakiri TTL sandbox while using a provider-safe OpenSandbox lease.
@@ -84,6 +91,22 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   sandbox kill, and temporary API-key cleanup flow. The run produced
   `bld_sUnEbjLxNoSv`, `sbx_C4pV_pBSUF`, and command output
   `harakiri-built`.
+- Post-redeploy `pnpm smoke:template-build` passed on 2026-05-24 after updating
+  the CLI config parser, Open Agents docs, and website product docs. The run
+  produced `bld_yb6B4nHTIwbO`, `sbx_B4m1LnRZaw`, command output
+  `harakiri-built`, and left `running_sandboxes=0` and `ready_routes=0`.
+- Open Agents template pilot was verified against k0s on 2026-05-24:
+  `harakiri template build examples/templates/open-agents-dev` produced build
+  `bld_Tv1jbVKB4TAD` and digest
+  `sha256:cd9d020b6842019ccdb55abe2c9f2a63562758158f1ff9221193b269d856317b`.
+  `harakiri create --template open-agents-dev --name open-agents-pilot`
+  started `sbx_L9XXhArLsj`. `harakiri run sbx_L9XXhArLsj --cmd
+  "harakiri-open-agents-smoke"` verified Node/npm, Bun, pnpm, yarn, git, jq,
+  Python, Chromium headless, code-server, agent-browser, and `/workspace`
+  write access, ending with `harakiri open-agents smoke passed`. A Node HTTP
+  server on port `3000` was exposed with `harakiri expose`; the public route
+  `https://f9eb0cbc-8a2a-493f-bcb7-6f55c662f32c-3000.harakiri.io` returned
+  `open-agents-route`.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
@@ -141,5 +164,5 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Custom template image-import and Dockerfile records are live in the control
   plane and can be completed by the `harakiri-template-builder` worker. Git
   source builds, production registry credentials, retention/scanning policy, and
-  `open-agents-dev` image build smoke remain pending in the active execution
-  plan.
+  non-root workspace ownership for custom template images remain pending in the
+  active execution plan.

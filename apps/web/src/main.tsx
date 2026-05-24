@@ -767,16 +767,21 @@ const docPages: DocPage[] = [
     id: "open-agents-template",
     section: "Templates",
     title: "Open Agents template",
-    lede: "The planned pilot template packages browser automation, code editing, JavaScript, and Python tools for agent runtimes.",
-    toc: ["Included tools", "Ports", "Smoke test"],
+    lede: "The Open Agents pilot template packages browser automation, code editing, JavaScript, and Python tools for agent runtimes.",
+    toc: ["Included tools", "Build", "Ports", "Smoke test", "Expose a route"],
     body: (
       <>
         <h2>Included tools</h2>
         <ul><li>`bun`, `node`, `pnpm`, `npm`, and `yarn`</li><li>`agent-browser` and Chromium headless dependencies</li><li>`code-server`, `git`, `jq`, and Python</li><li>Writable `/workspace` directory</li></ul>
+        <h2>Build</h2>
+        <pre>{`harakiri template build examples/templates/open-agents-dev\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
         <h2>Ports</h2>
         <p>Use `3000`, `5173`, `4321`, and `8000` as default exposed-port candidates for web apps, Vite, code-server, and API servers.</p>
         <h2>Smoke test</h2>
-        <pre>{`harakiri create --template open-agents-dev --name pilot\nharakiri run sbx_... --cmd "bun --version && jq --version && python --version"\nharakiri run sbx_... --cmd "echo ok >/workspace/write.txt && cat /workspace/write.txt"`}</pre>
+        <pre>{`harakiri create --template open-agents-dev --name pilot\nharakiri run sbx_... --cmd "harakiri-open-agents-smoke"`}</pre>
+        <h2>Expose a route</h2>
+        <p>Bind your dev server to `0.0.0.0`, then expose the internal port.</p>
+        <pre>{`harakiri run sbx_... --cmd "nohup node -e \\"require('http').createServer((req,res)=>res.end('ok')).listen(3000,'0.0.0.0')\\" >/tmp/app.log 2>&1 &"\nharakiri expose sbx_... --port 3000`}</pre>
       </>
     )
   },

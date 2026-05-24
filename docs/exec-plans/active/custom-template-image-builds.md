@@ -104,12 +104,17 @@ the same agent/browser/editor surface without depending on E2B internals.
 ## Documentation Backlog
 Documentation is a first-class deliverable for this feature, split between
 repo-facing engineering documentation and product-facing website documentation.
+It must be planned and verified alongside code, not added as a release-afterthought.
 
 ### Documentation Surface Inventory
 - Code documentation must be maintained in `README.md` plus dedicated Markdown
   files under `docs/`: `templates.md`, `template-builds.md`,
   `template-runtime-contract.md`, `template-security.md`, `architecture.md`,
   `api.md`, `runbook.md`, and `test-report.md`.
+- Example templates must carry their own local README when they encode a useful
+  product pattern. For this plan, `examples/templates/open-agents-dev/README.md`
+  should explain what the image contains, how to build it, how to run smoke
+  checks, and what limitations are accepted for the prototype.
 - Product documentation must be available in the Harakiri website docs surface.
   The current prototype implements this in `apps/web/src/main.tsx` through the
   `Docs` route; if the docs grow, extract the pages into dedicated docs data or
@@ -150,6 +155,15 @@ repo-facing engineering documentation and product-facing website documentation.
         inspection.
   - [ ] Update `docs/runbook.md` with builder health, registry cleanup, and
         failed pull debugging commands once the k0s builder exists.
+- [ ] Example template documentation:
+  - [x] Add or verify `examples/templates/open-agents-dev/README.md`.
+  - [x] Document the included runtime tools: Bun, Node/npm/pnpm/yarn, Python,
+        Chromium, `agent-browser`, `code-server`, git, jq, ripgrep, and shell
+        utilities.
+  - [x] Document build/run/smoke commands that work against the deployed k0s
+        environment.
+  - [x] Document prototype runtime limitations such as workspace ownership,
+        root/non-root user behavior, and route exposure expectations.
 
 ### Product Documentation: Website And In-App Docs
 - [x] Website product docs:
@@ -172,11 +186,20 @@ repo-facing engineering documentation and product-facing website documentation.
         builds, route exposure, and mismatched template aliases.
   - [ ] Link relevant product docs from Templates empty states, build detail
         errors, and New Template flow.
+- [ ] Product docs must remain user-facing:
+  - [ ] Avoid internal-only implementation detail unless it changes what users
+        must configure or debug.
+  - [ ] Keep examples focused on `harakiri template init`, `harakiri template
+        build`, `harakiri create`, route exposure, and template promotion.
+  - [ ] Mirror important CLI/API examples from repo docs, but phrase them as
+        workflows rather than architecture notes.
 
 ### Documentation Acceptance Criteria
 - [ ] A new user can create and run a custom template using only the website docs.
 - [x] A contributor can understand the build pipeline and data model using only
       the README plus dedicated markdown docs.
+- [x] The Open Agents example can be built and smoke-tested using only its
+      example README plus the top-level template docs.
 - [ ] Every documented CLI/API example is verified against the deployed k0s
       environment before the plan is completed.
 - [ ] The README and website docs describe the same command names, flags,
@@ -307,18 +330,18 @@ repo-facing engineering documentation and product-facing website documentation.
       detail, new template, and mobile/narrow layouts.
 
 ### Phase 8: Open Agents Template Pilot
-**Status**: Not Started
-- [ ] Copy or vendor the OpenSandbox-native `open-agents-dev` Dockerfile into a
+**Status**: Complete
+- [x] Copy or vendor the OpenSandbox-native `open-agents-dev` Dockerfile into a
       Harakiri examples/templates area.
-- [ ] Build it through the new Harakiri template build path.
-- [ ] Publish it as an internal template with 2 CPU, 2048 MB memory, workdir
+- [x] Build it through the new Harakiri template build path.
+- [x] Publish it as an internal template with 2 CPU, 2048 MB memory, workdir
       `/workspace`, and default ports `3000`, `5173`, `4321`, `8000`.
-- [ ] Create a sandbox from `open-agents-dev` and verify `bun`, `jq`,
+- [x] Create a sandbox from `open-agents-dev` and verify `bun`, `jq`,
       `agent-browser`, Chromium, `code-server`, git, pnpm/yarn/npm, Python, and
       workspace write access.
-- [ ] Expose a dev server route and verify public access through the existing
+- [x] Expose a dev server route and verify public access through the existing
       OpenSandbox gateway/Cloudflare path.
-- [ ] Record evidence in `docs/test-report.md`.
+- [x] Record evidence in `docs/test-report.md`.
 
 ### Phase 9: Security, Governance, And Operations
 **Status**: In Progress
@@ -338,6 +361,8 @@ repo-facing engineering documentation and product-facing website documentation.
 - [x] Update repository `README.md` with the custom template quickstart and
       links to the deeper template docs.
 - [x] Add dedicated repo markdown docs from the Code Documentation backlog.
+- [x] Add or verify example-level README documentation for
+      `examples/templates/open-agents-dev`.
 - [x] Update `docs/api.md`, `docs/architecture.md`, `docs/runbook.md`, and
       `docs/test-report.md`.
 - [x] Add product-facing website docs pages from the Product Documentation
@@ -356,12 +381,12 @@ repo-facing engineering documentation and product-facing website documentation.
 - [x] Run link/path checks for repo docs and website docs.
 
 ### Phase 11: Verification And Release
-**Status**: Not Started
+**Status**: In Progress
 - [ ] Unit tests for schema helpers, template resolution, build state transitions,
       and CLI config parsing.
 - [ ] API integration tests for template create/build/list/logs/promote and
       sandbox creation from an immutable template version.
-- [ ] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs
+- [x] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs
       runtime checks, exposes a route, and deletes the sandbox.
 - [ ] UI Playwright tests for Templates List/Builds and build detail flows.
 - [ ] Regression tests for existing sandbox create/run/kill/routes/TTL flows.
@@ -376,9 +401,10 @@ repo-facing engineering documentation and product-facing website documentation.
 | 2026-05-23 | Build OCI images first, defer snapshots | OpenSandbox image-based creation is already working; Kubernetes snapshot semantics need more validation and should become acceleration/checkpointing later. | Implement E2B-style snapshots as the first template primitive |
 | 2026-05-23 | Include E2B-like List and Builds UI in the first-class backlog | The user explicitly wants the E2B Templates UI experience, and custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
 | 2026-05-24 | Treat documentation as a first-class phase split between repo engineering docs and website product docs | Users need product docs to use templates, while contributors need README and dedicated markdown to operate the build pipeline. | Keep documentation as loose backlog notes only |
+| 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the E2B-like runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
 
 ## Tech Debt Incurred
-None yet. Expected risks to watch during implementation:
+Risks and debt to watch during implementation:
 
 - Keeping static shared template constants during migration may temporarily
   duplicate source-of-truth behavior.
@@ -386,6 +412,10 @@ None yet. Expected risks to watch during implementation:
   registry architecture decision with retention, scanning, and auth.
 - Polling build logs is simpler for v1; SSE/WebSocket log streaming should
   follow once the build state model is stable.
+- The `open-agents-dev` pilot image currently runs as root because OpenSandbox
+  presents `/workspace` as root-owned in k0s. The cleaner fix is passing
+  workdir volume ownership or user/group configuration through the
+  Harakiri/OpenSandbox runtime adapter.
 
 ## Completion Notes
 Fill in when complete: what was delivered, what was deferred, deployment/test

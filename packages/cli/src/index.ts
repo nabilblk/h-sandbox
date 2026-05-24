@@ -2,10 +2,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { Command } from "commander";
 import { createBuildContextArchive } from "./context.js";
 import { initBanner, progressLine, runtimeLine, shouldUseColor } from "./format.js";
+import { commandToEntrypoint, parseHarakiriTemplateConfig } from "./template-config.js";
 
 type Config = {
   apiUrl: string;
@@ -123,6 +124,18 @@ start_command = "sleep 3600"
 ready_command = "true"
 `;
 
+const loadTemplateConfig = async (contextPath: string) => {
+  const path = join(resolve(contextPath), "harakiri.toml");
+  if (!existsSync(path)) return {};
+  return parseHarakiriTemplateConfig(await readFile(path, "utf8"));
+};
+
+const collectPort = (value: string, previous: number[]) => {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be an integer from 1 to 65535");
+  return [...previous, port];
+};
+
 const program = new Command();
 program.name("harakiri").description("Harakiri Sandbox CLI").version("0.41.2");
 
@@ -182,25 +195,42 @@ template
   .command("build")
   .argument("[path]", "template build context", ".")
   .description("Create a template build record")
-  .requiredOption("--name <name>", "template name")
-  .option("--dockerfile <file>", "Dockerfile path", "Dockerfile")
+  .option("--name <name>", "template name")
+  .option("--dockerfile <file>", "Dockerfile path")
   .option("--image <ref>", "target image reference")
+  .option("--visibility <visibility>", "template visibility: public, private, or internal")
+  .option("--cpu-count <count>", "default vCPU count", Number)
+  .option("--memory-mb <mb>", "default memory in MiB", Number)
+  .option("--workdir <path>", "default workdir")
+  .option("--port <port>", "default exposed port; can be repeated", collectPort, [])
   .option("--source <type>", "build source type: dockerfile, git, or image", "dockerfile")
   .action(async (contextPath, options) => {
+    const templateFile = await loadTemplateConfig(contextPath);
     if (!["dockerfile", "git", "image"].includes(options.source)) throw new Error("--source must be dockerfile, git, or image");
-    if (options.source === "image" && !options.image) throw new Error("--source image requires --image <ref>");
-    const id = templateIdFor(options.name);
+    const image = options.image ?? templateFile.image;
+    if (options.source === "image" && !image) throw new Error("--source image requires --image <ref>");
+    const name = options.name ?? templateFile.name;
+    if (!name) throw new Error("missing template name. Pass --name or add name to harakiri.toml.");
+    const dockerfile = options.dockerfile ?? templateFile.dockerfile ?? "Dockerfile";
+    const ports = options.port.length ? options.port : (templateFile.ports ?? [3000, 5173, 4321, 8000]);
+    const aliases = Array.from(new Set([name, ...(templateFile.aliases ?? [])]));
+    const id = templateIdFor(name);
     try {
       await api<{ template: TemplateResult }>("/v1/templates", {
         method: "POST",
         body: JSON.stringify({
           id,
-          name: options.name,
-          image: options.image ?? "ubuntu:24.04",
-          aliases: [options.name],
-          defaultPorts: [3000, 5173, 4321, 8000],
-          workdir: "/workspace",
-          runtimeFamily: "custom"
+          name,
+          description: templateFile.description,
+          image: image ?? "ubuntu:24.04",
+          aliases,
+          visibility: options.visibility ?? templateFile.visibility,
+          defaultEntrypoint: commandToEntrypoint(templateFile.startCommand),
+          cpuCount: options.cpuCount ?? templateFile.cpuCount,
+          memoryMb: options.memoryMb ?? templateFile.memoryMb,
+          defaultPorts: ports,
+          workdir: options.workdir ?? templateFile.workdir ?? "/workspace",
+          runtimeFamily: templateFile.runtimeFamily ?? "custom"
         })
       });
       printProgress(`created template ${id}`);
@@ -212,9 +242,9 @@ template
       method: "POST",
       body: JSON.stringify({
         sourceType: options.source,
-        dockerfilePath: options.dockerfile,
-        imageDestination: options.image,
-        metadata: { localPath: contextPath }
+        dockerfilePath: dockerfile,
+        imageDestination: image,
+        metadata: { localPath: contextPath, templateConfig: templateFile }
       })
     });
     if (options.source === "dockerfile") {
@@ -227,7 +257,7 @@ template
           sizeBytes: context.sizeBytes,
           format: context.format,
           fileCount: context.fileCount,
-          metadata: { localPath: contextPath, dockerfilePath: options.dockerfile }
+          metadata: { localPath: contextPath, dockerfilePath: dockerfile }
         })
       });
       printProgress(`uploaded context ${context.sha256.slice(0, 19)} (${context.sizeBytes} bytes, ${context.fileCount} files)`);
