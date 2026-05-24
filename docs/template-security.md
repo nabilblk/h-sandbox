@@ -122,6 +122,9 @@ Template versions now keep first-class security fields:
 - `provenance`: JSON describing source type, build ID, template ID,
   organization ID, image URI, image digest, builder identity, Dockerfile path,
   and context hash where available.
+- Dockerfile build metadata: the completed build record stores the Kubernetes
+  Job, Pod, Pod UID, namespace, and node name that handled the Kaniko build so
+  operators can correlate persisted records with cluster events and logs.
 - `scan_status`: currently `not_scanned` until a scanner hook is configured.
 - `scan_summary`: JSON summary; current builds set
   `{ "status": "not_scanned", "reason": "scanner_not_configured" }`.

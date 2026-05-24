@@ -285,6 +285,14 @@ kubectl -n harakiri logs job/<job-name> -c context-exporter
 kubectl -n harakiri logs job/<job-name> -c kaniko
 ```
 
+Correlate API build records with the Kubernetes Job, Pod, and node that handled
+the build:
+
+```bash
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
+  "select id, metadata->>'builderJobName' as job, metadata->>'builderPodName' as pod, metadata->>'builderNodeName' as node from template_builds where source_type = 'dockerfile' order by created_at desc limit 10;"
+```
+
 Inspect recent template audit events:
 
 ```bash

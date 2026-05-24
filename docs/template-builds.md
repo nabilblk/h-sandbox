@@ -214,7 +214,10 @@ builder actor label `harakiri-template-builder`.
 Build list responses include the resulting template version ID when a build has
 produced one. Build detail surfaces the redacted build metadata and uploaded
 context summary: context digest, archive size, file count, format, and upload
-timestamp. The context archive itself is not returned by the API.
+timestamp. Dockerfile builds also expose the Kubernetes builder runtime
+metadata after completion: `builderJobName`, `builderPodName`,
+`builderPodUid`, `builderNodeName`, and `builderNamespace`. The context archive
+itself is not returned by the API.
 
 If a template is archived while a queued or building record exists, the API
 marks those active builds `canceled`. If a Kubernetes build job finishes after
@@ -227,11 +230,13 @@ container, reads the verified archive from PostgreSQL, expands it into an
 emptyDir workspace, and then runs Kaniko against that workspace. Kaniko pushes
 to `TEMPLATE_REGISTRY_PUSH_HOST`; Harakiri stores the runtime image using
 `TEMPLATE_REGISTRY_RUNTIME_HOST` so OpenSandbox can pull the digest-pinned image
-from the node-local registry.
+from the node-local registry. The worker stores the Job name, Pod name, Pod UID,
+namespace, and Kubernetes node name in the build metadata so operators can
+correlate dashboard/API records with cluster logs.
 
 Still pending for production hardening:
 
 - Git source checkout.
 - Per-organization registry credentials.
 - Cache retention and cleanup policy.
-- Health checks and operator runbook commands.
+- Health checks.

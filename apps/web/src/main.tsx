@@ -292,6 +292,11 @@ const buildResultLabel = (build: TemplateBuildSummary) => {
   if (build.error) return build.error;
   return shortDigest(build.imageDigest);
 };
+const metadataLabel = (value: unknown, fallback = "-") => {
+  if (typeof value === "string") return value.trim() || fallback;
+  if (value === null || value === undefined) return fallback;
+  return String(value);
+};
 
 const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [tab, setTab] = useState<"list" | "builds">("list");
@@ -544,7 +549,9 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                     <span>Version <b>{selectedBuild.resultVersionId ?? "pending"}</b></span>
                     <span>Dockerfile <b>{selectedBuild.dockerfilePath ?? "Dockerfile"}</b></span>
                     <span>Image <b>{selectedBuild.imageDestination ?? "pending"}</b></span>
-                    <span>Builder <b>{String(selectedBuild.metadata?.builder ?? selectedBuild.metadata?.source ?? selectedBuild.sourceType)}</b></span>
+                    <span>Builder <b>{metadataLabel(selectedBuild.metadata?.builder ?? selectedBuild.metadata?.source ?? selectedBuild.sourceType)}</b></span>
+                    <span>Builder pod <b>{metadataLabel(selectedBuild.metadata?.builderPodName)}</b></span>
+                    <span>Node <b>{metadataLabel(selectedBuild.metadata?.builderNodeName)}</b></span>
                     <span>Context <b>{selectedBuild.context ? `${selectedBuild.context.sha256} - ${formatBytes(selectedBuild.context.sizeBytes)} - ${selectedBuild.context.fileCount ?? 0} files` : selectedBuild.contextHash ?? "-"}</b></span>
                   </div>
                   <div className="build-log">
@@ -799,7 +806,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Statuses</h2>
-        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID and context metadata in the dashboard detail pane.</p>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, and context metadata in the dashboard detail pane.</p>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>

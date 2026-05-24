@@ -1,4 +1,4 @@
-import type { V1Job } from "@kubernetes/client-node";
+import type { V1Job, V1Pod } from "@kubernetes/client-node";
 import path from "node:path";
 import { recordAuditEvent } from "./audit.js";
 import { config } from "./config.js";
@@ -186,7 +186,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
              updated_at = now(),
              metadata = metadata || $4::jsonb
          WHERE id = $1`,
-        [build.id, ready.imageUri, ready.imageDigest, JSON.stringify(redactRecord({ templateVersionId: versionId, readyImage: ready.metadata }))]
+        [build.id, ready.imageUri, ready.imageDigest, JSON.stringify(redactRecord({ templateVersionId: versionId, ...ready.metadata, readyImage: ready.metadata }))]
       );
       await appendBuildLog(client, build.id, "stdout", `created template version ${versionId}`);
       await recordAuditEvent(
@@ -351,6 +351,14 @@ const podForJob = async (jobName: string) => {
   return pods.items[0] ?? null;
 };
 
+export const builderRuntimeMetadata = (jobName: string, pod: V1Pod | null) => ({
+  builderJobName: jobName,
+  builderNamespace: config.templateBuilderNamespace,
+  builderPodName: pod?.metadata?.name ?? null,
+  builderPodUid: pod?.metadata?.uid ?? null,
+  builderNodeName: pod?.spec?.nodeName ?? null
+});
+
 const appendJobLogs = async (buildId: string, jobName: string) => {
   const pod = await podForJob(jobName).catch(() => null);
   if (!pod?.metadata?.name) return;
@@ -374,7 +382,7 @@ const waitForJobDigest = async (build: BuildRow, jobName: string) => {
       const pod = await podForJob(jobName);
       const message = pod?.status?.containerStatuses?.find((status) => status.name === "kaniko")?.state?.terminated?.message?.trim() ?? "";
       if (!/^sha256:[a-f0-9]{64}$/.test(message)) throw new Error(`kaniko did not report an image digest for ${build.id}`);
-      return message;
+      return { digest: message, pod };
     }
     if ((job.status?.failed ?? 0) > 0) {
       await appendJobLogs(build.id, jobName);
@@ -399,7 +407,7 @@ const dockerfileReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
     namespace: config.templateBuilderNamespace,
     body: buildJob(build, pushRef, dockerfilePath)
   });
-  const digest = await waitForJobDigest(build, jobName);
+  const { digest, pod } = await waitForJobDigest(build, jobName);
   await appendJobLogs(build.id, jobName);
   const imageUri = `${runtimeRepository}@${digest}`;
   await appendBuildLogForBuild(build.id, `pushed ${pushRef} as ${imageUri}`);
@@ -414,7 +422,8 @@ const dockerfileReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
       contextFileCount: build.context_file_count,
       pushedImage: pushRef,
       runtimeImage: imageUri,
-      builder: "kaniko"
+      builder: "kaniko",
+      ...builderRuntimeMetadata(jobName, pod)
     }
   };
 };

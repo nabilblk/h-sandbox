@@ -260,6 +260,18 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Post-template/build metadata cleanup audit on 2026-05-24: PostgreSQL reported
   `active_smoke_keys=0`, `live_sandboxes=0`, `ui_meta_templates=0`, and
   `ready_routes=0`.
+- Kubernetes builder runtime metadata checkpoint on 2026-05-24: `pnpm
+  typecheck`, `pnpm test`, `pnpm --filter @harakiri/web build`, and `git diff
+  --check` passed after persisting Dockerfile builder Job, Pod, Pod UID,
+  namespace, and node metadata on successful build records. `pnpm deploy:k0s`
+  completed, `pnpm ports:restart && pnpm ports:status` reported every forward
+  healthy, and `pnpm smoke:template-build` passed with build
+  `bld_NU6OGPcV7SCW`, version `tplv_QOyx33J2Y_0M`, and sandbox
+  `sbx_2WxfrtOc7G`. The smoke now asserts that `template_builds.metadata`
+  contains non-empty `builderJobName`, `builderPodName`, and `builderNodeName`.
+- Post-builder-runtime-metadata cleanup audit on 2026-05-24: PostgreSQL
+  reported `active_smoke_keys=0`, `live_sandboxes=0`,
+  `kaniko_smoke_templates=0`, and `ready_routes=0`.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

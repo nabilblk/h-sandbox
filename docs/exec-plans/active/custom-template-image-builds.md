@@ -84,7 +84,7 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [x] Provide actions for Use, Build, and Copy ID.
   - [x] Provide actions for View builds and Promote.
   - [x] Provide an Archive action for private active templates.
-- [ ] Builds tab:
+- [x] Builds tab:
   - [x] Search by build ID, template ID, or template name.
   - [x] Filter by status with counts for queued/building/success/failed/canceled.
   - [x] Table columns: status, template, started, duration, build ID, image
@@ -93,7 +93,7 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [x] Build detail drawer/page with log stream, Dockerfile metadata, resulting
         digest, and cancel/retry actions.
   - [x] Add build context metadata to build detail.
-  - [ ] Add Kubernetes builder pod/node metadata to build detail once the worker
+  - [x] Add Kubernetes builder pod/node metadata to build detail once the worker
         persists that runtime information.
 - [ ] Template detail page:
   - [ ] Overview with default create command and SDK snippets.
@@ -361,6 +361,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Implement the Builds tab table and status filter counts.
 - [x] Add result template version and build context summary metadata to the
       Builds table/detail flow.
+- [x] Add Kubernetes builder pod and node metadata to Dockerfile build detail.
 - [x] Add build detail panel with log viewer and retry/cancel actions.
 - [x] Wire use-template action to sandbox creation.
 - [ ] Add New Template flow.

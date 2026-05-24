@@ -192,6 +192,12 @@ curl http://127.0.0.1:18082/v1/template-builds/bld_.../logs \
   -H "x-api-key: $HK_KEY"
 ```
 
+Build inspect responses include redacted `metadata`, the resulting
+`resultVersionId` when one exists, and the uploaded context summary. Completed
+Dockerfile builds also include Kubernetes builder fields in `metadata`:
+`builderJobName`, `builderPodName`, `builderPodUid`, `builderNodeName`, and
+`builderNamespace`.
+
 Cancel, retry, and promote:
 
 ```bash

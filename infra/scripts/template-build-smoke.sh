@@ -106,5 +106,12 @@ if [[ "${BUILD_AUDIT_COUNT}" != "1" ]]; then
   echo "template build success audit event missing for ${BUILD_ID}/${VERSION_ID}: ${BUILD_AUDIT_COUNT}" >&2
   exit 1
 fi
+BUILDER_RUNTIME="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \
+  psql -U harakiri -d harakiri -qAtc "select coalesce(metadata->>'builderJobName', '') || '|' || coalesce(metadata->>'builderPodName', '') || '|' || coalesce(metadata->>'builderNodeName', '') from template_builds where id = '${BUILD_ID}';")"
+IFS='|' read -r BUILDER_JOB BUILDER_POD BUILDER_NODE <<<"${BUILDER_RUNTIME}"
+if [[ -z "${BUILDER_JOB}" || -z "${BUILDER_POD}" || -z "${BUILDER_NODE}" ]]; then
+  echo "template build metadata missing builder job/pod/node for ${BUILD_ID}: ${BUILDER_RUNTIME}" >&2
+  exit 1
+fi
 
 echo "template build smoke passed: ${BUILD_ID} ${SANDBOX_ID}"
