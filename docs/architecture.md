@@ -54,15 +54,20 @@ Templates are a separate control-plane subsystem from live sandboxes:
    digest-pinned image has either started or reached a post-pull container
    state. Image pull failures keep the build failed instead of creating a ready
    version.
-10. Before the ready version is inserted, the builder calls the configured
+10. When optional hot-template pre-pull is enabled, templates tagged `hot`,
+   `prepull`, or `warm` create one disposable pull Pod per ready Kubernetes
+   node after preflight succeeds. This warms node image cache for the next
+   OpenSandbox start and stores `runtimeImagePrepull` metadata, but it does not
+   create a pre-started sandbox pool.
+11. Before the ready version is inserted, the builder calls the configured
    external scanner webhook when `TEMPLATE_SCANNER_WEBHOOK_URL` is set and
    persists the returned `scan_status` and `scan_summary`; otherwise it records
    `not_scanned`.
-11. The scheduler retention pass deletes old build logs, uploaded context
+12. The scheduler retention pass deletes old build logs, uploaded context
     archives, unversioned terminal build rows, and completed builder Jobs. It
     retires old ready template versions only when they are not latest/stable and
     no active sandbox is using them.
-12. Promotion moves aliases such as `latest` or `stable` to the ready version.
+13. Promotion moves aliases such as `latest` or `stable` to the ready version.
 13. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 

@@ -558,6 +558,22 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   server on port `3000` was exposed with `harakiri expose`; the public route
   `https://f9eb0cbc-8a2a-493f-bcb7-6f55c662f32c-3000.harakiri.io` returned
   `open-agents-route`.
+- Hot-template image pre-pull checkpoint on 2026-05-24:
+  `pnpm --filter @harakiri/api test`, `pnpm --filter @harakiri/cli test`,
+  API/CLI/web typechecks, API/CLI/web builds, and `pnpm deploy:k0s` passed.
+  The rollout created `clusterrole/harakiri-template-prepull` and
+  `clusterrolebinding/harakiri-template-prepull`, then restarted the API, web,
+  scheduler, and template-builder deployments. `pnpm smoke:template-prepull`
+  queued hot image-import build `bld_HtRr9_WKsVj8`, which reached `success`
+  and reported `runtimeImagePrepull.status = ok`, `namespace = opensandbox`,
+  `nodes=1`, and `pods=1`. `pnpm smoke:template-build` then built
+  `bld_0_ZOOW9YFY9W`, confirmed normal non-hot templates log
+  `runtime image pre-pull skipped: not_hot_template`, created sandbox
+  `sbx_rr_ndBw3TR`, and read `harakiri-built` from the built image.
+  `pnpm smoke` created `sbx_RpGPQuhVGX` and returned the expected model-output
+  fixture. Website/product docs and New Template UI were checked with
+  Playwright: screenshots saved to `/tmp/harakiri-prepull-docs.png` and
+  `/tmp/harakiri-prepull-modal.png`.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo

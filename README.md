@@ -60,8 +60,11 @@ version. `harakiri template build` follows logs and prints the final build ID,
 template version ID, image digest, duration, and next create command by default;
 use `--no-wait` when a script only needs the queued build ID. Template versions
 are marked ready only after the builder verifies the digest-pinned image can be
-pulled by the k0s runtime path. They also carry SBOM/provenance and scan-status
-fields. By default new versions report `not_scanned`; operators can set
+pulled by the k0s runtime path. Templates tagged `hot`, `prepull`, or `warm`
+can also pre-pull the final image on ready k0s nodes so the next sandbox start
+does not pay the first image download on each node. Versions also carry
+SBOM/provenance and scan-status fields. By default new versions report
+`not_scanned`; operators can set
 `TEMPLATE_SCANNER_WEBHOOK_URL` to call an external scanner hook and persist the
 returned scan status and summary.
 Generated Dockerfile images are pushed under an organization-scoped repository

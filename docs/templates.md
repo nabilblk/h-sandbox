@@ -34,6 +34,7 @@ cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
+tags = ["custom", "hot"]
 start_command = "sleep 3600"
 ready_command = "true"
 ```
@@ -64,6 +65,11 @@ ID, image digest, duration, and next `harakiri create` command. Use
 Image-import builds resolve an immutable source digest. Dockerfile builds upload
 their local context, run a Kaniko Job in k0s, push to the local registry, and
 create a digest-pinned ready template version.
+
+Add the `hot`, `prepull`, or `warm` tag when a template should warm the node
+image cache after a successful build. The builder still performs runtime pull
+preflight for every ready version; the hot-template pre-pull is an optional
+startup optimization and does not replace immutable digest recording.
 
 `template archive` hides a custom template from active lists and prevents new
 sandbox creation by that template alias or version. Existing sandboxes keep
@@ -103,7 +109,8 @@ The dashboard New Template flow covers the same user-facing sources as the CLI:
   template, then queue an image-import build for the fork.
 
 Before submit, the dashboard shows the generated `harakiri.toml` preview. Keep
-that preview aligned with CLI examples when adding new template fields.
+that preview aligned with CLI examples when adding new template fields. The Hot
+image pre-pull checkbox adds the `hot` tag to the preview and template payload.
 
 The API enforces workspace policy before accepting template definitions or
 build records. By default custom templates are capped at 8 vCPU, 32768 MiB

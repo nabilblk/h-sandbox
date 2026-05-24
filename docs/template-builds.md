@@ -264,6 +264,17 @@ the container or reaching a post-pull container state. It fails the build on
 build metadata includes `runtimePullPreflight.status = ok`, the preflight Pod,
 node, image ID when available, and duration.
 
+Hot templates can also warm the node image cache after preflight. Enable this
+with `TEMPLATE_IMAGE_PREPULL_ENABLED=1` and tag templates with one of
+`TEMPLATE_IMAGE_PREPULL_HOT_TAGS` (`hot,prepull,warm` by default). The builder
+lists ready Kubernetes nodes, creates one disposable pull Pod per node in
+`TEMPLATE_IMAGE_PREPULL_NAMESPACE`, waits for each Pod to prove the image was
+pulled, then deletes the Pods. This is deliberately a Kubernetes-native
+pre-pull, not an OpenSandbox snapshot or pre-started sandbox pool. By default
+pre-pull errors are recorded as `runtimeImagePrepull.status = failed` without
+failing the build; set `TEMPLATE_IMAGE_PREPULL_FAIL_ON_ERROR=1` only if cache
+warming must become a release gate.
+
 Before a successful build inserts the ready `template_versions` row, the worker
 checks `TEMPLATE_SCANNER_WEBHOOK_URL`. When it is empty, the version keeps
 `scan_status = not_scanned` and `scan_summary.reason =

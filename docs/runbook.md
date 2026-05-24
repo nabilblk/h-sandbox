@@ -266,6 +266,14 @@ Template registry configuration is also carried by `harakiri-config`:
   production.
 - `TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS=120000` bounds preflight wait
   time before the build fails.
+- `TEMPLATE_IMAGE_PREPULL_ENABLED=1` enables optional hot-template image
+  pre-pull after runtime preflight succeeds.
+- `TEMPLATE_IMAGE_PREPULL_NAMESPACE=opensandbox` is where per-node disposable
+  pre-pull Pods run.
+- `TEMPLATE_IMAGE_PREPULL_HOT_TAGS=hot,prepull,warm` defines which template
+  tags request cache warming.
+- `TEMPLATE_IMAGE_PREPULL_FAIL_ON_ERROR=0` records pre-pull failures without
+  failing the build. Set it to `1` only if image cache warming is a hard gate.
 - `TEMPLATE_RETENTION_ENABLED=1` keeps scheduler retention active.
 - `TEMPLATE_RETENTION_INTERVAL_MS=3600000` runs retention roughly hourly.
 - `TEMPLATE_BUILD_LOG_RETENTION_DAYS=14` prunes old terminal build logs.
@@ -442,6 +450,7 @@ Troubleshooting matrix:
 | Kaniko reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and Kaniko can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
 | Image import cannot resolve a digest | Builder logs filtered for `registry`, `manifest`, or `digest`; API error body | Fix the tag, registry visibility, registry policy, or operator-provided pull credentials |
 | Runtime pull preflight fails | Build logs containing `runtime image pull preflight`; preflight Pod events before it is deleted; build metadata | Make `TEMPLATE_REGISTRY_RUNTIME_HOST` reachable from the k0s node and configure pull credentials in the preflight/runtime namespace |
+| Hot-template pre-pull fails | Build metadata `runtimeImagePrepull`, API build detail, and `kubectl get pods -n opensandbox -l app=harakiri-template-image-prepull` while the build is running | Confirm Harakiri can list nodes, create Pods in the pre-pull namespace, and pull the final image on each ready node; disable fail-on-error if warming is only an optimization |
 | Sandbox create fails after a successful build | Compare `template_versions.image_uri`, sandbox event metadata, selected `runtimeRegistryCredentialId`, and OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure either encrypted pull credentials for `image.auth` or runtime/node pull credentials for the OpenSandbox path |
 | Sandbox env value is missing at runtime | Inspect the `POST /v1/sandboxes` payload, sandbox event `envKeys`, and run `env | sort` in the sandbox | Use `env` on sandbox creation or `harakiri create --env KEY=value`; command-level env is not retroactively added to an existing sandbox |
 | Registry disk keeps growing | Registry `du -sh`; old ready/retired versions and retained build rows | Let scheduler retention retire unused versions first, then run registry GC only for blobs not referenced by `template_versions` |

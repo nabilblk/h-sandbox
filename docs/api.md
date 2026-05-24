@@ -311,8 +311,10 @@ Current v1 API behavior persists build records, uploaded Dockerfile contexts,
 and logs. The deployed template builder consumes queued `sourceType=image`
 records by resolving immutable source digests, and consumes
 `sourceType=dockerfile` records by running Kaniko in k0s, pushing to the local
-registry, and writing digest-pinned ready versions. Git source builds are still
-tracked in the active custom template execution plan.
+registry, running runtime pull preflight, optionally pre-pulling images for
+templates tagged `hot`, `prepull`, or `warm`, and writing digest-pinned ready
+versions. Git source builds are still tracked in the active custom template
+execution plan.
 
 ## Run Command
 

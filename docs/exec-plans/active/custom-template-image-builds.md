@@ -431,7 +431,16 @@ making it clear that both were reviewed in the same checkpoint.
       ID, image digest, organization ID, and route policy.
 - [x] Add preflight validation that the image can be pulled by OpenSandbox before
       marking a version ready.
-- [ ] Add optional image pre-pull/warm pool support for hot templates.
+- [x] Add optional image pre-pull/warm pool support for hot templates.
+      Documentation:
+      - Code docs: `README.md`, `docs/templates.md`, `docs/template-builds.md`,
+        `docs/template-runtime-contract.md`, `docs/api.md`, `docs/architecture.md`,
+        `docs/runbook.md`, `docs/test-report.md`.
+      - Product docs: Website docs > Create a custom template, Template builds,
+        Security model; Templates build detail and New Template modal.
+      - Verification: `pnpm smoke:template-prepull`, `pnpm smoke:template-build`,
+        `pnpm smoke`, screenshots `/tmp/harakiri-prepull-docs.png` and
+        `/tmp/harakiri-prepull-modal.png`.
 - [x] Keep OpenSandbox snapshots as a later acceleration/checkpointing feature,
       not as the initial template build foundation.
 
@@ -577,6 +586,7 @@ making it clear that both were reviewed in the same checkpoint.
 | 2026-05-24 | Store registry credentials as encrypted control-plane records plus Kubernetes Secret references | Harakiri needs auditable API-managed credential metadata without returning raw secrets, while Kaniko and runtime pull preflight need least-privilege Kubernetes Secret names for actual image operations. | Store only Kubernetes Secret names; store raw registry tokens in PostgreSQL; use one shared global image pull secret |
 | 2026-05-24 | Publish generated template images under organization-scoped registry namespaces | Teams should not share a flat repository path, and build/cache cleanup plus audit trails need a stable namespace derived from organization ID. | Keep `harakiri/templates/<template>` flat paths; use user-provided repository paths only |
 | 2026-05-24 | Pass sandbox env and encrypted registry image auth through OpenSandbox; keep workdir as image contract metadata | OpenSandbox create supports env and `image.auth`, but does not expose a stable create-time workdir field. Harakiri can still record the template workdir and require Dockerfile `WORKDIR`/smoke checks. | Build a custom runtime wrapper to `cd` before entrypoint; invent a Harakiri-only workdir field ignored by OpenSandbox |
+| 2026-05-24 | Implement hot-template image pre-pull as disposable Kubernetes pull Pods per ready node | This warms the node image cache using native Kubernetes primitives and keeps OpenSandbox snapshots/pre-started pools as a later acceleration feature. | Implement a custom cache daemon; create pre-started OpenSandbox sandboxes before snapshot support is proven |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

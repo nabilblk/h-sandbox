@@ -24,12 +24,17 @@ cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
+tags = ["custom", "hot"]
 start_command = "sleep 3600"
 ready_command = "true"
 ```
 
 The API stores resources and ports on both the template definition and immutable
-template version. Sandbox creation should use the version values.
+template version. Sandbox creation should use the version values. The optional
+`hot`, `prepull`, or `warm` tags ask the builder to pre-pull successful runtime
+images on ready Kubernetes nodes after the normal runtime pull preflight passes.
+That warms image cache only; it does not create pre-started sandboxes or change
+the image's runtime contract.
 
 ## Open Agents Runtime
 

@@ -109,6 +109,7 @@ memory_mb = 4096
 workdir = "/workspace"
 ports = [3000, 8000]
 aliases = ["agents/open-agents-dev"]
+tags = ["custom", "hot"]
 start_command = "python -m http.server \\"8000\\""
 `);
 
@@ -152,7 +153,8 @@ start_command = "python -m http.server \\"8000\\""
       memoryMb: 4096,
       defaultPorts: [3000, 8000],
       workdir: "/workspace",
-      runtimeFamily: "custom"
+      runtimeFamily: "custom",
+      tags: ["custom", "hot"]
     });
 
     const build = api.requests.find((request) => request.path === "/v1/templates/open-agents-dev/builds");
@@ -170,6 +172,7 @@ start_command = "python -m http.server \\"8000\\""
           workdir: "/workspace",
           ports: [3000, 8000],
           aliases: ["agents/open-agents-dev"],
+          tags: ["custom", "hot"],
           startCommand: "python -m http.server \"8000\""
         }
       }

@@ -358,6 +358,7 @@ type TemplateDraft = {
   memoryMb: number;
   workdir: string;
   ports: number[];
+  tags: string[];
   entrypoint: string[];
   runtimeFamily: string;
   source: "dockerfile" | "image" | "clone";
@@ -375,6 +376,7 @@ const generatedTemplateConfig = (draft: TemplateDraft) => [
   `memory_mb = ${draft.memoryMb}`,
   `workdir = ${tomlString(draft.workdir)}`,
   `ports = [${draft.ports.join(", ")}]`,
+  draft.tags.length ? `tags = [${draft.tags.map(tomlString).join(", ")}]` : "",
   `start_command = ${tomlString(draft.entrypoint.join(" ") || "sleep 3600")}`,
   draft.source === "dockerfile" ? `dockerfile = ${tomlString(draft.dockerfilePath)}` : `image = ${tomlString(draft.image)}`,
   draft.cloneSource ? `clone_source = ${tomlString(draft.cloneSource)}` : ""
@@ -436,6 +438,7 @@ const NewTemplateModal = ({
   const [memoryMb, setMemoryMb] = useState(2048);
   const [workdir, setWorkdir] = useState("/workspace");
   const [ports, setPorts] = useState("3000, 5173");
+  const [hotTemplate, setHotTemplate] = useState(false);
   const [entrypoint, setEntrypoint] = useState("sleep 3600");
   const [runtimeFamily, setRuntimeFamily] = useState("custom");
   const [image, setImage] = useState("ubuntu:24.04");
@@ -454,6 +457,7 @@ const NewTemplateModal = ({
     memoryMb,
     workdir: workdir.trim() || "/workspace",
     ports: parsedPorts,
+    tags: Array.from(new Set(["custom", runtimeFamily.trim() || "custom", ...(hotTemplate ? ["hot"] : [])].filter(Boolean))),
     entrypoint: splitEntrypoint(entrypoint),
     runtimeFamily: runtimeFamily.trim() || "custom",
     source: mode,
@@ -472,6 +476,7 @@ const NewTemplateModal = ({
     setMemoryMb(selectedClone.memoryMb ?? 2048);
     setWorkdir(selectedClone.workdir ?? "/workspace");
     setPorts((selectedClone.defaultPorts ?? []).join(", "));
+    setHotTemplate((selectedClone.tags ?? []).some((tag) => ["hot", "prepull", "warm"].includes(tag.toLowerCase())));
     setRuntimeFamily(selectedClone.runtimeFamily ?? "custom");
     setImage(selectedClone.image);
     setEntrypoint((selectedClone.defaultEntrypoint ?? ["sleep", "3600"]).join(" "));
@@ -492,7 +497,7 @@ const NewTemplateModal = ({
         description: description.trim() || "Custom sandbox template.",
         image: draft.image,
         icon: iconForRuntime(draft.runtimeFamily, draft.ports),
-        tags: Array.from(new Set(["custom", draft.runtimeFamily].filter(Boolean))),
+        tags: draft.tags,
         aliases: [draft.id],
         visibility: draft.visibility,
         defaultEntrypoint: draft.entrypoint.length ? draft.entrypoint : ["sleep", "3600"],
@@ -576,6 +581,10 @@ const NewTemplateModal = ({
                 <Field label="Entrypoint"><input className="input mono" value={entrypoint} onChange={(event) => setEntrypoint(event.target.value)} /></Field>
                 <Field label="Runtime"><input className="input mono" value={runtimeFamily} onChange={(event) => setRuntimeFamily(event.target.value)} /></Field>
               </div>
+              <label className="template-check">
+                <input type="checkbox" checked={hotTemplate} onChange={(event) => setHotTemplate(event.target.checked)} />
+                <span>Hot image pre-pull</span>
+              </label>
               {mode === "image" ? (
                 <Field label="OCI image"><input className="input mono" value={image} onChange={(event) => setImage(event.target.value)} placeholder="ghcr.io/acme/agent-runtime:latest" /></Field>
               ) : null}
@@ -1082,6 +1091,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                     <span>Builder pod <b>{metadataLabel(selectedBuild.metadata?.builderPodName)}</b></span>
                     <span>Node <b>{metadataLabel(selectedBuild.metadata?.builderNodeName)}</b></span>
                     <span>Pull preflight <b>{metadataLabel((selectedBuild.metadata?.runtimePullPreflight as Record<string, unknown> | undefined)?.status)}</b></span>
+                    <span>Image pre-pull <b>{metadataLabel((selectedBuild.metadata?.runtimeImagePrepull as Record<string, unknown> | undefined)?.status)}</b></span>
                     <span>Context <b>{selectedBuild.context ? `${selectedBuild.context.sha256} - ${formatBytes(selectedBuild.context.sizeBytes)} - ${selectedBuild.context.fileCount ?? 0} files` : selectedBuild.contextHash ?? "-"}</b></span>
                   </div>
                   {buildIsActive(selectedBuild) ? <div className="build-progress-note"><span className="spinner" /> {selectedBuild.status === "queued" ? "Waiting for the builder to claim this record." : "Builder is running. Refresh to pull the latest status and logs."}</div> : null}
@@ -1506,12 +1516,12 @@ const docPages: DocPage[] = [
       <>
         <h2>Config</h2>
         <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile`}</pre>
-        <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\nstart_command = "sleep 3600"`}</pre>
+        <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\ntags = ["custom", "hot"]\nstart_command = "sleep 3600"`}</pre>
         <h2>Dashboard</h2>
-        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
+        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
-        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Use `--no-wait` when you want to enqueue and inspect later.</p>
+        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
         <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
@@ -1528,7 +1538,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Statuses</h2>
-        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, and context metadata in the dashboard detail pane.</p>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, optional hot-template image pre-pull status, and context metadata in the dashboard detail pane.</p>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
@@ -1539,7 +1549,7 @@ const docPages: DocPage[] = [
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
         <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
         <h2>Troubleshooting</h2>
-        <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Runtime pull preflight failures mean the image was built or imported but the cluster could not pull the final digest. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
+        <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Runtime pull preflight failures mean the image was built or imported but the cluster could not pull the final digest. Optional hot-template pre-pull failures mean the image is ready, but the cluster could not warm every node cache. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
         <h2>Archive</h2>
         <p>Archive a template when it should no longer appear in active lists or be used for new sandboxes. Existing sandboxes keep running; queued or building template builds are canceled.</p>
         <pre>{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</pre>
@@ -1632,7 +1642,7 @@ const docPages: DocPage[] = [
         <h2>Image policy</h2>
         <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run. Generated Dockerfile images are stored under an organization-scoped registry namespace so teams do not share one flat repository path.</p>
         <h2>Provenance</h2>
-        <p>Template versions keep SBOM references, provenance, runtime pull preflight status, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
+        <p>Template versions keep SBOM references, provenance, runtime pull preflight status, optional hot-template pre-pull status, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
         <h2>Audit</h2>
         <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, version retirement, and sandbox create actions are stored as audit events with redacted metadata.</p>
         <h2>Limits</h2>

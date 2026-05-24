@@ -7,6 +7,7 @@ export type HarakiriTemplateConfig = {
   workdir?: string;
   ports?: number[];
   aliases?: string[];
+  tags?: string[];
   image?: string;
   description?: string;
   runtimeFamily?: string;
@@ -60,6 +61,7 @@ export const parseHarakiriTemplateConfig = (input: string): HarakiriTemplateConf
   if (typeof config.workdir === "string") parsed.workdir = config.workdir;
   if (Array.isArray(config.ports) && config.ports.every((port) => Number.isInteger(port))) parsed.ports = config.ports as number[];
   if (Array.isArray(config.aliases) && config.aliases.every((alias) => typeof alias === "string")) parsed.aliases = config.aliases as string[];
+  if (Array.isArray(config.tags) && config.tags.every((tag) => typeof tag === "string")) parsed.tags = config.tags as string[];
   if (typeof config.image === "string") parsed.image = config.image;
   if (typeof config.description === "string") parsed.description = config.description;
   if (typeof config.runtimeFamily === "string") parsed.runtimeFamily = config.runtimeFamily;

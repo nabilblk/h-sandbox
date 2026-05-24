@@ -12,6 +12,7 @@ memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
 aliases = ["open-agents-dev", "agents/open-agents-dev"]
+tags = ["custom", "hot"]
 start_command = "sleep 3600"
 `);
 
@@ -24,6 +25,7 @@ start_command = "sleep 3600"
     workdir: "/workspace",
     ports: [3000, 5173, 4321, 8000],
     aliases: ["open-agents-dev", "agents/open-agents-dev"],
+    tags: ["custom", "hot"],
     startCommand: "sleep 3600"
   });
 });

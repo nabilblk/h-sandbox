@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import test from "node:test";
-import { buildJob, buildRepository, builderRuntimeMetadata, preflightTemplateImagePull, registryNamespaceForOrganization, runtimePullPreflightState, scanTemplateImage } from "./template-builder.js";
+import {
+  buildJob,
+  buildRepository,
+  builderRuntimeMetadata,
+  preflightTemplateImagePull,
+  prepullTemplateImage,
+  registryNamespaceForOrganization,
+  runtimePullPreflightState,
+  scanTemplateImage,
+  templateShouldPrepull
+} from "./template-builder.js";
 
 const readBody = async (request: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -262,6 +272,146 @@ test("preflightTemplateImagePull can be disabled", async () => {
   );
 
   assert.deepEqual(result, { status: "skipped", reason: "disabled" });
+});
+
+test("templateShouldPrepull matches hot tags and explicit metadata flags", () => {
+  assert.equal(templateShouldPrepull({ template_tags: ["custom", "Hot"] }, ["hot"]), true);
+  assert.equal(templateShouldPrepull({ template_tags: ["custom"], metadata: { prepull: "true" } }, ["hot"]), true);
+  assert.equal(templateShouldPrepull({ template_tags: ["custom"], metadata: { prepull: false } }, ["hot"]), false);
+});
+
+test("prepullTemplateImage pulls the runtime image on every ready node", async () => {
+  const created: any[] = [];
+  const deleted: any[] = [];
+  const reads = new Map([
+    [
+      "hkprep-bld-prepull-0-k0s-worker-1",
+      [
+        { status: { phase: "Pending" } },
+        {
+          spec: { nodeName: "k0s-worker-1" },
+          status: {
+            containerStatuses: [
+              {
+                name: "pull",
+                imageID: "docker-pullable://127.0.0.1:5000/harakiri/templates/demo@sha256:abc",
+                state: { terminated: { reason: "Completed", exitCode: 0 } }
+              }
+            ]
+          }
+        }
+      ]
+    ],
+    [
+      "hkprep-bld-prepull-1-k0s-worker-2",
+      [
+        {
+          spec: { nodeName: "k0s-worker-2" },
+          status: {
+            containerStatuses: [
+              {
+                name: "pull",
+                imageID: "docker-pullable://127.0.0.1:5000/harakiri/templates/demo@sha256:abc",
+                state: { waiting: { reason: "CreateContainerError", message: "shell not found" } }
+              }
+            ]
+          }
+        }
+      ]
+    ]
+  ]);
+  const core = {
+    async listNode() {
+      return {
+        items: [
+          { metadata: { name: "k0s-worker-1" }, status: { conditions: [{ type: "Ready", status: "True" }] } },
+          { metadata: { name: "k0s-worker-2" }, status: { conditions: [{ type: "Ready", status: "True" }] } },
+          { metadata: { name: "cordoned" }, spec: { unschedulable: true }, status: { conditions: [{ type: "Ready", status: "True" }] } }
+        ]
+      };
+    },
+    async createNamespacedPod(input: any) {
+      created.push(input);
+    },
+    async readNamespacedPodStatus(input: any) {
+      const queue = reads.get(input.name);
+      assert.ok(queue, `unexpected pod read ${input.name}`);
+      return queue.shift() as any;
+    },
+    async deleteNamespacedPod(input: any) {
+      deleted.push(input);
+    }
+  };
+
+  const result = await prepullTemplateImage(
+    {
+      buildId: "bld_prepull",
+      templateId: "open-agents-dev",
+      imageUri: "127.0.0.1:5000/harakiri/templates/demo@sha256:abc",
+      imagePullSecretRef: "runtime-pull",
+      templateTags: ["hot"]
+    },
+    { enabled: true, namespace: "opensandbox", timeoutMs: 5000, core, sleepMs: async () => undefined, hotTags: ["hot"] }
+  );
+
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.nodeNames, ["k0s-worker-1", "k0s-worker-2"]);
+  assert.deepEqual(result.podNames, ["hkprep-bld-prepull-0-k0s-worker-1", "hkprep-bld-prepull-1-k0s-worker-2"]);
+  assert.equal(created.length, 2);
+  assert.equal(created[0].body.spec.nodeName, "k0s-worker-1");
+  assert.equal(created[0].body.spec.tolerations[0].operator, "Exists");
+  assert.deepEqual(created[0].body.spec.imagePullSecrets, [{ name: "runtime-pull" }]);
+  assert.equal(deleted.length, 4);
+});
+
+test("prepullTemplateImage skips templates without a hot signal", async () => {
+  const result = await prepullTemplateImage(
+    {
+      buildId: "bld_cold",
+      templateId: "cold-template",
+      imageUri: "example.com/demo@sha256:abc",
+      templateTags: ["custom"]
+    },
+    { enabled: true, hotTags: ["hot"] }
+  );
+
+  assert.equal(result.status, "skipped");
+  assert.equal(result.reason, "not_hot_template");
+});
+
+test("prepullTemplateImage records optional failures without failing builds by default", async () => {
+  const core = {
+    async listNode() {
+      return { items: [{ metadata: { name: "k0s-worker-1" } }] };
+    },
+    async createNamespacedPod() {},
+    async readNamespacedPodStatus() {
+      return {
+        status: {
+          containerStatuses: [
+            {
+              name: "pull",
+              state: { waiting: { reason: "ImagePullBackOff", message: "pull access denied" } }
+            }
+          ]
+        }
+      } as any;
+    },
+    async deleteNamespacedPod() {}
+  };
+
+  const result = await prepullTemplateImage(
+    {
+      buildId: "bld_optional_fail",
+      templateId: "hot-template",
+      imageUri: "registry.example.com/private/demo@sha256:abc",
+      templateTags: ["hot"]
+    },
+    { enabled: true, namespace: "opensandbox", timeoutMs: 5000, core, sleepMs: async () => undefined, hotTags: ["hot"] }
+  );
+
+  assert.equal(result.status, "failed");
+  assert.match(result.reason ?? "", /ImagePullBackOff - pull access denied/);
 });
 
 test("buildRepository isolates generated images by organization namespace", () => {

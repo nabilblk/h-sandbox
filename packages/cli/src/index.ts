@@ -128,6 +128,7 @@ cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
+tags = ["custom"]
 start_command = "sleep 3600"
 ready_command = "true"
 `;
@@ -362,7 +363,8 @@ Examples:
           memoryMb: options.memoryMb ?? templateFile.memoryMb,
           defaultPorts: ports,
           workdir: options.workdir ?? templateFile.workdir ?? "/workspace",
-          runtimeFamily: templateFile.runtimeFamily ?? "custom"
+          runtimeFamily: templateFile.runtimeFamily ?? "custom",
+          tags: templateFile.tags
         })
       });
       printProgress(`created template ${id}`);

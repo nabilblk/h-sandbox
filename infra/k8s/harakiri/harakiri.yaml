@@ -49,6 +49,11 @@ data:
   TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED: "1"
   TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE: "opensandbox"
   TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS: "120000"
+  TEMPLATE_IMAGE_PREPULL_ENABLED: "1"
+  TEMPLATE_IMAGE_PREPULL_NAMESPACE: "opensandbox"
+  TEMPLATE_IMAGE_PREPULL_TIMEOUT_MS: "120000"
+  TEMPLATE_IMAGE_PREPULL_HOT_TAGS: "hot,prepull,warm"
+  TEMPLATE_IMAGE_PREPULL_FAIL_ON_ERROR: "0"
   TEMPLATE_RETENTION_ENABLED: "1"
   TEMPLATE_RETENTION_INTERVAL_MS: "3600000"
   TEMPLATE_BUILD_RETENTION_DAYS: "30"
@@ -93,6 +98,28 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: harakiri-template-builder
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: harakiri-template-prepull
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: harakiri-template-prepull
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: harakiri
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: harakiri-template-prepull
 ---
 apiVersion: apps/v1
 kind: Deployment
