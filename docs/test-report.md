@@ -624,6 +624,14 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   and `pnpm --filter @harakiri/api test` passed after aligning CLI help with
   the exact Open Agents build command used in README, dedicated Markdown docs,
   example docs, and website product docs.
+- Template unit-test gate on 2026-05-24: `pnpm --filter @harakiri/api test`
+  passed with 56 tests, `pnpm --filter @harakiri/api typecheck` passed,
+  `pnpm --filter @harakiri/cli test` passed with 18 tests, and
+  `pnpm --filter @harakiri/cli typecheck` passed after adding focused
+  regression coverage for template resolution ranking, build state helpers, and
+  `harakiri.toml` inline-comment parsing. No README/dedicated Markdown or
+  website docs update was required because documented commands, API payloads,
+  and product workflows did not change.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`,
   `resolution_templates=0`; pre-existing active API keys were left untouched.
 

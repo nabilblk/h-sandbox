@@ -19,7 +19,20 @@ export type TemplateResourceViolation = {
   message: string;
 };
 
+export const templateBuildStatuses = ["queued", "building", "success", "failed", "canceled"] as const;
+export type TemplateBuildStatus = typeof templateBuildStatuses[number];
 export const activeTemplateBuildStatuses = ["queued", "building"] as const;
+export const terminalTemplateBuildStatuses = ["success", "failed", "canceled"] as const;
+
+export const isActiveTemplateBuildStatus = (status: string): status is typeof activeTemplateBuildStatuses[number] =>
+  activeTemplateBuildStatuses.includes(status as typeof activeTemplateBuildStatuses[number]);
+
+export const isTerminalTemplateBuildStatus = (status: string): status is typeof terminalTemplateBuildStatuses[number] =>
+  terminalTemplateBuildStatuses.includes(status as typeof terminalTemplateBuildStatuses[number]);
+
+export const canUploadTemplateBuildContext = (status: string) => status === "queued";
+export const shouldApplyTemplateBuildFailure = (status: string) => status !== "canceled";
+export const shouldCreateTemplateVersionForBuild = (status: string) => status !== "canceled";
 
 export const templateResourceLimitViolations = (
   resources: TemplateResourceInput,

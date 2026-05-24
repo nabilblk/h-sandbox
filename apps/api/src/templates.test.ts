@@ -5,6 +5,8 @@ import {
   canReadTemplateRow,
   isSharedPlatformTemplateVisibility,
   parseTemplateVersionAliasRef,
+  rankTemplateResolutionCandidate,
+  templateResolutionRank,
   templateReadScopeSql
 } from "./templates.js";
 
@@ -46,4 +48,21 @@ test("parseTemplateVersionAliasRef supports qualified version aliases", () => {
   assert.equal(parseTemplateVersionAliasRef("open-agents-dev"), null);
   assert.equal(parseTemplateVersionAliasRef("stable"), null);
   assert.equal(parseTemplateVersionAliasRef("open-agents-dev:"), null);
+});
+
+test("rankTemplateResolutionCandidate matches the runtime resolution order", () => {
+  const candidate = {
+    templateId: "tpl_open_agents",
+    templateName: "open-agents-dev",
+    templateAliases: ["agents/open-agents-dev", "open-agents"],
+    versionId: "tplv_123",
+    versionAliases: ["stable", "latest"]
+  };
+
+  assert.equal(rankTemplateResolutionCandidate("tpl_open_agents", candidate), templateResolutionRank.templateId);
+  assert.equal(rankTemplateResolutionCandidate("open-agents-dev", candidate), templateResolutionRank.templateName);
+  assert.equal(rankTemplateResolutionCandidate("agents/open-agents-dev", candidate), templateResolutionRank.templateAlias);
+  assert.equal(rankTemplateResolutionCandidate("tplv_123", candidate), templateResolutionRank.versionId);
+  assert.equal(rankTemplateResolutionCandidate("stable", candidate), templateResolutionRank.versionAlias);
+  assert.equal(rankTemplateResolutionCandidate("missing-template", candidate), templateResolutionRank.noMatch);
 });

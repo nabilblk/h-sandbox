@@ -586,8 +586,17 @@ making it clear that both were reviewed in the same checkpoint.
 
 ### Phase 11: Verification And Release
 **Status**: In Progress
-- [ ] Unit tests for schema helpers, template resolution, build state transitions,
+- [x] Unit tests for schema helpers, template resolution, build state transitions,
       and CLI config parsing.
+      Documentation:
+      - Code docs: no README or dedicated Markdown change required; this
+        checkpoint adds regression coverage and parser hardening without
+        changing documented commands, API payloads, or operator procedures.
+      - Product docs: no website docs change required; the user-facing template
+        workflow and examples are unchanged.
+      - Verification: `pnpm --filter @harakiri/api test`, `pnpm --filter
+        @harakiri/api typecheck`, `pnpm --filter @harakiri/cli test`, and
+        `pnpm --filter @harakiri/cli typecheck` passed on 2026-05-24.
 - [x] Unit tests for template resource and build concurrency policy helpers.
 - [x] API integration tests for template create/build/list/logs/promote and
       sandbox creation from an immutable template version.

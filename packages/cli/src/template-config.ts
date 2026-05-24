@@ -43,6 +43,36 @@ const parseScalar = (value: string): string | number | string[] | number[] => {
   return trimmed;
 };
 
+const stripInlineComment = (value: string) => {
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (quote && char === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      continue;
+    }
+    if (char === "\"" || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === "#" && (index === 0 || /\s/.test(value[index - 1] ?? ""))) {
+      return value.slice(0, index).trimEnd();
+    }
+  }
+
+  return value;
+};
+
 export const parseHarakiriTemplateConfig = (input: string): HarakiriTemplateConfig => {
   const config: Record<string, unknown> = {};
   for (const line of input.split(/\r?\n/)) {
@@ -50,7 +80,7 @@ export const parseHarakiriTemplateConfig = (input: string): HarakiriTemplateConf
     if (!trimmed || trimmed.startsWith("#")) continue;
     const match = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/.exec(trimmed);
     if (!match) continue;
-    config[snakeToCamel(match[1])] = parseScalar(match[2].replace(/\s+#.*$/, ""));
+    config[snakeToCamel(match[1])] = parseScalar(stripInlineComment(match[2]));
   }
 
   const parsed: HarakiriTemplateConfig = {};

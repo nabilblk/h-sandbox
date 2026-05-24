@@ -42,6 +42,33 @@ export const parseTemplateVersionAliasRef = (templateRef: string) => {
   };
 };
 
+export const templateResolutionRank = {
+  templateId: 0,
+  templateName: 1,
+  templateAlias: 2,
+  versionId: 3,
+  versionAlias: 4,
+  noMatch: 5
+} as const;
+
+export const rankTemplateResolutionCandidate = (
+  templateRef: string,
+  candidate: {
+    templateId: string;
+    templateName: string;
+    templateAliases?: string[] | null;
+    versionId?: string | null;
+    versionAliases?: string[] | null;
+  }
+) => {
+  if (candidate.templateId === templateRef) return templateResolutionRank.templateId;
+  if (candidate.templateName === templateRef) return templateResolutionRank.templateName;
+  if ((candidate.templateAliases ?? []).includes(templateRef)) return templateResolutionRank.templateAlias;
+  if (candidate.versionId === templateRef) return templateResolutionRank.versionId;
+  if ((candidate.versionAliases ?? []).includes(templateRef)) return templateResolutionRank.versionAlias;
+  return templateResolutionRank.noMatch;
+};
+
 type TemplateRow = {
   id: string;
   name: string;
@@ -231,12 +258,12 @@ export const resolveTemplate = async (templateRef: string, organizationId: strin
               ELSE 1
             END AS "scopeRank",
             CASE
-              WHEN t.id = $1 THEN 0
-              WHEN t.name = $1 THEN 1
-              WHEN $1 = ANY(t.aliases) THEN 2
-              WHEN v_match.id = $1 THEN 3
-              WHEN $1 = ANY(v_match.aliases) THEN 4
-              ELSE 5
+              WHEN t.id = $1 THEN ${templateResolutionRank.templateId}
+              WHEN t.name = $1 THEN ${templateResolutionRank.templateName}
+              WHEN $1 = ANY(t.aliases) THEN ${templateResolutionRank.templateAlias}
+              WHEN v_match.id = $1 THEN ${templateResolutionRank.versionId}
+              WHEN $1 = ANY(v_match.aliases) THEN ${templateResolutionRank.versionAlias}
+              ELSE ${templateResolutionRank.noMatch}
             END AS rank
      FROM templates t
      LEFT JOIN template_versions v_match

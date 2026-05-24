@@ -36,6 +36,22 @@ ready_command = "true"
   });
 });
 
+test("parseHarakiriTemplateConfig keeps hashes in quoted values and strips trailing comments", () => {
+  const config = parseHarakiriTemplateConfig(`
+name = "open-agents-dev" # template name
+description = "agent runtime #1"
+image = "ghcr.io/acme/open-agents:dev#sha-note"
+ports = [3000, 5173] # public preview ports
+tags = ["custom#tag", "hot"]
+`);
+
+  assert.equal(config.name, "open-agents-dev");
+  assert.equal(config.description, "agent runtime #1");
+  assert.equal(config.image, "ghcr.io/acme/open-agents:dev#sha-note");
+  assert.deepEqual(config.ports, [3000, 5173]);
+  assert.deepEqual(config.tags, ["custom#tag", "hot"]);
+});
+
 test("commandToEntrypoint splits simple quoted shell commands", () => {
   assert.deepEqual(commandToEntrypoint("python -m http.server \"8000\""), ["python", "-m", "http.server", "8000"]);
   assert.deepEqual(commandToEntrypoint(undefined), ["sleep", "3600"]);

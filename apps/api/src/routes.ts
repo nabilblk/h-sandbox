@@ -14,6 +14,7 @@ import { redactRecord, redactText } from "./redaction.js";
 import {
   activeTemplateBuildStatuses,
   buildConcurrencyLimitExceeded,
+  canUploadTemplateBuildContext,
   templateImagePolicyViolation,
   templateResourceLimitViolations
 } from "./template-policy.js";
@@ -566,7 +567,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
           await client.query("ROLLBACK");
           return reply.code(409).send({ error: "build_context_not_supported", message: "image imports do not accept uploaded build contexts" });
         }
-        if (row.status !== "queued") {
+        if (!canUploadTemplateBuildContext(row.status)) {
           await client.query("ROLLBACK");
           return reply.code(409).send({ error: "build_context_closed", message: "build context can only be uploaded while a build is queued" });
         }

@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildConcurrencyLimitExceeded, templateImagePolicyViolation, templateResourceLimitViolations } from "./template-policy.js";
+import {
+  activeTemplateBuildStatuses,
+  buildConcurrencyLimitExceeded,
+  canUploadTemplateBuildContext,
+  isActiveTemplateBuildStatus,
+  isTerminalTemplateBuildStatus,
+  shouldApplyTemplateBuildFailure,
+  shouldCreateTemplateVersionForBuild,
+  templateBuildStatuses,
+  templateImagePolicyViolation,
+  templateResourceLimitViolations,
+  terminalTemplateBuildStatuses
+} from "./template-policy.js";
 
 test("templateResourceLimitViolations returns every exceeded resource field", () => {
   assert.deepEqual(
@@ -53,6 +65,19 @@ test("buildConcurrencyLimitExceeded blocks at and above the configured limit", (
   assert.equal(buildConcurrencyLimitExceeded(2, 3), false);
   assert.equal(buildConcurrencyLimitExceeded(3, 3), true);
   assert.equal(buildConcurrencyLimitExceeded(4, 3), true);
+});
+
+test("template build state helpers encode active and terminal transitions", () => {
+  assert.deepEqual(activeTemplateBuildStatuses, ["queued", "building"]);
+  assert.deepEqual(terminalTemplateBuildStatuses, ["success", "failed", "canceled"]);
+
+  for (const status of templateBuildStatuses) {
+    assert.equal(isActiveTemplateBuildStatus(status), status === "queued" || status === "building");
+    assert.equal(isTerminalTemplateBuildStatus(status), status === "success" || status === "failed" || status === "canceled");
+    assert.equal(canUploadTemplateBuildContext(status), status === "queued");
+    assert.equal(shouldApplyTemplateBuildFailure(status), status !== "canceled");
+    assert.equal(shouldCreateTemplateVersionForBuild(status), status !== "canceled");
+  }
 });
 
 test("templateImagePolicyViolation allows configured registries", () => {
