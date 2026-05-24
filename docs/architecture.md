@@ -32,18 +32,21 @@ Templates are a separate control-plane subsystem from live sandboxes:
 2. Harakiri stores the definition in `templates` and creates an initial
    `template_versions` row for image-based definitions.
 3. A user enqueues a build in `template_builds`.
-4. For Dockerfile builds, the CLI uploads a tar+gzip context into
+4. The API checks template CPU, memory, default-port, and per-organization
+   active-build limits before accepting the build. The active-build check counts
+   `queued` and `building` records under a PostgreSQL advisory lock.
+5. For Dockerfile builds, the CLI uploads a tar+gzip context into
    `template_build_contexts`; the API verifies the archive size and `sha256:`
    digest before recording it on the build.
-5. The builder claims queued records and streams logs into
+6. The builder claims queued records and streams logs into
    `template_build_logs`.
-6. For `sourceType=image`, it resolves the immutable registry digest and writes
+7. For `sourceType=image`, it resolves the immutable registry digest and writes
    a ready `template_versions` row.
-7. For `sourceType=dockerfile`, it creates a Kubernetes Job that exports the
+8. For `sourceType=dockerfile`, it creates a Kubernetes Job that exports the
    uploaded context, runs Kaniko, pushes the image to the k0s registry, captures
    the pushed digest, and writes a ready `template_versions` row.
-8. Promotion moves aliases such as `latest` or `stable` to the ready version.
-9. Sandbox creation resolves a template name, alias, or version ID through
+9. Promotion moves aliases such as `latest` or `stable` to the ready version.
+10. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 
 The currently committed API, CLI, SDK, and dashboard support the definition,

@@ -58,8 +58,9 @@ k0s, pushing to the local registry, and recording a digest-pinned ready template
 version. `harakiri template build` follows logs and prints the final build ID,
 template version ID, image digest, duration, and next create command by default;
 use `--no-wait` when a script only needs the queued build ID. Production
-hardening still needs registry credentials, retention, scanning, and build
-policy work tracked in
+hardening still needs registry credentials, retention, and scanning. The current
+API already enforces configurable template CPU, memory, default-port, and
+active-build limits tracked in
 [docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).
 
 For the implementation contract, read:

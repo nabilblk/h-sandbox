@@ -62,6 +62,12 @@ Image-import builds resolve an immutable source digest. Dockerfile builds upload
 their local context, run a Kaniko Job in k0s, push to the local registry, and
 create a digest-pinned ready template version.
 
+The API enforces workspace policy before accepting template definitions or
+build records. By default custom templates are capped at 8 vCPU, 32768 MiB
+memory, 16 default ports, and 3 active queued/building template builds per
+organization. Over-limit requests return `template_resource_limit_exceeded` or
+`template_build_concurrency_limit_exceeded`.
+
 ## API Workflow
 
 Create or update a template definition:

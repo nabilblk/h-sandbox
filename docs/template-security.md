@@ -69,6 +69,13 @@ archive byte size and `sha256:` digest before accepting the upload.
 Current development limits:
 
 - `TEMPLATE_BUILD_CONTEXT_MAX_BYTES` defaults to 25 MiB.
+- `TEMPLATE_MAX_CPU_COUNT` defaults to 8 vCPU for custom template definitions
+  and builds.
+- `TEMPLATE_MAX_MEMORY_MB` defaults to 32768 MiB.
+- `TEMPLATE_MAX_DEFAULT_PORTS` defaults to 16 default exposed ports per
+  template.
+- `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG` defaults to 3 active queued/building
+  template builds per organization.
 - The CLI skips heavy local directories such as `.git`, `node_modules`, `dist`,
   `.next`, `coverage`, and `.turbo`.
 - The archive digest is copied to `template_builds.context_hash` for audit and

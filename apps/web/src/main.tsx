@@ -731,7 +731,7 @@ const docPages: DocPage[] = [
     section: "Templates",
     title: "Template builds",
     lede: "Build records make template image creation inspectable from the API, CLI, and dashboard.",
-    toc: ["Statuses", "Logs", "Retry"],
+    toc: ["Statuses", "Logs", "Retry", "Limits"],
     body: (
       <>
         <h2>Statuses</h2>
@@ -743,6 +743,8 @@ const docPages: DocPage[] = [
         <h2>Retry</h2>
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
         <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
+        <h2>Limits</h2>
+        <p>If a template asks for more CPU, memory, or default ports than the workspace allows, the API returns `template_resource_limit_exceeded`. If too many builds are already queued or building, it returns `template_build_concurrency_limit_exceeded`.</p>
       </>
     )
   },
@@ -790,7 +792,7 @@ const docPages: DocPage[] = [
     section: "Reference",
     title: "Security model",
     lede: "Custom templates are untrusted inputs until the builder, registry, digest, and promotion checks succeed.",
-    toc: ["Visibility", "Digests", "Secrets"],
+    toc: ["Visibility", "Digests", "Secrets", "Limits"],
     body: (
       <>
         <h2>Visibility</h2>
@@ -799,6 +801,8 @@ const docPages: DocPage[] = [
         <p>Mutable tags can be accepted as input, but ready versions should store an immutable image digest before production use.</p>
         <h2>Secrets</h2>
         <p>Registry passwords and build secrets should live in Kubernetes Secrets or an external secret manager. PostgreSQL should store only credential references and redacted metadata.</p>
+        <h2>Limits</h2>
+        <p>Template CPU, memory, default ports, and active queued/building builds are capped by the workspace policy so one team cannot exhaust builder capacity.</p>
       </>
     )
   },

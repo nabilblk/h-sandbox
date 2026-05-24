@@ -6,10 +6,14 @@ API_URL="${HARAKIRI_API_URL:-http://127.0.0.1:18082}"
 CLI="${HARAKIRI_CLI:-${ROOT}/packages/cli/dist/index.js}"
 NAME="${HARAKIRI_TEMPLATE_SMOKE_NAME:-kaniko-smoke-$(date +%s)}"
 BUILD_TIMEOUT_SECONDS="${HARAKIRI_TEMPLATE_BUILD_TIMEOUT_SECONDS:-300}"
+KUBECONFIG_PATH="${KUBECONFIG:-${ROOT}/infra/k0s/harakiri.kubeconfig}"
 SANDBOX_ID=""
 HARAKIRI_API_KEY_ID="${HARAKIRI_API_KEY_ID:-}"
+CONTEXT_DIR=""
+CLI_HOME=""
 
 cleanup() {
+  set +e
   if [[ -n "${SANDBOX_ID}" ]]; then
     HOME="${CLI_HOME}" HARAKIRI_API_URL="${API_URL}" HARAKIRI_API_KEY="${HARAKIRI_API_KEY}" \
       node "${CLI}" kill "${SANDBOX_ID}" >/dev/null 2>&1 || true
@@ -18,6 +22,18 @@ cleanup() {
     curl -fsS -X DELETE -H "x-api-key: ${HARAKIRI_API_KEY}" \
       "${API_URL}/v1/api-keys/${HARAKIRI_API_KEY_ID}" >/dev/null 2>&1 || true
   fi
+  local pgpod
+  pgpod="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri get pod -l app=harakiri-postgres -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
+  if [[ -n "${pgpod}" ]]; then
+    if [[ -n "${SANDBOX_ID}" ]]; then
+      kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${pgpod}" -- \
+        psql -U harakiri -d harakiri -qAtc "delete from sandboxes where id = '${SANDBOX_ID}';" >/dev/null 2>&1 || true
+    fi
+    kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${pgpod}" -- \
+      psql -U harakiri -d harakiri -qAtc "delete from templates where id = '${NAME}';" >/dev/null 2>&1 || true
+  fi
+  [[ -n "${CONTEXT_DIR}" ]] && rm -rf "${CONTEXT_DIR}"
+  [[ -n "${CLI_HOME}" ]] && rm -rf "${CLI_HOME}"
 }
 trap cleanup EXIT
 

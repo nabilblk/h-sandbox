@@ -99,6 +99,10 @@ curl http://127.0.0.1:18082/v1/templates \
   }'
 ```
 
+Template creation returns `422 template_resource_limit_exceeded` when
+`cpuCount`, `memoryMb`, or `defaultPorts` exceed the configured control-plane
+policy.
+
 Inspect a template and its versions:
 
 ```bash
@@ -123,6 +127,11 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/builds \
     "metadata": { "localPath": "." }
   }'
 ```
+
+Build creation returns `422 template_resource_limit_exceeded` when the selected
+template exceeds the current resource policy, and `429
+template_build_concurrency_limit_exceeded` when the organization already has
+the maximum number of queued/building template builds.
 
 The CLI uploads Dockerfile build contexts after creating the build record. API
 clients can use the same endpoint with a tar+gzip archive encoded as base64:

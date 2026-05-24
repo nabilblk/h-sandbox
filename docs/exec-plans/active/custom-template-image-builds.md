@@ -272,8 +272,11 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Add `POST /v1/template-builds/:id/cancel` and retry endpoint.
 - [x] Add `POST /v1/templates/:id/promote` to move aliases such as `latest` and
       `stable` to a successful version.
-- [ ] Enforce org authorization, template visibility, route/resource limits, and
-      build concurrency limits.
+- [x] Enforce sandbox route limits through the route API.
+- [x] Enforce configurable template resource limits and per-organization
+      queued/building build concurrency limits.
+- [ ] Complete cross-org template visibility authorization semantics for
+      public/private/internal templates.
 
 ### Phase 4: k0s Build Infrastructure
 **Status**: In Progress
@@ -409,6 +412,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 **Status**: In Progress
 - [ ] Unit tests for schema helpers, template resolution, build state transitions,
       and CLI config parsing.
+- [x] Unit tests for template resource and build concurrency policy helpers.
 - [ ] API integration tests for template create/build/list/logs/promote and
       sandbox creation from an immutable template version.
 - [x] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs

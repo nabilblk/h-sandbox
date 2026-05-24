@@ -104,6 +104,27 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `sha256:fe1704f4798a46f18499978c6a6b21e30f1ff6fb5849b846e6ec2a33b705a107`,
   `sbx_kQmOmE8_Pt`, command output `harakiri-built`, and left
   `running_sandboxes=0` and `ready_routes=0`.
+- Template limits checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
+  `pnpm build`, `pnpm deploy:k0s`, and `pnpm ports:restart && pnpm ports:status`
+  passed after adding configurable template resource limits and per-organization
+  queued/building build concurrency limits. `pnpm smoke:template-limits`
+  verified over-limit CPU returned `422 template_resource_limit_exceeded` with
+  limit `8`, three queued Dockerfile builds were accepted, and the fourth build
+  returned `429 template_build_concurrency_limit_exceeded` with active count
+  `3`.
+- Post-limit regression smokes on 2026-05-24: `pnpm smoke:template-redaction`
+  passed with build `bld_PYEGkI934RcB`; `pnpm smoke:template-build` passed with
+  build `bld_fdydiFPTsvZg`, version `tplv_kfXM0H0snjT3`, digest
+  `sha256:66fe5dffdeadfbac577aaef63ef0deb4eecfe6fc85aa931122441530ac973d19`,
+  sandbox `sbx_bSLg9hGTt_`, and command output `harakiri-built`.
+- Product docs browser checkpoint on 2026-05-24: a Playwright browser smoke
+  opened `http://127.0.0.1:15173/#docs`, verified the Template Builds and
+  Security Model pages render the new Limits guidance with no console errors,
+  and wrote `/tmp/harakiri-template-limits-docs.png`.
+- Post-limit cleanup audit on 2026-05-24: PostgreSQL reported no active
+  `smoke-*` API keys, no running/pending/idle sandboxes, no `limits-smoke-*`,
+  `redaction-smoke-*`, or `kaniko-smoke-*` templates, and no residual
+  `runtime-kaniko-smoke-*` sandbox rows.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

@@ -86,6 +86,7 @@ pnpm smoke
 pnpm smoke:ttl
 pnpm smoke:templates
 pnpm smoke:template-redaction
+pnpm smoke:template-limits
 pnpm smoke:route
 pnpm smoke:route-ingress
 pnpm e2e
@@ -98,6 +99,10 @@ custom-template regressions in the original catalog path.
 `pnpm smoke:template-redaction` submits secret-shaped build args and metadata
 through the deployed API, verifies responses are redacted, and checks
 PostgreSQL did not retain the original secret values.
+`pnpm smoke:template-limits` verifies over-limit template resources return
+`422 template_resource_limit_exceeded` and that the fourth queued build returns
+`429 template_build_concurrency_limit_exceeded` with the default active build
+limit of `3`.
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
 
@@ -213,6 +218,22 @@ digest:
 ```bash
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 kubectl -n harakiri logs deploy/harakiri-template-builder
+```
+
+Template build policy defaults are configured in `harakiri-config`:
+
+- `TEMPLATE_MAX_CPU_COUNT=8`
+- `TEMPLATE_MAX_MEMORY_MB=32768`
+- `TEMPLATE_MAX_DEFAULT_PORTS=16`
+- `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG=3`
+
+`TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG` counts `queued` and `building` records. If
+the limit is hit, cancel stale queued builds or delete abandoned test templates
+before enqueueing more work:
+
+```bash
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
+  "select id, template_id, status, created_at from template_builds where status in ('queued', 'building') order by created_at;"
 ```
 
 Create a sandbox from a template alias or immutable version:

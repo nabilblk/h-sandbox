@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { PoolClient } from "pg";
 import { z } from "zod";
 import { requireAuth } from "./auth.js";
 import { decodeBuildContextUpload } from "./build-context.js";
@@ -8,6 +9,7 @@ import { createApiKey, makeId } from "./crypto.js";
 import { query, withClient } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
 import { redactRecord, redactText } from "./redaction.js";
+import { activeTemplateBuildStatuses, buildConcurrencyLimitExceeded, templateResourceLimitViolations } from "./template-policy.js";
 import { averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
 
 const createSandboxSchema = z.object({
@@ -131,6 +133,48 @@ const redactTemplateBuildRow = <T extends { buildArgs?: Record<string, unknown>;
   error: row.error ? redactText(row.error) : row.error
 });
 
+const templateResourceLimits = () => ({
+  maxCpuCount: config.templateMaxCpuCount,
+  maxMemoryMb: config.templateMaxMemoryMb,
+  maxDefaultPorts: config.templateMaxDefaultPorts
+});
+
+const templateResourceLimitPayload = (resources: { cpuCount: number; memoryMb: number; defaultPorts?: number[] }) => {
+  const violations = templateResourceLimitViolations(resources, templateResourceLimits());
+  if (!violations.length) return null;
+  return { error: "template_resource_limit_exceeded", violations };
+};
+
+const withTemplateBuildSlot = async <T>(organizationId: string, insertBuild: (client: PoolClient) => Promise<T>) =>
+  withClient(async (client) => {
+    await client.query("BEGIN");
+    try {
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`template-builds:${organizationId}`]);
+      const active = await client.query<{ count: string }>(
+        `SELECT count(*)::text AS count
+         FROM template_builds
+         WHERE organization_id = $1 AND status = ANY($2::text[])`,
+        [organizationId, activeTemplateBuildStatuses]
+      );
+      const activeCount = Number(active.rows[0]?.count ?? 0);
+      if (buildConcurrencyLimitExceeded(activeCount, config.templateBuildMaxActivePerOrg)) {
+        await client.query("ROLLBACK");
+        return {
+          ok: false as const,
+          activeCount,
+          limit: config.templateBuildMaxActivePerOrg
+        };
+      }
+
+      const value = await insertBuild(client);
+      await client.query("COMMIT");
+      return { ok: true as const, value };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    }
+  });
+
 const audit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) => {
   await query(
     `INSERT INTO audit_events (organization_id, actor_user_id, actor_label, action, target_type, target_id, metadata)
@@ -217,6 +261,8 @@ export const registerRoutes = async (app: FastifyInstance) => {
 
   app.post("/v1/templates", async (request, reply) => {
     const body = templateCreateSchema.parse(request.body ?? {});
+    const resourceLimit = templateResourceLimitPayload(body);
+    if (resourceLimit) return reply.code(422).send(resourceLimit);
     const id = body.id ?? slugFor(body.name);
     const exists = await query("SELECT id FROM templates WHERE id = $1", [id]);
     if (exists.rowCount) return reply.code(409).send({ error: "template_exists", template: id });
@@ -298,26 +344,37 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const template = await resolveTemplate(id, request.auth.organizationId);
     if (!template) return reply.code(404).send({ error: "template_not_found" });
     const body = templateBuildSchema.parse(request.body ?? {});
+    const resourceLimit = templateResourceLimitPayload(template);
+    if (resourceLimit) return reply.code(422).send(resourceLimit);
     const buildArgs = redactRecord(body.buildArgs);
     const metadata = redactRecord(body.metadata);
     const buildId = makeId("bld", 12);
-    await query(
-      `INSERT INTO template_builds
-       (id, organization_id, template_id, status, source_type, context_hash,
-        dockerfile_path, build_args, image_destination, metadata)
-       VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)`,
-      [
-        buildId,
-        request.auth.organizationId,
-        template.id,
-        body.sourceType,
-        body.contextHash ?? null,
-        body.dockerfilePath,
-        buildArgs,
-        body.imageDestination ?? null,
-        metadata
-      ]
+    const slot = await withTemplateBuildSlot(request.auth.organizationId, (client) =>
+      client.query(
+        `INSERT INTO template_builds
+         (id, organization_id, template_id, status, source_type, context_hash,
+          dockerfile_path, build_args, image_destination, metadata)
+         VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)`,
+        [
+          buildId,
+          request.auth.organizationId,
+          template.id,
+          body.sourceType,
+          body.contextHash ?? null,
+          body.dockerfilePath,
+          buildArgs,
+          body.imageDestination ?? null,
+          metadata
+        ]
+      )
     );
+    if (!slot.ok) {
+      return reply.code(429).send({
+        error: "template_build_concurrency_limit_exceeded",
+        limit: slot.limit,
+        activeBuilds: slot.activeCount
+      });
+    }
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.create", "template", template.id, {
       buildId
     });
@@ -472,25 +529,38 @@ export const registerRoutes = async (app: FastifyInstance) => {
       metadata: Record<string, unknown>;
     }>("SELECT * FROM template_builds WHERE id = $1 AND organization_id = $2", [id, request.auth.organizationId]);
     if (!existing.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
-    const buildId = makeId("bld", 12);
     const row = existing.rows[0];
-    await query(
-      `INSERT INTO template_builds
-       (id, organization_id, template_id, status, source_type, context_hash,
-        dockerfile_path, build_args, image_destination, metadata)
-       VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)`,
-      [
-        buildId,
-        request.auth.organizationId,
-        row.template_id,
-        row.source_type,
-        row.context_hash,
-        row.dockerfile_path,
-        row.build_args,
-        row.image_destination,
-        redactRecord({ ...row.metadata, retryOf: id })
-      ]
+    const template = await resolveTemplate(row.template_id, request.auth.organizationId);
+    if (!template) return reply.code(404).send({ error: "template_not_found" });
+    const resourceLimit = templateResourceLimitPayload(template);
+    if (resourceLimit) return reply.code(422).send(resourceLimit);
+    const buildId = makeId("bld", 12);
+    const slot = await withTemplateBuildSlot(request.auth.organizationId, (client) =>
+      client.query(
+        `INSERT INTO template_builds
+         (id, organization_id, template_id, status, source_type, context_hash,
+          dockerfile_path, build_args, image_destination, metadata)
+         VALUES ($1, $2, $3, 'queued', $4, $5, $6, $7, $8, $9)`,
+        [
+          buildId,
+          request.auth.organizationId,
+          row.template_id,
+          row.source_type,
+          row.context_hash,
+          row.dockerfile_path,
+          row.build_args,
+          row.image_destination,
+          redactRecord({ ...row.metadata, retryOf: id })
+        ]
+      )
     );
+    if (!slot.ok) {
+      return reply.code(429).send({
+        error: "template_build_concurrency_limit_exceeded",
+        limit: slot.limit,
+        activeBuilds: slot.activeCount
+      });
+    }
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.retry", "template_build", id, {
       buildId
     });

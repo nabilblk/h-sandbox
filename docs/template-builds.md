@@ -45,6 +45,25 @@ success -> queued  # retry creates a new build record
 `building` records. `POST /v1/template-builds/:id/retry` creates a new queued
 record with `metadata.retryOf` pointing at the original build.
 
+## Control-Plane Limits
+
+The API enforces template resource and build concurrency limits before inserting
+new build records:
+
+- `TEMPLATE_MAX_CPU_COUNT`, default `8`
+- `TEMPLATE_MAX_MEMORY_MB`, default `32768`
+- `TEMPLATE_MAX_DEFAULT_PORTS`, default `16`
+- `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG`, default `3`, counting `queued` and
+  `building` records for the organization
+
+If a template definition or existing template exceeds the resource policy, the
+API returns `422 template_resource_limit_exceeded` with field-level violations.
+If an organization already has the maximum number of active template builds, the
+API returns `429 template_build_concurrency_limit_exceeded` with the active count
+and configured limit. The concurrency check runs inside a PostgreSQL advisory
+transaction lock so simultaneous requests cannot overrun the per-organization
+cap.
+
 ## Stored Fields
 
 `template_builds` stores:
@@ -155,6 +174,10 @@ behavior for CI or custom polling scripts.
   a build outside the organization or for an unknown ID.
 - `template_version_not_found`: promote targeted a non-ready or inaccessible
   version.
+- `template_resource_limit_exceeded`: template CPU, memory, or default ports
+  exceed the configured control-plane policy.
+- `template_build_concurrency_limit_exceeded`: the organization already has the
+  maximum number of queued/building template builds.
 - Registry push/pull failures: should be stored in `template_builds.error` and
   surfaced by API, CLI, and UI.
 - Secret-bearing messages: build args, metadata, errors, and retained log lines
@@ -182,5 +205,4 @@ Still pending for production hardening:
 - Git source checkout.
 - Per-organization registry credentials.
 - Cache retention and cleanup policy.
-- Concurrency limits per organization.
 - Health checks and operator runbook commands.
