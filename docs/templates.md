@@ -77,6 +77,12 @@ Image-import builds resolve an immutable source digest. Dockerfile builds upload
 their local context, run a Kaniko Job in k0s, push to the local registry, and
 create a digest-pinned ready template version.
 
+Creating a template definition with `POST /v1/templates`, the CLI, or the
+dashboard does not create a runnable version on its own. The definition remains
+non-runnable until an image-import or Dockerfile build succeeds and records a
+ready `template_versions` row with `image_digest`. `harakiri create` and
+`POST /v1/sandboxes` reject templates that do not yet have a ready version.
+
 Add the `hot`, `prepull`, or `warm` tag when a template should warm the node
 image cache after a successful build. The builder still performs runtime pull
 preflight for every ready version; the hot-template pre-pull is an optional
@@ -91,9 +97,10 @@ Search is backed by template ID, name, and aliases; filters cover visibility,
 owner scope (`team` or `platform`), runtime family, and active/archived status.
 The table shows created/updated timestamps, explicit aliases, latest image
 version or digest, and the latest build status for the current workspace.
-Use creates a sandbox, Build queues an image-import build, Builds opens the
-Builds tab filtered to that template, Promote marks the current ready version as
-`stable`, and Archive retires the template from active creation.
+Use creates a sandbox only for templates with a ready version, Build queues an
+image-import build, Builds opens the Builds tab filtered to that template,
+Promote marks the current ready version as `stable`, and Archive retires the
+template from active creation.
 
 Open a row to inspect the template detail panel. The Overview tab shows the
 canonical `harakiri create` command, SDK snippet, image, digest, workdir,
@@ -212,5 +219,9 @@ creation.
 - New custom definitions are stored in PostgreSQL.
 - Build infrastructure must resolve mutable tags to immutable digests before a
   version is considered ready for production use.
+- Sandbox creation requires `templates.status = 'ready'`, a non-null
+  `latest_version_id`, and a digest-pinned runtime image. If an older seeded
+  version still contains a mutable image URI, the API resolves and persists the
+  digest before sending the image to OpenSandbox.
 - Use `docs/template-builds.md` for build state transitions and
   `docs/template-runtime-contract.md` for image expectations.

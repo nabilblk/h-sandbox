@@ -652,6 +652,7 @@ const buildResultLabel = (build: TemplateBuildSummary) => {
   return shortDigest(build.imageDigest);
 };
 const buildIsActive = (build: TemplateBuildSummary) => build.status === "queued" || build.status === "building";
+const templateCanRun = (template: Template) => template.status === "ready" && Boolean(template.latestVersionId);
 const buildFailureSummary = (build: TemplateBuildSummary) => {
   if (build.status !== "failed") return null;
   const message = build.error ?? "Build failed before the builder returned a specific error.";
@@ -1004,13 +1005,13 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                   <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
                   <span className="num muted">{formatDateTime(template.createdAt)}</span>
                   <span className="num muted">{formatDateTime(template.updatedAt)}</span>
-                  <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status === "archived" ? <span className="tag" style={{ marginLeft: 4 }}>archived</span> : null}</span>
+                  <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status !== "ready" ? <span className="tag" style={{ marginLeft: 4 }}>{template.status}</span> : null}</span>
                   <span>{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">-</span>}</span>
                   <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
                   <span className="alias-list">{template.aliases?.length ? template.aliases.slice(0, 3).map((alias) => <span className="tag" key={alias}>{alias}</span>) : <span className="num muted">-</span>}</span>
                   <span className="tmpl-actions">
                     <button className="btn btn-ghost btn-sm" onClick={() => viewTemplate(template)}>Open</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={!templateCanRun(template) || busy === `use:${template.id}`} title={templateCanRun(template) ? "Create a sandbox" : "Build a ready template version first"}>Use</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || template.ownerScope !== "team" || busy === `build:${template.id}`} title={template.ownerScope === "team" ? "Queue a build" : "Builds are available for team templates"}>Build</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => viewBuilds(template.id)}>Builds</button>
                     {template.status !== "archived" && template.visibility === "private" && template.latestVersionId ? <button className="btn btn-ghost btn-sm" onClick={() => promoteTemplate(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
@@ -1184,7 +1185,7 @@ const TemplateDetailPanel = ({
         </div>
         <div className="template-detail-actions">
           <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
-          <button className="btn btn-primary btn-sm" onClick={() => void onUse(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
+          <button className="btn btn-primary btn-sm" onClick={() => void onUse(template.id)} disabled={!templateCanRun(template) || busy === `use:${template.id}`} title={templateCanRun(template) ? "Create a sandbox" : "Build a ready template version first"}>Use</button>
         </div>
       </div>
 
@@ -1524,11 +1525,11 @@ const docPages: DocPage[] = [
         <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
-        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
+        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. A new template definition cannot create sandboxes until a build succeeds and creates a ready digest-pinned version. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
         <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
-        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`; use `template:stable` when you want the stable channel and `tplv_...` when you need an immutable pin.</p>
+        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Use is enabled only after a ready version exists. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`; use `template:stable` when you want the stable channel and `tplv_...` when you need an immutable pin.</p>
       </>
     )
   },
@@ -1541,7 +1542,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Statuses</h2>
-        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, optional hot-template image pre-pull status, and context metadata in the dashboard detail pane.</p>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, optional hot-template image pre-pull status, and context metadata in the dashboard detail pane. A template becomes runnable only after one of those successful builds creates a ready version.</p>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
@@ -1573,7 +1574,7 @@ const docPages: DocPage[] = [
         <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure. Very old logs and uploaded contexts can disappear after the operator retention window, but the build status and audit trail remain.</p>
         <pre>{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</pre>
         <h2>Registry pull</h2>
-        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Builds also fail before ready if runtime pull preflight cannot pull the final digest from the cluster. Check spelling, tag existence, registry visibility, workspace image policy, and whether the runtime registry host is reachable from k0s. Private runtime images can use a matching registry credential; if the credential includes encrypted username/password material, sandbox create passes it to OpenSandbox for the image pull. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
+        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Builds also fail before ready if runtime pull preflight cannot pull the final digest from the cluster. Check spelling, tag existence, registry visibility, workspace image policy, and whether the runtime registry host is reachable from k0s. A template without a ready version returns `template_not_ready` when you try to create a sandbox. Private runtime images can use a matching registry credential; if the credential includes encrypted username/password material, sandbox create passes it to OpenSandbox for the image pull. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
         <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template inspect ubuntu-import`}</pre>
         <h2>Environment</h2>
         <p>Environment variables are chosen when the sandbox is created. They are not added retroactively to an existing sandbox. Use `harakiri run --env KEY=value` only when the command creates a temporary sandbox for the run.</p>

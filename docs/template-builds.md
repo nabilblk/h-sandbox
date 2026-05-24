@@ -33,6 +33,11 @@ Kaniko Kubernetes Job in k0s. Git builds remain future work.
 9. Sandbox creation resolves a template reference to the chosen immutable
    version and sends the digest-pinned image to OpenSandbox.
 
+Template definitions are not runnable until step 8 has produced a ready version.
+The API returns `409 template_not_ready` when a sandbox create request points at
+a definition with no ready version, and it resolves/persists an immutable digest
+before sending any older mutable version image to OpenSandbox.
+
 ## State Transitions
 
 ```text
@@ -211,6 +216,8 @@ must pin the exact digest chosen at sandbox creation.
   are redacted before storage and again before API responses.
 - Image digest resolution failure: must keep the build failed or blocked; do not
   promote a mutable tag without a digest.
+- Template not ready: sandbox creation returns `409 template_not_ready` until a
+  successful build has created a ready digest-pinned version.
 
 ## Builder Worker
 

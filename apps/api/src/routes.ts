@@ -18,7 +18,15 @@ import {
   templateImagePolicyViolation,
   templateResourceLimitViolations
 } from "./template-policy.js";
-import { archiveTemplate, averageTemplateBootMs, canMutateTemplate, listTemplates, resolveTemplate } from "./templates.js";
+import {
+  archiveTemplate,
+  averageTemplateBootMs,
+  canMutateTemplate,
+  ensureTemplateImageDigest,
+  listTemplates,
+  resolveTemplate,
+  templateCanCreateSandbox
+} from "./templates.js";
 
 const sandboxEnvKeySchema = z.string().min(1).max(128).regex(/^[A-Za-z_][A-Za-z0-9_]*$/, {
   message: "environment variable names must match [A-Za-z_][A-Za-z0-9_]*"
@@ -372,7 +380,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
        (id, organization_id, name, description, image, icon, tags, aliases, boot_ms,
         visibility, default_entrypoint, cpu_count, memory_mb, workdir, default_ports,
         runtime_family, status, source_kind)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15, 'ready', 'custom')`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15, 'building', 'custom')`,
       [
         id,
         request.auth.organizationId,
@@ -392,38 +400,9 @@ export const registerRoutes = async (app: FastifyInstance) => {
       ]
     );
 
-    const versionId = makeId("tplv", 12);
-    const provenance = {
-      source: "template.create",
-      templateId: id,
-      imageUri: body.image,
-      imageDigest: null,
-      builder: "api"
-    };
-    await query(
-      `INSERT INTO template_versions
-       (id, template_id, organization_id, version_number, aliases, image_uri, status,
-        default_entrypoint, cpu_count, memory_mb, workdir, default_ports, metadata,
-        provenance, scan_status, scan_summary, promoted_at)
-       VALUES ($1, $2, $3, 1, ARRAY['latest', 'stable'], $4, 'ready', $5, $6, $7, $8, $9, $10, $11, 'not_scanned', $12, now())`,
-      [
-        versionId,
-        id,
-        request.auth.organizationId,
-        body.image,
-        body.defaultEntrypoint,
-        body.cpuCount,
-        body.memoryMb,
-        body.workdir,
-        body.defaultPorts,
-        { source: "template.create" },
-        redactRecord(provenance),
-        { status: "not_scanned", reason: "scanner_not_configured" }
-      ]
-    );
-    await query("UPDATE templates SET latest_version_id = $2, updated_at = now() WHERE id = $1", [id, versionId]);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.create", "template", id, {
-      versionId
+      imageUri: body.image,
+      status: "building"
     });
     const template = await resolveTemplate(id, request.auth.organizationId);
     return reply.code(201).send({ template });
@@ -799,8 +778,27 @@ export const registerRoutes = async (app: FastifyInstance) => {
 
   app.post("/v1/sandboxes", async (request, reply) => {
     const body = createSandboxSchema.parse(request.body ?? {});
-    const template = await resolveTemplate(body.template, request.auth.organizationId);
-    if (!template) return reply.code(404).send({ error: "template_not_found", template: body.template });
+    const unresolvedTemplate = await resolveTemplate(body.template, request.auth.organizationId);
+    if (!unresolvedTemplate) return reply.code(404).send({ error: "template_not_found", template: body.template });
+    if (!templateCanCreateSandbox(unresolvedTemplate)) {
+      return reply.code(409).send({
+        error: "template_not_ready",
+        template: body.template,
+        status: unresolvedTemplate.status,
+        message: "template must have a ready digest-pinned version before it can create sandboxes"
+      });
+    }
+    let template;
+    try {
+      template = await ensureTemplateImageDigest(unresolvedTemplate);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return reply.code(409).send({
+        error: "template_image_digest_unresolved",
+        template: body.template,
+        message
+      });
+    }
     const id = makeId("sbx", 10);
     const name = body.name?.trim() || `${template.id}-runner`;
     const provider = await openSandbox.create({

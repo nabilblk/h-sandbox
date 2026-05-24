@@ -3,9 +3,13 @@ import test from "node:test";
 import {
   canMutateTemplate,
   canReadTemplateRow,
+  digestPinnedImageReference,
+  ensureTemplateImageDigest,
   isSharedPlatformTemplateVisibility,
   parseTemplateVersionAliasRef,
   rankTemplateResolutionCandidate,
+  templateCanCreateSandbox,
+  templateNeedsDigestPinning,
   templateResolutionRank,
   templateReadScopeSql
 } from "./templates.js";
@@ -65,4 +69,52 @@ test("rankTemplateResolutionCandidate matches the runtime resolution order", () 
   assert.equal(rankTemplateResolutionCandidate("tplv_123", candidate), templateResolutionRank.versionId);
   assert.equal(rankTemplateResolutionCandidate("stable", candidate), templateResolutionRank.versionAlias);
   assert.equal(rankTemplateResolutionCandidate("missing-template", candidate), templateResolutionRank.noMatch);
+});
+
+test("template digest helpers identify mutable and ready runtime versions", async () => {
+  assert.equal(digestPinnedImageReference("ubuntu:24.04", "sha256:abc"), "docker.io/library/ubuntu@sha256:abc");
+  assert.equal(templateNeedsDigestPinning({ image: "ubuntu:24.04", imageDigest: null }), true);
+  assert.equal(templateNeedsDigestPinning({ image: "docker.io/library/ubuntu@sha256:abc", imageDigest: "sha256:abc" }), false);
+  assert.equal(templateCanCreateSandbox({ status: "ready", templateVersionId: "tplv_123" }), true);
+  assert.equal(templateCanCreateSandbox({ status: "building", templateVersionId: "tplv_123" }), false);
+  assert.equal(templateCanCreateSandbox({ status: "ready", templateVersionId: null }), false);
+
+  const template = await ensureTemplateImageDigest(
+    {
+      id: "ubuntu-import",
+      name: "Ubuntu import",
+      description: "Imported Ubuntu image.",
+      image: "ubuntu:24.04",
+      imageDigest: null,
+      icon: "box",
+      tags: ["custom"],
+      aliases: ["ubuntu-import"],
+      bootMs: 220,
+      visibility: "private",
+      status: "ready",
+      ownerScope: "team",
+      defaultEntrypoint: ["sleep", "3600"],
+      cpuCount: 1,
+      memoryMb: 1024,
+      workdir: "/",
+      defaultPorts: [],
+      runtimeFamily: "linux",
+      latestVersionId: null,
+      templateVersionId: null
+    },
+    {
+      resolve: async () => ({
+        original: "ubuntu:24.04",
+        registry: "registry-1.docker.io",
+        displayRegistry: "docker.io",
+        repository: "library/ubuntu",
+        reference: "24.04",
+        referenceType: "tag",
+        digest: "sha256:def",
+        digestPinnedRef: "docker.io/library/ubuntu@sha256:def"
+      })
+    }
+  );
+  assert.equal(template.image, "docker.io/library/ubuntu@sha256:def");
+  assert.equal(template.imageDigest, "sha256:def");
 });

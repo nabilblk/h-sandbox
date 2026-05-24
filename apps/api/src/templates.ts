@@ -1,5 +1,6 @@
 import { TEMPLATES, type Template } from "@harakiri/shared";
 import { query } from "./db.js";
+import { parseImageReference, resolveImageDigest, type ResolvedImageDigest } from "./registry.js";
 
 export type RuntimeTemplate = Template & {
   templateVersionId: string | null;
@@ -67,6 +68,68 @@ export const rankTemplateResolutionCandidate = (
   if (candidate.versionId === templateRef) return templateResolutionRank.versionId;
   if ((candidate.versionAliases ?? []).includes(templateRef)) return templateResolutionRank.versionAlias;
   return templateResolutionRank.noMatch;
+};
+
+export const digestPinnedImageReference = (imageRef: string, digest: string) => {
+  const image = parseImageReference(imageRef);
+  return `${image.displayRegistry}/${image.repository}@${digest}`;
+};
+
+export const templateCanCreateSandbox = (template: Pick<RuntimeTemplate, "status" | "templateVersionId">) =>
+  template.status === "ready" && Boolean(template.templateVersionId);
+
+export const templateNeedsDigestPinning = (template: Pick<RuntimeTemplate, "image" | "imageDigest">) => {
+  const image = parseImageReference(template.image);
+  return image.referenceType !== "digest" || !template.imageDigest || template.image !== digestPinnedImageReference(template.image, template.imageDigest);
+};
+
+export const ensureTemplateImageDigest = async (
+  template: RuntimeTemplate,
+  options: { resolve?: typeof resolveImageDigest } = {}
+): Promise<RuntimeTemplate> => {
+  if (!templateNeedsDigestPinning(template)) return template;
+
+  const parsed = parseImageReference(template.image);
+  const resolved: Pick<ResolvedImageDigest, "digest" | "digestPinnedRef"> =
+    parsed.referenceType === "digest"
+      ? { digest: parsed.reference, digestPinnedRef: digestPinnedImageReference(template.image, parsed.reference) }
+      : await (options.resolve ?? resolveImageDigest)(template.image);
+
+  if (template.templateVersionId) {
+    await query(
+      `UPDATE template_versions
+       SET image_uri = $2,
+           image_digest = $3,
+           provenance = provenance || $4::jsonb
+       WHERE id = $1`,
+      [
+        template.templateVersionId,
+        resolved.digestPinnedRef,
+        resolved.digest,
+        JSON.stringify({
+          imageDigestResolvedAt: new Date().toISOString(),
+          requestedImageUri: template.image,
+          resolvedImageUri: resolved.digestPinnedRef,
+          imageDigest: resolved.digest
+        })
+      ]
+    );
+    await query(
+      `UPDATE templates
+       SET image = $2,
+           image_digest = $3,
+           updated_at = now()
+       WHERE id = $1
+         AND latest_version_id = $4`,
+      [template.id, resolved.digestPinnedRef, resolved.digest, template.templateVersionId]
+    );
+  }
+
+  return {
+    ...template,
+    image: resolved.digestPinnedRef,
+    imageDigest: resolved.digest
+  };
 };
 
 type TemplateRow = {

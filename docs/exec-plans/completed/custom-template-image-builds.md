@@ -2,7 +2,7 @@
 
 **Created**: 2026-05-23
 **Author**: Codex
-**Status**: In Progress
+**Status**: Completed
 **Priority**: {P0-P3}
 **Estimated effort**: 5-8 days
 
@@ -51,8 +51,18 @@ the same agent/browser/editor surface without depending on E2B internals.
       latest build/version metadata, and row actions.
 - [x] Build failures are visible in API, CLI, and UI with useful error messages
       and retained logs.
-- [ ] Template images are reproducible and auditable: mutable tags are resolved
+- [x] Template images are reproducible and auditable: mutable tags are resolved
       to immutable digests before use.
+      Documentation:
+      - Code docs: `README.md`, `docs/templates.md`, `docs/template-builds.md`,
+        `docs/api.md`, `docs/test-report.md`.
+      - Product docs: Website docs > Create a custom template, Template builds,
+        Template troubleshooting; Templates List/Detail Use buttons.
+      - Verification: `pnpm deploy:k0s`, `pnpm ports:restart && pnpm
+        ports:status`, `pnpm smoke:templates`, `pnpm smoke:template-resolution`,
+        direct API `409 template_not_ready` guard check, PostgreSQL digest audit
+        for `python-3.12`, `python-3.12-data`, and `node-20`, and product-docs
+        browser screenshot `/tmp/harakiri-template-digest-docs.png`.
 - [x] The default static templates continue to work during rollout.
 - [x] Repo documentation explains how template definitions, builds, image
       digests, registry credentials, the Kubernetes builder, and OpenSandbox runtime
@@ -60,10 +70,12 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [x] Product documentation is available inside the Harakiri website/docs area
       so users can learn the template workflow without reading repository
       internals.
-- [ ] Any change to template behavior, CLI flags, API payloads, route exposure,
+- [x] Any change to template behavior, CLI flags, API payloads, route exposure,
       or build failure handling updates both repo-facing documentation
       (`README.md` or dedicated `docs/*.md`) and website product documentation,
       or records why one surface is not affected.
+      Latest digest-before-use checkpoint updated both documentation tracks and
+      recorded deployed verification in `docs/test-report.md`.
 
 ## Product And UI Backlog
 - [x] Replace the current card-only Templates page with a denser operational
@@ -276,15 +288,15 @@ making it clear that both were reviewed in the same checkpoint.
         environment.
   - [x] Document prototype runtime limitations such as workspace ownership,
         root/non-root user behavior, and route exposure expectations.
-- [ ] Code documentation completion gate:
+- [x] Code documentation completion gate:
   - [x] README links to every dedicated template doc needed by a contributor or
         operator.
-  - [ ] Dedicated markdown docs include canonical CLI commands, API payload
+  - [x] Dedicated markdown docs include canonical CLI commands, API payload
         examples, environment variables, database/control-plane concepts, and
         k0s deployment notes.
-  - [ ] Operator-only guidance stays in repo docs and is not copied into the
+  - [x] Operator-only guidance stays in repo docs and is not copied into the
         product docs unless users must act on it.
-  - [ ] Each remaining API, CLI, database, scheduler, routing, or builder change
+  - [x] Each remaining API, CLI, database, scheduler, routing, or builder change
         is reflected in `README.md` or the relevant dedicated Markdown file in
         the same checkpoint.
 
@@ -309,41 +321,56 @@ making it clear that both were reviewed in the same checkpoint.
         builds, route exposure, and mismatched template aliases.
   - [x] Link relevant product docs from Templates empty states, build detail
         errors, and New Template flow.
-- [ ] Product docs must remain user-facing:
-  - [ ] Avoid internal-only implementation detail unless it changes what users
+- [x] Product docs must remain user-facing:
+  - [x] Avoid internal-only implementation detail unless it changes what users
         must configure or debug.
-  - [ ] Keep examples focused on `harakiri template init`, `harakiri template
+  - [x] Keep examples focused on `harakiri template init`, `harakiri template
         build`, `harakiri create`, route exposure, and template promotion.
-  - [ ] Mirror important CLI/API examples from repo docs, but phrase them as
+  - [x] Mirror important CLI/API examples from repo docs, but phrase them as
         workflows rather than architecture notes.
-- [ ] Website documentation completion gate:
+- [x] Website documentation completion gate:
   - [x] The website includes a complete user path from first custom template to
         running sandbox and public route.
   - [x] The website explains build failures, registry/image pull failures,
         aliases, and route exposure in product language.
   - [x] The Templates UI links users to the relevant website docs from empty,
         failed, and setup-dependent states.
-  - [ ] Each remaining user-visible dashboard, CLI, SDK, template build, route,
+  - [x] Each remaining user-visible dashboard, CLI, SDK, template build, route,
         or troubleshooting change is reflected in the website docs in the same
         checkpoint.
 
 ### Documentation Acceptance Criteria
-- [ ] A new user can create and run a custom template using only the website docs.
+- [x] A new user can create and run a custom template using only the website docs.
 - [x] A contributor can understand the build pipeline and data model using only
       the README plus dedicated markdown docs.
 - [x] The Open Agents example can be built and smoke-tested using only its
       example README plus the top-level template docs.
-- [ ] Every documented CLI/API example is verified against the deployed k0s
+- [x] Every documented CLI/API example is verified against the deployed k0s
       environment before the plan is completed.
-- [ ] The README and website docs describe the same command names, flags,
+      Evidence: documentation-relevant deployed smokes passed on 2026-05-24:
+      `pnpm smoke:template-init` (`bld_n1NIlOpvAiqY`,
+      `tplv_V-WI15BLyvHX`, `sbx_wxY9k-OJJG`),
+      `pnpm smoke:template-build` (`bld_S9NsfBLSoXuR`,
+      `tplv_tStnB58lRiQN`, `sbx_FJhjEVrxvn`),
+      `pnpm smoke:template-resolution` (`bld_R3N_34qo0CI4`,
+      `tplv_y9_dYXlBWyrN`, sandboxes `sbx_H-PVgtFjh7`,
+      `sbx_ySmPIxygBt`, `sbx_8jC5TzpOZi`), and `pnpm smoke:route`
+      (`sbx_OgP5i3tPPF`,
+      `https://fa789b45-a682-44d8-ad0c-19e85dca4294-3000.harakiri.io`).
+- [x] The README and website docs describe the same command names, flags,
       status names, and route behavior.
-- [ ] The docs clearly separate local development details from production
+- [x] The docs clearly separate local development details from production
       platform guidance.
+      Evidence: `README.md` keeps quickstart and doc index content,
+      `docs/runbook.md` separates Local Development, k0s Bootstrap, Harakiri.io
+      environment checks, local registry notes, and production follow-ups, while
+      website docs stay product-facing and avoid operator-only k0s/Cloudflare
+      internals unless users must act on them.
 
 ## Phases
 
 ### Phase 1: Current-State Hardening
-**Status**: In Progress
+**Status**: Complete
 - [x] Change API sandbox creation to resolve templates from PostgreSQL instead
       of the static shared `TEMPLATES` array.
 - [x] Keep the shared static `TEMPLATES` array only as bootstrap/fallback
@@ -371,7 +398,7 @@ making it clear that both were reviewed in the same checkpoint.
 - [x] Add indexes for org/template/build status queries used by List and Builds UI.
 
 ### Phase 3: Template Build API
-**Status**: In Progress
+**Status**: Complete
 - [x] Add `GET /v1/templates` with DB-backed list filters and pagination.
 - [x] Add `POST /v1/templates` to create a template definition.
 - [x] Add `GET /v1/templates/:id` and `GET /v1/templates/:id/versions`.
@@ -416,7 +443,7 @@ making it clear that both were reviewed in the same checkpoint.
       version creation, OpenSandbox image pull, command execution, and cleanup.
 
 ### Phase 5: OpenSandbox Runtime Integration
-**Status**: In Progress
+**Status**: Complete
 - [x] Resolve sandbox create input from template alias/name/version to an
       immutable `template_version`.
 - [x] Verify and document sandbox creation by template name, qualified stable
@@ -456,7 +483,7 @@ making it clear that both were reviewed in the same checkpoint.
       not as the initial template build foundation.
 
 ### Phase 6: CLI Developer Experience
-**Status**: In Progress
+**Status**: Complete
 - [x] Add `harakiri template init` that writes `harakiri.toml` with fields similar
       to E2B's `e2b.toml`: name, CPU, memory, Dockerfile, ports, workdir,
       start/ready commands, env schema, visibility.
@@ -474,7 +501,7 @@ making it clear that both were reviewed in the same checkpoint.
       and failure output.
 
 ### Phase 7: Dashboard Templates UI
-**Status**: In Progress
+**Status**: Complete
 - [x] Refactor the existing Templates view into a tabbed List/Builds workspace.
 - [x] Implement the initial List tab table with search, visibility filters, and
       Use/Build/Copy actions.
@@ -525,7 +552,7 @@ making it clear that both were reviewed in the same checkpoint.
       returned `open-agents-exact-route` through the k0s HTTPS ingress path.
 
 ### Phase 9: Security, Governance, And Operations
-**Status**: In Progress
+**Status**: Complete
 - [x] Add maximum Dockerfile context upload size limits.
 - [x] Redact build args, env vars, registry credentials, and secrets in logs.
 - [x] Add deny/allow policy for template images, image-import targets, and
@@ -539,7 +566,7 @@ making it clear that both were reviewed in the same checkpoint.
       troubleshooting.
 
 ### Phase 10: Documentation
-**Status**: In Progress
+**Status**: Complete
 - [x] Update repository `README.md` with the custom template quickstart and
       links to the deeper template docs.
 - [x] Add dedicated repo markdown docs from the Code Documentation backlog.
@@ -557,17 +584,17 @@ making it clear that both were reviewed in the same checkpoint.
       `harakiri template build --name open-agents-dev
       examples/templates/open-agents-dev`; verified with
       `pnpm --filter @harakiri/cli test`, typecheck, and build.
-- [ ] Keep `README.md` and dedicated `docs/*.md` as the canonical engineering
+- [x] Keep `README.md` and dedicated `docs/*.md` as the canonical engineering
       and operator documentation for contributors.
-- [ ] Keep the website docs as the canonical product documentation for users,
+- [x] Keep the website docs as the canonical product documentation for users,
       with no dependency on reading repository internals.
-- [ ] For every remaining template feature checkpoint, update both documentation
+- [x] For every remaining template feature checkpoint, update both documentation
       tracks in the same commit: code docs in `README.md` or dedicated
       `docs/*.md`, and user-facing product docs in the website docs surface.
-- [ ] For every remaining template feature checkpoint, explicitly list the
+- [x] For every remaining template feature checkpoint, explicitly list the
       repo-facing documentation files changed and the website documentation
       pages/sections changed before checking off the related implementation task.
-- [ ] Each checkpoint summary names the exact repo docs and website docs changed,
+- [x] Each checkpoint summary names the exact repo docs and website docs changed,
       or states why a code-doc/product-doc surface was not affected.
 - [x] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
@@ -585,7 +612,7 @@ making it clear that both were reviewed in the same checkpoint.
       `docs/api.md`) and the deployed website docs.
 
 ### Phase 11: Verification And Release
-**Status**: In Progress
+**Status**: Complete
 - [x] Unit tests for schema helpers, template resolution, build state transitions,
       and CLI config parsing.
       Documentation:
@@ -610,8 +637,16 @@ making it clear that both were reviewed in the same checkpoint.
       image import, clone/fork, `harakiri.toml` preview, Dockerfile build,
       sandbox create/run from the generated template, and website docs coverage.
 - [x] Regression tests for existing sandbox create/run/kill/routes/TTL flows.
-- [ ] Verify documentation examples against the deployed k0s environment.
-- [ ] Commit and push once deployed and verified in k0s.
+- [x] Verify documentation examples against the deployed k0s environment.
+      Evidence: `pnpm ports:status`, `pnpm smoke:template-init`,
+      `pnpm smoke:template-build`, `pnpm smoke:template-resolution`, and
+      `pnpm smoke:route` passed sequentially on 2026-05-24. A transient
+      OpenSandbox restart during the longer sequence left one runtime
+      `BatchSandbox` without a Harakiri DB row; it was deleted from the
+      `opensandbox` namespace before rerunning and passing the route smoke.
+- [x] Commit and push once deployed and verified in k0s.
+      This checklist item is completed by the commit containing this plan
+      update and the subsequent push to `origin/main`.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
@@ -650,5 +685,19 @@ Risks and debt to watch during implementation:
   Harakiri/OpenSandbox runtime adapter.
 
 ## Completion Notes
-Fill in when complete: what was delivered, what was deferred, deployment/test
-evidence, and any follow-up debt.
+Delivered a working custom template image/build platform for Harakiri on top of
+OpenSandbox: PostgreSQL-backed template definitions, immutable template
+versions, build records/logs/context storage, image-import and Kaniko Dockerfile
+builders in k0s, digest-pinned sandbox creation, template aliases, route-aware
+runtime metadata, CLI commands, dashboard Templates List/Builds UI, Open Agents
+example image, registry credentials, policy checks, retention, and dual-track
+documentation in repo Markdown plus website product docs.
+
+Final deployed verification on 2026-05-24 covered API/CLI/web tests and builds,
+k0s deployment, port forwards, default catalog sandbox creation, template init,
+Dockerfile build, image-import resolution, qualified alias and immutable version
+creation, public route exposure, product docs, and cleanup audits. Deferred work
+is intentionally recorded as tech debt: production registry blob garbage
+collection, production scanner policy, richer live filesystem/metrics APIs when
+OpenSandbox exposes a portable interface, and non-root workspace ownership for
+custom template images.

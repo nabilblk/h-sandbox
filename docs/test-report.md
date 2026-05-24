@@ -632,8 +632,54 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `harakiri.toml` inline-comment parsing. No README/dedicated Markdown or
   website docs update was required because documented commands, API payloads,
   and product workflows did not change.
+- Digest-before-use checkpoint on 2026-05-24: `pnpm --filter @harakiri/api
+  test` passed with 57 tests, `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @harakiri/web typecheck`, `pnpm --filter @harakiri/cli test`,
+  and `pnpm build` passed after making template definitions non-runnable until
+  a ready digest-pinned version exists. `pnpm deploy:k0s` completed, `pnpm
+  ports:restart && pnpm ports:status` showed API, web, Keycloak, OpenSandbox,
+  gateway, and HTTPS ingress forwards healthy, `pnpm smoke:templates` passed
+  for `python-3.12`, `python-3.12-data`, and `node-20`, and `pnpm
+  smoke:template-resolution` passed with build `bld_wVhxf4S6wRPq`, version
+  `tplv_KegCr4lbCdJv`, and sandboxes `sbx_cPjesUqjLN`, `sbx_75kl0AKQok`, and
+  `sbx_C4pzEc_rN7`. The image-import build resolved `ubuntu:24.04` to
+  `docker.io/library/ubuntu@sha256:c4a8d5503dfb2a3eb8ab5f807da5bc69a85730fb49b5cfca2330194ebcc41c7b`
+  before the version became ready. A direct deployed API check created
+  `not-ready-1779614241`, confirmed the create response was `building||`, and
+  confirmed sandbox creation returned `409 template_not_ready`. PostgreSQL
+  showed catalog versions now store digest-pinned image URIs for `python-3.12`,
+  `python-3.12-data`, and `node-20`. Product docs were verified in the deployed
+  website for ready digest-pinned versions, disabled Use before readiness, and
+  `template_not_ready`; screenshot: `/tmp/harakiri-template-digest-docs.png`.
+- Documentation example verification on 2026-05-24: the deployed k0s
+  documentation path was checked sequentially with `pnpm ports:status`,
+  `pnpm smoke:template-init`, `pnpm smoke:template-build`,
+  `pnpm smoke:template-resolution`, and `pnpm smoke:route`. The commands cover
+  the CLI/API examples repeated in `README.md`, `docs/templates.md`,
+  `docs/template-builds.md`, `docs/api.md`, `docs/runbook.md`,
+  `examples/templates/open-agents-dev/README.md`, `packages/cli/README.md`,
+  and the website product docs. The runs produced `bld_n1NIlOpvAiqY` /
+  `tplv_V-WI15BLyvHX` / `sbx_wxY9k-OJJG` for template init,
+  `bld_S9NsfBLSoXuR` / `tplv_tStnB58lRiQN` / `sbx_FJhjEVrxvn` for Dockerfile
+  build, `bld_R3N_34qo0CI4` / `tplv_y9_dYXlBWyrN` plus sandboxes
+  `sbx_H-PVgtFjh7`, `sbx_ySmPIxygBt`, and `sbx_8jC5TzpOZi` for name,
+  qualified alias, and immutable version resolution, and route
+  `https://fa789b45-a682-44d8-ad0c-19e85dca4294-3000.harakiri.io` from
+  `sbx_OgP5i3tPPF`. During the longer sequence OpenSandbox restarted once and
+  left runtime CR `93049232-804f-4e27-b2d2-5f3626931a5a` without a Harakiri DB
+  row; it was deleted from the `opensandbox` namespace before the final route
+  smoke passed. The docs split was audited at the same checkpoint: local
+  development, k0s bootstrap, Harakiri.io/Cloudflare checks, local registry
+  notes, and production follow-ups live in README/runbook/operator Markdown,
+  while website docs remain product-facing.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`,
   `resolution_templates=0`; pre-existing active API keys were left untouched.
+- Post-digest checkpoint cleanup audit: `active_smoke_keys=0`,
+  `live_sandboxes=0`, `resolution_templates=0`, `not_ready_templates=0`, and
+  `ready_routes=0`.
+- Post-documentation verification cleanup audit: `active_smoke_keys=0`,
+  `live_sandboxes=0`, `ready_routes=0`, `resolution_templates=0`,
+  `init_templates=0`, `kaniko_templates=0`, and `building_templates=0`.
 
 ## CLI Demo
 

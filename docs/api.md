@@ -152,10 +152,13 @@ curl http://127.0.0.1:18082/v1/templates \
   }'
 ```
 
-Template creation returns `422 template_resource_limit_exceeded` when
-`cpuCount`, `memoryMb`, or `defaultPorts` exceed the configured control-plane
-policy. It returns `422 template_image_policy_violation` when `image` is denied
-by registry or prefix policy.
+Template creation returns a non-runnable definition. Create an image-import or
+Dockerfile build next; the template becomes runnable only after a successful
+build creates a ready version with an immutable `imageDigest`. Template creation
+returns `422 template_resource_limit_exceeded` when `cpuCount`, `memoryMb`, or
+`defaultPorts` exceed the configured control-plane policy. It returns `422
+template_image_policy_violation` when `image` is denied by registry or prefix
+policy.
 
 Inspect a template and its versions:
 
@@ -174,6 +177,12 @@ new versions report `scanStatus: "not_scanned"` and a scan summary reason of
 preflight provenance when enabled, recording the disposable preflight Pod and
 node that proved the digest-pinned image was pullable before the version became
 ready.
+
+Sandbox creation returns `409 template_not_ready` when the selected template has
+no ready version. If an older ready version still stores a mutable image URI,
+the API resolves and persists the immutable registry digest before creating the
+sandbox; if that lookup fails, sandbox creation returns
+`409 template_image_digest_unresolved`.
 
 ## Template Builds
 
