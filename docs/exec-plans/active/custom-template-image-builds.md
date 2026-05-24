@@ -367,7 +367,7 @@ the change is provably invisible to one audience.
 - [ ] Add preflight validation that the image can be pulled by OpenSandbox before
       marking a version ready.
 - [ ] Add optional image pre-pull/warm pool support for hot templates.
-- [ ] Keep OpenSandbox snapshots as a later acceleration/checkpointing feature,
+- [x] Keep OpenSandbox snapshots as a later acceleration/checkpointing feature,
       not as the initial template build foundation.
 
 ### Phase 6: CLI Developer Experience
@@ -449,7 +449,7 @@ the change is provably invisible to one audience.
 - [x] Add product-facing website docs pages from the Product Documentation
       backlog: Templates, Builds, SDK usage, Open Agents template, and Security
       model.
-- [ ] Add CLI help examples and ensure docs examples match implemented command
+- [x] Add CLI help examples and ensure docs examples match implemented command
       names and JSON payloads.
 - [ ] Keep `README.md` and dedicated `docs/*.md` as the canonical engineering
       and operator documentation for contributors.

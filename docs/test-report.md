@@ -362,6 +362,15 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   that streams retained logs before exiting non-zero. No website product docs
   changed in this checkpoint because the user-facing CLI behavior was not
   changed.
+- CLI help checkpoint on 2026-05-24: `pnpm --filter @harakiri/cli test`,
+  `pnpm typecheck`, and
+  `pnpm --filter @harakiri/cli exec tsx src/index.ts template build --help`
+  passed after adding `harakiri template --help` and `harakiri template build
+  --help` examples for init, Dockerfile builds, image imports, build listing,
+  promotion, and detached `--no-wait` builds. The help examples match the
+  existing README, dedicated Markdown docs, and website product docs examples.
+  No website product docs changed in this checkpoint because the documented
+  workflow copy already contained the same command names and flags.
 - Template UI screenshot checkpoint on 2026-05-24: `pnpm screenshots` passed
   after adding Playwright coverage for the deployed Templates List, Template
   detail panel, Builds tab, Build details panel, New Template modal, and

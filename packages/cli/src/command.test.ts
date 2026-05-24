@@ -188,6 +188,28 @@ start_command = "python -m http.server \\"8000\\""
   }
 });
 
+test("template command help includes documented workflow examples", async () => {
+  const api = await startMockApi(() => ({ status: 500, body: { error: "help should not call api" } }));
+  try {
+    const templateHelp = await runCli(["template", "--help"], { api });
+    assert.equal(templateHelp.exitCode, 0, templateHelp.stderr);
+    assert.match(templateHelp.stdout, /harakiri template init --name open-agents-dev --dockerfile Dockerfile/);
+    assert.match(templateHelp.stdout, /harakiri template build --name open-agents-dev \./);
+    assert.match(templateHelp.stdout, /harakiri template builds --query open-agents-dev/);
+    assert.match(templateHelp.stdout, /harakiri template promote open-agents-dev --version-id tplv_\.\.\. --alias stable/);
+    assert.equal(api.requests.length, 0);
+
+    const buildHelp = await runCli(["template", "build", "--help"], { api });
+    assert.equal(buildHelp.exitCode, 0, buildHelp.stderr);
+    assert.match(buildHelp.stdout, /harakiri template build examples\/templates\/open-agents-dev/);
+    assert.match(buildHelp.stdout, /harakiri template build --name ubuntu-import --source image --image ubuntu:24\.04/);
+    assert.match(buildHelp.stdout, /harakiri template build --name open-agents-dev \. --no-wait/);
+    assert.equal(api.requests.length, 0);
+  } finally {
+    await api.close();
+  }
+});
+
 test("template build --source image sends image import payload and skips context upload", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/templates") {

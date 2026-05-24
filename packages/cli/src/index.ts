@@ -215,7 +215,17 @@ const printTemplateBuildSuccess = (build: TemplateBuildResult) => {
 };
 
 const program = new Command();
-program.name("harakiri").description("Harakiri Sandbox CLI").version("0.41.2");
+program
+  .name("harakiri")
+  .description("Harakiri Sandbox CLI")
+  .version("0.41.2")
+  .addHelpText("after", `
+Examples:
+  $ harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
+  $ harakiri create --template open-agents-dev --name agent-runner
+  $ harakiri run sbx_... --cmd "python --version"
+  $ harakiri expose sbx_... --port 3000
+`);
 
 program
   .command("init")
@@ -235,7 +245,16 @@ program
     printProgress(`saved config at ${configPath}`);
   });
 
-const template = program.command("template").description("Manage sandbox templates");
+const template = program
+  .command("template")
+  .description("Manage sandbox templates")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template init --name open-agents-dev --dockerfile Dockerfile
+  $ harakiri template build --name open-agents-dev .
+  $ harakiri template builds --query open-agents-dev
+  $ harakiri template promote open-agents-dev --version-id tplv_... --alias stable
+`);
 
 template
   .command("init")
@@ -243,6 +262,11 @@ template
   .option("--name <name>", "template name", "open-agents-dev")
   .option("--dockerfile <file>", "Dockerfile path", "Dockerfile")
   .option("--force", "overwrite an existing harakiri.toml")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template init --name open-agents-dev --dockerfile Dockerfile
+  $ harakiri template init --name browser-agent --dockerfile Containerfile --force
+`)
   .action(async (options) => {
     const path = join(process.cwd(), "harakiri.toml");
     if (existsSync(path) && !options.force) throw new Error(`${path} already exists. Use --force to overwrite.`);
@@ -253,6 +277,11 @@ template
 template
   .command("list")
   .description("List templates")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template list
+  $ harakiri template inspect open-agents-dev
+`)
   .action(async () => {
     const result = await api<{ templates: TemplateResult[] }>("/v1/templates");
     for (const item of result.templates) {
@@ -264,6 +293,11 @@ template
   .command("inspect")
   .argument("<id>", "template id, name, or alias")
   .description("Inspect a template")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template inspect open-agents-dev
+  $ harakiri template inspect tplv_...
+`)
   .action(async (id) => {
     const result = await api<{ template: TemplateResult }>(`/v1/templates/${encodeURIComponent(id)}`);
     console.log(JSON.stringify(result.template, null, 2));
@@ -285,6 +319,13 @@ template
   .option("--no-wait", "enqueue the build and return without following logs")
   .option("--poll-interval-ms <ms>", "build status polling interval while waiting", parsePositiveInt, 2000)
   .option("--timeout <seconds>", "maximum time to wait for build completion", parsePositiveInt, 900)
+  .addHelpText("after", `
+Examples:
+  $ harakiri template build --name open-agents-dev .
+  $ harakiri template build examples/templates/open-agents-dev
+  $ harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
+  $ harakiri template build --name open-agents-dev . --no-wait
+`)
   .action(async (contextPath, options) => {
     const templateFile = await loadTemplateConfig(contextPath);
     if (!["dockerfile", "git", "image"].includes(options.source)) throw new Error("--source must be dockerfile, git, or image");
@@ -363,6 +404,11 @@ template
   .description("List template builds")
   .option("--status <status>", "filter by build status")
   .option("--query <query>", "filter by build or template id")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template builds --status failed
+  $ harakiri template builds --query open-agents-dev
+`)
   .action(async (options) => {
     const params = new URLSearchParams();
     if (options.status) params.set("status", options.status);
@@ -378,6 +424,10 @@ template
   .command("logs")
   .argument("<build-id>", "template build id")
   .description("Read template build logs")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template logs bld_...
+`)
   .action(async (id) => {
     const result = await api<{ logs: TemplateBuildLog[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`);
     for (const line of result.logs) console.log(`${line.lineNo}\t${line.stream}\t${line.message}`);
@@ -389,6 +439,10 @@ template
   .requiredOption("--version-id <id>", "template version id")
   .option("--alias <alias>", "alias to promote", "stable")
   .description("Promote a template version")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template promote open-agents-dev --version-id tplv_... --alias stable
+`)
   .action(async (id, options) => {
     const result = await api<{ template: TemplateResult }>(`/v1/templates/${encodeURIComponent(id)}/promote`, {
       method: "POST",
@@ -401,6 +455,10 @@ template
   .command("archive")
   .argument("<template-id>", "template id, name, or alias")
   .description("Archive a custom template")
+  .addHelpText("after", `
+Examples:
+  $ harakiri template archive open-agents-dev
+`)
   .action(async (id) => {
     const result = await api<{ template: TemplateResult }>(`/v1/templates/${encodeURIComponent(id)}/archive`, {
       method: "POST"
