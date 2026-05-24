@@ -210,6 +210,7 @@ Create a template definition and Dockerfile build record:
 
 ```bash
 harakiri template build --name open-agents-dev .
+harakiri template build --name open-agents-dev examples/templates/open-agents-dev
 harakiri template inspect open-agents-dev
 ```
 

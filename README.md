@@ -54,6 +54,13 @@ harakiri create --template tplv_... --name pinned-runner
 harakiri template archive open-agents-dev
 ```
 
+The Open Agents example uses the same build path with a repository template
+directory:
+
+```bash
+harakiri template build --name open-agents-dev examples/templates/open-agents-dev
+```
+
 Current v1 behavior persists template definitions, versions, build records,
 uploaded Dockerfile build contexts, and build logs in PostgreSQL. The deployed
 `harakiri-template-builder` worker completes image-import builds by resolving

@@ -599,6 +599,26 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `http://127.0.0.1:15173/#docs` for Create sandbox, Create a custom template,
   Template troubleshooting, and SDK usage; screenshot saved to
   `/tmp/harakiri-template-resolution-docs.png`.
+- Exact Open Agents template build checkpoint on 2026-05-24:
+  `harakiri template build --name open-agents-dev
+  examples/templates/open-agents-dev --timeout 1200` passed against the
+  deployed k0s control plane. It uploaded context
+  `sha256:861aa45def1608cb03b490940711ab7d6c75e103254b4ac33c11fbae212c1918`,
+  streamed 1,837 retained build-log rows, created build `bld_jVM724NQnNmB`,
+  created version `tplv__Iou2q4mSlAJ`, and recorded image digest
+  `sha256:fa85aab0b3528f2c1cee0ca847d8b568eec74d5ddbafb7ac738c86a35957cea1`.
+  PostgreSQL verification for that build returned status `success`, CPU `2`,
+  memory `2048`, workdir `/workspace`, default ports `3000,5173,4321,8000`,
+  builder job `hkbld-bld-jvm724nqnnmb`, and runtime pull preflight status
+  `ok`. A sandbox from `open-agents-dev`, `sbx_5JmCr4RTVP`, passed
+  `harakiri-open-agents-smoke`, verifying Node/npm, Bun, pnpm, yarn, git, jq,
+  Python, Chromium headless, code-server, agent-browser, and writable
+  `/workspace`. A Node HTTP server on port `3000` was exposed as
+  `https://71a6150f-a59c-4b3e-ae38-0cd28b253c00-3000.harakiri.io`, and the
+  k0s HTTPS ingress path returned `open-agents-exact-route`. The updated
+  deployed product docs were verified at `http://127.0.0.1:15173/#docs` for
+  Create a custom template, Template builds, and Open Agents template; screenshot
+  saved to `/tmp/harakiri-open-agents-exact-docs.png`.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`,
   `resolution_templates=0`; pre-existing active API keys were left untouched.
 

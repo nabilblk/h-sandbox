@@ -18,15 +18,17 @@ Runtime surface:
 Build it through Harakiri from the repository root:
 
 ```bash
-harakiri template build examples/templates/open-agents-dev
+harakiri template build --name open-agents-dev examples/templates/open-agents-dev
 ```
 
-The CLI reads `harakiri.toml` in this directory, so `--name`, `--dockerfile`,
-CPU, memory, workdir, visibility, aliases, and default ports do not need to be
-repeated on the command line. The build command follows logs by default and
-prints the resulting template version ID, image digest, duration, and next
-create command. Use `--no-wait` if you only want to enqueue the build and inspect
-it later with `harakiri template builds` and `harakiri template logs`.
+The CLI reads `harakiri.toml` in this directory, so `--dockerfile`, CPU, memory,
+workdir, visibility, aliases, and default ports do not need to be repeated on
+the command line. Passing `--name open-agents-dev` makes the build command
+explicit for scripts and keeps it aligned with the template shown in the
+dashboard docs. The build command follows logs by default and prints the
+resulting template version ID, image digest, duration, and next create command.
+Use `--no-wait` if you only want to enqueue the build and inspect it later with
+`harakiri template builds` and `harakiri template logs`.
 
 ## Run And Smoke Test
 

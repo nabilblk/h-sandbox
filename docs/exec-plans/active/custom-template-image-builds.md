@@ -36,13 +36,13 @@ the same agent/browser/editor surface without depending on E2B internals.
 ## Success Criteria
 - [x] A team can run `harakiri template init` and get a Harakiri template config
       equivalent in ergonomics to `e2b.toml`.
-- [ ] A team can run `harakiri template build --name open-agents-dev <path>` and
+- [x] A team can run `harakiri template build --name open-agents-dev <path>` and
       get a persisted build record with streamed logs, final image digest, CPU,
       memory, default ports, default workdir, and status.
 - [x] A sandbox can be created by template name, qualified stable alias
       (`<template-ref>:stable`), or immutable version ID, and the sandbox record
       stores the exact template version and image digest used.
-- [ ] The `open-agents-dev` template builds from the OpenSandbox-native Dockerfile,
+- [x] The `open-agents-dev` template builds from the OpenSandbox-native Dockerfile,
       runs in k0s through OpenSandbox, and passes smoke checks for `bun`, `jq`,
       `agent-browser`, Chromium headless, `code-server`, workspace write access,
       terminal commands, logs/files/metrics tabs, and public route exposure.
@@ -317,7 +317,7 @@ making it clear that both were reviewed in the same checkpoint.
   - [ ] Mirror important CLI/API examples from repo docs, but phrase them as
         workflows rather than architecture notes.
 - [ ] Website documentation completion gate:
-  - [ ] The website includes a complete user path from first custom template to
+  - [x] The website includes a complete user path from first custom template to
         running sandbox and public route.
   - [x] The website explains build failures, registry/image pull failures,
         aliases, and route exposure in product language.
@@ -499,6 +499,18 @@ making it clear that both were reviewed in the same checkpoint.
 - [x] Copy or vendor the OpenSandbox-native `open-agents-dev` Dockerfile into a
       Harakiri examples/templates area.
 - [x] Build it through the new Harakiri template build path.
+      Documentation:
+      - Code docs: `README.md`, `docs/templates.md`, `docs/template-builds.md`,
+        `docs/runbook.md`, `examples/templates/open-agents-dev/README.md`,
+        `docs/test-report.md`.
+      - Product docs: Website docs > Create a custom template, Template builds,
+        Open Agents template.
+      - Verification: exact command `harakiri template build --name
+        open-agents-dev examples/templates/open-agents-dev --timeout 1200`
+        produced build `bld_jVM724NQnNmB`, version `tplv__Iou2q4mSlAJ`,
+        digest `sha256:fa85aab0b3528f2c1cee0ca847d8b568eec74d5ddbafb7ac738c86a35957cea1`,
+        and 1,837 retained build-log rows. Deployed product docs check saved
+        `/tmp/harakiri-open-agents-exact-docs.png`.
 - [x] Publish it as an internal template with 2 CPU, 2048 MB memory, workdir
       `/workspace`, and default ports `3000`, `5173`, `4321`, `8000`.
 - [x] Create a sandbox from `open-agents-dev` and verify `bun`, `jq`,
@@ -507,6 +519,10 @@ making it clear that both were reviewed in the same checkpoint.
 - [x] Expose a dev server route and verify public access through the existing
       OpenSandbox gateway/Cloudflare path.
 - [x] Record evidence in `docs/test-report.md`.
+      Latest exact-command verification: sandbox `sbx_5JmCr4RTVP` passed
+      `harakiri-open-agents-smoke`, exposed port `3000` at
+      `https://71a6150f-a59c-4b3e-ae38-0cd28b253c00-3000.harakiri.io`, and
+      returned `open-agents-exact-route` through the k0s HTTPS ingress path.
 
 ### Phase 9: Security, Governance, And Operations
 **Status**: In Progress

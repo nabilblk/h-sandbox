@@ -57,6 +57,7 @@ on the build record.
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 harakiri template build --name open-agents-dev .
+harakiri template build --name open-agents-dev examples/templates/open-agents-dev
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template inspect open-agents-dev
 harakiri create --template open-agents-dev --name agent-runner

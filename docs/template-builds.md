@@ -170,6 +170,7 @@ curl "$PUBLIC_API_URL/v1/template-builds/bld_.../logs" -H "x-api-key: $HK_KEY"
 
 ```bash
 harakiri template build --name open-agents-dev .
+harakiri template build --name open-agents-dev examples/templates/open-agents-dev
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template build --name open-agents-dev . --no-wait
 harakiri template builds --status queued
