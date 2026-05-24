@@ -46,7 +46,7 @@ parsing and validation still belong to a later CLI polish phase.
 ```bash
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
-harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template builds --query open-agents-dev
 harakiri template logs bld_...
@@ -55,10 +55,10 @@ harakiri create --template open-agents-dev --name agent-runner
 ```
 
 `template build` creates or reuses the template definition, then enqueues a build
-record through `POST /v1/templates/:id/builds`. The deployed image-import worker
-completes `--source image` builds by resolving an immutable digest and creating a
-ready template version. Dockerfile builds upload their local context and remain
-queued until the BuildKit worker is deployed.
+record through `POST /v1/templates/:id/builds`. Image-import builds resolve an
+immutable source digest. Dockerfile builds upload their local context, run a
+Kaniko Job in k0s, push to the local registry, and create a digest-pinned ready
+template version.
 
 ## API Workflow
 

@@ -55,7 +55,7 @@ the same agent/browser/editor surface without depending on E2B internals.
       to immutable digests before use.
 - [ ] The default static templates continue to work during rollout.
 - [ ] Repo documentation explains how template definitions, builds, image
-      digests, registry credentials, BuildKit, and OpenSandbox runtime
+      digests, registry credentials, the Kubernetes builder, and OpenSandbox runtime
       integration work.
 - [ ] Product documentation is available inside the Harakiri website/docs area
       so users can learn the template workflow without reading repository
@@ -129,7 +129,7 @@ repo-facing engineering documentation and product-facing website documentation.
         `e2b.toml`.
   - [x] Explain the difference between template definitions, template versions,
         builds, images, aliases, and snapshots.
-  - [x] Document local k0s prerequisites: registry, BuildKit, image pull
+  - [x] Document local k0s prerequisites: registry, Kaniko/build worker, image pull
         secrets, and OpenSandbox connectivity.
 - [x] Dedicated repo markdown docs:
   - [x] Add `docs/templates.md` for developer-facing template concepts and CLI/API
@@ -143,7 +143,7 @@ repo-facing engineering documentation and product-facing website documentation.
         workdir, writable paths, entrypoint behavior, ports, envs, `execd`,
         browser automation, code-server, and smoke tests.
   - [x] Update `docs/architecture.md` with the template build subsystem and data
-        flow from CLI/UI to BuildKit, registry, PostgreSQL, and OpenSandbox.
+        flow from CLI/UI to Kaniko, registry, PostgreSQL, and OpenSandbox.
   - [x] Update `docs/api.md` with template, version, build, log, promote, and
         cancel endpoints.
   - [x] Update `docs/runbook.md` with operator commands for build-log
@@ -166,8 +166,8 @@ repo-facing engineering documentation and product-facing website documentation.
         image digest pinning, registry access, and secret handling.
   - [x] Ensure website docs match Harakiri's design tokens and do not use E2B
         branding or copy.
-  - [ ] Update website docs once Dockerfile builds are fully wired so they no
-        longer describe the BuildKit/Kubernetes builder as future work.
+  - [x] Update website docs once Dockerfile builds are fully wired so they no
+        longer describe the Kubernetes builder as future work.
   - [ ] Add website troubleshooting content for registry pull failures, failed
         builds, route exposure, and mismatched template aliases.
   - [ ] Link relevant product docs from Templates empty states, build detail
@@ -233,25 +233,28 @@ repo-facing engineering documentation and product-facing website documentation.
 
 ### Phase 4: k0s Build Infrastructure
 **Status**: In Progress
-- [ ] Choose and deploy a local registry for k0s development, with a clear
+- [x] Choose and deploy a local registry for k0s development, with a clear
       production path for external registries.
-- [ ] Deploy rootless BuildKit in k0s or an equivalent Kubernetes-native builder.
+- [x] Deploy Kaniko in k0s as the Kubernetes-native Dockerfile builder.
 - [x] Add a k0s deployment manifest for an image-import builder worker for
       existing OCI image references.
 - [x] Deploy and verify the image-import builder worker in the active k0s
       cluster.
 - [x] Persist uploaded Dockerfile build contexts in PostgreSQL with verified
-      `sha256:` digests for the future BuildKit worker.
-- [ ] Configure cache storage for builds so repeated template builds are fast.
+      `sha256:` digests for the Kubernetes builder.
+- [x] Configure Kaniko cache storage in the local registry so repeated template
+      builds can reuse layers.
 - [ ] Configure registry push/pull credentials and namespace isolation.
 - [x] Add image digest resolution for existing OCI image imports, and persist
       the digest before the imported version is marked ready.
-- [ ] Add image digest resolution after BuildKit push, and persist the digest
+- [x] Add image digest capture after Kaniko push, and persist the digest
       before a Dockerfile/Git version can be marked ready.
 - [ ] Add cleanup policy for unreferenced build cache and abandoned images.
-- [ ] Add smoke scripts for build infrastructure health.
+- [x] Add smoke scripts for build infrastructure health.
 - [x] Add local image-import worker smoke evidence for digest resolution and
       ready version creation.
+- [x] Add k0s Dockerfile builder smoke evidence for Kaniko push, digest-pinned
+      version creation, OpenSandbox image pull, command execution, and cleanup.
 
 ### Phase 5: OpenSandbox Runtime Integration
 **Status**: In Progress
@@ -327,7 +330,7 @@ repo-facing engineering documentation and product-facing website documentation.
 - [ ] Add audit events for template create, build, cancel, promote, archive, and
       sandbox creation from a template version.
 - [ ] Add retention policies for old builds, logs, and image versions.
-- [ ] Add admin/operator docs for registry credentials, BuildKit, cleanup, and
+- [ ] Add admin/operator docs for registry credentials, builder cleanup, and
       troubleshooting.
 
 ### Phase 10: Documentation
@@ -344,12 +347,12 @@ repo-facing engineering documentation and product-facing website documentation.
       names and JSON payloads.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
-- [ ] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
+- [x] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
       lands and remove wording that says Dockerfile builds are pending.
 - [ ] Add product docs links from the Templates UI where they help users recover
       from empty states, failed builds, and route setup issues.
-- [ ] Add a documentation verification note to `docs/test-report.md` after
-      running the final CLI/API examples against k0s.
+- [x] Add a documentation verification note to `docs/test-report.md` after
+      running the Dockerfile builder CLI/API examples against k0s.
 - [x] Run link/path checks for repo docs and website docs.
 
 ### Phase 11: Verification And Release

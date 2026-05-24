@@ -68,7 +68,7 @@ Current development limits:
 
 Production follow-up should add `.harakiriignore`/`.dockerignore` parity,
 malware scanning, compressed/uncompressed size accounting, and secret detection
-before the context is available to BuildKit.
+before the context is available to the Kubernetes builder.
 
 ## Base Image Policy
 

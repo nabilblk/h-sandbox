@@ -11,9 +11,9 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 - Keycloak: OIDC identity provider for browser users.
 - OpenSandbox: runtime provider for sandbox lifecycle.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
-- Template builder: k0s worker deployment that consumes queued image-import
-  template build records and writes immutable template versions. Dockerfile/Git
-  builds have context upload support but still need the BuildKit worker phase.
+- Template builder: k0s worker deployment that consumes queued image-import and
+  Dockerfile template build records, writes build logs, pushes Dockerfile images
+  with Kaniko, and creates immutable template versions.
 
 ## Data Flow
 
@@ -35,21 +35,22 @@ Templates are a separate control-plane subsystem from live sandboxes:
 4. For Dockerfile builds, the CLI uploads a tar+gzip context into
    `template_build_contexts`; the API verifies the archive size and `sha256:`
    digest before recording it on the build.
-5. The image-import builder claims queued `sourceType=image` records, streams
-   logs into `template_build_logs`, resolves the immutable registry digest, and
-   writes a ready `template_versions` row.
-6. The planned BuildKit builder will claim Dockerfile/Git records, build or
-   import the image, push it to a registry, resolve the immutable digest, and
-   write a ready `template_versions` row.
-7. Promotion moves aliases such as `latest` or `stable` to the ready version.
-8. Sandbox creation resolves a template name, alias, or version ID through
+5. The builder claims queued records and streams logs into
+   `template_build_logs`.
+6. For `sourceType=image`, it resolves the immutable registry digest and writes
+   a ready `template_versions` row.
+7. For `sourceType=dockerfile`, it creates a Kubernetes Job that exports the
+   uploaded context, runs Kaniko, pushes the image to the k0s registry, captures
+   the pushed digest, and writes a ready `template_versions` row.
+8. Promotion moves aliases such as `latest` or `stable` to the ready version.
+9. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 
 The currently committed API, CLI, SDK, and dashboard support the definition,
 build-record, context-upload, log, cancel, retry, promote, and version-read
-surfaces. The actual k0s image-import worker supports digest resolution for
-existing OCI images. The BuildKit worker, registry cache, and Dockerfile/Git
-execution are tracked as the next infrastructure phase.
+surfaces. The k0s builder supports image-import digest resolution and
+Dockerfile execution with Kaniko. Git build sources, production registry
+credentials, cleanup policy, and scanning remain tracked follow-up work.
 
 ## Database
 

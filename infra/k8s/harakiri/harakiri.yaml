@@ -27,6 +27,13 @@ data:
   SANDBOX_MAX_ROUTES_PER_SANDBOX: "8"
   SANDBOX_MAX_ROUTES_PER_ORG: "200"
   TEMPLATE_BUILD_CONTEXT_MAX_BYTES: "26214400"
+  TEMPLATE_BUILDER_NAMESPACE: "harakiri"
+  TEMPLATE_BUILDER_JOB_IMAGE: "127.0.0.1:5000/harakiri/system/api:dev"
+  TEMPLATE_BUILDER_KANIKO_IMAGE: "gcr.io/kaniko-project/executor:v1.24.0"
+  TEMPLATE_BUILDER_JOB_TIMEOUT_MS: "900000"
+  TEMPLATE_REGISTRY_PUSH_HOST: "harakiri-registry.harakiri.svc.cluster.local:5000"
+  TEMPLATE_REGISTRY_RUNTIME_HOST: "127.0.0.1:5000"
+  TEMPLATE_REGISTRY_REPOSITORY_PREFIX: "harakiri/templates"
   TEMPLATE_BUILDER_POLL_MS: "5000"
   KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
   KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
@@ -36,6 +43,72 @@ data:
   AUTH_DEV_ALLOW: "0"
   AUTO_MIGRATE: "1"
   SEED_ON_BOOT: "0"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: harakiri-template-builder
+  namespace: harakiri
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs", "jobs/status"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: harakiri-template-builder
+  namespace: harakiri
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: harakiri
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: harakiri-template-builder
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harakiri-registry
+  namespace: harakiri
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: harakiri-registry
+  template:
+    metadata:
+      labels:
+        app: harakiri-registry
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: registry
+          image: registry:2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: harakiri-registry
+  namespace: harakiri
+spec:
+  selector:
+    app: harakiri-registry
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -54,7 +127,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: harakiri-api:dev
+          image: 127.0.0.1:5000/harakiri/system/api:dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -87,7 +160,7 @@ spec:
     spec:
       containers:
         - name: scheduler
-          image: harakiri-api:dev
+          image: 127.0.0.1:5000/harakiri/system/api:dev
           imagePullPolicy: IfNotPresent
           command: ["node", "apps/api/dist/scheduler.js"]
           envFrom:
@@ -113,7 +186,7 @@ spec:
     spec:
       containers:
         - name: template-builder
-          image: harakiri-api:dev
+          image: 127.0.0.1:5000/harakiri/system/api:dev
           imagePullPolicy: IfNotPresent
           command: ["node", "apps/api/dist/template-builder.js"]
           envFrom:
@@ -139,7 +212,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: harakiri-web:dev
+          image: 127.0.0.1:5000/harakiri/system/web:dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80

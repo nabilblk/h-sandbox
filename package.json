@@ -25,6 +25,7 @@
     "ports:status": "bash infra/scripts/port-forward.sh status",
     "smoke": "bash infra/scripts/smoke.sh",
     "smoke:ttl": "bash infra/scripts/ttl-smoke.sh",
+    "smoke:template-build": "bash infra/scripts/template-build-smoke.sh",
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
     "smoke:route": "bash infra/scripts/route-smoke.sh",
     "smoke:route-ingress": "bash infra/scripts/route-ingress-smoke.sh",

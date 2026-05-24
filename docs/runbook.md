@@ -186,10 +186,10 @@ Create a local template config:
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 ```
 
-Create a template definition and queued Dockerfile build record:
+Create a template definition and Dockerfile build record:
 
 ```bash
-harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template build --name open-agents-dev .
 harakiri template builds --query open-agents-dev
 harakiri template logs bld_...
 harakiri template inspect open-agents-dev
@@ -226,11 +226,26 @@ kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select id, template_id, aliases, image_uri, image_digest, status from template_versions order by created_at desc limit 10;"
 ```
 
-Current limitation: the API persists queued build records and uploaded
-Dockerfile contexts, but the k0s BuildKit worker that consumes Dockerfile/Git
-records is still part of the active custom template execution plan. The deployed
-image-import worker handles `--source image` records by resolving the registry
-digest and creating a ready template version.
+The deployed template builder handles `--source image` records by resolving the
+registry digest, and handles Dockerfile records by exporting the uploaded
+context, running a Kaniko Job, pushing to the k0s registry, and creating a
+digest-pinned ready template version. Git source builds, production registry
+credentials, image retention, and scanning remain part of the active custom
+template execution plan.
+
+Inspect builder Jobs and logs:
+
+```bash
+kubectl -n harakiri get jobs,pods -l app=harakiri-template-build
+kubectl -n harakiri logs job/<job-name> -c context-exporter
+kubectl -n harakiri logs job/<job-name> -c kaniko
+```
+
+Run the end-to-end Dockerfile builder smoke:
+
+```bash
+pnpm smoke:template-build
+```
 
 ## Teardown
 

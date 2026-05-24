@@ -45,7 +45,7 @@ to E2B's `e2b.toml` shape while targeting OpenSandbox-compatible OCI images.
 
 ```bash
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
-harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template builds --query open-agents-dev
 harakiri template logs bld_...
@@ -54,14 +54,12 @@ harakiri create --template open-agents-dev --name agent-runner
 
 Current v1 behavior persists template definitions, versions, build records,
 uploaded Dockerfile build contexts, and build logs in PostgreSQL. The deployed
-`harakiri-template-builder` worker completes `--source image` builds by
-resolving registry digests and creating ready template versions. The k0s
-BuildKit worker that turns uploaded Dockerfile build contexts into pushed
-digest-pinned OCI images is tracked in
+`harakiri-template-builder` worker completes image-import builds by resolving
+registry digests, and completes Dockerfile builds by launching a Kaniko Job in
+k0s, pushing to the local registry, and recording a digest-pinned ready template
+version. Production hardening still needs registry credentials, retention,
+scanning, and build policy work tracked in
 [docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).
-The k0s template-build path will require a registry, BuildKit or equivalent
-builder, pull secrets for OpenSandbox, and digest resolution before production
-promotion.
 
 For the implementation contract, read:
 

@@ -97,6 +97,12 @@ Current code passes image, entrypoint, CPU, memory, TTL, name, and Harakiri
 metadata through the OpenSandbox adapter. Workdir/env/registry auth support is
 tracked in the runtime integration phase.
 
+OpenSandbox injects `execd` and `bootstrap.sh` through an init container and
+starts the sandbox command through that bootstrap script. Custom images should
+include a normal Linux userland with `/bin/sh`, `/usr/bin/env`, and `bash`
+available. Minimal BusyBox-only images can build and pull successfully, but they
+may fail at runtime before the sandbox becomes ready.
+
 ## Non-Goals For V1
 
 - E2B-specific image dependencies.

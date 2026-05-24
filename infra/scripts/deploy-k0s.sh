@@ -4,6 +4,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VM_NAME="${K0S_LIMA_VM:-harakiri-k0s}"
 export KUBECONFIG="${KUBECONFIG:-${ROOT}/infra/k0s/harakiri.kubeconfig}"
+SYSTEM_API_IMAGE="127.0.0.1:5000/harakiri/system/api:dev"
+SYSTEM_WEB_IMAGE="127.0.0.1:5000/harakiri/system/web:dev"
+
+push_system_image() {
+  local source_ref="$1"
+  local target_ref="$2"
+  limactl shell "${VM_NAME}" -- sudo k0s ctr -n k8s.io images tag --force "${source_ref}" "${target_ref}"
+  limactl shell "${VM_NAME}" -- sudo k0s ctr -n k8s.io images push --plain-http "${target_ref}"
+}
 
 docker build -t harakiri-api:dev -f "${ROOT}/apps/api/Dockerfile" "${ROOT}"
 docker build -t harakiri-web:dev -f "${ROOT}/apps/web/Dockerfile" "${ROOT}"
@@ -48,6 +57,10 @@ helm upgrade --install opensandbox \
   }
 
 kubectl apply -k "${ROOT}/infra/k8s"
+kubectl rollout status deploy/harakiri-registry -n harakiri --timeout=180s
+push_system_image docker.io/library/harakiri-api:dev "${SYSTEM_API_IMAGE}"
+push_system_image docker.io/library/harakiri-web:dev "${SYSTEM_WEB_IMAGE}"
+
 case "${HARAKIRI_ROUTE_TLS_MODE:-dev}" in
   dev)
     "${ROOT}/infra/scripts/route-tls-dev-secret.sh"
@@ -67,6 +80,7 @@ kubectl -n harakiri rollout restart deploy/harakiri-api deploy/harakiri-web depl
 kubectl -n keycloak rollout restart deploy/keycloak
 
 kubectl rollout status deploy/harakiri-postgres -n harakiri --timeout=180s
+kubectl rollout status deploy/harakiri-registry -n harakiri --timeout=180s
 kubectl rollout status deploy/keycloak -n keycloak --timeout=240s || true
 kubectl rollout status deploy/harakiri-api -n harakiri --timeout=240s
 kubectl rollout status deploy/harakiri-web -n harakiri --timeout=180s

@@ -3,9 +3,8 @@
 Template builds are the control-plane path from a Dockerfile, Git source, or
 existing image reference to an immutable template version. The current
 implementation includes an image-import worker that resolves existing OCI image
-references to immutable digests, plus Dockerfile build context upload from the
-CLI/API into PostgreSQL. Dockerfile and Git builds still need the k0s BuildKit
-execution infrastructure phase.
+references to immutable digests, plus Dockerfile build execution through a
+Kaniko Kubernetes Job in k0s. Git builds remain future work.
 
 ## Data Flow
 
@@ -18,11 +17,12 @@ execution infrastructure phase.
    before storing the archive.
 5. A builder worker claims supported queued records, marks them `building`, and
    streams logs into `template_build_logs`.
-6. For `sourceType=image`, the image-import worker resolves the registry
+6. For `sourceType=image`, the builder resolves the registry
    manifest digest and creates a digest-pinned runtime version.
-7. For future Dockerfile/Git execution, the BuildKit worker will build or import
-   the OCI image, push it to the configured registry, and resolve the pushed
-   image to an immutable digest.
+7. For `sourceType=dockerfile`, the builder creates a Kubernetes Job with a
+   context-exporter init container and a Kaniko container. Kaniko builds the OCI
+   image, pushes it to the configured registry, and writes the pushed digest to
+   the Job termination log.
 8. On success, the worker writes a `ready` `template_versions` row, attaches the
    build ID, digest, resources, ports, workdir, and metadata, and promotes the
    desired alias.
@@ -91,7 +91,6 @@ curl "$PUBLIC_API_URL/v1/templates/open-agents-dev/builds" \
   -d '{
     "sourceType": "dockerfile",
     "dockerfilePath": "Dockerfile",
-    "imageDestination": "registry.example.com/harakiri/open-agents-dev:dev",
     "metadata": { "localPath": "." }
   }'
 ```
@@ -133,7 +132,7 @@ curl "$PUBLIC_API_URL/v1/template-builds/bld_.../logs" -H "x-api-key: $HK_KEY"
 ## CLI
 
 ```bash
-harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template builds --status queued
 harakiri template logs bld_...
@@ -154,21 +153,26 @@ harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 - Image digest resolution failure: must keep the build failed or blocked; do not
   promote a mutable tag without a digest.
 
-## Builder Workers
+## Builder Worker
 
-The current `harakiri-template-builder` deployment handles public image imports
-only. It claims queued records where `source_type = 'image'`, writes logs,
-stores `image_digest`, creates a ready `template_versions` row, and updates the
+The `harakiri-template-builder` deployment handles public image imports and
+Dockerfile builds. It claims queued records, writes logs, stores
+`image_digest`, creates a ready `template_versions` row, and updates the
 template's `latest_version_id`.
 
-The k0s Dockerfile/Git builder still needs to provide:
+For Dockerfile builds, the worker creates a short-lived Kubernetes Job in the
+`harakiri` namespace. The Job uses the API image as a context-exporter init
+container, reads the verified archive from PostgreSQL, expands it into an
+emptyDir workspace, and then runs Kaniko against that workspace. Kaniko pushes
+to `TEMPLATE_REGISTRY_PUSH_HOST`; Harakiri stores the runtime image using
+`TEMPLATE_REGISTRY_RUNTIME_HOST` so OpenSandbox can pull the digest-pinned image
+from the node-local registry.
 
+Still pending for production hardening:
 
-- Rootless BuildKit or another Kubernetes-native builder.
+- Git source checkout.
 - Per-organization registry credentials.
-- Uploaded build-context consumption or Git checkout.
 - Secret redaction in logs.
-- Image digest resolution after push.
-- Cache storage and cleanup policy.
+- Cache retention and cleanup policy.
 - Concurrency limits per organization.
 - Health checks and operator runbook commands.

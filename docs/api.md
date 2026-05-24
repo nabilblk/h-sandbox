@@ -120,7 +120,6 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/builds \
   -d '{
     "sourceType": "dockerfile",
     "dockerfilePath": "Dockerfile",
-    "imageDestination": "registry.example.com/harakiri/open-agents-dev:dev",
     "metadata": { "localPath": "." }
   }'
 ```
@@ -181,9 +180,11 @@ curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/promote \
 ```
 
 Current v1 API behavior persists build records, uploaded Dockerfile contexts,
-and logs. The deployed image-import worker consumes queued `sourceType=image`
-records and writes digest-pinned ready versions. The k0s BuildKit worker for
-Dockerfile/Git records is tracked in the active custom template execution plan.
+and logs. The deployed template builder consumes queued `sourceType=image`
+records by resolving immutable source digests, and consumes
+`sourceType=dockerfile` records by running Kaniko in k0s, pushing to the local
+registry, and writing digest-pinned ready versions. Git source builds are still
+tracked in the active custom template execution plan.
 
 ## Run Command
 

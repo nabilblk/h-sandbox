@@ -18,6 +18,10 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - `pnpm typecheck` passed across the workspace.
 - `pnpm test` passed all package tests.
 - `pnpm build` passed for shared, API, web, CLI, and SDK packages.
+- Template Dockerfile builder checkpoint on 2026-05-24: `pnpm typecheck`,
+  `pnpm test`, `pnpm build`, `git diff --check`, and
+  `pnpm smoke:template-build` passed after deploying the Kaniko-based k0s
+  builder.
 - Documentation checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`, and
   `pnpm build` passed after adding custom template docs. A Playwright docs
   navigation smoke check opened the product docs and verified "Create a custom
@@ -64,6 +68,22 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `template_builds.context_hash`. The build log contained the received-context
   line. The temporary template was deleted and temporary smoke API keys were
   revoked.
+- Dockerfile builder execution smoke was verified against k0s on 2026-05-24:
+  `harakiri template build` uploaded a tiny Ubuntu Dockerfile context, the
+  deployed `harakiri-template-builder` created Kaniko Job
+  `hkbld-bld-1c-zku8jjbwt`, Kaniko pushed
+  `127.0.0.1:5000/harakiri/templates/kaniko-ubuntu-1779584493@sha256:d9a1f930a7bc244afb17b0ea7b3767bb68117a050e5ee60a476686e0e8d0134c`,
+  Harakiri created ready version `tplv_zaEUAKxJoZtB`, and `harakiri create`
+  started `sbx_av-gq_64Tk` from that template. `harakiri run
+  sbx_av-gq_64Tk --cmd "cat /harakiri-built.txt"` returned
+  `harakiri-built`, then the sandbox was killed. A BusyBox variant also proved
+  registry pull worked, but failed OpenSandbox bootstrap because the image did
+  not provide the expected shell userland.
+- `pnpm smoke:template-build` passed against k0s on 2026-05-24, repeating the
+  Dockerfile build, digest-pinned ready version, sandbox creation, command run,
+  sandbox kill, and temporary API-key cleanup flow. The run produced
+  `bld_sUnEbjLxNoSv`, `sbx_C4pV_pBSUF`, and command output
+  `harakiri-built`.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
@@ -118,8 +138,8 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Keycloak runs with `start-dev`, a development login fixture user, and the Harakiri login theme mounted from `keycloak-theme-harakiri`.
 - PostgreSQL uses local-path storage.
 - Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
-- Custom template image-import records are live in the control plane and can be
-  completed by the `harakiri-template-builder` worker. Dockerfile context
-  upload is live, but Dockerfile/Git execution, registry cache, BuildKit, and
+- Custom template image-import and Dockerfile records are live in the control
+  plane and can be completed by the `harakiri-template-builder` worker. Git
+  source builds, production registry credentials, retention/scanning policy, and
   `open-agents-dev` image build smoke remain pending in the active execution
   plan.
