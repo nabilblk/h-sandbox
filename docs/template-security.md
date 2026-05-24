@@ -141,8 +141,12 @@ Template visibility is product metadata, not a substitute for authorization:
   templates.
 - `public`: visible as a shared catalog template.
 
-Every read and write path must still check organization scope and avoid exposing
-private build logs across tenants.
+Read access is explicit: a workspace can see its own templates plus platform
+templates with `public` or `internal` visibility. Platform `private` templates
+are hidden from workspaces. Mutation access is narrower: only organization-owned
+templates can be built, promoted, or archived by that workspace. Build records,
+uploaded contexts, retained logs, retries, and cancellation stay scoped to the
+build's owning organization to avoid exposing private build data across tenants.
 
 ## Audit Events
 

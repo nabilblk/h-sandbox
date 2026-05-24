@@ -16,7 +16,7 @@ import {
   templateImagePolicyViolation,
   templateResourceLimitViolations
 } from "./template-policy.js";
-import { archiveTemplate, averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
+import { archiveTemplate, averageTemplateBootMs, canMutateTemplate, listTemplates, resolveTemplate } from "./templates.js";
 
 const createSandboxSchema = z.object({
   template: z.string().default("python-3.12-data"),
@@ -185,6 +185,11 @@ const templateImagePolicyPayload = (images: Array<{ image: string; dynamic?: boo
     .filter(Boolean);
   if (!violations.length) return null;
   return { error: "template_image_policy_violation", violations };
+};
+
+const templateMutationForbidden = {
+  error: "template_not_mutable",
+  message: "Only organization-owned templates can be built or promoted by this workspace."
 };
 
 const withTemplateBuildSlot = async <T>(organizationId: string, insertBuild: (client: PoolClient) => Promise<T>) =>
@@ -411,6 +416,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const { id } = request.params as { id: string };
     const template = await resolveTemplate(id, request.auth.organizationId);
     if (!template) return reply.code(404).send({ error: "template_not_found" });
+    if (!canMutateTemplate(template)) return reply.code(403).send(templateMutationForbidden);
     const body = templateBuildSchema.parse(request.body ?? {});
     const resourceLimit = templateResourceLimitPayload(template);
     if (resourceLimit) return reply.code(422).send(resourceLimit);
@@ -666,6 +672,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const body = templatePromoteSchema.parse(request.body ?? {});
     const template = await resolveTemplate(id, request.auth.organizationId);
     if (!template) return reply.code(404).send({ error: "template_not_found" });
+    if (!canMutateTemplate(template)) return reply.code(403).send(templateMutationForbidden);
     const version = await query(
       `${templateVersionSelect}
        WHERE id = $1 AND template_id = $2 AND status = 'ready'

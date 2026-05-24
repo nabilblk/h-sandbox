@@ -62,7 +62,7 @@ export const TEMPLATES = [
         icon: "file",
         tags: ["custom"],
         bootMs: 220,
-        visibility: "private",
+        visibility: "internal",
         defaultEntrypoint: ["sleep", "3600"]
     }
 ];

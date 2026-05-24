@@ -256,7 +256,7 @@ export const TEMPLATES: Template[] = [
     tags: ["custom"],
     aliases: [],
     bootMs: 220,
-    visibility: "private",
+    visibility: "internal",
     status: "ready",
     defaultEntrypoint: ["sleep", "3600"],
     cpuCount: 2,

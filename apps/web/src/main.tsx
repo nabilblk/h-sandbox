@@ -487,7 +487,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                 <span className="alias-list">{template.aliases?.length ? template.aliases.slice(0, 3).map((alias) => <span className="tag" key={alias}>{alias}</span>) : <span className="num muted">-</span>}</span>
                 <span className="tmpl-actions">
                   <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || busy === `build:${template.id}`}>Build</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || template.ownerScope !== "team" || busy === `build:${template.id}`} title={template.ownerScope === "team" ? "Queue a build" : "Builds are available for team templates"}>Build</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => viewBuilds(template.id)}>Builds</button>
                   {template.status !== "archived" && template.visibility === "private" && template.latestVersionId ? <button className="btn btn-ghost btn-sm" onClick={() => promoteTemplate(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
                   {template.status !== "archived" && template.visibility === "private" ? <button className="btn btn-ghost btn-sm" onClick={() => archiveTemplate(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
@@ -793,7 +793,7 @@ const docPages: DocPage[] = [
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
         <h2>Dashboard</h2>
-        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
       </>
     )
   },
@@ -870,7 +870,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Visibility</h2>
-        <p>`private`, `internal`, and `public` control product visibility. API authorization still enforces organization scope on template definitions, builds, logs, and versions.</p>
+        <p>`private`, `internal`, and `public` control product visibility. Team-owned templates are visible only inside the owning workspace. Platform `public` and `internal` templates are shared for sandbox creation, while platform `private` templates stay hidden. Build, promote, archive, logs, and uploaded contexts remain scoped to the owning workspace.</p>
         <h2>Digests</h2>
         <p>Mutable tags can be accepted as input, but ready versions should store an immutable image digest before production use.</p>
         <h2>Secrets</h2>

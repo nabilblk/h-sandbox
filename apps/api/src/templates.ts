@@ -16,6 +16,23 @@ export type TemplateListFilters = {
   offset?: number;
 };
 
+type TemplateVisibility = Template["visibility"];
+
+export const sharedPlatformTemplateVisibilities: TemplateVisibility[] = ["public", "internal"];
+
+export const isSharedPlatformTemplateVisibility = (visibility: TemplateVisibility) =>
+  sharedPlatformTemplateVisibilities.includes(visibility);
+
+export const canReadTemplateRow = (
+  row: { organizationId?: string | null; visibility: TemplateVisibility },
+  organizationId: string
+) => row.organizationId === organizationId || (!row.organizationId && isSharedPlatformTemplateVisibility(row.visibility));
+
+export const canMutateTemplate = (template: Pick<Template, "ownerScope">) => template.ownerScope === "team";
+
+export const templateReadScopeSql = (alias = "t", organizationPlaceholder = "$1") =>
+  `(${alias}.organization_id = ${organizationPlaceholder} OR (${alias}.organization_id IS NULL AND ${alias}.visibility = ANY(ARRAY['public','internal']::text[])))`;
+
 type TemplateRow = {
   id: string;
   name: string;
@@ -99,6 +116,7 @@ const fallbackTemplate = (templateRef: string): RuntimeTemplate | null => {
   const template =
     TEMPLATES.find((item) => item.id === templateRef || item.name === templateRef || item.aliases.includes(templateRef)) ?? null;
   if (!template) return null;
+  if (!isSharedPlatformTemplateVisibility(template.visibility)) return null;
   return {
     ...template,
     imageDigest: template.imageDigest ?? null,
@@ -110,7 +128,7 @@ const fallbackTemplate = (templateRef: string): RuntimeTemplate | null => {
 
 const templateWhere = (organizationId: string, filters: TemplateListFilters) => {
   const params: unknown[] = [organizationId];
-  const where = ["(t.organization_id IS NULL OR t.organization_id = $1)"];
+  const where = [templateReadScopeSql("t", "$1")];
   if (filters.visibility && filters.visibility !== "all") {
     params.push(filters.visibility);
     where.push(`t.visibility = $${params.length}`);
@@ -169,7 +187,9 @@ export const listTemplates = async (organizationId: string, filters: TemplateLis
     params
   );
   const fallback = !result.rows.length && !filters.q && !filters.visibility && !filters.owner && !filters.runtimeFamily && !filters.status && offset === 0;
-  const templates = fallback ? TEMPLATES.map((template) => fallbackTemplate(template.id)!) : result.rows.map(mapTemplate);
+  const templates = fallback
+    ? TEMPLATES.map((template) => fallbackTemplate(template.id)).filter((template): template is RuntimeTemplate => Boolean(template))
+    : result.rows.map(mapTemplate);
   return { templates, page: { total: fallback ? templates.length : Number(total.rows[0]?.count ?? 0), limit, offset } };
 };
 
@@ -194,7 +214,7 @@ export const resolveTemplate = async (templateRef: string, organizationId: strin
       AND (v_match.id = $1 OR $1 = ANY(v_match.aliases))
      LEFT JOIN template_versions v_latest ON v_latest.id = t.latest_version_id
      LEFT JOIN template_versions v ON v.id = COALESCE(v_match.id, v_latest.id)
-     WHERE (t.organization_id IS NULL OR t.organization_id = $2)
+     WHERE ${templateReadScopeSql("t", "$2")}
        AND t.status <> 'archived'
        AND (t.id = $1 OR t.name = $1 OR $1 = ANY(t.aliases) OR v_match.id IS NOT NULL)
      ORDER BY "scopeRank" ASC, rank ASC, t.updated_at DESC
@@ -232,7 +252,7 @@ export const averageTemplateBootMs = async (organizationId: string) => {
   const result = await query<{ avg: number | string | null }>(
     `SELECT COALESCE(AVG(boot_ms), 0)::float AS avg
      FROM templates
-     WHERE organization_id IS NULL OR organization_id = $1`,
+     WHERE ${templateReadScopeSql("templates", "$1")}`,
     [organizationId]
   );
   const avg = Number(result.rows[0]?.avg ?? 0);

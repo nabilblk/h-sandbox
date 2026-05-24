@@ -5,7 +5,7 @@ VALUES
   ('node-20', 'Node 20', 'Node + pnpm + bun.', 'node:20-bookworm-slim', 'node', ARRAY['node', 'js'], 142, 'public', ARRAY['sleep', '3600']),
   ('node-20-chromium', 'Node 20 + Chromium', 'Headless browser for agents.', 'mcr.microsoft.com/playwright:v1.57.0-noble', 'globe', ARRAY['browser', 'node'], 184, 'public', ARRAY['sleep', '3600']),
   ('ubuntu-24.04', 'Ubuntu 24.04', 'Plain devbox, root, apt available.', 'ubuntu:24.04', 'box', ARRAY['os'], 119, 'public', ARRAY['sleep', '3600']),
-  ('custom', 'Custom Dockerfile', 'Bring your own image.', 'ubuntu:24.04', 'file', ARRAY['custom'], 220, 'private', ARRAY['sleep', '3600'])
+  ('custom', 'Custom Dockerfile', 'Bring your own image.', 'ubuntu:24.04', 'file', ARRAY['custom'], 220, 'internal', ARRAY['sleep', '3600'])
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
     description = EXCLUDED.description,

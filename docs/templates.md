@@ -127,7 +127,9 @@ the selected version has those fields.
 
 `resolveTemplate(ref, organizationId)` checks:
 
-1. Organization-owned templates before public/internal seed templates.
+1. Templates owned by the requesting organization plus platform templates whose
+   visibility is `public` or `internal`. Platform `private` rows are hidden from
+   workspaces.
 2. Exact template ID.
 3. Exact template name.
 4. Template alias.
@@ -136,6 +138,9 @@ the selected version has those fields.
 
 This lets `harakiri create --template open-agents-dev` use the stable alias,
 while automation can use an immutable `tplv_...` ID for reproducibility.
+Only organization-owned templates can be built, promoted, or archived by a
+workspace; shared platform templates are read-only catalog entries for sandbox
+creation.
 
 ## Rollout Notes
 

@@ -317,6 +317,12 @@ Run the end-to-end Dockerfile builder smoke:
 pnpm smoke:template-build
 ```
 
+Verify template visibility and mutation scope:
+
+```bash
+pnpm smoke:template-visibility
+```
+
 ## Teardown
 
 ```bash

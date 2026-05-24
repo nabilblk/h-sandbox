@@ -76,7 +76,10 @@ Supported filters:
 - `q`: template ID, name, or alias search.
 - `visibility`: `public`, `private`, `internal`, or `all`.
 - `owner`: `team`, `platform`, or `all`. Team templates belong to the current
-  organization; platform templates have no organization owner.
+  organization; platform templates have no organization owner. Platform
+  templates are returned only when their visibility is `public` or `internal`.
+  Team-owned templates remain scoped to the requesting organization regardless
+  of visibility.
 - `runtimeFamily`: exact runtime family such as `python`, `python-data`,
   `node`, `browser`, `linux`, or `custom`.
 - `status`: template status or `all`.
@@ -146,7 +149,8 @@ template exceeds the current resource policy, `422
 template_image_policy_violation` when an image-import target is denied by
 registry or prefix policy, and `429 template_build_concurrency_limit_exceeded`
 when the organization already has the maximum number of queued/building
-template builds.
+template builds. Shared platform templates are read-only catalog entries;
+attempting to build or promote one returns `403 template_not_mutable`.
 
 The CLI uploads Dockerfile build contexts after creating the build record. API
 clients can use the same endpoint with a tar+gzip archive encoded as base64:

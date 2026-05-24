@@ -287,7 +287,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Enforce sandbox route limits through the route API.
 - [x] Enforce configurable template resource limits and per-organization
       queued/building build concurrency limits.
-- [ ] Complete cross-org template visibility authorization semantics for
+- [x] Complete cross-org template visibility authorization semantics for
       public/private/internal templates.
 
 ### Phase 4: k0s Build Infrastructure
@@ -438,6 +438,9 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Unit tests for template resource and build concurrency policy helpers.
 - [ ] API integration tests for template create/build/list/logs/promote and
       sandbox creation from an immutable template version.
+- [x] k0s smoke test for template visibility authorization: own templates,
+      shared platform templates, hidden platform-private templates, hidden
+      foreign-org templates, and read-only shared platform mutation behavior.
 - [x] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs
       runtime checks, exposes a route, and deletes the sandbox.
 - [ ] UI Playwright tests for Templates List/Builds and build detail flows.

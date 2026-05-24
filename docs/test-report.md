@@ -272,6 +272,19 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Post-builder-runtime-metadata cleanup audit on 2026-05-24: PostgreSQL
   reported `active_smoke_keys=0`, `live_sandboxes=0`,
   `kaniko_smoke_templates=0`, and `ready_routes=0`.
+- Template visibility authorization checkpoint on 2026-05-24: `pnpm
+  --filter @harakiri/shared build`, `pnpm typecheck`, `pnpm test`, `pnpm
+  --filter @harakiri/web build`, and `git diff --check` passed after adding an
+  explicit read policy for organization-owned templates plus platform
+  `public`/`internal` templates, denying platform `private` templates, and
+  blocking build/promote mutations on shared platform templates. `pnpm
+  deploy:k0s` completed, `pnpm ports:restart && pnpm ports:status` reported
+  every forward healthy, `pnpm smoke:template-visibility` passed with
+  `visibility-owned-1779596359` and build `bld_NWrlPdTBm7LY`, and `pnpm
+  smoke:templates` passed for `python-3.12`, `python-3.12-data`, and `node-20`.
+- Post-template-visibility cleanup audit on 2026-05-24: PostgreSQL reported
+  `active_smoke_keys=0`, `live_sandboxes=0`, `visibility_templates=0`,
+  `ready_routes=0`, and `custom_visibility=internal`.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention
