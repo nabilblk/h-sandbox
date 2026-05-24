@@ -26,6 +26,42 @@ async function signInFromGate(page: Page) {
   await expect(page.getByRole("heading", { name: "Sandboxes" })).toBeVisible();
 }
 
+async function captureTemplatesWorkspace(page: Page) {
+  await page.goto(`${WEB_URL}/#dashboard/templates`);
+  await expect(page.getByRole("heading", { name: "Templates" })).toBeVisible();
+  await expect(page.locator(".tmpl-row").first()).toContainText("Name");
+  await capture(page, "13-templates-list-desktop");
+
+  await page.getByRole("button", { name: "Open" }).first().click();
+  await expect(page.getByText("Template detail")).toBeVisible();
+  await capture(page, "14-template-detail-desktop");
+
+  await page.locator(".tmpl-tab", { hasText: "Builds" }).click();
+  await expect(page.locator(".build-row").first()).toContainText("Status");
+  await capture(page, "15-template-builds-desktop");
+
+  await page.locator(".build-row[role='button']").first().click();
+  await expect(page.getByText("Build details")).toBeVisible();
+  await capture(page, "16-template-build-detail-desktop");
+
+  await page.getByRole("button", { name: /New template/i }).click();
+  await expect(page.getByRole("heading", { name: "New template" })).toBeVisible();
+  await expect(page.getByText("harakiri.toml")).toBeVisible();
+  await capture(page, "17-new-template-desktop");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${WEB_URL}/#dashboard/templates`);
+  await expect(page.getByRole("heading", { name: "Templates" })).toBeVisible();
+  await capture(page, "18-templates-mobile");
+
+  await page.getByRole("button", { name: /New template/i }).click();
+  await expect(page.getByRole("heading", { name: "New template" })).toBeVisible();
+  await capture(page, "19-new-template-mobile");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 960 });
+}
+
 test("capture deployed UI screenshots for visual review", async ({ page }) => {
   mkdirSync(ARTIFACT_DIR, { recursive: true });
 
@@ -45,6 +81,8 @@ test("capture deployed UI screenshots for visual review", async ({ page }) => {
   await signInFromGate(page);
   await capture(page, "06-dashboard-desktop");
 
+  await captureTemplatesWorkspace(page);
+
   await page.locator(".side-link", { hasText: "API keys" }).click();
   await expect(page.getByRole("heading", { name: "API keys" })).toBeVisible();
   await capture(page, "07-api-keys-desktop");
@@ -54,12 +92,19 @@ test("capture deployed UI screenshots for visual review", async ({ page }) => {
   await capture(page, "08-usage-desktop");
 
   await page.goto(`${WEB_URL}/#onboarding`);
-  await expect(page.getByRole("heading", { name: "Welcome to Harakiri." })).toBeVisible();
-  await capture(page, "09-onboarding-desktop");
+  await expect(page.getByRole("heading", { name: "Sandboxes" })).toBeVisible();
+  await capture(page, "09-onboarding-redirect-desktop");
 
-  await page.goto(`${WEB_URL}/#detail`);
-  await expect(page.getByText("Terminal")).toBeVisible();
-  await capture(page, "10-detail-desktop");
+  await page.goto(`${WEB_URL}/#dashboard/sandboxes`);
+  await expect(page.getByRole("heading", { name: "Sandboxes" })).toBeVisible();
+  await page.getByRole("button", { name: /All/i }).click();
+  await page.waitForTimeout(500);
+  const sandboxRow = page.locator(".sbx-table .sbx-tr", { has: page.locator(".sbx-id") }).first();
+  if (await sandboxRow.count()) {
+    await sandboxRow.click();
+    await expect(page.getByText("Terminal")).toBeVisible();
+    await capture(page, "10-detail-desktop");
+  }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${WEB_URL}/#landing`);

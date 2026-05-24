@@ -46,7 +46,7 @@ the same agent/browser/editor surface without depending on E2B internals.
       runs in k0s through OpenSandbox, and passes smoke checks for `bun`, `jq`,
       `agent-browser`, Chromium headless, `code-server`, workspace write access,
       terminal commands, logs/files/metrics tabs, and public route exposure.
-- [ ] The dashboard Templates page has E2B-like List and Builds tabs with search,
+- [x] The dashboard Templates page has E2B-like List and Builds tabs with search,
       filters, status badges, visibility, CPU, memory, created/updated timestamps,
       latest build/version metadata, and row actions.
 - [x] Build failures are visible in API, CLI, and UI with useful error messages
@@ -406,7 +406,7 @@ the change is provably invisible to one audience.
 - [x] Add New Template flow.
 - [x] Add design-token-consistent badges, table density, iconography, and empty
       states based on Harakiri's current theme.
-- [ ] Add Playwright screenshot coverage for Templates List, Builds, build
+- [x] Add Playwright screenshot coverage for Templates List, Builds, build
       detail, new template, and mobile/narrow layouts.
 
 ### Phase 8: Open Agents Template Pilot
@@ -460,7 +460,7 @@ the change is provably invisible to one audience.
       `docs/*.md`, and user-facing product docs in the website docs surface.
 - [ ] Each checkpoint summary names the exact repo docs and website docs changed,
       or states why a code-doc/product-doc surface was not affected.
-- [ ] Add screenshots or short visual references for Templates List, Builds, and
+- [x] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
 - [x] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
       lands and remove wording that says Dockerfile builds are pending.
@@ -484,7 +484,7 @@ the change is provably invisible to one audience.
       foreign-org templates, and read-only shared platform mutation behavior.
 - [x] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs
       runtime checks, exposes a route, and deletes the sandbox.
-- [ ] UI Playwright tests for Templates List/Builds and build detail flows.
+- [x] UI Playwright tests for Templates List/Builds and build detail flows.
 - [x] k0s dashboard smoke for New Template Dockerfile upload, existing OCI
       image import, clone/fork, `harakiri.toml` preview, Dockerfile build,
       sandbox create/run from the generated template, and website docs coverage.

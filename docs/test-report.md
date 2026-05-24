@@ -362,6 +362,19 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   that streams retained logs before exiting non-zero. No website product docs
   changed in this checkpoint because the user-facing CLI behavior was not
   changed.
+- Template UI screenshot checkpoint on 2026-05-24: `pnpm screenshots` passed
+  after adding Playwright coverage for the deployed Templates List, Template
+  detail panel, Builds tab, Build details panel, New Template modal, and
+  mobile/narrow Templates layouts. New artifacts:
+  `docs/artifacts/13-templates-list-desktop.png`,
+  `docs/artifacts/14-template-detail-desktop.png`,
+  `docs/artifacts/15-template-builds-desktop.png`,
+  `docs/artifacts/16-template-build-detail-desktop.png`,
+  `docs/artifacts/17-new-template-desktop.png`,
+  `docs/artifacts/18-templates-mobile.png`, and
+  `docs/artifacts/19-new-template-mobile.png`. No website product docs changed
+  in this checkpoint because the product behavior and copy were not changed;
+  this was automated visual evidence for the existing Templates UI.
 - Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
   `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
   and `pnpm smoke:template-redaction` passed after adding API redaction for
@@ -419,9 +432,17 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - `docs/artifacts/07-api-keys-desktop.png`
 - `docs/artifacts/08-usage-desktop.png`
 - `docs/artifacts/09-onboarding-desktop.png`
+- `docs/artifacts/09-onboarding-redirect-desktop.png`
 - `docs/artifacts/10-detail-desktop.png`
 - `docs/artifacts/11-landing-mobile.png`
 - `docs/artifacts/12-dashboard-mobile.png`
+- `docs/artifacts/13-templates-list-desktop.png`
+- `docs/artifacts/14-template-detail-desktop.png`
+- `docs/artifacts/15-template-builds-desktop.png`
+- `docs/artifacts/16-template-build-detail-desktop.png`
+- `docs/artifacts/17-new-template-desktop.png`
+- `docs/artifacts/18-templates-mobile.png`
+- `docs/artifacts/19-new-template-mobile.png`
 - `docs/artifacts/playwright-report/index.html`
 
 ## Route Evidence
