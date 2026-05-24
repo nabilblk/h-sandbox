@@ -60,6 +60,9 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [ ] Product documentation is available inside the Harakiri website/docs area
       so users can learn the template workflow without reading repository
       internals.
+- [ ] Any change to template behavior, CLI flags, API payloads, route exposure,
+      or build failure handling updates both repo-facing documentation and
+      website product documentation, or records why one surface is not affected.
 
 ## Product And UI Backlog
 - [x] Replace the current card-only Templates page with a denser operational
@@ -126,6 +129,9 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - Documentation updates are not complete until examples are rechecked against
   the deployed k0s environment and stale implementation notes, especially
   builder/registry details, are removed.
+- Documentation is part of the definition of done for every remaining template
+  slice: backend/API changes update `README.md` or dedicated `docs/*.md`, while
+  user workflow changes update the website docs surface.
 
 ### Code Documentation: README And Dedicated Markdown
 - [x] Repository README updates:
@@ -164,6 +170,14 @@ It must be planned and verified alongside code, not added as a release-afterthou
         environment.
   - [x] Document prototype runtime limitations such as workspace ownership,
         root/non-root user behavior, and route exposure expectations.
+- [ ] Code documentation completion gate:
+  - [ ] README links to every dedicated template doc needed by a contributor or
+        operator.
+  - [ ] Dedicated markdown docs include canonical CLI commands, API payload
+        examples, environment variables, database/control-plane concepts, and
+        k0s deployment notes.
+  - [ ] Operator-only guidance stays in repo docs and is not copied into the
+        product docs unless users must act on it.
 
 ### Product Documentation: Website And In-App Docs
 - [x] Website product docs:
@@ -193,6 +207,13 @@ It must be planned and verified alongside code, not added as a release-afterthou
         build`, `harakiri create`, route exposure, and template promotion.
   - [ ] Mirror important CLI/API examples from repo docs, but phrase them as
         workflows rather than architecture notes.
+- [ ] Website documentation completion gate:
+  - [ ] The website includes a complete user path from first custom template to
+        running sandbox and public route.
+  - [ ] The website explains build failures, registry/image pull failures,
+        aliases, and route exposure in product language.
+  - [ ] The Templates UI links users to the relevant website docs from empty,
+        failed, and setup-dependent states.
 
 ### Documentation Acceptance Criteria
 - [ ] A new user can create and run a custom template using only the website docs.
@@ -370,6 +391,10 @@ It must be planned and verified alongside code, not added as a release-afterthou
       model.
 - [ ] Add CLI help examples and ensure docs examples match implemented command
       names and JSON payloads.
+- [ ] Keep `README.md` and dedicated `docs/*.md` as the canonical engineering
+      and operator documentation for contributors.
+- [ ] Keep the website docs as the canonical product documentation for users,
+      with no dependency on reading repository internals.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
 - [x] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
