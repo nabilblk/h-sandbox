@@ -1601,7 +1601,7 @@ const docPages: DocPage[] = [
         <h2>Image policy</h2>
         <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run.</p>
         <h2>Provenance</h2>
-        <p>Template versions keep SBOM references, provenance, scan status, and scan summaries. Until a scanner is connected, new versions are marked `not_scanned` with the reason `scanner_not_configured`.</p>
+        <p>Template versions keep SBOM references, provenance, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
         <h2>Audit</h2>
         <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, and sandbox create actions are stored as audit events with redacted metadata.</p>
         <h2>Limits</h2>

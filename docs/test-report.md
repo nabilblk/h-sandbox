@@ -371,6 +371,18 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   existing README, dedicated Markdown docs, and website product docs examples.
   No website product docs changed in this checkpoint because the documented
   workflow copy already contained the same command names and flags.
+- Template scanner hook checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm
+  test`, `pnpm --filter @harakiri/web build`, `pnpm deploy:k0s`, `pnpm
+  ports:restart && pnpm ports:status`, and `pnpm smoke:template-build` passed
+  after adding the optional `TEMPLATE_SCANNER_WEBHOOK_URL` builder hook. The
+  smoke produced build `bld_8EAfbnWbvoV9`, version `tplv_Jl5kCn_xal5b`, digest
+  `sha256:5a48302ec1196d01aa6cd6d2c277867c27e5efd0770b76b4370dd43b1dd4928f`,
+  sandbox `sbx_oUHwUPAzGR`, command output `harakiri-built`, and verified the
+  default `scan_status=not_scanned` / `scanner_not_configured` path still works
+  when no scanner webhook is configured. A deployed docs browser smoke opened
+  `http://127.0.0.1:15173/#docs`, selected "Security model", verified
+  "scanner webhook" and `scan_failed` render with no console errors, and wrote
+  `/tmp/harakiri-scanner-docs.png`.
 - Template UI screenshot checkpoint on 2026-05-24: `pnpm screenshots` passed
   after adding Playwright coverage for the deployed Templates List, Template
   detail panel, Builds tab, Build details panel, New Template modal, and

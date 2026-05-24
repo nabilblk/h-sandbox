@@ -47,18 +47,22 @@ Templates are a separate control-plane subsystem from live sandboxes:
 8. For `sourceType=dockerfile`, it creates a Kubernetes Job that exports the
    uploaded context, runs Kaniko, pushes the image to the k0s registry, captures
    the pushed digest, and writes a ready `template_versions` row.
-9. Promotion moves aliases such as `latest` or `stable` to the ready version.
-10. Sandbox creation resolves a template name, alias, or version ID through
+9. Before the ready version is inserted, the builder calls the configured
+   external scanner webhook when `TEMPLATE_SCANNER_WEBHOOK_URL` is set and
+   persists the returned `scan_status` and `scan_summary`; otherwise it records
+   `not_scanned`.
+10. Promotion moves aliases such as `latest` or `stable` to the ready version.
+11. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 
 The currently committed API, CLI, SDK, and dashboard support the definition,
 build-record, context-upload, log, cancel, retry, promote, and version-read
 surfaces. The k0s builder supports image-import digest resolution and
 Dockerfile execution with Kaniko. Template versions carry SBOM references,
-provenance JSON, scan status, and scan summary fields, although the actual
-scanner/signing integration is still deferred. Git build sources, production
-registry credentials, cleanup policy, and scanning remain tracked follow-up
-work.
+provenance JSON, scan status, and scan summary fields. The builder supports an
+operator-owned scanner webhook; production scanner service selection, signing,
+Git build sources, production registry credentials, and cleanup policy remain
+tracked follow-up work.
 
 ## Database
 

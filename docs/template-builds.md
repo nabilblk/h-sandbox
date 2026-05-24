@@ -243,9 +243,21 @@ from the node-local registry. The worker stores the Job name, Pod name, Pod UID,
 namespace, and Kubernetes node name in the build metadata so operators can
 correlate dashboard/API records with cluster logs.
 
+Before a successful build inserts the ready `template_versions` row, the worker
+checks `TEMPLATE_SCANNER_WEBHOOK_URL`. When it is empty, the version keeps
+`scan_status = not_scanned` and `scan_summary.reason =
+scanner_not_configured`. When it is set, the worker posts the digest-pinned
+image URI, image digest, build ID, template ID, organization ID, source type,
+and provenance JSON to the scanner webhook. A `2xx` response may return any
+lowercase-compatible status such as `clean`, `vulnerable`, or `blocked`, plus a
+JSON summary; Harakiri redacts secret-shaped fields before storing it. Non-2xx
+or unreachable scanner responses persist `scan_failed` by default. Set
+`TEMPLATE_SCANNER_FAIL_ON_ERROR=1` only when scanner outages should fail the
+template build instead of producing a ready-but-unverified version.
+
 Still pending for production hardening:
 
 - Git source checkout.
 - Per-organization registry credentials.
 - Cache retention and cleanup policy.
-- Health checks.
+- Production scanner service selection, policy thresholds, and health checks.

@@ -429,7 +429,7 @@ the change is provably invisible to one audience.
 - [x] Redact build args, env vars, registry credentials, and secrets in logs.
 - [x] Add deny/allow policy for template images, image-import targets, and
       Dockerfile base images.
-- [ ] Add vulnerability scanning hook and persist scan status on versions.
+- [x] Add vulnerability scanning hook and persist scan status on versions.
 - [x] Add SBOM/provenance fields even if scanner/signing integration is deferred.
 - [x] Add audit events for template create, build, cancel, promote, archive, and
       sandbox creation from a template version.
@@ -503,6 +503,7 @@ the change is provably invisible to one audience.
 | 2026-05-24 | Require dual-track docs in every remaining checkpoint | Documentation should move with the feature slice that changes behavior so README/dedicated Markdown and website docs stay consistent. | Batch all documentation at the end of the plan |
 | 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the E2B-like runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
 | 2026-05-24 | Make the dashboard Dockerfile path a single-file browser upload for the prototype | Browser-created tar+gzip contexts prove the dashboard flow without implementing directory upload complexity; the CLI remains the full multi-file context path. | Add drag-and-drop directory upload before validating the end-to-end product flow |
+| 2026-05-24 | Implement vulnerability scanning as an external webhook hook | Keeps Harakiri scanner-agnostic while persisting scan status/summary on immutable template versions and allowing operators to choose Trivy, Grype, or a custom service later. | Bundle a scanner binary into the builder image; keep only `not_scanned` placeholders |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

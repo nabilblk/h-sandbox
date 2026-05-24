@@ -244,11 +244,18 @@ Template registry configuration is also carried by `harakiri-config`:
   `127.0.0.1:5000`, matching the k0s node import/forwarding setup.
 - `TEMPLATE_REGISTRY_REPOSITORY_PREFIX` scopes generated image names. The
   prototype uses `harakiri/templates`.
+- `TEMPLATE_SCANNER_WEBHOOK_URL` optionally points to an external scanner hook
+  that receives the digest-pinned image/provenance payload before a ready
+  version is inserted.
+- `TEMPLATE_SCANNER_TIMEOUT_MS` defaults to `10000`.
+- `TEMPLATE_SCANNER_FAIL_ON_ERROR=1` makes scanner HTTP errors, timeouts, or
+  invalid responses fail the template build; the default `0` persists
+  `scan_failed` and keeps the ready version usable for manual review.
 
 Inspect the deployed values before debugging a pull or push issue:
 
 ```bash
-kubectl -n harakiri get configmap harakiri-config -o jsonpath='{.data.TEMPLATE_REGISTRY_PUSH_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_RUNTIME_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_REPOSITORY_PREFIX}{"\n"}'
+kubectl -n harakiri get configmap harakiri-config -o jsonpath='{.data.TEMPLATE_REGISTRY_PUSH_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_RUNTIME_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_REPOSITORY_PREFIX}{"\n"}{.data.TEMPLATE_SCANNER_WEBHOOK_URL}{"\n"}'
 kubectl -n harakiri get pods,svc -l app=harakiri-registry
 ```
 
@@ -283,6 +290,31 @@ For an external registry rollout, the operator sequence is:
 5. Run `pnpm smoke:template-build` and verify the resulting
    `template_versions.image_uri` is a digest-pinned reference that OpenSandbox
    can pull.
+
+Scanner webhook payloads are JSON:
+
+```json
+{
+  "buildId": "bld_...",
+  "templateId": "open-agents-dev",
+  "organizationId": "org_...",
+  "sourceType": "dockerfile",
+  "imageUri": "registry.example.com/harakiri/templates/open-agents-dev@sha256:...",
+  "imageDigest": "sha256:...",
+  "provenance": { "builder": "kaniko" }
+}
+```
+
+A scanner should return `2xx` JSON with a `status` field and any summary fields
+that are useful in the dashboard/API:
+
+```json
+{ "status": "clean", "critical": 0, "high": 0 }
+```
+
+Harakiri normalizes the status into `template_versions.scan_status` and stores
+the redacted body as `scan_summary`. Non-2xx responses, timeouts, and malformed
+responses become `scan_failed` unless `TEMPLATE_SCANNER_FAIL_ON_ERROR=1`.
 
 `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG` counts `queued` and `building` records. If
 the limit is hit, cancel stale queued builds or delete abandoned test templates

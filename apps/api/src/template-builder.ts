@@ -35,6 +35,28 @@ type ReadyImage = {
   metadata: Record<string, unknown>;
 };
 
+type TemplateScanHookOptions = {
+  webhookUrl?: string;
+  timeoutMs?: number;
+  failOnError?: boolean;
+  fetchImpl?: typeof fetch;
+};
+
+type TemplateScanInput = {
+  buildId: string;
+  templateId: string;
+  organizationId: string;
+  sourceType: string;
+  imageUri: string;
+  imageDigest: string;
+  provenance: Record<string, unknown>;
+};
+
+type TemplateScanResult = {
+  status: string;
+  summary: Record<string, unknown>;
+};
+
 const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
   source: ready.metadata.source ?? build.source_type,
   sourceType: build.source_type,
@@ -48,6 +70,59 @@ const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
   builder: ready.metadata.builder ?? (build.source_type === "dockerfile" ? "kaniko" : "registry-resolver"),
   registryRepositoryPrefix: config.templateRegistryRepositoryPrefix
 });
+
+const scannerNotConfigured = (): TemplateScanResult => ({
+  status: "not_scanned",
+  summary: { status: "not_scanned", reason: "scanner_not_configured" }
+});
+
+const normalizeScanStatus = (value: unknown) => {
+  if (typeof value !== "string") return "scanned";
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
+  return normalized.slice(0, 64) || "scanned";
+};
+
+const recordFromUnknown = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+
+export const scanTemplateImage = async (input: TemplateScanInput, options: TemplateScanHookOptions = {}): Promise<TemplateScanResult> => {
+  const webhookUrl = options.webhookUrl ?? config.templateScannerWebhookUrl;
+  if (!webhookUrl) return scannerNotConfigured();
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const timeoutMs = options.timeoutMs ?? config.templateScannerTimeoutMs;
+  const failOnError = options.failOnError ?? config.templateScannerFailOnError;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetchImpl(webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+      signal: controller.signal
+    });
+    const text = await response.text();
+    const parsed = text ? JSON.parse(text) : {};
+    const body = recordFromUnknown(parsed);
+    if (!response.ok) {
+      const summary = redactRecord({ status: "scan_failed", reason: "scanner_http_error", statusCode: response.status, body });
+      if (failOnError) throw new Error(`template scanner returned HTTP ${response.status}`);
+      return { status: "scan_failed", summary };
+    }
+    const status = normalizeScanStatus(body.status);
+    return { status, summary: redactRecord({ ...body, status }) };
+  } catch (error) {
+    const message = redactText(error instanceof Error ? error.message : String(error));
+    if (failOnError) throw new Error(`template scanner failed: ${message}`);
+    return {
+      status: "scan_failed",
+      summary: redactRecord({ status: "scan_failed", reason: "scanner_error", error: message })
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -122,8 +197,19 @@ const claimBuild = async (sourceType: "image" | "dockerfile") =>
     }
   });
 
-const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
-  withClient(async (client) => {
+const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
+  const provenance = redactRecord(provenanceFor(build, ready));
+  const scan = await scanTemplateImage({
+    buildId: build.id,
+    templateId: build.template_id,
+    organizationId: build.organization_id,
+    sourceType: build.source_type,
+    imageUri: ready.imageUri,
+    imageDigest: ready.imageDigest,
+    provenance
+  });
+
+  return withClient(async (client) => {
     await client.query("BEGIN");
     try {
       const current = await client.query<{ status: string }>(
@@ -148,7 +234,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
          (id, template_id, organization_id, build_id, version_number, aliases,
           image_uri, image_digest, status, default_entrypoint, cpu_count, memory_mb,
           workdir, default_ports, metadata, provenance, scan_status, scan_summary, promoted_at)
-         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13, $14, 'not_scanned', $15, now())`,
+         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13, $14, $15, $16, now())`,
         [
           versionId,
           build.template_id,
@@ -163,8 +249,9 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
           build.template_workdir,
           build.template_default_ports,
           redactRecord({ ...build.metadata, ...ready.metadata }),
-          redactRecord(provenanceFor(build, ready)),
-          { status: "not_scanned", reason: "scanner_not_configured" }
+          provenance,
+          scan.status,
+          scan.summary
         ]
       );
       await client.query(
@@ -214,6 +301,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
       throw error;
     }
   });
+};
 
 const failBuild = async (build: BuildRow, error: unknown) =>
   withClient(async (client) => {

@@ -125,12 +125,21 @@ Template versions now keep first-class security fields:
 - Dockerfile build metadata: the completed build record stores the Kubernetes
   Job, Pod, Pod UID, namespace, and node name that handled the Kaniko build so
   operators can correlate persisted records with cluster events and logs.
-- `scan_status`: currently `not_scanned` until a scanner hook is configured.
-- `scan_summary`: JSON summary; current builds set
+- `scan_status`: `not_scanned` when no scanner is configured, `scan_failed`
+  when the configured scanner cannot be reached or returns a non-2xx response,
+  or the normalized status returned by the scanner webhook such as `clean`,
+  `vulnerable`, or `blocked`.
+- `scan_summary`: redacted JSON summary returned by the scanner webhook. When
+  no scanner is configured, builds set
   `{ "status": "not_scanned", "reason": "scanner_not_configured" }`.
 
-Scanning/signing integration is still deferred, but the persisted version shape
-is ready for scanner output, SBOM artifact references, and provenance queries.
+Configure `TEMPLATE_SCANNER_WEBHOOK_URL` to enable the hook. The builder posts
+the digest-pinned image URI, image digest, build ID, template ID, organization
+ID, source type, and provenance JSON before inserting the ready version. Set
+`TEMPLATE_SCANNER_FAIL_ON_ERROR=1` only when scanner outages should fail the
+template build. Signing integration and production vulnerability policy
+thresholds are still deferred, but the persisted version shape is ready for
+SBOM artifact references, scanner output, and provenance queries.
 
 ## Visibility
 
