@@ -39,11 +39,11 @@ export const api = {
       body: JSON.stringify(body)
     }),
   logs: (id: string) => request<{ logs: Array<{ ts: string; lvl: string; msg: string; source?: string }> }>(`/v1/sandboxes/${id}/logs`),
-  files: (id: string, path = "/") =>
+  files: (id: string, path?: string) =>
     request<{
       cwd: string;
       files: Array<{ path: string; name: string; type: string; size: number; mode?: string; owner?: string; group?: string; modifiedAt?: string | null }>;
-    }>(`/v1/sandboxes/${id}/files?path=${encodeURIComponent(path)}`),
+    }>(`/v1/sandboxes/${id}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`),
   metrics: (id: string) =>
     request<{ current: { cpu: number; mem: number; diskIo: number; networkOut: number; cpuCount?: number; memTotal?: number }; series: Array<{ ts: string; cpu: number; mem: number }> }>(
       `/v1/sandboxes/${id}/metrics`

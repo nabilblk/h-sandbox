@@ -1379,12 +1379,15 @@ const TerminalPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
 };
 
 const FilesPane = ({ id }: { id: string }) => {
-  const [cwd, setCwd] = useState("/");
+  const [cwd, setCwd] = useState<string | undefined>();
   const [files, setFiles] = useState<any[]>([]);
-  useEffect(() => { api.files(id, cwd).then((r) => { setCwd(r.cwd); setFiles(r.files); }).catch(() => setFiles([])); }, [id, cwd]);
+  const [error, setError] = useState("");
+  useEffect(() => { api.files(id, cwd).then((r) => { setCwd(r.cwd); setFiles(r.files); setError(""); }).catch((err) => { setFiles([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); }); }, [id, cwd]);
   const open = (file: any) => { if (file.type === "directory") setCwd(file.path); };
-  const parent = cwd === "/" ? "/" : cwd.split("/").slice(0, -1).join("/") || "/";
-  return <div className="files-pane"><div className="files-toolbar"><button className="btn btn-sm" onClick={() => setCwd(parent)} disabled={cwd === "/"}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> Up</button><code>{cwd}</code><button className="btn btn-ghost btn-sm" onClick={() => api.files(id, cwd).then((r) => setFiles(r.files))}><Icon name="refresh" size={12} /> Refresh</button></div><div className="files-table card"><div className="files-row files-head"><span>Name</span><span>Kind</span><span>Size</span><span>Modified</span><span>Path</span></div>{files.map((f) => <button key={f.path} className={`files-row ${f.type === "directory" ? "clickable" : ""}`} onClick={() => open(f)}><span className="files-name"><Icon name={f.type === "directory" ? "folder" : "file"} size={13} />{f.name}</span><span><span className="tag">{f.type}</span></span><span className="num">{formatBytes(f.size)}</span><span className="num muted">{formatDateTime(f.modifiedAt)}</span><span className="files-path">{f.path}</span></button>)}</div>{files.length ? null : <div className="empty-state">No files found at this path.</div>}</div>;
+  const current = cwd ?? "/";
+  const parent = current === "/" ? "/" : current.split("/").slice(0, -1).join("/") || "/";
+  const refresh = () => api.files(id, cwd).then((r) => { setCwd(r.cwd); setFiles(r.files); setError(""); }).catch((err) => { setFiles([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); });
+  return <div className="files-pane"><div className="files-toolbar"><button className="btn btn-sm" onClick={() => setCwd(parent)} disabled={current === "/"}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> Up</button><code>{current}</code><button className="btn btn-ghost btn-sm" onClick={refresh}><Icon name="refresh" size={12} /> Refresh</button></div><div className="files-table card"><div className="files-row files-head"><span>Name</span><span>Kind</span><span>Size</span><span>Modified</span><span>Path</span></div>{files.map((f) => <button key={f.path} className={`files-row ${f.type === "directory" ? "clickable" : ""}`} onClick={() => open(f)}><span className="files-name"><Icon name={f.type === "directory" ? "folder" : "file"} size={13} />{f.name}</span><span><span className="tag">{f.type}</span></span><span className="num">{formatBytes(f.size)}</span><span className="num muted">{formatDateTime(f.modifiedAt)}</span><span className="files-path">{f.path}</span></button>)}</div>{files.length ? null : <div className="empty-state">{error || "No files found at this path."}</div>}</div>;
 };
 
 const LogsPane = ({ id }: { id: string }) => {

@@ -269,6 +269,57 @@ test("openSandbox.files lists through execd files/search and synthesizes direct 
   assert.equal(new Headers(searchRequest.init?.headers).get("X-EXECD-ACCESS-TOKEN"), "endpoint-token");
 });
 
+test("openSandbox.files falls back to an execd directory listing when search fails", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
+      return execdEndpointResponse({ "X-EXECD-ACCESS-TOKEN": "endpoint-token" });
+    }
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772/files/search?path=%2F&pattern=*") {
+      return jsonResponse({ code: "RUNTIME_ERROR", message: "error lookup owner" }, { status: 500 });
+    }
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772/command") {
+      return new Response(
+        [
+          'data: {"type":"stdout","text":"d\\t/usr\\t4096\\t755\\troot\\troot\\t1779630000.0\\nf\\t/README.md\\t12\\t644\\troot\\troot\\t1779630001.0"}',
+          ""
+        ].join("\n"),
+        { headers: { "content-type": "text/event-stream" } }
+      );
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.files("osbx-real", "/");
+
+  assert.equal(result.cwd, "/");
+  assert.deepEqual(result.files, [
+    {
+      path: "/usr",
+      name: "usr",
+      type: "directory",
+      size: 4096,
+      mode: "0755",
+      owner: "root",
+      group: "root",
+      modifiedAt: "2026-05-24T13:40:00.000Z"
+    },
+    {
+      path: "/README.md",
+      name: "README.md",
+      type: "file",
+      size: 12,
+      mode: "0644",
+      owner: "root",
+      group: "root",
+      modifiedAt: "2026-05-24T13:40:01.000Z"
+    }
+  ]);
+  assert.equal(requests.filter((request) => request.url.endsWith("/command")).length, 1);
+});
+
 test("openSandbox.metrics reads metrics through the resolved execd endpoint", async () => {
   globalThis.fetch = async (input) => {
     const url = requestUrl(input);

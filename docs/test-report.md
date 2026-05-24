@@ -716,6 +716,21 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm e2e` passed against the upgraded k0s
   deployment. Final cleanup audit showed `live_sandboxes=0`, `ready_routes=0`,
   and `active_smoke_keys=0`.
+- Filesystem panel regression on 2026-05-24: `open-agents-dev` sandboxes now
+  default the filesystem API and UI to the template workdir (`/workspace`) when
+  no path is requested. A deployed probe created `sbx_BQXcGz8lq3`, wrote
+  `/workspace/visible.txt`, and verified `GET /v1/sandboxes/:id/files` returned
+  `cwd=/workspace` with that file. Explicit `path=/` was also verified through
+  the OpenSandbox `execd` directory-listing fallback after `/files/search`
+  failed on a root recursive search. A browser probe opened the deployed UI for
+  `sbx_K7y0PZDLrN`, selected the Filesystem tab, confirmed the toolbar showed
+  `/workspace`, and confirmed `visible.txt` was visible. `pnpm --filter
+  @harakiri/api test` passed with 64 tests, `pnpm --filter @harakiri/api
+  typecheck`, `pnpm --filter @harakiri/web typecheck`, `pnpm typecheck`,
+  `git diff --check`, `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke`,
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:route`, and
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm e2e` passed. Cleanup audit showed
+  `live_sandboxes=0`, `ready_routes=0`, and `active_smoke_keys=0`.
 
 ## CLI Demo
 
@@ -778,8 +793,10 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - PostgreSQL uses local-path storage.
 - Filesystem and metrics panels call OpenSandbox `execd` through endpoint
   resolution. Filesystem directories are synthesized from `files/search`
-  results because the current portable OpenSandbox API searches files rather
-  than exposing a first-class directory listing endpoint.
+  results when possible. For paths where provider search fails, including `/`
+  on the current OpenSandbox image because a recursive search hits system files
+  with unknown owners, Harakiri falls back to an OpenSandbox `execd`
+  directory-listing command rather than Kubernetes pod exec.
 - Runtime logs call OpenSandbox diagnostics when the provider exposes them. The
   upgraded OpenSandbox server returns `501` for the stable scoped diagnostics
   endpoint, so Harakiri falls back to OpenSandbox's deprecated plain-text

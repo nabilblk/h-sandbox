@@ -16,7 +16,10 @@ Harakiri uses OpenSandbox for:
   `execd` `POST /command`.
 - Filesystem metadata: call `execd` `GET /files/search`. Harakiri synthesizes
   immediate directory rows from returned file paths because the current
-  portable OpenSandbox API searches files rather than listing directories.
+  portable OpenSandbox API searches files rather than listing directories. When
+  provider search fails for a path such as `/`, fall back to an OpenSandbox
+  `execd` command that lists immediate directory entries; do not use Kubernetes
+  pod exec.
 - Metrics: call `execd` `GET /metrics`.
 - Sandbox diagnostic logs: call OpenSandbox diagnostics
   `/v1/sandboxes/:id/diagnostics/logs?scope=container` when available, with a

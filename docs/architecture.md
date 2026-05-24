@@ -123,8 +123,11 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew.
 For normal sandbox interaction, it resolves the OpenSandbox `execd` endpoint
 with `GET /v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`, then calls
-`execd` for commands, filesystem search, and metrics using the endpoint URL and
-headers returned by OpenSandbox. Runtime logs come from OpenSandbox diagnostics
+`execd` for commands, filesystem access, and metrics using the endpoint URL and
+headers returned by OpenSandbox. Filesystem access uses OpenSandbox
+`/files/search` first and falls back to an `execd` directory-listing command
+when the provider search endpoint cannot handle a path such as `/`. Runtime logs
+come from OpenSandbox diagnostics
 when available; for OpenSandbox versions where the stable scoped diagnostics API
 returns `501`, Harakiri falls back to the provider's deprecated plain-text
 diagnostics endpoint. Runtime logs are combined with Harakiri control-plane
@@ -174,9 +177,12 @@ The deployed k0s path uses the official OpenSandbox ingress gateway in header/ho
 
 The route smoke suite verifies both the local gateway path and the public Cloudflare Tunnel path. Exact Cloudflare Tunnel host rules for product services take precedence, while the wildcard rule catches generated sandbox route hosts.
 
-Filesystem and metrics panels use OpenSandbox `execd` APIs. Directory display is
-derived from `files/search` results because the current portable OpenSandbox API
-searches files rather than exposing a first-class directory listing endpoint.
+Filesystem and metrics panels use OpenSandbox `execd` APIs. Directory display
+is derived from `files/search` results when possible. Because the current
+portable OpenSandbox API searches files rather than exposing a first-class
+directory listing endpoint, Harakiri falls back to an `execd` directory-listing
+command for paths where provider search fails, such as recursive root searches
+that hit system files with unknown owners.
 Command execution, lifecycle operations, TTL cleanup, diagnostics, metrics, and
 HTTP route proxying are exercised against the live k0s/OpenSandbox deployment.
 

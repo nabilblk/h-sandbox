@@ -925,12 +925,16 @@ export const registerRoutes = async (app: FastifyInstance) => {
   app.get("/v1/sandboxes/:id/files", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { path } = request.query as { path?: string };
-    const sandbox = await query<{ opensandbox_id: string | null }>(
-      "SELECT opensandbox_id FROM sandboxes WHERE id = $1 AND organization_id = $2",
+    const sandbox = await query<{ opensandbox_id: string | null; workdir: string | null }>(
+      `SELECT s.opensandbox_id, COALESCE(v.workdir, t.workdir, '/') AS workdir
+       FROM sandboxes s
+       JOIN templates t ON t.id = s.template_id
+       LEFT JOIN template_versions v ON v.id = s.template_version_id
+       WHERE s.id = $1 AND s.organization_id = $2`,
       [id, request.auth.organizationId]
     );
     if (!sandbox.rowCount) return reply.code(404).send({ error: "sandbox_not_found" });
-    return openSandbox.files(sandbox.rows[0].opensandbox_id, path ?? "/");
+    return openSandbox.files(sandbox.rows[0].opensandbox_id, path ?? sandbox.rows[0].workdir ?? "/");
   });
 
   app.get("/v1/sandboxes/:id/metrics", async (request, reply) => {
