@@ -117,6 +117,16 @@ It must be planned and verified alongside code, not added as a release-afterthou
 Every remaining feature checkpoint must ship with both documentation tracks unless
 the change is provably invisible to one audience.
 
+- A plan item cannot be marked complete until its checkpoint notes identify the
+  documentation outcome for both audiences:
+  - Code documentation: `README.md` for top-level discovery, or a dedicated
+    Markdown file under `docs/` for contributor, operator, API, database,
+    scheduler, builder, routing, deployment, security, or troubleshooting
+    details.
+  - Product documentation: the Harakiri website docs surface for user-facing
+    dashboard, CLI, SDK, template build, template run, route exposure,
+    promotion, errors, and troubleshooting workflows.
+  - If one audience is unaffected, the checkpoint must state that explicitly.
 - Required in every implementation checkpoint:
   1. Code documentation: update `README.md` for top-level contributor/operator
      discovery, or update the relevant dedicated Markdown file under `docs/`
@@ -212,6 +222,21 @@ Use this checklist before marking any remaining plan item complete:
 | Runtime image contract and Open Agents template | `docs/template-runtime-contract.md`, `examples/templates/open-agents-dev/README.md` | Open Agents template guide and user-facing runtime expectations | Sandbox smoke for tools, workspace, terminal, logs/files/metrics, and routes |
 | Public route exposure for template sandboxes | `docs/templates.md`, `docs/api.md`, `docs/runbook.md`, routing notes in `docs/architecture.md` | User-facing route exposure guide and troubleshooting page | k0s route smoke with documented hostname pattern |
 | Registry credentials, cleanup, scanning, retention | `docs/template-security.md`, `docs/runbook.md`, `docs/architecture.md` | Product docs only for user-visible configuration or error recovery | Operator command output and audit/test-report notes |
+| Registry namespace and image publishing | `README.md`, `docs/template-builds.md`, `docs/runbook.md`, `docs/template-security.md` | Product docs explaining what users configure, what image names mean, and how to recover from pull/push errors | Registry credential smoke, Dockerfile build smoke, and deployed website docs path |
+
+### Documentation Checkpoint Format
+Use this format in phase notes, commit summaries, or `docs/test-report.md`
+whenever a remaining task is checked off:
+
+```markdown
+Documentation:
+- Code docs: `README.md`, `docs/template-builds.md`
+- Product docs: Website docs > Templates > Template builds
+- Verification: `pnpm smoke:template-build`, screenshot `/tmp/...png`
+```
+
+This keeps code documentation and product documentation visibly separate while
+making it clear that both were reviewed in the same checkpoint.
 
 ### Code Documentation: README And Dedicated Markdown
 - [x] Repository README updates:
@@ -331,7 +356,7 @@ Use this checklist before marking any remaining plan item complete:
       flows still work.
 
 ### Phase 2: Template Version Data Model
-**Status**: In Progress
+**Status**: Complete
 - [x] Add `template_versions` with immutable version ID, template ID, image URI,
       image digest, build ID, status, aliases, default entrypoint, resources,
       ports, workdir, env schema, metadata, created/promoted timestamps.
@@ -339,7 +364,7 @@ Use this checklist before marking any remaining plan item complete:
       source type, context hash, dockerfile path, build args metadata, log
       storage pointer, image destination, started/completed timestamps, error.
 - [x] Add `template_build_logs` or object-storage-backed log references.
-- [ ] Add `template_registry_credentials` or org-level registry credentials with
+- [x] Add `template_registry_credentials` or org-level registry credentials with
       encrypted secret material and least-privilege pull/push scope.
 - [x] Store `template_version_id` and `template_image_digest` on `sandboxes`.
 - [x] Add indexes for org/template/build status queries used by List and Builds UI.
@@ -365,7 +390,7 @@ Use this checklist before marking any remaining plan item complete:
       public/private/internal templates.
 
 ### Phase 4: k0s Build Infrastructure
-**Status**: In Progress
+**Status**: Complete
 - [x] Choose and deploy a local registry for k0s development, with a clear
       production path for external registries.
 - [x] Deploy Kaniko in k0s as the Kubernetes-native Dockerfile builder.
@@ -377,7 +402,7 @@ Use this checklist before marking any remaining plan item complete:
       `sha256:` digests for the Kubernetes builder.
 - [x] Configure Kaniko cache storage in the local registry so repeated template
       builds can reuse layers.
-- [ ] Configure registry push/pull credentials and namespace isolation.
+- [x] Configure registry push/pull credentials and namespace isolation.
 - [x] Add image digest resolution for existing OCI image imports, and persist
       the digest before the imported version is marked ready.
 - [x] Add image digest capture after Kaniko push, and persist the digest
@@ -544,6 +569,8 @@ Use this checklist before marking any remaining plan item complete:
 | 2026-05-24 | Implement vulnerability scanning as an external webhook hook | Keeps Harakiri scanner-agnostic while persisting scan status/summary on immutable template versions and allowing operators to choose Trivy, Grype, or a custom service later. | Bundle a scanner binary into the builder image; keep only `not_scanned` placeholders |
 | 2026-05-24 | Implement retention as scheduler-owned database cleanup plus builder Job pruning | PostgreSQL is the control-plane source of truth; old logs, contexts, unversioned terminal builds, and unused superseded versions can be cleaned safely without deleting auditable version rows or registry blobs. | Delete registry blobs directly from the scheduler; keep all build artifacts indefinitely |
 | 2026-05-24 | Gate ready template versions on runtime pull preflight | Resolving a digest is not enough; the k0s runtime path must prove it can pull the final image before users receive a ready version. | Wait for the first real sandbox create to reveal pull failures; run registry-only manifest checks |
+| 2026-05-24 | Store registry credentials as encrypted control-plane records plus Kubernetes Secret references | Harakiri needs auditable API-managed credential metadata without returning raw secrets, while Kaniko and runtime pull preflight need least-privilege Kubernetes Secret names for actual image operations. | Store only Kubernetes Secret names; store raw registry tokens in PostgreSQL; use one shared global image pull secret |
+| 2026-05-24 | Publish generated template images under organization-scoped registry namespaces | Teams should not share a flat repository path, and build/cache cleanup plus audit trails need a stable namespace derived from organization ID. | Keep `harakiri/templates/<template>` flat paths; use user-provided repository paths only |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

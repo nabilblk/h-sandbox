@@ -45,6 +45,7 @@ export const config = {
   templateRegistryPushHost: process.env.TEMPLATE_REGISTRY_PUSH_HOST ?? "harakiri-registry.harakiri.svc.cluster.local:5000",
   templateRegistryRuntimeHost: process.env.TEMPLATE_REGISTRY_RUNTIME_HOST ?? "127.0.0.1:5000",
   templateRegistryRepositoryPrefix: process.env.TEMPLATE_REGISTRY_REPOSITORY_PREFIX ?? "harakiri/templates",
+  templateRegistryCredentialKey: process.env.TEMPLATE_REGISTRY_CREDENTIAL_KEY ?? "",
   templateScannerWebhookUrl: process.env.TEMPLATE_SCANNER_WEBHOOK_URL ?? "",
   templateScannerTimeoutMs: Number(process.env.TEMPLATE_SCANNER_TIMEOUT_MS ?? 10_000),
   templateScannerFailOnError: process.env.TEMPLATE_SCANNER_FAIL_ON_ERROR === "1",

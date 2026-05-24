@@ -227,6 +227,43 @@ Supported build list filters are `status`, `q`, `template`, and `limit`. The
 dashboard template detail Config tab uses `template` to show the latest redacted
 build args and metadata for a selected template.
 
+## Registry Credentials
+
+Registry credential records are organization-scoped control-plane metadata for
+private registries and future production push/pull integration. Create or update
+a credential with:
+
+```bash
+curl -X POST "$PUBLIC_API_URL/v1/registry-credentials" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "name": "prod-registry",
+    "registryHost": "registry.example.com",
+    "username": "robot$harakiri",
+    "secret": "token-or-password",
+    "purpose": "push_pull",
+    "repositoryPrefix": "harakiri/templates/org-prod",
+    "pullSecretRef": "prod-registry-pull",
+    "pushSecretRef": "prod-registry-push"
+  }'
+```
+
+Responses never include raw secret material. They include
+`hasEncryptedSecret`, external secret references, `purpose`,
+`repositoryPrefix`, and `lastUsedAt`. Builder push and runtime pull preflight
+lookups update `lastUsedAt` when they select a matching credential. List active
+credentials with
+`GET /v1/registry-credentials`; include revoked credentials with
+`GET /v1/registry-credentials?includeRevoked=1`. Revoke a credential with
+`DELETE /v1/registry-credentials/:id`.
+
+`purpose` is one of `pull`, `push`, or `push_pull`. `repositoryPrefix` is the
+least-privilege registry namespace the credential is expected to cover. The
+local k0s prototype also pushes generated Dockerfile images under
+`<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/<template-id>` so
+team images and Kaniko cache repositories do not share one flat namespace.
+
 Cancel, retry, and promote:
 
 ```bash

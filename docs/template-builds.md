@@ -242,6 +242,11 @@ to `TEMPLATE_REGISTRY_PUSH_HOST`; Harakiri stores the runtime image using
 from the node-local registry. The worker stores the Job name, Pod name, Pod UID,
 namespace, and Kubernetes node name in the build metadata so operators can
 correlate dashboard/API records with cluster logs.
+Generated repositories include an organization namespace:
+`<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/<template-id>`.
+Kaniko cache repositories use the same organization namespace. This keeps team
+images and cache layers separated even when multiple organizations share one
+registry host.
 
 Before a successful build inserts the ready `template_versions` row, the worker
 also creates a short-lived Pod using the digest-pinned runtime image. This

@@ -5,7 +5,8 @@ import { config } from "./config.js";
 import { makeId } from "./crypto.js";
 import { closeDb, withClient } from "./db.js";
 import { kubernetes } from "./kubernetes.js";
-import { resolveImageDigest } from "./registry.js";
+import { normalizeRegistryHost } from "./registry-credentials.js";
+import { parseImageReference, resolveImageDigest } from "./registry.js";
 import { appendBuildLog } from "./build-logs.js";
 import { redactRecord, redactText } from "./redaction.js";
 
@@ -75,6 +76,7 @@ type RuntimePullPreflightInput = {
   buildId: string;
   templateId: string;
   imageUri: string;
+  imagePullSecretRef?: string | null;
 };
 
 type RuntimePullPreflightResult = {
@@ -85,6 +87,15 @@ type RuntimePullPreflightResult = {
   nodeName?: string | null;
   reason?: string | null;
   durationMs?: number;
+};
+
+type RegistryCredentialRef = {
+  id: string;
+  purpose: "pull" | "push" | "push_pull";
+  repositoryPrefix: string;
+  secretRef: string | null;
+  pullSecretRef: string | null;
+  pushSecretRef: string | null;
 };
 
 const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
@@ -214,7 +225,8 @@ const preflightPodFor = (input: RuntimePullPreflightInput, namespace: string): V
         imagePullPolicy: "Always",
         command: ["/bin/sh", "-c", "true"]
       }
-    ]
+    ],
+    imagePullSecrets: input.imagePullSecretRef ? [{ name: input.imagePullSecretRef }] : undefined
   }
 });
 
@@ -279,6 +291,41 @@ export const preflightTemplateImagePull = async (
   }
 };
 
+const registryCredentialForImage = async (
+  organizationId: string,
+  imageRef: string,
+  purpose: "pull" | "push"
+): Promise<RegistryCredentialRef | null> => {
+  let image;
+  try {
+    image = parseImageReference(imageRef);
+  } catch {
+    return null;
+  }
+  const registryHost = normalizeRegistryHost(image.displayRegistry);
+  return withClient(async (client) => {
+    const result = await client.query<RegistryCredentialRef>(
+      `SELECT id, purpose, repository_prefix AS "repositoryPrefix",
+              secret_ref AS "secretRef", pull_secret_ref AS "pullSecretRef",
+              push_secret_ref AS "pushSecretRef"
+       FROM template_registry_credentials
+       WHERE organization_id = $1
+         AND revoked_at IS NULL
+         AND registry_host = $2
+         AND purpose = ANY($3::text[])
+         AND (repository_prefix = '' OR $4 = repository_prefix OR $4 LIKE repository_prefix || '/%')
+       ORDER BY length(repository_prefix) DESC, updated_at DESC
+       LIMIT 1`,
+      [organizationId, registryHost, purpose === "pull" ? ["pull", "push_pull"] : ["push", "push_pull"], image.repository]
+    );
+    const credential = result.rows[0] ?? null;
+    if (credential) {
+      await client.query("UPDATE template_registry_credentials SET last_used_at = now() WHERE id = $1", [credential.id]);
+    }
+    return credential;
+  });
+};
+
 const claimBuild = async (sourceType: "image" | "dockerfile") =>
   withClient(async (client) => {
     await client.query("BEGIN");
@@ -330,14 +377,22 @@ const claimBuild = async (sourceType: "image" | "dockerfile") =>
 
 const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
   await appendBuildLogForBuild(build.id, `preflighting runtime image pull ${ready.imageUri}`);
+  const runtimeCredential = await registryCredentialForImage(build.organization_id, ready.imageUri, "pull");
+  const imagePullSecretRef = runtimeCredential?.pullSecretRef ?? runtimeCredential?.secretRef ?? null;
   const runtimePullPreflight = await preflightTemplateImagePull({
     buildId: build.id,
     templateId: build.template_id,
-    imageUri: ready.imageUri
+    imageUri: ready.imageUri,
+    imagePullSecretRef
   });
   const readyWithPreflight = {
     ...ready,
-    metadata: redactRecord({ ...ready.metadata, runtimePullPreflight })
+    metadata: redactRecord({
+      ...ready.metadata,
+      runtimePullPreflight,
+      runtimePullCredentialId: runtimeCredential?.id ?? null,
+      runtimePullSecretRef: imagePullSecretRef
+    })
   };
   await appendBuildLogForBuild(build.id, runtimePullPreflight.status === "ok" ? `runtime image pull preflight ok in ${runtimePullPreflight.durationMs}ms` : "runtime image pull preflight skipped");
   const provenance = redactRecord(provenanceFor(build, readyWithPreflight));
@@ -504,75 +559,98 @@ const imageImportReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
   };
 };
 
-const buildRepository = (build: BuildRow, host: string) => {
+export const registryNamespaceForOrganization = (organizationId: string) =>
+  `org-${safeRepositoryPart(organizationId).slice(0, 80)}`;
+
+export const buildRepository = (build: Pick<BuildRow, "organization_id" | "template_id">, host: string) => {
   const prefix = safeRepositoryPart(config.templateRegistryRepositoryPrefix);
-  return `${host}/${prefix}/${safeRepositoryPart(build.template_id)}`;
+  return `${host}/${prefix}/${registryNamespaceForOrganization(build.organization_id)}/${safeRepositoryPart(build.template_id)}`;
 };
+
+const buildCacheRepository = (build: Pick<BuildRow, "organization_id">) =>
+  `${config.templateRegistryPushHost}/${safeRepositoryPart(config.templateRegistryRepositoryPrefix)}/${registryNamespaceForOrganization(build.organization_id)}/cache`;
 
 const jobNameFor = (buildId: string) => `hkbld-${safeName(buildId)}`;
 
-const buildJob = (build: BuildRow, pushRef: string, dockerfilePath: string): V1Job => ({
-  apiVersion: "batch/v1",
-  kind: "Job",
-  metadata: {
-    name: jobNameFor(build.id),
-    namespace: config.templateBuilderNamespace,
-    labels: {
-      app: "harakiri-template-build",
-      "harakiri.build": safeName(build.id),
-      "harakiri.template": safeName(build.template_id)
-    }
-  },
-  spec: {
-    backoffLimit: 0,
-    ttlSecondsAfterFinished: 600,
-    template: {
-      metadata: {
-        labels: {
-          app: "harakiri-template-build",
-          "harakiri.build": safeName(build.id),
-          "harakiri.template": safeName(build.template_id)
+export const buildJob = (build: BuildRow, pushRef: string, dockerfilePath: string, pushCredential: RegistryCredentialRef | null): V1Job => {
+  const pushSecretRef = pushCredential?.pushSecretRef ?? pushCredential?.secretRef ?? null;
+  return {
+    apiVersion: "batch/v1",
+    kind: "Job",
+    metadata: {
+      name: jobNameFor(build.id),
+      namespace: config.templateBuilderNamespace,
+      labels: {
+        app: "harakiri-template-build",
+        "harakiri.build": safeName(build.id),
+        "harakiri.template": safeName(build.template_id)
+      }
+    },
+    spec: {
+      backoffLimit: 0,
+      ttlSecondsAfterFinished: 600,
+      template: {
+        metadata: {
+          labels: {
+            app: "harakiri-template-build",
+            "harakiri.build": safeName(build.id),
+            "harakiri.template": safeName(build.template_id)
+          }
+        },
+        spec: {
+          restartPolicy: "Never",
+          volumes: [
+            { name: "workspace", emptyDir: {} },
+            ...(pushSecretRef
+              ? [{
+                  name: "registry-auth",
+                  secret: {
+                    secretName: pushSecretRef,
+                    items: [{ key: ".dockerconfigjson", path: "config.json" }]
+                  }
+                }]
+              : [])
+          ],
+          initContainers: [
+            {
+              name: "context-exporter",
+              image: config.templateBuilderJobImage,
+              imagePullPolicy: "IfNotPresent",
+              command: ["node", "apps/api/dist/template-build-context-exporter.js"],
+              env: [
+                { name: "TEMPLATE_BUILD_ID", value: build.id },
+                { name: "TEMPLATE_CONTEXT_DIR", value: "/workspace/context" }
+              ],
+              envFrom: [{ configMapRef: { name: "harakiri-config" } }, { secretRef: { name: "harakiri-api" } }],
+              volumeMounts: [{ name: "workspace", mountPath: "/workspace" }]
+            }
+          ],
+          containers: [
+            {
+              name: "kaniko",
+              image: config.templateBuilderKanikoImage,
+              args: [
+                "--context=dir:///workspace/context",
+                `--dockerfile=/workspace/context/${dockerfilePath}`,
+                `--destination=${pushRef}`,
+                "--digest-file=/dev/termination-log",
+                "--cache=true",
+                `--cache-repo=${buildCacheRepository(build)}`,
+                "--insecure",
+                `--insecure-registry=${config.templateRegistryPushHost}`,
+                `--skip-tls-verify-registry=${config.templateRegistryPushHost}`
+              ],
+              volumeMounts: [
+                { name: "workspace", mountPath: "/workspace" },
+                ...(pushSecretRef ? [{ name: "registry-auth", mountPath: "/kaniko/.docker", readOnly: true }] : [])
+              ]
+            }
+          ]
         }
-      },
-      spec: {
-        restartPolicy: "Never",
-        volumes: [{ name: "workspace", emptyDir: {} }],
-        initContainers: [
-          {
-            name: "context-exporter",
-            image: config.templateBuilderJobImage,
-            imagePullPolicy: "IfNotPresent",
-            command: ["node", "apps/api/dist/template-build-context-exporter.js"],
-            env: [
-              { name: "TEMPLATE_BUILD_ID", value: build.id },
-              { name: "TEMPLATE_CONTEXT_DIR", value: "/workspace/context" }
-            ],
-            envFrom: [{ configMapRef: { name: "harakiri-config" } }, { secretRef: { name: "harakiri-api" } }],
-            volumeMounts: [{ name: "workspace", mountPath: "/workspace" }]
-          }
-        ],
-        containers: [
-          {
-            name: "kaniko",
-            image: config.templateBuilderKanikoImage,
-            args: [
-              "--context=dir:///workspace/context",
-              `--dockerfile=/workspace/context/${dockerfilePath}`,
-              `--destination=${pushRef}`,
-              "--digest-file=/dev/termination-log",
-              "--cache=true",
-              `--cache-repo=${config.templateRegistryPushHost}/${safeRepositoryPart(config.templateRegistryRepositoryPrefix)}/cache`,
-              "--insecure",
-              `--insecure-registry=${config.templateRegistryPushHost}`,
-              `--skip-tls-verify-registry=${config.templateRegistryPushHost}`
-            ],
-            volumeMounts: [{ name: "workspace", mountPath: "/workspace" }]
-          }
-        ]
       }
     }
-  }
-});
+  };
+};
 
 const podForJob = async (jobName: string) => {
   const pods = await kubernetes.core().listNamespacedPod({
@@ -632,11 +710,13 @@ const dockerfileReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
   const pushRepository = buildRepository(build, config.templateRegistryPushHost);
   const runtimeRepository = buildRepository(build, config.templateRegistryRuntimeHost);
   const pushRef = `${pushRepository}:${tag}`;
+  const pushCredential = await registryCredentialForImage(build.organization_id, pushRef, "push");
+  const pushSecretRef = pushCredential?.pushSecretRef ?? pushCredential?.secretRef ?? null;
   const jobName = jobNameFor(build.id);
   await appendBuildLogForBuild(build.id, `creating Kaniko job ${jobName}`);
   await kubernetes.batch().createNamespacedJob({
     namespace: config.templateBuilderNamespace,
-    body: buildJob(build, pushRef, dockerfilePath)
+    body: buildJob(build, pushRef, dockerfilePath, pushCredential)
   });
   const { digest, pod } = await waitForJobDigest(build, jobName);
   await appendJobLogs(build.id, jobName);
@@ -653,6 +733,9 @@ const dockerfileReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
       contextFileCount: build.context_file_count,
       pushedImage: pushRef,
       runtimeImage: imageUri,
+      registryNamespace: registryNamespaceForOrganization(build.organization_id),
+      registryPushCredentialId: pushCredential?.id ?? null,
+      registryPushSecretRef: pushSecretRef,
       builder: "kaniko",
       ...builderRuntimeMetadata(jobName, pod)
     }

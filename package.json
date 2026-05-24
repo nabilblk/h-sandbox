@@ -31,6 +31,7 @@
     "smoke:template-policy": "bash infra/scripts/template-image-policy-smoke.sh",
     "smoke:template-visibility": "bash infra/scripts/template-visibility-smoke.sh",
     "smoke:template-audit": "bash infra/scripts/template-audit-smoke.sh",
+    "smoke:template-registry-credentials": "bash infra/scripts/template-registry-credentials-smoke.sh",
     "smoke:template-build": "bash infra/scripts/template-build-smoke.sh",
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
     "smoke:route": "bash infra/scripts/route-smoke.sh",

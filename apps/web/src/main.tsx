@@ -1598,11 +1598,11 @@ const docPages: DocPage[] = [
         <h2>Digests</h2>
         <p>Mutable tags can be accepted as input, but ready versions store an immutable image digest and pass runtime pull preflight before production use.</p>
         <h2>Secrets</h2>
-        <p>Registry passwords and build secrets should live in Kubernetes Secrets or an external secret manager. PostgreSQL should store only credential references and redacted metadata.</p>
+        <p>Registry passwords and build secrets should live in Kubernetes Secrets, an external secret manager, or encrypted registry credential records. API responses show only whether an encrypted secret exists plus the configured pull or push Secret references.</p>
         <h2>Runtime metadata</h2>
         <p>Every sandbox create request carries label-safe Harakiri metadata for the sandbox, organization, template, template version, image digest, and current route policy.</p>
         <h2>Image policy</h2>
-        <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run.</p>
+        <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run. Generated Dockerfile images are stored under an organization-scoped registry namespace so teams do not share one flat repository path.</p>
         <h2>Provenance</h2>
         <p>Template versions keep SBOM references, provenance, runtime pull preflight status, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
         <h2>Audit</h2>
@@ -1638,6 +1638,11 @@ const docPages: DocPage[] = [
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
         <h2>Archive</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/archive</code></span>
+        <h2>Registry credentials</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/registry-credentials</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/registry-credentials</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/registry-credentials/:id</code></span>
+        <p>Credential responses include registry host, purpose, repository prefix, Secret references, `lastUsedAt`, and `hasEncryptedSecret`, never the raw registry secret.</p>
       </>
     )
   }

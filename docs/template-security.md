@@ -16,10 +16,12 @@ provenance, and digest checks pass.
 
 ## Registry Credentials
 
-`template_registry_credentials` exists in the schema as the future org-level
-registry credential table. Secret material should never be stored directly in
-PostgreSQL. Store only a `secret_ref` that points to a Kubernetes Secret or
-external secret manager entry.
+`template_registry_credentials` is the org-level registry credential table.
+Records are scoped by `organization_id`, `registry_host`, `purpose`, and
+`repository_prefix`. They may store an external `secret_ref`/pull/push Secret
+name, or encrypted secret material when `TEMPLATE_REGISTRY_CREDENTIAL_KEY` is
+configured. API responses expose only `hasEncryptedSecret`; they never return
+raw secret material or ciphertext.
 
 Minimum requirements:
 
@@ -28,6 +30,15 @@ Minimum requirements:
 - Rotate credentials without changing template IDs.
 - Redact usernames, passwords, tokens, and bearer credentials from logs.
 - Never return secret material through API, CLI, or UI responses.
+- Push generated Dockerfile images and Kaniko cache layers under
+  `<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/...` so team
+  repositories are not flattened into one shared namespace.
+
+Do not pass registry passwords through template build args, metadata, or
+Dockerfile content. Those surfaces are redacted, but they are not credential
+stores. Until the builder and OpenSandbox runtime can consume all credential
+forms directly, private registry support should still be treated as operator
+preconfiguration.
 
 ## Digest Pinning
 

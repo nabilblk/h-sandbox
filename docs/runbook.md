@@ -243,7 +243,11 @@ Template registry configuration is also carried by `harakiri-config`:
   template versions for OpenSandbox to pull. In local development this is
   `127.0.0.1:5000`, matching the k0s node import/forwarding setup.
 - `TEMPLATE_REGISTRY_REPOSITORY_PREFIX` scopes generated image names. The
-  prototype uses `harakiri/templates`.
+  prototype uses `harakiri/templates`; generated Dockerfile images and cache
+  layers are further isolated under `org-<organization-id>/<template-id>`.
+- `TEMPLATE_REGISTRY_CREDENTIAL_KEY` enables encrypted registry-secret storage
+  in PostgreSQL for the credential API. Rotate it through a real secret manager
+  in production; the committed k0s value is development-only.
 - `TEMPLATE_SCANNER_WEBHOOK_URL` optionally points to an external scanner hook
   that receives the digest-pinned image/provenance payload before a ready
   version is inserted.
@@ -287,21 +291,23 @@ credentials:
 - Optional base-image pull credential: scoped to approved private base-image
   namespaces when Dockerfile builds need them.
 - Per-organization namespaces when teams must not see or overwrite each other's
-  images.
+  images. Harakiri generated-image paths include the organization namespace by
+  default.
 
 Do not pass registry passwords through template build args, metadata, or
 Dockerfile content. Those surfaces are redacted, but they are not credential
-stores. The schema reserves `template_registry_credentials` for org-level
-encrypted registry credentials; until that is wired into the builder and
-OpenSandbox runtime, private registry support should be treated as operator
-preconfiguration, not a user-facing template feature.
+stores. `template_registry_credentials` stores org-scoped registry host,
+purpose, repository prefix, external Secret references, and optional encrypted
+secret material. API responses never return raw secret material.
 
 For an external registry rollout, the operator sequence is:
 
 1. Create the registry namespace/repository and least-privilege push/pull
    credentials outside Harakiri.
 2. Configure the builder/Kaniko environment to use the push credential and the
-   OpenSandbox runtime or node image pull path to use the pull credential.
+   OpenSandbox runtime or node image pull path to use the pull credential. Track
+   the control-plane record with `POST /v1/registry-credentials`, including
+   `purpose`, `repositoryPrefix`, `pullSecretRef`, and `pushSecretRef`.
 3. Set `TEMPLATE_REGISTRY_PUSH_HOST`, `TEMPLATE_REGISTRY_RUNTIME_HOST`, and
    `TEMPLATE_REGISTRY_REPOSITORY_PREFIX` to the external registry path.
 4. Add the external registry and repository prefix to
@@ -376,7 +382,8 @@ context, running a Kaniko Job, pushing to the k0s registry, and creating a
 digest-pinned ready template version. New versions also include deferred SBOM,
 provenance, and scan fields. The scheduler prunes old logs, uploaded contexts,
 unversioned terminal build rows, unused superseded versions, and completed
-builder Jobs. Git source builds, production registry credentials, registry blob
+builder Jobs. Registry credential records and Kubernetes Secret references are
+available for production push/pull rollout; Git source builds, registry blob
 garbage collection, and real vulnerability scanning remain part of the active
 custom template execution plan.
 

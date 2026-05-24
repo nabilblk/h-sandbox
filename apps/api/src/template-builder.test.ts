@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import test from "node:test";
-import { builderRuntimeMetadata, preflightTemplateImagePull, runtimePullPreflightState, scanTemplateImage } from "./template-builder.js";
+import { buildJob, buildRepository, builderRuntimeMetadata, preflightTemplateImagePull, registryNamespaceForOrganization, runtimePullPreflightState, scanTemplateImage } from "./template-builder.js";
 
 const readBody = async (request: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -185,6 +185,41 @@ test("preflightTemplateImagePull creates and deletes a disposable pull pod", asy
   assert.equal(deleted.length, 2);
 });
 
+test("preflightTemplateImagePull attaches an image pull secret when provided", async () => {
+  const created: any[] = [];
+  const core = {
+    async createNamespacedPod(input: any) {
+      created.push(input);
+    },
+    async readNamespacedPodStatus() {
+      return {
+        status: {
+          containerStatuses: [
+            {
+              name: "pull",
+              imageID: "docker-pullable://registry.example.com/private/demo@sha256:abc",
+              state: { terminated: { reason: "Completed", exitCode: 0 } }
+            }
+          ]
+        }
+      } as any;
+    },
+    async deleteNamespacedPod() {}
+  };
+
+  await preflightTemplateImagePull(
+    {
+      buildId: "bld_private_pull",
+      templateId: "private-template",
+      imageUri: "registry.example.com/private/demo@sha256:abc",
+      imagePullSecretRef: "private-runtime-pull"
+    },
+    { enabled: true, namespace: "harakiri", timeoutMs: 5000, core, sleepMs: async () => undefined }
+  );
+
+  assert.deepEqual(created[0].body.spec.imagePullSecrets, [{ name: "private-runtime-pull" }]);
+});
+
 test("preflightTemplateImagePull fails on image pull errors", async () => {
   const deleted: any[] = [];
   const core = {
@@ -227,4 +262,45 @@ test("preflightTemplateImagePull can be disabled", async () => {
   );
 
   assert.deepEqual(result, { status: "skipped", reason: "disabled" });
+});
+
+test("buildRepository isolates generated images by organization namespace", () => {
+  const repository = buildRepository(
+    { organization_id: "20d5e937-4664-4e9e-869c-f12c33e3e46c", template_id: "open-agents-dev" } as any,
+    "registry.example.com"
+  );
+
+  assert.equal(registryNamespaceForOrganization("20d5e937-4664-4e9e-869c-f12c33e3e46c"), "org-20d5e937-4664-4e9e-869c-f12c33e3e46c");
+  assert.equal(repository, "registry.example.com/harakiri/templates/org-20d5e937-4664-4e9e-869c-f12c33e3e46c/open-agents-dev");
+});
+
+test("buildJob mounts the push registry credential for Kaniko", () => {
+  const job = buildJob(
+    {
+      id: "bld_private_push",
+      organization_id: "20d5e937-4664-4e9e-869c-f12c33e3e46c",
+      template_id: "open-agents-dev"
+    } as any,
+    "registry.example.com/harakiri/templates/org-20d5e937/open-agents-dev:bld-private-push",
+    "Dockerfile",
+    {
+      id: "11111111-1111-1111-1111-111111111111",
+      purpose: "push_pull",
+      repositoryPrefix: "harakiri/templates/org-20d5e937",
+      secretRef: null,
+      pullSecretRef: "private-pull",
+      pushSecretRef: "private-push"
+    }
+  );
+  const podSpec = job.spec?.template.spec;
+  const kaniko = podSpec?.containers?.find((container) => container.name === "kaniko");
+
+  assert.deepEqual(
+    podSpec?.volumes?.find((volume) => volume.name === "registry-auth")?.secret,
+    { secretName: "private-push", items: [{ key: ".dockerconfigjson", path: "config.json" }] }
+  );
+  assert.deepEqual(
+    kaniko?.volumeMounts?.find((mount) => mount.name === "registry-auth"),
+    { name: "registry-auth", mountPath: "/kaniko/.docker", readOnly: true }
+  );
 });

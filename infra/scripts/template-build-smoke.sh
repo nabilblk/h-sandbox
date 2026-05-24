@@ -124,5 +124,12 @@ if [[ "${PREFLIGHT_STATUS}" != "ok" || "${PREFLIGHT_NAMESPACE}" != "opensandbox"
   echo "template build metadata missing runtime pull preflight for ${BUILD_ID}: ${PREFLIGHT_RUNTIME}" >&2
   exit 1
 fi
+REGISTRY_NAMESPACE_STATE="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \
+  psql -U harakiri -d harakiri -qAtc "select coalesce(metadata->>'registryNamespace', '') || '|' || coalesce(metadata->>'runtimeImage', '') || '|' || coalesce(metadata->>'pushedImage', '') from template_builds where id = '${BUILD_ID}';")"
+IFS='|' read -r REGISTRY_NAMESPACE RUNTIME_IMAGE PUSHED_IMAGE <<<"${REGISTRY_NAMESPACE_STATE}"
+if [[ -z "${REGISTRY_NAMESPACE}" || "${RUNTIME_IMAGE}" != *"/${REGISTRY_NAMESPACE}/"* || "${PUSHED_IMAGE}" != *"/${REGISTRY_NAMESPACE}/"* ]]; then
+  echo "template build metadata missing organization registry namespace for ${BUILD_ID}: ${REGISTRY_NAMESPACE_STATE}" >&2
+  exit 1
+fi
 
 echo "template build smoke passed: ${BUILD_ID} ${SANDBOX_ID}"

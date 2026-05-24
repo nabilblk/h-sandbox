@@ -89,7 +89,9 @@ The schema is in `db/migrations/001_control_plane.sql` and includes:
 - `template_builds`
 - `template_build_contexts`
 - `template_build_logs`
-- `template_registry_credentials`
+- `template_registry_credentials`: org-scoped registry host, purpose,
+  repository prefix, external Secret references, and optional encrypted secret
+  material for private registry integration.
 - `sandboxes`
 - `sandbox_events`
 - `sandbox_routes`

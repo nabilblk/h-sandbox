@@ -64,6 +64,9 @@ pulled by the k0s runtime path. They also carry SBOM/provenance and scan-status
 fields. By default new versions report `not_scanned`; operators can set
 `TEMPLATE_SCANNER_WEBHOOK_URL` to call an external scanner hook and persist the
 returned scan status and summary.
+Generated Dockerfile images are pushed under an organization-scoped repository
+namespace below `TEMPLATE_REGISTRY_REPOSITORY_PREFIX`, and registry credential
+records can be managed through the API without returning secret material.
 The scheduler also enforces retention for old build logs, uploaded build
 contexts, unversioned terminal build rows, unused old template versions, and
 completed builder Jobs. Production hardening still needs registry credentials,

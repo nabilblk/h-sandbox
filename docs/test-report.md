@@ -486,6 +486,34 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   only `[redacted]` markers. Cleanup removed the temporary template and API key;
   post-test audit showed no active `smoke-*` keys, no `redaction-smoke-*`
   templates, `running_sandboxes=0`, and `ready_routes=0`.
+- Template registry credentials and namespace checkpoint on 2026-05-24:
+  documentation: code docs changed in `README.md`, `docs/api.md`,
+  `docs/architecture.md`, `docs/runbook.md`, `docs/template-builds.md`, and
+  `docs/template-security.md`; product docs changed in the website Docs route
+  inside `apps/web/src/main.tsx`. Verification: `pnpm --filter @harakiri/api
+  typecheck`, `pnpm --filter @harakiri/api test` (48 tests), `pnpm --filter
+  @harakiri/web build`, and `git diff --check` passed. `pnpm deploy:k0s`
+  completed, `pnpm ports:restart && pnpm ports:status` reported every forward
+  healthy, the deployed ConfigMap reported
+  `TEMPLATE_REGISTRY_REPOSITORY_PREFIX=harakiri/templates` and
+  `TEMPLATE_REGISTRY_CREDENTIAL_KEY=harakiri-local-registry-credential-key`,
+  and PostgreSQL contained migration
+  `012_template_registry_credentials_controls.sql`. `pnpm
+  smoke:template-registry-credentials` passed with credential
+  `cc0bde8d-8c04-4cac-8620-8ef2884022bf`, verifying encrypted secret storage,
+  redacted API responses, list/delete behavior, and registry credential audit
+  events. `pnpm smoke:template-build` passed with build `bld_wSmwLpZlJNjq`,
+  version `tplv_FkWBYhRSMz6Z`, digest
+  `sha256:48772ba2dd5a3b00ed3cc98c2db21f6b1d6376fe4a39917016a746777f6692f9`,
+  and sandbox `sbx_7L97fWy7c7`; Kaniko pushed to
+  `harakiri/templates/org-20d5e937-4664-4e9e-869c-f12c33e3e46c/...`, runtime
+  pull preflight succeeded in 1039ms, and the sandbox returned
+  `harakiri-built`. A deployed website docs smoke opened
+  `http://127.0.0.1:15173/#docs`, verified "Security model" and "API
+  reference" include encrypted registry credential records, the
+  organization-scoped registry namespace, `/v1/registry-credentials`,
+  `hasEncryptedSecret`, and `lastUsedAt`, then wrote
+  `/tmp/harakiri-registry-credentials-docs.png`.
 - Open Agents template pilot was verified against k0s on 2026-05-24:
   `harakiri template build examples/templates/open-agents-dev` produced build
   `bld_Tv1jbVKB4TAD` and digest
@@ -562,6 +590,6 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
 - Custom template image-import and Dockerfile records are live in the control
   plane and can be completed by the `harakiri-template-builder` worker. Git
-  source builds, production registry credentials, registry blob garbage
-  collection, production scanner policy, and non-root workspace ownership for
-  custom template images remain pending in the active execution plan.
+  source builds, production registry blob garbage collection, production
+  scanner policy, and non-root workspace ownership for custom template images
+  remain pending in the active execution plan.

@@ -9,6 +9,7 @@ import { config } from "./config.js";
 import { createApiKey, makeId } from "./crypto.js";
 import { query, withClient } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
+import { encryptRegistrySecret, normalizeRegistryHost, sanitizedRegistryCredential } from "./registry-credentials.js";
 import { redactRecord, redactText } from "./redaction.js";
 import {
   activeTemplateBuildStatuses,
@@ -81,6 +82,22 @@ const apiKeySchema = z.object({
   name: z.string().min(1).default("cli")
 });
 
+const registryCredentialPurposeSchema = z.enum(["pull", "push", "push_pull"]);
+const registryCredentialSchema = z.object({
+  name: z.string().min(1).max(120),
+  registryHost: z.string().min(1).max(255),
+  username: z.string().max(255).optional(),
+  secretRef: z.string().max(255).optional(),
+  secret: z.string().min(1).max(20000).optional(),
+  purpose: registryCredentialPurposeSchema.default("pull"),
+  repositoryPrefix: z.string().min(1).max(255).default(config.templateRegistryRepositoryPrefix),
+  pullSecretRef: z.string().max(255).optional(),
+  pushSecretRef: z.string().max(255).optional(),
+  metadata: z.record(z.string(), z.unknown()).default({})
+}).refine((value) => value.secretRef || value.secret || value.pullSecretRef || value.pushSecretRef, {
+  message: "registry credentials require an encrypted secret or an external secret reference"
+});
+
 const settingsSchema = z.object({
   name: z.string().min(1).optional(),
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/).optional(),
@@ -146,6 +163,16 @@ const templateBuildSelect = `
          started_at AS "startedAt", completed_at AS "completedAt",
          created_at AS "createdAt", updated_at AS "updatedAt"
   FROM template_builds
+`;
+
+const registryCredentialSelect = `
+  SELECT id, organization_id AS "organizationId", name, registry_host AS "registryHost",
+         username, secret_ref AS "secretRef", purpose, repository_prefix AS "repositoryPrefix",
+         pull_secret_ref AS "pullSecretRef", push_secret_ref AS "pushSecretRef",
+         secret_ciphertext AS "secretCiphertext", metadata,
+         last_used_at AS "lastUsedAt", revoked_at AS "revokedAt",
+         created_at AS "createdAt", updated_at AS "updatedAt"
+  FROM template_registry_credentials
 `;
 
 const redactTemplateBuildRow = <T extends { buildArgs?: Record<string, unknown>; metadata?: Record<string, unknown>; error?: string | null; context?: { metadata?: Record<string, unknown> } | null }>(row: T) => ({
@@ -1055,6 +1082,92 @@ export const registerRoutes = async (app: FastifyInstance) => {
     await query("UPDATE api_keys SET revoked_at = now() WHERE id = $1 AND organization_id = $2", [id, request.auth.organizationId]);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "api_key.revoke", "api_key", id);
     return { ok: true };
+  });
+
+  app.get("/v1/registry-credentials", async (request) => {
+    const { includeRevoked } = request.query as { includeRevoked?: string };
+    const where = includeRevoked === "1" ? "WHERE organization_id = $1" : "WHERE organization_id = $1 AND revoked_at IS NULL";
+    const result = await query(`${registryCredentialSelect} ${where} ORDER BY registry_host ASC, name ASC`, [request.auth.organizationId]);
+    return { credentials: result.rows.map((row) => sanitizedRegistryCredential(row as any)) };
+  });
+
+  app.post("/v1/registry-credentials", async (request, reply) => {
+    const body = registryCredentialSchema.parse(request.body ?? {});
+    const registryHost = normalizeRegistryHost(body.registryHost);
+    let encrypted = null;
+    if (body.secret) {
+      try {
+        encrypted = encryptRegistrySecret(body.secret);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return reply.code(400).send({ error: "registry_credential_encryption_unavailable", message });
+      }
+    }
+    const upserted = await query<{ id: string }>(
+      `INSERT INTO template_registry_credentials
+       (organization_id, name, registry_host, username, secret_ref, purpose,
+        repository_prefix, pull_secret_ref, push_secret_ref, secret_ciphertext,
+        secret_iv, secret_tag, metadata, revoked_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NULL)
+       ON CONFLICT (organization_id, name) DO UPDATE
+         SET registry_host = EXCLUDED.registry_host,
+             username = EXCLUDED.username,
+             secret_ref = EXCLUDED.secret_ref,
+             purpose = EXCLUDED.purpose,
+             repository_prefix = EXCLUDED.repository_prefix,
+             pull_secret_ref = EXCLUDED.pull_secret_ref,
+             push_secret_ref = EXCLUDED.push_secret_ref,
+             secret_ciphertext = COALESCE(EXCLUDED.secret_ciphertext, template_registry_credentials.secret_ciphertext),
+             secret_iv = COALESCE(EXCLUDED.secret_iv, template_registry_credentials.secret_iv),
+             secret_tag = COALESCE(EXCLUDED.secret_tag, template_registry_credentials.secret_tag),
+             metadata = EXCLUDED.metadata,
+             revoked_at = NULL,
+             updated_at = now()
+       RETURNING id`,
+      [
+        request.auth.organizationId,
+        body.name,
+        registryHost,
+        body.username ?? null,
+        body.secretRef ?? null,
+        body.purpose,
+        body.repositoryPrefix,
+        body.pullSecretRef ?? null,
+        body.pushSecretRef ?? null,
+        encrypted?.secretCiphertext ?? null,
+        encrypted?.secretIv ?? null,
+        encrypted?.secretTag ?? null,
+        redactRecord(body.metadata)
+      ]
+    );
+    const result = await query(`${registryCredentialSelect} WHERE id = $1 AND organization_id = $2`, [upserted.rows[0].id, request.auth.organizationId]);
+    const credential = sanitizedRegistryCredential(result.rows[0] as any);
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.registry_credential.upsert", "template_registry_credential", credential.id, {
+      name: credential.name,
+      registryHost: credential.registryHost,
+      purpose: credential.purpose,
+      repositoryPrefix: credential.repositoryPrefix,
+      hasEncryptedSecret: credential.hasEncryptedSecret,
+      secretRef: credential.secretRef,
+      pullSecretRef: credential.pullSecretRef,
+      pushSecretRef: credential.pushSecretRef
+    });
+    return reply.code(201).send({ credential });
+  });
+
+  app.delete("/v1/registry-credentials/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const revoked = await query<{ id: string }>(
+      `UPDATE template_registry_credentials
+       SET revoked_at = COALESCE(revoked_at, now()), updated_at = now()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING id`,
+      [id, request.auth.organizationId]
+    );
+    if (!revoked.rowCount) return reply.code(404).send({ error: "registry_credential_not_found" });
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.registry_credential.revoke", "template_registry_credential", id);
+    const result = await query(`${registryCredentialSelect} WHERE id = $1 AND organization_id = $2`, [id, request.auth.organizationId]);
+    return { credential: sanitizedRegistryCredential(result.rows[0] as any) };
   });
 
   app.get("/v1/usage", async (request) => {
