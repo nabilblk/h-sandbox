@@ -115,18 +115,19 @@ Remaining production work:
 
 ## SBOM, Scanning, And Provenance
 
-The schema should keep room for:
+Template versions now keep first-class security fields:
 
-- SBOM object reference.
-- Vulnerability scan status and summary.
-- Builder identity.
-- Source repository and commit.
-- Build context hash.
-- Image digest and registry.
-- Promotion actor and timestamp.
+- `sbom_ref`: object-store or registry artifact reference for an SBOM when one
+  is produced.
+- `provenance`: JSON describing source type, build ID, template ID,
+  organization ID, image URI, image digest, builder identity, Dockerfile path,
+  and context hash where available.
+- `scan_status`: currently `not_scanned` until a scanner hook is configured.
+- `scan_summary`: JSON summary; current builds set
+  `{ "status": "not_scanned", "reason": "scanner_not_configured" }`.
 
-Scanning/signing can be deferred, but the version metadata should not make those
-fields impossible to add later.
+Scanning/signing integration is still deferred, but the persisted version shape
+is ready for scanner output, SBOM artifact references, and provenance queries.
 
 ## Visibility
 

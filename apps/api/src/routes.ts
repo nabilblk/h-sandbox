@@ -116,6 +116,8 @@ const templateVersionSelect = `
          image_digest AS "imageDigest", status, default_entrypoint AS "defaultEntrypoint",
          cpu_count AS "cpuCount", memory_mb AS "memoryMb", workdir,
          default_ports AS "defaultPorts", env_schema AS "envSchema", metadata,
+         sbom_ref AS "sbomRef", provenance, scan_status AS "scanStatus",
+         scan_summary AS "scanSummary",
          created_at AS "createdAt", promoted_at AS "promotedAt"
   FROM template_versions
 `;
@@ -334,11 +336,19 @@ export const registerRoutes = async (app: FastifyInstance) => {
     );
 
     const versionId = makeId("tplv", 12);
+    const provenance = {
+      source: "template.create",
+      templateId: id,
+      imageUri: body.image,
+      imageDigest: null,
+      builder: "api"
+    };
     await query(
       `INSERT INTO template_versions
        (id, template_id, organization_id, version_number, aliases, image_uri, status,
-        default_entrypoint, cpu_count, memory_mb, workdir, default_ports, metadata, promoted_at)
-       VALUES ($1, $2, $3, 1, ARRAY['latest', 'stable'], $4, 'ready', $5, $6, $7, $8, $9, $10, now())`,
+        default_entrypoint, cpu_count, memory_mb, workdir, default_ports, metadata,
+        provenance, scan_status, scan_summary, promoted_at)
+       VALUES ($1, $2, $3, 1, ARRAY['latest', 'stable'], $4, 'ready', $5, $6, $7, $8, $9, $10, $11, 'not_scanned', $12, now())`,
       [
         versionId,
         id,
@@ -349,7 +359,9 @@ export const registerRoutes = async (app: FastifyInstance) => {
         body.memoryMb,
         body.workdir,
         body.defaultPorts,
-        { source: "template.create" }
+        { source: "template.create" },
+        redactRecord(provenance),
+        { status: "not_scanned", reason: "scanner_not_configured" }
       ]
     );
     await query("UPDATE templates SET latest_version_id = $2, updated_at = now() WHERE id = $1", [id, versionId]);

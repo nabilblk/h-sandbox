@@ -11,7 +11,9 @@ template workflow while keeping the runtime contract portable.
   and runtime family.
 - Template version: immutable runtime selection. A version stores the image URI,
   optional digest, resources, ports, workdir, entrypoint, aliases, build ID, and
-  promoted timestamp.
+  promoted timestamp. Versions also carry SBOM/provenance fields and scan
+  status so runtime images can be audited independently from mutable template
+  definitions.
 - Build record: a control-plane request to build or import an image. Build
   records keep status, source type, Dockerfile path, context hash, build args,
   image destination, digest, error, metadata, and logs.

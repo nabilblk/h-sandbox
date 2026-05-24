@@ -374,7 +374,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Add deny/allow policy for template images, image-import targets, and
       Dockerfile base images.
 - [ ] Add vulnerability scanning hook and persist scan status on versions.
-- [ ] Add SBOM/provenance fields even if scanner/signing integration is deferred.
+- [x] Add SBOM/provenance fields even if scanner/signing integration is deferred.
 - [ ] Add audit events for template create, build, cancel, promote, archive, and
       sandbox creation from a template version.
 - [ ] Add retention policies for old builds, logs, and image versions.

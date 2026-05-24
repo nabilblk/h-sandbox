@@ -792,7 +792,7 @@ const docPages: DocPage[] = [
     section: "Reference",
     title: "Security model",
     lede: "Custom templates are untrusted inputs until the builder, registry, digest, and promotion checks succeed.",
-    toc: ["Visibility", "Digests", "Secrets", "Runtime metadata", "Image policy", "Limits"],
+    toc: ["Visibility", "Digests", "Secrets", "Runtime metadata", "Image policy", "Provenance", "Limits"],
     body: (
       <>
         <h2>Visibility</h2>
@@ -805,6 +805,8 @@ const docPages: DocPage[] = [
         <p>Every sandbox create request carries label-safe Harakiri metadata for the sandbox, organization, template, template version, image digest, and current route policy.</p>
         <h2>Image policy</h2>
         <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run.</p>
+        <h2>Provenance</h2>
+        <p>Template versions keep SBOM references, provenance, scan status, and scan summaries. Until a scanner is connected, new versions are marked `not_scanned` with the reason `scanner_not_configured`.</p>
         <h2>Limits</h2>
         <p>Template CPU, memory, default ports, and active queued/building builds are capped by the workspace policy so one team cannot exhaust builder capacity.</p>
       </>

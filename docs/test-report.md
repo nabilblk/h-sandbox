@@ -158,6 +158,30 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Post-runtime-metadata cleanup audit on 2026-05-24: PostgreSQL reported no
   active `smoke-*` API keys, no running/pending/idle sandboxes, and no active
   routes.
+- Template provenance checkpoint on 2026-05-24: `pnpm test`, `pnpm typecheck`,
+  `pnpm build`, `bash -n infra/scripts/template-build-smoke.sh`, and
+  `git diff --check` passed after adding SBOM/provenance and scan-status fields
+  to `template_versions`. After the final direct-create provenance redaction
+  change, API-scoped typecheck, tests, and build also passed. `pnpm deploy:k0s`
+  rolled out the migration and final API image, then
+  `pnpm ports:restart && pnpm ports:status` reported every forward healthy.
+  `pnpm smoke:template-build` produced build `bld_Irc5TpBi26Pr`, version
+  `tplv_KXoCKfSfB7KW`, digest
+  `sha256:275e67e72da65df11fc9840be2e09f88ca36b38872811f78b144cbf6c5783537`,
+  sandbox `sbx_uPuW837AWL`, and command output `harakiri-built`. The smoke also
+  verified PostgreSQL stored `scan_status=not_scanned`,
+  `provenance.buildId=bld_Irc5TpBi26Pr`, and
+  `scan_summary.reason=scanner_not_configured`.
+- Template provenance regression checkpoint on 2026-05-24: `pnpm smoke` passed
+  after the same deployment, creating `sbx_JIHJDrCu7_`, running the Python agent
+  command, and killing the sandbox. A Playwright browser smoke opened
+  `http://127.0.0.1:15173/#docs`, selected "Security model", verified the
+  deployed product docs include "Provenance" and `scanner_not_configured`, and
+  wrote `/tmp/harakiri-version-provenance-docs.png`.
+- Post-provenance cleanup audit on 2026-05-24: PostgreSQL reported
+  `security_columns=4`, no active smoke API keys, no running/pending/idle
+  sandboxes, no `kaniko-smoke-*` templates, no `runtime-kaniko-smoke-*` sandbox
+  rows, and `ready_routes=0`.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

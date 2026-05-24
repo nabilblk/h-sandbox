@@ -57,10 +57,12 @@ registry digests, and completes Dockerfile builds by launching a Kaniko Job in
 k0s, pushing to the local registry, and recording a digest-pinned ready template
 version. `harakiri template build` follows logs and prints the final build ID,
 template version ID, image digest, duration, and next create command by default;
-use `--no-wait` when a script only needs the queued build ID. Production
-hardening still needs registry credentials, retention, and scanning. The current
-API already enforces configurable template CPU, memory, default-port,
-active-build, and image registry/prefix policy limits tracked in
+use `--no-wait` when a script only needs the queued build ID. Template versions
+also carry SBOM/provenance and scan-status fields; scanner integration is still
+deferred, so new versions report `not_scanned` until a scanner is configured.
+Production hardening still needs registry credentials, retention, and scanning.
+The current API already enforces configurable template CPU, memory,
+default-port, active-build, and image registry/prefix policy limits tracked in
 [docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).
 
 For the implementation contract, read:

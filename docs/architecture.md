@@ -54,8 +54,11 @@ Templates are a separate control-plane subsystem from live sandboxes:
 The currently committed API, CLI, SDK, and dashboard support the definition,
 build-record, context-upload, log, cancel, retry, promote, and version-read
 surfaces. The k0s builder supports image-import digest resolution and
-Dockerfile execution with Kaniko. Git build sources, production registry
-credentials, cleanup policy, and scanning remain tracked follow-up work.
+Dockerfile execution with Kaniko. Template versions carry SBOM references,
+provenance JSON, scan status, and scan summary fields, although the actual
+scanner/signing integration is still deferred. Git build sources, production
+registry credentials, cleanup policy, and scanning remain tracked follow-up
+work.
 
 ## Database
 

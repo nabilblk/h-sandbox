@@ -34,6 +34,20 @@ type ReadyImage = {
   metadata: Record<string, unknown>;
 };
 
+const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
+  source: ready.metadata.source ?? build.source_type,
+  sourceType: build.source_type,
+  buildId: build.id,
+  templateId: build.template_id,
+  organizationId: build.organization_id,
+  imageUri: ready.imageUri,
+  imageDigest: ready.imageDigest,
+  contextHash: build.context_sha256 ?? build.context_hash ?? null,
+  dockerfilePath: build.dockerfile_path,
+  builder: ready.metadata.builder ?? (build.source_type === "dockerfile" ? "kaniko" : "registry-resolver"),
+  registryRepositoryPrefix: config.templateRegistryRepositoryPrefix
+});
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const safeName = (value: string) =>
@@ -118,8 +132,8 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
         `INSERT INTO template_versions
          (id, template_id, organization_id, build_id, version_number, aliases,
           image_uri, image_digest, status, default_entrypoint, cpu_count, memory_mb,
-          workdir, default_ports, metadata, promoted_at)
-         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13, now())`,
+          workdir, default_ports, metadata, provenance, scan_status, scan_summary, promoted_at)
+         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13, $14, 'not_scanned', $15, now())`,
         [
           versionId,
           build.template_id,
@@ -133,7 +147,9 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
           build.template_memory_mb,
           build.template_workdir,
           build.template_default_ports,
-          redactRecord({ ...build.metadata, ...ready.metadata })
+          redactRecord({ ...build.metadata, ...ready.metadata }),
+          redactRecord(provenanceFor(build, ready)),
+          { status: "not_scanned", reason: "scanner_not_configured" }
         ]
       );
       await client.query(

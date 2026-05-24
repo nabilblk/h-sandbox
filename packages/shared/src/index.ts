@@ -39,6 +39,10 @@ export type TemplateVersionSummary = {
   defaultPorts: number[];
   envSchema: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  sbomRef: string | null;
+  provenance: Record<string, unknown>;
+  scanStatus: string;
+  scanSummary: Record<string, unknown>;
   createdAt: string;
   promotedAt: string | null;
 };

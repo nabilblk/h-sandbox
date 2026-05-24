@@ -266,15 +266,16 @@ kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select build_id, sha256, size_bytes, file_count, updated_at from template_build_contexts order by updated_at desc limit 10;"
 
 kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
-  "select id, template_id, aliases, image_uri, image_digest, status from template_versions order by created_at desc limit 10;"
+  "select id, template_id, aliases, image_uri, image_digest, status, scan_status, provenance->>'buildId' as build_id from template_versions order by created_at desc limit 10;"
 ```
 
 The deployed template builder handles `--source image` records by resolving the
 registry digest, and handles Dockerfile records by exporting the uploaded
 context, running a Kaniko Job, pushing to the k0s registry, and creating a
-digest-pinned ready template version. Git source builds, production registry
-credentials, image retention, and scanning remain part of the active custom
-template execution plan.
+digest-pinned ready template version. New versions also include deferred SBOM,
+provenance, and scan fields. Git source builds, production registry credentials,
+image retention, and real vulnerability scanning remain part of the active
+custom template execution plan.
 
 Inspect builder Jobs and logs:
 

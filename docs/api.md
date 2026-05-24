@@ -114,6 +114,11 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/versions \
   -H "x-api-key: $HK_KEY"
 ```
 
+Version responses include security metadata: `sbomRef`, `provenance`,
+`scanStatus`, and `scanSummary`. Until a vulnerability scanner is configured,
+new versions report `scanStatus: "not_scanned"` and a scan summary reason of
+`scanner_not_configured`.
+
 ## Template Builds
 
 Create a build record:

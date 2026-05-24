@@ -25,8 +25,8 @@ Kaniko Kubernetes Job in k0s. Git builds remain future work.
    image, pushes it to the configured registry, and writes the pushed digest to
    the Job termination log.
 8. On success, the worker writes a `ready` `template_versions` row, attaches the
-   build ID, digest, resources, ports, workdir, and metadata, and promotes the
-   desired alias.
+   build ID, digest, resources, ports, workdir, metadata, provenance, deferred
+   scan status, and promotes the desired alias.
 9. Sandbox creation resolves a template reference to the chosen immutable
    version and sends the digest-pinned image to OpenSandbox.
 
@@ -108,6 +108,13 @@ control-plane policy checks.
 - `metadata`
 - `created_at`
 - `updated_at`
+
+`template_versions` also stores security and audit fields:
+
+- `sbom_ref`
+- `provenance`
+- `scan_status`
+- `scan_summary`
 
 ## API
 

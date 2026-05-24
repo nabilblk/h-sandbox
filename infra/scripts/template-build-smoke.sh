@@ -88,4 +88,12 @@ if ! grep -q "harakiri-built" <<<"${RUN_OUTPUT}"; then
   exit 1
 fi
 
+PGPOD="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri get pod -l app=harakiri-postgres -o jsonpath='{.items[0].metadata.name}')"
+VERSION_SECURITY="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \
+  psql -U harakiri -d harakiri -qAtc "select scan_status || '|' || coalesce(provenance->>'buildId', '') || '|' || coalesce(scan_summary->>'reason', '') from template_versions where build_id = '${BUILD_ID}' order by created_at desc limit 1;")"
+if [[ "${VERSION_SECURITY}" != "not_scanned|${BUILD_ID}|scanner_not_configured" ]]; then
+  echo "template version security fields were not populated for ${BUILD_ID}: ${VERSION_SECURITY}" >&2
+  exit 1
+fi
+
 echo "template build smoke passed: ${BUILD_ID} ${SANDBOX_ID}"
