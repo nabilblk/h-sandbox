@@ -107,8 +107,6 @@ const TopNav = ({ go, profile, onSignIn, onSignOut }: { go: (route: Route) => vo
     <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
       <button className="btn btn-ghost" onClick={() => go("landing")} style={{ padding: 0, height: "auto" }}><Brand /></button>
       <div className="links" style={{ marginLeft: 8 }}>
-        <a className="active">Product</a>
-        <a>Customers</a>
         <a onClick={() => go("docs")}>Docs</a>
         <a>Changelog</a>
       </div>
