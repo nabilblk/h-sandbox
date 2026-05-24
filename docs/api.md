@@ -101,7 +101,8 @@ curl http://127.0.0.1:18082/v1/templates \
 
 Template creation returns `422 template_resource_limit_exceeded` when
 `cpuCount`, `memoryMb`, or `defaultPorts` exceed the configured control-plane
-policy.
+policy. It returns `422 template_image_policy_violation` when `image` is denied
+by registry or prefix policy.
 
 Inspect a template and its versions:
 
@@ -129,9 +130,11 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/builds \
 ```
 
 Build creation returns `422 template_resource_limit_exceeded` when the selected
-template exceeds the current resource policy, and `429
-template_build_concurrency_limit_exceeded` when the organization already has
-the maximum number of queued/building template builds.
+template exceeds the current resource policy, `422
+template_image_policy_violation` when an image-import target is denied by
+registry or prefix policy, and `429 template_build_concurrency_limit_exceeded`
+when the organization already has the maximum number of queued/building
+template builds.
 
 The CLI uploads Dockerfile build contexts after creating the build record. API
 clients can use the same endpoint with a tar+gzip archive encoded as base64:
@@ -148,6 +151,10 @@ curl http://127.0.0.1:18082/v1/template-builds/bld_.../context \
     "fileCount": 8
   }'
 ```
+
+Dockerfile contexts are rejected with `422 template_image_policy_violation` when
+a `FROM` image violates the configured registry/prefix policy or uses a dynamic
+`${...}` reference that cannot be checked before build execution.
 
 Import an existing public OCI image. The `harakiri-template-builder` worker will
 resolve the registry digest, write build logs, create a ready template version,

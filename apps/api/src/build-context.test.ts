@@ -4,7 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
-import { decodeBuildContextUpload, extractTarGzipBuildContext, sha256Digest } from "./build-context.js";
+import {
+  decodeBuildContextUpload,
+  dockerfileBaseImages,
+  extractTarGzipBuildContext,
+  readTextFileFromTarGzipBuildContext,
+  sha256Digest
+} from "./build-context.js";
 
 test("decodeBuildContextUpload verifies size and sha256", () => {
   const archive = Buffer.from("build-context");
@@ -90,4 +96,31 @@ test("extractTarGzipBuildContext rejects path traversal", async () => {
   const output = await mkdtemp(join(tmpdir(), "harakiri-context-extract-"));
   const archive = gzipSync(simpleTar("../secret", "nope"));
   await assert.rejects(() => extractTarGzipBuildContext(archive, output), /unsafe build context path/);
+});
+
+test("readTextFileFromTarGzipBuildContext reads the requested Dockerfile", () => {
+  const archive = gzipSync(simpleTar("Dockerfile", "FROM ubuntu:24.04\n"));
+  assert.equal(readTextFileFromTarGzipBuildContext(archive, "Dockerfile"), "FROM ubuntu:24.04\n");
+});
+
+test("dockerfileBaseImages extracts external base images and skips stage aliases", () => {
+  assert.deepEqual(
+    dockerfileBaseImages(`
+      # syntax=docker/dockerfile:1.7
+      FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS base
+      RUN node --version
+      FROM base AS runtime
+      FROM ghcr.io/example/tool@sha256:abc
+    `),
+    [
+      { image: "node:22-bookworm-slim", line: 3, dynamic: false },
+      { image: "ghcr.io/example/tool@sha256:abc", line: 6, dynamic: false }
+    ]
+  );
+});
+
+test("dockerfileBaseImages marks dynamic FROM references", () => {
+  assert.deepEqual(dockerfileBaseImages("ARG BASE_IMAGE\nFROM ${BASE_IMAGE}\n"), [
+    { image: "${BASE_IMAGE}", line: 2, dynamic: true }
+  ]);
 });

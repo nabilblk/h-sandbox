@@ -371,7 +371,8 @@ It must be planned and verified alongside code, not added as a release-afterthou
 **Status**: In Progress
 - [x] Add maximum Dockerfile context upload size limits.
 - [x] Redact build args, env vars, registry credentials, and secrets in logs.
-- [ ] Add deny/allow policy for base images and registries.
+- [x] Add deny/allow policy for template images, image-import targets, and
+      Dockerfile base images.
 - [ ] Add vulnerability scanning hook and persist scan status on versions.
 - [ ] Add SBOM/provenance fields even if scanner/signing integration is deferred.
 - [ ] Add audit events for template create, build, cancel, promote, archive, and

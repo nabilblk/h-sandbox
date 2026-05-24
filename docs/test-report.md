@@ -125,6 +125,26 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `smoke-*` API keys, no running/pending/idle sandboxes, no `limits-smoke-*`,
   `redaction-smoke-*`, or `kaniko-smoke-*` templates, and no residual
   `runtime-kaniko-smoke-*` sandbox rows.
+- Template image policy checkpoint on 2026-05-24: `pnpm test`, `pnpm
+  typecheck`, `pnpm build`, `pnpm deploy:k0s`, and `pnpm ports:restart && pnpm
+  ports:status` passed after adding registry/prefix policy for template images,
+  image-import targets, and Dockerfile `FROM` references. `pnpm
+  smoke:template-policy` verified a disallowed template image and a disallowed
+  Dockerfile base image both returned `422 template_image_policy_violation`
+  with `registry_not_allowed`; the run used build `bld_RXxlQudffuo0`.
+- Post-policy allowed-build regression on 2026-05-24: `pnpm
+  smoke:template-build` passed with build `bld_LOP9MXjryOLD`, version
+  `tplv_o1T_F2_bs-nW`, digest
+  `sha256:a8dcfb032b3a289e7f9fae262c6a1cbd91fd343e6788caf0236a31cfeaedd7af`,
+  sandbox `sbx_ECcuvjlpOu`, and command output `harakiri-built`.
+- Product docs image-policy browser checkpoint on 2026-05-24: a Playwright
+  browser smoke opened `http://127.0.0.1:15173/#docs`, verified the Template
+  Builds and Security Model pages render the new image-policy guidance with no
+  console errors, and wrote `/tmp/harakiri-template-image-policy-docs.png`.
+- Post-policy cleanup audit on 2026-05-24: PostgreSQL reported no active
+  `smoke-*` API keys, no running/pending/idle sandboxes, no
+  `image-policy-smoke-*` or `kaniko-smoke-*` templates, and no residual
+  `runtime-kaniko-smoke-*` sandbox rows.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

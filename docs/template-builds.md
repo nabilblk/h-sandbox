@@ -55,6 +55,8 @@ new build records:
 - `TEMPLATE_MAX_DEFAULT_PORTS`, default `16`
 - `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG`, default `3`, counting `queued` and
   `building` records for the organization
+- `TEMPLATE_IMAGE_ALLOW_REGISTRIES` / `TEMPLATE_IMAGE_DENY_REGISTRIES`
+- `TEMPLATE_IMAGE_ALLOW_PREFIXES` / `TEMPLATE_IMAGE_DENY_PREFIXES`
 
 If a template definition or existing template exceeds the resource policy, the
 API returns `422 template_resource_limit_exceeded` with field-level violations.
@@ -63,6 +65,11 @@ API returns `429 template_build_concurrency_limit_exceeded` with the active coun
 and configured limit. The concurrency check runs inside a PostgreSQL advisory
 transaction lock so simultaneous requests cannot overrun the per-organization
 cap.
+
+Image policy failures return `422 template_image_policy_violation`. Dockerfile
+contexts are inspected for literal `FROM` references before the archive is
+stored; dynamic `FROM ${...}` references are rejected because they bypass
+control-plane policy checks.
 
 ## Stored Fields
 
@@ -178,6 +185,9 @@ behavior for CI or custom polling scripts.
   exceed the configured control-plane policy.
 - `template_build_concurrency_limit_exceeded`: the organization already has the
   maximum number of queued/building template builds.
+- `template_image_policy_violation`: template image, image-import target, or
+  Dockerfile `FROM` reference is denied by registry/prefix policy or uses a
+  dynamic base image reference.
 - Registry push/pull failures: should be stored in `template_builds.error` and
   surfaced by API, CLI, and UI.
 - Secret-bearing messages: build args, metadata, errors, and retained log lines

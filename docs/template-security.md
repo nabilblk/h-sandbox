@@ -87,13 +87,30 @@ before the context is available to the Kubernetes builder.
 
 ## Base Image Policy
 
-The first version can allow arbitrary image references for development. A
-production policy should support:
+The API enforces a configurable image policy before accepting template image
+references, image-import builds, or Dockerfile contexts. The policy covers:
 
-- Allowed registries and base image prefixes.
-- Denied registries, tags, and known-bad image digests.
+- `POST /v1/templates` `image`
+- `POST /v1/templates/:id/builds` when `sourceType=image`
+- Dockerfile `FROM` references during `POST /v1/template-builds/:id/context`
+
+Current policy variables:
+
+- `TEMPLATE_IMAGE_ALLOW_REGISTRIES`
+- `TEMPLATE_IMAGE_DENY_REGISTRIES`
+- `TEMPLATE_IMAGE_ALLOW_PREFIXES`
+- `TEMPLATE_IMAGE_DENY_PREFIXES`
+
+By default, the development deployment allows Docker Hub, `mcr.microsoft.com`,
+`gcr.io`, `ghcr.io`, and the local k0s registry. Dynamic Dockerfile `FROM`
+references such as `FROM ${BASE_IMAGE}` are rejected because the API cannot
+prove they match policy before Kaniko runs.
+
+Remaining production work:
+
 - Optional internal mirror enforcement.
 - Warning or blocking on `latest` base tags.
+- Denied known-bad image digests.
 - Optional vulnerability scan gate before promotion.
 
 ## SBOM, Scanning, And Provenance

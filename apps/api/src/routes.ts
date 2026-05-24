@@ -2,14 +2,19 @@ import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
 import { requireAuth } from "./auth.js";
-import { decodeBuildContextUpload } from "./build-context.js";
+import { decodeBuildContextUpload, dockerfileBaseImages, readTextFileFromTarGzipBuildContext } from "./build-context.js";
 import { appendBuildLog } from "./build-logs.js";
 import { config } from "./config.js";
 import { createApiKey, makeId } from "./crypto.js";
 import { query, withClient } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
 import { redactRecord, redactText } from "./redaction.js";
-import { activeTemplateBuildStatuses, buildConcurrencyLimitExceeded, templateResourceLimitViolations } from "./template-policy.js";
+import {
+  activeTemplateBuildStatuses,
+  buildConcurrencyLimitExceeded,
+  templateImagePolicyViolation,
+  templateResourceLimitViolations
+} from "./template-policy.js";
 import { averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
 
 const createSandboxSchema = z.object({
@@ -145,6 +150,25 @@ const templateResourceLimitPayload = (resources: { cpuCount: number; memoryMb: n
   return { error: "template_resource_limit_exceeded", violations };
 };
 
+const templateImagePolicy = () => ({
+  allowRegistries: config.templateImageAllowRegistries,
+  denyRegistries: config.templateImageDenyRegistries,
+  allowPrefixes: config.templateImageAllowPrefixes,
+  denyPrefixes: config.templateImageDenyPrefixes
+});
+
+const templateImagePolicyPayload = (images: Array<{ image: string; dynamic?: boolean; line?: number }>) => {
+  const policy = templateImagePolicy();
+  const violations = images
+    .map(({ image, dynamic, line }) => {
+      const violation = templateImagePolicyViolation(image, policy, { dynamic });
+      return violation ? { ...violation, ...(line ? { line } : {}) } : null;
+    })
+    .filter(Boolean);
+  if (!violations.length) return null;
+  return { error: "template_image_policy_violation", violations };
+};
+
 const withTemplateBuildSlot = async <T>(organizationId: string, insertBuild: (client: PoolClient) => Promise<T>) =>
   withClient(async (client) => {
     await client.query("BEGIN");
@@ -263,6 +287,8 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const body = templateCreateSchema.parse(request.body ?? {});
     const resourceLimit = templateResourceLimitPayload(body);
     if (resourceLimit) return reply.code(422).send(resourceLimit);
+    const imagePolicy = templateImagePolicyPayload([{ image: body.image }]);
+    if (imagePolicy) return reply.code(422).send(imagePolicy);
     const id = body.id ?? slugFor(body.name);
     const exists = await query("SELECT id FROM templates WHERE id = $1", [id]);
     if (exists.rowCount) return reply.code(409).send({ error: "template_exists", template: id });
@@ -346,6 +372,10 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const body = templateBuildSchema.parse(request.body ?? {});
     const resourceLimit = templateResourceLimitPayload(template);
     if (resourceLimit) return reply.code(422).send(resourceLimit);
+    if (body.sourceType === "image") {
+      const imagePolicy = templateImagePolicyPayload([{ image: body.imageDestination ?? template.image }]);
+      if (imagePolicy) return reply.code(422).send(imagePolicy);
+    }
     const buildArgs = redactRecord(body.buildArgs);
     const metadata = redactRecord(body.metadata);
     const buildId = makeId("bld", 12);
@@ -430,8 +460,8 @@ export const registerRoutes = async (app: FastifyInstance) => {
     return withClient(async (client) => {
       await client.query("BEGIN");
       try {
-        const build = await client.query<{ id: string; source_type: string; status: string }>(
-          `SELECT id, source_type, status
+        const build = await client.query<{ id: string; source_type: string; status: string; dockerfile_path: string | null }>(
+          `SELECT id, source_type, status, dockerfile_path
            FROM template_builds
            WHERE id = $1 AND organization_id = $2
            FOR UPDATE`,
@@ -449,6 +479,23 @@ export const registerRoutes = async (app: FastifyInstance) => {
         if (row.status !== "queued") {
           await client.query("ROLLBACK");
           return reply.code(409).send({ error: "build_context_closed", message: "build context can only be uploaded while a build is queued" });
+        }
+        if (row.source_type === "dockerfile") {
+          let dockerfile;
+          try {
+            dockerfile = readTextFileFromTarGzipBuildContext(context.archive, row.dockerfile_path ?? "Dockerfile");
+          } catch (error) {
+            await client.query("ROLLBACK");
+            const message = error instanceof Error ? error.message : String(error);
+            return reply.code(400).send({ error: "invalid_build_context", message });
+          }
+          const imagePolicy = templateImagePolicyPayload(
+            dockerfileBaseImages(dockerfile).map((base) => ({ image: base.image, dynamic: base.dynamic, line: base.line }))
+          );
+          if (imagePolicy) {
+            await client.query("ROLLBACK");
+            return reply.code(422).send(imagePolicy);
+          }
         }
 
         await client.query(
@@ -534,6 +581,10 @@ export const registerRoutes = async (app: FastifyInstance) => {
     if (!template) return reply.code(404).send({ error: "template_not_found" });
     const resourceLimit = templateResourceLimitPayload(template);
     if (resourceLimit) return reply.code(422).send(resourceLimit);
+    if (row.source_type === "image") {
+      const imagePolicy = templateImagePolicyPayload([{ image: row.image_destination ?? template.image }]);
+      if (imagePolicy) return reply.code(422).send(imagePolicy);
+    }
     const buildId = makeId("bld", 12);
     const slot = await withTemplateBuildSlot(request.auth.organizationId, (client) =>
       client.query(

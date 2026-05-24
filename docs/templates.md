@@ -68,6 +68,11 @@ memory, 16 default ports, and 3 active queued/building template builds per
 organization. Over-limit requests return `template_resource_limit_exceeded` or
 `template_build_concurrency_limit_exceeded`.
 
+Image policy is enforced at the same API boundary. Template image references,
+image-import targets, and Dockerfile `FROM` lines must use allowed registries or
+prefixes. Dynamic Dockerfile bases such as `FROM ${BASE_IMAGE}` are rejected
+until the control plane has a safe way to resolve build args before Kaniko runs.
+
 ## API Workflow
 
 Create or update a template definition:

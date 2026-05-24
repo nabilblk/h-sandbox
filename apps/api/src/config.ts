@@ -1,3 +1,9 @@
+const csv = (value: string | undefined, fallback = "") =>
+  (value ?? fallback)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
 export const config = {
   port: Number(process.env.API_PORT ?? 8080),
   host: process.env.API_HOST ?? "0.0.0.0",
@@ -24,6 +30,13 @@ export const config = {
   templateMaxMemoryMb: Number(process.env.TEMPLATE_MAX_MEMORY_MB ?? 32768),
   templateMaxDefaultPorts: Number(process.env.TEMPLATE_MAX_DEFAULT_PORTS ?? 16),
   templateBuildMaxActivePerOrg: Number(process.env.TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG ?? 3),
+  templateImageAllowRegistries: csv(
+    process.env.TEMPLATE_IMAGE_ALLOW_REGISTRIES,
+    "docker.io,registry-1.docker.io,mcr.microsoft.com,gcr.io,ghcr.io,127.0.0.1:5000,harakiri-registry.harakiri.svc.cluster.local:5000"
+  ),
+  templateImageDenyRegistries: csv(process.env.TEMPLATE_IMAGE_DENY_REGISTRIES),
+  templateImageAllowPrefixes: csv(process.env.TEMPLATE_IMAGE_ALLOW_PREFIXES),
+  templateImageDenyPrefixes: csv(process.env.TEMPLATE_IMAGE_DENY_PREFIXES),
   templateBuildContextMaxBytes: Number(process.env.TEMPLATE_BUILD_CONTEXT_MAX_BYTES ?? 25 * 1024 * 1024),
   templateBuilderNamespace: process.env.TEMPLATE_BUILDER_NAMESPACE ?? "harakiri",
   templateBuilderJobImage: process.env.TEMPLATE_BUILDER_JOB_IMAGE ?? "harakiri-api:dev",

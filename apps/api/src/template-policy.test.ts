@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildConcurrencyLimitExceeded, templateResourceLimitViolations } from "./template-policy.js";
+import { buildConcurrencyLimitExceeded, templateImagePolicyViolation, templateResourceLimitViolations } from "./template-policy.js";
 
 test("templateResourceLimitViolations returns every exceeded resource field", () => {
   assert.deepEqual(
@@ -53,4 +53,49 @@ test("buildConcurrencyLimitExceeded blocks at and above the configured limit", (
   assert.equal(buildConcurrencyLimitExceeded(2, 3), false);
   assert.equal(buildConcurrencyLimitExceeded(3, 3), true);
   assert.equal(buildConcurrencyLimitExceeded(4, 3), true);
+});
+
+test("templateImagePolicyViolation allows configured registries", () => {
+  assert.equal(
+    templateImagePolicyViolation("ubuntu:24.04", {
+      allowRegistries: ["docker.io"],
+      denyRegistries: [],
+      allowPrefixes: [],
+      denyPrefixes: []
+    }),
+    null
+  );
+});
+
+test("templateImagePolicyViolation rejects denied and unlisted registries", () => {
+  assert.equal(
+    templateImagePolicyViolation("localhost:5001/team/image:latest", {
+      allowRegistries: ["docker.io"],
+      denyRegistries: [],
+      allowPrefixes: [],
+      denyPrefixes: []
+    })?.reason,
+    "registry_not_allowed"
+  );
+  assert.equal(
+    templateImagePolicyViolation("docker.io/library/busybox:latest", {
+      allowRegistries: ["docker.io"],
+      denyRegistries: [],
+      allowPrefixes: [],
+      denyPrefixes: ["docker.io/library/busybox"]
+    })?.reason,
+    "denied_prefix"
+  );
+});
+
+test("templateImagePolicyViolation rejects dynamic references before parsing", () => {
+  assert.equal(
+    templateImagePolicyViolation("${BASE_IMAGE}", {
+      allowRegistries: ["docker.io"],
+      denyRegistries: [],
+      allowPrefixes: [],
+      denyPrefixes: []
+    }, { dynamic: true })?.reason,
+    "dynamic_reference"
+  );
 });

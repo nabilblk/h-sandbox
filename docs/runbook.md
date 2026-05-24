@@ -87,6 +87,7 @@ pnpm smoke:ttl
 pnpm smoke:templates
 pnpm smoke:template-redaction
 pnpm smoke:template-limits
+pnpm smoke:template-policy
 pnpm smoke:route
 pnpm smoke:route-ingress
 pnpm e2e
@@ -103,6 +104,8 @@ PostgreSQL did not retain the original secret values.
 `422 template_resource_limit_exceeded` and that the fourth queued build returns
 `429 template_build_concurrency_limit_exceeded` with the default active build
 limit of `3`.
+`pnpm smoke:template-policy` verifies disallowed template images and disallowed
+Dockerfile `FROM` references return `422 template_image_policy_violation`.
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
 
@@ -226,6 +229,10 @@ Template build policy defaults are configured in `harakiri-config`:
 - `TEMPLATE_MAX_MEMORY_MB=32768`
 - `TEMPLATE_MAX_DEFAULT_PORTS=16`
 - `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG=3`
+- `TEMPLATE_IMAGE_ALLOW_REGISTRIES=docker.io,registry-1.docker.io,mcr.microsoft.com,gcr.io,ghcr.io,127.0.0.1:5000,harakiri-registry.harakiri.svc.cluster.local:5000`
+- `TEMPLATE_IMAGE_DENY_REGISTRIES=`
+- `TEMPLATE_IMAGE_ALLOW_PREFIXES=`
+- `TEMPLATE_IMAGE_DENY_PREFIXES=`
 
 `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG` counts `queued` and `building` records. If
 the limit is hit, cancel stale queued builds or delete abandoned test templates
@@ -235,6 +242,11 @@ before enqueueing more work:
 kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select id, template_id, status, created_at from template_builds where status in ('queued', 'building') order by created_at;"
 ```
+
+Image policy is enforced before template create, image-import build create, and
+Dockerfile context storage. If users hit `template_image_policy_violation`,
+inspect the normalized registry/prefix in the API response and adjust the
+allow/deny ConfigMap values deliberately rather than bypassing the policy.
 
 Create a sandbox from a template alias or immutable version:
 

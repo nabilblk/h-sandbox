@@ -44,12 +44,83 @@ export const decodeBuildContextUpload = (body: BuildContextUploadBody, maxBytes:
 };
 
 const blockSize = 512;
+const maxPolicyReadBytes = 256 * 1024;
 
 const headerString = (buffer: Buffer, offset: number, length: number) => buffer.toString("utf8", offset, offset + length).replace(/\0.*$/, "");
 
 const headerOctal = (buffer: Buffer, offset: number, length: number) => {
   const raw = headerString(buffer, offset, length).trim();
   return raw ? Number.parseInt(raw, 8) : 0;
+};
+
+const normalizeTarPath = (value: string) => {
+  const normalized = value
+    .split(/[\\/]+/g)
+    .filter((part) => part && part !== ".")
+    .join("/");
+  if (!normalized || normalized === ".." || normalized.startsWith("../") || normalized.includes("/../") || value.startsWith("/")) {
+    throw new Error(`unsafe build context path: ${value}`);
+  }
+  return normalized;
+};
+
+export const readTextFileFromTarGzipBuildContext = (archive: Buffer, filePath: string, maxBytes = maxPolicyReadBytes) => {
+  const wanted = normalizeTarPath(filePath);
+  const tar = gunzipSync(archive);
+  let offset = 0;
+  while (offset + blockSize <= tar.byteLength) {
+    const header = tar.subarray(offset, offset + blockSize);
+    if (header.every((byte) => byte === 0)) break;
+    const name = headerString(header, 0, 100);
+    const prefix = headerString(header, 345, 155);
+    const typeFlag = headerString(header, 156, 1) || "0";
+    const size = headerOctal(header, 124, 12);
+    const relative = [prefix, name].filter(Boolean).join("/");
+    const normalized = normalizeTarPath(relative);
+    const contentStart = offset + blockSize;
+    const contentEnd = contentStart + size;
+    if (contentEnd > tar.byteLength) throw new Error(`truncated build context file: ${relative}`);
+    if ((typeFlag === "0" || typeFlag === "") && normalized === wanted) {
+      if (size > maxBytes) throw new Error(`${filePath} exceeds ${maxBytes} bytes`);
+      return tar.subarray(contentStart, contentEnd).toString("utf8");
+    }
+    offset = contentStart + Math.ceil(size / blockSize) * blockSize;
+  }
+  throw new Error(`missing build context file: ${filePath}`);
+};
+
+export type DockerfileBaseImage = {
+  image: string;
+  line: number;
+  dynamic: boolean;
+};
+
+export const dockerfileBaseImages = (dockerfile: string): DockerfileBaseImage[] => {
+  const images: DockerfileBaseImage[] = [];
+  const stageAliases = new Set<string>();
+  const lines = dockerfile.split(/\r?\n/);
+  for (const [index, rawLine] of lines.entries()) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const match = line.match(/^FROM\s+(.+)$/i);
+    if (!match) continue;
+
+    const tokens = match[1].split(/\s+/).filter(Boolean);
+    let imageIndex = 0;
+    while (tokens[imageIndex]?.startsWith("--")) imageIndex += 1;
+    const image = tokens[imageIndex];
+    if (!image) continue;
+
+    const aliasIndex = tokens.findIndex((token, tokenIndex) => tokenIndex > imageIndex && token.toLowerCase() === "as");
+    const alias = aliasIndex >= 0 ? tokens[aliasIndex + 1] : "";
+    if (stageAliases.has(image)) {
+      if (alias) stageAliases.add(alias);
+      continue;
+    }
+    if (alias) stageAliases.add(alias);
+    images.push({ image, line: index + 1, dynamic: image.includes("$") });
+  }
+  return images;
 };
 
 export const extractTarGzipBuildContext = async (archive: Buffer, outputDir: string) => {
@@ -66,8 +137,7 @@ export const extractTarGzipBuildContext = async (archive: Buffer, outputDir: str
     const typeFlag = headerString(header, 156, 1) || "0";
     const size = headerOctal(header, 124, 12);
     const relative = [prefix, name].filter(Boolean).join("/");
-    const normalized = relative.split("/").filter((part) => part && part !== ".").join(sep);
-    if (!normalized || normalized.includes(`..${sep}`) || normalized === ".." || relative.startsWith("/")) throw new Error(`unsafe build context path: ${relative}`);
+    const normalized = normalizeTarPath(relative).split("/").join(sep);
     const target = resolve(root, normalized);
     if (!target.startsWith(`${root}${sep}`) && target !== root) throw new Error(`unsafe build context path: ${relative}`);
     const contentStart = offset + blockSize;
