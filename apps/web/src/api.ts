@@ -1,4 +1,4 @@
-import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, Template, TemplateBuildLogEntry, TemplateBuildSummary, UsageSummary } from "@harakiri/shared";
+import type { ApiKeySummary, SandboxRouteSummary, SandboxSummary, Template, TemplateBuildContextSummary, TemplateBuildLogEntry, TemplateBuildSummary, UsageSummary } from "@harakiri/shared";
 import { auth } from "./auth";
 
 const API_URL = import.meta.env.PUBLIC_API_URL ?? import.meta.env.VITE_PUBLIC_API_URL ?? "http://127.0.0.1:18082";
@@ -47,13 +47,39 @@ export const api = {
   exposeRoute: (id: string, body: { port: number; protocol?: "http" | "https" }) =>
     request<{ route: SandboxRouteSummary }>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),
   templates: (params = "") => request<{ templates: Template[]; page?: { total: number; limit: number; offset: number } }>(`/v1/templates${params}`),
+  createTemplate: (body: {
+    id?: string;
+    name: string;
+    description?: string;
+    image?: string;
+    icon?: Template["icon"];
+    tags?: string[];
+    aliases?: string[];
+    visibility?: Template["visibility"];
+    defaultEntrypoint?: string[];
+    cpuCount?: number;
+    memoryMb?: number;
+    workdir?: string;
+    defaultPorts?: number[];
+    runtimeFamily?: string;
+  }) =>
+    request<{ template: Template }>("/v1/templates", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }),
   createTemplateBuild: (id: string, body: { sourceType?: "dockerfile" | "git" | "image"; dockerfilePath?: string; imageDestination?: string; metadata?: Record<string, unknown> } = {}) =>
     request<{ build: TemplateBuildSummary }>(`/v1/templates/${encodeURIComponent(id)}/builds`, {
       method: "POST",
       body: JSON.stringify(body)
     }),
   templateBuilds: (params = "") => request<{ builds: TemplateBuildSummary[] }>(`/v1/template-builds${params}`),
+  templateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}`),
   templateBuildLogs: (id: string) => request<{ logs: TemplateBuildLogEntry[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`),
+  uploadTemplateBuildContext: (id: string, body: { archiveBase64: string; sha256: string; sizeBytes: number; format?: "tar+gzip"; fileCount?: number; metadata?: Record<string, unknown> }) =>
+    request<{ context: TemplateBuildContextSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/context`, {
+      method: "POST",
+      body: JSON.stringify(body)
+    }),
   cancelTemplateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   retryTemplateBuild: (id: string) => request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/retry`, { method: "POST" }),
   promoteTemplateVersion: (id: string, body: { versionId: string; alias?: string }) =>

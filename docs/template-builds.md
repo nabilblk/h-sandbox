@@ -15,6 +15,9 @@ Kaniko Kubernetes Job in k0s. Git builds remain future work.
 4. For Dockerfile builds, the CLI uploads a tar+gzip build context to
    `POST /v1/template-builds/:id/context`; the API verifies size and sha256
    before storing the archive.
+   The dashboard New Template flow uses the same endpoint for browser-created
+   Dockerfile contexts. The browser path currently uploads one `Dockerfile`;
+   use the CLI for multi-file build contexts.
 5. A builder worker claims supported queued records, marks them `building`, and
    streams logs into `template_build_logs`; the CLI follows those logs by
    polling `GET /v1/template-builds/:id/logs` while the build is active.

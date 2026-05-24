@@ -299,6 +299,25 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   killed its sandbox but left a temporary smoke API key; it was revoked through
   the API. Post-test audit showed no active `smoke-*` API keys, `running_sandboxes=0`,
   and `ready_routes=0`.
+- Dashboard New Template checkpoint on 2026-05-24: `pnpm --filter
+  @harakiri/web typecheck`, `pnpm --filter @harakiri/web build`, `pnpm
+  typecheck`, `pnpm test`, and `git diff --check` passed after adding the
+  dashboard New Template modal, browser Dockerfile tar+gzip upload, image
+  import flow, clone/fork flow, `harakiri.toml` preview, and product/repo docs.
+  `pnpm deploy:k0s` completed, `pnpm ports:restart && pnpm ports:status`
+  reported every forward healthy, and a Playwright dashboard smoke logged in
+  through Keycloak at `http://127.0.0.1:15173`, created templates from
+  Dockerfile, existing image, and clone modes, waited for the queued builds,
+  created and ran a sandbox from the Dockerfile-created template, verified the
+  website docs mention New Template and `harakiri.toml`, and wrote
+  `/tmp/harakiri-new-template-dashboard.png`. A subsequent `pnpm
+  smoke:templates` rerun passed for `python-3.12`, `python-3.12-data`, and
+  `node-20` after an earlier transient `fetch failed` run left a sandbox that
+  was explicitly killed.
+- Post-dashboard-New-Template cleanup audit on 2026-05-24: PostgreSQL reported
+  `active_smoke_keys=0`, `live_sandboxes=0`, `ui_new_templates=5`,
+  `ui_new_active_templates=0`, and `ready_routes=0`. The `ui_new_templates`
+  rows are archived build-history records from the dashboard smoke.
 - Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
   `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
   and `pnpm smoke:template-redaction` passed after adding API redaction for

@@ -100,11 +100,11 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [ ] Versions tab with latest/stable aliases and immutable version IDs.
   - [ ] Dockerfile/config tab with redacted build args and env metadata.
   - [ ] Runs tab showing recent sandboxes created from the template version.
-- [ ] New Template flow:
-  - [ ] Create from Dockerfile upload/path.
-  - [ ] Create from existing OCI image reference.
-  - [ ] Clone/fork existing template.
-  - [ ] Preview generated `harakiri.toml`.
+- [x] New Template flow:
+  - [x] Create from Dockerfile upload/path.
+  - [x] Create from existing OCI image reference.
+  - [x] Clone/fork existing template.
+  - [x] Preview generated `harakiri.toml`.
 - [x] Empty states for no templates, no builds, and no selected build.
 - [ ] Add loading/error states for failed build and registry pull failure.
 
@@ -207,7 +207,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
         longer describe the Kubernetes builder as future work.
   - [ ] Add website troubleshooting content for registry pull failures, failed
         builds, route exposure, and mismatched template aliases.
-  - [ ] Link relevant product docs from Templates empty states, build detail
+  - [x] Link relevant product docs from Templates empty states, build detail
         errors, and New Template flow.
 - [ ] Product docs must remain user-facing:
   - [ ] Avoid internal-only implementation detail unless it changes what users
@@ -221,7 +221,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
         running sandbox and public route.
   - [ ] The website explains build failures, registry/image pull failures,
         aliases, and route exposure in product language.
-  - [ ] The Templates UI links users to the relevant website docs from empty,
+  - [x] The Templates UI links users to the relevant website docs from empty,
         failed, and setup-dependent states.
   - [ ] Each remaining user-visible dashboard, CLI, SDK, template build, route,
         or troubleshooting change is reflected in the website docs in the same
@@ -364,7 +364,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Add Kubernetes builder pod and node metadata to Dockerfile build detail.
 - [x] Add build detail panel with log viewer and retry/cancel actions.
 - [x] Wire use-template action to sandbox creation.
-- [ ] Add New Template flow.
+- [x] Add New Template flow.
 - [x] Add design-token-consistent badges, table density, iconography, and empty
       states based on Harakiri's current theme.
 - [ ] Add Playwright screenshot coverage for Templates List, Builds, build
@@ -423,7 +423,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
       build detail where useful.
 - [x] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
       lands and remove wording that says Dockerfile builds are pending.
-- [ ] Add product docs links from the Templates UI where they help users recover
+- [x] Add product docs links from the Templates UI where they help users recover
       from empty states, failed builds, and route setup issues.
 - [x] Add a documentation verification note to `docs/test-report.md` after
       running the Dockerfile builder CLI/API examples against k0s.
@@ -444,6 +444,9 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] k0s smoke test that builds `open-agents-dev`, creates a sandbox, runs
       runtime checks, exposes a route, and deletes the sandbox.
 - [ ] UI Playwright tests for Templates List/Builds and build detail flows.
+- [x] k0s dashboard smoke for New Template Dockerfile upload, existing OCI
+      image import, clone/fork, `harakiri.toml` preview, Dockerfile build,
+      sandbox create/run from the generated template, and website docs coverage.
 - [ ] Regression tests for existing sandbox create/run/kill/routes/TTL flows.
 - [ ] Verify documentation examples against the deployed k0s environment.
 - [ ] Commit and push once deployed and verified in k0s.
@@ -457,6 +460,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 | 2026-05-23 | Include E2B-like List and Builds UI in the first-class backlog | The user explicitly wants the E2B Templates UI experience, and custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
 | 2026-05-24 | Treat documentation as a first-class phase split between repo engineering docs and website product docs | Users need product docs to use templates, while contributors need README and dedicated markdown to operate the build pipeline. | Keep documentation as loose backlog notes only |
 | 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the E2B-like runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
+| 2026-05-24 | Make the dashboard Dockerfile path a single-file browser upload for the prototype | Browser-created tar+gzip contexts prove the dashboard flow without implementing directory upload complexity; the CLI remains the full multi-file context path. | Add drag-and-drop directory upload before validating the end-to-end product flow |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

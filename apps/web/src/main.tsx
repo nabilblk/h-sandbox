@@ -277,6 +277,333 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
   );
 };
 
+const docsPageKey = "harakiri_docs_page";
+const openDocsPage = (pageId: string) => {
+  sessionStorage.setItem(docsPageKey, pageId);
+  location.hash = "docs";
+};
+
+const slugifyTemplateId = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "custom-template";
+
+const parseTemplatePorts = (value: string) =>
+  Array.from(
+    new Set(
+      value
+        .split(/[,\s]+/)
+        .map((item) => Number(item.trim()))
+        .filter((port) => Number.isInteger(port) && port >= 1 && port <= 65535)
+    )
+  );
+
+const splitEntrypoint = (value: string) => value.trim().split(/\s+/).filter(Boolean);
+
+const tomlString = (value: string) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+
+const defaultDockerfile = `FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y python3 python3-pip curl ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace
+CMD ["sleep", "3600"]
+`;
+
+const baseImageFromDockerfile = (dockerfile: string) => {
+  for (const line of dockerfile.split(/\r?\n/)) {
+    const match = line.trim().match(/^FROM\s+(?:--platform=\S+\s+)?([^\s]+)(?:\s+AS\s+\S+)?$/i);
+    if (match?.[1]) return match[1];
+  }
+  return "ubuntu:24.04";
+};
+
+const iconForRuntime = (runtimeFamily: string, ports: number[]): Template["icon"] => {
+  const runtime = runtimeFamily.toLowerCase();
+  if (runtime.includes("python")) return "py";
+  if (runtime.includes("node")) return "node";
+  if (runtime.includes("browser") || ports.includes(3000) || ports.includes(5173)) return "globe";
+  return "file";
+};
+
+type TemplateDraft = {
+  id: string;
+  name: string;
+  visibility: Template["visibility"];
+  cpuCount: number;
+  memoryMb: number;
+  workdir: string;
+  ports: number[];
+  entrypoint: string[];
+  runtimeFamily: string;
+  source: "dockerfile" | "image" | "clone";
+  dockerfilePath: string;
+  image: string;
+  cloneSource?: string;
+};
+
+const generatedTemplateConfig = (draft: TemplateDraft) => [
+  `name = ${tomlString(draft.name)}`,
+  `id = ${tomlString(draft.id)}`,
+  `visibility = ${tomlString(draft.visibility)}`,
+  `runtime_family = ${tomlString(draft.runtimeFamily)}`,
+  `cpu_count = ${draft.cpuCount}`,
+  `memory_mb = ${draft.memoryMb}`,
+  `workdir = ${tomlString(draft.workdir)}`,
+  `ports = [${draft.ports.join(", ")}]`,
+  `start_command = ${tomlString(draft.entrypoint.join(" ") || "sleep 3600")}`,
+  draft.source === "dockerfile" ? `dockerfile = ${tomlString(draft.dockerfilePath)}` : `image = ${tomlString(draft.image)}`,
+  draft.cloneSource ? `clone_source = ${tomlString(draft.cloneSource)}` : ""
+].filter(Boolean).join("\n");
+
+const writeAscii = (target: Uint8Array, offset: number, length: number, value: string) => {
+  for (let index = 0; index < Math.min(length, value.length); index += 1) target[offset + index] = value.charCodeAt(index);
+};
+
+const octal = (value: number, length: number) => value.toString(8).padStart(length - 1, "0").slice(-(length - 1)) + "\0";
+
+const makeTarGzipDockerfile = async (dockerfile: string) => {
+  const compression = (globalThis as typeof globalThis & { CompressionStream?: typeof CompressionStream }).CompressionStream;
+  if (!compression) throw new Error("This browser cannot gzip build contexts. Use the CLI for Dockerfile builds.");
+  const name = "Dockerfile";
+  const file = new TextEncoder().encode(dockerfile);
+  const fileBlocks = Math.ceil(file.length / 512);
+  const tar = new Uint8Array(512 + fileBlocks * 512 + 1024);
+  const header = tar.subarray(0, 512);
+  writeAscii(header, 0, 100, name);
+  writeAscii(header, 100, 8, octal(0o644, 8));
+  writeAscii(header, 108, 8, octal(0, 8));
+  writeAscii(header, 116, 8, octal(0, 8));
+  writeAscii(header, 124, 12, octal(file.length, 12));
+  writeAscii(header, 136, 12, octal(Math.floor(Date.now() / 1000), 12));
+  for (let index = 148; index < 156; index += 1) header[index] = 32;
+  header[156] = "0".charCodeAt(0);
+  writeAscii(header, 257, 6, "ustar\0");
+  writeAscii(header, 263, 2, "00");
+  let checksum = 0;
+  for (const byte of header) checksum += byte;
+  writeAscii(header, 148, 8, checksum.toString(8).padStart(6, "0") + "\0 ");
+  tar.set(file, 512);
+  const stream = new Blob([tar]).stream().pipeThrough(new compression("gzip"));
+  const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const sha256 = `sha256:${Array.from(digest).map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 0x8000) binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  return { archiveBase64: btoa(binary), sha256, sizeBytes: bytes.length };
+};
+
+const NewTemplateModal = ({
+  templates,
+  onClose,
+  onCreate
+}: {
+  templates: Template[];
+  onClose: () => void;
+  onCreate: (template: Template, build?: TemplateBuildSummary | null) => void;
+}) => {
+  const [mode, setMode] = useState<TemplateDraft["source"]>("dockerfile");
+  const [name, setName] = useState(() => `custom-template-${Date.now()}`);
+  const [id, setId] = useState(() => slugifyTemplateId(`custom-template-${Date.now()}`));
+  const [idTouched, setIdTouched] = useState(false);
+  const [description, setDescription] = useState("Custom sandbox template.");
+  const [visibility, setVisibility] = useState<Template["visibility"]>("private");
+  const [cpuCount, setCpuCount] = useState(2);
+  const [memoryMb, setMemoryMb] = useState(2048);
+  const [workdir, setWorkdir] = useState("/workspace");
+  const [ports, setPorts] = useState("3000, 5173");
+  const [entrypoint, setEntrypoint] = useState("sleep 3600");
+  const [runtimeFamily, setRuntimeFamily] = useState("custom");
+  const [image, setImage] = useState("ubuntu:24.04");
+  const [dockerfile, setDockerfile] = useState(defaultDockerfile);
+  const [cloneId, setCloneId] = useState(() => templates.find((template) => template.status !== "archived")?.id ?? "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const selectedClone = templates.find((template) => template.id === cloneId);
+  const parsedPorts = parseTemplatePorts(ports);
+  const draft: TemplateDraft = {
+    id: slugifyTemplateId(id),
+    name: name.trim() || "Custom template",
+    visibility,
+    cpuCount,
+    memoryMb,
+    workdir: workdir.trim() || "/workspace",
+    ports: parsedPorts,
+    entrypoint: splitEntrypoint(entrypoint),
+    runtimeFamily: runtimeFamily.trim() || "custom",
+    source: mode,
+    dockerfilePath: "Dockerfile",
+    image: mode === "dockerfile" ? baseImageFromDockerfile(dockerfile) : mode === "clone" ? selectedClone?.image ?? image : image.trim(),
+    cloneSource: mode === "clone" ? cloneId : undefined
+  };
+
+  useEffect(() => {
+    if (mode !== "clone" || !selectedClone) return;
+    const forkName = `${selectedClone.name} fork`;
+    setName(forkName);
+    if (!idTouched) setId(slugifyTemplateId(`${selectedClone.id}-fork`));
+    setDescription(`Fork of ${selectedClone.id}.`);
+    setCpuCount(selectedClone.cpuCount ?? 2);
+    setMemoryMb(selectedClone.memoryMb ?? 2048);
+    setWorkdir(selectedClone.workdir ?? "/workspace");
+    setPorts((selectedClone.defaultPorts ?? []).join(", "));
+    setRuntimeFamily(selectedClone.runtimeFamily ?? "custom");
+    setImage(selectedClone.image);
+    setEntrypoint((selectedClone.defaultEntrypoint ?? ["sleep", "3600"]).join(" "));
+  }, [mode, cloneId, selectedClone, idTouched]);
+
+  const updateName = (value: string) => {
+    setName(value);
+    if (!idTouched) setId(slugifyTemplateId(value));
+  };
+
+  const submit = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const payload = {
+        id: draft.id,
+        name: draft.name,
+        description: description.trim() || "Custom sandbox template.",
+        image: draft.image,
+        icon: iconForRuntime(draft.runtimeFamily, draft.ports),
+        tags: Array.from(new Set(["custom", draft.runtimeFamily].filter(Boolean))),
+        aliases: [draft.id],
+        visibility: draft.visibility,
+        defaultEntrypoint: draft.entrypoint.length ? draft.entrypoint : ["sleep", "3600"],
+        cpuCount: draft.cpuCount,
+        memoryMb: draft.memoryMb,
+        workdir: draft.workdir,
+        defaultPorts: draft.ports,
+        runtimeFamily: draft.runtimeFamily
+      };
+      const created = await api.createTemplate(payload);
+      let build: TemplateBuildSummary | null = null;
+      if (mode === "dockerfile") {
+        const result = await api.createTemplateBuild(created.template.id, {
+          sourceType: "dockerfile",
+          dockerfilePath: "Dockerfile",
+          metadata: { source: "dashboard", sourceKind: "dockerfile-upload" }
+        });
+        const context = await makeTarGzipDockerfile(dockerfile);
+        await api.uploadTemplateBuildContext(result.build.id, {
+          ...context,
+          format: "tar+gzip",
+          fileCount: 1,
+          metadata: { source: "dashboard", file: "Dockerfile" }
+        });
+        build = (await api.templateBuild(result.build.id)).build;
+      } else {
+        const sourceImage = mode === "clone" ? selectedClone?.image ?? draft.image : draft.image;
+        const result = await api.createTemplateBuild(created.template.id, {
+          sourceType: "image",
+          imageDestination: sourceImage,
+          metadata: { source: "dashboard", sourceKind: mode === "clone" ? "template-clone" : "image-import", cloneSource: selectedClone?.id }
+        });
+        build = result.build;
+      }
+      onCreate(created.template, build);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-wrap" onClick={onClose}>
+      <div className="modal modal-template card" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <h3>New template</h3>
+          <button className="btn btn-ghost btn-sm" onClick={onClose}><Icon name="x" size={12} /></button>
+        </div>
+        <div className="modal-body template-create-body">
+          <div className="template-mode-tabs">
+            {(["dockerfile", "image", "clone"] as const).map((item) => (
+              <button key={item} className={`btn btn-sm ${mode === item ? "active" : ""}`} onClick={() => setMode(item)}>
+                <Icon name={item === "dockerfile" ? "file" : item === "image" ? "box" : "copy"} size={12} /> {item === "dockerfile" ? "Dockerfile" : item === "image" ? "Image" : "Clone"}
+              </button>
+            ))}
+          </div>
+          <div className="template-create-grid">
+            <div className="template-create-form">
+              <div className="template-form-split">
+                <Field label="Name"><input className="input" value={name} onChange={(event) => updateName(event.target.value)} /></Field>
+                <Field label="ID"><input className="input mono" value={id} onChange={(event) => { setIdTouched(true); setId(slugifyTemplateId(event.target.value)); }} /></Field>
+              </div>
+              <Field label="Description"><input className="input" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
+              <div className="template-form-split three">
+                <Field label="Visibility">
+                  <select className="input" value={visibility} onChange={(event) => setVisibility(event.target.value as Template["visibility"])}>
+                    <option value="private">private</option>
+                    <option value="internal">internal</option>
+                    <option value="public">public</option>
+                  </select>
+                </Field>
+                <Field label="CPU"><input className="input mono" type="number" min={1} value={cpuCount} onChange={(event) => setCpuCount(Number(event.target.value))} /></Field>
+                <Field label="Memory MB"><input className="input mono" type="number" min={128} value={memoryMb} onChange={(event) => setMemoryMb(Number(event.target.value))} /></Field>
+              </div>
+              <div className="template-form-split">
+                <Field label="Workdir"><input className="input mono" value={workdir} onChange={(event) => setWorkdir(event.target.value)} /></Field>
+                <Field label="Ports"><input className="input mono" value={ports} onChange={(event) => setPorts(event.target.value)} /></Field>
+              </div>
+              <div className="template-form-split">
+                <Field label="Entrypoint"><input className="input mono" value={entrypoint} onChange={(event) => setEntrypoint(event.target.value)} /></Field>
+                <Field label="Runtime"><input className="input mono" value={runtimeFamily} onChange={(event) => setRuntimeFamily(event.target.value)} /></Field>
+              </div>
+              {mode === "image" ? (
+                <Field label="OCI image"><input className="input mono" value={image} onChange={(event) => setImage(event.target.value)} placeholder="ghcr.io/acme/agent-runtime:latest" /></Field>
+              ) : null}
+              {mode === "clone" ? (
+                <Field label="Source template">
+                  <select className="input" value={cloneId} onChange={(event) => setCloneId(event.target.value)}>
+                    {templates.filter((template) => template.status !== "archived").map((template) => <option key={template.id} value={template.id}>{template.name} ({template.id})</option>)}
+                  </select>
+                </Field>
+              ) : null}
+              {mode === "dockerfile" ? (
+                <>
+                  <Field label="Dockerfile">
+                    <input
+                      className="input"
+                      type="file"
+                      accept=".dockerfile,Dockerfile,text/plain"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void file.text().then(setDockerfile);
+                      }}
+                    />
+                  </Field>
+                  <textarea className="input template-dockerfile mono" spellCheck={false} value={dockerfile} onChange={(event) => setDockerfile(event.target.value)} />
+                </>
+              ) : null}
+            </div>
+            <div className="template-preview">
+              <div className="template-preview-head"><span>harakiri.toml</span><button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(generatedTemplateConfig(draft))}><Icon name="copy" size={12} /></button></div>
+              <pre>{generatedTemplateConfig(draft)}</pre>
+              <div className="template-preview-meta">
+                <span><b>{draft.source}</b> source</span>
+                <span>{draft.ports.length ? `${draft.ports.length} ports` : "no default ports"}</span>
+                <span>{draft.source === "dockerfile" ? `base ${draft.image}` : draft.image}</span>
+              </div>
+            </div>
+          </div>
+          {error ? <div className="template-error">{error}</div> : null}
+        </div>
+        <div className="modal-foot">
+          <button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-ghost" onClick={() => openDocsPage("custom-templates")}>Docs</button>
+          <button className="btn btn-primary" onClick={submit} disabled={loading || !draft.id || !draft.name}>
+            {loading ? <><span className="spinner" /> Creating...</> : <>Create template <Icon name="arrowR" size={11} /></>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const shortDigest = (value?: string | null) => value ? value.replace(/^sha256:/, "").slice(0, 12) : "-";
 const buildDuration = (build: TemplateBuildSummary) => {
   const start = build.startedAt ?? build.createdAt;
@@ -314,6 +641,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [selectedBuild, setSelectedBuild] = useState<TemplateBuildSummary | null>(null);
   const [buildLogs, setBuildLogs] = useState<TemplateBuildLogEntry[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [showNewTemplate, setShowNewTemplate] = useState(false);
 
   const loadTemplates = async () => {
     const params = new URLSearchParams();
@@ -425,6 +753,24 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBusy(null);
     }
   };
+  const handleTemplateCreated = (template: Template, build?: TemplateBuildSummary | null) => {
+    setShowNewTemplate(false);
+    setQ(template.id);
+    setOwner("team");
+    setVisibility("all");
+    setRuntimeFamily("all");
+    setTemplateStatus("active");
+    setTemplates((current) => [template, ...current.filter((item) => item.id !== template.id)]);
+    if (build) {
+      setBuildQ(template.id);
+      setSelectedBuild(build);
+      setBuilds((current) => [build, ...current.filter((item) => item.id !== build.id)]);
+      setTab("builds");
+    } else {
+      setTab("list");
+    }
+    void loadTemplates();
+  };
 
   return (
     <div className="dash-page tmpl-workspace">
@@ -438,6 +784,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
         </div>
         <div className="tmpl-live">
           <button className="btn btn-ghost btn-sm" onClick={() => { loadTemplates(); loadBuilds(); void api.usage().then(setUsage); }}><Icon name="refresh" size={12} /> Refresh</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button>
           <span className="pill live"><span className="dot" /> live</span>
           <span className="num">{usage?.concurrentNow ?? 0}</span>
           <span className="tmpl-live-label">concurrent sandboxes</span>
@@ -495,7 +842,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                 </span>
               </div>
             ))}
-            {templates.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No templates found.</div><div className="sbx-empty-sub">Clear filters or create a template from the CLI.</div></div>}
+            {templates.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No templates found.</div><div className="sbx-empty-sub">Clear filters or create a template from the dashboard.</div><div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button><button className="btn btn-sm" onClick={() => openDocsPage("custom-templates")}>Docs</button></div></div>}
           </div>
         </>
       ) : (
@@ -538,7 +885,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                   </span>
                 </div>
               ))}
-              {builds.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No builds found.</div><div className="sbx-empty-sub">Queue a build from the List tab or use the CLI.</div></div>}
+              {builds.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No builds found.</div><div className="sbx-empty-sub">Queue a build from the List tab or create a template.</div><div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button><button className="btn btn-sm" onClick={() => openDocsPage("template-builds")}>Docs</button></div></div>}
             </div>
             <div className="build-detail card">
               {selectedBuild ? (
@@ -554,6 +901,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                     <span>Node <b>{metadataLabel(selectedBuild.metadata?.builderNodeName)}</b></span>
                     <span>Context <b>{selectedBuild.context ? `${selectedBuild.context.sha256} - ${formatBytes(selectedBuild.context.sizeBytes)} - ${selectedBuild.context.fileCount ?? 0} files` : selectedBuild.contextHash ?? "-"}</b></span>
                   </div>
+                  {selectedBuild.status === "failed" ? <div className="template-error"><span>{selectedBuild.error ?? "Build failed."}</span><button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("template-builds")}>Docs</button></div> : null}
                   <div className="build-log">
                     {buildLogs.length ? buildLogs.map((line) => <div key={line.lineNo}><span className="num">{line.lineNo}</span><span>{line.message}</span></div>) : <div className="muted">No build logs yet. The builder worker has not started this record.</div>}
                   </div>
@@ -565,6 +913,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
           </div>
         </>
       )}
+      {showNewTemplate ? <NewTemplateModal templates={templates} onClose={() => setShowNewTemplate(false)} onCreate={handleTemplateCreated} /> : null}
     </div>
   );
 };
@@ -781,18 +1130,19 @@ const docPages: DocPage[] = [
     section: "Templates",
     title: "Create a custom template",
     lede: "Define an OpenSandbox-compatible runtime once, build it, then create sandboxes by template name or alias.",
-    toc: ["Config", "Build", "Run", "Dashboard"],
+    toc: ["Config", "Dashboard", "Build", "Run"],
     body: (
       <>
         <h2>Config</h2>
         <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile`}</pre>
         <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\nstart_command = "sleep 3600"`}</pre>
+        <h2>Dashboard</h2>
+        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
         <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
-        <h2>Dashboard</h2>
         <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
       </>
     )
@@ -915,7 +1265,10 @@ const docPages: DocPage[] = [
 ];
 
 const Docs = ({ go, profile, onSignIn, onSignOut }: { go: (route: Route) => void; profile?: UserProfile | null; onSignIn: () => void; onSignOut: () => void }) => {
-  const [active, setActive] = useState("quickstart");
+  const [active, setActive] = useState(() => {
+    const requested = sessionStorage.getItem(docsPageKey);
+    return requested && docPages.some((item) => item.id === requested) ? requested : "quickstart";
+  });
   const page = docPages.find((item) => item.id === active) ?? docPages[0];
   const sections = Array.from(new Set(docPages.map((item) => item.section)));
   return (
@@ -927,7 +1280,7 @@ const Docs = ({ go, profile, onSignIn, onSignOut }: { go: (route: Route) => void
             <div key={section}>
               <div className="docs-section-h">{section}</div>
               {docPages.filter((item) => item.section === section).map((item) => (
-                <button key={item.id} className={`docs-link ${item.id === page.id ? "active" : ""}`} onClick={() => setActive(item.id)}>{item.title}</button>
+                <button key={item.id} className={`docs-link ${item.id === page.id ? "active" : ""}`} onClick={() => { sessionStorage.setItem(docsPageKey, item.id); setActive(item.id); }}>{item.title}</button>
               ))}
             </div>
           ))}

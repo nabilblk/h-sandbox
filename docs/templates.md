@@ -78,6 +78,22 @@ Use creates a sandbox, Build queues an image-import build, Builds opens the
 Builds tab filtered to that template, Promote marks the current ready version as
 `stable`, and Archive retires the template from active creation.
 
+The dashboard New Template flow covers the same user-facing sources as the CLI:
+
+- Dockerfile: paste a Dockerfile or choose a local `Dockerfile` in the browser.
+  The web app creates a single-file tar+gzip context, verifies its SHA-256 in
+  the browser, uploads it through `POST /v1/template-builds/:id/context`, and
+  opens the Builds tab on the queued build.
+- Existing OCI image: enter an image reference such as `ubuntu:24.04` or a
+  registry-hosted runtime image. The API stores the template definition and
+  queues an image-import build so the builder can resolve the immutable digest.
+- Clone: select an existing visible template, fork its resources, ports,
+  workdir, entrypoint, runtime family, and image into an organization-owned
+  template, then queue an image-import build for the fork.
+
+Before submit, the dashboard shows the generated `harakiri.toml` preview. Keep
+that preview aligned with CLI examples when adding new template fields.
+
 The API enforces workspace policy before accepting template definitions or
 build records. By default custom templates are capped at 8 vCPU, 32768 MiB
 memory, 16 default ports, and 3 active queued/building template builds per
