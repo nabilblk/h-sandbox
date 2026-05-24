@@ -515,7 +515,7 @@ Use this checklist before marking any remaining plan item complete:
 - [ ] Unit tests for schema helpers, template resolution, build state transitions,
       and CLI config parsing.
 - [x] Unit tests for template resource and build concurrency policy helpers.
-- [ ] API integration tests for template create/build/list/logs/promote and
+- [x] API integration tests for template create/build/list/logs/promote and
       sandbox creation from an immutable template version.
 - [x] k0s smoke test for template visibility authorization: own templates,
       shared platform templates, hidden platform-private templates, hidden

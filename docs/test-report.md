@@ -103,6 +103,13 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Template control-plane smoke was verified locally: template create, queued
   build creation, build list, build logs, retry/cancel/promote endpoints, SDK
   methods, and CLI `template init/list/build/builds/logs/promote/inspect`.
+- Deployed template API integration smoke on 2026-05-24:
+  `pnpm smoke:template-audit` passed with template `audit-smoke-1779603932`,
+  build `bld_xIOr1b4m2RiA`, and sandbox `sbx_NileGT1paz`. The smoke verified
+  template create/get/versions, sandbox creation by immutable template version
+  ID with `sandbox.templateVersionId = tplv_pqARiMBCZ6D4`, build
+  create/cancel/get/list/logs, promote alias resolution, archive behavior, and
+  audit events.
 - `pnpm smoke:templates` passed after the retention deployment, proving
   `python-3.12`, `python-3.12-data`, and `node-20` catalog templates still
   create, execute a version command, and terminate through the live

@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 API_URL="${HARAKIRI_API_URL:-http://127.0.0.1:18082}"
 KUBECONFIG_PATH="${KUBECONFIG:-${ROOT}/infra/k0s/harakiri.kubeconfig}"
 NAME="${HARAKIRI_AUDIT_SMOKE_NAME:-audit-smoke-$(date +%s)}"
+ALIAS="${NAME}-stable"
 TEMP_KEY=0
 SANDBOX_ID=""
 
@@ -47,6 +48,21 @@ if [[ -z "${VERSION_ID}" || "${VERSION_ID}" == "null" ]]; then
   echo "template audit smoke failed: template create did not return latestVersionId" >&2
   exit 1
 fi
+TEMPLATE_GET_RESPONSE="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/templates/${NAME}")"
+TEMPLATE_GET_ID="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.template.id)" "${TEMPLATE_GET_RESPONSE}")"
+if [[ "${TEMPLATE_GET_ID}" != "${NAME}" ]]; then
+  echo "template audit smoke failed: template get returned ${TEMPLATE_GET_ID}" >&2
+  exit 1
+fi
+
+VERSIONS_RESPONSE="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/templates/${NAME}/versions")"
+VERSION_PRESENT="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.versions.some(v => v.id === process.argv[2]) ? '1' : '0')" "${VERSIONS_RESPONSE}" "${VERSION_ID}")"
+if [[ "${VERSION_PRESENT}" != "1" ]]; then
+  echo "template audit smoke failed: template versions did not include ${VERSION_ID}" >&2
+  exit 1
+fi
 
 SANDBOX_RESPONSE="$(curl -fsS \
   -H "x-api-key: ${HARAKIRI_API_KEY}" \
@@ -57,6 +73,11 @@ printf '%s\n' "${SANDBOX_RESPONSE}"
 SANDBOX_ID="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.sandbox.id)" "${SANDBOX_RESPONSE}")"
 if [[ -z "${SANDBOX_ID}" ]]; then
   echo "template audit smoke failed: sandbox create by template version did not return sandbox id" >&2
+  exit 1
+fi
+SANDBOX_TEMPLATE_VERSION="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.sandbox.templateVersionId)" "${SANDBOX_RESPONSE}")"
+if [[ "${SANDBOX_TEMPLATE_VERSION}" != "${VERSION_ID}" ]]; then
+  echo "template audit smoke failed: sandbox did not persist immutable template version ${VERSION_ID}: ${SANDBOX_TEMPLATE_VERSION}" >&2
   exit 1
 fi
 
@@ -72,14 +93,56 @@ if [[ -z "${BUILD_ID}" ]]; then
   exit 1
 fi
 
-curl -fsS -X POST -H "x-api-key: ${HARAKIRI_API_KEY}" \
-  "${API_URL}/v1/template-builds/${BUILD_ID}/cancel" >/dev/null
+CANCEL_RESPONSE="$(curl -fsS -X POST -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/template-builds/${BUILD_ID}/cancel")"
+CANCELED_STATUS="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.build.status)" "${CANCEL_RESPONSE}")"
+if [[ "${CANCELED_STATUS}" != "canceled" ]]; then
+  echo "template audit smoke failed: build cancel did not return canceled status" >&2
+  exit 1
+fi
 
-curl -fsS -X POST \
+BUILD_GET_RESPONSE="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/template-builds/${BUILD_ID}")"
+BUILD_GET_STATUS="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.build.status)" "${BUILD_GET_RESPONSE}")"
+if [[ "${BUILD_GET_STATUS}" != "canceled" ]]; then
+  echo "template audit smoke failed: build get did not return canceled status" >&2
+  exit 1
+fi
+
+BUILD_LIST_RESPONSE="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/template-builds?q=${BUILD_ID}&template=${NAME}")"
+BUILD_LIST_COUNT="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.builds.filter(b => b.id === process.argv[2]).length)" "${BUILD_LIST_RESPONSE}" "${BUILD_ID}")"
+if [[ "${BUILD_LIST_COUNT}" != "1" ]]; then
+  echo "template audit smoke failed: build list did not include ${BUILD_ID}" >&2
+  exit 1
+fi
+
+BUILD_LOGS_RESPONSE="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/template-builds/${BUILD_ID}/logs")"
+BUILD_LOGS_IS_ARRAY="$(node -e "const r=JSON.parse(process.argv[1]); console.log(Array.isArray(r.logs) ? '1' : '0')" "${BUILD_LOGS_RESPONSE}")"
+if [[ "${BUILD_LOGS_IS_ARRAY}" != "1" ]]; then
+  echo "template audit smoke failed: build logs response is not an array" >&2
+  exit 1
+fi
+
+PROMOTE_RESPONSE="$(curl -fsS -X POST \
   -H "x-api-key: ${HARAKIRI_API_KEY}" \
   -H "content-type: application/json" \
-  -d "{\"versionId\":\"${VERSION_ID}\",\"alias\":\"audit-stable\"}" \
-  "${API_URL}/v1/templates/${NAME}/promote" >/dev/null
+  -d "{\"versionId\":\"${VERSION_ID}\",\"alias\":\"${ALIAS}\"}" \
+  "${API_URL}/v1/templates/${NAME}/promote")"
+PROMOTED_VERSION="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.template.latestVersionId)" "${PROMOTE_RESPONSE}")"
+if [[ "${PROMOTED_VERSION}" != "${VERSION_ID}" ]]; then
+  echo "template audit smoke failed: promote did not return version ${VERSION_ID}" >&2
+  exit 1
+fi
+
+ALIAS_RESPONSE="$(curl -fsS -H "x-api-key: ${HARAKIRI_API_KEY}" \
+  "${API_URL}/v1/templates/${ALIAS}")"
+ALIAS_VERSION="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.template.latestVersionId)" "${ALIAS_RESPONSE}")"
+if [[ "${ALIAS_VERSION}" != "${VERSION_ID}" ]]; then
+  echo "template audit smoke failed: promoted alias did not resolve to ${VERSION_ID}" >&2
+  exit 1
+fi
 
 curl -fsS -X POST -H "x-api-key: ${HARAKIRI_API_KEY}" \
   "${API_URL}/v1/templates/${NAME}/archive" >/dev/null
