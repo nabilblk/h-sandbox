@@ -117,6 +117,19 @@ It must be planned and verified alongside code, not added as a release-afterthou
 Every remaining feature checkpoint must ship with both documentation tracks unless
 the change is provably invisible to one audience.
 
+- Required in every implementation checkpoint:
+  1. Code documentation: update `README.md` for top-level contributor/operator
+     discovery, or update the relevant dedicated Markdown file under `docs/`
+     when the change is specific to API, CLI, database, scheduler, builder,
+     routing, deployment, security, or operations.
+  2. Product documentation: update the website docs surface for the
+     user-facing workflow, including dashboard behavior, CLI/SDK usage,
+     template creation/building/running, public routes, promotion, errors, and
+     troubleshooting.
+  3. Evidence: record the command, API payload, UI path, screenshot, or route
+     used to verify the documented behavior in `docs/test-report.md`.
+- A checkpoint can skip one track only when the summary explicitly states why
+  that audience is unaffected.
 - Mandatory documentation outputs:
   - Repo/code documentation: update `README.md` for top-level discovery when the
     workflow changes, and update the relevant dedicated Markdown under `docs/`
