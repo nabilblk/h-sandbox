@@ -83,6 +83,14 @@ curl "$(harakiri routes sbx_... | awk '/3000/ {print $4; exit}')"
 
 ## OpenSandbox Integration
 
+Before a build-produced template version is marked ready, Harakiri runs runtime
+pull preflight with the final digest-pinned image. The preflight creates a
+short-lived Pod in the configured namespace and fails the build on image-pull
+errors or timeout. This proves the k0s runtime path can pull the image, but it
+does not replace the sandbox smoke checks below because an image can pull
+successfully and still fail OpenSandbox bootstrap if required userland tools are
+missing.
+
 When a sandbox is created, Harakiri should pass:
 
 - Image URI, preferably digest-pinned.

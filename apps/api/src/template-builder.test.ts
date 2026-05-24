@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import test from "node:test";
-import { builderRuntimeMetadata, scanTemplateImage } from "./template-builder.js";
+import { builderRuntimeMetadata, preflightTemplateImagePull, runtimePullPreflightState, scanTemplateImage } from "./template-builder.js";
 
 const readBody = async (request: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -117,4 +117,114 @@ test("scanTemplateImage can gate builds when failOnError is enabled", async () =
   } finally {
     await scanner.close();
   }
+});
+
+test("runtimePullPreflightState treats post-pull container start errors as a successful pull", () => {
+  const state = runtimePullPreflightState({
+    status: {
+      containerStatuses: [
+        {
+          name: "pull",
+          state: { waiting: { reason: "CreateContainerError", message: "shell not found" } }
+        }
+      ]
+    }
+  } as any);
+
+  assert.equal(state.done, true);
+  assert.equal(state.ok, true);
+  assert.equal(state.reason, "CreateContainerError");
+});
+
+test("preflightTemplateImagePull creates and deletes a disposable pull pod", async () => {
+  const created: any[] = [];
+  const deleted: any[] = [];
+  const reads = [
+    { status: { phase: "Pending" } },
+    {
+      spec: { nodeName: "k0s-worker-1" },
+      status: {
+        containerStatuses: [
+          {
+            name: "pull",
+            imageID: "docker-pullable://127.0.0.1:5000/harakiri/templates/demo@sha256:abc",
+            state: { terminated: { reason: "Error", exitCode: 127 } }
+          }
+        ]
+      }
+    }
+  ];
+  const core = {
+    async createNamespacedPod(input: any) {
+      created.push(input);
+    },
+    async readNamespacedPodStatus() {
+      return reads.shift() as any;
+    },
+    async deleteNamespacedPod(input: any) {
+      deleted.push(input);
+    }
+  };
+
+  const result = await preflightTemplateImagePull(
+    {
+      buildId: "bld_preflight",
+      templateId: "open-agents-dev",
+      imageUri: "127.0.0.1:5000/harakiri/templates/demo@sha256:abc"
+    },
+    { enabled: true, namespace: "harakiri", timeoutMs: 5000, core, sleepMs: async () => undefined }
+  );
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.namespace, "harakiri");
+  assert.equal(result.podName, "hkpull-bld-preflight");
+  assert.equal(result.nodeName, "k0s-worker-1");
+  assert.equal(created.length, 1);
+  assert.equal(created[0].body.spec.containers[0].image, "127.0.0.1:5000/harakiri/templates/demo@sha256:abc");
+  assert.equal(created[0].body.metadata.labels.app, "harakiri-template-pull-preflight");
+  assert.equal(deleted.length, 2);
+});
+
+test("preflightTemplateImagePull fails on image pull errors", async () => {
+  const deleted: any[] = [];
+  const core = {
+    async createNamespacedPod() {},
+    async readNamespacedPodStatus() {
+      return {
+        status: {
+          containerStatuses: [
+            {
+              name: "pull",
+              state: { waiting: { reason: "ImagePullBackOff", message: "pull access denied" } }
+            }
+          ]
+        }
+      } as any;
+    },
+    async deleteNamespacedPod(input: any) {
+      deleted.push(input);
+    }
+  };
+
+  await assert.rejects(
+    preflightTemplateImagePull(
+      {
+        buildId: "bld_denied",
+        templateId: "denied-template",
+        imageUri: "registry.example.com/private/demo@sha256:abc"
+      },
+      { enabled: true, namespace: "harakiri", timeoutMs: 5000, core, sleepMs: async () => undefined }
+    ),
+    /ImagePullBackOff - pull access denied/
+  );
+  assert.equal(deleted.length, 2);
+});
+
+test("preflightTemplateImagePull can be disabled", async () => {
+  const result = await preflightTemplateImagePull(
+    { buildId: "bld_skip", templateId: "skip", imageUri: "example.com/demo@sha256:abc" },
+    { enabled: false }
+  );
+
+  assert.deepEqual(result, { status: "skipped", reason: "disabled" });
 });

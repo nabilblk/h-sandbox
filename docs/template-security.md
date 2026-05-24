@@ -37,10 +37,14 @@ contract. Before a version is marked ready:
 1. Push or pull the image.
 2. Resolve the manifest digest.
 3. Store `template_versions.image_digest`.
-4. Store the digest on sandbox creation as `sandboxes.template_image_digest`.
-5. Prefer a digest-pinned image reference when calling OpenSandbox.
+4. Run runtime pull preflight against the digest-pinned image before inserting
+   the ready version.
+5. Store the digest on sandbox creation as `sandboxes.template_image_digest`.
+6. Prefer a digest-pinned image reference when calling OpenSandbox.
 
 If digest resolution fails, keep the build non-ready and surface the failure.
+If runtime pull preflight fails, keep the build failed so users do not receive a
+ready template that OpenSandbox cannot pull.
 
 ## Build Args And Env
 
@@ -125,6 +129,10 @@ Template versions now keep first-class security fields:
 - Dockerfile build metadata: the completed build record stores the Kubernetes
   Job, Pod, Pod UID, namespace, and node name that handled the Kaniko build so
   operators can correlate persisted records with cluster events and logs.
+- Runtime pull preflight metadata: successful builds store the disposable
+  preflight Pod, namespace, node, image ID when available, and duration. This
+  proves the digest-pinned runtime image was pullable before the version became
+  ready.
 - `scan_status`: `not_scanned` when no scanner is configured, `scan_failed`
   when the configured scanner cannot be reached or returns a non-2xx response,
   or the normalized status returned by the scanner webhook such as `clean`,

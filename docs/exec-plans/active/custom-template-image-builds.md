@@ -140,6 +140,13 @@ the change is provably invisible to one audience.
     run, promotion, error, or troubleshooting behavior.
   - Example documentation: update the relevant example README when a template or
     sample project encodes behavior users are expected to copy.
+- Documentation must be treated as two separate deliverables:
+  - Code documentation: `README.md` for top-level discovery, or a dedicated
+    Markdown file under `docs/` for API, CLI, database, builder, routing,
+    security, deployment, scheduler, and operator details.
+  - Product documentation: the Harakiri website docs surface for user-facing
+    workflows, using product language and avoiding internal implementation
+    detail unless the user must act on it.
 - Code documentation track: update `README.md` or a dedicated Markdown file under
   `docs/` in the same checkpoint as API, CLI, database, scheduler, builder,
   routing, deployment, or operational behavior changes. These docs are the
@@ -179,6 +186,21 @@ the change is provably invisible to one audience.
   user workflow changes update the website docs surface.
 - Code documentation and product documentation are tracked as separate
   deliverables. Completing one does not imply the other is complete.
+
+### Per-Checkpoint Documentation Checklist
+Use this checklist before marking any remaining plan item complete:
+
+- Identify whether the checkpoint changes contributor/operator behavior,
+  user-facing product behavior, or both.
+- For contributor/operator behavior, update `README.md` or the relevant
+  dedicated Markdown file under `docs/`.
+- For user-facing behavior, update the website docs surface in the app so the
+  workflow is discoverable without reading repository internals.
+- Record verification evidence in `docs/test-report.md`, including at least one
+  of: command output, API payload, UI path, screenshot path, deployed route, or
+  k0s smoke script result.
+- In the checkpoint summary, name the exact code docs and website docs changed.
+  If one documentation track is skipped, state why it was not affected.
 
 ### Documentation Workstream Map
 | Feature slice | Code documentation | Website product documentation | Verification evidence |
@@ -377,7 +399,7 @@ the change is provably invisible to one audience.
 - [ ] Pass env, workdir, and registry auth when supported by OpenSandbox.
 - [x] Ensure metadata includes Harakiri sandbox ID, template ID, template version
       ID, image digest, organization ID, and route policy.
-- [ ] Add preflight validation that the image can be pulled by OpenSandbox before
+- [x] Add preflight validation that the image can be pulled by OpenSandbox before
       marking a version ready.
 - [ ] Add optional image pre-pull/warm pool support for hot templates.
 - [x] Keep OpenSandbox snapshots as a later acceleration/checkpointing feature,
@@ -471,6 +493,9 @@ the change is provably invisible to one audience.
 - [ ] For every remaining template feature checkpoint, update both documentation
       tracks in the same commit: code docs in `README.md` or dedicated
       `docs/*.md`, and user-facing product docs in the website docs surface.
+- [ ] For every remaining template feature checkpoint, explicitly list the
+      repo-facing documentation files changed and the website documentation
+      pages/sections changed before checking off the related implementation task.
 - [ ] Each checkpoint summary names the exact repo docs and website docs changed,
       or states why a code-doc/product-doc surface was not affected.
 - [x] Add screenshots or short visual references for Templates List, Builds, and
@@ -518,6 +543,7 @@ the change is provably invisible to one audience.
 | 2026-05-24 | Make the dashboard Dockerfile path a single-file browser upload for the prototype | Browser-created tar+gzip contexts prove the dashboard flow without implementing directory upload complexity; the CLI remains the full multi-file context path. | Add drag-and-drop directory upload before validating the end-to-end product flow |
 | 2026-05-24 | Implement vulnerability scanning as an external webhook hook | Keeps Harakiri scanner-agnostic while persisting scan status/summary on immutable template versions and allowing operators to choose Trivy, Grype, or a custom service later. | Bundle a scanner binary into the builder image; keep only `not_scanned` placeholders |
 | 2026-05-24 | Implement retention as scheduler-owned database cleanup plus builder Job pruning | PostgreSQL is the control-plane source of truth; old logs, contexts, unversioned terminal builds, and unused superseded versions can be cleaned safely without deleting auditable version rows or registry blobs. | Delete registry blobs directly from the scheduler; keep all build artifacts indefinitely |
+| 2026-05-24 | Gate ready template versions on runtime pull preflight | Resolving a digest is not enough; the k0s runtime path must prove it can pull the final image before users receive a ready version. | Wait for the first real sandbox create to reveal pull failures; run registry-only manifest checks |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

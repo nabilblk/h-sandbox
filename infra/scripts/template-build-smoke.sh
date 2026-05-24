@@ -70,6 +70,10 @@ if ! grep -q -- "-> image=sha256:" <<<"${BUILD_OUTPUT}"; then
   echo "template build ${BUILD_ID} did not print an image digest" >&2
   exit 1
 fi
+if ! grep -q -- "runtime image pull preflight ok" <<<"${BUILD_OUTPUT}"; then
+  echo "template build ${BUILD_ID} did not run runtime image pull preflight" >&2
+  exit 1
+fi
 VERSION_ID="$(printf '%s\n' "${BUILD_OUTPUT}" | awk -F= '/^-> version=/ {print $2}' | tail -1)"
 if [[ -z "${VERSION_ID}" ]]; then
   echo "template build ${BUILD_ID} did not print a template version id" >&2
@@ -111,6 +115,13 @@ BUILDER_RUNTIME="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "$
 IFS='|' read -r BUILDER_JOB BUILDER_POD BUILDER_NODE <<<"${BUILDER_RUNTIME}"
 if [[ -z "${BUILDER_JOB}" || -z "${BUILDER_POD}" || -z "${BUILDER_NODE}" ]]; then
   echo "template build metadata missing builder job/pod/node for ${BUILD_ID}: ${BUILDER_RUNTIME}" >&2
+  exit 1
+fi
+PREFLIGHT_RUNTIME="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \
+  psql -U harakiri -d harakiri -qAtc "select coalesce(metadata->'runtimePullPreflight'->>'status', '') || '|' || coalesce(metadata->'runtimePullPreflight'->>'namespace', '') || '|' || coalesce(metadata->'runtimePullPreflight'->>'podName', '') || '|' || coalesce(metadata->'runtimePullPreflight'->>'nodeName', '') from template_builds where id = '${BUILD_ID}';")"
+IFS='|' read -r PREFLIGHT_STATUS PREFLIGHT_NAMESPACE PREFLIGHT_POD PREFLIGHT_NODE <<<"${PREFLIGHT_RUNTIME}"
+if [[ "${PREFLIGHT_STATUS}" != "ok" || "${PREFLIGHT_NAMESPACE}" != "opensandbox" || -z "${PREFLIGHT_POD}" || -z "${PREFLIGHT_NODE}" ]]; then
+  echo "template build metadata missing runtime pull preflight for ${BUILD_ID}: ${PREFLIGHT_RUNTIME}" >&2
   exit 1
 fi
 

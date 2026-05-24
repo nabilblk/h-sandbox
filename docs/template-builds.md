@@ -244,6 +244,22 @@ namespace, and Kubernetes node name in the build metadata so operators can
 correlate dashboard/API records with cluster logs.
 
 Before a successful build inserts the ready `template_versions` row, the worker
+also creates a short-lived Pod using the digest-pinned runtime image. This
+runtime pull preflight runs in `TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE`,
+defaults to the OpenSandbox runtime namespace (`opensandbox` in the local k0s
+stack), and is controlled by:
+
+- `TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED`, default `1`.
+- `TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE`, default `opensandbox`.
+- `TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS`, default `120000`.
+
+The preflight succeeds when Kubernetes proves the image was pulled by starting
+the container or reaching a post-pull container state. It fails the build on
+`ErrImagePull`, `ImagePullBackOff`, invalid image names, or timeout. Successful
+build metadata includes `runtimePullPreflight.status = ok`, the preflight Pod,
+node, image ID when available, and duration.
+
+Before a successful build inserts the ready `template_versions` row, the worker
 checks `TEMPLATE_SCANNER_WEBHOOK_URL`. When it is empty, the version keeps
 `scan_status = not_scanned` and `scan_summary.reason =
 scanner_not_configured`. When it is set, the worker posts the digest-pinned

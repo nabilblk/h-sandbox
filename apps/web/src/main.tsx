@@ -1058,6 +1058,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                     <span>Builder <b>{metadataLabel(selectedBuild.metadata?.builder ?? selectedBuild.metadata?.source ?? selectedBuild.sourceType)}</b></span>
                     <span>Builder pod <b>{metadataLabel(selectedBuild.metadata?.builderPodName)}</b></span>
                     <span>Node <b>{metadataLabel(selectedBuild.metadata?.builderNodeName)}</b></span>
+                    <span>Pull preflight <b>{metadataLabel((selectedBuild.metadata?.runtimePullPreflight as Record<string, unknown> | undefined)?.status)}</b></span>
                     <span>Context <b>{selectedBuild.context ? `${selectedBuild.context.sha256} - ${formatBytes(selectedBuild.context.sizeBytes)} - ${selectedBuild.context.fileCount ?? 0} files` : selectedBuild.contextHash ?? "-"}</b></span>
                   </div>
                   {buildIsActive(selectedBuild) ? <div className="build-progress-note"><span className="spinner" /> {selectedBuild.status === "queued" ? "Waiting for the builder to claim this record." : "Builder is running. Refresh to pull the latest status and logs."}</div> : null}
@@ -1502,7 +1503,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Statuses</h2>
-        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, and context metadata in the dashboard detail pane.</p>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, and context metadata in the dashboard detail pane.</p>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
@@ -1513,7 +1514,7 @@ const docPages: DocPage[] = [
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
         <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
         <h2>Troubleshooting</h2>
-        <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
+        <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Runtime pull preflight failures mean the image was built or imported but the cluster could not pull the final digest. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
         <h2>Archive</h2>
         <p>Archive a template when it should no longer appear in active lists or be used for new sandboxes. Existing sandboxes keep running; queued or building template builds are canceled.</p>
         <pre>{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</pre>
@@ -1534,7 +1535,7 @@ const docPages: DocPage[] = [
         <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure. Very old logs and uploaded contexts can disappear after the operator retention window, but the build status and audit trail remain.</p>
         <pre>{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</pre>
         <h2>Registry pull</h2>
-        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Check spelling, tag existence, registry visibility, and workspace image policy. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
+        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Builds also fail before ready if runtime pull preflight cannot pull the final digest from the cluster. Check spelling, tag existence, registry visibility, workspace image policy, and whether the runtime registry host is reachable from k0s. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
         <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template inspect ubuntu-import`}</pre>
         <h2>Aliases</h2>
         <p>If `harakiri create --template ...` cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use the immutable version ID when you need to prove exactly which image digest was selected.</p>
@@ -1595,7 +1596,7 @@ const docPages: DocPage[] = [
         <h2>Visibility</h2>
         <p>`private`, `internal`, and `public` control product visibility. Team-owned templates are visible only inside the owning workspace. Platform `public` and `internal` templates are shared for sandbox creation, while platform `private` templates stay hidden. Build, promote, archive, logs, and uploaded contexts remain scoped to the owning workspace.</p>
         <h2>Digests</h2>
-        <p>Mutable tags can be accepted as input, but ready versions should store an immutable image digest before production use.</p>
+        <p>Mutable tags can be accepted as input, but ready versions store an immutable image digest and pass runtime pull preflight before production use.</p>
         <h2>Secrets</h2>
         <p>Registry passwords and build secrets should live in Kubernetes Secrets or an external secret manager. PostgreSQL should store only credential references and redacted metadata.</p>
         <h2>Runtime metadata</h2>
@@ -1603,7 +1604,7 @@ const docPages: DocPage[] = [
         <h2>Image policy</h2>
         <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run.</p>
         <h2>Provenance</h2>
-        <p>Template versions keep SBOM references, provenance, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
+        <p>Template versions keep SBOM references, provenance, runtime pull preflight status, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
         <h2>Audit</h2>
         <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, version retirement, and sandbox create actions are stored as audit events with redacted metadata.</p>
         <h2>Limits</h2>

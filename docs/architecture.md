@@ -49,16 +49,21 @@ Templates are a separate control-plane subsystem from live sandboxes:
 8. For `sourceType=dockerfile`, it creates a Kubernetes Job that exports the
    uploaded context, runs Kaniko, pushes the image to the k0s registry, captures
    the pushed digest, and writes a ready `template_versions` row.
-9. Before the ready version is inserted, the builder calls the configured
+9. Before the ready version is inserted, the builder creates a short-lived
+   runtime pull preflight Pod in the configured namespace and waits until the
+   digest-pinned image has either started or reached a post-pull container
+   state. Image pull failures keep the build failed instead of creating a ready
+   version.
+10. Before the ready version is inserted, the builder calls the configured
    external scanner webhook when `TEMPLATE_SCANNER_WEBHOOK_URL` is set and
    persists the returned `scan_status` and `scan_summary`; otherwise it records
    `not_scanned`.
-10. The scheduler retention pass deletes old build logs, uploaded context
+11. The scheduler retention pass deletes old build logs, uploaded context
     archives, unversioned terminal build rows, and completed builder Jobs. It
     retires old ready template versions only when they are not latest/stable and
     no active sandbox is using them.
-11. Promotion moves aliases such as `latest` or `stable` to the ready version.
-12. Sandbox creation resolves a template name, alias, or version ID through
+12. Promotion moves aliases such as `latest` or `stable` to the ready version.
+13. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 
 The currently committed API, CLI, SDK, and dashboard support the definition,
@@ -66,10 +71,10 @@ build-record, context-upload, log, cancel, retry, promote, and version-read
 surfaces. The k0s builder supports image-import digest resolution and
 Dockerfile execution with Kaniko. Template versions carry SBOM references,
 provenance JSON, scan status, and scan summary fields. The builder supports an
-operator-owned scanner webhook and a scheduler-owned retention policy;
-production scanner service selection, signing, Git build sources, production
-registry credentials, and registry blob garbage collection remain tracked
-follow-up work.
+operator-owned scanner webhook, runtime pull preflight, and a scheduler-owned
+retention policy; production scanner service selection, signing, Git build
+sources, production registry credentials, and registry blob garbage collection
+remain tracked follow-up work.
 
 ## Database
 

@@ -58,6 +58,32 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   version `tplv_qnkIri-5FYCJ`, digest
   `sha256:74b5a99102c137e706c8e064199e9894973a3bb51560a028626bcdd0537b4db3`,
   and sandbox `sbx_qHouzeA-Dq`.
+- Runtime pull preflight checkpoint on 2026-05-24:
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @harakiri/api test`, `pnpm --filter @harakiri/web build`,
+  `pnpm typecheck`, `pnpm test`, and `git diff --check` passed after adding
+  the builder preflight Pod. `pnpm deploy:k0s` rolled out API, web, scheduler,
+  and template builder images plus RBAC for the Harakiri service account to
+  create/delete preflight Pods in the OpenSandbox runtime namespace. Deployed
+  config reported
+  `TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED=1`,
+  `TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE=opensandbox`, and
+  `TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS=120000`; `kubectl auth can-i`
+  returned `yes` for create pods, delete pods, and get pods/status in the
+  `opensandbox` namespace, and `no` for create pods in the `harakiri`
+  namespace, as `system:serviceaccount:harakiri:default`.
+- Post-preflight template build smoke on 2026-05-24:
+  `pnpm smoke:template-build` passed with build `bld_VNGckePUvF_i`, version
+  `tplv__g0ItmjuEE3z`, digest
+  `sha256:3e5084353510446f3a5d550132273f29a728508d1e059a0596b6742fb3581074`,
+  and sandbox `sbx_ql4sfPZSmV`. The streamed build logs included
+  `runtime image pull preflight ok in 2077ms`, and the smoke asserted
+  `template_builds.metadata.runtimePullPreflight.status = ok`,
+  `namespace = opensandbox`, and preflight Pod/node metadata.
+- Product docs preflight smoke on 2026-05-24: a Playwright check opened
+  `http://127.0.0.1:15173/#docs`, clicked the Template builds and Security
+  model docs, verified both mention runtime pull preflight, and saved
+  `/tmp/harakiri-preflight-docs.png`.
 - `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards.
 - `pnpm smoke` passed sandbox create, real command execution, and kill through OpenSandbox with adapter fallback disabled.
 - `pnpm smoke:ttl` passed scheduler termination of a 10-second Harakiri TTL sandbox while using a provider-safe OpenSandbox lease.

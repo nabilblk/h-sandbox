@@ -251,6 +251,14 @@ Template registry configuration is also carried by `harakiri-config`:
 - `TEMPLATE_SCANNER_FAIL_ON_ERROR=1` makes scanner HTTP errors, timeouts, or
   invalid responses fail the template build; the default `0` persists
   `scan_failed` and keeps the ready version usable for manual review.
+- `TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED=1` makes the builder prove a
+  digest-pinned image can be pulled before inserting a ready version.
+- `TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE=opensandbox` is where the
+  disposable preflight Pod is created in the local k0s stack. It should match
+  the OpenSandbox runtime namespace or equivalent pull-secret context in
+  production.
+- `TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS=120000` bounds preflight wait
+  time before the build fails.
 - `TEMPLATE_RETENTION_ENABLED=1` keeps scheduler retention active.
 - `TEMPLATE_RETENTION_INTERVAL_MS=3600000` runs retention roughly hourly.
 - `TEMPLATE_BUILD_LOG_RETENTION_DAYS=14` prunes old terminal build logs.
@@ -266,7 +274,7 @@ Template registry configuration is also carried by `harakiri-config`:
 Inspect the deployed values before debugging a pull or push issue:
 
 ```bash
-kubectl -n harakiri get configmap harakiri-config -o jsonpath='{.data.TEMPLATE_REGISTRY_PUSH_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_RUNTIME_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_REPOSITORY_PREFIX}{"\n"}{.data.TEMPLATE_SCANNER_WEBHOOK_URL}{"\n"}'
+kubectl -n harakiri get configmap harakiri-config -o jsonpath='{.data.TEMPLATE_REGISTRY_PUSH_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_RUNTIME_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_REPOSITORY_PREFIX}{"\n"}{.data.TEMPLATE_SCANNER_WEBHOOK_URL}{"\n"}{.data.TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED}{"\n"}'
 kubectl -n harakiri get pods,svc -l app=harakiri-registry
 ```
 
@@ -299,8 +307,8 @@ For an external registry rollout, the operator sequence is:
 4. Add the external registry and repository prefix to
    `TEMPLATE_IMAGE_ALLOW_REGISTRIES` and `TEMPLATE_IMAGE_ALLOW_PREFIXES`.
 5. Run `pnpm smoke:template-build` and verify the resulting
-   `template_versions.image_uri` is a digest-pinned reference that OpenSandbox
-   can pull.
+   `template_versions.image_uri` is a digest-pinned reference and the build
+   metadata contains `runtimePullPreflight.status = ok`.
 
 Scanner webhook payloads are JSON:
 
@@ -390,11 +398,11 @@ kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakir
 ```
 
 Correlate API build records with the Kubernetes Job, Pod, and node that handled
-the build:
+the build, plus the runtime pull preflight Pod and node:
 
 ```bash
 kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
-  "select id, metadata->>'builderJobName' as job, metadata->>'builderPodName' as pod, metadata->>'builderNodeName' as node from template_builds where source_type = 'dockerfile' order by created_at desc limit 10;"
+  "select id, metadata->>'builderJobName' as job, metadata->>'builderPodName' as pod, metadata->>'builderNodeName' as node, metadata->'runtimePullPreflight'->>'podName' as preflight_pod, metadata->'runtimePullPreflight'->>'nodeName' as preflight_node from template_builds order by created_at desc limit 10;"
 ```
 
 Failed image imports and pull debugging:
@@ -421,7 +429,8 @@ Troubleshooting matrix:
 | Dockerfile build stays `building` | `kubectl -n harakiri get jobs,pods -l app=harakiri-template-build`; `kubectl -n harakiri describe job/<job-name>` | Inspect `context-exporter` and `kaniko` logs, then retry after fixing the Dockerfile, base image policy, or registry push path |
 | Kaniko reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and Kaniko can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
 | Image import cannot resolve a digest | Builder logs filtered for `registry`, `manifest`, or `digest`; API error body | Fix the tag, registry visibility, registry policy, or operator-provided pull credentials |
-| Sandbox create fails after a successful build | Compare `template_versions.image_uri` with `TEMPLATE_REGISTRY_RUNTIME_HOST`; OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure pull credentials for the runtime path |
+| Runtime pull preflight fails | Build logs containing `runtime image pull preflight`; preflight Pod events before it is deleted; build metadata | Make `TEMPLATE_REGISTRY_RUNTIME_HOST` reachable from the k0s node and configure pull credentials in the preflight/runtime namespace |
+| Sandbox create fails after a successful build | Compare `template_versions.image_uri` and `runtimePullPreflight` metadata with OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure pull credentials for the runtime path |
 | Registry disk keeps growing | Registry `du -sh`; old ready/retired versions and retained build rows | Let scheduler retention retire unused versions first, then run registry GC only for blobs not referenced by `template_versions` |
 
 Automated retention cleanup:

@@ -141,7 +141,10 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/versions \
 Version responses include security metadata: `sbomRef`, `provenance`,
 `scanStatus`, and `scanSummary`. Until a vulnerability scanner is configured,
 new versions report `scanStatus: "not_scanned"` and a scan summary reason of
-`scanner_not_configured`.
+`scanner_not_configured`. Build-produced versions also include runtime pull
+preflight provenance when enabled, recording the disposable preflight Pod and
+node that proved the digest-pinned image was pullable before the version became
+ready.
 
 ## Template Builds
 
@@ -217,7 +220,9 @@ Build inspect responses include redacted `metadata`, the resulting
 `resultVersionId` when one exists, and the uploaded context summary. Completed
 Dockerfile builds also include Kubernetes builder fields in `metadata`:
 `builderJobName`, `builderPodName`, `builderPodUid`, `builderNodeName`, and
-`builderNamespace`.
+`builderNamespace`. Successful image-import and Dockerfile builds include
+`runtimePullPreflight` metadata when preflight is enabled; its `status` must be
+`ok` before a ready version is inserted.
 Supported build list filters are `status`, `q`, `template`, and `limit`. The
 dashboard template detail Config tab uses `template` to show the latest redacted
 build args and metadata for a selected template.

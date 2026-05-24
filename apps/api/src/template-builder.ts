@@ -57,6 +57,36 @@ type TemplateScanResult = {
   summary: Record<string, unknown>;
 };
 
+type RuntimePullPreflightCore = {
+  createNamespacedPod: (input: { namespace: string; body: V1Pod }) => Promise<unknown>;
+  readNamespacedPodStatus: (input: { namespace: string; name: string }) => Promise<V1Pod>;
+  deleteNamespacedPod: (input: { namespace: string; name: string; gracePeriodSeconds?: number; propagationPolicy?: string }) => Promise<unknown>;
+};
+
+type RuntimePullPreflightOptions = {
+  enabled?: boolean;
+  namespace?: string;
+  timeoutMs?: number;
+  core?: RuntimePullPreflightCore;
+  sleepMs?: (ms: number) => Promise<void>;
+};
+
+type RuntimePullPreflightInput = {
+  buildId: string;
+  templateId: string;
+  imageUri: string;
+};
+
+type RuntimePullPreflightResult = {
+  status: "ok" | "skipped";
+  namespace?: string;
+  podName?: string;
+  imageID?: string | null;
+  nodeName?: string | null;
+  reason?: string | null;
+  durationMs?: number;
+};
+
 const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
   source: ready.metadata.source ?? build.source_type,
   sourceType: build.source_type,
@@ -68,6 +98,7 @@ const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
   contextHash: build.context_sha256 ?? build.context_hash ?? null,
   dockerfilePath: build.dockerfile_path,
   builder: ready.metadata.builder ?? (build.source_type === "dockerfile" ? "kaniko" : "registry-resolver"),
+  runtimePullPreflight: ready.metadata.runtimePullPreflight ?? null,
   registryRepositoryPrefix: config.templateRegistryRepositoryPrefix
 });
 
@@ -148,6 +179,106 @@ const safeDockerfilePath = (value: string | null) => {
   return normalized;
 };
 
+const appendBuildLogForBuild = async (buildId: string, message: string, stream: "stdout" | "stderr" = "stdout") =>
+  withClient((client) => appendBuildLog(client, buildId, stream, message));
+
+const runtimePullFailureReasons = new Set(["ErrImagePull", "ImagePullBackOff", "InvalidImageName", "RegistryUnavailable"]);
+const postPullFailureReasons = new Set(["CreateContainerError", "RunContainerError", "ContainerCannotRun", "CrashLoopBackOff"]);
+
+const preflightPodNameFor = (buildId: string) => `hkpull-${safeName(buildId)}`;
+
+const preflightPodFor = (input: RuntimePullPreflightInput, namespace: string): V1Pod => ({
+  apiVersion: "v1",
+  kind: "Pod",
+  metadata: {
+    name: preflightPodNameFor(input.buildId),
+    namespace,
+    labels: {
+      app: "harakiri-template-pull-preflight",
+      "harakiri.build": safeName(input.buildId),
+      "harakiri.template": safeName(input.templateId)
+    },
+    annotations: {
+      "harakiri.io/build-id": input.buildId,
+      "harakiri.io/template-id": input.templateId,
+      "harakiri.io/image-uri": input.imageUri
+    }
+  },
+  spec: {
+    restartPolicy: "Never",
+    terminationGracePeriodSeconds: 0,
+    containers: [
+      {
+        name: "pull",
+        image: input.imageUri,
+        imagePullPolicy: "Always",
+        command: ["/bin/sh", "-c", "true"]
+      }
+    ]
+  }
+});
+
+export const runtimePullPreflightState = (pod: V1Pod) => {
+  const status = pod.status?.containerStatuses?.find((item) => item.name === "pull") ?? pod.status?.containerStatuses?.[0];
+  const waiting = status?.state?.waiting;
+  const terminated = status?.state?.terminated;
+  const imageID = status?.imageID ?? null;
+  const nodeName = pod.spec?.nodeName ?? null;
+  if (imageID || status?.state?.running || terminated) {
+    return { done: true, ok: true, imageID, nodeName, reason: terminated?.reason ?? waiting?.reason ?? pod.status?.phase ?? null };
+  }
+  if (waiting?.reason && runtimePullFailureReasons.has(waiting.reason)) {
+    return { done: true, ok: false, imageID, nodeName, reason: waiting.reason, message: waiting.message ?? null };
+  }
+  if (waiting?.reason && postPullFailureReasons.has(waiting.reason)) {
+    return { done: true, ok: true, imageID, nodeName, reason: waiting.reason };
+  }
+  if (pod.status?.phase === "Failed") {
+    return { done: true, ok: false, imageID, nodeName, reason: pod.status.reason ?? waiting?.reason ?? "PodFailed", message: pod.status.message ?? waiting?.message ?? null };
+  }
+  return { done: false, ok: false, imageID, nodeName, reason: waiting?.reason ?? pod.status?.phase ?? null };
+};
+
+export const preflightTemplateImagePull = async (
+  input: RuntimePullPreflightInput,
+  options: RuntimePullPreflightOptions = {}
+): Promise<RuntimePullPreflightResult> => {
+  const enabled = options.enabled ?? config.templateRuntimePullPreflightEnabled;
+  if (!enabled) return { status: "skipped", reason: "disabled" };
+  const namespace = options.namespace ?? config.templateRuntimePullPreflightNamespace;
+  const timeoutMs = options.timeoutMs ?? config.templateRuntimePullPreflightTimeoutMs;
+  const core = options.core ?? kubernetes.core();
+  const sleepImpl = options.sleepMs ?? sleep;
+  const podName = preflightPodNameFor(input.buildId);
+  const started = Date.now();
+  await core.deleteNamespacedPod({ namespace, name: podName, gracePeriodSeconds: 0, propagationPolicy: "Background" }).catch(() => undefined);
+  await core.createNamespacedPod({ namespace, body: preflightPodFor(input, namespace) });
+  try {
+    while (Date.now() - started < timeoutMs) {
+      const pod = await core.readNamespacedPodStatus({ namespace, name: podName });
+      const state = runtimePullPreflightState(pod);
+      if (state.done && state.ok) {
+        return {
+          status: "ok",
+          namespace,
+          podName,
+          imageID: state.imageID,
+          nodeName: state.nodeName,
+          reason: state.reason,
+          durationMs: Date.now() - started
+        };
+      }
+      if (state.done && !state.ok) {
+        throw new Error(`runtime image pull preflight failed for ${input.imageUri}: ${state.reason}${state.message ? ` - ${state.message}` : ""}`);
+      }
+      await sleepImpl(1000);
+    }
+    throw new Error(`runtime image pull preflight timed out after ${timeoutMs}ms for ${input.imageUri}`);
+  } finally {
+    await core.deleteNamespacedPod({ namespace, name: podName, gracePeriodSeconds: 0, propagationPolicy: "Background" }).catch(() => undefined);
+  }
+};
+
 const claimBuild = async (sourceType: "image" | "dockerfile") =>
   withClient(async (client) => {
     await client.query("BEGIN");
@@ -198,14 +329,25 @@ const claimBuild = async (sourceType: "image" | "dockerfile") =>
   });
 
 const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
-  const provenance = redactRecord(provenanceFor(build, ready));
+  await appendBuildLogForBuild(build.id, `preflighting runtime image pull ${ready.imageUri}`);
+  const runtimePullPreflight = await preflightTemplateImagePull({
+    buildId: build.id,
+    templateId: build.template_id,
+    imageUri: ready.imageUri
+  });
+  const readyWithPreflight = {
+    ...ready,
+    metadata: redactRecord({ ...ready.metadata, runtimePullPreflight })
+  };
+  await appendBuildLogForBuild(build.id, runtimePullPreflight.status === "ok" ? `runtime image pull preflight ok in ${runtimePullPreflight.durationMs}ms` : "runtime image pull preflight skipped");
+  const provenance = redactRecord(provenanceFor(build, readyWithPreflight));
   const scan = await scanTemplateImage({
     buildId: build.id,
     templateId: build.template_id,
     organizationId: build.organization_id,
     sourceType: build.source_type,
-    imageUri: ready.imageUri,
-    imageDigest: ready.imageDigest,
+    imageUri: readyWithPreflight.imageUri,
+    imageDigest: readyWithPreflight.imageDigest,
     provenance
   });
 
@@ -241,14 +383,14 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
           build.organization_id,
           build.id,
           versionNumber,
-          ready.imageUri,
-          ready.imageDigest,
+          readyWithPreflight.imageUri,
+          readyWithPreflight.imageDigest,
           build.template_default_entrypoint,
           build.template_cpu_count,
           build.template_memory_mb,
           build.template_workdir,
           build.template_default_ports,
-          redactRecord({ ...build.metadata, ...ready.metadata }),
+          redactRecord({ ...build.metadata, ...readyWithPreflight.metadata }),
           provenance,
           scan.status,
           scan.summary
@@ -262,7 +404,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
              status = CASE WHEN status = 'archived' THEN status ELSE 'ready' END,
              updated_at = now()
          WHERE id = $1`,
-        [build.template_id, versionId, ready.imageUri, ready.imageDigest]
+        [build.template_id, versionId, readyWithPreflight.imageUri, readyWithPreflight.imageDigest]
       );
       await client.query(
         `UPDATE template_builds
@@ -273,7 +415,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
              updated_at = now(),
              metadata = metadata || $4::jsonb
          WHERE id = $1`,
-        [build.id, ready.imageUri, ready.imageDigest, JSON.stringify(redactRecord({ templateVersionId: versionId, ...ready.metadata, readyImage: ready.metadata }))]
+        [build.id, readyWithPreflight.imageUri, readyWithPreflight.imageDigest, JSON.stringify(redactRecord({ templateVersionId: versionId, ...readyWithPreflight.metadata, readyImage: readyWithPreflight.metadata }))]
       );
       await appendBuildLog(client, build.id, "stdout", `created template version ${versionId}`);
       await recordAuditEvent(
@@ -288,14 +430,15 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
             templateId: build.template_id,
             sourceType: build.source_type,
             versionId,
-            imageUri: ready.imageUri,
-            imageDigest: ready.imageDigest
+            imageUri: readyWithPreflight.imageUri,
+            imageDigest: readyWithPreflight.imageDigest,
+            runtimePullPreflight
           }
         },
         client
       );
       await client.query("COMMIT");
-      return { versionId, digest: ready.imageDigest, imageUri: ready.imageUri, skipped: false };
+      return { versionId, digest: readyWithPreflight.imageDigest, imageUri: readyWithPreflight.imageUri, skipped: false };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -515,9 +658,6 @@ const dockerfileReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
     }
   };
 };
-
-const appendBuildLogForBuild = async (buildId: string, message: string, stream: "stdout" | "stderr" = "stdout") =>
-  withClient((client) => appendBuildLog(client, buildId, stream, message));
 
 const processBuild = async (sourceType: "image" | "dockerfile", readyImage: (build: BuildRow) => Promise<ReadyImage>) => {
   const build = await claimBuild(sourceType);
