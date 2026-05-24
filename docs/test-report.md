@@ -119,6 +119,10 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   ID with `sandbox.templateVersionId = tplv_pqARiMBCZ6D4`, build
   create/cancel/get/list/logs, promote alias resolution, archive behavior, and
   audit events.
+- Repo docs link audit on 2026-05-24: the README links were expanded to the
+  full template contributor/operator doc set, and
+  `for path in docs/templates.md docs/template-builds.md docs/template-security.md docs/template-runtime-contract.md docs/api.md docs/architecture.md docs/runbook.md docs/test-report.md; do test -f "$path" || exit 1; done`
+  printed `template repo docs links exist`.
 - `pnpm smoke:templates` passed after the retention deployment, proving
   `python-3.12`, `python-3.12-data`, and `node-20` catalog templates still
   create, execute a version command, and terminate through the live

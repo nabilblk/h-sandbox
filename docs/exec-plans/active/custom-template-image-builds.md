@@ -251,7 +251,7 @@ Use this checklist before marking any remaining plan item complete:
   - [x] Document prototype runtime limitations such as workspace ownership,
         root/non-root user behavior, and route exposure expectations.
 - [ ] Code documentation completion gate:
-  - [ ] README links to every dedicated template doc needed by a contributor or
+  - [x] README links to every dedicated template doc needed by a contributor or
         operator.
   - [ ] Dedicated markdown docs include canonical CLI commands, API payload
         examples, environment variables, database/control-plane concepts, and

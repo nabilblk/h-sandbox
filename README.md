@@ -73,12 +73,19 @@ The current API already enforces configurable template CPU, memory,
 default-port, active-build, and image registry/prefix policy limits tracked in
 [docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).
 
-For the implementation contract, read:
+For the template implementation contract, read:
 
 - [docs/templates.md](docs/templates.md)
 - [docs/template-builds.md](docs/template-builds.md)
 - [docs/template-security.md](docs/template-security.md)
 - [docs/template-runtime-contract.md](docs/template-runtime-contract.md)
+
+For API, architecture, and operator workflows, read:
+
+- [docs/api.md](docs/api.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/runbook.md](docs/runbook.md)
+- [docs/test-report.md](docs/test-report.md)
 
 ## Expose A Sandbox Port
 
