@@ -19,7 +19,10 @@ Harakiri uses OpenSandbox for:
   portable OpenSandbox API searches files rather than listing directories.
 - Metrics: call `execd` `GET /metrics`.
 - Sandbox diagnostic logs: call OpenSandbox diagnostics
-  `/v1/sandboxes/:id/diagnostics/logs?scope=container` when available.
+  `/v1/sandboxes/:id/diagnostics/logs?scope=container` when available, with a
+  provider-side fallback to OpenSandbox's deprecated plain-text
+  `/v1/sandboxes/:id/diagnostics/logs?tail=200` endpoint while the stable API is
+  not implemented upstream.
 - HTTP route targets: resolve OpenSandbox endpoints or use the OpenSandbox
   ingress gateway path, depending on route mode.
 
@@ -53,6 +56,12 @@ commands, filesystem UI, metrics UI, sandbox runtime logs, route exposure, or
 sandbox lifecycle. Those paths must go through OpenSandbox APIs so the
 OpenSandbox provider remains the source of runtime behavior and OSS operators do
 not need to grant broad sandbox pod permissions to the Harakiri API.
+
+OpenSandbox itself may need provider-side Kubernetes permissions to implement
+those APIs. In the k0s manifests, `opensandbox-server-diagnostics` grants only
+`get` on `pods/log` in the `opensandbox` dataplane namespace to the
+`opensandbox-system/opensandbox-server` service account. This is provider RBAC,
+not a Harakiri runtime escape hatch.
 
 ## Verification
 

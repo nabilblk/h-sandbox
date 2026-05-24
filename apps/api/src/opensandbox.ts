@@ -243,19 +243,32 @@ export const openSandboxCreateBody = (input: {
 
 const appendLine = (current: string, line: string) => `${current}${line}${line.endsWith("\n") ? "" : "\n"}`;
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isExecdGatewayReadinessError = (status: number, body: string) =>
+  status === 503 && /opensandbox ingress/i.test(body) && /sandbox not ready/i.test(body);
+
 const callExecd = async (opensandboxId: string, path: string, init: RequestInit = {}) => {
   const endpoint = await resolveExecdEndpoint(opensandboxId);
-  const response = await fetch(joinUrl(endpoint.baseUrl, path), {
-    ...init,
-    headers: {
-      ...(init.body ? { "content-type": "application/json" } : {}),
-      ...endpoint.headers,
-      ...(init.headers ?? {})
+  const maxAttempts = 12;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(joinUrl(endpoint.baseUrl, path), {
+      ...init,
+      headers: {
+        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...endpoint.headers,
+        ...(init.headers ?? {})
+      }
+    });
+    const body = await response.text();
+    if (response.ok) return body;
+    if (attempt < maxAttempts && isExecdGatewayReadinessError(response.status, body)) {
+      await delay(process.env.NODE_ENV === "production" ? 500 : 1);
+      continue;
     }
-  });
-  const body = await response.text();
-  if (!response.ok) throw new OpenSandboxHttpError(response.status, body);
-  return body;
+    throw new OpenSandboxHttpError(response.status, body);
+  }
+  throw new OpenSandboxHttpError(503, "OpenSandbox execd request did not complete");
 };
 
 const parseExecdEvents = (body: string) => {
@@ -400,11 +413,22 @@ const loadDiagnosticText = async (descriptor: DiagnosticContent) => {
   return response.text();
 };
 
+const callOpenSandboxText = async (path: string) => {
+  const response = await fetch(`${config.openSandboxBaseUrl}${path}`, { headers: headers() });
+  const body = await response.text();
+  if (!response.ok) throw new OpenSandboxHttpError(response.status, body);
+  return body;
+};
+
 const sandboxLogs = async (opensandboxId: string): Promise<SandboxLogEntry[]> => {
   const descriptor = await callOpenSandbox<DiagnosticContent>(
     `/v1/sandboxes/${opensandboxId}/diagnostics/logs?scope=container`
   ).catch(() => null);
-  const text = descriptor ? await loadDiagnosticText(descriptor).catch(() => "") : "";
+  const stableText = descriptor ? await loadDiagnosticText(descriptor).catch(() => "") : "";
+  const legacyText = stableText
+    ? ""
+    : await callOpenSandboxText(`/v1/sandboxes/${opensandboxId}/diagnostics/logs?tail=200`).catch(() => "");
+  const text = stableText || legacyText;
   return text
     .split(/\r?\n/)
     .filter(Boolean)

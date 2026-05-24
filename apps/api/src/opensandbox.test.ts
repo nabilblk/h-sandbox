@@ -185,6 +185,35 @@ test("openSandbox.run uses the OpenSandbox-resolved execd endpoint and forwards 
   assert.equal(commandHeaders.get("X-EXECD-ACCESS-TOKEN"), "dev-opensandbox-key");
 });
 
+test("openSandbox.run retries transient OpenSandbox ingress readiness errors", async () => {
+  const commandResponses = [
+    new Response("OpenSandbox Ingress: sandbox not ready: opensandbox/osbx-real (ready: 0/1)\n", { status: 503 }),
+    new Response('data: {"type":"stdout","text":"ready"}\n\n', { headers: { "content-type": "text/event-stream" } })
+  ];
+  let commandAttempts = 0;
+  globalThis.fetch = async (input) => {
+    const url = requestUrl(input);
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
+      return execdEndpointResponse({ "OpenSandbox-Ingress-To": "osbx-real-44772" });
+    }
+    if (url === "http://127.0.0.1:18085/command") {
+      commandAttempts += 1;
+      return commandResponses.shift() ?? jsonResponse({ message: "unexpected retry" }, { status: 500 });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.run({
+    sandboxId: "sbx_real",
+    opensandboxId: "osbx-real",
+    command: "echo ready"
+  });
+
+  assert.equal(commandAttempts, 2);
+  assert.equal(result.stdout, "ready\n");
+  assert.equal(result.exitCode, 0);
+});
+
 test("openSandbox.files lists through execd files/search and synthesizes direct directories", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = async (input, init) => {
@@ -292,4 +321,35 @@ test("openSandbox.logs uses OpenSandbox diagnostics instead of direct Kubernetes
     { ts: "2026-05-24T12:00:00Z", lvl: "runtime", msg: "execd started", source: "sandbox" },
     { ts: result[1]?.ts, lvl: "runtime", msg: "line without timestamp", source: "sandbox" }
   ]);
+});
+
+test("openSandbox.logs falls back to OpenSandbox legacy plain-text diagnostics", async () => {
+  const requests: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = requestUrl(input);
+    requests.push(url);
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/diagnostics/logs?scope=container") {
+      return jsonResponse(
+        {
+          code: "DIAGNOSTICS_NOT_IMPLEMENTED",
+          message: "The stable Diagnostics API is not implemented by this OpenSandbox server."
+        },
+        { status: 501 }
+      );
+    }
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/diagnostics/logs?tail=200") {
+      return new Response("2026-05-24T12:00:01Z legacy log line\n", {
+        headers: { "content-type": "text/plain; charset=utf-8" }
+      });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.logs("osbx-real");
+
+  assert.deepEqual(requests, [
+    "http://127.0.0.1:8088/v1/sandboxes/osbx-real/diagnostics/logs?scope=container",
+    "http://127.0.0.1:8088/v1/sandboxes/osbx-real/diagnostics/logs?tail=200"
+  ]);
+  assert.deepEqual(result, [{ ts: "2026-05-24T12:00:01Z", lvl: "runtime", msg: "legacy log line", source: "sandbox" }]);
 });

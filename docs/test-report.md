@@ -698,6 +698,24 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   currently fall back to real control-plane events.
   Cleanup audit after the verification showed `live_sandboxes=0`,
   `ready_routes=0`, and `active_smoke_keys=0`.
+- OpenSandbox runtime upgrade verification on 2026-05-24: the k0s deployment
+  was upgraded to OpenSandbox `server:v0.1.14`, `execd:v1.0.17`, and
+  `egress:v1.0.12` while keeping the published `opensandbox-0.1.0` chart with
+  explicit image/config overrides. The newer server requires `server.api_key`,
+  so the k0s values pin it to the local `dev-opensandbox-key`. The stable
+  scoped diagnostics endpoint now returns `501 DIAGNOSTICS_NOT_IMPLEMENTED`;
+  Harakiri falls back to OpenSandbox's plain-text diagnostics endpoint after a
+  supplemental provider-side `pods/log` RoleBinding for
+  `opensandbox-system/opensandbox-server`. A focused deployed log probe created
+  `sbx_ta1qU8UINb`, confirmed scoped diagnostics `501`, legacy diagnostics
+  `200`, and `18` sandbox-source log rows through `GET /v1/sandboxes/:id/logs`.
+  `pnpm --filter @harakiri/api test` passed with 63 tests,
+  `pnpm --filter @harakiri/api typecheck`, `pnpm typecheck`, and
+  `git diff --check` passed. `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke`,
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:route`, and
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm e2e` passed against the upgraded k0s
+  deployment. Final cleanup audit showed `live_sandboxes=0`, `ready_routes=0`,
+  and `active_smoke_keys=0`.
 
 ## CLI Demo
 
@@ -763,8 +781,11 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
   results because the current portable OpenSandbox API searches files rather
   than exposing a first-class directory listing endpoint.
 - Runtime logs call OpenSandbox diagnostics when the provider exposes them. The
-  current deployed OpenSandbox chart returns 404 for diagnostics, so the logs
-  tab falls back to real Harakiri control-plane events.
+  upgraded OpenSandbox server returns `501` for the stable scoped diagnostics
+  endpoint, so Harakiri falls back to OpenSandbox's deprecated plain-text
+  diagnostics endpoint. The k0s manifests grant `pods/log` only to the
+  OpenSandbox server service account so that provider endpoint can read runtime
+  logs; Harakiri's own service account still has no `pods/log`.
 - Command execution and HTTP/SSE/WebSocket route proxying are live.
 - Custom template image-import and Dockerfile records are live in the control
   plane and can be completed by the `harakiri-template-builder` worker. Git

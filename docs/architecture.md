@@ -125,8 +125,10 @@ For normal sandbox interaction, it resolves the OpenSandbox `execd` endpoint
 with `GET /v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`, then calls
 `execd` for commands, filesystem search, and metrics using the endpoint URL and
 headers returned by OpenSandbox. Runtime logs come from OpenSandbox diagnostics
-when available and are combined with Harakiri control-plane events by the API
-route layer.
+when available; for OpenSandbox versions where the stable scoped diagnostics API
+returns `501`, Harakiri falls back to the provider's deprecated plain-text
+diagnostics endpoint. Runtime logs are combined with Harakiri control-plane
+events by the API route layer.
 
 In OpenSandbox gateway/header mode, endpoint resolution returns an
 `OpenSandbox-Ingress-To` routing header. Harakiri sends `execd` requests to the
@@ -140,6 +142,11 @@ use remains limited to platform operations that OpenSandbox does not own for
 Harakiri: applying deployment manifests, managing template builder Jobs in the
 Harakiri namespace, and creating short-lived template runtime pull preflight or
 optional pre-pull Pods in the configured runtime namespace.
+
+The k0s manifests grant `pods/log` only to the OpenSandbox server service
+account in the OpenSandbox dataplane namespace so OpenSandbox can serve its own
+diagnostics endpoint. Harakiri's service account does not receive that
+permission.
 
 For templates, the adapter receives the resolved runtime template: image URI,
 entrypoint, CPU, memory, TTL, name, sandbox env, organization ID, and Harakiri
