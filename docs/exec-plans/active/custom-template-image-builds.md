@@ -105,6 +105,23 @@ the same agent/browser/editor surface without depending on E2B internals.
 Documentation is a first-class deliverable for this feature, split between
 repo-facing engineering documentation and product-facing website documentation.
 
+### Documentation Surface Inventory
+- Code documentation must be maintained in `README.md` plus dedicated Markdown
+  files under `docs/`: `templates.md`, `template-builds.md`,
+  `template-runtime-contract.md`, `template-security.md`, `architecture.md`,
+  `api.md`, `runbook.md`, and `test-report.md`.
+- Product documentation must be available in the Harakiri website docs surface.
+  The current prototype implements this in `apps/web/src/main.tsx` through the
+  `Docs` route; if the docs grow, extract the pages into dedicated docs data or
+  MDX files without changing the product navigation.
+- The two documentation surfaces serve different audiences: repo docs explain
+  implementation, operations, and contributor workflows; website docs explain
+  user-facing workflows such as creating, building, running, promoting, and
+  troubleshooting templates.
+- Documentation updates are not complete until examples are rechecked against
+  the deployed k0s environment and stale implementation notes, especially
+  builder/registry details, are removed.
+
 ### Code Documentation: README And Dedicated Markdown
 - [x] Repository README updates:
   - [x] Add a quickstart for creating and using a custom template.
@@ -149,6 +166,12 @@ repo-facing engineering documentation and product-facing website documentation.
         image digest pinning, registry access, and secret handling.
   - [x] Ensure website docs match Harakiri's design tokens and do not use E2B
         branding or copy.
+  - [ ] Update website docs once Dockerfile builds are fully wired so they no
+        longer describe the BuildKit/Kubernetes builder as future work.
+  - [ ] Add website troubleshooting content for registry pull failures, failed
+        builds, route exposure, and mismatched template aliases.
+  - [ ] Link relevant product docs from Templates empty states, build detail
+        errors, and New Template flow.
 
 ### Documentation Acceptance Criteria
 - [ ] A new user can create and run a custom template using only the website docs.
@@ -156,6 +179,10 @@ repo-facing engineering documentation and product-facing website documentation.
       the README plus dedicated markdown docs.
 - [ ] Every documented CLI/API example is verified against the deployed k0s
       environment before the plan is completed.
+- [ ] The README and website docs describe the same command names, flags,
+      status names, and route behavior.
+- [ ] The docs clearly separate local development details from production
+      platform guidance.
 
 ## Phases
 
@@ -317,6 +344,12 @@ repo-facing engineering documentation and product-facing website documentation.
       names and JSON payloads.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
+- [ ] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
+      lands and remove wording that says Dockerfile builds are pending.
+- [ ] Add product docs links from the Templates UI where they help users recover
+      from empty states, failed builds, and route setup issues.
+- [ ] Add a documentation verification note to `docs/test-report.md` after
+      running the final CLI/API examples against k0s.
 - [x] Run link/path checks for repo docs and website docs.
 
 ### Phase 11: Verification And Release
