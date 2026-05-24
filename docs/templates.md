@@ -17,8 +17,10 @@ template workflow while keeping the runtime contract portable.
 - Build record: a control-plane request to build or import an image. Build
   records keep status, source type, Dockerfile path, context hash, build args,
   image destination, digest, error, metadata, and logs.
-- Alias: a stable name that resolves to a template or template version, such as
-  `open-agents-dev`, `latest`, or `stable`.
+- Alias: a stable name that resolves to a template or template version. Template
+  aliases look like `open-agents-dev`; promoted version aliases should be
+  referenced as qualified refs such as `open-agents-dev:stable` or
+  `open-agents-dev:latest`.
 - Snapshot: a future acceleration primitive. The v1 contract is image-first;
   OpenSandbox snapshots are not required for initial custom templates.
 
@@ -58,6 +60,9 @@ harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template inspect open-agents-dev
 harakiri create --template open-agents-dev --name agent-runner
+harakiri template promote open-agents-dev --version-id tplv_... --alias stable
+harakiri create --template open-agents-dev:stable --name stable-runner
+harakiri create --template tplv_... --name pinned-runner
 harakiri template archive open-agents-dev
 ```
 
@@ -150,13 +155,24 @@ curl "$PUBLIC_API_URL/v1/templates" \
   }'
 ```
 
-Create a sandbox from a template name, alias, or immutable version ID:
+Create a sandbox from a template name, template alias, qualified version alias,
+or immutable version ID:
 
 ```bash
 curl "$PUBLIC_API_URL/v1/sandboxes" \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"template":"open-agents-dev","name":"agent-runner","ttlSeconds":300}'
+
+curl "$PUBLIC_API_URL/v1/sandboxes" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"template":"open-agents-dev:stable","name":"stable-runner","ttlSeconds":300}'
+
+curl "$PUBLIC_API_URL/v1/sandboxes" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"template":"tplv_...","name":"pinned-runner","ttlSeconds":300}'
 ```
 
 The sandbox row stores `template_version_id` and `template_image_digest` when
@@ -166,17 +182,25 @@ the selected version has those fields.
 
 `resolveTemplate(ref, organizationId)` checks:
 
-1. Templates owned by the requesting organization plus platform templates whose
+1. Qualified version aliases in the form `<template-ref>:<version-alias>`, for
+   example `open-agents-dev:stable`. The template side can be a template ID,
+   name, or alias, and the version side must be a ready version alias.
+2. Templates owned by the requesting organization plus platform templates whose
    visibility is `public` or `internal`. Platform `private` rows are hidden from
    workspaces.
-2. Exact template ID.
-3. Exact template name.
-4. Template alias.
-5. Template version ID.
-6. Template version alias.
+3. Exact template ID.
+4. Exact template name.
+5. Template alias.
+6. Template version ID.
+7. Bare template version alias.
 
-This lets `harakiri create --template open-agents-dev` use the stable alias,
-while automation can use an immutable `tplv_...` ID for reproducibility.
+This lets `harakiri create --template open-agents-dev` use the current ready
+version selected by the template, `harakiri create --template
+open-agents-dev:stable` use a promoted stable version, and automation use an
+immutable `tplv_...` ID for reproducibility. Bare version aliases are accepted
+for compatibility but are ambiguous once multiple templates carry `stable` or
+`latest`; prefer the qualified `<template-ref>:<alias>` form in docs, scripts,
+and UI examples.
 Only organization-owned templates can be built, promoted, or archived by a
 workspace; shared platform templates are read-only catalog entries for sandbox
 creation.

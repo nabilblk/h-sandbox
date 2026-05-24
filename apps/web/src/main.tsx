@@ -1492,15 +1492,15 @@ const docPages: DocPage[] = [
     id: "create-sandbox",
     section: "Sandboxes",
     title: "Create a sandbox",
-    lede: "Create sandboxes from catalog templates, custom template aliases, or immutable template version IDs.",
+    lede: "Create sandboxes from catalog templates, custom aliases, qualified stable aliases, or immutable template version IDs.",
     toc: ["CLI", "API", "Dashboard", "Routing"],
     body: (
       <>
         <h2>CLI</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri status sbx_...`}</pre>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner\nharakiri status sbx_...`}</pre>
         <h2>API</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code></span>
-        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'\n\ncurl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","name":"stable-runner","ttlSeconds":300}'`}</pre>
         <h2>Dashboard</h2>
         <p>Use New sandbox when you want to start from the browser. The Environment field accepts `KEY=value` rows and passes them only to the sandbox being created.</p>
         <h2>Routing</h2>
@@ -1526,9 +1526,9 @@ const docPages: DocPage[] = [
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
         <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
-        <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
+        <pre>{`harakiri create --template open-agents-dev --name agent-runner\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
         <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
-        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
+        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`; use `template:stable` when you want the stable channel and `tplv_...` when you need an immutable pin.</p>
       </>
     )
   },
@@ -1579,8 +1579,8 @@ const docPages: DocPage[] = [
         <p>Environment variables are chosen when the sandbox is created. They are not added retroactively to an existing sandbox. Use `harakiri run --env KEY=value` only when the command creates a temporary sandbox for the run.</p>
         <pre>{`harakiri create --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri run --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok --cmd "printenv HARAKIRI_ENV_SMOKE"`}</pre>
         <h2>Aliases</h2>
-        <p>If `harakiri create --template ...` cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use the immutable version ID when you need to prove exactly which image digest was selected.</p>
-        <pre>{`harakiri template list\nharakiri template inspect open-agents-dev\nharakiri create --template tplv_... --name pinned-runner`}</pre>
+        <p>If `harakiri create --template ...` cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use `template:stable` for a promoted channel and the immutable version ID when you need to prove exactly which image digest was selected. Bare aliases like `stable` become ambiguous when several templates have the same alias, so prefer the qualified form.</p>
+        <pre>{`harakiri template list\nharakiri template inspect open-agents-dev\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
         <h2>Routes</h2>
         <p>Route failures are usually separate from template builds. Start the server on `0.0.0.0` inside the sandbox, expose the matching port, then open the route from the Network tab or CLI. A server bound only to `127.0.0.1` will not be reachable through the public route.</p>
         <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0"\nharakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
@@ -1596,9 +1596,9 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>JavaScript</h2>
-        <pre>{`import { HarakiriClient } from "@harakiri/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.run(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
+        <pre>{`import { HarakiriClient } from "@harakiri/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.run(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
         <h2>HTTP</h2>
-        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
         <h2>Python</h2>
         <p>A Python SDK is not shipped in this prototype yet. Use the HTTP API from Python until the SDK package is added.</p>
       </>

@@ -39,9 +39,9 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [ ] A team can run `harakiri template build --name open-agents-dev <path>` and
       get a persisted build record with streamed logs, final image digest, CPU,
       memory, default ports, default workdir, and status.
-- [ ] A sandbox can be created by template name, stable alias, or immutable
-      version ID, and the sandbox record stores the exact template version and
-      image digest used.
+- [x] A sandbox can be created by template name, qualified stable alias
+      (`<template-ref>:stable`), or immutable version ID, and the sandbox record
+      stores the exact template version and image digest used.
 - [ ] The `open-agents-dev` template builds from the OpenSandbox-native Dockerfile,
       runs in k0s through OpenSandbox, and passes smoke checks for `bun`, `jq`,
       `agent-browser`, Chromium headless, `code-server`, workspace write access,
@@ -419,6 +419,17 @@ making it clear that both were reviewed in the same checkpoint.
 **Status**: In Progress
 - [x] Resolve sandbox create input from template alias/name/version to an
       immutable `template_version`.
+- [x] Verify and document sandbox creation by template name, qualified stable
+      alias, and immutable version ID.
+      Documentation:
+      - Code docs: `README.md`, `docs/templates.md`, `docs/template-builds.md`,
+        `docs/api.md`, `docs/test-report.md`.
+      - Product docs: Website docs > Create a sandbox, Create a custom template,
+        Template troubleshooting, SDK usage.
+      - Verification: `pnpm smoke:template-resolution` passed with build
+        `bld_gtxq40lCafPG`, version `tplv_E9XIL3SQlb_r`, and sandboxes
+        `sbx_OVMEU8K9pj`, `sbx_SFg9SRq7D_`, `sbx_tp_bQYGkfG`; deployed website
+        docs check saved `/tmp/harakiri-template-resolution-docs.png`.
 - [x] Pass `image.uri` as a digest-pinned OCI reference to OpenSandbox when the
       selected template version has a digest-pinned image URI.
 - [x] Pass default entrypoint, CPU/memory, and metadata to OpenSandbox.
@@ -548,6 +559,9 @@ making it clear that both were reviewed in the same checkpoint.
 - [x] Run link/path checks for repo docs and website docs.
 - [x] Verify the audit/archive documentation slice in both repo docs
       (`README.md` and dedicated `docs/*.md`) and the deployed website docs.
+- [x] Verify the qualified stable-alias documentation slice in both repo docs
+      (`README.md`, `docs/templates.md`, `docs/template-builds.md`,
+      `docs/api.md`) and the deployed website docs.
 
 ### Phase 11: Verification And Release
 **Status**: In Progress
@@ -588,6 +602,7 @@ making it clear that both were reviewed in the same checkpoint.
 | 2026-05-24 | Pass sandbox env and encrypted registry image auth through OpenSandbox; keep workdir as image contract metadata | OpenSandbox create supports env and `image.auth`, but does not expose a stable create-time workdir field. Harakiri can still record the template workdir and require Dockerfile `WORKDIR`/smoke checks. | Build a custom runtime wrapper to `cd` before entrypoint; invent a Harakiri-only workdir field ignored by OpenSandbox |
 | 2026-05-24 | Implement hot-template image pre-pull as disposable Kubernetes pull Pods per ready node | This warms the node image cache using native Kubernetes primitives and keeps OpenSandbox snapshots/pre-started pools as a later acceleration feature. | Implement a custom cache daemon; create pre-started OpenSandbox sandboxes before snapshot support is proven |
 | 2026-05-24 | Let `harakiri.toml` carry an explicit template ID and richer runtime metadata | Generated configs should be usable without repeated CLI flags, and template identity should be stable across display-name changes. | Keep deriving IDs only from `--name`; require users to pass resource, tag, and alias flags at build time |
+| 2026-05-24 | Use qualified version aliases such as `open-agents-dev:stable` for promoted channels | Bare aliases like `stable` become ambiguous once several templates have promoted versions; qualified refs keep the human-friendly channel without losing template context. | Treat bare `stable` as the primary public contract; require only immutable `tplv_...` IDs |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

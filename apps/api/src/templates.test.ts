@@ -4,6 +4,7 @@ import {
   canMutateTemplate,
   canReadTemplateRow,
   isSharedPlatformTemplateVisibility,
+  parseTemplateVersionAliasRef,
   templateReadScopeSql
 } from "./templates.js";
 
@@ -31,4 +32,18 @@ test("templateReadScopeSql encodes the same shared-platform policy", () => {
     templateReadScopeSql("tpl", "$7"),
     "(tpl.organization_id = $7 OR (tpl.organization_id IS NULL AND tpl.visibility = ANY(ARRAY['public','internal']::text[])))"
   );
+});
+
+test("parseTemplateVersionAliasRef supports qualified version aliases", () => {
+  assert.deepEqual(parseTemplateVersionAliasRef("open-agents-dev:stable"), {
+    templateRef: "open-agents-dev",
+    versionAlias: "stable"
+  });
+  assert.deepEqual(parseTemplateVersionAliasRef("agents/open-agents-dev:latest"), {
+    templateRef: "agents/open-agents-dev",
+    versionAlias: "latest"
+  });
+  assert.equal(parseTemplateVersionAliasRef("open-agents-dev"), null);
+  assert.equal(parseTemplateVersionAliasRef("stable"), null);
+  assert.equal(parseTemplateVersionAliasRef("open-agents-dev:"), null);
 });

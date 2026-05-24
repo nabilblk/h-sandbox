@@ -46,8 +46,11 @@ to E2B's `e2b.toml` shape while targeting OpenSandbox-compatible OCI images.
 ```bash
 harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 harakiri template build --name open-agents-dev .
+harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV_SMOKE=env-ok
+harakiri create --template open-agents-dev:stable --name stable-runner
+harakiri create --template tplv_... --name pinned-runner
 harakiri template archive open-agents-dev
 ```
 
@@ -60,10 +63,13 @@ version. `harakiri template build` follows logs and prints the final build ID,
 template version ID, image digest, duration, and next create command by default;
 use `--no-wait` when a script only needs the queued build ID. Template versions
 are marked ready only after the builder verifies the digest-pinned image can be
-pulled by the k0s runtime path. Templates tagged `hot`, `prepull`, or `warm`
-can also pre-pull the final image on ready k0s nodes so the next sandbox start
-does not pay the first image download on each node. Versions also carry
-SBOM/provenance and scan-status fields. By default new versions report
+pulled by the k0s runtime path. Use `template:stable` or `template:latest` for
+human-friendly promoted aliases, and use the immutable `tplv_...` ID when a CI
+job or audit trail must prove the exact image digest selected at sandbox create
+time. Templates tagged `hot`, `prepull`, or `warm` can also pre-pull the final
+image on ready k0s nodes so the next sandbox start does not pay the first image
+download on each node. Versions also carry SBOM/provenance and scan-status
+fields. By default new versions report
 `not_scanned`; operators can set
 `TEMPLATE_SCANNER_WEBHOOK_URL` to call an external scanner hook and persist the
 returned scan status and summary.

@@ -35,6 +35,7 @@
     "smoke:template-build": "bash infra/scripts/template-build-smoke.sh",
     "smoke:template-init": "bash infra/scripts/template-init-smoke.sh",
     "smoke:template-prepull": "bash infra/scripts/template-prepull-smoke.sh",
+    "smoke:template-resolution": "bash infra/scripts/template-resolution-smoke.sh",
     "smoke:sandbox-env": "bash infra/scripts/sandbox-env-smoke.sh",
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
     "smoke:route": "bash infra/scripts/route-smoke.sh",

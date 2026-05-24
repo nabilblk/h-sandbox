@@ -33,6 +33,15 @@ export const canMutateTemplate = (template: Pick<Template, "ownerScope">) => tem
 export const templateReadScopeSql = (alias = "t", organizationPlaceholder = "$1") =>
   `(${alias}.organization_id = ${organizationPlaceholder} OR (${alias}.organization_id IS NULL AND ${alias}.visibility = ANY(ARRAY['public','internal']::text[])))`;
 
+export const parseTemplateVersionAliasRef = (templateRef: string) => {
+  const index = templateRef.lastIndexOf(":");
+  if (index <= 0 || index === templateRef.length - 1) return null;
+  return {
+    templateRef: templateRef.slice(0, index),
+    versionAlias: templateRef.slice(index + 1)
+  };
+};
+
 type TemplateRow = {
   id: string;
   name: string;
@@ -194,6 +203,27 @@ export const listTemplates = async (organizationId: string, filters: TemplateLis
 };
 
 export const resolveTemplate = async (templateRef: string, organizationId: string): Promise<RuntimeTemplate | null> => {
+  const qualifiedAlias = parseTemplateVersionAliasRef(templateRef);
+  if (qualifiedAlias) {
+    const versionResult = await query<TemplateRow>(
+      `SELECT ${templateFields}
+       FROM templates t
+       JOIN template_versions v
+         ON v.template_id = t.id
+        AND $2 = ANY(v.aliases)
+        AND v.status = 'ready'
+       WHERE ${templateReadScopeSql("t", "$3")}
+         AND t.status <> 'archived'
+         AND (t.id = $1 OR t.name = $1 OR $1 = ANY(t.aliases))
+       ORDER BY CASE WHEN t.organization_id = $3 THEN 0 ELSE 1 END ASC,
+                v.promoted_at DESC NULLS LAST,
+                v.created_at DESC
+       LIMIT 1`,
+      [qualifiedAlias.templateRef, qualifiedAlias.versionAlias, organizationId]
+    );
+    if (versionResult.rows[0]) return mapTemplate(versionResult.rows[0]);
+  }
+
   const result = await query<TemplateRow & { rank: number; scopeRank: number }>(
     `SELECT ${templateFields},
             CASE

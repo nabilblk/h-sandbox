@@ -58,9 +58,25 @@ curl http://127.0.0.1:18082/v1/sandboxes \
 ```
 
 The `template` field accepts a template ID, template name, template alias,
-template version ID, or version alias. The sandbox response includes
+qualified template version alias such as `open-agents-dev:stable`, or immutable
+template version ID such as `tplv_...`. The sandbox response includes
 `templateVersionId` and `templateImageDigest` when the selected version has
 those fields.
+
+Use a qualified version alias for human-friendly stable channels and an
+immutable version ID for reproducible automation:
+
+```bash
+curl http://127.0.0.1:18082/v1/sandboxes \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"template":"open-agents-dev:stable","name":"stable-runner"}'
+
+curl http://127.0.0.1:18082/v1/sandboxes \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"template":"tplv_...","name":"pinned-runner"}'
+```
 
 Optional `env` values are passed to OpenSandbox at sandbox creation time. Keys
 must match `[A-Za-z_][A-Za-z0-9_]*`, values must be strings, each value is

@@ -175,12 +175,18 @@ harakiri template build --name open-agents-dev . --no-wait
 harakiri template builds --status queued
 harakiri template logs bld_...
 harakiri template promote open-agents-dev --version-id tplv_... --alias stable
+harakiri create --template open-agents-dev:stable --name stable-runner
+harakiri create --template tplv_... --name pinned-runner
 ```
 
 By default, `harakiri template build` waits for completion, prints streamed log
 lines, and ends with the build ID, template version ID, image digest, duration,
 and the next `harakiri create` command. `--no-wait` preserves the enqueue-only
 behavior for CI or custom polling scripts.
+
+After promotion, use the qualified alias form `<template-ref>:stable` for the
+human-readable channel. Use the immutable `tplv_...` version ID when the caller
+must pin the exact digest chosen at sandbox creation.
 
 ## Failure Modes
 

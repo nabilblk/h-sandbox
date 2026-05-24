@@ -585,7 +585,22 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   sandbox `sbx_vGY-peTj7k`; and read `harakiri-init-built` from the image.
   Deployed product docs were verified at `http://127.0.0.1:15173/#docs`, and
   the screenshot was saved to `/tmp/harakiri-template-init-docs.png`.
-- Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
+- Template resolution checkpoint on 2026-05-24:
+  `pnpm --filter @harakiri/api test`, `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @harakiri/web typecheck`, `pnpm --filter @harakiri/web build`,
+  `pnpm deploy:k0s`, and `pnpm ports:restart && pnpm ports:status` passed.
+  `pnpm smoke:template-resolution` built/imported template
+  `resolution-smoke-1779611825`, produced build `bld_gtxq40lCafPG`, promoted
+  version `tplv_E9XIL3SQlb_r` as `stable`, then created sandboxes
+  `sbx_OVMEU8K9pj`, `sbx_SFg9SRq7D_`, and `sbx_tp_bQYGkfG` by template name,
+  qualified stable alias, and immutable version ID. The smoke asserted all
+  three persisted rows used the same `template_id`, `template_version_id`, and
+  non-null `template_image_digest`. Deployed product docs were verified at
+  `http://127.0.0.1:15173/#docs` for Create sandbox, Create a custom template,
+  Template troubleshooting, and SDK usage; screenshot saved to
+  `/tmp/harakiri-template-resolution-docs.png`.
+- Post-test database audit: `running_sandboxes=0`, `ready_routes=0`,
+  `resolution_templates=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
 
