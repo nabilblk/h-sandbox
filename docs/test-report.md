@@ -375,6 +375,13 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `docs/artifacts/19-new-template-mobile.png`. No website product docs changed
   in this checkpoint because the product behavior and copy were not changed;
   this was automated visual evidence for the existing Templates UI.
+- Template operator-docs checkpoint on 2026-05-24: `docs/runbook.md` now
+  documents the current k0s local registry configuration, the intended
+  production registry credential split, external registry rollout steps,
+  builder cleanup commands, and a troubleshooting matrix for queued builds,
+  Kaniko failures, registry digest lookup failures, runtime pulls, and registry
+  disk growth. No website product docs changed because this checkpoint is
+  operator-only guidance and does not change user-facing behavior.
 - Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
   `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
   and `pnpm smoke:template-redaction` passed after adding API redaction for

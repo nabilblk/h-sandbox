@@ -234,6 +234,56 @@ Template build policy defaults are configured in `harakiri-config`:
 - `TEMPLATE_IMAGE_ALLOW_PREFIXES=`
 - `TEMPLATE_IMAGE_DENY_PREFIXES=`
 
+Template registry configuration is also carried by `harakiri-config`:
+
+- `TEMPLATE_REGISTRY_PUSH_HOST` is the registry host Kaniko pushes to from
+  inside k0s. In local development this is
+  `harakiri-registry.harakiri.svc.cluster.local:5000`.
+- `TEMPLATE_REGISTRY_RUNTIME_HOST` is the registry host stored on ready
+  template versions for OpenSandbox to pull. In local development this is
+  `127.0.0.1:5000`, matching the k0s node import/forwarding setup.
+- `TEMPLATE_REGISTRY_REPOSITORY_PREFIX` scopes generated image names. The
+  prototype uses `harakiri/templates`.
+
+Inspect the deployed values before debugging a pull or push issue:
+
+```bash
+kubectl -n harakiri get configmap harakiri-config -o jsonpath='{.data.TEMPLATE_REGISTRY_PUSH_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_RUNTIME_HOST}{"\n"}{.data.TEMPLATE_REGISTRY_REPOSITORY_PREFIX}{"\n"}'
+kubectl -n harakiri get pods,svc -l app=harakiri-registry
+```
+
+The local k0s registry is intentionally unauthenticated and should only be used
+for development. A production registry setup should use separate least-privilege
+credentials:
+
+- Builder push credential: scoped to write only the Harakiri template namespace.
+- Runtime pull credential: scoped to read only images that OpenSandbox may run.
+- Optional base-image pull credential: scoped to approved private base-image
+  namespaces when Dockerfile builds need them.
+- Per-organization namespaces when teams must not see or overwrite each other's
+  images.
+
+Do not pass registry passwords through template build args, metadata, or
+Dockerfile content. Those surfaces are redacted, but they are not credential
+stores. The schema reserves `template_registry_credentials` for org-level
+encrypted registry credentials; until that is wired into the builder and
+OpenSandbox runtime, private registry support should be treated as operator
+preconfiguration, not a user-facing template feature.
+
+For an external registry rollout, the operator sequence is:
+
+1. Create the registry namespace/repository and least-privilege push/pull
+   credentials outside Harakiri.
+2. Configure the builder/Kaniko environment to use the push credential and the
+   OpenSandbox runtime or node image pull path to use the pull credential.
+3. Set `TEMPLATE_REGISTRY_PUSH_HOST`, `TEMPLATE_REGISTRY_RUNTIME_HOST`, and
+   `TEMPLATE_REGISTRY_REPOSITORY_PREFIX` to the external registry path.
+4. Add the external registry and repository prefix to
+   `TEMPLATE_IMAGE_ALLOW_REGISTRIES` and `TEMPLATE_IMAGE_ALLOW_PREFIXES`.
+5. Run `pnpm smoke:template-build` and verify the resulting
+   `template_versions.image_uri` is a digest-pinned reference that OpenSandbox
+   can pull.
+
 `TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG` counts `queued` and `building` records. If
 the limit is hit, cancel stale queued builds or delete abandoned test templates
 before enqueueing more work:
@@ -318,12 +368,24 @@ the tag is public or credentials are configured, the registry is allowed by
 build, compare `template_versions.image_uri` with the registry host reachable
 from the k0s node and verify the image can be pulled from that host.
 
+Troubleshooting matrix:
+
+| Symptom | First checks | Usual fix |
+| --- | --- | --- |
+| Builds stay `queued` | `kubectl -n harakiri get deploy harakiri-template-builder`; active build count query above | Roll out or restart the builder, or cancel stale queued/building rows that are consuming the org limit |
+| Dockerfile build stays `building` | `kubectl -n harakiri get jobs,pods -l app=harakiri-template-build`; `kubectl -n harakiri describe job/<job-name>` | Inspect `context-exporter` and `kaniko` logs, then retry after fixing the Dockerfile, base image policy, or registry push path |
+| Kaniko reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and Kaniko can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
+| Image import cannot resolve a digest | Builder logs filtered for `registry`, `manifest`, or `digest`; API error body | Fix the tag, registry visibility, registry policy, or operator-provided pull credentials |
+| Sandbox create fails after a successful build | Compare `template_versions.image_uri` with `TEMPLATE_REGISTRY_RUNTIME_HOST`; OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure pull credentials for the runtime path |
+| Registry disk keeps growing | Registry `du -sh`; old ready versions and retained build rows | Archive templates first, then apply a retention policy that preserves every digest referenced by `template_versions` |
+
 Local registry and cache cleanup for development:
 
 ```bash
 kubectl -n harakiri get pods,svc -l app=harakiri-registry
 kubectl -n harakiri exec deploy/harakiri-registry -- du -sh /var/lib/registry || true
 kubectl -n harakiri delete job -l app=harakiri-template-build --field-selector status.successful=1
+kubectl -n harakiri delete job -l app=harakiri-template-build --field-selector status.failed=1
 ```
 
 Do not delete registry blobs that are referenced by `template_versions` unless

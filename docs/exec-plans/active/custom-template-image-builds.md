@@ -434,7 +434,7 @@ the change is provably invisible to one audience.
 - [x] Add audit events for template create, build, cancel, promote, archive, and
       sandbox creation from a template version.
 - [ ] Add retention policies for old builds, logs, and image versions.
-- [ ] Add admin/operator docs for registry credentials, builder cleanup, and
+- [x] Add admin/operator docs for registry credentials, builder cleanup, and
       troubleshooting.
 
 ### Phase 10: Documentation
