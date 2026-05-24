@@ -297,6 +297,8 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [q, setQ] = useState("");
   const [visibility, setVisibility] = useState("all");
+  const [owner, setOwner] = useState("all");
+  const [runtimeFamily, setRuntimeFamily] = useState("all");
   const [templateStatus, setTemplateStatus] = useState("active");
   const [buildQ, setBuildQ] = useState("");
   const [buildStatus, setBuildStatus] = useState("all");
@@ -308,6 +310,8 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
     if (visibility !== "all") params.set("visibility", visibility);
+    if (owner !== "all") params.set("owner", owner);
+    if (runtimeFamily !== "all") params.set("runtimeFamily", runtimeFamily);
     if (templateStatus !== "active") params.set("status", templateStatus);
     params.set("limit", "100");
     try {
@@ -330,7 +334,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBuilds([]);
     }
   };
-  useEffect(() => { void loadTemplates(); }, [q, visibility, templateStatus]);
+  useEffect(() => { void loadTemplates(); }, [q, visibility, owner, runtimeFamily, templateStatus]);
   useEffect(() => { void loadBuilds(); }, [buildQ, buildStatus]);
   useEffect(() => { api.usage().then(setUsage).catch(() => undefined); }, []);
   useEffect(() => {
@@ -439,6 +443,20 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
             <button className={`btn btn-sm ${visibility === "internal" ? "active" : ""}`} onClick={() => setVisibility("internal")}>Internal</button>
             <button className={`btn btn-sm ${visibility === "public" ? "active" : ""}`} onClick={() => setVisibility("public")}>Public</button>
             <button className={`btn btn-sm ${visibility === "private" ? "active" : ""}`} onClick={() => setVisibility("private")}>Private</button>
+            <select className="input tmpl-filter-select" aria-label="Owner filter" value={owner} onChange={(e) => setOwner(e.target.value)}>
+              <option value="all">All owners</option>
+              <option value="team">Team</option>
+              <option value="platform">Platform</option>
+            </select>
+            <select className="input tmpl-filter-select" aria-label="Runtime filter" value={runtimeFamily} onChange={(e) => setRuntimeFamily(e.target.value)}>
+              <option value="all">All runtimes</option>
+              <option value="python">Python</option>
+              <option value="python-data">Python data</option>
+              <option value="node">Node</option>
+              <option value="browser">Browser</option>
+              <option value="linux">Linux</option>
+              <option value="custom">Custom</option>
+            </select>
             <button className={`btn btn-sm ${templateStatus === "active" ? "active" : ""}`} onClick={() => setTemplateStatus("active")}>Active</button>
             <button className={`btn btn-sm ${templateStatus === "archived" ? "active" : ""}`} onClick={() => setTemplateStatus("archived")}>Archived</button>
             <button className={`btn btn-sm ${templateStatus === "all" ? "active" : ""}`} onClick={() => setTemplateStatus("all")}>All status</button>
@@ -448,7 +466,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
             <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Updated</span><span>Visibility</span><span>Version</span><span /></div>
             {templates.map((template) => (
               <div className="tmpl-row" key={template.id}>
-                <span className="tmpl-main-name"><b>{template.name}</b><small>{template.aliases?.length ? template.aliases.join(", ") : template.description}</small></span>
+                <span className="tmpl-main-name"><b>{template.name}</b><small>{template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""}{template.aliases?.length ? ` - ${template.aliases.join(", ")}` : ` - ${template.description}`}</small></span>
                 <span className="num muted">{template.id}</span>
                 <span>{template.cpuCount ?? 1} Cores</span>
                 <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
@@ -757,7 +775,7 @@ const docPages: DocPage[] = [
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
         <h2>Dashboard</h2>
-        <p>The Templates List provides row actions for Use, Build, Builds, Promote, Archive, and Copy ID. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
       </>
     )
   },

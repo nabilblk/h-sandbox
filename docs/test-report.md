@@ -228,6 +228,22 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Post-Template-List-actions cleanup audit on 2026-05-24: PostgreSQL reported
   `active_smoke_keys=0`, `live_sandboxes=0`, `ui_action_templates=0`, and
   `ready_routes=0`.
+- Template List filters checkpoint on 2026-05-24: `pnpm --filter
+  @harakiri/shared build`, `pnpm typecheck`, `pnpm --filter @harakiri/web
+  build`, `pnpm test`, and `git diff --check` passed after adding API-backed
+  owner (`team`/`platform`), runtime family, and active/archived status filters
+  to the Templates List. `pnpm deploy:k0s` completed and `pnpm ports:restart &&
+  pnpm ports:status` reported every forward healthy. A Playwright browser smoke
+  created `ui-filters-1779593948515`, verified `GET /v1/templates` with
+  `owner=team&runtimeFamily=custom`, verified the deployed UI filters show the
+  team/custom row, hide it under the Platform owner filter, and reveal it again
+  under the Archived status after archive. It also verified website docs mention
+  visibility, owner, runtime family, and active/archived filtering. Screenshots:
+  `/tmp/harakiri-template-list-filters.png` and
+  `/tmp/harakiri-template-filters-docs.png`.
+- Post-Template-List-filters cleanup audit on 2026-05-24: PostgreSQL reported
+  `active_smoke_keys=0`, `live_sandboxes=0`, `ui_filter_templates=0`, and
+  `ready_routes=0`.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention

@@ -276,6 +276,13 @@
   box-shadow: 0 0 0 1px var(--ink);
 }
 .tmpl-search { width: min(380px, 100%); }
+.tmpl-filter-select {
+  width: auto;
+  min-width: 122px;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  font-size: 12px;
+}
 .tmpl-total {
   margin-left: auto;
   color: var(--muted);

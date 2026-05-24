@@ -75,6 +75,10 @@ Supported filters:
 
 - `q`: template ID, name, or alias search.
 - `visibility`: `public`, `private`, `internal`, or `all`.
+- `owner`: `team`, `platform`, or `all`. Team templates belong to the current
+  organization; platform templates have no organization owner.
+- `runtimeFamily`: exact runtime family such as `python`, `python-data`,
+  `node`, `browser`, `linux`, or `custom`.
 - `status`: template status or `all`.
   If omitted, archived templates are hidden. Use `status=archived` to inspect
   archived templates or `status=all` to include every status.

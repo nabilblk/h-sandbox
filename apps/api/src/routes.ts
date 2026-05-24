@@ -280,9 +280,11 @@ export const registerRoutes = async (app: FastifyInstance) => {
   });
 
   app.get("/v1/templates", async (request) => {
-    const { q, visibility, status, limit, offset } = request.query as {
+    const { q, visibility, owner, runtimeFamily, status, limit, offset } = request.query as {
       q?: string;
       visibility?: string;
+      owner?: string;
+      runtimeFamily?: string;
       status?: string;
       limit?: string;
       offset?: string;
@@ -290,6 +292,8 @@ export const registerRoutes = async (app: FastifyInstance) => {
     return listTemplates(request.auth.organizationId, {
       q,
       visibility,
+      owner,
+      runtimeFamily,
       status,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined

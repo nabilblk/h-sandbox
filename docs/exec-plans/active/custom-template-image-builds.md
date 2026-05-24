@@ -74,7 +74,7 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [ ] List tab:
   - [x] Search by template name, ID, or alias.
   - [x] Filter by visibility.
-  - [ ] Add owner/team, runtime family, and status filters.
+  - [x] Add owner/team, runtime family, and status filters.
   - [x] Table columns: name, ID, CPU, memory, updated, visibility, latest image
         version/digest short hash, and row actions.
   - [ ] Add created timestamp and latest build status columns.
@@ -343,7 +343,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Refactor the existing Templates view into a tabbed List/Builds workspace.
 - [x] Implement the initial List tab table with search, visibility filters, and
       Use/Build/Copy actions.
-- [ ] Add remaining List filters: owner/team, runtime family, and status.
+- [x] Add remaining List filters: owner/team, runtime family, and status.
 - [x] Add remaining List actions: View builds, Promote, and Archive.
 - [x] Implement the Builds tab table and status filter counts.
 - [x] Add build detail panel with log viewer and retry/cancel actions.

@@ -12,6 +12,7 @@ export type Template = {
   bootMs: number;
   visibility: "public" | "private" | "internal";
   status: string;
+  ownerScope?: "platform" | "team";
   defaultEntrypoint: string[];
   cpuCount: number;
   memoryMb: number;

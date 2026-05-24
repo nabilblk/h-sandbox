@@ -9,6 +9,8 @@ export type RuntimeTemplate = Template & {
 export type TemplateListFilters = {
   q?: string;
   visibility?: string;
+  owner?: string;
+  runtimeFamily?: string;
   status?: string;
   limit?: number;
   offset?: number;
@@ -26,6 +28,7 @@ type TemplateRow = {
   bootMs: number;
   visibility: Template["visibility"];
   status: string;
+  ownerScope: NonNullable<Template["ownerScope"]>;
   defaultEntrypoint: string[];
   cpuCount: number;
   memoryMb: number;
@@ -49,6 +52,7 @@ const templateFields = `
   t.boot_ms AS "bootMs",
   t.visibility,
   t.status,
+  CASE WHEN t.organization_id IS NULL THEN 'platform' ELSE 'team' END AS "ownerScope",
   COALESCE(v.default_entrypoint, t.default_entrypoint) AS "defaultEntrypoint",
   COALESCE(v.cpu_count, t.cpu_count) AS "cpuCount",
   COALESCE(v.memory_mb, t.memory_mb) AS "memoryMb",
@@ -72,6 +76,7 @@ const mapTemplate = (row: TemplateRow): RuntimeTemplate => ({
   bootMs: Number(row.bootMs) || 0,
   visibility: row.visibility,
   status: row.status,
+  ownerScope: row.ownerScope,
   defaultEntrypoint: row.defaultEntrypoint ?? ["sleep", "3600"],
   cpuCount: Number(row.cpuCount) || 1,
   memoryMb: Number(row.memoryMb) || 1024,
@@ -92,7 +97,8 @@ const fallbackTemplate = (templateRef: string): RuntimeTemplate | null => {
     ...template,
     imageDigest: template.imageDigest ?? null,
     latestVersionId: template.latestVersionId ?? null,
-    templateVersionId: template.latestVersionId ?? null
+    templateVersionId: template.latestVersionId ?? null,
+    ownerScope: template.ownerScope ?? "platform"
   };
 };
 
@@ -102,6 +108,14 @@ const templateWhere = (organizationId: string, filters: TemplateListFilters) => 
   if (filters.visibility && filters.visibility !== "all") {
     params.push(filters.visibility);
     where.push(`t.visibility = $${params.length}`);
+  }
+  if (filters.owner && filters.owner !== "all") {
+    if (filters.owner === "team") where.push("t.organization_id = $1");
+    if (filters.owner === "platform") where.push("t.organization_id IS NULL");
+  }
+  if (filters.runtimeFamily && filters.runtimeFamily !== "all") {
+    params.push(filters.runtimeFamily);
+    where.push(`t.runtime_family = $${params.length}`);
   }
   if (filters.status && filters.status !== "all" && filters.status !== "active") {
     params.push(filters.status);
@@ -137,7 +151,7 @@ export const listTemplates = async (organizationId: string, filters: TemplateLis
      WHERE ${where}`,
     params
   );
-  const fallback = !result.rows.length && !filters.q && !filters.visibility && !filters.status && offset === 0;
+  const fallback = !result.rows.length && !filters.q && !filters.visibility && !filters.owner && !filters.runtimeFamily && !filters.status && offset === 0;
   const templates = fallback ? TEMPLATES.map((template) => fallbackTemplate(template.id)!) : result.rows.map(mapTemplate);
   return { templates, page: { total: fallback ? templates.length : Number(total.rows[0]?.count ?? 0), limit, offset } };
 };
