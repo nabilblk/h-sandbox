@@ -128,16 +128,31 @@ const templateBuildSelect = `
          status, source_type AS "sourceType", context_hash AS "contextHash",
          dockerfile_path AS "dockerfilePath", build_args AS "buildArgs",
          image_destination AS "imageDestination", image_digest AS "imageDigest",
+         (SELECT tv.id FROM template_versions tv WHERE tv.build_id = template_builds.id ORDER BY tv.created_at DESC LIMIT 1) AS "resultVersionId",
          log_ref AS "logRef", error, metadata,
+         (SELECT jsonb_build_object(
+            'buildId', c.build_id,
+            'sha256', c.sha256,
+            'sizeBytes', c.size_bytes,
+            'format', c.format,
+            'fileCount', c.file_count,
+            'metadata', c.metadata,
+            'uploadedAt', c.updated_at
+          )
+          FROM template_build_contexts c
+          WHERE c.build_id = template_builds.id
+          ORDER BY c.updated_at DESC
+          LIMIT 1) AS context,
          started_at AS "startedAt", completed_at AS "completedAt",
          created_at AS "createdAt", updated_at AS "updatedAt"
   FROM template_builds
 `;
 
-const redactTemplateBuildRow = <T extends { buildArgs?: Record<string, unknown>; metadata?: Record<string, unknown>; error?: string | null }>(row: T) => ({
+const redactTemplateBuildRow = <T extends { buildArgs?: Record<string, unknown>; metadata?: Record<string, unknown>; error?: string | null; context?: { metadata?: Record<string, unknown> } | null }>(row: T) => ({
   ...row,
   buildArgs: redactRecord(row.buildArgs ?? {}),
   metadata: redactRecord(row.metadata ?? {}),
+  context: row.context ? { ...row.context, metadata: redactRecord(row.context.metadata ?? {}) } : row.context,
   error: row.error ? redactText(row.error) : row.error
 });
 

@@ -211,6 +211,11 @@ template's `latest_version_id`. Build success and failure are recorded in
 `audit_events` as `template.build.success` and `template.build.failed` with the
 builder actor label `harakiri-template-builder`.
 
+Build list responses include the resulting template version ID when a build has
+produced one. Build detail surfaces the redacted build metadata and uploaded
+context summary: context digest, archive size, file count, format, and upload
+timestamp. The context archive itself is not returned by the API.
+
 If a template is archived while a queued or building record exists, the API
 marks those active builds `canceled`. If a Kubernetes build job finishes after
 the record was canceled, the builder ignores the result instead of promoting it

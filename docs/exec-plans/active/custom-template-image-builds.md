@@ -61,8 +61,9 @@ the same agent/browser/editor surface without depending on E2B internals.
       so users can learn the template workflow without reading repository
       internals.
 - [ ] Any change to template behavior, CLI flags, API payloads, route exposure,
-      or build failure handling updates both repo-facing documentation and
-      website product documentation, or records why one surface is not affected.
+      or build failure handling updates both repo-facing documentation
+      (`README.md` or dedicated `docs/*.md`) and website product documentation,
+      or records why one surface is not affected.
 
 ## Product And UI Backlog
 - [x] Replace the current card-only Templates page with a denser operational
@@ -71,14 +72,14 @@ the same agent/browser/editor surface without depending on E2B internals.
       Harakiri visual language rather than copying E2B branding.
 - [x] Add top-right live status and concurrent sandbox count to the Templates
       area, reusing the dashboard count source.
-- [ ] List tab:
+- [x] List tab:
   - [x] Search by template name, ID, or alias.
   - [x] Filter by visibility.
   - [x] Add owner/team, runtime family, and status filters.
   - [x] Table columns: name, ID, CPU, memory, updated, visibility, latest image
         version/digest short hash, and row actions.
-  - [ ] Add created timestamp and latest build status columns.
-  - [ ] Show template aliases such as `open-agents-dev` and `team/template`.
+  - [x] Add created timestamp and latest build status columns.
+  - [x] Show template aliases such as `open-agents-dev` and `team/template`.
   - [x] Show internal/private/public visibility badges.
   - [x] Provide actions for Use, Build, and Copy ID.
   - [x] Provide actions for View builds and Promote.
@@ -88,10 +89,12 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [x] Filter by status with counts for queued/building/success/failed/canceled.
   - [x] Table columns: status, template, started, duration, build ID, image
         digest, and failure summary.
-  - [ ] Add template version/result version column.
+  - [x] Add template version/result version column.
   - [x] Build detail drawer/page with log stream, Dockerfile metadata, resulting
         digest, and cancel/retry actions.
-  - [ ] Add builder node and full build context metadata to build detail.
+  - [x] Add build context metadata to build detail.
+  - [ ] Add Kubernetes builder pod/node metadata to build detail once the worker
+        persists that runtime information.
 - [ ] Template detail page:
   - [ ] Overview with default create command and SDK snippets.
   - [ ] Versions tab with latest/stable aliases and immutable version IDs.
@@ -133,6 +136,8 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - Documentation is part of the definition of done for every remaining template
   slice: backend/API changes update `README.md` or dedicated `docs/*.md`, while
   user workflow changes update the website docs surface.
+- Code documentation and product documentation are tracked as separate
+  deliverables. Completing one does not imply the other is complete.
 
 ### Code Documentation: README And Dedicated Markdown
 - [x] Repository README updates:
@@ -179,6 +184,9 @@ It must be planned and verified alongside code, not added as a release-afterthou
         k0s deployment notes.
   - [ ] Operator-only guidance stays in repo docs and is not copied into the
         product docs unless users must act on it.
+  - [ ] Each remaining API, CLI, database, scheduler, routing, or builder change
+        is reflected in `README.md` or the relevant dedicated Markdown file in
+        the same checkpoint.
 
 ### Product Documentation: Website And In-App Docs
 - [x] Website product docs:
@@ -215,6 +223,9 @@ It must be planned and verified alongside code, not added as a release-afterthou
         aliases, and route exposure in product language.
   - [ ] The Templates UI links users to the relevant website docs from empty,
         failed, and setup-dependent states.
+  - [ ] Each remaining user-visible dashboard, CLI, SDK, template build, route,
+        or troubleshooting change is reflected in the website docs in the same
+        checkpoint.
 
 ### Documentation Acceptance Criteria
 - [ ] A new user can create and run a custom template using only the website docs.
@@ -344,8 +355,12 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Implement the initial List tab table with search, visibility filters, and
       Use/Build/Copy actions.
 - [x] Add remaining List filters: owner/team, runtime family, and status.
+- [x] Add created timestamp, latest build status, latest version/digest, and
+      explicit alias metadata to the Templates List table.
 - [x] Add remaining List actions: View builds, Promote, and Archive.
 - [x] Implement the Builds tab table and status filter counts.
+- [x] Add result template version and build context summary metadata to the
+      Builds table/detail flow.
 - [x] Add build detail panel with log viewer and retry/cancel actions.
 - [x] Wire use-template action to sandbox creation.
 - [ ] Add New Template flow.
@@ -400,6 +415,9 @@ It must be planned and verified alongside code, not added as a release-afterthou
       and operator documentation for contributors.
 - [ ] Keep the website docs as the canonical product documentation for users,
       with no dependency on reading repository internals.
+- [ ] For every remaining template feature checkpoint, update both documentation
+      tracks in the same commit: code docs in `README.md` or dedicated
+      `docs/*.md`, and user-facing product docs in the website docs surface.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
 - [x] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder

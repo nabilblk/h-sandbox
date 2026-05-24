@@ -20,6 +20,9 @@ export type Template = {
   defaultPorts: number[];
   runtimeFamily: string;
   latestVersionId?: string | null;
+  latestBuildId?: string | null;
+  latestBuildStatus?: string | null;
+  latestBuildCreatedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -59,9 +62,11 @@ export type TemplateBuildSummary = {
   buildArgs: Record<string, unknown>;
   imageDestination: string | null;
   imageDigest: string | null;
+  resultVersionId?: string | null;
   logRef: string | null;
   error: string | null;
   metadata: Record<string, unknown>;
+  context?: TemplateBuildContextSummary | null;
   startedAt: string | null;
   completedAt: string | null;
   createdAt: string;

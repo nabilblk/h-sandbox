@@ -36,6 +36,9 @@ type TemplateRow = {
   defaultPorts: number[];
   runtimeFamily: string;
   latestVersionId: string | null;
+  latestBuildId?: string | null;
+  latestBuildStatus?: string | null;
+  latestBuildCreatedAt?: Date | string | null;
   createdAt?: Date | string;
   updatedAt?: Date | string;
 };
@@ -85,6 +88,9 @@ const mapTemplate = (row: TemplateRow): RuntimeTemplate => ({
   runtimeFamily: row.runtimeFamily || "linux",
   latestVersionId: row.latestVersionId,
   templateVersionId: row.latestVersionId,
+  latestBuildId: row.latestBuildId ?? null,
+  latestBuildStatus: row.latestBuildStatus ?? null,
+  latestBuildCreatedAt: row.latestBuildCreatedAt ? new Date(row.latestBuildCreatedAt).toISOString() : null,
   createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : undefined,
   updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined
 });
@@ -137,9 +143,20 @@ export const listTemplates = async (organizationId: string, filters: TemplateLis
   const offset = Math.max(filters.offset ?? 0, 0);
   const { params, where } = templateWhere(organizationId, filters);
   const result = await query<TemplateRow>(
-    `SELECT ${templateFields}
+    `SELECT ${templateFields},
+            lb.id AS "latestBuildId",
+            lb.status AS "latestBuildStatus",
+            lb.created_at AS "latestBuildCreatedAt"
      FROM templates t
      LEFT JOIN template_versions v ON v.id = t.latest_version_id
+     LEFT JOIN LATERAL (
+       SELECT b.id, b.status, b.created_at
+       FROM template_builds b
+       WHERE b.template_id = t.id
+         AND b.organization_id = $1
+       ORDER BY b.created_at DESC
+       LIMIT 1
+     ) lb ON true
      WHERE ${where}
      ORDER BY t.boot_ms ASC, t.name ASC
      LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,

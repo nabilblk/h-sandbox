@@ -288,6 +288,10 @@ const buildDuration = (build: TemplateBuildSummary) => {
   if (seconds < 60) return `${seconds}s`;
   return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
 };
+const buildResultLabel = (build: TemplateBuildSummary) => {
+  if (build.error) return build.error;
+  return shortDigest(build.imageDigest);
+};
 
 const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [tab, setTab] = useState<"list" | "builds">("list");
@@ -463,16 +467,19 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
             <span className="tmpl-total num">{templateTotal} total</span>
           </div>
           <div className="tmpl-list card">
-            <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Updated</span><span>Visibility</span><span>Version</span><span /></div>
+            <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Created</span><span>Updated</span><span>Visibility</span><span>Build</span><span>Version</span><span>Aliases</span><span /></div>
             {templates.map((template) => (
               <div className="tmpl-row" key={template.id}>
-                <span className="tmpl-main-name"><b>{template.name}</b><small>{template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""}{template.aliases?.length ? ` - ${template.aliases.join(", ")}` : ` - ${template.description}`}</small></span>
+                <span className="tmpl-main-name"><b>{template.name}</b><small>{template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""} - {template.description}</small></span>
                 <span className="num muted">{template.id}</span>
                 <span>{template.cpuCount ?? 1} Cores</span>
                 <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
+                <span className="num muted">{formatDateTime(template.createdAt)}</span>
                 <span className="num muted">{formatDateTime(template.updatedAt)}</span>
                 <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status === "archived" ? <span className="tag" style={{ marginLeft: 4 }}>archived</span> : null}</span>
+                <span>{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">-</span>}</span>
                 <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
+                <span className="alias-list">{template.aliases?.length ? template.aliases.slice(0, 3).map((alias) => <span className="tag" key={alias}>{alias}</span>) : <span className="num muted">-</span>}</span>
                 <span className="tmpl-actions">
                   <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={template.status === "archived" || busy === `use:${template.id}`}>Use</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || busy === `build:${template.id}`}>Build</button>
@@ -498,7 +505,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
           </div>
           <div className="tmpl-build-layout">
             <div className="tmpl-builds card">
-              <div className="build-row build-head"><span>Status</span><span>Template</span><span>Started</span><span>Duration</span><span>ID</span><span>Result</span><span /></div>
+              <div className="build-row build-head"><span>Status</span><span>Template</span><span>Started</span><span>Duration</span><span>ID</span><span>Version</span><span>Result</span><span /></div>
               {builds.map((build) => (
                 <div
                   className={`build-row ${selectedBuild?.id === build.id ? "active" : ""}`}
@@ -518,7 +525,8 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                   <span className="num muted">{formatDateTime(build.startedAt ?? build.createdAt)}</span>
                   <span className="num">{buildDuration(build)}</span>
                   <span className="num muted">{build.id}</span>
-                  <span className="muted">{build.error ?? shortDigest(build.imageDigest)}</span>
+                  <span className="num muted">{shortDigest(build.resultVersionId)}</span>
+                  <span className="muted">{buildResultLabel(build)}</span>
                   <span className="tmpl-actions">
                     {build.status === "queued" || build.status === "building" ? <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void cancelBuild(build.id); }} disabled={busy === `cancel:${build.id}`}>Cancel</button> : null}
                     <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void retryBuild(build.id); }} disabled={busy === `retry:${build.id}`}>Retry</button>
@@ -533,8 +541,11 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                   <div className="build-detail-head"><div><div className="card-h">Build details</div><div className="num muted">{selectedBuild.id}</div></div><span className={`build-badge ${selectedBuild.status}`}>{selectedBuild.status}</span></div>
                   <div className="build-meta">
                     <span>Template <b>{selectedBuild.templateId}</b></span>
+                    <span>Version <b>{selectedBuild.resultVersionId ?? "pending"}</b></span>
                     <span>Dockerfile <b>{selectedBuild.dockerfilePath ?? "Dockerfile"}</b></span>
                     <span>Image <b>{selectedBuild.imageDestination ?? "pending"}</b></span>
+                    <span>Builder <b>{String(selectedBuild.metadata?.builder ?? selectedBuild.metadata?.source ?? selectedBuild.sourceType)}</b></span>
+                    <span>Context <b>{selectedBuild.context ? `${selectedBuild.context.sha256} - ${formatBytes(selectedBuild.context.sizeBytes)} - ${selectedBuild.context.fileCount ?? 0} files` : selectedBuild.contextHash ?? "-"}</b></span>
                   </div>
                   <div className="build-log">
                     {buildLogs.length ? buildLogs.map((line) => <div key={line.lineNo}><span className="num">{line.lineNo}</span><span>{line.message}</span></div>) : <div className="muted">No build logs yet. The builder worker has not started this record.</div>}
@@ -775,7 +786,7 @@ const docPages: DocPage[] = [
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
         <h2>Dashboard</h2>
-        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`.</p>
       </>
     )
   },
@@ -788,7 +799,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Statuses</h2>
-        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original.</p>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID and context metadata in the dashboard detail pane.</p>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>

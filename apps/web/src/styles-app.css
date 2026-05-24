@@ -298,11 +298,11 @@
 .tmpl-row {
   display: grid;
   grid-template-columns:
-    minmax(260px, 1.6fr) minmax(150px, 1fr) 86px 110px 148px 110px 124px
-    minmax(320px, 1fr);
+    minmax(250px, 1.4fr) minmax(140px, 0.9fr) 76px 100px 136px 136px 112px 104px
+    116px minmax(150px, 0.8fr) minmax(320px, 1fr);
   align-items: center;
   gap: 14px;
-  min-width: 1320px;
+  min-width: 1660px;
   padding: 12px 16px;
   border-top: 1px solid var(--border);
   font-size: 12.5px;
@@ -347,6 +347,12 @@
   gap: 4px;
 }
 .tmpl-actions .btn-sm { height: 24px; }
+.alias-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .build-toolbar { align-items: stretch; }
 .tmpl-build-layout {
   display: grid;
@@ -356,10 +362,10 @@
 }
 .build-row {
   display: grid;
-  grid-template-columns: 110px minmax(150px, 1fr) 138px 90px 160px minmax(180px, 1fr) 132px;
+  grid-template-columns: 110px minmax(150px, 1fr) 138px 90px 160px 118px minmax(180px, 1fr) 132px;
   align-items: center;
   gap: 12px;
-  min-width: 1040px;
+  min-width: 1160px;
   padding: 11px 14px;
   border-top: 1px solid var(--border);
   background: var(--surface);
