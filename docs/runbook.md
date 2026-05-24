@@ -59,7 +59,11 @@ The deploy script:
 - applies the Harakiri Keycloak login theme from the `keycloak-theme-harakiri` ConfigMap
 - installs or upgrades the official OpenSandbox all-in-one Helm chart with gateway mode enabled
 
-If OpenSandbox cannot run in the local VM, the control-plane adapter remains usable with development fallback enabled. Disable fallback by setting `OPEN_SANDBOX_ALLOW_FALLBACK=0` in `infra/k8s/harakiri/harakiri.yaml`.
+The k0s manifest sets `OPEN_SANDBOX_ALLOW_FALLBACK=0`, so sandbox tests fail
+fast if OpenSandbox is unavailable. Terminal, filesystem, and metrics requests
+use OpenSandbox endpoint-resolved `execd`; in gateway/header mode the API sends
+those requests to `OPEN_SANDBOX_GATEWAY_URL` with the returned
+`OpenSandbox-Ingress-To` header.
 
 ## Access
 

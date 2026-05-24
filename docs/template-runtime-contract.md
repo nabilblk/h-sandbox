@@ -11,7 +11,8 @@ runtime; the image itself is responsible for exposing useful tools and services.
 - The configured `workdir` must exist or be creatable by the runtime user.
 - The runtime user must be able to write to the workspace path.
 - Long-running servers must bind to `0.0.0.0`, not only `127.0.0.1`.
-- Commands should work through Kubernetes `pods/exec` against the sandbox pod.
+- Commands should work through OpenSandbox `execd`, reached through the
+  OpenSandbox endpoint API for port `44772`.
 - Logs should be visible through stdout/stderr or control-plane events.
 
 ## Recommended harakiri.toml Fields
@@ -139,6 +140,12 @@ starts the sandbox command through that bootstrap script. Custom images should
 include a normal Linux userland with `/bin/sh`, `/usr/bin/env`, and `bash`
 available. Minimal BusyBox-only images can build and pull successfully, but they
 may fail at runtime before the sandbox becomes ready.
+
+Harakiri's runtime terminal, filesystem, and metrics features call OpenSandbox
+`execd` through `GET /v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`;
+they do not rely on Kubernetes `pods/exec`. Images should therefore be validated
+against OpenSandbox bootstrap and `execd` behavior rather than against a direct
+Kubernetes shell into the pod.
 
 ## Non-Goals For V1
 

@@ -1,6 +1,14 @@
 # OpenSandbox install
 
-The deployment script installs the official OpenSandbox chart into `opensandbox-system` when Helm can reach the chart release artifact. The Harakiri API is configured with `OPEN_SANDBOX_BASE_URL=http://opensandbox-server.opensandbox-system.svc.cluster.local:8080`.
+The deployment script installs the official OpenSandbox chart into
+`opensandbox-system` when Helm can reach the chart release artifact. The
+Harakiri API is configured with:
 
-The control-plane adapter has development fallback enabled in `infra/k8s/harakiri/harakiri.yaml` so dashboard and CLI flows remain usable while the OpenSandbox chart is settling or if the local VM lacks nested virtualization support.
+- `OPEN_SANDBOX_BASE_URL=http://opensandbox-server.opensandbox-system.svc.cluster.local:80`
+- `OPEN_SANDBOX_GATEWAY_URL=http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80`
+- `OPEN_SANDBOX_ALLOW_FALLBACK=0`
 
+Sandbox lifecycle uses the OpenSandbox server. Terminal, filesystem, and
+metrics use OpenSandbox endpoint-resolved `execd`; in gateway/header mode,
+Harakiri sends those requests to the internal OpenSandbox ingress gateway with
+the returned `OpenSandbox-Ingress-To` header.

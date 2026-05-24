@@ -9,6 +9,23 @@ test.afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
+const requestUrl = (input: string | URL | Request) => (input instanceof Request ? input.url : String(input));
+
+const jsonResponse = (value: unknown, init?: ResponseInit) =>
+  new Response(JSON.stringify(value), {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(init?.headers ?? {})
+    }
+  });
+
+const execdEndpointResponse = (headers?: Record<string, string>) =>
+  jsonResponse({
+    endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772",
+    ...(headers ? { headers } : {})
+  });
+
 test("openSandbox.create sends the resolved DB template image, entrypoint, and resources", async () => {
   const requests: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
   globalThis.fetch = async (input, init) => {
@@ -121,4 +138,158 @@ test("openSandboxCreateBody includes sandbox env and image auth when provided", 
   assert.equal(body.timeout, 60);
   assert.deepEqual(body.env, { HARAKIRI_ENV_SMOKE: "env-ok" });
   assert.equal(body.metadata["harakiri.runtime_registry_credential"], "cred_private");
+});
+
+test("openSandbox.run uses the OpenSandbox-resolved execd endpoint and forwards endpoint headers", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
+      return execdEndpointResponse({
+        "OpenSandbox-Ingress-To": "osbx-real-44772",
+        "OpenSandbox-Secure-Access": "secure-token"
+      });
+    }
+    if (url === "http://127.0.0.1:18085/command") {
+      return new Response(
+        [
+          'data: {"type":"stdout","text":"hello"}',
+          "",
+          'data: {"type":"execution_complete","execution_time":13}',
+          ""
+        ].join("\n"),
+        { headers: { "content-type": "text/event-stream" } }
+      );
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.run({
+    sandboxId: "sbx_real",
+    opensandboxId: "osbx-real",
+    command: "echo hello"
+  });
+
+  assert.equal(result.stdout, "hello\n");
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.durationMs, 13);
+
+  const commandRequest = requests.find((request) => request.url.endsWith("/command"));
+  assert.ok(commandRequest);
+  const commandHeaders = new Headers(commandRequest.init?.headers);
+  assert.equal(commandHeaders.get("accept"), "text/event-stream");
+  assert.equal(commandHeaders.get("content-type"), "application/json");
+  assert.equal(commandHeaders.get("OpenSandbox-Ingress-To"), "osbx-real-44772");
+  assert.equal(commandHeaders.get("OpenSandbox-Secure-Access"), "secure-token");
+  assert.equal(commandHeaders.get("X-EXECD-ACCESS-TOKEN"), "dev-opensandbox-key");
+});
+
+test("openSandbox.files lists through execd files/search and synthesizes direct directories", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
+      return execdEndpointResponse({ "X-EXECD-ACCESS-TOKEN": "endpoint-token" });
+    }
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772/files/search?path=%2Fworkspace&pattern=*") {
+      return jsonResponse([
+        {
+          path: "/workspace/app.py",
+          size: 42,
+          mode: 644,
+          modified_at: "2026-05-24T12:00:00Z",
+          created_at: "2026-05-24T11:59:00Z",
+          owner: "root",
+          group: "root"
+        },
+        {
+          path: "/workspace/src/index.ts",
+          size: 84,
+          mode: 644,
+          modified_at: "2026-05-24T12:01:00Z",
+          created_at: "2026-05-24T11:59:00Z",
+          owner: "root",
+          group: "root"
+        }
+      ]);
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.files("osbx-real", "/workspace/");
+
+  assert.equal(result.cwd, "/workspace");
+  assert.deepEqual(result.files, [
+    { path: "/workspace/src", name: "src", type: "directory", size: 0 },
+    {
+      path: "/workspace/app.py",
+      name: "app.py",
+      type: "file",
+      size: 42,
+      mode: "0644",
+      modifiedAt: "2026-05-24T12:00:00Z",
+      owner: "root",
+      group: "root"
+    }
+  ]);
+
+  const searchRequest = requests.find((request) => request.url.includes("/files/search"));
+  assert.ok(searchRequest);
+  assert.equal(new Headers(searchRequest.init?.headers).get("X-EXECD-ACCESS-TOKEN"), "endpoint-token");
+});
+
+test("openSandbox.metrics reads metrics through the resolved execd endpoint", async () => {
+  globalThis.fetch = async (input) => {
+    const url = requestUrl(input);
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
+      return execdEndpointResponse({ "X-EXECD-ACCESS-TOKEN": "endpoint-token" });
+    }
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772/metrics") {
+      return jsonResponse({
+        cpu_count: 2,
+        cpu_used_pct: 12.5,
+        mem_total_mib: 2048,
+        mem_used_mib: 128,
+        timestamp: Date.parse("2026-05-24T12:00:00Z")
+      });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.metrics("osbx-real");
+
+  assert.deepEqual(result, {
+    current: { cpu: 13, mem: 128, diskIo: 0, networkOut: 0, cpuCount: 2, memTotal: 2048 },
+    series: [{ ts: "2026-05-24T12:00:00.000Z", cpu: 13, mem: 128 }]
+  });
+});
+
+test("openSandbox.logs uses OpenSandbox diagnostics instead of direct Kubernetes pod logs", async () => {
+  const requests: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = requestUrl(input);
+    requests.push(url);
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/diagnostics/logs?scope=container") {
+      return jsonResponse({
+        sandboxId: "osbx-real",
+        kind: "logs",
+        scope: "container",
+        delivery: "inline",
+        contentType: "text/plain; charset=utf-8",
+        content: "2026-05-24T12:00:00Z execd started\nruntime line without timestamp",
+        truncated: false
+      });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.logs("osbx-real");
+
+  assert.equal(requests.length, 1);
+  assert.deepEqual(result, [
+    { ts: "2026-05-24T12:00:00Z", lvl: "runtime", msg: "execd started", source: "sandbox" },
+    { ts: result[1]?.ts, lvl: "runtime", msg: "line without timestamp", source: "sandbox" }
+  ]);
 });

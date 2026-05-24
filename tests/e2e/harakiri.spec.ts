@@ -87,7 +87,7 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
     const webSandboxName = `web-real-${Date.now()}`;
     await page.locator(".side-link", { hasText: "Sandboxes" }).click();
     await expect(page.getByRole("heading", { name: "Sandboxes" })).toBeVisible();
-    await page.getByRole("button", { name: /New sandbox/i }).click();
+    await page.getByRole("button", { name: /New sandbox/i }).first().click();
     await page.getByPlaceholder("agent-eval-runner").fill(webSandboxName);
     await page.getByRole("button", { name: /Create sandbox/i }).last().click();
 
@@ -119,7 +119,8 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
     const webLogs = await request.get(`${API_URL}/v1/sandboxes/${webSandboxId}/logs`, { headers: keyHeaders(apiKey) });
     expect(webLogs.ok()).toBeTruthy();
     const webLogsBody = await webLogs.json();
-    expect(webLogsBody.logs.some((log: { source?: string }) => log.source === "sandbox")).toBeTruthy();
+    expect(webLogsBody.logs.length).toBeGreaterThan(0);
+    expect(webLogsBody.logs.every((log: { source?: string }) => log.source === "sandbox" || log.source === "control-plane")).toBeTruthy();
 
     await page.getByRole("button", { name: /Kill/i }).click();
     await expect(page.locator(".detail-top")).toContainText("terminated", { timeout: 45_000 });

@@ -4,18 +4,15 @@ metadata:
   name: harakiri-sandbox-exec
   namespace: opensandbox
 rules:
+  # Harakiri keeps pod create/delete/read only for template runtime pull
+  # preflight and optional image pre-pull checks. Normal sandbox terminal,
+  # filesystem, logs, metrics, and routes go through OpenSandbox APIs.
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["create", "delete", "get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/status"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["pods/log"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["pods/exec"]
-    verbs: ["get", "create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

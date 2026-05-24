@@ -67,6 +67,7 @@ data:
   KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri"
   KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
   OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
+  OPEN_SANDBOX_GATEWAY_URL: "http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_ALLOW_FALLBACK: "0"
   AUTH_DEV_ALLOW: "0"
   AUTO_MIGRATE: "1"

@@ -1,6 +1,4 @@
 import type { RunResult } from "@harakiri/shared";
-import { Writable, Readable } from "node:stream";
-import { CoreV1Api, Exec, KubeConfig, type V1Pod, type V1Status } from "@kubernetes/client-node";
 import { config } from "./config.js";
 import { registryImageAuthForImage, type RegistryImageAuth } from "./registry-credentials.js";
 import type { RuntimeTemplate } from "./templates.js";
@@ -20,8 +18,32 @@ type ProviderList = {
 type ExecdEvent = {
   type?: string;
   text?: string;
+  results?: Record<string, unknown>;
+  timestamp?: number;
   execution_time?: number;
   error?: { evalue?: string; traceback?: string[] };
+};
+
+type ProviderEndpoint = {
+  endpoint?: string;
+  url?: string;
+  headers?: Record<string, string> | null;
+};
+
+type ExecdFileInfo = {
+  path: string;
+  size?: number;
+  modified_at?: string;
+  created_at?: string;
+  owner?: string;
+  group?: string;
+  mode?: number | string;
+};
+
+type DiagnosticContent = {
+  content?: string;
+  contentUrl?: string;
+  delivery?: "inline" | "url" | string;
 };
 
 export type SandboxFileEntry = {
@@ -66,6 +88,9 @@ class OpenSandboxHttpError extends Error {
   }
 }
 
+const EXECD_PORT = 44_772;
+const EXECD_AUTH_HEADER = "X-EXECD-ACCESS-TOKEN";
+
 const headers = () => ({
   "content-type": "application/json",
   "OPEN-SANDBOX-API-KEY": config.openSandboxApiKey
@@ -82,6 +107,57 @@ const callOpenSandbox = async <T>(path: string, init: RequestInit = {}) => {
   }
   if (!body) return undefined as T;
   return JSON.parse(body) as T;
+};
+
+const joinUrl = (baseUrl: string, path: string) => {
+  const base = baseUrl.replace(/\/+$/, "");
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${suffix}`;
+};
+
+const openSandboxProtocol = () => {
+  try {
+    return new URL(config.openSandboxBaseUrl).protocol || "http:";
+  } catch {
+    return "http:";
+  }
+};
+
+const openSandboxUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (/^https?:\/\//.test(trimmed)) return trimmed.replace(/\/+$/, "");
+  if (trimmed.startsWith("/")) return joinUrl(config.openSandboxBaseUrl, trimmed);
+  return `${openSandboxProtocol()}//${trimmed.replace(/^\/+/, "")}`.replace(/\/+$/, "");
+};
+
+const hasHeader = (headersToCheck: Record<string, string>, name: string) =>
+  Object.keys(headersToCheck).some((key) => key.toLowerCase() === name.toLowerCase());
+
+const getHeader = (headersToCheck: Record<string, string>, name: string) => {
+  const key = Object.keys(headersToCheck).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+  return key ? headersToCheck[key] : undefined;
+};
+
+const execdHeaders = (endpointHeaders?: Record<string, string> | null) => {
+  const merged = { ...(endpointHeaders ?? {}) };
+  if (!hasHeader(merged, EXECD_AUTH_HEADER)) {
+    merged[EXECD_AUTH_HEADER] = config.openSandboxApiKey;
+  }
+  return merged;
+};
+
+const resolveExecdEndpoint = async (opensandboxId: string) => {
+  const result = await callOpenSandbox<ProviderEndpoint>(
+    `/v1/sandboxes/${opensandboxId}/endpoints/${EXECD_PORT}?use_server_proxy=true`
+  );
+  const endpoint = result.endpoint ?? result.url;
+  if (!endpoint) throw new Error(`OpenSandbox did not return an execd endpoint for ${opensandboxId}`);
+  const headers = execdHeaders(result.headers);
+  const gatewayRoute = getHeader(headers, "OpenSandbox-Ingress-To");
+  return {
+    baseUrl: gatewayRoute ? config.openSandboxGatewayUrl.replace(/\/+$/, "") : openSandboxUrl(endpoint),
+    headers
+  };
 };
 
 const publicRouteTarget = (target: string | null) => {
@@ -165,69 +241,15 @@ export const openSandboxCreateBody = (input: {
   };
 };
 
-const sandboxPodName = (opensandboxId: string) => `${opensandboxId}-0`;
-
-const shellQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
-
 const appendLine = (current: string, line: string) => `${current}${line}${line.endsWith("\n") ? "" : "\n"}`;
 
-const kubernetes = (() => {
-  let kc: KubeConfig | null = null;
-  let core: CoreV1Api | null = null;
-  let exec: Exec | null = null;
-  return {
-    config() {
-      if (!kc) {
-        kc = new KubeConfig();
-        if (process.env.KUBERNETES_SERVICE_HOST) kc.loadFromCluster();
-        else kc.loadFromDefault();
-      }
-      return kc;
-    },
-    core() {
-      core ??= this.config().makeApiClient(CoreV1Api);
-      return core;
-    },
-    exec() {
-      exec ??= new Exec(this.config());
-      return exec;
-    }
-  };
-})();
-
-const collectWritable = () => {
-  const chunks: Buffer[] = [];
-  const writable = new Writable({
-    write(chunk, _encoding, callback) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      callback();
-    }
-  });
-  return {
-    writable,
-    text: () => Buffer.concat(chunks).toString("utf8")
-  };
-};
-
-const waitForSandboxPod = async (podName: string, timeoutMs = 60_000): Promise<V1Pod> => {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    const response = await kubernetes.core().readNamespacedPod({ namespace: "opensandbox", name: podName }).catch(() => null);
-    const pod = response;
-    if (pod?.status?.phase === "Running" && pod.status.containerStatuses?.some((status) => status.ready)) return pod;
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  throw new Error(`sandbox pod ${podName} was not ready before timeout`);
-};
-
 const callExecd = async (opensandboxId: string, path: string, init: RequestInit = {}) => {
-  const pod = await waitForSandboxPod(sandboxPodName(opensandboxId));
-  const podIp = pod.status?.podIP;
-  if (!podIp) throw new Error(`sandbox pod ${sandboxPodName(opensandboxId)} has no pod IP`);
-  const response = await fetch(`http://${podIp}:44772${path}`, {
+  const endpoint = await resolveExecdEndpoint(opensandboxId);
+  const response = await fetch(joinUrl(endpoint.baseUrl, path), {
     ...init,
     headers: {
       ...(init.body ? { "content-type": "application/json" } : {}),
+      ...endpoint.headers,
       ...(init.headers ?? {})
     }
   });
@@ -238,17 +260,38 @@ const callExecd = async (opensandboxId: string, path: string, init: RequestInit 
 
 const parseExecdEvents = (body: string) => {
   const events: ExecdEvent[] = [];
-  for (const rawLine of body.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line) continue;
-    const payload = line.startsWith("data:") ? line.slice(5).trim() : line;
+  const frames = /\r?\n\r?\n/.test(body) ? body.split(/\r?\n\r?\n/) : body.split(/\r?\n/);
+  for (const frame of frames) {
+    let eventType: string | undefined;
+    const dataLines: string[] = [];
+    const lines = frame.includes("\n") ? frame.split(/\r?\n/) : [frame];
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith(":")) continue;
+      if (line.startsWith("event:")) {
+        eventType = line.slice("event:".length).trim();
+        continue;
+      }
+      if (line.startsWith("id:") || line.startsWith("retry:")) continue;
+      dataLines.push(line.startsWith("data:") ? line.slice("data:".length).trim() : line);
+    }
+    const payload = dataLines.join("\n").trim();
+    if (!payload) continue;
     try {
-      events.push(JSON.parse(payload) as ExecdEvent);
+      const event = JSON.parse(payload) as ExecdEvent;
+      if (eventType && !event.type) event.type = eventType;
+      events.push(event);
     } catch {
-      events.push({ type: "stdout", text: payload });
+      events.push({ type: eventType ?? "stdout", text: payload });
     }
   }
   return events;
+};
+
+const eventText = (event: ExecdEvent) => {
+  if (typeof event.text === "string") return event.text;
+  const resultText = event.results?.["text/plain"] ?? event.results?.text ?? event.results?.textPlain;
+  return resultText == null ? undefined : String(resultText);
 };
 
 const runExecdCommand = async (input: { opensandboxId: string; command: string; stdin?: string }) => {
@@ -257,6 +300,7 @@ const runExecdCommand = async (input: { opensandboxId: string; command: string; 
     : input.command;
   const body = await callExecd(input.opensandboxId, "/command", {
     method: "POST",
+    headers: { accept: "text/event-stream" },
     body: JSON.stringify({ command, background: false, timeout: 120_000 })
   });
   let stdout = "";
@@ -264,8 +308,9 @@ const runExecdCommand = async (input: { opensandboxId: string; command: string; 
   let exitCode = 0;
   let durationMs: number | undefined;
   for (const event of parseExecdEvents(body)) {
-    if (event.type === "stdout" && event.text !== undefined) stdout = appendLine(stdout, event.text);
-    if (event.type === "stderr" && event.text !== undefined) stderr = appendLine(stderr, event.text);
+    const text = eventText(event);
+    if ((event.type === "stdout" || event.type === "result") && text !== undefined) stdout = appendLine(stdout, text);
+    if (event.type === "stderr" && text !== undefined) stderr = appendLine(stderr, text);
     if (event.type === "execution_complete" && typeof event.execution_time === "number") durationMs = event.execution_time;
     if (event.type === "error") {
       exitCode = Number(event.error?.evalue ?? 1) || 1;
@@ -276,76 +321,90 @@ const runExecdCommand = async (input: { opensandboxId: string; command: string; 
   return { stdout, stderr, exitCode, durationMs };
 };
 
-const runInSandboxPod = async (input: { opensandboxId: string; command: string; stdin?: string }) => {
-  const podName = sandboxPodName(input.opensandboxId);
-  await waitForSandboxPod(podName);
-  const stdout = collectWritable();
-  const stderr = collectWritable();
-  let exitCode = 0;
-  let statusMessage = "";
-  const stdin = input.stdin ? Readable.from([input.stdin]) : null;
-  const command = input.stdin
-    ? ["sh", "-lc", "cat > /tmp/harakiri-stdin && python /tmp/harakiri-stdin"]
-    : ["sh", "-lc", input.command];
-  const ws = await kubernetes.exec().exec(
-    "opensandbox",
-    podName,
-    "sandbox",
-    command,
-    stdout.writable,
-    stderr.writable,
-    stdin,
-    false,
-    (status: V1Status) => {
-      statusMessage = status.message ?? "";
-      const codeCause = status.details?.causes?.find((cause) => cause.reason === "ExitCode");
-      if (codeCause?.message) exitCode = Number(codeCause.message);
-      else if (status.status === "Failure") exitCode = 1;
-    }
-  );
-  await new Promise<void>((resolve, reject) => {
-    ws.on("close", () => resolve());
-    ws.on("error", reject);
-  });
-  if (statusMessage && exitCode !== 0 && !stderr.text()) {
-    stderr.writable.write(statusMessage);
-  }
-  return { stdout: stdout.text(), stderr: stderr.text(), exitCode };
+const normalizedDirectory = (path: string) => {
+  const safePath = path.startsWith("/") ? path : `/${path}`;
+  return safePath.length > 1 ? safePath.replace(/\/+$/, "") : safePath;
 };
 
+const directRelativePath = (cwd: string, fullPath: string) => {
+  if (cwd === "/") return fullPath.replace(/^\/+/, "");
+  const prefix = `${cwd}/`;
+  return fullPath.startsWith(prefix) ? fullPath.slice(prefix.length) : "";
+};
+
+const modeString = (mode: ExecdFileInfo["mode"]) => (mode == null ? undefined : String(mode).padStart(4, "0"));
+
 const listFilesInSandbox = async (opensandboxId: string, path = "/") => {
-  const safePath = path.startsWith("/") ? path : `/${path}`;
-  const command = `find ${shellQuote(safePath)} -maxdepth 1 -mindepth 1 -printf '%y\\t%s\\t%M\\t%TY-%Tm-%TdT%TH:%TM:%TS%Tz\\t%u\\t%g\\t%p\\n' | sort`;
-  const result = await runExecdCommand({ opensandboxId, command });
-  if (result.exitCode !== 0) throw new Error(result.stderr || `failed to list ${safePath}`);
-  const files = result.stdout
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .map<SandboxFileEntry>((line) => {
-      const [kind, size, mode, modifiedAt, owner, group, ...rest] = line.split("\t");
-      const fullPath = rest.join("\t");
-      const name = fullPath.split("/").filter(Boolean).pop() ?? fullPath;
-      const type = kind === "d" ? "directory" : kind === "f" ? "file" : kind === "l" ? "symlink" : "other";
-      return { path: fullPath, name: fullPath === "/" ? "/" : name, type, size: Number(size) || 0, mode, modifiedAt, owner, group };
-    })
-    .sort((a, b) => {
+  const cwd = normalizedDirectory(path);
+  const query = new URLSearchParams({ path: cwd, pattern: "*" });
+  const body = await callExecd(opensandboxId, `/files/search?${query.toString()}`);
+  const entries = JSON.parse(body) as ExecdFileInfo[];
+  if (!Array.isArray(entries)) throw new Error("OpenSandbox execd files/search returned an unexpected response");
+
+  const seenDirs = new Set<string>();
+  const files: SandboxFileEntry[] = [];
+  for (const entry of entries) {
+    const relative = directRelativePath(cwd, entry.path);
+    if (!relative) continue;
+    const [firstSegment, ...rest] = relative.split("/").filter(Boolean);
+    if (!firstSegment) continue;
+    if (rest.length > 0) {
+      const dirPath = cwd === "/" ? `/${firstSegment}` : `${cwd}/${firstSegment}`;
+      if (!seenDirs.has(dirPath)) {
+        seenDirs.add(dirPath);
+        files.push({ path: dirPath, name: firstSegment, type: "directory", size: 0 });
+      }
+      continue;
+    }
+    files.push({
+      path: entry.path,
+      name: firstSegment,
+      type: "file",
+      size: Number(entry.size) || 0,
+      mode: modeString(entry.mode),
+      modifiedAt: entry.modified_at ?? entry.created_at ?? null,
+      owner: entry.owner,
+      group: entry.group
+    });
+  }
+
+  return {
+    cwd,
+    files: files.sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       if (a.type === "directory") return -1;
       if (b.type === "directory") return 1;
       return a.type.localeCompare(b.type);
-    });
-  return { cwd: safePath, files };
+    })
+  };
+};
+
+const diagnosticContentUrl = (contentUrl: string) => {
+  if (/^https?:\/\//.test(contentUrl)) return contentUrl;
+  return joinUrl(config.openSandboxBaseUrl, contentUrl);
+};
+
+const loadDiagnosticText = async (descriptor: DiagnosticContent) => {
+  if (typeof descriptor.content === "string") return descriptor.content;
+  if (!descriptor.contentUrl) return "";
+  const url = diagnosticContentUrl(descriptor.contentUrl);
+  const sameOpenSandboxOrigin = (() => {
+    try {
+      return new URL(url).origin === new URL(config.openSandboxBaseUrl).origin;
+    } catch {
+      return false;
+    }
+  })();
+  const response = await fetch(url, { headers: sameOpenSandboxOrigin ? headers() : undefined });
+  if (!response.ok) return "";
+  return response.text();
 };
 
 const sandboxLogs = async (opensandboxId: string): Promise<SandboxLogEntry[]> => {
-  const podName = sandboxPodName(opensandboxId);
-  const text = await kubernetes.core().readNamespacedPodLog({
-    namespace: "opensandbox",
-    name: podName,
-    container: "sandbox",
-    tailLines: 200,
-    timestamps: true
-  }).catch(() => "");
+  const descriptor = await callOpenSandbox<DiagnosticContent>(
+    `/v1/sandboxes/${opensandboxId}/diagnostics/logs?scope=container`
+  ).catch(() => null);
+  const text = descriptor ? await loadDiagnosticText(descriptor).catch(() => "") : "";
   return text
     .split(/\r?\n/)
     .filter(Boolean)
@@ -588,8 +647,7 @@ export const openSandbox = {
     let exitCode = 0;
 
     if (input.opensandboxId && !input.opensandboxId.startsWith("osbx_")) {
-      const result = await runExecdCommand({ opensandboxId: input.opensandboxId, command, stdin: input.stdin })
-        .catch(() => runInSandboxPod({ opensandboxId: input.opensandboxId!, command, stdin: input.stdin }));
+      const result = await runExecdCommand({ opensandboxId: input.opensandboxId, command, stdin: input.stdin });
       stdout = result.stdout;
       stderr = result.stderr;
       exitCode = result.exitCode;

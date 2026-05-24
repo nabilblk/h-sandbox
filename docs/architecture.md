@@ -21,7 +21,10 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 1. A Keycloak session or API key authenticates to the Harakiri API.
 2. The API writes control-plane intent to PostgreSQL.
 3. The API calls OpenSandbox for sandbox lifecycle operations.
-4. Command execution uses Kubernetes `pods/exec` against the OpenSandbox sandbox pod.
+4. Terminal commands, filesystem metadata, metrics, logs, and HTTP route
+   targets use OpenSandbox APIs. For the sandbox data plane, Harakiri resolves
+   the OpenSandbox `execd` endpoint on port `44772` and calls that endpoint
+   with the returned access headers.
 5. The scheduler reconciles provider state, TTL, idle schedules, and template
    retention cleanup.
 6. The web app and CLI read the persisted control-plane state.
@@ -116,7 +119,27 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 
 ## OpenSandbox Adapter
 
-`apps/api/src/opensandbox.ts` isolates provider calls. It uses the OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew and Kubernetes `pods/exec` for command execution inside the sandbox container.
+`apps/api/src/opensandbox.ts` isolates provider calls. It uses the
+OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew.
+For normal sandbox interaction, it resolves the OpenSandbox `execd` endpoint
+with `GET /v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`, then calls
+`execd` for commands, filesystem search, and metrics using the endpoint URL and
+headers returned by OpenSandbox. Runtime logs come from OpenSandbox diagnostics
+when available and are combined with Harakiri control-plane events by the API
+route layer.
+
+In OpenSandbox gateway/header mode, endpoint resolution returns an
+`OpenSandbox-Ingress-To` routing header. Harakiri sends `execd` requests to the
+configured internal OpenSandbox ingress gateway service
+(`OPEN_SANDBOX_GATEWAY_URL`) with that returned header, avoiding the public edge
+path for control-plane-to-runtime traffic.
+
+Harakiri does not use Kubernetes `pods/exec` or direct sandbox pod logs for
+normal terminal, filesystem, metrics, or logs behavior. Direct Kubernetes API
+use remains limited to platform operations that OpenSandbox does not own for
+Harakiri: applying deployment manifests, managing template builder Jobs in the
+Harakiri namespace, and creating short-lived template runtime pull preflight or
+optional pre-pull Pods in the configured runtime namespace.
 
 For templates, the adapter receives the resolved runtime template: image URI,
 entrypoint, CPU, memory, TTL, name, sandbox env, organization ID, and Harakiri
@@ -144,4 +167,11 @@ The deployed k0s path uses the official OpenSandbox ingress gateway in header/ho
 
 The route smoke suite verifies both the local gateway path and the public Cloudflare Tunnel path. Exact Cloudflare Tunnel host rules for product services take precedence, while the wildcard rule catches generated sandbox route hosts.
 
-Filesystem and metrics panels are prototype control-plane views where the deployed OpenSandbox runtime does not expose a richer portable API yet. Command execution, lifecycle operations, TTL cleanup, and HTTP route proxying are exercised against the live k0s/OpenSandbox deployment.
+Filesystem and metrics panels use OpenSandbox `execd` APIs. Directory display is
+derived from `files/search` results because the current portable OpenSandbox API
+searches files rather than exposing a first-class directory listing endpoint.
+Command execution, lifecycle operations, TTL cleanup, diagnostics, metrics, and
+HTTP route proxying are exercised against the live k0s/OpenSandbox deployment.
+
+See `docs/opensandbox-boundaries.md` for the current boundary contract between
+OpenSandbox-owned runtime behavior and Harakiri's direct Kubernetes operations.

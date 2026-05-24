@@ -680,6 +680,24 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Post-documentation verification cleanup audit: `active_smoke_keys=0`,
   `live_sandboxes=0`, `ready_routes=0`, `resolution_templates=0`,
   `init_templates=0`, `kaniko_templates=0`, and `building_templates=0`.
+- OpenSandbox `execd` transport verification on 2026-05-24:
+  `pnpm --filter @harakiri/api test` passed with 61 tests,
+  `pnpm --filter @harakiri/api typecheck`, `pnpm typecheck`, and
+  `git diff --check` passed. `pnpm deploy:k0s` completed and reconfigured
+  `harakiri-sandbox-exec` so the live `opensandbox` namespace Role no longer
+  grants `pods/exec` or `pods/log`. `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke`
+  passed with sandbox `sbx_Pv93SLtLHs`; `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm
+  smoke:route` passed with route
+  `https://96da86f6-ae77-4ceb-86a7-36239ad3685d-3000.harakiri.io`;
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm e2e` passed both deployed browser tests,
+  including web terminal, filesystem, logs fallback, CLI run, and SDK run. A
+  focused runtime panels probe created `sbx_hzi1DfNZ2-` and passed
+  run/files/metrics/logs against the deployed API. Direct OpenSandbox
+  diagnostics returned `404 Not Found` for
+  `/v1/sandboxes/:id/diagnostics/logs?scope=container`, so Harakiri logs
+  currently fall back to real control-plane events.
+  Cleanup audit after the verification showed `live_sandboxes=0`,
+  `ready_routes=0`, and `active_smoke_keys=0`.
 
 ## CLI Demo
 
@@ -740,7 +758,14 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Public sandbox routes are intentionally placed directly under `*.harakiri.io` to use the existing Cloudflare wildcard edge certificate. Exact host rules in Cloudflare Tunnel still take precedence for app/auth/service subdomains.
 - Keycloak runs with `start-dev`, a development login fixture user, and the Harakiri login theme mounted from `keycloak-theme-harakiri`.
 - PostgreSQL uses local-path storage.
-- Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
+- Filesystem and metrics panels call OpenSandbox `execd` through endpoint
+  resolution. Filesystem directories are synthesized from `files/search`
+  results because the current portable OpenSandbox API searches files rather
+  than exposing a first-class directory listing endpoint.
+- Runtime logs call OpenSandbox diagnostics when the provider exposes them. The
+  current deployed OpenSandbox chart returns 404 for diagnostics, so the logs
+  tab falls back to real Harakiri control-plane events.
+- Command execution and HTTP/SSE/WebSocket route proxying are live.
 - Custom template image-import and Dockerfile records are live in the control
   plane and can be completed by the `harakiri-template-builder` worker. Git
   source builds, production registry blob garbage collection, production
