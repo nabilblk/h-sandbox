@@ -1,8 +1,9 @@
 # Custom Templates
 
 Harakiri templates are named sandbox runtimes backed by PostgreSQL records and
-OpenSandbox-compatible OCI images. The model copies the useful parts of E2B's
-template workflow while keeping the runtime contract portable.
+OpenSandbox-compatible OCI images. The model keeps the runtime contract
+portable while giving teams a repeatable build, versioning, and promotion
+workflow.
 
 ## Concepts
 
@@ -26,7 +27,7 @@ template workflow while keeping the runtime contract portable.
 
 ## harakiri.toml
 
-`harakiri template init` writes a config close to E2B's `e2b.toml`:
+`harakiri template init` writes a `harakiri.toml` config:
 
 ```toml
 name = "open-agents-dev"

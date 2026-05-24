@@ -1,6 +1,6 @@
 # Harakiri Sandbox
 
-Harakiri Sandbox is a working prototype of an E2B-like developer platform on top of OpenSandbox. It includes a high-fidelity web app based on `sandbox_mockups/`, a PostgreSQL-backed control plane, Keycloak authentication integration, a scheduler worker, Kubernetes deployment manifests, and a `harakiri` CLI.
+Harakiri Sandbox is a working prototype of a developer sandbox platform on top of OpenSandbox. It includes a high-fidelity web app based on `sandbox_mockups/`, a PostgreSQL-backed control plane, Keycloak authentication integration, a scheduler worker, Kubernetes deployment manifests, and a `harakiri` CLI.
 
 ## Workspace
 
@@ -38,10 +38,9 @@ See [docs/test-report.md](docs/test-report.md) for the latest self-test evidence
 
 ## Custom Template Quickstart
 
-Templates are the Harakiri equivalent of E2B templates: a named runtime image
-plus CPU, memory, workdir, default ports, aliases, and immutable versions stored
-in PostgreSQL. The CLI writes `harakiri.toml`, which intentionally stays close
-to E2B's `e2b.toml` shape while targeting OpenSandbox-compatible OCI images.
+Templates are named runtime images plus CPU, memory, workdir, default ports,
+aliases, and immutable versions stored in PostgreSQL. The CLI writes
+`harakiri.toml` for OpenSandbox-compatible OCI images.
 
 ```bash
 harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot

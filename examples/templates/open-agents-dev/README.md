@@ -1,8 +1,8 @@
 # Open Agents Dev Template
 
-This template is the Harakiri/OpenSandbox version of the E2B-style
-`open-agents-dev` runtime. It builds a normal OCI image that OpenSandbox can
-pull and run, then Harakiri stores it as an immutable template version.
+This template is a Harakiri/OpenSandbox `open-agents-dev` runtime. It builds a
+normal OCI image that OpenSandbox can pull and run, then Harakiri stores it as
+an immutable template version.
 
 Runtime surface:
 
@@ -55,6 +55,6 @@ Harakiri returns a public route such as
 ## Prototype Notes
 
 OpenSandbox currently presents `/workspace` as root-owned in the k0s runtime.
-This pilot image runs as root so the E2B-like writable workspace contract works
-until Harakiri/OpenSandbox can pass workdir volume ownership through the runtime
+This pilot image runs as root so the writable workspace contract works until
+Harakiri/OpenSandbox can pass workdir volume ownership through the runtime
 adapter.

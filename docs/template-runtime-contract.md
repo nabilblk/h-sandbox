@@ -56,8 +56,8 @@ The planned `open-agents-dev` pilot should include:
 
 The OpenSandbox-native Dockerfile from
 `/Users/labs/project/trash/background-agents/opensandbox-template` should be
-preferred over an E2B base image because Harakiri runs on OpenSandbox and should
-emit normal OCI images.
+preferred because Harakiri runs on OpenSandbox and should emit normal OCI
+images.
 
 ## Smoke Checks
 
@@ -142,7 +142,7 @@ may fail at runtime before the sandbox becomes ready.
 
 ## Non-Goals For V1
 
-- E2B-specific image dependencies.
+- Platform-specific image dependencies.
 - Snapshot-first template creation.
 - Requiring a browser/editor in every template.
 - Treating mutable tags as production-ready immutable versions.

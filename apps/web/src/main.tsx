@@ -125,7 +125,7 @@ const Landing = ({ go, profile, onSignIn, onSignOut }: { go: (route: Route) => v
       <div className="hero-inner">
         <div className="hero-eyebrow"><BrandMark size={12} /><span>OpenSandbox control plane for agent runtimes</span><Icon name="arrowR" size={11} /></div>
         <h1 className="hero-h1">Disposable VMs<br />for code your agents<br /><span className="ink-red">should not be trusted</span> with.</h1>
-        <p className="hero-sub">Harakiri provisions sealed sandboxes, tracks every route and schedule in PostgreSQL, and gives teams an E2B-like developer surface on top of OpenSandbox.</p>
+        <p className="hero-sub">Harakiri provisions sealed sandboxes, tracks every route and schedule in PostgreSQL, and gives teams a polished developer surface on top of OpenSandbox.</p>
         <div className="hero-cta">
           <button className="btn btn-primary btn-lg" onClick={() => go("onboarding")}>Start building -&gt;</button>
           <button className="btn btn-lg" onClick={() => go("docs")}>Read the docs <Icon name="arrowR" size={12} /></button>

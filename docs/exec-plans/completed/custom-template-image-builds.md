@@ -11,31 +11,26 @@ Harakiri currently exposes templates as a mostly static catalog. PostgreSQL has 
 `templates` table, but sandbox creation still resolves the requested template
 against the hardcoded shared `TEMPLATES` array and sends only `image: { uri }`
 plus a default entrypoint to OpenSandbox. This is enough for static base images,
-but it does not provide the E2B-like experience where a team can define,
+but it does not provide the developer experience where a team can define,
 build, inspect, version, and use custom sandbox templates.
 
-The immediate product benchmark is E2B's custom template workflow:
+The immediate product goal is a custom template workflow:
 
-- `e2b.toml` declares template name, ID, Dockerfile, CPU, and memory.
-- `e2b template build --name open-agents-dev` builds the custom sandbox image.
-- `Sandbox.create("open-agents-dev")` starts a sandbox from the named template.
+- `harakiri.toml` declares template name, ID, Dockerfile, CPU, and memory.
+- `harakiri template build --name open-agents-dev` builds the custom sandbox image.
+- `harakiri create --template open-agents-dev` starts a sandbox from the named template.
 - The dashboard has a Templates section with List and Builds tabs, search,
   filters, build status, resource columns, visibility, version metadata, and
   row actions.
 
 The local reference template is
-`/Users/labs/project/trash/background-agents/e2b-template`, which builds
-`open-agents-dev` from `e2bdev/code-interpreter:latest` and adds Chromium, Bun,
-`agent-browser`, `code-server`, `jq`, and a writable workspace. The preferred
-Harakiri/OpenSandbox direction is to copy the E2B developer workflow while using
-native OpenSandbox OCI images underneath. The neighboring
 `/Users/labs/project/trash/background-agents/opensandbox-template` is a better
 runtime base for Harakiri because it starts from a normal OCI image and defines
-the same agent/browser/editor surface without depending on E2B internals.
+the same agent/browser/editor surface with native OpenSandbox OCI images.
 
 ## Success Criteria
 - [x] A team can run `harakiri template init` and get a Harakiri template config
-      equivalent in ergonomics to `e2b.toml`.
+      with the expected runtime metadata.
 - [x] A team can run `harakiri template build --name open-agents-dev <path>` and
       get a persisted build record with streamed logs, final image digest, CPU,
       memory, default ports, default workdir, and status.
@@ -46,7 +41,7 @@ the same agent/browser/editor surface without depending on E2B internals.
       runs in k0s through OpenSandbox, and passes smoke checks for `bun`, `jq`,
       `agent-browser`, Chromium headless, `code-server`, workspace write access,
       terminal commands, logs/files/metrics tabs, and public route exposure.
-- [x] The dashboard Templates page has E2B-like List and Builds tabs with search,
+- [x] The dashboard Templates page has List and Builds tabs with search,
       filters, status badges, visibility, CPU, memory, created/updated timestamps,
       latest build/version metadata, and row actions.
 - [x] Build failures are visible in API, CLI, and UI with useful error messages
@@ -79,9 +74,9 @@ the same agent/browser/editor surface without depending on E2B internals.
 
 ## Product And UI Backlog
 - [x] Replace the current card-only Templates page with a denser operational
-      Templates workspace inspired by the E2B screenshots.
+      Templates workspace inspired by the product mockups.
 - [x] Add a Templates header with List and Builds tabs, matching the existing
-      Harakiri visual language rather than copying E2B branding.
+      Harakiri visual language.
 - [x] Add top-right live status and concurrent sandbox count to the Templates
       area, reusing the dashboard count source.
 - [x] List tab:
@@ -254,8 +249,7 @@ making it clear that both were reviewed in the same checkpoint.
 ### Code Documentation: README And Dedicated Markdown
 - [x] Repository README updates:
   - [x] Add a quickstart for creating and using a custom template.
-  - [x] Document the recommended `harakiri.toml` shape and how it maps to E2B's
-        `e2b.toml`.
+  - [x] Document the recommended `harakiri.toml` shape.
   - [x] Explain the difference between template definitions, template versions,
         builds, images, aliases, and snapshots.
   - [x] Document local k0s prerequisites: registry, Kaniko/build worker, image pull
@@ -313,7 +307,7 @@ making it clear that both were reviewed in the same checkpoint.
         included tools, exposed ports, and smoke-test commands.
   - [x] Add "Security model" page covering public/private/internal visibility,
         image digest pinning, registry access, and secret handling.
-  - [x] Ensure website docs match Harakiri's design tokens and do not use E2B
+  - [x] Ensure website docs match Harakiri's design tokens and avoid external
         branding or copy.
   - [x] Update website docs once Dockerfile builds are fully wired so they no
         longer describe the Kubernetes builder as future work.
@@ -485,7 +479,7 @@ making it clear that both were reviewed in the same checkpoint.
 ### Phase 6: CLI Developer Experience
 **Status**: Complete
 - [x] Add `harakiri template init` that writes `harakiri.toml` with fields similar
-      to E2B's `e2b.toml`: name, CPU, memory, Dockerfile, ports, workdir,
+      to the runtime contract: name, CPU, memory, Dockerfile, ports, workdir,
       start/ready commands, env schema, visibility.
 - [x] Add `harakiri template build --name <name> [path]`.
 - [x] Add `harakiri template build --source image --image <ref>` for existing
@@ -651,13 +645,13 @@ making it clear that both were reviewed in the same checkpoint.
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
 |------|----------|-----------|------------------------|
-| 2026-05-23 | Copy E2B's developer workflow, not the E2B base image dependency | Harakiri runs on OpenSandbox and should produce normal OCI images that OpenSandbox can pull and run. | Use `e2bdev/code-interpreter` directly for all custom templates |
+| 2026-05-23 | Use a Harakiri-native developer workflow and OpenSandbox OCI images | Harakiri runs on OpenSandbox and should produce normal OCI images that OpenSandbox can pull and run. | Depend on a third-party code-interpreter base image for all custom templates |
 | 2026-05-23 | Make immutable template versions the runtime contract | Sandboxes must be reproducible and auditable; mutable tags are unsafe as the long-term source of truth. | Store only template name and mutable image tag on sandbox records |
-| 2026-05-23 | Build OCI images first, defer snapshots | OpenSandbox image-based creation is already working; Kubernetes snapshot semantics need more validation and should become acceleration/checkpointing later. | Implement E2B-style snapshots as the first template primitive |
-| 2026-05-23 | Include E2B-like List and Builds UI in the first-class backlog | The user explicitly wants the E2B Templates UI experience, and custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
+| 2026-05-23 | Build OCI images first, defer snapshots | OpenSandbox image-based creation is already working; Kubernetes snapshot semantics need more validation and should become acceleration/checkpointing later. | Implement snapshots as the first template primitive |
+| 2026-05-23 | Include List and Builds UI in the first-class backlog | Custom templates are not complete without build visibility. | Ship CLI/API only and add UI later |
 | 2026-05-24 | Treat documentation as a first-class phase split between repo engineering docs and website product docs | Users need product docs to use templates, while contributors need README and dedicated markdown to operate the build pipeline. | Keep documentation as loose backlog notes only |
 | 2026-05-24 | Require dual-track docs in every remaining checkpoint | Documentation should move with the feature slice that changes behavior so README/dedicated Markdown and website docs stay consistent. | Batch all documentation at the end of the plan |
-| 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the E2B-like runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
+| 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
 | 2026-05-24 | Make the dashboard Dockerfile path a single-file browser upload for the prototype | Browser-created tar+gzip contexts prove the dashboard flow without implementing directory upload complexity; the CLI remains the full multi-file context path. | Add drag-and-drop directory upload before validating the end-to-end product flow |
 | 2026-05-24 | Implement vulnerability scanning as an external webhook hook | Keeps Harakiri scanner-agnostic while persisting scan status/summary on immutable template versions and allowing operators to choose Trivy, Grype, or a custom service later. | Bundle a scanner binary into the builder image; keep only `not_scanned` placeholders |
 | 2026-05-24 | Implement retention as scheduler-owned database cleanup plus builder Job pruning | PostgreSQL is the control-plane source of truth; old logs, contexts, unversioned terminal builds, and unused superseded versions can be cleaned safely without deleting auditable version rows or registry blobs. | Delete registry blobs directly from the scheduler; keep all build artifacts indefinitely |

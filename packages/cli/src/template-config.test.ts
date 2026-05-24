@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { commandToEntrypoint, parseHarakiriTemplateConfig } from "./template-config.js";
 
-test("parseHarakiriTemplateConfig maps e2b-like template metadata", () => {
+test("parseHarakiriTemplateConfig maps Harakiri template metadata", () => {
   const config = parseHarakiriTemplateConfig(`
 name = "open-agents-dev"
 id = "open-agents-dev"

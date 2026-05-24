@@ -7,13 +7,13 @@
 **Estimated effort**: 3-5 engineering days
 
 ## Context
-Harakiri currently stores `sandbox_routes` and can return a prototype route through the port-forwarded OpenSandbox server proxy. That works locally, but it is not the E2B-style product experience the platform needs. Users should be able to start a server inside a sandbox on a port, then open a stable browser URL for that sandbox port.
+Harakiri currently stores `sandbox_routes` and can return a prototype route through the port-forwarded OpenSandbox server proxy. That works locally, but it is not the product experience the platform needs. Users should be able to start a server inside a sandbox on a port, then open a stable browser URL for that sandbox port.
 
 The DNS zone is `harakiri.io`, and wildcard sandbox routes live directly under `harakiri.io` as `<opensandbox-id>-<port>.harakiri.io`. This keeps route hosts compatible with the existing Cloudflare `*.harakiri.io` edge certificate while still using OpenSandbox's standard host-mode routing.
 
 OpenSandbox already provides the standard routing primitive for this:
 - OpenSandbox Ingress supports HTTP/WebSocket proxying and host-header routing in the form `<sandbox-id>-<port>.<domain>`.
-- OpenSandbox Ingress also supports URI mode, but host mode is the closest match to E2B-style `getHost(port)` URLs.
+- OpenSandbox Ingress also supports URI mode, but host mode is the closest match to stable per-port sandbox URLs.
 - OpenSandbox server/gateway chart support can return gateway-style endpoint URLs when configured for ingress/gateway mode.
 
 Important current-code constraints:
@@ -26,7 +26,7 @@ Primary references:
 - OpenSandbox Ingress: https://open-sandbox.ai/components/ingress/readme
 - OpenSandbox single-host networking: https://open-sandbox.ai/zh/design/single-host-network
 - OpenSandbox Helm chart ingress/gateway support: https://open-sandbox.ai/kubernetes/charts/opensandbox/readme
-- E2B-style SDK shape: expose a host for a sandbox port, equivalent to `getHost(port)`
+- SDK shape: expose a host for a sandbox port through an explicit port route method.
 
 ## Success Criteria
 - [x] A sandbox running an HTTP server on port `3000` can be reached at a public HTTPS URL under `*.harakiri.io`.
@@ -35,7 +35,7 @@ Primary references:
 - [x] `GET /v1/sandboxes/:id/routes` returns persisted route records with `port`, `protocol`, `host`, `url`, `state`, and provider metadata.
 - [x] `POST /v1/sandboxes/:id/routes` creates or returns an idempotent route for a requested port.
 - [x] The dashboard Network tab lets users expose a port, copy/open the URL, and see route state.
-- [x] The CLI supports an E2B-like flow, for example `harakiri expose <sandbox-id> --port 3000`.
+- [x] The CLI supports an explicit flow, for example `harakiri expose <sandbox-id> --port 3000`.
 - [x] The SDK exposes a method equivalent to `getHost(port)` or `exposePort(port)`.
 - [x] HTTP, SSE, and WebSocket forwarding are verified through the wildcard host route locally via the OpenSandbox gateway.
 - [x] Terminated sandboxes stop serving routes without leaving dangling reachable backends.
@@ -194,7 +194,7 @@ Primary references:
 | 2026-05-23 | Use OpenSandbox Ingress host mode behind `*.harakiri.io` | OpenSandbox already implements HTTP/WebSocket routing by host key and port; this avoids a custom Harakiri reverse proxy. | Build a Harakiri proxy; create per-sandbox Kubernetes Ingress objects |
 | 2026-05-23 | Decouple internal sandbox ID from public route key | Current Harakiri IDs contain underscores and are not valid DNS labels. A route key stored in `sandbox_routes` avoids breaking existing IDs. | Rename all sandbox IDs immediately; use path-based routing |
 | 2026-05-23 | Use `<opensandbox-id>-<port>.harakiri.io` for v1 route hosts | OpenSandbox host mode expects `<sandbox-id>-<port>.<domain>` and can parse UUID-like provider IDs directly. | Human-readable arbitrary hostnames, which require a mapping proxy or header rewrite layer |
-| 2026-05-23 | Make port exposure explicit | E2B-style APIs expose a requested port; auto-detecting every listening port can leak unintended services. | Auto-expose Dockerfile `EXPOSE` ports or scan all listening ports |
+| 2026-05-23 | Make port exposure explicit | Explicit APIs expose a requested port; auto-detecting every listening port can leak unintended services. | Auto-expose Dockerfile `EXPOSE` ports or scan all listening ports |
 | 2026-05-23 | Keep sandbox route hosts one label under `harakiri.io` | Cloudflare Universal SSL already covers `*.harakiri.io`, avoiding paid advanced edge certificates for a deeper `*.sb.harakiri.io` wildcard. | Use `*.sb.harakiri.io` with Advanced Certificate Manager; add a custom header rewrite layer |
 
 ## Tech Debt Incurred

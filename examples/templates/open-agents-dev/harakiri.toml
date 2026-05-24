@@ -1,6 +1,5 @@
 # Harakiri Open Agents template.
-# Equivalent in purpose to an E2B custom template, but built as a normal
-# OpenSandbox-compatible OCI image.
+# Built as a normal OpenSandbox-compatible OCI image.
 
 name = "open-agents-dev"
 dockerfile = "Dockerfile"

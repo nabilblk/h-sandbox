@@ -142,7 +142,7 @@ type TemplateInitOptions = {
 const templateConfig = (options: TemplateInitOptions) => {
   const id = templateIdFor(options.id ?? options.name);
   return `# Harakiri sandbox template.
-# This is intentionally close to E2B's e2b.toml while using OpenSandbox images.
+# Build this as an OpenSandbox-compatible OCI image.
 
 name = ${tomlString(options.name)}
 id = ${tomlString(id)}

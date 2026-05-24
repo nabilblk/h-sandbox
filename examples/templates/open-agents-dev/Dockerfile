@@ -2,8 +2,7 @@
 
 # OpenSandbox image for Harakiri Open Agents runtimes.
 #
-# This mirrors the current E2B template capability set without depending on
-# E2B's code-interpreter base image:
+# Browser-capable agent runtime surface:
 #   bun + jq + agent-browser + Chromium + code-server + writable workspace
 
 FROM node:22-bookworm-slim
@@ -113,8 +112,8 @@ COPY smoke.sh /usr/local/bin/harakiri-open-agents-smoke
 RUN chmod +x /usr/local/bin/harakiri-open-agents-smoke
 
 # OpenSandbox currently presents /workspace as root-owned in the k0s runtime.
-# Running this pilot image as root keeps the E2B-like writable workspace
-# contract intact until Harakiri/OpenSandbox can pass workdir volume ownership.
+# Running this pilot image as root keeps the writable workspace contract intact
+# until Harakiri/OpenSandbox can pass workdir volume ownership.
 USER root
 WORKDIR /workspace
 

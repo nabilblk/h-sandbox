@@ -97,7 +97,7 @@ const buildRow = (overrides: Record<string, unknown>) => ({
   ...overrides
 });
 
-test("template init writes an e2b-like Harakiri config with runtime metadata", async () => {
+test("template init writes a Harakiri config with runtime metadata", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "harakiri-cli-init-"));
   const api = await startMockApi(() => ({ status: 500, body: { error: "init should not call api" } }));
   try {

@@ -7,7 +7,7 @@
 **Estimated effort**: 7-10 engineering days
 
 ## Context
-The workspace currently contains a static React prototype in `sandbox_mockups/` for a Harakiri Sandbox platform: a product wrapper on top of OpenSandbox with an E2B-like developer experience. The mockups define the intended flow and visual language across landing, onboarding, dashboard, sandbox detail, docs, templates, usage, API keys, and settings.
+The workspace currently contains a static React prototype in `sandbox_mockups/` for a Harakiri Sandbox platform: a product wrapper on top of OpenSandbox with a polished developer experience. The mockups define the intended flow and visual language across landing, onboarding, dashboard, sandbox detail, docs, templates, usage, API keys, and settings.
 
 The product must become a working prototype, not only a clickable UI. Authentication will be managed by Keycloak. Control-plane data must live in PostgreSQL, including API keys, scheduling, routing, sandbox lifecycle records, templates, organization settings, and usage telemetry. The target runtime is a fresh k0s Kubernetes cluster that must be installed, used for deployment, and used for self-verification.
 
