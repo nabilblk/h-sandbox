@@ -223,6 +223,7 @@ Use this checklist before marking any remaining plan item complete:
 | Public route exposure for template sandboxes | `docs/templates.md`, `docs/api.md`, `docs/runbook.md`, routing notes in `docs/architecture.md` | User-facing route exposure guide and troubleshooting page | k0s route smoke with documented hostname pattern |
 | Registry credentials, cleanup, scanning, retention | `docs/template-security.md`, `docs/runbook.md`, `docs/architecture.md` | Product docs only for user-visible configuration or error recovery | Operator command output and audit/test-report notes |
 | Registry namespace and image publishing | `README.md`, `docs/template-builds.md`, `docs/runbook.md`, `docs/template-security.md` | Product docs explaining what users configure, what image names mean, and how to recover from pull/push errors | Registry credential smoke, Dockerfile build smoke, and deployed website docs path |
+| Runtime env, workdir limits, and registry auth | `docs/api.md`, `docs/template-runtime-contract.md`, `docs/runbook.md`, `docs/template-security.md` | Product docs explaining sandbox env variables, template workdir expectations, private image pulls, and troubleshooting | API/CLI sandbox create with env, OpenSandbox request-body test, and k0s smoke evidence |
 
 ### Documentation Checkpoint Format
 Use this format in phase notes, commit summaries, or `docs/test-report.md`
@@ -421,7 +422,11 @@ making it clear that both were reviewed in the same checkpoint.
 - [x] Pass `image.uri` as a digest-pinned OCI reference to OpenSandbox when the
       selected template version has a digest-pinned image URI.
 - [x] Pass default entrypoint, CPU/memory, and metadata to OpenSandbox.
-- [ ] Pass env, workdir, and registry auth when supported by OpenSandbox.
+- [x] Pass env, workdir, and registry auth when supported by OpenSandbox.
+- [x] Document runtime env, workdir support/limitations, and registry auth in
+      repo docs (`docs/api.md`, `docs/template-runtime-contract.md`,
+      `docs/runbook.md`, `docs/template-security.md`) and website product docs
+      before marking the runtime integration task complete.
 - [x] Ensure metadata includes Harakiri sandbox ID, template ID, template version
       ID, image digest, organization ID, and route policy.
 - [x] Add preflight validation that the image can be pulled by OpenSandbox before
@@ -571,6 +576,7 @@ making it clear that both were reviewed in the same checkpoint.
 | 2026-05-24 | Gate ready template versions on runtime pull preflight | Resolving a digest is not enough; the k0s runtime path must prove it can pull the final image before users receive a ready version. | Wait for the first real sandbox create to reveal pull failures; run registry-only manifest checks |
 | 2026-05-24 | Store registry credentials as encrypted control-plane records plus Kubernetes Secret references | Harakiri needs auditable API-managed credential metadata without returning raw secrets, while Kaniko and runtime pull preflight need least-privilege Kubernetes Secret names for actual image operations. | Store only Kubernetes Secret names; store raw registry tokens in PostgreSQL; use one shared global image pull secret |
 | 2026-05-24 | Publish generated template images under organization-scoped registry namespaces | Teams should not share a flat repository path, and build/cache cleanup plus audit trails need a stable namespace derived from organization ID. | Keep `harakiri/templates/<template>` flat paths; use user-provided repository paths only |
+| 2026-05-24 | Pass sandbox env and encrypted registry image auth through OpenSandbox; keep workdir as image contract metadata | OpenSandbox create supports env and `image.auth`, but does not expose a stable create-time workdir field. Harakiri can still record the template workdir and require Dockerfile `WORKDIR`/smoke checks. | Build a custom runtime wrapper to `cd` before entrypoint; invent a Harakiri-only workdir field ignored by OpenSandbox |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:

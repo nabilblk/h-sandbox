@@ -25,7 +25,7 @@ export const api = {
   completeOnboarding: () => request<{ user: { id: string; email: string; fullName: string; onboardingCompletedAt: string } }>("/v1/me/onboarding/complete", { method: "POST" }),
   sandboxes: (params = "") => request<{ sandboxes: SandboxSummary[] }>(`/v1/sandboxes${params}`),
   sandbox: (id: string) => request<{ sandbox: SandboxSummary }>(`/v1/sandboxes/${id}`),
-  createSandbox: (body: { template: string; name?: string; ttlSeconds: number }) =>
+  createSandbox: (body: { template: string; name?: string; ttlSeconds: number; env?: Record<string, string> }) =>
     request<{ sandbox: SandboxSummary }>("/v1/sandboxes", { method: "POST", body: JSON.stringify(body) }),
   killSandbox: (id: string) => request<{ ok: boolean }>(`/v1/sandboxes/${id}`, { method: "DELETE" }),
   run: (id: string, body: { command?: string; stdin?: string }) =>

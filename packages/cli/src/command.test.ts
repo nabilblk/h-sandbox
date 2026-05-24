@@ -210,6 +210,52 @@ test("template command help includes documented workflow examples", async () => 
   }
 });
 
+test("create command sends repeated env flags in the sandbox payload", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_env",
+            name: "env-runner",
+            template: "python-3.12-data"
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "python-3.12-data",
+      "--name",
+      "env-runner",
+      "--ttl",
+      "120",
+      "--env",
+      "HARAKIRI_ENV_SMOKE=env-ok",
+      "--env",
+      "EMPTY_VALUE="
+    ], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_env/);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "python-3.12-data",
+      name: "env-runner",
+      ttlSeconds: 120,
+      env: {
+        HARAKIRI_ENV_SMOKE: "env-ok",
+        EMPTY_VALUE: ""
+      }
+    });
+  } finally {
+    await api.close();
+  }
+});
+
 test("template build --source image sends image import payload and skips context upload", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/templates") {

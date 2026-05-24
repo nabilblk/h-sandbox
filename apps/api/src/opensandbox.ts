@@ -2,6 +2,7 @@ import type { RunResult } from "@harakiri/shared";
 import { Writable, Readable } from "node:stream";
 import { CoreV1Api, Exec, KubeConfig, type V1Pod, type V1Status } from "@kubernetes/client-node";
 import { config } from "./config.js";
+import { registryImageAuthForImage, type RegistryImageAuth } from "./registry-credentials.js";
 import type { RuntimeTemplate } from "./templates.js";
 
 type ProviderSandbox = {
@@ -132,6 +133,37 @@ const routePolicyMetadata = () => ({
   "harakiri.route_max_per_sandbox": String(config.sandboxMaxRoutesPerSandbox),
   "harakiri.route_max_per_org": String(config.sandboxMaxRoutesPerOrg)
 });
+
+export const openSandboxCreateBody = (input: {
+  template: RuntimeTemplate;
+  ttlSeconds: number;
+  name: string;
+  metadata?: Record<string, string>;
+  env?: Record<string, string>;
+  imageAuth?: RegistryImageAuth | null;
+}) => {
+  const template = input.template;
+  const env = input.env && Object.keys(input.env).length ? input.env : undefined;
+  return {
+    image: {
+      uri: template.image,
+      ...(input.imageAuth ? { auth: input.imageAuth } : {})
+    },
+    entrypoint: template.defaultEntrypoint,
+    timeout: Math.max(input.ttlSeconds, 60),
+    resourceLimits: { cpu: `${Math.max(template.cpuCount, 1) * 1000}m`, memory: `${Math.max(template.memoryMb, 128)}Mi` },
+    metadata: labelSafeMetadata({
+      "harakiri.template": template.id,
+      ...(template.templateVersionId ? { "harakiri.template_version": template.templateVersionId } : {}),
+      ...(template.imageDigest ? { "harakiri.image_digest": template.imageDigest } : {}),
+      "harakiri.name": input.name,
+      "harakiri.workdir": template.workdir,
+      ...routePolicyMetadata(),
+      ...(input.metadata ?? {})
+    }),
+    ...(env ? { env } : {})
+  };
+};
 
 const sandboxPodName = (opensandboxId: string) => `${opensandboxId}-0`;
 
@@ -365,34 +397,48 @@ const sandboxMetrics = async (opensandboxId: string): Promise<SandboxMetricsSnap
 };
 
 export const openSandbox = {
-  async create(input: { template: RuntimeTemplate; ttlSeconds: number; name: string; metadata?: Record<string, string> }) {
+  async create(input: {
+    template: RuntimeTemplate;
+    ttlSeconds: number;
+    name: string;
+    organizationId?: string;
+    metadata?: Record<string, string>;
+    env?: Record<string, string>;
+  }) {
     const template = input.template;
     try {
+      const registryAuth = input.organizationId ? await registryImageAuthForImage(input.organizationId, template.image, "pull") : null;
       const result = await callOpenSandbox<ProviderSandbox>("/v1/sandboxes", {
         method: "POST",
-        body: JSON.stringify({
-          image: { uri: template.image },
-          entrypoint: template.defaultEntrypoint,
-          timeout: Math.max(input.ttlSeconds, 60),
-          resourceLimits: { cpu: `${Math.max(template.cpuCount, 1) * 1000}m`, memory: `${Math.max(template.memoryMb, 128)}Mi` },
-          metadata: labelSafeMetadata({
-            "harakiri.template": template.id,
-            ...(template.templateVersionId ? { "harakiri.template_version": template.templateVersionId } : {}),
-            ...(template.imageDigest ? { "harakiri.image_digest": template.imageDigest } : {}),
-            "harakiri.name": input.name,
-            ...routePolicyMetadata(),
+        body: JSON.stringify(openSandboxCreateBody({
+          template,
+          ttlSeconds: input.ttlSeconds,
+          name: input.name,
+          env: input.env,
+          imageAuth: registryAuth?.auth ?? null,
+          metadata: {
+            ...(registryAuth?.credentialId ? { "harakiri.runtime_registry_credential": registryAuth.credentialId } : {}),
             ...(input.metadata ?? {})
-          })
-        })
+          }
+        }))
       });
-      return { provider: "opensandbox", id: result.id, state: result.status?.state ?? "Pending", expiresAt: result.expiresAt ?? null };
+      return {
+        provider: "opensandbox",
+        id: result.id,
+        state: result.status?.state ?? "Pending",
+        expiresAt: result.expiresAt ?? null,
+        runtimeRegistryCredentialId: registryAuth?.credentialId ?? null,
+        runtimeImageAuthProvided: Boolean(registryAuth?.auth)
+      };
     } catch (error) {
       if (!config.openSandboxAllowFallback) throw error;
       return {
         provider: "fallback",
         id: `osbx_${Date.now().toString(36)}`,
         state: "Running",
-        expiresAt: new Date(Date.now() + input.ttlSeconds * 1000).toISOString()
+        expiresAt: new Date(Date.now() + input.ttlSeconds * 1000).toISOString(),
+        runtimeRegistryCredentialId: null,
+        runtimeImageAuthProvided: false
       };
     }
   },

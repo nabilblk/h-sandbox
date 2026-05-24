@@ -114,12 +114,16 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 `apps/api/src/opensandbox.ts` isolates provider calls. It uses the OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew and Kubernetes `pods/exec` for command execution inside the sandbox container.
 
 For templates, the adapter receives the resolved runtime template: image URI,
-entrypoint, CPU, memory, TTL, name, and Harakiri metadata. The adapter sends
-label-safe metadata for Harakiri sandbox ID, organization ID, template ID,
-template version ID, image digest, and the current route policy so provider-side
-objects remain traceable to the control plane. It uses digest-pinned image
-references when template versions have digests. Registry auth, workdir, and env
-passing remain pending until OpenSandbox exposes stable fields for them.
+entrypoint, CPU, memory, TTL, name, sandbox env, organization ID, and Harakiri
+metadata. The adapter sends label-safe metadata for Harakiri sandbox ID,
+organization ID, template ID, template version ID, image digest, template
+workdir, selected registry credential ID, and the current route policy so
+provider-side objects remain traceable to the control plane. It uses
+digest-pinned image references when template versions have digests. If a
+matching encrypted pull credential exists, the adapter passes OpenSandbox
+`image.auth`. The current OpenSandbox lifecycle API supports env and image
+auth, but not a create-time workdir field; Harakiri therefore treats Dockerfile
+`WORKDIR` plus template smoke checks as the effective workdir contract.
 
 ## Sandbox Routes
 

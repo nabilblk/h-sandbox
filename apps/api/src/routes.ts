@@ -19,10 +19,19 @@ import {
 } from "./template-policy.js";
 import { archiveTemplate, averageTemplateBootMs, canMutateTemplate, listTemplates, resolveTemplate } from "./templates.js";
 
+const sandboxEnvKeySchema = z.string().min(1).max(128).regex(/^[A-Za-z_][A-Za-z0-9_]*$/, {
+  message: "environment variable names must match [A-Za-z_][A-Za-z0-9_]*"
+});
+
+const sandboxEnvSchema = z.record(sandboxEnvKeySchema, z.string().max(32768)).default({}).refine((value) => Object.keys(value).length <= 64, {
+  message: "at most 64 environment variables can be passed to a sandbox"
+});
+
 const createSandboxSchema = z.object({
   template: z.string().default("python-3.12-data"),
   name: z.string().optional(),
-  ttlSeconds: z.number().int().min(10).max(86400).default(300)
+  ttlSeconds: z.number().int().min(10).max(86400).default(300),
+  env: sandboxEnvSchema
 });
 
 const runSchema = z.object({
@@ -797,6 +806,8 @@ export const registerRoutes = async (app: FastifyInstance) => {
       template,
       ttlSeconds: body.ttlSeconds,
       name,
+      organizationId: request.auth.organizationId,
+      env: body.env,
       metadata: {
         "harakiri.id": id,
         "harakiri.sandbox": id,
@@ -833,6 +844,10 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const metadata = {
       opensandboxId: provider.id,
       provider: provider.provider,
+      envKeys: Object.keys(body.env).sort(),
+      runtimeWorkdir: template.workdir,
+      runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
+      runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
       ...sandboxTemplateMetadata(template)
     };
     await event(request.auth.organizationId, id, "created", `created through ${provider.provider}`, metadata);

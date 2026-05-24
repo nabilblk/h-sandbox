@@ -5,7 +5,7 @@ Command-line client for Harakiri Sandbox.
 ```bash
 harakiri init
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
-harakiri create --template python-3.12-data
+harakiri create --template python-3.12-data --env HARAKIRI_ENV_SMOKE=env-ok
 harakiri run --stdin agent.py
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev .

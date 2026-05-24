@@ -514,6 +514,38 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   organization-scoped registry namespace, `/v1/registry-credentials`,
   `hasEncryptedSecret`, and `lastUsedAt`, then wrote
   `/tmp/harakiri-registry-credentials-docs.png`.
+- Runtime env and OpenSandbox image-auth checkpoint on 2026-05-24:
+  documentation: code docs changed in `README.md`, `docs/api.md`,
+  `docs/architecture.md`, `docs/runbook.md`,
+  `docs/template-runtime-contract.md`, `docs/template-security.md`,
+  `packages/cli/README.md`, and `packages/sdk/README.md`; product docs changed
+  in the website Docs route inside `apps/web/src/main.tsx`. Verification:
+  `pnpm --filter @harakiri/api test` passed 49 tests, including OpenSandbox
+  request-body coverage for `env` and `image.auth`;
+  `pnpm --filter @harakiri/cli test` passed 16 tests, including repeated
+  `harakiri create --env KEY=value` payload serialization;
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @harakiri/cli typecheck`,
+  `pnpm --filter @harakiri/sdk typecheck`,
+  `pnpm --filter @harakiri/web typecheck`,
+  `pnpm --filter @harakiri/api build`,
+  `pnpm --filter @harakiri/cli build`,
+  `pnpm --filter @harakiri/web build`, and `git diff --check` passed.
+  `pnpm deploy:k0s` completed and `pnpm ports:restart &&
+  pnpm ports:status` reported all forwards healthy. `pnpm smoke:sandbox-env`
+  passed with sandbox `sbx_1KmCe5IiBB`, proving
+  `HARAKIRI_ENV_SMOKE=env-ok` was available inside the live OpenSandbox
+  runtime and that the created event recorded the env key plus runtime workdir
+  metadata. `pnpm smoke` passed the existing sandbox create/run/kill regression
+  with sandbox `sbx_UsmssVePKC`. A built CLI smoke against the deployed API created
+  `sbx_mlfm8D4u7u` with `harakiri create --env
+  HARAKIRI_ENV_SMOKE=cli-env`, then `harakiri run ... --cmd "printenv
+  HARAKIRI_ENV_SMOKE"` returned `cli-env`. Browser smoke checks verified the
+  deployed website docs pages for Create sandbox, Template troubleshooting, and
+  SDK usage mention sandbox env and private runtime image pulls, and saved
+  `/tmp/harakiri-runtime-env-docs.png`. An authenticated dashboard smoke opened
+  New sandbox, filled the Environment field, and saved
+  `/tmp/harakiri-create-env-modal.png`.
 - Open Agents template pilot was verified against k0s on 2026-05-24:
   `harakiri template build examples/templates/open-agents-dev` produced build
   `bld_Tv1jbVKB4TAD` and digest

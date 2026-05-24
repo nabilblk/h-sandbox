@@ -47,7 +47,7 @@ to E2B's `e2b.toml` shape while targeting OpenSandbox-compatible OCI images.
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
-harakiri create --template open-agents-dev --name agent-runner
+harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV_SMOKE=env-ok
 harakiri template archive open-agents-dev
 ```
 
@@ -67,11 +67,12 @@ returned scan status and summary.
 Generated Dockerfile images are pushed under an organization-scoped repository
 namespace below `TEMPLATE_REGISTRY_REPOSITORY_PREFIX`, and registry credential
 records can be managed through the API without returning secret material.
+Sandbox creation can pass normal environment variables through `env` or
+`harakiri create --env KEY=value`; audit and event records store only key names.
 The scheduler also enforces retention for old build logs, uploaded build
 contexts, unversioned terminal build rows, unused old template versions, and
-completed builder Jobs. Production hardening still needs registry credentials,
-registry blob garbage collection, and a production scanner service/gating
-policy.
+completed builder Jobs. Production hardening still needs registry blob garbage
+collection and a production scanner service/gating policy.
 The current API already enforces configurable template CPU, memory,
 default-port, active-build, and image registry/prefix policy limits tracked in
 [docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).

@@ -106,6 +106,9 @@ PostgreSQL did not retain the original secret values.
 limit of `3`.
 `pnpm smoke:template-policy` verifies disallowed template images and disallowed
 Dockerfile `FROM` references return `422 template_image_policy_violation`.
+`pnpm smoke:sandbox-env` creates a sandbox with `env`, verifies the value is
+available inside the runtime, and checks control-plane events record only the
+env key name plus runtime workdir metadata.
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
 
@@ -307,7 +310,9 @@ For an external registry rollout, the operator sequence is:
 2. Configure the builder/Kaniko environment to use the push credential and the
    OpenSandbox runtime or node image pull path to use the pull credential. Track
    the control-plane record with `POST /v1/registry-credentials`, including
-   `purpose`, `repositoryPrefix`, `pullSecretRef`, and `pushSecretRef`.
+   `purpose`, `repositoryPrefix`, `pullSecretRef`, and `pushSecretRef`. When
+   the credential also includes `username` plus encrypted `secret` material,
+   Harakiri can pass it to OpenSandbox `image.auth` during sandbox creation.
 3. Set `TEMPLATE_REGISTRY_PUSH_HOST`, `TEMPLATE_REGISTRY_RUNTIME_HOST`, and
    `TEMPLATE_REGISTRY_REPOSITORY_PREFIX` to the external registry path.
 4. Add the external registry and repository prefix to
@@ -437,7 +442,8 @@ Troubleshooting matrix:
 | Kaniko reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and Kaniko can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
 | Image import cannot resolve a digest | Builder logs filtered for `registry`, `manifest`, or `digest`; API error body | Fix the tag, registry visibility, registry policy, or operator-provided pull credentials |
 | Runtime pull preflight fails | Build logs containing `runtime image pull preflight`; preflight Pod events before it is deleted; build metadata | Make `TEMPLATE_REGISTRY_RUNTIME_HOST` reachable from the k0s node and configure pull credentials in the preflight/runtime namespace |
-| Sandbox create fails after a successful build | Compare `template_versions.image_uri` and `runtimePullPreflight` metadata with OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure pull credentials for the runtime path |
+| Sandbox create fails after a successful build | Compare `template_versions.image_uri`, sandbox event metadata, selected `runtimeRegistryCredentialId`, and OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure either encrypted pull credentials for `image.auth` or runtime/node pull credentials for the OpenSandbox path |
+| Sandbox env value is missing at runtime | Inspect the `POST /v1/sandboxes` payload, sandbox event `envKeys`, and run `env | sort` in the sandbox | Use `env` on sandbox creation or `harakiri create --env KEY=value`; command-level env is not retroactively added to an existing sandbox |
 | Registry disk keeps growing | Registry `du -sh`; old ready/retired versions and retained build rows | Let scheduler retention retire unused versions first, then run registry GC only for blobs not referenced by `template_versions` |
 
 Automated retention cleanup:

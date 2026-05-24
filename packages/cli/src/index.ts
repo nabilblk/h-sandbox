@@ -144,6 +144,16 @@ const collectPort = (value: string, previous: number[]) => {
   return [...previous, port];
 };
 
+const envNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const collectEnv = (value: string, previous: Record<string, string> = {}) => {
+  const index = value.indexOf("=");
+  if (index <= 0) throw new Error("--env must be formatted as KEY=value");
+  const key = value.slice(0, index);
+  if (!envNamePattern.test(key)) throw new Error("--env key must match [A-Za-z_][A-Za-z0-9_]*");
+  return { ...previous, [key]: value.slice(index + 1) };
+};
+
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const parsePositiveInt = (value: string) => {
@@ -222,7 +232,7 @@ program
   .addHelpText("after", `
 Examples:
   $ harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
-  $ harakiri create --template open-agents-dev --name agent-runner
+  $ harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV=dev
   $ harakiri run sbx_... --cmd "python --version"
   $ harakiri expose sbx_... --port 3000
 `);
@@ -472,12 +482,13 @@ program
   .requiredOption("--template <id>", "template id")
   .option("--name <name>", "sandbox name")
   .option("--ttl <seconds>", "idle TTL", "300")
+  .option("--env <key=value>", "environment variable; can be repeated", collectEnv, {})
   .action(async (options) => {
     printProgress("provisioning microVM...");
     const started = Date.now();
     const result = await api<{ sandbox: { id: string; name: string; template: string } }>("/v1/sandboxes", {
       method: "POST",
-      body: JSON.stringify({ template: options.template, name: options.name, ttlSeconds: Number(options.ttl) })
+      body: JSON.stringify({ template: options.template, name: options.name, ttlSeconds: Number(options.ttl), env: options.env })
     });
     const config = await loadConfig();
     await saveConfig({ ...config, lastSandboxId: result.sandbox.id });
@@ -541,18 +552,22 @@ program
   .option("--stdin <file>", "read command input from file")
   .option("--cmd <command>", "command to run")
   .option("--template <id>", "create a temporary sandbox with this template", "python-3.12-data")
+  .option("--env <key=value>", "environment variable for temporary sandbox creation; can be repeated", collectEnv, {})
   .action(async (maybeId, options) => {
     const config = await loadConfig();
+    const env = options.env as Record<string, string>;
+    const hasEnv = Object.keys(env).length > 0;
     let id = maybeId as string | undefined;
     let shouldTerminateAfterRun = false;
     if (!id && config.lastSandboxId) {
       id = config.lastSandboxId;
       shouldTerminateAfterRun = true;
     }
+    if (id && hasEnv) throw new Error("--env only applies when harakiri run creates a temporary sandbox");
     if (!id) {
       const created = await api<{ sandbox: { id: string } }>("/v1/sandboxes", {
         method: "POST",
-        body: JSON.stringify({ template: options.template, ttlSeconds: 300 })
+        body: JSON.stringify({ template: options.template, ttlSeconds: 300, env })
       });
       id = created.sandbox.id;
       shouldTerminateAfterRun = true;

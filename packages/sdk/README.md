@@ -8,7 +8,10 @@ const harakiri = new HarakiriClient({
   apiKey: process.env.HARAKIRI_API_KEY!
 });
 
-const { sandbox } = await harakiri.createSandbox({ template: "python-3.12-data" });
+const { sandbox } = await harakiri.createSandbox({
+  template: "python-3.12-data",
+  env: { HARAKIRI_ENV_SMOKE: "env-ok" }
+});
 const { result } = await harakiri.runSandbox(sandbox.id, { command: "python -c 'print(2+2)'" });
 await harakiri.killSandbox(sandbox.id);
 ```

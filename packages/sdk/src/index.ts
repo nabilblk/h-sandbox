@@ -20,6 +20,7 @@ export type CreateSandboxInput = {
   template?: string;
   name?: string;
   ttlSeconds?: number;
+  env?: Record<string, string>;
 };
 
 export type RunSandboxInput = {
@@ -186,7 +187,8 @@ export class HarakiriClient {
       body: JSON.stringify({
         template: input.template ?? "python-3.12-data",
         name: input.name,
-        ttlSeconds: input.ttlSeconds ?? 300
+        ttlSeconds: input.ttlSeconds ?? 300,
+        env: input.env
       })
     });
   }

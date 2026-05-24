@@ -96,27 +96,35 @@ When a sandbox is created, Harakiri should pass:
 - Image URI, preferably digest-pinned.
 - Default entrypoint.
 - CPU and memory.
-- Workdir when OpenSandbox supports it.
-- Environment metadata when OpenSandbox supports it.
+- Environment variables from `POST /v1/sandboxes.env`.
+- Registry image auth when a matching encrypted pull credential exists.
+- Workdir metadata for traceability. The current OpenSandbox lifecycle
+  specification does not expose a create-time workdir field, so the image's
+  Dockerfile `WORKDIR` and template smoke checks remain the runtime contract.
 - Labels/metadata: Harakiri sandbox ID, organization ID, template ID, template
   version ID, image digest, and route policy.
 
-Current code passes image, entrypoint, CPU, memory, TTL, name, and Harakiri
-metadata through the OpenSandbox adapter. The metadata includes:
+Current code passes image, entrypoint, CPU, memory, TTL, name, environment
+variables, optional `image.auth`, and Harakiri metadata through the OpenSandbox
+adapter. The metadata includes:
 
 - `harakiri.id` and `harakiri.sandbox`
 - `harakiri.org` and `harakiri.organization`
 - `harakiri.template`
 - `harakiri.template_version`
 - `harakiri.image_digest`
+- `harakiri.workdir`
+- `harakiri.runtime_registry_credential` when a matching credential is selected
 - `harakiri.route_mode`
 - `harakiri.route_base_domain`
 - `harakiri.route_public_scheme`
 - `harakiri.route_max_per_sandbox`
 - `harakiri.route_max_per_org`
 
-Values are normalized to OpenSandbox/Kubernetes label-safe strings. Workdir,
-env, and registry auth support remain tracked in the runtime integration phase.
+Values are normalized to OpenSandbox/Kubernetes label-safe strings. Sandbox
+events and audit metadata record env key names, `runtimeWorkdir`, the selected
+registry credential ID, and whether OpenSandbox image auth was provided; env
+values and registry passwords are not stored in those records.
 
 OpenSandbox injects `execd` and `bootstrap.sh` through an init container and
 starts the sandbox command through that bootstrap script. Custom images should

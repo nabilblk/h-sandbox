@@ -54,13 +54,26 @@ Authorization: Bearer <keycloak-jwt>
 curl http://127.0.0.1:18082/v1/sandboxes \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
-  -d '{"template":"python-3.12-data","ttlSeconds":300}'
+  -d '{"template":"python-3.12-data","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'
 ```
 
 The `template` field accepts a template ID, template name, template alias,
 template version ID, or version alias. The sandbox response includes
 `templateVersionId` and `templateImageDigest` when the selected version has
 those fields.
+
+Optional `env` values are passed to OpenSandbox at sandbox creation time. Keys
+must match `[A-Za-z_][A-Za-z0-9_]*`, values must be strings, each value is
+limited to 32 KiB, and a request can include at most 64 variables. Harakiri
+records only sorted env key names in sandbox events and audit metadata, never
+the values.
+
+When the selected template image matches an active `pull` or `push_pull`
+registry credential with encrypted username/password material, the
+OpenSandbox create request includes `image.auth.username` and
+`image.auth.password`. Credentials backed only by Kubernetes Secret references
+remain available to Kaniko and runtime pull preflight, but the OpenSandbox
+lifecycle API does not accept those Secret names directly.
 
 List sandbox history with optional filters:
 
@@ -263,6 +276,10 @@ least-privilege registry namespace the credential is expected to cover. The
 local k0s prototype also pushes generated Dockerfile images under
 `<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/<template-id>` so
 team images and Kaniko cache repositories do not share one flat namespace.
+Sandbox creation also reuses matching `pull`/`push_pull` credentials. If the
+record has `username` plus encrypted secret material, Harakiri decrypts it only
+long enough to pass OpenSandbox `image.auth`; API responses and audit metadata
+still show only the credential ID and whether auth was available.
 
 Cancel, retry, and promote:
 

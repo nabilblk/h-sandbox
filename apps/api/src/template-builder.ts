@@ -5,8 +5,8 @@ import { config } from "./config.js";
 import { makeId } from "./crypto.js";
 import { closeDb, withClient } from "./db.js";
 import { kubernetes } from "./kubernetes.js";
-import { normalizeRegistryHost } from "./registry-credentials.js";
-import { parseImageReference, resolveImageDigest } from "./registry.js";
+import { registryCredentialForImage, type RegistryCredentialRef } from "./registry-credentials.js";
+import { resolveImageDigest } from "./registry.js";
 import { appendBuildLog } from "./build-logs.js";
 import { redactRecord, redactText } from "./redaction.js";
 
@@ -87,15 +87,6 @@ type RuntimePullPreflightResult = {
   nodeName?: string | null;
   reason?: string | null;
   durationMs?: number;
-};
-
-type RegistryCredentialRef = {
-  id: string;
-  purpose: "pull" | "push" | "push_pull";
-  repositoryPrefix: string;
-  secretRef: string | null;
-  pullSecretRef: string | null;
-  pushSecretRef: string | null;
 };
 
 const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
@@ -289,41 +280,6 @@ export const preflightTemplateImagePull = async (
   } finally {
     await core.deleteNamespacedPod({ namespace, name: podName, gracePeriodSeconds: 0, propagationPolicy: "Background" }).catch(() => undefined);
   }
-};
-
-const registryCredentialForImage = async (
-  organizationId: string,
-  imageRef: string,
-  purpose: "pull" | "push"
-): Promise<RegistryCredentialRef | null> => {
-  let image;
-  try {
-    image = parseImageReference(imageRef);
-  } catch {
-    return null;
-  }
-  const registryHost = normalizeRegistryHost(image.displayRegistry);
-  return withClient(async (client) => {
-    const result = await client.query<RegistryCredentialRef>(
-      `SELECT id, purpose, repository_prefix AS "repositoryPrefix",
-              secret_ref AS "secretRef", pull_secret_ref AS "pullSecretRef",
-              push_secret_ref AS "pushSecretRef"
-       FROM template_registry_credentials
-       WHERE organization_id = $1
-         AND revoked_at IS NULL
-         AND registry_host = $2
-         AND purpose = ANY($3::text[])
-         AND (repository_prefix = '' OR $4 = repository_prefix OR $4 LIKE repository_prefix || '/%')
-       ORDER BY length(repository_prefix) DESC, updated_at DESC
-       LIMIT 1`,
-      [organizationId, registryHost, purpose === "pull" ? ["pull", "push_pull"] : ["push", "push_pull"], image.repository]
-    );
-    const credential = result.rows[0] ?? null;
-    if (credential) {
-      await client.query("UPDATE template_registry_credentials SET last_used_at = now() WHERE id = $1", [credential.id]);
-    }
-    return credential;
-  });
 };
 
 const claimBuild = async (sourceType: "image" | "dockerfile") =>

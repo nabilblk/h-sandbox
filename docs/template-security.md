@@ -36,9 +36,11 @@ Minimum requirements:
 
 Do not pass registry passwords through template build args, metadata, or
 Dockerfile content. Those surfaces are redacted, but they are not credential
-stores. Until the builder and OpenSandbox runtime can consume all credential
-forms directly, private registry support should still be treated as operator
-preconfiguration.
+stores. Harakiri can pass encrypted username/password pull credentials to
+OpenSandbox as `image.auth` during sandbox creation. Kubernetes Secret
+references are still operator-owned and are used by Kaniko and runtime pull
+preflight; the OpenSandbox lifecycle API does not accept those Secret names
+directly.
 
 ## Digest Pinning
 
@@ -71,8 +73,7 @@ metadata, error messages, or log lines are stored or returned:
 
 Remaining production work:
 
-- Size limits for build args and env schema values.
-- Audit events that record key names without values.
+- Size limits for build args and template env schema values.
 - Separate secret injection from normal build args.
 
 ## Build Contexts

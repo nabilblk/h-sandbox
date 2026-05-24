@@ -786,6 +786,13 @@
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field-l { font-size: 12px; font-weight: 600; color: var(--ink-2); }
 .field-h { font-size: 11px; color: var(--muted); }
+.sandbox-env-input {
+  min-height: 74px;
+  height: 74px;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.45;
+}
 
 .template-create-body {
   max-height: min(72vh, 780px);
