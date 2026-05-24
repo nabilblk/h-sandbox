@@ -251,6 +251,17 @@ Template registry configuration is also carried by `harakiri-config`:
 - `TEMPLATE_SCANNER_FAIL_ON_ERROR=1` makes scanner HTTP errors, timeouts, or
   invalid responses fail the template build; the default `0` persists
   `scan_failed` and keeps the ready version usable for manual review.
+- `TEMPLATE_RETENTION_ENABLED=1` keeps scheduler retention active.
+- `TEMPLATE_RETENTION_INTERVAL_MS=3600000` runs retention roughly hourly.
+- `TEMPLATE_BUILD_LOG_RETENTION_DAYS=14` prunes old terminal build logs.
+- `TEMPLATE_BUILD_CONTEXT_RETENTION_DAYS=7` prunes uploaded context archives
+  after terminal builds complete.
+- `TEMPLATE_BUILD_RETENTION_DAYS=30` removes old terminal build rows only when
+  no template version references the build.
+- `TEMPLATE_VERSION_RETENTION_DAYS=90` retires unused old ready versions that
+  are not latest/stable and are not used by active sandboxes.
+- `TEMPLATE_BUILDER_JOB_RETENTION_DAYS=1` prunes completed Kubernetes builder
+  Jobs when `TEMPLATE_RETENTION_DELETE_BUILDER_JOBS=1`.
 
 Inspect the deployed values before debugging a pull or push issue:
 
@@ -355,8 +366,10 @@ The deployed template builder handles `--source image` records by resolving the
 registry digest, and handles Dockerfile records by exporting the uploaded
 context, running a Kaniko Job, pushing to the k0s registry, and creating a
 digest-pinned ready template version. New versions also include deferred SBOM,
-provenance, and scan fields. Git source builds, production registry credentials,
-image retention, and real vulnerability scanning remain part of the active
+provenance, and scan fields. The scheduler prunes old logs, uploaded contexts,
+unversioned terminal build rows, unused superseded versions, and completed
+builder Jobs. Git source builds, production registry credentials, registry blob
+garbage collection, and real vulnerability scanning remain part of the active
 custom template execution plan.
 
 Inspect builder Jobs and logs:
@@ -409,9 +422,19 @@ Troubleshooting matrix:
 | Kaniko reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and Kaniko can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
 | Image import cannot resolve a digest | Builder logs filtered for `registry`, `manifest`, or `digest`; API error body | Fix the tag, registry visibility, registry policy, or operator-provided pull credentials |
 | Sandbox create fails after a successful build | Compare `template_versions.image_uri` with `TEMPLATE_REGISTRY_RUNTIME_HOST`; OpenSandbox logs | Make the runtime pull host reachable to OpenSandbox and configure pull credentials for the runtime path |
-| Registry disk keeps growing | Registry `du -sh`; old ready versions and retained build rows | Archive templates first, then apply a retention policy that preserves every digest referenced by `template_versions` |
+| Registry disk keeps growing | Registry `du -sh`; old ready/retired versions and retained build rows | Let scheduler retention retire unused versions first, then run registry GC only for blobs not referenced by `template_versions` |
 
-Local registry and cache cleanup for development:
+Automated retention cleanup:
+
+```bash
+kubectl -n harakiri logs deploy/harakiri-scheduler --since=2h | grep "template retention cleanup" || true
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
+  "select status, count(*) from template_versions group by status order by status;"
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
+  "select action, target_id, metadata, created_at from audit_events where action = 'template.version.retired' order by created_at desc limit 20;"
+```
+
+Local registry and manual cache cleanup for development:
 
 ```bash
 kubectl -n harakiri get pods,svc -l app=harakiri-registry
@@ -421,9 +444,9 @@ kubectl -n harakiri delete job -l app=harakiri-template-build --field-selector s
 ```
 
 Do not delete registry blobs that are referenced by `template_versions` unless
-the corresponding templates and versions have been retired. Production still
-needs a retention policy that walks template version references before
-garbage-collecting unreferenced images.
+the corresponding templates and versions have been retired and no rollback path
+depends on them. The current automated retention pass protects database audit
+records; registry blob garbage collection remains an explicit operator action.
 
 Inspect recent template audit events:
 

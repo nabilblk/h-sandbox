@@ -255,9 +255,37 @@ or unreachable scanner responses persist `scan_failed` by default. Set
 `TEMPLATE_SCANNER_FAIL_ON_ERROR=1` only when scanner outages should fail the
 template build instead of producing a ready-but-unverified version.
 
+## Retention And Cleanup
+
+The scheduler runs template retention every `TEMPLATE_RETENTION_INTERVAL_MS`
+milliseconds, defaulting to one hour. Set `TEMPLATE_RETENTION_ENABLED=0` to
+turn the pass off during an incident or forensic investigation.
+
+Default retention policy:
+
+- `TEMPLATE_BUILD_LOG_RETENTION_DAYS=14`: delete `template_build_logs` for
+  terminal `success`, `failed`, or `canceled` builds older than the cutoff.
+- `TEMPLATE_BUILD_CONTEXT_RETENTION_DAYS=7`: delete uploaded
+  `template_build_contexts` archives after the terminal build cutoff. Build rows
+  keep the context hash and metadata, but the heavy archive bytes are removed.
+- `TEMPLATE_BUILD_RETENTION_DAYS=30`: delete terminal build rows only when no
+  `template_versions` row references them. Referenced successful builds remain
+  available for version audit.
+- `TEMPLATE_VERSION_RETENTION_DAYS=90`: mark old ready versions as `retired`
+  when they are not `latest`, not `stable`, not the template's
+  `latest_version_id`, and no active sandbox is using them.
+- `TEMPLATE_BUILDER_JOB_RETENTION_DAYS=1`: delete completed Kubernetes builder
+  Jobs labeled `app=harakiri-template-build`.
+
+Retired template versions are kept as database records for audit. The retention
+pass emits `template.version.retired` audit events for organization-owned
+versions. Registry blob garbage collection is still operator-owned: do not
+delete blobs while any ready or retired `template_versions.image_uri` still
+references the digest.
+
 Still pending for production hardening:
 
 - Git source checkout.
 - Per-organization registry credentials.
-- Cache retention and cleanup policy.
+- Registry blob garbage collection after version retirement.
 - Production scanner service selection, policy thresholds, and health checks.

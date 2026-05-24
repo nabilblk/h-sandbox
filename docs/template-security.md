@@ -141,6 +141,31 @@ template build. Signing integration and production vulnerability policy
 thresholds are still deferred, but the persisted version shape is ready for
 SBOM artifact references, scanner output, and provenance queries.
 
+## Retention
+
+Template retention is scheduler-owned and keeps auditability ahead of disk
+reclamation. The scheduler deletes old terminal build logs, uploaded Dockerfile
+context archives, and terminal build rows that are not referenced by a template
+version. It marks old unused ready versions as `retired` instead of deleting
+them when the version is not latest/stable, is not the template's
+`latest_version_id`, and is not used by an active sandbox.
+
+Relevant policy variables:
+
+- `TEMPLATE_RETENTION_ENABLED`
+- `TEMPLATE_RETENTION_INTERVAL_MS`
+- `TEMPLATE_BUILD_LOG_RETENTION_DAYS`
+- `TEMPLATE_BUILD_CONTEXT_RETENTION_DAYS`
+- `TEMPLATE_BUILD_RETENTION_DAYS`
+- `TEMPLATE_VERSION_RETENTION_DAYS`
+- `TEMPLATE_BUILDER_JOB_RETENTION_DAYS`
+- `TEMPLATE_RETENTION_DELETE_BUILDER_JOBS`
+
+The retention pass emits `template.version.retired` audit events for
+organization-owned versions. Registry blob deletion remains an explicit
+operator action because the registry must not delete any digest still referenced
+by `template_versions.image_uri`.
+
 ## Visibility
 
 Template visibility is product metadata, not a substitute for authorization:
@@ -169,8 +194,10 @@ Harakiri records template lifecycle events in `audit_events`:
 - `template.build.failed`
 - `template.promote`
 - `template.archive`
+- `template.version.retired`
 - `sandbox.create`
 
 Builder-completion events use the system actor label
-`harakiri-template-builder`. User-triggered events use the authenticated
-Keycloak or API-key actor label. Audit metadata is redacted before storage.
+`harakiri-template-builder`. Retention events use `harakiri-scheduler`.
+User-triggered events use the authenticated Keycloak or API-key actor label.
+Audit metadata is redacted before storage.

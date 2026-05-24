@@ -6,7 +6,8 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 
 - Web app: high-fidelity React dashboard based on `sandbox_mockups/`.
 - Control-plane API: Fastify service that owns orgs, API keys, sandbox records, routing, schedules, usage, and audit events.
-- Scheduler: worker process that kills expired sandboxes and records lifecycle events.
+- Scheduler: worker process that kills expired sandboxes, records lifecycle
+  events, and runs template retention cleanup.
 - PostgreSQL: source of truth for control-plane data.
 - Keycloak: OIDC identity provider for browser users.
 - OpenSandbox: runtime provider for sandbox lifecycle.
@@ -21,7 +22,8 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 2. The API writes control-plane intent to PostgreSQL.
 3. The API calls OpenSandbox for sandbox lifecycle operations.
 4. Command execution uses Kubernetes `pods/exec` against the OpenSandbox sandbox pod.
-5. The scheduler reconciles provider state, TTL, and idle schedules.
+5. The scheduler reconciles provider state, TTL, idle schedules, and template
+   retention cleanup.
 6. The web app and CLI read the persisted control-plane state.
 
 ## Template Build Subsystem
@@ -51,8 +53,12 @@ Templates are a separate control-plane subsystem from live sandboxes:
    external scanner webhook when `TEMPLATE_SCANNER_WEBHOOK_URL` is set and
    persists the returned `scan_status` and `scan_summary`; otherwise it records
    `not_scanned`.
-10. Promotion moves aliases such as `latest` or `stable` to the ready version.
-11. Sandbox creation resolves a template name, alias, or version ID through
+10. The scheduler retention pass deletes old build logs, uploaded context
+    archives, unversioned terminal build rows, and completed builder Jobs. It
+    retires old ready template versions only when they are not latest/stable and
+    no active sandbox is using them.
+11. Promotion moves aliases such as `latest` or `stable` to the ready version.
+12. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 
 The currently committed API, CLI, SDK, and dashboard support the definition,
@@ -60,9 +66,10 @@ build-record, context-upload, log, cancel, retry, promote, and version-read
 surfaces. The k0s builder supports image-import digest resolution and
 Dockerfile execution with Kaniko. Template versions carry SBOM references,
 provenance JSON, scan status, and scan summary fields. The builder supports an
-operator-owned scanner webhook; production scanner service selection, signing,
-Git build sources, production registry credentials, and cleanup policy remain
-tracked follow-up work.
+operator-owned scanner webhook and a scheduler-owned retention policy;
+production scanner service selection, signing, Git build sources, production
+registry credentials, and registry blob garbage collection remain tracked
+follow-up work.
 
 ## Database
 

@@ -35,6 +35,29 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   verified the deployed product docs include the build command, the
   `harakiri-open-agents-smoke` command, and the route exposure section with no
   console errors.
+- Template retention checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
+  `pnpm --filter @harakiri/web build`, and `git diff --check` passed after
+  adding scheduler-owned template retention. `pnpm deploy:k0s` rolled out the
+  API, scheduler, template builder, and web app; `pnpm ports:restart &&
+  pnpm ports:status` restored local access.
+- Deployed retention smoke on 2026-05-24: temporary PostgreSQL rows older than
+  the configured retention windows were inserted for a disposable organization,
+  then the deployed API pod ran `cleanupTemplateRetention()` with builder Job
+  deletion disabled. The cleanup report was
+  `{"logsDeleted":1,"contextsDeleted":1,"buildsDeleted":1,"versionsRetired":1,"builderJobsDeleted":0}`.
+  Follow-up SQL verified the old unversioned build, log, and context were gone,
+  the superseded version status was `retired`, and one
+  `template.version.retired` audit event existed. The disposable organization
+  was deleted afterward.
+- Product docs retention smoke on 2026-05-24: a Playwright check opened the
+  deployed website at `http://127.0.0.1:15173/#docs`, selected "Template
+  builds", verified the Retention section text, and saved
+  `/tmp/harakiri-retention-docs.png`.
+- Post-retention template build smoke on 2026-05-24: `pnpm smoke:template-build`
+  passed against the deployed k0s stack, creating build `bld_E0rhiglTbrCx`,
+  version `tplv_qnkIri-5FYCJ`, digest
+  `sha256:74b5a99102c137e706c8e064199e9894973a3bb51560a028626bcdd0537b4db3`,
+  and sandbox `sbx_qHouzeA-Dq`.
 - `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards.
 - `pnpm smoke` passed sandbox create, real command execution, and kill through OpenSandbox with adapter fallback disabled.
 - `pnpm smoke:ttl` passed scheduler termination of a 10-second Harakiri TTL sandbox while using a provider-safe OpenSandbox lease.
@@ -54,6 +77,10 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Template control-plane smoke was verified locally: template create, queued
   build creation, build list, build logs, retry/cancel/promote endpoints, SDK
   methods, and CLI `template init/list/build/builds/logs/promote/inspect`.
+- `pnpm smoke:templates` passed after the retention deployment, proving
+  `python-3.12`, `python-3.12-data`, and `node-20` catalog templates still
+  create, execute a version command, and terminate through the live
+  OpenSandbox-backed path.
 - Template image-import builder smoke was verified locally on 2026-05-24:
   `processNextImageImportBuild()` claimed a queued `source_type='image'` record,
   resolved `hello-world:latest` to a `sha256:` digest, marked the build
@@ -489,6 +516,6 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
 - Custom template image-import and Dockerfile records are live in the control
   plane and can be completed by the `harakiri-template-builder` worker. Git
-  source builds, production registry credentials, retention/scanning policy, and
-  non-root workspace ownership for custom template images remain pending in the
-  active execution plan.
+  source builds, production registry credentials, registry blob garbage
+  collection, production scanner policy, and non-root workspace ownership for
+  custom template images remain pending in the active execution plan.

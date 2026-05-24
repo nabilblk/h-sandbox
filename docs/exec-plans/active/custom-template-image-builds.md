@@ -53,7 +53,7 @@ the same agent/browser/editor surface without depending on E2B internals.
       and retained logs.
 - [ ] Template images are reproducible and auditable: mutable tags are resolved
       to immutable digests before use.
-- [ ] The default static templates continue to work during rollout.
+- [x] The default static templates continue to work during rollout.
 - [x] Repo documentation explains how template definitions, builds, image
       digests, registry credentials, the Kubernetes builder, and OpenSandbox runtime
       integration work.
@@ -360,7 +360,7 @@ the change is provably invisible to one audience.
       the digest before the imported version is marked ready.
 - [x] Add image digest capture after Kaniko push, and persist the digest
       before a Dockerfile/Git version can be marked ready.
-- [ ] Add cleanup policy for unreferenced build cache and abandoned images.
+- [x] Add cleanup policy for unreferenced build cache and abandoned images.
 - [x] Add smoke scripts for build infrastructure health.
 - [x] Add local image-import worker smoke evidence for digest resolution and
       ready version creation.
@@ -446,7 +446,7 @@ the change is provably invisible to one audience.
 - [x] Add SBOM/provenance fields even if scanner/signing integration is deferred.
 - [x] Add audit events for template create, build, cancel, promote, archive, and
       sandbox creation from a template version.
-- [ ] Add retention policies for old builds, logs, and image versions.
+- [x] Add retention policies for old builds, logs, and image versions.
 - [x] Add admin/operator docs for registry credentials, builder cleanup, and
       troubleshooting.
 
@@ -517,6 +517,7 @@ the change is provably invisible to one audience.
 | 2026-05-24 | Run the Open Agents pilot image as root in the current k0s runtime | OpenSandbox presents `/workspace` as root-owned, and the E2B-like runtime contract requires a writable workspace. | Keep `USER 1001` and fail workspace writes until runtime volume ownership is configurable |
 | 2026-05-24 | Make the dashboard Dockerfile path a single-file browser upload for the prototype | Browser-created tar+gzip contexts prove the dashboard flow without implementing directory upload complexity; the CLI remains the full multi-file context path. | Add drag-and-drop directory upload before validating the end-to-end product flow |
 | 2026-05-24 | Implement vulnerability scanning as an external webhook hook | Keeps Harakiri scanner-agnostic while persisting scan status/summary on immutable template versions and allowing operators to choose Trivy, Grype, or a custom service later. | Bundle a scanner binary into the builder image; keep only `not_scanned` placeholders |
+| 2026-05-24 | Implement retention as scheduler-owned database cleanup plus builder Job pruning | PostgreSQL is the control-plane source of truth; old logs, contexts, unversioned terminal builds, and unused superseded versions can be cleaned safely without deleting auditable version rows or registry blobs. | Delete registry blobs directly from the scheduler; keep all build artifacts indefinitely |
 
 ## Tech Debt Incurred
 Risks and debt to watch during implementation:
@@ -524,7 +525,8 @@ Risks and debt to watch during implementation:
 - Keeping static shared template constants during migration may temporarily
   duplicate source-of-truth behavior.
 - A local k0s registry is enough for development but production will need a
-  registry architecture decision with retention, scanning, and auth.
+  registry architecture decision with auth, scanner integration, and blob
+  garbage collection after retained version references are retired.
 - Polling build logs is simpler for v1; SSE/WebSocket log streaming should
   follow once the build state model is stable.
 - The `open-agents-dev` pilot image currently runs as root because OpenSandbox

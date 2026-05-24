@@ -1,5 +1,7 @@
 import { closeDb, query } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
+import { config } from "./config.js";
+import { cleanupTemplateRetention, type TemplateRetentionReport } from "./template-retention.js";
 
 export const normalizeState = (state?: string | null) => {
   const value = String(state ?? "").toLowerCase();
@@ -8,6 +10,28 @@ export const normalizeState = (state?: string | null) => {
   if (value.includes("fail") || value.includes("error")) return "error";
   if (value.includes("delete") || value.includes("terminat") || value.includes("stopped")) return "terminated";
   return "running";
+};
+
+export const shouldRunTemplateRetention = (lastRunAtMs: number, nowMs: number, intervalMs: number) =>
+  intervalMs > 0 && nowMs - lastRunAtMs >= intervalMs;
+
+let lastTemplateRetentionAtMs = 0;
+
+const reportTotal = (report: TemplateRetentionReport) =>
+  report.logsDeleted + report.contextsDeleted + report.buildsDeleted + report.versionsRetired + report.builderJobsDeleted;
+
+export const runTemplateRetentionIfDue = async (nowMs = Date.now()) => {
+  if (!config.templateRetentionEnabled) return null;
+  if (!shouldRunTemplateRetention(lastTemplateRetentionAtMs, nowMs, config.templateRetentionIntervalMs)) return null;
+  lastTemplateRetentionAtMs = nowMs;
+  try {
+    const report = await cleanupTemplateRetention();
+    if (reportTotal(report) > 0) console.log("template retention cleanup", report);
+    return report;
+  } catch (error) {
+    console.error("template retention cleanup failed", error);
+    return null;
+  }
 };
 
 const reconcile = async () => {
@@ -79,6 +103,7 @@ const tick = async () => {
       [item.sandbox_id, item.organization_id]
     );
   }
+  await runTemplateRetentionIfDue();
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

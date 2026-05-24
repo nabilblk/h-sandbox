@@ -1498,7 +1498,7 @@ const docPages: DocPage[] = [
     section: "Templates",
     title: "Template builds",
     lede: "Build records make template image creation inspectable from the API, CLI, and dashboard.",
-    toc: ["Statuses", "Logs", "Retry", "Troubleshooting", "Archive", "Limits"],
+    toc: ["Statuses", "Logs", "Retention", "Retry", "Troubleshooting", "Archive", "Limits"],
     body: (
       <>
         <h2>Statuses</h2>
@@ -1507,6 +1507,8 @@ const docPages: DocPage[] = [
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
         <pre>{`harakiri template logs bld_...`}</pre>
+        <h2>Retention</h2>
+        <p>Build logs and uploaded Dockerfile contexts are retained for debugging, then pruned by the scheduler after the workspace operator policy window. Old unused versions are marked `retired` instead of deleted, so existing audit records still show which image digest a sandbox used.</p>
         <h2>Retry</h2>
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
         <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
@@ -1529,7 +1531,7 @@ const docPages: DocPage[] = [
     body: (
       <>
         <h2>Failed builds</h2>
-        <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure.</p>
+        <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure. Very old logs and uploaded contexts can disappear after the operator retention window, but the build status and audit trail remain.</p>
         <pre>{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</pre>
         <h2>Registry pull</h2>
         <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Check spelling, tag existence, registry visibility, and workspace image policy. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
@@ -1603,7 +1605,7 @@ const docPages: DocPage[] = [
         <h2>Provenance</h2>
         <p>Template versions keep SBOM references, provenance, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
         <h2>Audit</h2>
-        <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, and sandbox create actions are stored as audit events with redacted metadata.</p>
+        <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, version retirement, and sandbox create actions are stored as audit events with redacted metadata.</p>
         <h2>Limits</h2>
         <p>Template CPU, memory, default ports, and active queued/building builds are capped by the workspace policy so one team cannot exhaust builder capacity.</p>
       </>
