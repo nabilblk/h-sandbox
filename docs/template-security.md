@@ -44,10 +44,18 @@ If digest resolution fails, keep the build non-ready and surface the failure.
 
 ## Build Args And Env
 
-Build args and env metadata can contain secrets. The API currently stores
-`build_args` as JSONB for build reproducibility. The builder phase must add:
+Build args, env metadata, registry errors, and builder logs can contain secrets.
+The API redacts common secret-shaped keys and values before build args,
+metadata, error messages, or log lines are stored or returned:
 
-- Denylist and allowlist based redaction before log writes.
+- keys containing `apiKey`, `token`, `secret`, `password`, `credential`,
+  `authorization`, `privateKey`, or similar variants are replaced with
+  `[redacted]`.
+- log text is scrubbed for Harakiri API keys, bearer tokens, `x-api-key` style
+  headers, password/token assignments, and URL user-info passwords.
+
+Remaining production work:
+
 - Size limits for build args and env schema values.
 - Audit events that record key names without values.
 - Separate secret injection from normal build args.

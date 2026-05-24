@@ -118,6 +118,16 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   killed its sandbox but left a temporary smoke API key; it was revoked through
   the API. Post-test audit showed no active `smoke-*` API keys, `running_sandboxes=0`,
   and `ready_routes=0`.
+- Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
+  `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
+  and `pnpm smoke:template-redaction` passed after adding API redaction for
+  secret-shaped build args, metadata, retained build logs, and build errors.
+  The deployed smoke created build `bld_B7u6wYY8ZjiC` with
+  `registry_password=super-secret`, `apiToken=hk_test_should_not_survive`, and
+  `x-api-key: hk_test_nested`; API create/get responses and PostgreSQL retained
+  only `[redacted]` markers. Cleanup removed the temporary template and API key;
+  post-test audit showed no active `smoke-*` keys, no `redaction-smoke-*`
+  templates, `running_sandboxes=0`, and `ready_routes=0`.
 - Open Agents template pilot was verified against k0s on 2026-05-24:
   `harakiri template build examples/templates/open-agents-dev` produced build
   `bld_Tv1jbVKB4TAD` and digest

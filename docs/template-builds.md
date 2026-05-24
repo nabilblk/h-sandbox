@@ -157,6 +157,8 @@ behavior for CI or custom polling scripts.
   version.
 - Registry push/pull failures: should be stored in `template_builds.error` and
   surfaced by API, CLI, and UI.
+- Secret-bearing messages: build args, metadata, errors, and retained log lines
+  are redacted before storage and again before API responses.
 - Image digest resolution failure: must keep the build failed or blocked; do not
   promote a mutable tag without a digest.
 
@@ -179,7 +181,6 @@ Still pending for production hardening:
 
 - Git source checkout.
 - Per-organization registry credentials.
-- Secret redaction in logs.
 - Cache retention and cleanup policy.
 - Concurrency limits per organization.
 - Health checks and operator runbook commands.

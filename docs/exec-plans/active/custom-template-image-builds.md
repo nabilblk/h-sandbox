@@ -155,7 +155,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
         inspection.
   - [ ] Update `docs/runbook.md` with builder health, registry cleanup, and
         failed pull debugging commands once the k0s builder exists.
-- [ ] Example template documentation:
+- [x] Example template documentation:
   - [x] Add or verify `examples/templates/open-agents-dev/README.md`.
   - [x] Document the included runtime tools: Bun, Node/npm/pnpm/yarn, Python,
         Chromium, `agent-browser`, `code-server`, git, jq, ripgrep, and shell
@@ -346,7 +346,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 ### Phase 9: Security, Governance, And Operations
 **Status**: In Progress
 - [x] Add maximum Dockerfile context upload size limits.
-- [ ] Redact build args, env vars, registry credentials, and secrets in logs.
+- [x] Redact build args, env vars, registry credentials, and secrets in logs.
 - [ ] Add deny/allow policy for base images and registries.
 - [ ] Add vulnerability scanning hook and persist scan status on versions.
 - [ ] Add SBOM/provenance fields even if scanner/signing integration is deferred.

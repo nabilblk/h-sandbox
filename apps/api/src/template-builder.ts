@@ -6,6 +6,7 @@ import { closeDb, withClient } from "./db.js";
 import { kubernetes } from "./kubernetes.js";
 import { resolveImageDigest } from "./registry.js";
 import { appendBuildLog } from "./build-logs.js";
+import { redactRecord, redactText } from "./redaction.js";
 
 type BuildRow = {
   id: string;
@@ -132,7 +133,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
           build.template_memory_mb,
           build.template_workdir,
           build.template_default_ports,
-          { ...build.metadata, ...ready.metadata }
+          redactRecord({ ...build.metadata, ...ready.metadata })
         ]
       );
       await client.query(
@@ -154,7 +155,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
              updated_at = now(),
              metadata = metadata || $4::jsonb
          WHERE id = $1`,
-        [build.id, ready.imageUri, ready.imageDigest, JSON.stringify({ templateVersionId: versionId, readyImage: ready.metadata })]
+        [build.id, ready.imageUri, ready.imageDigest, JSON.stringify(redactRecord({ templateVersionId: versionId, readyImage: ready.metadata }))]
       );
       await appendBuildLog(client, build.id, "stdout", `created template version ${versionId}`);
       await client.query("COMMIT");
@@ -167,7 +168,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) =>
 
 const failBuild = async (build: BuildRow, error: unknown) =>
   withClient(async (client) => {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = redactText(error instanceof Error ? error.message : String(error));
     await client.query("BEGIN");
     try {
       await client.query(

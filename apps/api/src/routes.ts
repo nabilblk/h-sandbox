@@ -7,6 +7,7 @@ import { config } from "./config.js";
 import { createApiKey, makeId } from "./crypto.js";
 import { query, withClient } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
+import { redactRecord, redactText } from "./redaction.js";
 import { averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
 
 const createSandboxSchema = z.object({
@@ -122,6 +123,13 @@ const templateBuildSelect = `
          created_at AS "createdAt", updated_at AS "updatedAt"
   FROM template_builds
 `;
+
+const redactTemplateBuildRow = <T extends { buildArgs?: Record<string, unknown>; metadata?: Record<string, unknown>; error?: string | null }>(row: T) => ({
+  ...row,
+  buildArgs: redactRecord(row.buildArgs ?? {}),
+  metadata: redactRecord(row.metadata ?? {}),
+  error: row.error ? redactText(row.error) : row.error
+});
 
 const audit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) => {
   await query(
@@ -290,6 +298,8 @@ export const registerRoutes = async (app: FastifyInstance) => {
     const template = await resolveTemplate(id, request.auth.organizationId);
     if (!template) return reply.code(404).send({ error: "template_not_found" });
     const body = templateBuildSchema.parse(request.body ?? {});
+    const buildArgs = redactRecord(body.buildArgs);
+    const metadata = redactRecord(body.metadata);
     const buildId = makeId("bld", 12);
     await query(
       `INSERT INTO template_builds
@@ -303,16 +313,16 @@ export const registerRoutes = async (app: FastifyInstance) => {
         body.sourceType,
         body.contextHash ?? null,
         body.dockerfilePath,
-        body.buildArgs,
+        buildArgs,
         body.imageDestination ?? null,
-        body.metadata
+        metadata
       ]
     );
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.create", "template", template.id, {
       buildId
     });
     const result = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [buildId, request.auth.organizationId]);
-    return reply.code(201).send({ build: result.rows[0] });
+    return reply.code(201).send({ build: redactTemplateBuildRow(result.rows[0]) });
   });
 
   app.get("/v1/template-builds", async (request) => {
@@ -328,14 +338,14 @@ export const registerRoutes = async (app: FastifyInstance) => {
       where += ` AND (id ILIKE $${params.length} OR template_id ILIKE $${params.length})`;
     }
     const result = await query(`${templateBuildSelect} ${where} ORDER BY created_at DESC LIMIT 100`, params);
-    return { builds: result.rows };
+    return { builds: result.rows.map(redactTemplateBuildRow) };
   });
 
   app.get("/v1/template-builds/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const result = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [id, request.auth.organizationId]);
     if (!result.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
-    return { build: result.rows[0] };
+    return { build: redactTemplateBuildRow(result.rows[0]) };
   });
 
   app.get("/v1/template-builds/:id/logs", async (request, reply) => {
@@ -347,7 +357,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
        FROM template_build_logs WHERE build_id = $1 ORDER BY line_no ASC`,
       [id]
     );
-    return { logs: logs.rows };
+    return { logs: logs.rows.map((line) => ({ ...line, message: redactText(String(line.message)) })) };
   });
 
   app.post("/v1/template-builds/:id/context", async (request, reply) => {
@@ -404,7 +414,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
             context.sizeBytes,
             context.fileCount,
             context.archive,
-            context.metadata
+            redactRecord(context.metadata)
           ]
         );
         const summary = {
@@ -420,7 +430,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
                metadata = metadata || $3::jsonb,
                updated_at = now()
            WHERE id = $1`,
-          [id, context.sha256, JSON.stringify({ context: summary })]
+          [id, context.sha256, JSON.stringify(redactRecord({ context: summary }))]
         );
         await appendBuildLog(client, id, "stdout", `received build context ${context.sha256} (${context.sizeBytes} bytes, ${context.fileCount ?? 0} files)`);
         await client.query("COMMIT");
@@ -447,7 +457,7 @@ export const registerRoutes = async (app: FastifyInstance) => {
     if (!result.rowCount) return reply.code(404).send({ error: "template_build_not_found" });
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.cancel", "template_build", id);
     const build = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [id, request.auth.organizationId]);
-    return { build: build.rows[0] };
+    return { build: redactTemplateBuildRow(build.rows[0]) };
   });
 
   app.post("/v1/template-builds/:id/retry", async (request, reply) => {
@@ -478,14 +488,14 @@ export const registerRoutes = async (app: FastifyInstance) => {
         row.dockerfile_path,
         row.build_args,
         row.image_destination,
-        { ...row.metadata, retryOf: id }
+        redactRecord({ ...row.metadata, retryOf: id })
       ]
     );
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "template.build.retry", "template_build", id, {
       buildId
     });
     const build = await query(`${templateBuildSelect} WHERE id = $1 AND organization_id = $2`, [buildId, request.auth.organizationId]);
-    return reply.code(201).send({ build: build.rows[0] });
+    return reply.code(201).send({ build: redactTemplateBuildRow(build.rows[0]) });
   });
 
   app.post("/v1/templates/:id/promote", async (request, reply) => {
