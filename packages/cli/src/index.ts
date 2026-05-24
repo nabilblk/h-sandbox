@@ -393,7 +393,7 @@ template
   .addHelpText("after", `
 Examples:
   $ harakiri template build --name open-agents-dev .
-  $ harakiri template build examples/templates/open-agents-dev
+  $ harakiri template build --name open-agents-dev examples/templates/open-agents-dev
   $ harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
   $ harakiri template build --name open-agents-dev . --no-wait
 `)

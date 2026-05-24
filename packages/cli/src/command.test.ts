@@ -264,7 +264,7 @@ test("template command help includes documented workflow examples", async () => 
 
     const buildHelp = await runCli(["template", "build", "--help"], { api });
     assert.equal(buildHelp.exitCode, 0, buildHelp.stderr);
-    assert.match(buildHelp.stdout, /harakiri template build examples\/templates\/open-agents-dev/);
+    assert.match(buildHelp.stdout, /harakiri template build --name open-agents-dev examples\/templates\/open-agents-dev/);
     assert.match(buildHelp.stdout, /harakiri template build --name ubuntu-import --source image --image ubuntu:24\.04/);
     assert.match(buildHelp.stdout, /harakiri template build --name open-agents-dev \. --no-wait/);
     assert.equal(api.requests.length, 0);

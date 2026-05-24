@@ -552,6 +552,11 @@ making it clear that both were reviewed in the same checkpoint.
       model.
 - [x] Add CLI help examples and ensure docs examples match implemented command
       names and JSON payloads.
+      Latest exact-command alignment: CLI help, README, dedicated Markdown docs,
+      example README, and website product docs now use
+      `harakiri template build --name open-agents-dev
+      examples/templates/open-agents-dev`; verified with
+      `pnpm --filter @harakiri/cli test`, typecheck, and build.
 - [ ] Keep `README.md` and dedicated `docs/*.md` as the canonical engineering
       and operator documentation for contributors.
 - [ ] Keep the website docs as the canonical product documentation for users,

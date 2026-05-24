@@ -619,6 +619,11 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   deployed product docs were verified at `http://127.0.0.1:15173/#docs` for
   Create a custom template, Template builds, and Open Agents template; screenshot
   saved to `/tmp/harakiri-open-agents-exact-docs.png`.
+- CLI example alignment on 2026-05-24: `pnpm --filter @harakiri/cli test`,
+  `pnpm --filter @harakiri/cli typecheck`, `pnpm --filter @harakiri/cli build`,
+  and `pnpm --filter @harakiri/api test` passed after aligning CLI help with
+  the exact Open Agents build command used in README, dedicated Markdown docs,
+  example docs, and website product docs.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`,
   `resolution_templates=0`; pre-existing active API keys were left untouched.
 
