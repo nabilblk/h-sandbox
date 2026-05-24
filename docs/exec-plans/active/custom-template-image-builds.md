@@ -49,7 +49,7 @@ the same agent/browser/editor surface without depending on E2B internals.
 - [ ] The dashboard Templates page has E2B-like List and Builds tabs with search,
       filters, status badges, visibility, CPU, memory, created/updated timestamps,
       latest build/version metadata, and row actions.
-- [ ] Build failures are visible in API, CLI, and UI with useful error messages
+- [x] Build failures are visible in API, CLI, and UI with useful error messages
       and retained logs.
 - [ ] Template images are reproducible and auditable: mutable tags are resolved
       to immutable digests before use.
@@ -106,7 +106,7 @@ the same agent/browser/editor surface without depending on E2B internals.
   - [x] Clone/fork existing template.
   - [x] Preview generated `harakiri.toml`.
 - [x] Empty states for no templates, no builds, and no selected build.
-- [ ] Add loading/error states for failed build and registry pull failure.
+- [x] Add loading/error states for failed build and registry pull failure.
 
 ## Documentation Backlog
 Documentation is a first-class deliverable for this feature, split between
@@ -165,7 +165,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
         cancel endpoints.
   - [x] Update `docs/runbook.md` with operator commands for build-log
         inspection.
-  - [ ] Update `docs/runbook.md` with builder health, registry cleanup, and
+  - [x] Update `docs/runbook.md` with builder health, registry cleanup, and
         failed pull debugging commands once the k0s builder exists.
 - [x] Example template documentation:
   - [x] Add or verify `examples/templates/open-agents-dev/README.md`.
@@ -205,7 +205,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
         branding or copy.
   - [x] Update website docs once Dockerfile builds are fully wired so they no
         longer describe the Kubernetes builder as future work.
-  - [ ] Add website troubleshooting content for registry pull failures, failed
+  - [x] Add website troubleshooting content for registry pull failures, failed
         builds, route exposure, and mismatched template aliases.
   - [x] Link relevant product docs from Templates empty states, build detail
         errors, and New Template flow.
@@ -219,7 +219,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [ ] Website documentation completion gate:
   - [ ] The website includes a complete user path from first custom template to
         running sandbox and public route.
-  - [ ] The website explains build failures, registry/image pull failures,
+  - [x] The website explains build failures, registry/image pull failures,
         aliases, and route exposure in product language.
   - [x] The Templates UI links users to the relevant website docs from empty,
         failed, and setup-dependent states.

@@ -285,6 +285,15 @@ kubectl -n harakiri logs job/<job-name> -c context-exporter
 kubectl -n harakiri logs job/<job-name> -c kaniko
 ```
 
+Builder health checks:
+
+```bash
+kubectl -n harakiri get deploy harakiri-template-builder
+kubectl -n harakiri logs deploy/harakiri-template-builder --tail=200
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
+  "select status, count(*) from template_builds group by status order by status;"
+```
+
 Correlate API build records with the Kubernetes Job, Pod, and node that handled
 the build:
 
@@ -292,6 +301,35 @@ the build:
 kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
   "select id, metadata->>'builderJobName' as job, metadata->>'builderPodName' as pod, metadata->>'builderNodeName' as node from template_builds where source_type = 'dockerfile' order by created_at desc limit 10;"
 ```
+
+Failed image imports and pull debugging:
+
+```bash
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql -U harakiri -d harakiri -c \
+  "select id, template_id, source_type, image_destination, status, image_digest, error from template_builds where status = 'failed' order by updated_at desc limit 20;"
+
+kubectl -n harakiri logs deploy/harakiri-template-builder --since=30m | grep -i "registry\\|manifest\\|digest\\|failed"
+```
+
+If the error is `registry manifest lookup failed`, verify the image exists,
+the tag is public or credentials are configured, the registry is allowed by
+`TEMPLATE_IMAGE_ALLOW_REGISTRIES`, and the manifest endpoint returns a
+`Docker-Content-Digest` sha256 value. If OpenSandbox fails after a successful
+build, compare `template_versions.image_uri` with the registry host reachable
+from the k0s node and verify the image can be pulled from that host.
+
+Local registry and cache cleanup for development:
+
+```bash
+kubectl -n harakiri get pods,svc -l app=harakiri-registry
+kubectl -n harakiri exec deploy/harakiri-registry -- du -sh /var/lib/registry || true
+kubectl -n harakiri delete job -l app=harakiri-template-build --field-selector status.successful=1
+```
+
+Do not delete registry blobs that are referenced by `template_versions` unless
+the corresponding templates and versions have been retired. Production still
+needs a retention policy that walks template version references before
+garbage-collecting unreferenced images.
 
 Inspect recent template audit events:
 

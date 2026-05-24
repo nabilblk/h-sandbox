@@ -222,6 +222,12 @@ metadata after completion: `builderJobName`, `builderPodName`,
 `builderPodUid`, `builderNodeName`, and `builderNamespace`. The context archive
 itself is not returned by the API.
 
+The dashboard keeps failed build records actionable. Selecting a failed row
+shows a failure panel that classifies image policy, registry digest lookup, and
+Dockerfile/Kaniko errors, links to product troubleshooting docs, and keeps Retry
+beside the retained error. If logs are still loading or were not recorded before
+the failure, the log viewer states that explicitly instead of looking empty.
+
 If a template is archived while a queued or building record exists, the API
 marks those active builds `canceled`. If a Kubernetes build job finishes after
 the record was canceled, the builder ignores the result instead of promoting it

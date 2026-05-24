@@ -318,6 +318,28 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `active_smoke_keys=0`, `live_sandboxes=0`, `ui_new_templates=5`,
   `ui_new_active_templates=0`, and `ready_routes=0`. The `ui_new_templates`
   rows are archived build-history records from the dashboard smoke.
+- Template failure UX checkpoint on 2026-05-24: `pnpm --filter @harakiri/web
+  typecheck`, `pnpm --filter @harakiri/web build`, `pnpm typecheck`, `pnpm
+  test`, `pnpm --filter @harakiri/cli build`, and `git diff --check` passed
+  after adding dashboard build/log loading states, classified failed-build
+  panels, user-facing template troubleshooting docs, and runbook commands for
+  builder health, failed pulls, and local registry cleanup. `pnpm deploy:k0s`
+  completed and `pnpm ports:restart && pnpm ports:status` reported every
+  forward healthy. A Playwright smoke created a `ui-fail-*` image-import build
+  against a nonexistent Docker Hub image, waited for the real builder to mark it
+  `failed`, selected it in the deployed Builds tab, verified the dashboard
+  showed "Registry lookup failed", retained log text, and linked to "Template
+  troubleshooting", then wrote `/tmp/harakiri-build-failure-ui.png`. A CLI smoke
+  created `cli-fail-1779598270`, build `bld_ghJk7Vmm_o3i`, streamed the
+  retained registry error, and exited non-zero with `template build
+  bld_ghJk7Vmm_o3i failed: registry did not return a sha256 digest...`.
+  `pnpm smoke:templates` also passed after the deployment for `python-3.12`,
+  `python-3.12-data`, and `node-20`.
+- Post-template-failure-UX cleanup audit on 2026-05-24: PostgreSQL reported
+  `active_failure_keys=0`, `live_sandboxes=0`, `ui_fail_active_templates=0`,
+  `cli_fail_active_templates=0`, `failed_smoke_builds=5`, and
+  `ready_routes=0`. The failed smoke builds are retained archived history for
+  failure inspection.
 - Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
   `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
   and `pnpm smoke:template-redaction` passed after adding API redaction for

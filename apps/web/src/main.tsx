@@ -619,6 +619,38 @@ const buildResultLabel = (build: TemplateBuildSummary) => {
   if (build.error) return build.error;
   return shortDigest(build.imageDigest);
 };
+const buildIsActive = (build: TemplateBuildSummary) => build.status === "queued" || build.status === "building";
+const buildFailureSummary = (build: TemplateBuildSummary) => {
+  if (build.status !== "failed") return null;
+  const message = build.error ?? "Build failed before the builder returned a specific error.";
+  const lower = message.toLowerCase();
+  if (lower.includes("template_image_policy_violation") || lower.includes("image policy") || lower.includes("registry_not_allowed")) {
+    return {
+      title: "Image policy blocked this build",
+      body: message,
+      checks: ["Use an allowed registry or prefix.", "Open the Security model docs for the configured image policy.", "Retry after updating the image reference or workspace policy."]
+    };
+  }
+  if (lower.includes("registry") || lower.includes("manifest lookup") || lower.includes("digest") || build.sourceType === "image") {
+    return {
+      title: "Registry lookup failed",
+      body: message,
+      checks: ["Confirm the image exists and the tag is public or credentials are configured.", "Check that the registry returns a sha256 manifest digest.", "Retry after fixing the image reference."]
+    };
+  }
+  if (lower.includes("kaniko") || lower.includes("job") || lower.includes("dockerfile") || build.sourceType === "dockerfile") {
+    return {
+      title: "Dockerfile builder failed",
+      body: message,
+      checks: ["Open the build logs below first.", "Inspect the builder pod and Kaniko container logs if this is a cluster issue.", "Retry after fixing the Dockerfile or base image."]
+    };
+  }
+  return {
+    title: "Build failed",
+    body: message,
+    checks: ["Read the retained logs below.", "Retry the build after correcting the source.", "Use the troubleshooting docs if the failure came from registry or route setup."]
+  };
+};
 const metadataLabel = (value: unknown, fallback = "-") => {
   if (typeof value === "string") return value.trim() || fallback;
   if (value === null || value === undefined) return fallback;
@@ -640,6 +672,10 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [buildStatus, setBuildStatus] = useState("all");
   const [selectedBuild, setSelectedBuild] = useState<TemplateBuildSummary | null>(null);
   const [buildLogs, setBuildLogs] = useState<TemplateBuildLogEntry[]>([]);
+  const [buildLogsLoading, setBuildLogsLoading] = useState(false);
+  const [buildLogsError, setBuildLogsError] = useState("");
+  const [buildsLoading, setBuildsLoading] = useState(false);
+  const [buildsError, setBuildsError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [showNewTemplate, setShowNewTemplate] = useState(false);
 
@@ -664,19 +700,41 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
     if (buildQ.trim()) params.set("q", buildQ.trim());
     if (buildStatus !== "all") params.set("status", buildStatus);
     const query = params.toString();
+    setBuildsLoading(true);
+    setBuildsError("");
     try {
       const result = await api.templateBuilds(query ? `?${query}` : "");
       setBuilds(result.builds);
-    } catch {
+    } catch (error) {
+      setBuildsError(error instanceof Error ? error.message : "Failed to load builds.");
       setBuilds([]);
+    } finally {
+      setBuildsLoading(false);
     }
   };
   useEffect(() => { void loadTemplates(); }, [q, visibility, owner, runtimeFamily, templateStatus]);
   useEffect(() => { void loadBuilds(); }, [buildQ, buildStatus]);
   useEffect(() => { api.usage().then(setUsage).catch(() => undefined); }, []);
   useEffect(() => {
-    if (!selectedBuild) { setBuildLogs([]); return; }
-    api.templateBuildLogs(selectedBuild.id).then((r) => setBuildLogs(r.logs)).catch(() => setBuildLogs([]));
+    if (!selectedBuild) {
+      setBuildLogs([]);
+      setBuildLogsError("");
+      setBuildLogsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setBuildLogsLoading(true);
+    setBuildLogsError("");
+    api.templateBuildLogs(selectedBuild.id)
+      .then((r) => { if (!cancelled) setBuildLogs(r.logs); })
+      .catch((error) => {
+        if (!cancelled) {
+          setBuildLogs([]);
+          setBuildLogsError(error instanceof Error ? error.message : "Failed to load build logs.");
+        }
+      })
+      .finally(() => { if (!cancelled) setBuildLogsLoading(false); });
+    return () => { cancelled = true; };
   }, [selectedBuild]);
 
   const buildCounts = useMemo(() => ({
@@ -858,6 +916,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
           <div className="tmpl-build-layout">
             <div className="tmpl-builds card">
               <div className="build-row build-head"><span>Status</span><span>Template</span><span>Started</span><span>Duration</span><span>ID</span><span>Version</span><span>Result</span><span /></div>
+              {buildsError ? <div className="build-inline-alert"><span>{buildsError}</span><button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("template-troubleshooting")}>Docs</button></div> : null}
               {builds.map((build) => (
                 <div
                   className={`build-row ${selectedBuild?.id === build.id ? "active" : ""}`}
@@ -880,12 +939,12 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                   <span className="num muted">{shortDigest(build.resultVersionId)}</span>
                   <span className="muted">{buildResultLabel(build)}</span>
                   <span className="tmpl-actions">
-                    {build.status === "queued" || build.status === "building" ? <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void cancelBuild(build.id); }} disabled={busy === `cancel:${build.id}`}>Cancel</button> : null}
+                    {buildIsActive(build) ? <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void cancelBuild(build.id); }} disabled={busy === `cancel:${build.id}`}>Cancel</button> : null}
                     <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); void retryBuild(build.id); }} disabled={busy === `retry:${build.id}`}>Retry</button>
                   </span>
                 </div>
               ))}
-              {builds.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">No builds found.</div><div className="sbx-empty-sub">Queue a build from the List tab or create a template.</div><div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button><button className="btn btn-sm" onClick={() => openDocsPage("template-builds")}>Docs</button></div></div>}
+              {builds.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">{buildsLoading ? "Loading builds..." : "No builds found."}</div><div className="sbx-empty-sub">{buildsLoading ? "Fetching retained build records and logs." : "Queue a build from the List tab or create a template."}</div>{buildsLoading ? null : <div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button><button className="btn btn-sm" onClick={() => openDocsPage("template-builds")}>Docs</button></div>}</div>}
             </div>
             <div className="build-detail card">
               {selectedBuild ? (
@@ -901,9 +960,26 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                     <span>Node <b>{metadataLabel(selectedBuild.metadata?.builderNodeName)}</b></span>
                     <span>Context <b>{selectedBuild.context ? `${selectedBuild.context.sha256} - ${formatBytes(selectedBuild.context.sizeBytes)} - ${selectedBuild.context.fileCount ?? 0} files` : selectedBuild.contextHash ?? "-"}</b></span>
                   </div>
-                  {selectedBuild.status === "failed" ? <div className="template-error"><span>{selectedBuild.error ?? "Build failed."}</span><button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("template-builds")}>Docs</button></div> : null}
+                  {buildIsActive(selectedBuild) ? <div className="build-progress-note"><span className="spinner" /> {selectedBuild.status === "queued" ? "Waiting for the builder to claim this record." : "Builder is running. Refresh to pull the latest status and logs."}</div> : null}
+                  {(() => {
+                    const failure = buildFailureSummary(selectedBuild);
+                    return failure ? (
+                      <div className="build-failure-panel">
+                        <div>
+                          <div className="build-failure-title">{failure.title}</div>
+                          <div className="build-failure-body">{failure.body}</div>
+                          <ul>{failure.checks.map((check) => <li key={check}>{check}</li>)}</ul>
+                        </div>
+                        <div className="build-failure-actions">
+                          <button className="btn btn-sm" onClick={() => void retryBuild(selectedBuild.id)} disabled={busy === `retry:${selectedBuild.id}`}>Retry</button>
+                          <button className="btn btn-sm" onClick={() => openDocsPage("template-troubleshooting")}>Docs</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(failure.body)} title="Copy error"><Icon name="copy" size={12} /></button>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="build-log">
-                    {buildLogs.length ? buildLogs.map((line) => <div key={line.lineNo}><span className="num">{line.lineNo}</span><span>{line.message}</span></div>) : <div className="muted">No build logs yet. The builder worker has not started this record.</div>}
+                    {buildLogsLoading ? <div className="muted">Loading build logs...</div> : buildLogsError ? <div className="muted">{buildLogsError}</div> : buildLogs.length ? buildLogs.map((line) => <div key={line.lineNo}><span className="num">{line.lineNo}</span><span>{line.message}</span></div>) : <div className="muted">{selectedBuild.status === "failed" ? "No retained build logs were recorded before failure." : "No build logs yet. The builder worker has not started this record."}</div>}
                   </div>
                 </>
               ) : (
@@ -1152,7 +1228,7 @@ const docPages: DocPage[] = [
     section: "Templates",
     title: "Template builds",
     lede: "Build records make template image creation inspectable from the API, CLI, and dashboard.",
-    toc: ["Statuses", "Logs", "Retry", "Archive", "Limits"],
+    toc: ["Statuses", "Logs", "Retry", "Troubleshooting", "Archive", "Limits"],
     body: (
       <>
         <h2>Statuses</h2>
@@ -1164,11 +1240,36 @@ const docPages: DocPage[] = [
         <h2>Retry</h2>
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
         <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
+        <h2>Troubleshooting</h2>
+        <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
         <h2>Archive</h2>
         <p>Archive a template when it should no longer appear in active lists or be used for new sandboxes. Existing sandboxes keep running; queued or building template builds are canceled.</p>
         <pre>{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</pre>
         <h2>Limits</h2>
         <p>If a template asks for more CPU, memory, or default ports than the workspace allows, the API returns `template_resource_limit_exceeded`. If too many builds are already queued or building, it returns `template_build_concurrency_limit_exceeded`. Image and Dockerfile base-image policy failures return `template_image_policy_violation`.</p>
+      </>
+    )
+  },
+  {
+    id: "template-troubleshooting",
+    section: "Templates",
+    title: "Template troubleshooting",
+    lede: "Use the dashboard, CLI, and API records to recover from failed builds, registry pull problems, route setup, and alias mistakes.",
+    toc: ["Failed builds", "Registry pull", "Aliases", "Routes"],
+    body: (
+      <>
+        <h2>Failed builds</h2>
+        <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure.</p>
+        <pre>{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</pre>
+        <h2>Registry pull</h2>
+        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Check spelling, tag existence, registry visibility, and workspace image policy. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
+        <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template inspect ubuntu-import`}</pre>
+        <h2>Aliases</h2>
+        <p>If `harakiri create --template ...` cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use the immutable version ID when you need to prove exactly which image digest was selected.</p>
+        <pre>{`harakiri template list\nharakiri template inspect open-agents-dev\nharakiri create --template tplv_... --name pinned-runner`}</pre>
+        <h2>Routes</h2>
+        <p>Route failures are usually separate from template builds. Start the server on `0.0.0.0` inside the sandbox, expose the matching port, then open the route from the Network tab or CLI. A server bound only to `127.0.0.1` will not be reachable through the public route.</p>
+        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0"\nharakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
       </>
     )
   },
