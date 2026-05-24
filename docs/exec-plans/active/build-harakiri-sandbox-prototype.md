@@ -162,7 +162,7 @@ Verification gate:
 - [x] Implement Keycloak sign-in/sign-out and protect dashboard/detail/settings routes.
 - [x] Implement onboarding:
   - account step reads Keycloak user profile
-  - workspace/org defaults are saved to PostgreSQL
+  - workspace/org defaults are saved to the control plane
   - API key is created and displayed once
   - first sandbox flow calls the real API
 - [x] Implement dashboard sandboxes table with filters, search, status counts, refresh, and create modal.

@@ -1,6 +1,6 @@
 # Harakiri Sandbox
 
-Harakiri Sandbox is a working prototype of a developer sandbox platform on top of OpenSandbox. It includes a high-fidelity web app based on `sandbox_mockups/`, a PostgreSQL-backed control plane, Keycloak authentication integration, a scheduler worker, Kubernetes deployment manifests, and a `harakiri` CLI.
+Harakiri Sandbox is a working prototype of a sandbox control plane on top of OpenSandbox. It includes a high-fidelity web app based on `sandbox_mockups/`, lifecycle and routing APIs, Keycloak authentication integration, a scheduler worker, Kubernetes deployment manifests, and a `harakiri` CLI.
 
 ## Workspace
 
@@ -39,7 +39,7 @@ See [docs/test-report.md](docs/test-report.md) for the latest self-test evidence
 ## Custom Template Quickstart
 
 Templates are named runtime images plus CPU, memory, workdir, default ports,
-aliases, and immutable versions stored in PostgreSQL. The CLI writes
+aliases, and immutable versions stored by the control plane. The CLI writes
 `harakiri.toml` for OpenSandbox-compatible OCI images.
 
 ```bash
@@ -61,7 +61,7 @@ harakiri template build --name open-agents-dev examples/templates/open-agents-de
 ```
 
 Current v1 behavior persists template definitions, versions, build records,
-uploaded Dockerfile build contexts, and build logs in PostgreSQL. The deployed
+uploaded Dockerfile build contexts, and build logs in the control plane. The deployed
 `harakiri-template-builder` worker completes image-import builds by resolving
 registry digests, and completes Dockerfile builds by launching a Kaniko Job in
 k0s, pushing to the local registry, and recording a digest-pinned ready template

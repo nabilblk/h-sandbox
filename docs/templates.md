@@ -1,6 +1,6 @@
 # Custom Templates
 
-Harakiri templates are named sandbox runtimes backed by PostgreSQL records and
+Harakiri templates are named sandbox runtimes backed by control-plane records and
 OpenSandbox-compatible OCI images. The model keeps the runtime contract
 portable while giving teams a repeatable build, versioning, and promotion
 workflow.
@@ -217,7 +217,7 @@ creation.
 ## Rollout Notes
 
 - Static seed templates remain as fallback bootstrap data.
-- New custom definitions are stored in PostgreSQL.
+- New custom definitions are stored by the control plane.
 - Build infrastructure must resolve mutable tags to immutable digests before a
   version is considered ready for production use.
 - Sandbox creation requires `templates.status = 'ready'`, a non-null

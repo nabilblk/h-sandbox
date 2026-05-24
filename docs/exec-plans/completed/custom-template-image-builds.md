@@ -680,7 +680,7 @@ Risks and debt to watch during implementation:
 
 ## Completion Notes
 Delivered a working custom template image/build platform for Harakiri on top of
-OpenSandbox: PostgreSQL-backed template definitions, immutable template
+OpenSandbox: control-plane template definitions, immutable template
 versions, build records/logs/context storage, image-import and Kaniko Dockerfile
 builders in k0s, digest-pinned sandbox creation, template aliases, route-aware
 runtime metadata, CLI commands, dashboard Templates List/Builds UI, Open Agents

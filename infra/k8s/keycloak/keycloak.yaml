@@ -76,10 +76,10 @@ data:
           </div>
           <div class="hk-eyebrow">
             <span class="hk-pulse"></span>
-            OpenSandbox control plane
+            Sandbox control plane
           </div>
           <h1>Disposable runtimes, sealed on demand.</h1>
-          <p>Sign in to create sandboxes, inspect runtime output, rotate API keys, and route exposed ports from one PostgreSQL-backed control plane.</p>
+          <p>Sign in to create sandboxes, inspect runtime output, rotate API keys, and route exposed ports from one sandbox control plane.</p>
           <div class="hk-terminal" aria-hidden="true">
             <div class="hk-terminal-bar">
               <span></span><span></span><span></span>
