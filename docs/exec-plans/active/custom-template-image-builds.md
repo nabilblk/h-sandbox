@@ -117,6 +117,16 @@ It must be planned and verified alongside code, not added as a release-afterthou
 Every remaining feature checkpoint must ship with both documentation tracks unless
 the change is provably invisible to one audience.
 
+- Mandatory documentation outputs:
+  - Repo/code documentation: update `README.md` for top-level discovery when the
+    workflow changes, and update the relevant dedicated Markdown under `docs/`
+    for API, CLI, database, scheduler, builder, routing, deployment, or operator
+    details.
+  - Product documentation: update the Harakiri website docs surface for any
+    user-visible dashboard, CLI, SDK, sandbox route, template build, template
+    run, promotion, error, or troubleshooting behavior.
+  - Example documentation: update the relevant example README when a template or
+    sample project encodes behavior users are expected to copy.
 - Code documentation track: update `README.md` or a dedicated Markdown file under
   `docs/` in the same checkpoint as API, CLI, database, scheduler, builder,
   routing, deployment, or operational behavior changes. These docs are the
@@ -448,6 +458,8 @@ the change is provably invisible to one audience.
 - [ ] For every remaining template feature checkpoint, update both documentation
       tracks in the same commit: code docs in `README.md` or dedicated
       `docs/*.md`, and user-facing product docs in the website docs surface.
+- [ ] Each checkpoint summary names the exact repo docs and website docs changed,
+      or states why a code-doc/product-doc surface was not affected.
 - [ ] Add screenshots or short visual references for Templates List, Builds, and
       build detail where useful.
 - [x] Revisit `apps/web/src/main.tsx` website docs after the Dockerfile builder
