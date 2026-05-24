@@ -215,6 +215,21 @@ const event = async (organizationId: string, sandboxId: string, type: string, me
   );
 };
 
+const routePolicySummary = () => ({
+  mode: config.sandboxRouteMode,
+  baseDomain: config.sandboxRouteBaseDomain,
+  publicScheme: config.sandboxRoutePublicScheme,
+  maxRoutesPerSandbox: config.sandboxMaxRoutesPerSandbox,
+  maxRoutesPerOrg: config.sandboxMaxRoutesPerOrg
+});
+
+const sandboxTemplateMetadata = (template: Awaited<ReturnType<typeof resolveTemplate>>) => ({
+  templateId: template?.id ?? null,
+  templateVersionId: template?.templateVersionId ?? null,
+  imageDigest: template?.imageDigest ?? null,
+  routePolicy: routePolicySummary()
+});
+
 const slugFor = (value: string) =>
   value
     .toLowerCase()
@@ -676,7 +691,12 @@ export const registerRoutes = async (app: FastifyInstance) => {
       template,
       ttlSeconds: body.ttlSeconds,
       name,
-      metadata: { "harakiri.id": id, "harakiri.org": request.auth.organizationId }
+      metadata: {
+        "harakiri.id": id,
+        "harakiri.sandbox": id,
+        "harakiri.org": request.auth.organizationId,
+        "harakiri.organization": request.auth.organizationId
+      }
     });
     const publicUrl = `${id}.sandbox.harakiri.local`;
     await query(
@@ -704,8 +724,13 @@ export const registerRoutes = async (app: FastifyInstance) => {
        VALUES ($1, $2, 'idle_ttl', now() + make_interval(secs => $3::int))`,
       [id, request.auth.organizationId, body.ttlSeconds]
     );
-    await event(request.auth.organizationId, id, "created", `created through ${provider.provider}`, { opensandboxId: provider.id });
-    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "sandbox.create", "sandbox", id);
+    const metadata = {
+      opensandboxId: provider.id,
+      provider: provider.provider,
+      ...sandboxTemplateMetadata(template)
+    };
+    await event(request.auth.organizationId, id, "created", `created through ${provider.provider}`, metadata);
+    await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "sandbox.create", "sandbox", id, metadata);
     const result = await query(`${sandboxSelect} WHERE s.id = $1 AND s.organization_id = $2`, [id, request.auth.organizationId]);
     return reply.code(201).send({ sandbox: result.rows[0] });
   });

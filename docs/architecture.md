@@ -93,10 +93,12 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 `apps/api/src/opensandbox.ts` isolates provider calls. It uses the OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew and Kubernetes `pods/exec` for command execution inside the sandbox container.
 
 For templates, the adapter receives the resolved runtime template: image URI,
-entrypoint, CPU, memory, TTL, name, and Harakiri metadata. Once the builder
-phase writes digest-pinned versions, the adapter should prefer digest-pinned
-image references and pass registry auth/workdir/env when OpenSandbox supports
-those fields.
+entrypoint, CPU, memory, TTL, name, and Harakiri metadata. The adapter sends
+label-safe metadata for Harakiri sandbox ID, organization ID, template ID,
+template version ID, image digest, and the current route policy so provider-side
+objects remain traceable to the control plane. It uses digest-pinned image
+references when template versions have digests. Registry auth, workdir, and env
+passing remain pending until OpenSandbox exposes stable fields for them.
 
 ## Sandbox Routes
 

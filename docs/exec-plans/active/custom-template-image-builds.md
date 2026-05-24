@@ -311,7 +311,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
       selected template version has a digest-pinned image URI.
 - [x] Pass default entrypoint, CPU/memory, and metadata to OpenSandbox.
 - [ ] Pass env, workdir, and registry auth when supported by OpenSandbox.
-- [ ] Ensure metadata includes Harakiri sandbox ID, template ID, template version
+- [x] Ensure metadata includes Harakiri sandbox ID, template ID, template version
       ID, image digest, organization ID, and route policy.
 - [ ] Add preflight validation that the image can be pulled by OpenSandbox before
       marking a version ready.

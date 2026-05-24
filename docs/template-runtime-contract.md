@@ -94,8 +94,21 @@ When a sandbox is created, Harakiri should pass:
   version ID, image digest, and route policy.
 
 Current code passes image, entrypoint, CPU, memory, TTL, name, and Harakiri
-metadata through the OpenSandbox adapter. Workdir/env/registry auth support is
-tracked in the runtime integration phase.
+metadata through the OpenSandbox adapter. The metadata includes:
+
+- `harakiri.id` and `harakiri.sandbox`
+- `harakiri.org` and `harakiri.organization`
+- `harakiri.template`
+- `harakiri.template_version`
+- `harakiri.image_digest`
+- `harakiri.route_mode`
+- `harakiri.route_base_domain`
+- `harakiri.route_public_scheme`
+- `harakiri.route_max_per_sandbox`
+- `harakiri.route_max_per_org`
+
+Values are normalized to OpenSandbox/Kubernetes label-safe strings. Workdir,
+env, and registry auth support remain tracked in the runtime integration phase.
 
 OpenSandbox injects `execd` and `bootstrap.sh` through an init container and
 starts the sandbox command through that bootstrap script. Custom images should

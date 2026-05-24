@@ -125,6 +125,14 @@ const labelSafeValue = (value: string) => {
 const labelSafeMetadata = (metadata: Record<string, string>) =>
   Object.fromEntries(Object.entries(metadata).map(([key, value]) => [key, labelSafeValue(value)]));
 
+const routePolicyMetadata = () => ({
+  "harakiri.route_mode": config.sandboxRouteMode,
+  "harakiri.route_base_domain": config.sandboxRouteBaseDomain,
+  "harakiri.route_public_scheme": config.sandboxRoutePublicScheme,
+  "harakiri.route_max_per_sandbox": String(config.sandboxMaxRoutesPerSandbox),
+  "harakiri.route_max_per_org": String(config.sandboxMaxRoutesPerOrg)
+});
+
 const sandboxPodName = (opensandboxId: string) => `${opensandboxId}-0`;
 
 const shellQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
@@ -372,6 +380,7 @@ export const openSandbox = {
             ...(template.templateVersionId ? { "harakiri.template_version": template.templateVersionId } : {}),
             ...(template.imageDigest ? { "harakiri.image_digest": template.imageDigest } : {}),
             "harakiri.name": input.name,
+            ...routePolicyMetadata(),
             ...(input.metadata ?? {})
           })
         })

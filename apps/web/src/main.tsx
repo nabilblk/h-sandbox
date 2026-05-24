@@ -792,7 +792,7 @@ const docPages: DocPage[] = [
     section: "Reference",
     title: "Security model",
     lede: "Custom templates are untrusted inputs until the builder, registry, digest, and promotion checks succeed.",
-    toc: ["Visibility", "Digests", "Secrets", "Image policy", "Limits"],
+    toc: ["Visibility", "Digests", "Secrets", "Runtime metadata", "Image policy", "Limits"],
     body: (
       <>
         <h2>Visibility</h2>
@@ -801,6 +801,8 @@ const docPages: DocPage[] = [
         <p>Mutable tags can be accepted as input, but ready versions should store an immutable image digest before production use.</p>
         <h2>Secrets</h2>
         <p>Registry passwords and build secrets should live in Kubernetes Secrets or an external secret manager. PostgreSQL should store only credential references and redacted metadata.</p>
+        <h2>Runtime metadata</h2>
+        <p>Every sandbox create request carries label-safe Harakiri metadata for the sandbox, organization, template, template version, image digest, and current route policy.</p>
         <h2>Image policy</h2>
         <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run.</p>
         <h2>Limits</h2>

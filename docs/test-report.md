@@ -145,6 +145,19 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `smoke-*` API keys, no running/pending/idle sandboxes, no
   `image-policy-smoke-*` or `kaniko-smoke-*` templates, and no residual
   `runtime-kaniko-smoke-*` sandbox rows.
+- Runtime metadata checkpoint on 2026-05-24: `pnpm test`, `pnpm typecheck`,
+  `pnpm build`, `pnpm deploy:k0s`, and `pnpm ports:restart && pnpm ports:status`
+  passed after expanding OpenSandbox metadata. `pnpm smoke` created
+  `sbx_knECzNSYRt`, executed the Python agent command successfully, and killed
+  the sandbox. The latest `sandbox.create` audit row stored
+  `templateId=python-3.12-data`, `templateVersionId=tplv_python_3_12_data_1`,
+  `routePolicy.mode=opensandbox-gateway`, and
+  `routePolicy.baseDomain=harakiri.io`. A Playwright docs smoke verified the
+  deployed Security Model page renders the runtime metadata guidance with no
+  console errors and wrote `/tmp/harakiri-runtime-metadata-docs.png`.
+- Post-runtime-metadata cleanup audit on 2026-05-24: PostgreSQL reported no
+  active `smoke-*` API keys, no running/pending/idle sandboxes, and no active
+  routes.
 - Product docs deploy checkpoint on 2026-05-24: `pnpm deploy:k0s` completed,
   `pnpm ports:restart && pnpm ports:status` reported every forward healthy, and
   a Playwright smoke check verified the deployed Docs pages mention
