@@ -720,7 +720,7 @@ const docPages: DocPage[] = [
         <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\nstart_command = "sleep 3600"`}</pre>
         <h2>Build</h2>
         <pre>{`harakiri template build --name open-agents-dev . \\\n  --image registry.example.com/harakiri/open-agents-dev:dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
-        <p>The image-import worker completes `--source image` builds by resolving registry digests and creating ready versions. Dockerfile builds still wait for the BuildKit/context-upload worker.</p>
+        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives. Image-import builds can already complete; Dockerfile builds still wait for the BuildKit execution worker.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
       </>
@@ -736,7 +736,7 @@ const docPages: DocPage[] = [
       <>
         <h2>Statuses</h2>
         <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. Retry creates a new queued build linked to the original.</p>
-        <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
+        <pre>{`harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
         <pre>{`harakiri template logs bld_...`}</pre>
@@ -811,6 +811,7 @@ const docPages: DocPage[] = [
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates/:id/versions</code></span>
         <h2>Builds</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/builds</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/template-builds/:id/context</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
         <h2>Promotion</h2>

@@ -10,12 +10,12 @@ export const buildServer = async () => {
   if (config.autoMigrate) await migrate();
   if (config.seedOnBoot) await seed();
 
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, bodyLimit: Math.ceil(config.templateBuildContextMaxBytes * 1.4) + 4096 });
   await app.register(cors, {
     origin: true,
     credentials: true,
     allowedHeaders: ["authorization", "content-type", "x-api-key"],
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
   await registerRoutes(app);
   return app;

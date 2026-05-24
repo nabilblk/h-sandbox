@@ -52,6 +52,24 @@ Build args and env metadata can contain secrets. The API currently stores
 - Audit events that record key names without values.
 - Separate secret injection from normal build args.
 
+## Build Contexts
+
+Dockerfile contexts are uploaded as tar+gzip archives and stored in
+`template_build_contexts` for the builder worker. The API verifies the declared
+archive byte size and `sha256:` digest before accepting the upload.
+
+Current development limits:
+
+- `TEMPLATE_BUILD_CONTEXT_MAX_BYTES` defaults to 25 MiB.
+- The CLI skips heavy local directories such as `.git`, `node_modules`, `dist`,
+  `.next`, `coverage`, and `.turbo`.
+- The archive digest is copied to `template_builds.context_hash` for audit and
+  builder selection.
+
+Production follow-up should add `.harakiriignore`/`.dockerignore` parity,
+malware scanning, compressed/uncompressed size accounting, and secret detection
+before the context is available to BuildKit.
+
 ## Base Image Policy
 
 The first version can allow arbitrary image references for development. A

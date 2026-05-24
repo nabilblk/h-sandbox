@@ -220,14 +220,17 @@ kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select id, template_id, status, image_destination, image_digest, error from template_builds order by created_at desc limit 10;"
 
 kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
+  "select build_id, sha256, size_bytes, file_count, updated_at from template_build_contexts order by updated_at desc limit 10;"
+
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select id, template_id, aliases, image_uri, image_digest, status from template_versions order by created_at desc limit 10;"
 ```
 
-Current limitation: the API persists queued build records, but the k0s BuildKit
-worker that consumes Dockerfile/Git records is still part of the active custom
-template execution plan. The deployed image-import worker handles
-`--source image` records by resolving the registry digest and creating a ready
-template version.
+Current limitation: the API persists queued build records and uploaded
+Dockerfile contexts, but the k0s BuildKit worker that consumes Dockerfile/Git
+records is still part of the active custom template execution plan. The deployed
+image-import worker handles `--source image` records by resolving the registry
+digest and creating a ready template version.
 
 ## Teardown
 

@@ -26,6 +26,7 @@ data:
   SANDBOX_ROUTE_LOCAL_FALLBACK_URL: "http://127.0.0.1:18083"
   SANDBOX_MAX_ROUTES_PER_SANDBOX: "8"
   SANDBOX_MAX_ROUTES_PER_ORG: "200"
+  TEMPLATE_BUILD_CONTEXT_MAX_BYTES: "26214400"
   TEMPLATE_BUILDER_POLL_MS: "5000"
   KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
   KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"

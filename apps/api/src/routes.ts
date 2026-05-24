@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireAuth } from "./auth.js";
+import { decodeBuildContextUpload } from "./build-context.js";
+import { appendBuildLog } from "./build-logs.js";
 import { config } from "./config.js";
 import { createApiKey, makeId } from "./crypto.js";
-import { query } from "./db.js";
+import { query, withClient } from "./db.js";
 import { openSandbox } from "./opensandbox.js";
 import { averageTemplateBootMs, listTemplates, resolveTemplate } from "./templates.js";
 
@@ -49,6 +51,15 @@ const templateBuildSchema = z.object({
   dockerfilePath: z.string().default("Dockerfile"),
   buildArgs: z.record(z.string(), z.unknown()).default({}),
   imageDestination: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({})
+});
+
+const templateBuildContextUploadSchema = z.object({
+  archiveBase64: z.string().min(1),
+  sha256: z.string().min(1),
+  sizeBytes: z.number().int().positive(),
+  format: z.literal("tar+gzip").default("tar+gzip"),
+  fileCount: z.number().int().nonnegative().optional(),
   metadata: z.record(z.string(), z.unknown()).default({})
 });
 
@@ -337,6 +348,88 @@ export const registerRoutes = async (app: FastifyInstance) => {
       [id]
     );
     return { logs: logs.rows };
+  });
+
+  app.post("/v1/template-builds/:id/context", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    let context;
+    try {
+      context = decodeBuildContextUpload(templateBuildContextUploadSchema.parse(request.body ?? {}), config.templateBuildContextMaxBytes);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return reply.code(400).send({ error: "invalid_build_context", message });
+    }
+
+    return withClient(async (client) => {
+      await client.query("BEGIN");
+      try {
+        const build = await client.query<{ id: string; source_type: string; status: string }>(
+          `SELECT id, source_type, status
+           FROM template_builds
+           WHERE id = $1 AND organization_id = $2
+           FOR UPDATE`,
+          [id, request.auth.organizationId]
+        );
+        const row = build.rows[0];
+        if (!row) {
+          await client.query("ROLLBACK");
+          return reply.code(404).send({ error: "template_build_not_found" });
+        }
+        if (row.source_type === "image") {
+          await client.query("ROLLBACK");
+          return reply.code(409).send({ error: "build_context_not_supported", message: "image imports do not accept uploaded build contexts" });
+        }
+        if (row.status !== "queued") {
+          await client.query("ROLLBACK");
+          return reply.code(409).send({ error: "build_context_closed", message: "build context can only be uploaded while a build is queued" });
+        }
+
+        await client.query(
+          `INSERT INTO template_build_contexts
+           (build_id, organization_id, format, sha256, size_bytes, file_count, archive, metadata)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (build_id) DO UPDATE
+             SET format = EXCLUDED.format,
+                 sha256 = EXCLUDED.sha256,
+                 size_bytes = EXCLUDED.size_bytes,
+                 file_count = EXCLUDED.file_count,
+                 archive = EXCLUDED.archive,
+                 metadata = EXCLUDED.metadata,
+                 updated_at = now()`,
+          [
+            id,
+            request.auth.organizationId,
+            context.format,
+            context.sha256,
+            context.sizeBytes,
+            context.fileCount,
+            context.archive,
+            context.metadata
+          ]
+        );
+        const summary = {
+          sha256: context.sha256,
+          sizeBytes: context.sizeBytes,
+          format: context.format,
+          fileCount: context.fileCount,
+          uploadedAt: new Date().toISOString()
+        };
+        await client.query(
+          `UPDATE template_builds
+           SET context_hash = $2,
+               metadata = metadata || $3::jsonb,
+               updated_at = now()
+           WHERE id = $1`,
+          [id, context.sha256, JSON.stringify({ context: summary })]
+        );
+        await appendBuildLog(client, id, "stdout", `received build context ${context.sha256} (${context.sizeBytes} bytes, ${context.fileCount ?? 0} files)`);
+        await client.query("COMMIT");
+        return { context: { buildId: id, ...summary } };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    });
   });
 
   app.post("/v1/template-builds/:id/cancel", async (request, reply) => {

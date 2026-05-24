@@ -36,9 +36,10 @@ start_command = "sleep 3600"
 ready_command = "true"
 ```
 
-Current CLI support reads the command flags first and stores the local path in
-build metadata. Full `harakiri.toml` parsing, validation, and upload packaging
-belong to the BuildKit worker phase.
+Current CLI support reads the command flags first. For Dockerfile builds, it
+archives the local context as tar+gzip, uploads it to the API, and stores a
+verified `sha256:` context hash on the build record. Full `harakiri.toml`
+parsing and validation still belong to a later CLI polish phase.
 
 ## CLI Workflow
 
@@ -56,8 +57,8 @@ harakiri create --template open-agents-dev --name agent-runner
 `template build` creates or reuses the template definition, then enqueues a build
 record through `POST /v1/templates/:id/builds`. The deployed image-import worker
 completes `--source image` builds by resolving an immutable digest and creating a
-ready template version. Dockerfile builds remain queued until the BuildKit
-worker and build-context upload path are deployed.
+ready template version. Dockerfile builds upload their local context and remain
+queued until the BuildKit worker is deployed.
 
 ## API Workflow
 

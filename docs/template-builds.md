@@ -3,8 +3,9 @@
 Template builds are the control-plane path from a Dockerfile, Git source, or
 existing image reference to an immutable template version. The current
 implementation includes an image-import worker that resolves existing OCI image
-references to immutable digests. Dockerfile and Git builds still need the k0s
-BuildKit/context-upload infrastructure phase.
+references to immutable digests, plus Dockerfile build context upload from the
+CLI/API into PostgreSQL. Dockerfile and Git builds still need the k0s BuildKit
+execution infrastructure phase.
 
 ## Data Flow
 
@@ -12,17 +13,20 @@ BuildKit/context-upload infrastructure phase.
 2. CLI or UI creates a build record with `POST /v1/templates/:id/builds`.
 3. PostgreSQL stores the build as `queued` with source metadata and requested
    image destination.
-4. A builder worker claims supported queued records, marks them `building`, and
+4. For Dockerfile builds, the CLI uploads a tar+gzip build context to
+   `POST /v1/template-builds/:id/context`; the API verifies size and sha256
+   before storing the archive.
+5. A builder worker claims supported queued records, marks them `building`, and
    streams logs into `template_build_logs`.
-5. For `sourceType=image`, the image-import worker resolves the registry
+6. For `sourceType=image`, the image-import worker resolves the registry
    manifest digest and creates a digest-pinned runtime version.
-6. For future Dockerfile/Git builds, the BuildKit worker will build or import
+7. For future Dockerfile/Git execution, the BuildKit worker will build or import
    the OCI image, push it to the configured registry, and resolve the pushed
    image to an immutable digest.
-7. On success, the worker writes a `ready` `template_versions` row, attaches the
+8. On success, the worker writes a `ready` `template_versions` row, attaches the
    build ID, digest, resources, ports, workdir, and metadata, and promotes the
    desired alias.
-8. Sandbox creation resolves a template reference to the chosen immutable
+9. Sandbox creation resolves a template reference to the chosen immutable
    version and sends the digest-pinned image to OpenSandbox.
 
 ## State Transitions
@@ -65,6 +69,19 @@ record with `metadata.retryOf` pointing at the original build.
 `template_build_logs` stores ordered line records with `line_no`, `stream`,
 `message`, and `created_at`.
 
+`template_build_contexts` stores uploaded Dockerfile contexts:
+
+- `build_id`
+- `organization_id`
+- `format`, currently `tar+gzip`
+- `sha256`
+- `size_bytes`
+- `file_count`
+- `archive` as PostgreSQL `bytea`
+- `metadata`
+- `created_at`
+- `updated_at`
+
 ## API
 
 ```bash
@@ -76,6 +93,21 @@ curl "$PUBLIC_API_URL/v1/templates/open-agents-dev/builds" \
     "dockerfilePath": "Dockerfile",
     "imageDestination": "registry.example.com/harakiri/open-agents-dev:dev",
     "metadata": { "localPath": "." }
+  }'
+```
+
+Upload the Dockerfile context:
+
+```bash
+curl "$PUBLIC_API_URL/v1/template-builds/bld_.../context" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "format": "tar+gzip",
+    "archiveBase64": "...",
+    "sha256": "sha256:<archive digest>",
+    "sizeBytes": 12345,
+    "fileCount": 8
   }'
 ```
 
@@ -134,7 +166,7 @@ The k0s Dockerfile/Git builder still needs to provide:
 
 - Rootless BuildKit or another Kubernetes-native builder.
 - Per-organization registry credentials.
-- Build context upload or Git checkout.
+- Uploaded build-context consumption or Git checkout.
 - Secret redaction in logs.
 - Image digest resolution after push.
 - Cache storage and cleanup policy.

@@ -70,6 +70,15 @@ export type TemplateBuildLogEntry = {
   createdAt: string;
 };
 
+export type TemplateBuildContextSummary = {
+  buildId: string;
+  sha256: string;
+  sizeBytes: number;
+  format: string;
+  fileCount: number | null;
+  uploadedAt: string;
+};
+
 export type SandboxSummary = {
   id: string;
   opensandboxId?: string | null;

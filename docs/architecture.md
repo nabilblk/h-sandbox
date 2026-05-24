@@ -13,7 +13,7 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
 - Template builder: k0s worker deployment that consumes queued image-import
   template build records and writes immutable template versions. Dockerfile/Git
-  builds still need the BuildKit worker phase.
+  builds have context upload support but still need the BuildKit worker phase.
 
 ## Data Flow
 
@@ -32,21 +32,24 @@ Templates are a separate control-plane subsystem from live sandboxes:
 2. Harakiri stores the definition in `templates` and creates an initial
    `template_versions` row for image-based definitions.
 3. A user enqueues a build in `template_builds`.
-4. The image-import builder claims queued `sourceType=image` records, streams
+4. For Dockerfile builds, the CLI uploads a tar+gzip context into
+   `template_build_contexts`; the API verifies the archive size and `sha256:`
+   digest before recording it on the build.
+5. The image-import builder claims queued `sourceType=image` records, streams
    logs into `template_build_logs`, resolves the immutable registry digest, and
    writes a ready `template_versions` row.
-5. The planned BuildKit builder will claim Dockerfile/Git records, build or
+6. The planned BuildKit builder will claim Dockerfile/Git records, build or
    import the image, push it to a registry, resolve the immutable digest, and
    write a ready `template_versions` row.
-6. Promotion moves aliases such as `latest` or `stable` to the ready version.
-7. Sandbox creation resolves a template name, alias, or version ID through
+7. Promotion moves aliases such as `latest` or `stable` to the ready version.
+8. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
 
 The currently committed API, CLI, SDK, and dashboard support the definition,
-build-record, log, cancel, retry, promote, and version-read surfaces. The actual
-k0s image-import worker supports digest resolution for existing OCI images. The
-BuildKit worker, registry cache, and Dockerfile/Git context handling are tracked
-as the next infrastructure phase.
+build-record, context-upload, log, cancel, retry, promote, and version-read
+surfaces. The actual k0s image-import worker supports digest resolution for
+existing OCI images. The BuildKit worker, registry cache, and Dockerfile/Git
+execution are tracked as the next infrastructure phase.
 
 ## Database
 
@@ -59,6 +62,7 @@ The schema is in `db/migrations/001_control_plane.sql` and includes:
 - `templates`
 - `template_versions`
 - `template_builds`
+- `template_build_contexts`
 - `template_build_logs`
 - `template_registry_credentials`
 - `sandboxes`

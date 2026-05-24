@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { Command } from "commander";
+import { createBuildContextArchive } from "./context.js";
 import { initBanner, progressLine, runtimeLine, shouldUseColor } from "./format.js";
 
 type Config = {
@@ -53,6 +54,15 @@ type TemplateBuildLog = {
   stream: string;
   message: string;
   createdAt: string;
+};
+
+type TemplateBuildContextResult = {
+  buildId: string;
+  sha256: string;
+  sizeBytes: number;
+  format: string;
+  fileCount: number | null;
+  uploadedAt: string;
 };
 
 const configPath = join(homedir(), ".config", "harakiri", "config.json");
@@ -207,6 +217,21 @@ template
         metadata: { localPath: contextPath }
       })
     });
+    if (options.source === "dockerfile") {
+      const context = await createBuildContextArchive(contextPath);
+      await api<{ context: TemplateBuildContextResult }>(`/v1/template-builds/${encodeURIComponent(result.build.id)}/context`, {
+        method: "POST",
+        body: JSON.stringify({
+          archiveBase64: context.archiveBase64,
+          sha256: context.sha256,
+          sizeBytes: context.sizeBytes,
+          format: context.format,
+          fileCount: context.fileCount,
+          metadata: { localPath: contextPath, dockerfilePath: options.dockerfile }
+        })
+      });
+      printProgress(`uploaded context ${context.sha256.slice(0, 19)} (${context.sizeBytes} bytes, ${context.fileCount} files)`);
+    }
     printProgress(`${result.build.status}. build=${result.build.id}`);
     console.log(result.build.id);
   });

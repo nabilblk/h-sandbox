@@ -125,6 +125,22 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/builds \
   }'
 ```
 
+The CLI uploads Dockerfile build contexts after creating the build record. API
+clients can use the same endpoint with a tar+gzip archive encoded as base64:
+
+```bash
+curl http://127.0.0.1:18082/v1/template-builds/bld_.../context \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "format": "tar+gzip",
+    "archiveBase64": "...",
+    "sha256": "sha256:<archive digest>",
+    "sizeBytes": 12345,
+    "fileCount": 8
+  }'
+```
+
 Import an existing public OCI image. The `harakiri-template-builder` worker will
 resolve the registry digest, write build logs, create a ready template version,
 and update the template's latest version:
@@ -164,10 +180,10 @@ curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/promote \
   -d '{"versionId":"tplv_...","alias":"stable"}'
 ```
 
-Current v1 API behavior persists build records and logs. The deployed
-image-import worker consumes queued `sourceType=image` records and writes
-digest-pinned ready versions. The k0s BuildKit worker for Dockerfile/Git records
-is tracked in the active custom template execution plan.
+Current v1 API behavior persists build records, uploaded Dockerfile contexts,
+and logs. The deployed image-import worker consumes queued `sourceType=image`
+records and writes digest-pinned ready versions. The k0s BuildKit worker for
+Dockerfile/Git records is tracked in the active custom template execution plan.
 
 ## Run Command
 

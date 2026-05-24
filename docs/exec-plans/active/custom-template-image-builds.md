@@ -194,6 +194,8 @@ repo-facing engineering documentation and product-facing website documentation.
 - [x] Add `GET /v1/templates/:id` and `GET /v1/templates/:id/versions`.
 - [x] Add `POST /v1/templates/:id/builds` to enqueue a build from Dockerfile,
       local-uploaded context, Git reference, or existing image reference.
+- [x] Add `POST /v1/template-builds/:id/context` for tar+gzip Dockerfile
+      context upload with size and sha256 verification.
 - [x] Add `GET /v1/template-builds` and `GET /v1/template-builds/:id`.
 - [x] Add `GET /v1/template-builds/:id/logs` with polling first and SSE later.
 - [x] Add `POST /v1/template-builds/:id/cancel` and retry endpoint.
@@ -211,6 +213,8 @@ repo-facing engineering documentation and product-facing website documentation.
       existing OCI image references.
 - [x] Deploy and verify the image-import builder worker in the active k0s
       cluster.
+- [x] Persist uploaded Dockerfile build contexts in PostgreSQL with verified
+      `sha256:` digests for the future BuildKit worker.
 - [ ] Configure cache storage for builds so repeated template builds are fast.
 - [ ] Configure registry push/pull credentials and namespace isolation.
 - [x] Add image digest resolution for existing OCI image imports, and persist
@@ -246,6 +250,8 @@ repo-facing engineering documentation and product-facing website documentation.
 - [x] Add `harakiri template build --name <name> [path]`.
 - [x] Add `harakiri template build --source image --image <ref>` for existing
       OCI image imports.
+- [x] Package and upload Dockerfile build contexts from the CLI for
+      `sourceType=dockerfile` builds.
 - [ ] Stream build logs in the CLI and print build ID, template version ID, image
       digest, duration, and next create command on success.
 - [x] Add `harakiri template list`, `harakiri template builds`, `harakiri template logs`,
@@ -285,8 +291,8 @@ repo-facing engineering documentation and product-facing website documentation.
 - [ ] Record evidence in `docs/test-report.md`.
 
 ### Phase 9: Security, Governance, And Operations
-**Status**: Not Started
-- [ ] Add maximum Dockerfile/context size limits.
+**Status**: In Progress
+- [x] Add maximum Dockerfile context upload size limits.
 - [ ] Redact build args, env vars, registry credentials, and secrets in logs.
 - [ ] Add deny/allow policy for base images and registries.
 - [ ] Add vulnerability scanning hook and persist scan status on versions.

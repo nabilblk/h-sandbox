@@ -52,11 +52,12 @@ harakiri template logs bld_...
 harakiri create --template open-agents-dev --name agent-runner
 ```
 
-Current v1 behavior persists template definitions, versions, build records, and
-build logs in PostgreSQL. The deployed `harakiri-template-builder` worker
-completes `--source image` builds by resolving registry digests and creating
-ready template versions. The k0s BuildKit worker that turns Dockerfile build
-contexts into pushed digest-pinned OCI images is tracked in
+Current v1 behavior persists template definitions, versions, build records,
+uploaded Dockerfile build contexts, and build logs in PostgreSQL. The deployed
+`harakiri-template-builder` worker completes `--source image` builds by
+resolving registry digests and creating ready template versions. The k0s
+BuildKit worker that turns uploaded Dockerfile build contexts into pushed
+digest-pinned OCI images is tracked in
 [docs/exec-plans/active/custom-template-image-builds.md](docs/exec-plans/active/custom-template-image-builds.md).
 The k0s template-build path will require a registry, BuildKit or equivalent
 builder, pull secrets for OpenSandbox, and digest resolution before production

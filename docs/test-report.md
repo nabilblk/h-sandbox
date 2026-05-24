@@ -55,6 +55,15 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   marked it `success`, stored digest
   `sha256:0e760fdfbc48ba8041e7c6db999bb40bfca508b4be580ac75d32c4e29d202ce1`,
   created a `tplv_...` latest version, and the temp organization was deleted.
+- Dockerfile context upload smoke was verified against k0s on 2026-05-24:
+  the built `packages/cli/dist/index.js` executable created a temporary
+  `source_type='dockerfile'` build, uploaded a tar+gzip context, and PostgreSQL
+  stored `template_build_contexts.sha256` as
+  `sha256:e39205a9786b61c16fc7ef809abdd07a53d17cf64f1a5c94d5575b9033063d90`,
+  with `size_bytes = 188`, `file_count = 2`, and matching
+  `template_builds.context_hash`. The build log contained the received-context
+  line. The temporary template was deleted and temporary smoke API keys were
+  revoked.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
@@ -110,6 +119,7 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - PostgreSQL uses local-path storage.
 - Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
 - Custom template image-import records are live in the control plane and can be
-  completed by the `harakiri-template-builder` worker. Dockerfile/Git builds,
-  registry cache, BuildKit, and `open-agents-dev` image build smoke remain
-  pending in the active execution plan.
+  completed by the `harakiri-template-builder` worker. Dockerfile context
+  upload is live, but Dockerfile/Git execution, registry cache, BuildKit, and
+  `open-agents-dev` image build smoke remain pending in the active execution
+  plan.

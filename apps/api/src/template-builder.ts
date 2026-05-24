@@ -1,7 +1,8 @@
 import { config } from "./config.js";
 import { makeId } from "./crypto.js";
-import { closeDb, withClient, type DbClient } from "./db.js";
+import { closeDb, withClient } from "./db.js";
 import { resolveImageDigest } from "./registry.js";
+import { appendBuildLog } from "./build-logs.js";
 
 type BuildRow = {
   id: string;
@@ -16,22 +17,6 @@ type BuildRow = {
   template_memory_mb: number;
   template_workdir: string;
   template_default_ports: number[];
-};
-
-const nextLogLine = async (client: DbClient, buildId: string) => {
-  const result = await client.query<{ next: number }>("SELECT COALESCE(MAX(line_no), 0) + 1 AS next FROM template_build_logs WHERE build_id = $1", [buildId]);
-  return Number(result.rows[0]?.next ?? 1);
-};
-
-const logBuild = async (client: DbClient, buildId: string, stream: "stdout" | "stderr", message: string) => {
-  const lineNo = await nextLogLine(client, buildId);
-  await client.query(
-    `INSERT INTO template_build_logs (build_id, line_no, stream, message)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (build_id, line_no) DO UPDATE
-       SET stream = EXCLUDED.stream, message = EXCLUDED.message`,
-    [buildId, lineNo, stream, message]
-  );
 };
 
 const claimImageImportBuild = async () =>
@@ -67,7 +52,7 @@ const claimImageImportBuild = async () =>
          WHERE id = $1`,
         [build.id]
       );
-      await logBuild(client, build.id, "stdout", `image import builder claimed ${build.id}`);
+      await appendBuildLog(client, build.id, "stdout", `image import builder claimed ${build.id}`);
       await client.query("COMMIT");
       return build;
     } catch (error) {
@@ -126,8 +111,8 @@ const completeImageImportBuild = async (build: BuildRow, resolved: Awaited<Retur
          WHERE id = $1`,
         [build.id, resolved.digestPinnedRef, resolved.digest, JSON.stringify({ templateVersionId: versionId })]
       );
-      await logBuild(client, build.id, "stdout", `resolved ${resolved.original} to ${resolved.digest}`);
-      await logBuild(client, build.id, "stdout", `created template version ${versionId}`);
+      await appendBuildLog(client, build.id, "stdout", `resolved ${resolved.original} to ${resolved.digest}`);
+      await appendBuildLog(client, build.id, "stdout", `created template version ${versionId}`);
       await client.query("COMMIT");
       return { versionId, digest: resolved.digest };
     } catch (error) {
@@ -150,7 +135,7 @@ const failBuild = async (build: BuildRow, error: unknown) =>
          WHERE id = $1`,
         [build.id, message]
       );
-      await logBuild(client, build.id, "stderr", message);
+      await appendBuildLog(client, build.id, "stderr", message);
       await client.query("COMMIT");
     } catch (rollbackError) {
       await client.query("ROLLBACK");

@@ -58,6 +58,24 @@ export type CreateTemplateBuildInput = {
   metadata?: Record<string, unknown>;
 };
 
+export type UploadTemplateBuildContextInput = {
+  archiveBase64: string;
+  sha256: string;
+  sizeBytes: number;
+  format?: "tar+gzip";
+  fileCount?: number;
+  metadata?: Record<string, unknown>;
+};
+
+export type TemplateBuildContextSummary = {
+  buildId: string;
+  sha256: string;
+  sizeBytes: number;
+  format: string;
+  fileCount: number | null;
+  uploadedAt: string;
+};
+
 export class HarakiriApiError extends Error {
   constructor(
     public readonly status: number,
@@ -130,6 +148,13 @@ export class HarakiriClient {
 
   getTemplateBuildLogs(id: string) {
     return this.request<{ logs: TemplateBuildLogEntry[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`);
+  }
+
+  uploadTemplateBuildContext(id: string, input: UploadTemplateBuildContextInput) {
+    return this.request<{ context: TemplateBuildContextSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/context`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
   }
 
   cancelTemplateBuild(id: string) {
