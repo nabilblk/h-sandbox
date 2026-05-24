@@ -355,6 +355,13 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   sandbox history, and the website docs. Screenshots:
   `/tmp/harakiri-template-detail-dashboard.png` and
   `/tmp/harakiri-template-detail-runs.png`.
+- CLI command test checkpoint on 2026-05-24: `pnpm --filter @harakiri/cli test`
+  passed with command-level coverage for `harakiri template build` payloads
+  from `harakiri.toml`, image-import build payloads, Dockerfile context upload
+  metadata, retained `harakiri template logs` output, and failed build output
+  that streams retained logs before exiting non-zero. No website product docs
+  changed in this checkpoint because the user-facing CLI behavior was not
+  changed.
 - Template redaction checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`,
   `pnpm build`, `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
   and `pnpm smoke:template-redaction` passed after adding API redaction for

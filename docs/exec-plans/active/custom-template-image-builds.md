@@ -375,7 +375,7 @@ the change is provably invisible to one audience.
 - [x] Add `harakiri template list`, `harakiri template builds`, `harakiri template logs`,
       `harakiri template promote`, and `harakiri template inspect`.
 - [x] Add `harakiri create --template open-agents-dev` resolution by name/alias.
-- [ ] Add CLI tests for config parsing, build command payloads, logs formatting,
+- [x] Add CLI tests for config parsing, build command payloads, logs formatting,
       and failure output.
 
 ### Phase 7: Dashboard Templates UI
