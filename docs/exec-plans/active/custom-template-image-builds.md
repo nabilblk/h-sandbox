@@ -203,24 +203,33 @@ repo-facing engineering documentation and product-facing website documentation.
       build concurrency limits.
 
 ### Phase 4: k0s Build Infrastructure
-**Status**: Not Started
+**Status**: In Progress
 - [ ] Choose and deploy a local registry for k0s development, with a clear
       production path for external registries.
 - [ ] Deploy rootless BuildKit in k0s or an equivalent Kubernetes-native builder.
+- [x] Add a k0s deployment manifest for an image-import builder worker for
+      existing OCI image references.
+- [x] Deploy and verify the image-import builder worker in the active k0s
+      cluster.
 - [ ] Configure cache storage for builds so repeated template builds are fast.
 - [ ] Configure registry push/pull credentials and namespace isolation.
-- [ ] Add image digest resolution after push, and persist the digest before a
-      version can be marked ready.
+- [x] Add image digest resolution for existing OCI image imports, and persist
+      the digest before the imported version is marked ready.
+- [ ] Add image digest resolution after BuildKit push, and persist the digest
+      before a Dockerfile/Git version can be marked ready.
 - [ ] Add cleanup policy for unreferenced build cache and abandoned images.
 - [ ] Add smoke scripts for build infrastructure health.
+- [x] Add local image-import worker smoke evidence for digest resolution and
+      ready version creation.
 
 ### Phase 5: OpenSandbox Runtime Integration
-**Status**: Not Started
-- [ ] Resolve sandbox create input from template alias/name/version to an
+**Status**: In Progress
+- [x] Resolve sandbox create input from template alias/name/version to an
       immutable `template_version`.
-- [ ] Pass `image.uri` as a digest-pinned OCI reference to OpenSandbox.
-- [ ] Pass default entrypoint, CPU/memory, env, metadata, workdir, and registry
-      auth when supported by OpenSandbox.
+- [x] Pass `image.uri` as a digest-pinned OCI reference to OpenSandbox when the
+      selected template version has a digest-pinned image URI.
+- [x] Pass default entrypoint, CPU/memory, and metadata to OpenSandbox.
+- [ ] Pass env, workdir, and registry auth when supported by OpenSandbox.
 - [ ] Ensure metadata includes Harakiri sandbox ID, template ID, template version
       ID, image digest, organization ID, and route policy.
 - [ ] Add preflight validation that the image can be pulled by OpenSandbox before
@@ -235,6 +244,8 @@ repo-facing engineering documentation and product-facing website documentation.
       to E2B's `e2b.toml`: name, CPU, memory, Dockerfile, ports, workdir,
       start/ready commands, env schema, visibility.
 - [x] Add `harakiri template build --name <name> [path]`.
+- [x] Add `harakiri template build --source image --image <ref>` for existing
+      OCI image imports.
 - [ ] Stream build logs in the CLI and print build ID, template version ID, image
       digest, duration, and next create command on success.
 - [x] Add `harakiri template list`, `harakiri template builds`, `harakiri template logs`,

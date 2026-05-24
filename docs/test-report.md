@@ -43,6 +43,18 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Template control-plane smoke was verified locally: template create, queued
   build creation, build list, build logs, retry/cancel/promote endpoints, SDK
   methods, and CLI `template init/list/build/builds/logs/promote/inspect`.
+- Template image-import builder smoke was verified locally on 2026-05-24:
+  `processNextImageImportBuild()` claimed a queued `source_type='image'` record,
+  resolved `hello-world:latest` to a `sha256:` digest, marked the build
+  `success`, created a ready `template_versions` row, updated
+  `templates.latest_version_id`, and cleaned up the temporary organization.
+- k0s deployment checkpoint on 2026-05-24: `pnpm deploy:k0s` rolled out
+  `harakiri-api`, `harakiri-web`, `harakiri-scheduler`, and the new
+  `harakiri-template-builder` deployment. A cluster smoke inserted a temporary
+  `source_type='image'` build for `hello-world:latest`; the deployed builder
+  marked it `success`, stored digest
+  `sha256:0e760fdfbc48ba8041e7c6db999bb40bfca508b4be580ac75d32c4e29d202ce1`,
+  created a `tplv_...` latest version, and the temp organization was deleted.
 - Post-test database audit: `running_sandboxes=0`, `ready_routes=0`; pre-existing active API keys were left untouched.
 
 ## CLI Demo
@@ -97,6 +109,7 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
 - Keycloak runs with `start-dev`, a development login fixture user, and the Harakiri login theme mounted from `keycloak-theme-harakiri`.
 - PostgreSQL uses local-path storage.
 - Filesystem and metrics panels are prototype control-plane views; command execution and HTTP/SSE/WebSocket route proxying are live.
-- Custom template build records are live in the control plane, but the k0s
-  BuildKit worker, registry cache, digest resolution, and `open-agents-dev`
-  image build smoke remain pending in the active execution plan.
+- Custom template image-import records are live in the control plane and can be
+  completed by the `harakiri-template-builder` worker. Dockerfile/Git builds,
+  registry cache, BuildKit, and `open-agents-dev` image build smoke remain
+  pending in the active execution plan.

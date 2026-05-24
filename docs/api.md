@@ -125,6 +125,17 @@ curl http://127.0.0.1:18082/v1/templates/open-agents-dev/builds \
   }'
 ```
 
+Import an existing public OCI image. The `harakiri-template-builder` worker will
+resolve the registry digest, write build logs, create a ready template version,
+and update the template's latest version:
+
+```bash
+curl http://127.0.0.1:18082/v1/templates/ubuntu-import/builds \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"sourceType":"image","imageDestination":"ubuntu:24.04"}'
+```
+
 List, inspect, and read logs:
 
 ```bash
@@ -153,9 +164,10 @@ curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/promote \
   -d '{"versionId":"tplv_...","alias":"stable"}'
 ```
 
-Current v1 API behavior persists build records and logs. The k0s BuildKit worker
-that consumes queued records and writes digest-pinned ready versions is tracked
-in the active custom template execution plan.
+Current v1 API behavior persists build records and logs. The deployed
+image-import worker consumes queued `sourceType=image` records and writes
+digest-pinned ready versions. The k0s BuildKit worker for Dockerfile/Git records
+is tracked in the active custom template execution plan.
 
 ## Run Command
 

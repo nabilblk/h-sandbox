@@ -354,10 +354,10 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
       setBusy(null);
     }
   };
-  const queueBuild = async (templateId: string) => {
-    setBusy(`build:${templateId}`);
+  const queueBuild = async (template: Template) => {
+    setBusy(`build:${template.id}`);
     try {
-      const result = await api.createTemplateBuild(templateId, { sourceType: "dockerfile", dockerfilePath: "Dockerfile" });
+      const result = await api.createTemplateBuild(template.id, { sourceType: "image", imageDestination: template.image });
       setSelectedBuild(result.build);
       setTab("builds");
       await loadBuilds();
@@ -427,7 +427,7 @@ const Templates = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
                 <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
                 <span className="tmpl-actions">
                   <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={busy === `use:${template.id}`}>Use</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template.id)} disabled={busy === `build:${template.id}`}>Build</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={busy === `build:${template.id}`}>Build</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
                 </span>
               </div>
@@ -719,8 +719,8 @@ const docPages: DocPage[] = [
         <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile`}</pre>
         <pre>{`name = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173, 4321, 8000]\nstart_command = "sleep 3600"`}</pre>
         <h2>Build</h2>
-        <pre>{`harakiri template build --name open-agents-dev . \\\n  --image registry.example.com/harakiri/open-agents-dev:dev\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
-        <p>The current control plane stores build records and logs. The k0s BuildKit worker that turns queued records into pushed digest-pinned images is part of the active template-build rollout.</p>
+        <pre>{`harakiri template build --name open-agents-dev . \\\n  --image registry.example.com/harakiri/open-agents-dev:dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
+        <p>The image-import worker completes `--source image` builds by resolving registry digests and creating ready versions. Dockerfile builds still wait for the BuildKit/context-upload worker.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner`}</pre>
       </>
@@ -736,7 +736,7 @@ const docPages: DocPage[] = [
       <>
         <h2>Statuses</h2>
         <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. Retry creates a new queued build linked to the original.</p>
-        <pre>{`harakiri template builds --status queued\nharakiri template builds --query open-agents-dev`}</pre>
+        <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
         <pre>{`harakiri template logs bld_...`}</pre>

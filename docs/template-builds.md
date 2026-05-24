@@ -2,8 +2,9 @@
 
 Template builds are the control-plane path from a Dockerfile, Git source, or
 existing image reference to an immutable template version. The current
-implementation persists the API contract and CLI/UI surface; the k0s BuildKit
-worker is the next infrastructure phase.
+implementation includes an image-import worker that resolves existing OCI image
+references to immutable digests. Dockerfile and Git builds still need the k0s
+BuildKit/context-upload infrastructure phase.
 
 ## Data Flow
 
@@ -11,11 +12,13 @@ worker is the next infrastructure phase.
 2. CLI or UI creates a build record with `POST /v1/templates/:id/builds`.
 3. PostgreSQL stores the build as `queued` with source metadata and requested
    image destination.
-4. A builder worker claims queued records, marks them `building`, and streams
-   logs into `template_build_logs`.
-5. The worker builds or imports the OCI image and pushes it to the configured
-   registry.
-6. The worker resolves the pushed image to an immutable digest.
+4. A builder worker claims supported queued records, marks them `building`, and
+   streams logs into `template_build_logs`.
+5. For `sourceType=image`, the image-import worker resolves the registry
+   manifest digest and creates a digest-pinned runtime version.
+6. For future Dockerfile/Git builds, the BuildKit worker will build or import
+   the OCI image, push it to the configured registry, and resolve the pushed
+   image to an immutable digest.
 7. On success, the worker writes a `ready` `template_versions` row, attaches the
    build ID, digest, resources, ports, workdir, and metadata, and promotes the
    desired alias.
@@ -76,6 +79,19 @@ curl "$PUBLIC_API_URL/v1/templates/open-agents-dev/builds" \
   }'
 ```
 
+Import an existing image and let the deployed image-import worker create the
+ready version:
+
+```bash
+curl "$PUBLIC_API_URL/v1/templates/ubuntu-import/builds" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "sourceType": "image",
+    "imageDestination": "ubuntu:24.04"
+  }'
+```
+
 ```bash
 curl "$PUBLIC_API_URL/v1/template-builds?status=queued" -H "x-api-key: $HK_KEY"
 curl "$PUBLIC_API_URL/v1/template-builds/bld_..." -H "x-api-key: $HK_KEY"
@@ -86,6 +102,7 @@ curl "$PUBLIC_API_URL/v1/template-builds/bld_.../logs" -H "x-api-key: $HK_KEY"
 
 ```bash
 harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template builds --status queued
 harakiri template logs bld_...
 harakiri template promote open-agents-dev --version-id tplv_... --alias stable
@@ -105,9 +122,15 @@ harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 - Image digest resolution failure: must keep the build failed or blocked; do not
   promote a mutable tag without a digest.
 
-## Builder Requirements
+## Builder Workers
 
-The k0s builder worker still needs to provide:
+The current `harakiri-template-builder` deployment handles public image imports
+only. It claims queued records where `source_type = 'image'`, writes logs,
+stores `image_digest`, creates a ready `template_versions` row, and updates the
+template's `latest_version_id`.
+
+The k0s Dockerfile/Git builder still needs to provide:
+
 
 - Rootless BuildKit or another Kubernetes-native builder.
 - Per-organization registry credentials.

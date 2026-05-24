@@ -46,6 +46,7 @@ belong to the BuildKit worker phase.
 harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
+harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template builds --query open-agents-dev
 harakiri template logs bld_...
 harakiri template inspect open-agents-dev
@@ -53,8 +54,10 @@ harakiri create --template open-agents-dev --name agent-runner
 ```
 
 `template build` creates or reuses the template definition, then enqueues a build
-record through `POST /v1/templates/:id/builds`. Until the builder worker is
-deployed, the record remains queued unless changed by tests or operator tooling.
+record through `POST /v1/templates/:id/builds`. The deployed image-import worker
+completes `--source image` builds by resolving an immutable digest and creating a
+ready template version. Dockerfile builds remain queued until the BuildKit
+worker and build-context upload path are deployed.
 
 ## API Workflow
 

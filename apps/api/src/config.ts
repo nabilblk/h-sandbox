@@ -20,6 +20,8 @@ export const config = {
   sandboxRouteLocalFallbackUrl: process.env.SANDBOX_ROUTE_LOCAL_FALLBACK_URL ?? process.env.PUBLIC_OPEN_SANDBOX_URL ?? "http://127.0.0.1:18083",
   sandboxMaxRoutesPerSandbox: Number(process.env.SANDBOX_MAX_ROUTES_PER_SANDBOX ?? 8),
   sandboxMaxRoutesPerOrg: Number(process.env.SANDBOX_MAX_ROUTES_PER_ORG ?? 200),
+  templateBuilderPollMs: Number(process.env.TEMPLATE_BUILDER_POLL_MS ?? 5000),
+  templateBuilderOnce: process.env.TEMPLATE_BUILDER_ONCE === "1",
   autoMigrate: process.env.AUTO_MIGRATE === "1",
   seedOnBoot: process.env.SEED_ON_BOOT === "1"
 };

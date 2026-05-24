@@ -26,6 +26,7 @@ data:
   SANDBOX_ROUTE_LOCAL_FALLBACK_URL: "http://127.0.0.1:18083"
   SANDBOX_MAX_ROUTES_PER_SANDBOX: "8"
   SANDBOX_MAX_ROUTES_PER_ORG: "200"
+  TEMPLATE_BUILDER_POLL_MS: "5000"
   KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
   KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
   KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
@@ -88,6 +89,32 @@ spec:
           image: harakiri-api:dev
           imagePullPolicy: IfNotPresent
           command: ["node", "apps/api/dist/scheduler.js"]
+          envFrom:
+            - configMapRef:
+                name: harakiri-config
+            - secretRef:
+                name: harakiri-api
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: harakiri-template-builder
+  namespace: harakiri
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: harakiri-template-builder
+  template:
+    metadata:
+      labels:
+        app: harakiri-template-builder
+    spec:
+      containers:
+        - name: template-builder
+          image: harakiri-api:dev
+          imagePullPolicy: IfNotPresent
+          command: ["node", "apps/api/dist/template-builder.js"]
           envFrom:
             - configMapRef:
                 name: harakiri-config

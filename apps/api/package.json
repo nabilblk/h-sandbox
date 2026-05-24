@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
     "scheduler": "node dist/scheduler.js",
+    "template-builder": "node dist/template-builder.js",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
     "lint": "tsc -p tsconfig.json --noEmit",

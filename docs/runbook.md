@@ -186,13 +186,23 @@ Create a local template config:
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 ```
 
-Create a template definition and queued build record:
+Create a template definition and queued Dockerfile build record:
 
 ```bash
 harakiri template build --name open-agents-dev . --image registry.example.com/harakiri/open-agents-dev:dev
 harakiri template builds --query open-agents-dev
 harakiri template logs bld_...
 harakiri template inspect open-agents-dev
+```
+
+Import an existing image and let the template builder resolve an immutable
+digest:
+
+```bash
+harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
+harakiri template builds --query ubuntu-import
+harakiri template logs bld_...
+kubectl -n harakiri logs deploy/harakiri-template-builder
 ```
 
 Create a sandbox from a template alias or immutable version:
@@ -206,18 +216,18 @@ Operator inspection:
 
 ```bash
 export KUBECONFIG="$PWD/infra/k0s/harakiri.kubeconfig"
-kubectl -n harakiri exec deploy/postgres -- psql "$DATABASE_URL" -c \
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select id, template_id, status, image_destination, image_digest, error from template_builds order by created_at desc limit 10;"
 
-kubectl -n harakiri exec deploy/postgres -- psql "$DATABASE_URL" -c \
+kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
   "select id, template_id, aliases, image_uri, image_digest, status from template_versions order by created_at desc limit 10;"
 ```
 
 Current limitation: the API persists queued build records, but the k0s BuildKit
-worker that consumes those records is still part of the active custom template
-execution plan. Until that worker is deployed, use image-based template
-definitions for runtime testing and treat `template build` as control-plane
-record creation.
+worker that consumes Dockerfile/Git records is still part of the active custom
+template execution plan. The deployed image-import worker handles
+`--source image` records by resolving the registry digest and creating a ready
+template version.
 
 ## Teardown
 

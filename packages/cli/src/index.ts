@@ -175,7 +175,10 @@ template
   .requiredOption("--name <name>", "template name")
   .option("--dockerfile <file>", "Dockerfile path", "Dockerfile")
   .option("--image <ref>", "target image reference")
+  .option("--source <type>", "build source type: dockerfile, git, or image", "dockerfile")
   .action(async (contextPath, options) => {
+    if (!["dockerfile", "git", "image"].includes(options.source)) throw new Error("--source must be dockerfile, git, or image");
+    if (options.source === "image" && !options.image) throw new Error("--source image requires --image <ref>");
     const id = templateIdFor(options.name);
     try {
       await api<{ template: TemplateResult }>("/v1/templates", {
@@ -198,7 +201,7 @@ template
     const result = await api<{ build: TemplateBuildResult }>(`/v1/templates/${encodeURIComponent(id)}/builds`, {
       method: "POST",
       body: JSON.stringify({
-        sourceType: "dockerfile",
+        sourceType: options.source,
         dockerfilePath: options.dockerfile,
         imageDestination: options.image,
         metadata: { localPath: contextPath }

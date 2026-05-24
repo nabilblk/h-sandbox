@@ -63,7 +63,7 @@ case "${HARAKIRI_ROUTE_TLS_MODE:-dev}" in
     exit 2
     ;;
 esac
-kubectl -n harakiri rollout restart deploy/harakiri-api deploy/harakiri-web deploy/harakiri-scheduler
+kubectl -n harakiri rollout restart deploy/harakiri-api deploy/harakiri-web deploy/harakiri-scheduler deploy/harakiri-template-builder
 kubectl -n keycloak rollout restart deploy/keycloak
 
 kubectl rollout status deploy/harakiri-postgres -n harakiri --timeout=180s
@@ -71,6 +71,7 @@ kubectl rollout status deploy/keycloak -n keycloak --timeout=240s || true
 kubectl rollout status deploy/harakiri-api -n harakiri --timeout=240s
 kubectl rollout status deploy/harakiri-web -n harakiri --timeout=180s
 kubectl rollout status deploy/harakiri-scheduler -n harakiri --timeout=180s
+kubectl rollout status deploy/harakiri-template-builder -n harakiri --timeout=180s
 kubectl rollout status deploy/opensandbox-ingress-gateway -n opensandbox-system --timeout=180s || true
 
 echo "deployment complete"
