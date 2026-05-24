@@ -84,6 +84,15 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `http://127.0.0.1:15173/#docs`, clicked the Template builds and Security
   model docs, verified both mention runtime pull preflight, and saved
   `/tmp/harakiri-preflight-docs.png`.
+- Sandbox regression smoke on 2026-05-24: after the template preflight
+  deployment, `pnpm smoke` created `sbx_ENlDwrI3qj`, executed the Python agent
+  command through OpenSandbox, and killed the sandbox. `pnpm smoke:ttl` created
+  `sbx_d8LhpQkS8o` with a 10 second TTL and observed it transition to
+  `terminated`. `pnpm smoke:route` exposed
+  `https://72658c1d-9ca6-40ee-884d-7b178df4a678-3000.harakiri.io` through the
+  OpenSandbox gateway. `pnpm smoke:route-ingress` exposed
+  `https://94c8c578-af36-4450-a990-e9e14650a224-3000.harakiri.io` through
+  ingress HTTPS.
 - `pnpm ports:restart && pnpm ports:status` passed for web, API, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards.
 - `pnpm smoke` passed sandbox create, real command execution, and kill through OpenSandbox with adapter fallback disabled.
 - `pnpm smoke:ttl` passed scheduler termination of a 10-second Harakiri TTL sandbox while using a provider-safe OpenSandbox lease.

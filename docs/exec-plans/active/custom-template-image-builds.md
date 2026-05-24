@@ -526,7 +526,7 @@ Use this checklist before marking any remaining plan item complete:
 - [x] k0s dashboard smoke for New Template Dockerfile upload, existing OCI
       image import, clone/fork, `harakiri.toml` preview, Dockerfile build,
       sandbox create/run from the generated template, and website docs coverage.
-- [ ] Regression tests for existing sandbox create/run/kill/routes/TTL flows.
+- [x] Regression tests for existing sandbox create/run/kill/routes/TTL flows.
 - [ ] Verify documentation examples against the deployed k0s environment.
 - [ ] Commit and push once deployed and verified in k0s.
 
