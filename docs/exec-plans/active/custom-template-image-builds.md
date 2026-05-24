@@ -220,7 +220,7 @@ It must be planned and verified alongside code, not added as a release-afterthou
 - [x] Add a migration that records template CPU, memory, workdir, default ports,
       and runtime family, keeping existing rows compatible.
 - [x] Update SDK/CLI types to expose the expanded template fields.
-- [ ] Verify `python-3.12`, `python-3.12-data`, `node-20`, and existing sandbox
+- [x] Verify `python-3.12`, `python-3.12-data`, `node-20`, and existing sandbox
       flows still work.
 
 ### Phase 2: Template Version Data Model

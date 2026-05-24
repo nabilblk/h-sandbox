@@ -109,6 +109,15 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   a Playwright smoke check verified the deployed Docs pages mention
   `--no-wait`, the default build-log follow behavior, and the Template Builds
   status guidance with no console errors.
+- Default template catalog checkpoint on 2026-05-24: `pnpm smoke:templates`
+  passed against k0s, creating/running/killing `python-3.12`
+  (`sbx_5mfgKWOHyk`, `python --version` -> `Python 3.12.13`),
+  `python-3.12-data` (`sbx_IDjCpAZASD`, `python --version` ->
+  `Python 3.12.13`), and `node-20` (`sbx_-wVMcJAiJV`,
+  `node --version` -> `v20.20.2`). A failed intermediate script run had already
+  killed its sandbox but left a temporary smoke API key; it was revoked through
+  the API. Post-test audit showed no active `smoke-*` API keys, `running_sandboxes=0`,
+  and `ready_routes=0`.
 - Open Agents template pilot was verified against k0s on 2026-05-24:
   `harakiri template build examples/templates/open-agents-dev` produced build
   `bld_Tv1jbVKB4TAD` and digest

@@ -84,11 +84,16 @@ Core platform checks:
 ```bash
 pnpm smoke
 pnpm smoke:ttl
+pnpm smoke:templates
 pnpm smoke:route
 pnpm smoke:route-ingress
 pnpm e2e
 pnpm screenshots
 ```
+
+`pnpm smoke:templates` creates, runs, and kills sandboxes from the default
+`python-3.12`, `python-3.12-data`, and `node-20` catalog templates to catch
+custom-template regressions in the original catalog path.
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
 
