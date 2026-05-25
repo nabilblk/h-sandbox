@@ -6,6 +6,7 @@ import { docPages } from "./docs-content.js";
 test("docs content exposes expected product pages and renderable body markup", () => {
   assert.ok(docPages.length >= 8);
   assert.ok(docPages.some((page) => page.id === "quickstart" && page.section === "Getting started"));
+  assert.ok(docPages.some((page) => page.id === "team-members" && page.section === "Workspace"));
   assert.ok(docPages.some((page) => page.id === "api-reference" && page.section === "Reference"));
 
   const quickstart = docPages.find((page) => page.id === "quickstart");

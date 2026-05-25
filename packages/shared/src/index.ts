@@ -388,15 +388,33 @@ export type OrganizationSettingsResponse = {
   organization: OrganizationSettings;
 };
 
+export type AccountCapabilities = {
+  canManageMembers: boolean;
+};
+
+export type OrganizationMemberRole = "admin" | "member" | string;
+export type OrganizationMemberStatus = "active" | "sent" | "send_failed" | "pending" | "expired" | "accepted" | "canceled";
+
 export type OrganizationMemberSummary = {
   id: string;
-  userId: string;
+  kind: "member" | "invitation";
+  userId: string | null;
+  membershipId: string | null;
+  invitationId: string | null;
   email: string;
   fullName: string | null;
-  role: "admin" | "member" | string;
-  status: "active" | "pending";
+  role: OrganizationMemberRole;
+  status: OrganizationMemberStatus;
   keycloakLinked: boolean;
-  joinedAt: string;
+  joinedAt: string | null;
+  invitedAt: string | null;
+  expiresAt: string | null;
+  lastError: string | null;
+  actions: {
+    canResend: boolean;
+    canCancel: boolean;
+    canRemove: boolean;
+  };
 };
 
 export type OrganizationMembersResponse = {
@@ -410,6 +428,12 @@ export type AddOrganizationMemberBody = {
 export type AddOrganizationMemberResponse = {
   member: OrganizationMemberSummary;
   created: boolean;
+};
+
+export type OrganizationInvitationResponse = AddOrganizationMemberResponse;
+
+export type OrganizationMemberMutationResponse = {
+  member: OrganizationMemberSummary;
 };
 
 export type CurrentAccountResponse = {
@@ -426,6 +450,8 @@ export type CurrentAccountResponse = {
     authType?: string;
     [key: string]: unknown;
   };
+  role: OrganizationMemberRole;
+  capabilities: AccountCapabilities;
   organization: OrganizationSettings;
 };
 

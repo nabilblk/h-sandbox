@@ -12,6 +12,7 @@ forwards=(
   "api 18082 harakiri svc/harakiri-api 8080 http://127.0.0.1:18082/health"
   "web 15173 harakiri svc/harakiri-web 80 http://127.0.0.1:15173/"
   "keycloak 18084 keycloak svc/keycloak 8080 http://127.0.0.1:18084/realms/harakiri/.well-known/openid-configuration"
+  "mailpit 18086 keycloak svc/mailpit 8025 http://127.0.0.1:18086/"
   "opensandbox 18083 opensandbox-system svc/opensandbox-server 80 http://127.0.0.1:18083/health"
   "gateway 18085 opensandbox-system svc/opensandbox-ingress-gateway 80 http://127.0.0.1:18085/status.ok"
   "ingress-https 18087 ingress-nginx svc/ingress-nginx-controller 443 tcp://127.0.0.1:18087"

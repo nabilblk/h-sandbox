@@ -4,6 +4,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { config } from "./config.js";
 import { hashApiKey } from "./crypto.js";
 import { query } from "./db.js";
+import { acceptPendingOrganizationInvitations } from "./services/account.js";
 
 export type AuthContext = {
   userId: string;
@@ -133,6 +134,7 @@ const authFromJwt = async (token: string): Promise<AuthContext | null> => {
      RETURNING id`,
     [email, name, subject]
   );
+  await acceptPendingOrganizationInvitations({ userId: user.rows[0].id, email, keycloakSubject: subject }, query);
   const org = await query<{ id: string }>("SELECT organization_id AS id FROM memberships WHERE user_id = $1 LIMIT 1", [user.rows[0].id]);
   if (org.rowCount) {
     return { userId: user.rows[0].id, organizationId: org.rows[0].id, actorLabel: email, authType: "keycloak" };

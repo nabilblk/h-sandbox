@@ -977,19 +977,14 @@
 }
 
 /* MEMBERS */
-.members-workspace { max-width: none; }
-.members-layout {
-  display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
+.members-workspace {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
 }
-.members-card {
-  padding: 16px;
-}
-.members-card-head {
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+.members-page-head {
+  align-items: flex-start;
+  gap: 16px;
 }
 .members-help {
   margin-top: 4px;
@@ -1002,6 +997,24 @@
   gap: 12px;
   margin-top: 14px;
 }
+.member-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -8px 0 14px;
+}
+.member-stats .stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.member-stats .stat b { font-size: 13px; font-weight: 600; }
+.member-stats .stat span { color: var(--muted); font-size: 11px; }
 .member-notice,
 .member-error {
   margin-top: 12px;
@@ -1017,12 +1030,18 @@
   color: var(--err);
   background: oklch(0.94 0.06 25);
 }
+.member-row-error {
+  margin-top: 2px;
+  color: var(--err) !important;
+  white-space: normal !important;
+}
 .members-table {
   overflow: hidden;
+  width: 100%;
 }
 .member-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) 120px 120px 170px;
+  grid-template-columns: minmax(240px, 1.6fr) 92px 132px 172px minmax(170px, auto);
   align-items: center;
   gap: 14px;
   padding: 13px 16px;
@@ -1071,6 +1090,55 @@
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 700;
+}
+.member-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.member-actions .btn {
+  white-space: nowrap;
+}
+.btn.danger {
+  color: var(--err);
+  border-color: oklch(0.86 0.06 25);
+}
+.btn.danger:hover {
+  background: oklch(0.96 0.03 25);
+}
+.pill.warn .dot { background: var(--warn); }
+.pill.err .dot { background: var(--err); }
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15,15,14,0.4);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.modal-actions {
+  padding-top: 2px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.invite-modal {
+  padding: 0;
+}
+.invite-modal form {
+  padding: 0 20px 20px;
+}
+.access-denied {
+  width: min(460px, 100%);
+  padding: 18px;
+}
+.access-denied p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 16px;
 }
 
 /* INVOICES */
@@ -1780,15 +1848,26 @@
   .member-row {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px 12px;
+    align-items: start;
   }
 
   .member-head {
     display: none;
   }
 
-  .member-row > span:nth-child(3),
-  .member-row > span:nth-child(4) {
+  .member-row > span:first-child {
     grid-column: 1 / -1;
+  }
+
+  .member-row > span:nth-child(3),
+  .member-row > span:nth-child(4),
+  .member-row > span:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
+  .member-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .tmpl-grid {

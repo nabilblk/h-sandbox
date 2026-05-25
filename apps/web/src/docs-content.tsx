@@ -28,6 +28,26 @@ export const docPages: DocPage[] = [
     )
   },
   {
+    id: "team-members",
+    section: "Workspace",
+    title: "Team members",
+    lede: "Invite teammates by email, review pending invitations, and keep workspace access limited to active members.",
+    toc: ["Invite", "Statuses", "Access", "Troubleshooting"],
+    body: (
+      <>
+        <h2>Invite</h2>
+        <p>Organization admins can open Members and use Invite member. Enter the teammate's email address; the role defaults to Member for the MVP.</p>
+        <p>The invite sends an account setup email when email delivery is configured. The invited person sets their password from that email, signs in, and lands in the inviting workspace.</p>
+        <h2>Statuses</h2>
+        <p>Active rows are current workspace members. Pending rows are invitations waiting for the recipient to complete setup. Email failed means the invitation is saved but delivery needs operator attention before Retry can send another setup email.</p>
+        <h2>Access</h2>
+        <p>Only organization admins can open Members, invite teammates, retry delivery, cancel pending invitations, or remove members. Regular members do not see the Members navigation item.</p>
+        <h2>Troubleshooting</h2>
+        <p>If an invite shows Email failed, ask the operator to check the authentication email configuration, then use Retry. Harakiri never creates or displays passwords; credential setup stays in the sign-in provider.</p>
+      </>
+    )
+  },
+  {
     id: "create-sandbox",
     section: "Sandboxes",
     title: "Create a sandbox",

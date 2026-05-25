@@ -8,12 +8,25 @@ SYSTEM_API_IMAGE="127.0.0.1:5000/harakiri/system/api:dev"
 SYSTEM_WEB_IMAGE="127.0.0.1:5000/harakiri/system/web:dev"
 TMP_DIR="$(mktemp -d)"
 HARAKIRI_PUBLIC_API_URL="${HARAKIRI_PUBLIC_API_URL:-http://127.0.0.1:18082}"
+HARAKIRI_PUBLIC_WEB_URL="${HARAKIRI_PUBLIC_WEB_URL:-http://127.0.0.1:15173}"
 HARAKIRI_PUBLIC_KEYCLOAK_URL="${HARAKIRI_PUBLIC_KEYCLOAK_URL:-http://127.0.0.1:18084}"
 HARAKIRI_PUBLIC_KEYCLOAK_REALM="${HARAKIRI_PUBLIC_KEYCLOAK_REALM:-harakiri}"
 HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID="${HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID:-harakiri-web}"
 HARAKIRI_SANDBOX_ROUTE_DOMAIN="${HARAKIRI_SANDBOX_ROUTE_DOMAIN:-sandbox.localhost}"
 HARAKIRI_SANDBOX_ROUTE_SCHEME="${HARAKIRI_SANDBOX_ROUTE_SCHEME:-https}"
 HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST="${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST:-http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,${HARAKIRI_PUBLIC_KEYCLOAK_URL}/realms/harakiri}"
+HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI="${HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI:-${HARAKIRI_PUBLIC_WEB_URL}/#dashboard/sandboxes}"
+HARAKIRI_CONFIGURE_KEYCLOAK_PUBLIC_URL="${HARAKIRI_CONFIGURE_KEYCLOAK_PUBLIC_URL:-1}"
+HARAKIRI_CONFIGURE_KEYCLOAK_SMTP="${HARAKIRI_CONFIGURE_KEYCLOAK_SMTP:-1}"
+HARAKIRI_KEYCLOAK_SMTP_HOST="${HARAKIRI_KEYCLOAK_SMTP_HOST:-mailpit.keycloak.svc.cluster.local}"
+HARAKIRI_KEYCLOAK_SMTP_PORT="${HARAKIRI_KEYCLOAK_SMTP_PORT:-1025}"
+HARAKIRI_KEYCLOAK_SMTP_FROM="${HARAKIRI_KEYCLOAK_SMTP_FROM:-no-reply@harakiri.local}"
+HARAKIRI_KEYCLOAK_SMTP_FROM_DISPLAY="${HARAKIRI_KEYCLOAK_SMTP_FROM_DISPLAY:-Harakiri}"
+HARAKIRI_KEYCLOAK_SMTP_AUTH="${HARAKIRI_KEYCLOAK_SMTP_AUTH:-false}"
+HARAKIRI_KEYCLOAK_SMTP_USER="${HARAKIRI_KEYCLOAK_SMTP_USER:-}"
+HARAKIRI_KEYCLOAK_SMTP_PASSWORD="${HARAKIRI_KEYCLOAK_SMTP_PASSWORD:-}"
+HARAKIRI_KEYCLOAK_SMTP_STARTTLS="${HARAKIRI_KEYCLOAK_SMTP_STARTTLS:-false}"
+HARAKIRI_KEYCLOAK_SMTP_SSL="${HARAKIRI_KEYCLOAK_SMTP_SSL:-false}"
 export HARAKIRI_ROUTE_DOMAIN="${HARAKIRI_ROUTE_DOMAIN:-${HARAKIRI_SANDBOX_ROUTE_DOMAIN}}"
 
 cleanup() {
@@ -88,7 +101,7 @@ helm upgrade --install opensandbox \
 
 kubectl apply -k "${ROOT}/infra/k8s"
 kubectl -n harakiri patch configmap harakiri-config --type=merge -p "$(cat <<EOF
-{"data":{"PUBLIC_API_URL":"${HARAKIRI_PUBLIC_API_URL}","PUBLIC_KEYCLOAK_URL":"${HARAKIRI_PUBLIC_KEYCLOAK_URL}","PUBLIC_KEYCLOAK_REALM":"${HARAKIRI_PUBLIC_KEYCLOAK_REALM}","PUBLIC_KEYCLOAK_CLIENT_ID":"${HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID}","SANDBOX_ROUTE_BASE_DOMAIN":"${HARAKIRI_SANDBOX_ROUTE_DOMAIN}","SANDBOX_ROUTE_PUBLIC_SCHEME":"${HARAKIRI_SANDBOX_ROUTE_SCHEME}","KEYCLOAK_ISSUER_ALLOWLIST":"${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST}"}}
+{"data":{"PUBLIC_API_URL":"${HARAKIRI_PUBLIC_API_URL}","PUBLIC_WEB_URL":"${HARAKIRI_PUBLIC_WEB_URL}","PUBLIC_KEYCLOAK_URL":"${HARAKIRI_PUBLIC_KEYCLOAK_URL}","PUBLIC_KEYCLOAK_REALM":"${HARAKIRI_PUBLIC_KEYCLOAK_REALM}","PUBLIC_KEYCLOAK_CLIENT_ID":"${HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID}","KEYCLOAK_INVITATION_REDIRECT_URI":"${HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI}","SANDBOX_ROUTE_BASE_DOMAIN":"${HARAKIRI_SANDBOX_ROUTE_DOMAIN}","SANDBOX_ROUTE_PUBLIC_SCHEME":"${HARAKIRI_SANDBOX_ROUTE_SCHEME}","KEYCLOAK_ISSUER_ALLOWLIST":"${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST}"}}
 EOF
 )"
 kubectl -n opensandbox-system patch ingress opensandbox-sandbox-routes --type=json -p "$(cat <<EOF
@@ -119,7 +132,44 @@ kubectl -n keycloak rollout restart deploy/keycloak
 
 kubectl rollout status deploy/harakiri-postgres -n harakiri --timeout=180s
 kubectl rollout status deploy/harakiri-registry -n harakiri --timeout=180s
+kubectl rollout status deploy/mailpit -n keycloak --timeout=120s || true
 kubectl rollout status deploy/keycloak -n keycloak --timeout=240s || true
+
+if [[ "${HARAKIRI_CONFIGURE_KEYCLOAK_PUBLIC_URL}" == "1" || "${HARAKIRI_CONFIGURE_KEYCLOAK_SMTP}" == "1" ]]; then
+  kubectl -n keycloak exec deploy/keycloak -- /opt/keycloak/bin/kcadm.sh config credentials \
+    --server http://127.0.0.1:8080 \
+    --realm master \
+    --user admin \
+    --password admin >/dev/null
+fi
+
+if [[ "${HARAKIRI_CONFIGURE_KEYCLOAK_PUBLIC_URL}" == "1" ]]; then
+  kubectl -n keycloak exec deploy/keycloak -- /opt/keycloak/bin/kcadm.sh update realms/harakiri \
+    -s "attributes.frontendUrl=${HARAKIRI_PUBLIC_KEYCLOAK_URL}" \
+    -s loginTheme=harakiri \
+    -s emailTheme=harakiri >/dev/null
+fi
+
+if [[ "${HARAKIRI_CONFIGURE_KEYCLOAK_SMTP}" == "1" ]]; then
+  smtp_args=(
+    -s "smtpServer.host=${HARAKIRI_KEYCLOAK_SMTP_HOST}"
+    -s "smtpServer.port=${HARAKIRI_KEYCLOAK_SMTP_PORT}"
+    -s "smtpServer.from=${HARAKIRI_KEYCLOAK_SMTP_FROM}"
+    -s "smtpServer.fromDisplayName=${HARAKIRI_KEYCLOAK_SMTP_FROM_DISPLAY}"
+    -s "smtpServer.auth=${HARAKIRI_KEYCLOAK_SMTP_AUTH}"
+    -s "smtpServer.ssl=${HARAKIRI_KEYCLOAK_SMTP_SSL}"
+    -s "smtpServer.starttls=${HARAKIRI_KEYCLOAK_SMTP_STARTTLS}"
+    -s smtpServer.debug=false
+  )
+  if [[ -n "${HARAKIRI_KEYCLOAK_SMTP_USER}" ]]; then
+    smtp_args+=(-s "smtpServer.user=${HARAKIRI_KEYCLOAK_SMTP_USER}")
+  fi
+  if [[ -n "${HARAKIRI_KEYCLOAK_SMTP_PASSWORD}" ]]; then
+    smtp_args+=(-s "smtpServer.password=${HARAKIRI_KEYCLOAK_SMTP_PASSWORD}")
+  fi
+  kubectl -n keycloak exec deploy/keycloak -- /opt/keycloak/bin/kcadm.sh update realms/harakiri "${smtp_args[@]}" >/dev/null
+fi
+
 kubectl rollout status deploy/harakiri-api -n harakiri --timeout=240s
 kubectl rollout status deploy/harakiri-web -n harakiri --timeout=180s
 kubectl rollout status deploy/harakiri-scheduler -n harakiri --timeout=180s

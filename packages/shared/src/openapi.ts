@@ -408,21 +408,42 @@ const schemas: Record<string, JsonSchema> = {
     defaultTemplateId: nullableString
   }, ["name", "slug", "idleTtlSeconds", "maxConcurrency", "defaultTemplateId"]),
   OrganizationSettingsResponse: objectSchema({ organization: ref("OrganizationSettings") }),
+  AccountCapabilities: objectSchema({
+    canManageMembers: boolean
+  }),
   OrganizationMemberSummary: objectSchema({
     id: string,
-    userId: string,
+    kind: { type: "string", enum: ["member", "invitation"] },
+    userId: nullableString,
+    membershipId: nullableString,
+    invitationId: nullableString,
     email: string,
     fullName: nullableString,
     role: string,
-    status: { type: "string", enum: ["active", "pending"] },
+    status: { type: "string", enum: ["active", "sent", "send_failed", "pending", "expired", "accepted", "canceled"] },
     keycloakLinked: boolean,
-    joinedAt: dateTime
+    joinedAt: { type: ["string", "null"], format: "date-time" },
+    invitedAt: { type: ["string", "null"], format: "date-time" },
+    expiresAt: { type: ["string", "null"], format: "date-time" },
+    lastError: nullableString,
+    actions: objectSchema({
+      canResend: boolean,
+      canCancel: boolean,
+      canRemove: boolean
+    })
   }),
   OrganizationMembersResponse: objectSchema({ members: arrayOf(ref("OrganizationMemberSummary")) }),
   AddOrganizationMemberBody: objectSchema({ email: string }, ["email"]),
   AddOrganizationMemberResponse: objectSchema({
     member: ref("OrganizationMemberSummary"),
     created: boolean
+  }),
+  OrganizationInvitationResponse: objectSchema({
+    member: ref("OrganizationMemberSummary"),
+    created: boolean
+  }),
+  OrganizationMemberMutationResponse: objectSchema({
+    member: ref("OrganizationMemberSummary")
   }),
   CurrentAccountResponse: objectSchema({
     user: objectSchema({
@@ -432,6 +453,8 @@ const schemas: Record<string, JsonSchema> = {
       onboardingCompletedAt: { type: ["string", "null"], format: "date-time" }
     }),
     auth: freeObject,
+    role: string,
+    capabilities: ref("AccountCapabilities"),
     organization: ref("OrganizationSettings")
   }),
   CompleteOnboardingResponse: objectSchema({
@@ -623,7 +646,19 @@ export const openApiDocument = {
     },
     "/v1/org/members": {
       get: secured({ tags: ["Members"], summary: "List organization members", operationId: "listOrganizationMembers", responses: { ...ok("Organization members", ref("OrganizationMembersResponse")), ...authErrorResponses } }),
-      post: secured({ tags: ["Members"], summary: "Add an organization member by email", operationId: "addOrganizationMember", requestBody: jsonBody(ref("AddOrganizationMemberBody")), responses: { ...created("Added member", ref("AddOrganizationMemberResponse")), ...ok("Existing member", ref("AddOrganizationMemberResponse")), ...authErrorResponses } })
+      post: secured({ tags: ["Members"], summary: "Invite an organization member by email", operationId: "inviteOrganizationMemberCompat", requestBody: jsonBody(ref("AddOrganizationMemberBody")), responses: { ...created("Invited member", ref("AddOrganizationMemberResponse")), ...ok("Existing member or invite", ref("AddOrganizationMemberResponse")), ...authErrorResponses } })
+    },
+    "/v1/org/invitations": {
+      post: secured({ tags: ["Members"], summary: "Invite an organization member by email", operationId: "createOrganizationInvitation", requestBody: jsonBody(ref("AddOrganizationMemberBody")), responses: { ...created("Invited member", ref("OrganizationInvitationResponse")), ...ok("Existing member or invite", ref("OrganizationInvitationResponse")), ...authErrorResponses } })
+    },
+    "/v1/org/invitations/{id}/resend": {
+      post: secured({ tags: ["Members"], summary: "Resend an organization invitation", operationId: "resendOrganizationInvitation", parameters: [pathId], responses: { ...ok("Invitation", ref("OrganizationMemberMutationResponse")), ...authErrorResponses } })
+    },
+    "/v1/org/invitations/{id}/cancel": {
+      post: secured({ tags: ["Members"], summary: "Cancel an organization invitation", operationId: "cancelOrganizationInvitation", parameters: [pathId], responses: { ...ok("Invitation", ref("OrganizationMemberMutationResponse")), ...authErrorResponses } })
+    },
+    "/v1/org/members/{id}": {
+      delete: secured({ tags: ["Members"], summary: "Remove an organization member", operationId: "removeOrganizationMember", parameters: [pathId], responses: { ...ok("Removed member", ref("OrganizationMemberMutationResponse")), ...authErrorResponses } })
     },
     "/v1/org/settings": {
       get: secured({ tags: ["Organization Settings"], summary: "Read organization settings", operationId: "getOrganizationSettings", responses: { ...ok("Organization settings", ref("OrganizationSettingsResponse")), ...authErrorResponses } }),

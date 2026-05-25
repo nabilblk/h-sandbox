@@ -57,6 +57,7 @@ export const config = {
   port: Number(process.env.API_PORT ?? 8080),
   host: process.env.API_HOST ?? "0.0.0.0",
   databaseUrl: process.env.DATABASE_URL ?? "postgres://harakiri:harakiri@127.0.0.1:15432/harakiri",
+  publicWebUrl: process.env.PUBLIC_WEB_URL ?? process.env.PUBLIC_APP_URL ?? "http://127.0.0.1:15173",
   publicApiUrl: process.env.PUBLIC_API_URL ?? "http://127.0.0.1:18082",
   keycloakIssuer: process.env.KEYCLOAK_ISSUER,
   keycloakIssuerAllowlist: (process.env.KEYCLOAK_ISSUER_ALLOWLIST ?? process.env.KEYCLOAK_ISSUER ?? "")
@@ -64,6 +65,17 @@ export const config = {
     .map((item) => item.trim())
     .filter(Boolean),
   keycloakJwksUrl: process.env.KEYCLOAK_JWKS_URL,
+  keycloakAdminBaseUrl: process.env.KEYCLOAK_ADMIN_BASE_URL ?? "http://keycloak.keycloak.svc.cluster.local:8080",
+  keycloakAdminRealm: process.env.KEYCLOAK_ADMIN_REALM ?? process.env.PUBLIC_KEYCLOAK_REALM ?? "harakiri",
+  keycloakAdminTokenRealm: process.env.KEYCLOAK_ADMIN_TOKEN_REALM ?? "master",
+  keycloakAdminClientId: process.env.KEYCLOAK_ADMIN_CLIENT_ID ?? "admin-cli",
+  keycloakAdminClientSecret: process.env.KEYCLOAK_ADMIN_CLIENT_SECRET ?? "",
+  keycloakAdminUsername: process.env.KEYCLOAK_ADMIN_USERNAME ?? process.env.KEYCLOAK_ADMIN ?? "",
+  keycloakAdminPassword: process.env.KEYCLOAK_ADMIN_PASSWORD ?? "",
+  keycloakInvitationClientId: process.env.KEYCLOAK_INVITATION_CLIENT_ID ?? process.env.PUBLIC_KEYCLOAK_CLIENT_ID ?? "harakiri-web",
+  keycloakInvitationRedirectUri:
+    process.env.KEYCLOAK_INVITATION_REDIRECT_URI ?? `${process.env.PUBLIC_WEB_URL ?? process.env.PUBLIC_APP_URL ?? "http://127.0.0.1:15173"}#dashboard/sandboxes`,
+  keycloakInvitationLifespanSeconds: Number(process.env.KEYCLOAK_INVITATION_LIFESPAN_SECONDS ?? 7 * 24 * 60 * 60),
   authDevAllow: process.env.AUTH_DEV_ALLOW === "1",
   openSandboxBaseUrl: process.env.OPEN_SANDBOX_BASE_URL ?? "http://127.0.0.1:8088",
   openSandboxGatewayUrl: process.env.OPEN_SANDBOX_GATEWAY_URL ?? "http://127.0.0.1:18085",

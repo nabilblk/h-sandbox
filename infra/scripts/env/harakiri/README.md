@@ -50,12 +50,18 @@ Use the explicit form when you need to override individual values:
 
 ```bash
 export HARAKIRI_PUBLIC_API_URL=https://sb-api.harakiri.io
+export HARAKIRI_PUBLIC_WEB_URL=https://sb.harakiri.io
 export HARAKIRI_PUBLIC_KEYCLOAK_URL=https://sb-auth.harakiri.io
 export HARAKIRI_SANDBOX_ROUTE_DOMAIN=harakiri.io
 export HARAKIRI_SANDBOX_ROUTE_SCHEME=https
 export HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST=http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri
+export SENDGRID_API_KEY=...
 pnpm deploy:k0s
 ```
+
+When `SENDGRID_API_KEY` is present, `deploy-public.sh` configures Keycloak SMTP
+with SendGrid, `no-reply@harakiri.io`, STARTTLS, and SMTP debug disabled. If the
+variable is absent, the wrapper leaves SMTP untouched.
 
 ## DNS And TLS
 

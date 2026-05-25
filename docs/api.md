@@ -81,6 +81,70 @@ pnpm openapi:check
 - `GET /v1/usage`
 - `GET /v1/org/settings`
 - `PATCH /v1/org/settings`
+- `GET /v1/org/members`
+- `POST /v1/org/invitations`
+- `POST /v1/org/invitations/:id/resend`
+- `POST /v1/org/invitations/:id/cancel`
+- `POST /v1/org/members`
+- `DELETE /v1/org/members/:id`
+
+## Organization Members
+
+Member management is an admin-only organization surface. `GET /v1/me` includes
+the current membership role and capability flags:
+
+```json
+{
+  "role": "admin",
+  "capabilities": { "canManageMembers": true }
+}
+```
+
+Use those flags for navigation and UI affordances, but rely on the API for
+authorization. Regular members receive `403 forbidden` from the member and
+invitation endpoints.
+
+List active members and pending invitations:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/org/members" \
+  -H "x-api-key: $HK_KEY"
+```
+
+Invite by email:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/org/invitations" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"email":"teammate@example.com"}'
+```
+
+Harakiri stores invitation intent, delivery state, role, audit events, and
+acceptance state. Keycloak owns identity, password setup, email verification,
+and login. When SMTP is configured, Harakiri asks Keycloak to send a required
+action email. If email delivery fails, the response still includes the saved
+invitation with `status: "send_failed"` and a redacted `lastError`; retry after
+fixing email delivery:
+
+```bash
+curl -X POST "$HARAKIRI_API_URL/v1/org/invitations/inv_.../resend" \
+  -H "x-api-key: $HK_KEY"
+```
+
+Cancel an outstanding invite or remove an active member:
+
+```bash
+curl -X POST "$HARAKIRI_API_URL/v1/org/invitations/inv_.../cancel" \
+  -H "x-api-key: $HK_KEY"
+
+curl -X DELETE "$HARAKIRI_API_URL/v1/org/members/mem_..." \
+  -H "x-api-key: $HK_KEY"
+```
+
+The API prevents self-removal and removing the last organization admin. For
+compatibility, `POST /v1/org/members` remains an alias for
+`POST /v1/org/invitations`.
 
 ## Create Sandbox
 

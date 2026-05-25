@@ -13,6 +13,7 @@
 ## Users
 
 - [API reference](api.md)
+- [Organization members](members.md)
 - [Templates](templates.md)
 - [Template builds](template-builds.md)
 - [Template runtime contract](template-runtime-contract.md)

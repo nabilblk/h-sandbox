@@ -18,7 +18,7 @@ test("small dashboard routes render without dashboard shell coupling", () => {
   assert.match(keys, /API keys/);
   assert.match(keys, /Create key/);
   assert.match(members, /Members/);
-  assert.match(members, /Add member/);
+  assert.match(members, /Invite member/);
   assert.match(settings, /Settings/);
   assert.match(settings, /Org-wide controls/);
 });

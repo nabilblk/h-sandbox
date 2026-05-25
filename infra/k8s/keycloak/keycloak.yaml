@@ -20,6 +20,16 @@ data:
       "enabled": true,
       "displayName": "Harakiri Sandbox",
       "loginTheme": "harakiri",
+      "emailTheme": "harakiri",
+      "smtpServer": {
+        "host": "mailpit.keycloak.svc.cluster.local",
+        "port": "1025",
+        "from": "no-reply@harakiri.local",
+        "fromDisplayName": "Harakiri",
+        "auth": "false",
+        "ssl": "false",
+        "starttls": "false"
+      },
       "clients": [
         {
           "clientId": "harakiri-web",
@@ -51,10 +61,190 @@ metadata:
   name: keycloak-theme-harakiri
   namespace: keycloak
 data:
-  theme.properties: |
+  login-theme.properties: |
     parent=base
     styles=css/harakiri-login.css
     locales=en
+    kcFormClass=hk-form
+    kcFormGroupClass=hk-field
+    kcLabelClass=hk-label
+    kcInputClass=hk-input
+    kcInputWrapperClass=hk-input-wrap
+    kcInputGroup=hk-input-group
+    kcInputErrorMessageClass=hk-error
+    kcInputHelperTextBeforeClass=hk-help
+    kcInputHelperTextAfterClass=hk-help
+    kcFormOptionsClass=hk-options
+    kcFormOptionsWrapperClass=hk-options-wrap
+    kcFormButtonsClass=hk-actions
+    kcButtonClass=hk-button
+    kcButtonPrimaryClass=hk-button-primary
+    kcButtonDefaultClass=hk-button-secondary
+    kcButtonLargeClass=hk-button-large
+    kcButtonBlockClass=hk-button-block
+    kcAlertClass=hk-alert
+    kcAlertTitleClass=hk-alert-title
+    kcContentWrapperClass=hk-content-wrap
+    kcFormGroupHeader=hk-group-title
+    kcTextareaClass=hk-input hk-textarea
+  email-theme.properties: |
+    parent=base
+    locales=en
+  email-messages-en.properties: |
+    executeActionsSubject=Complete your Harakiri account setup
+    emailVerificationSubject=Verify your Harakiri email
+  template.ftl: |
+    <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
+    <!doctype html>
+    <html lang="${lang!'en'}">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>${msg("loginTitle",(realm.displayName!'Harakiri Sandbox'))}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+      <link rel="stylesheet" href="${url.resourcesPath}/css/harakiri-login.css">
+    </head>
+    <body>
+      <main class="hk-shell hk-shell-compact">
+        <section class="hk-copy" aria-label="Harakiri Sandbox">
+          <div class="hk-brand">
+            <span class="hk-mark"></span>
+            <span><strong>harakiri</strong></span>
+          </div>
+          <div class="hk-eyebrow">
+            <span class="hk-pulse"></span>
+            Account setup
+          </div>
+          <h1><#nested "header"></h1>
+          <p class="hk-required-copy">
+            Complete the identity step in Keycloak. Harakiri keeps credentials out of the control plane and links your workspace after sign-in.
+          </p>
+          <div class="hk-terminal hk-terminal-small" aria-hidden="true">
+            <div class="hk-terminal-bar">
+              <span></span><span></span><span></span>
+              <b>identity - required action</b>
+              <i>sealed</i>
+            </div>
+            <div class="hk-terminal-body">
+              <code>$ harakiri auth verify</code>
+              <code class="muted">-&gt; keycloak challenge accepted</code>
+              <code class="ok">ok workspace access ready</code>
+            </div>
+          </div>
+        </section>
+        <section class="hk-panel">
+          <div class="hk-panel-head">
+            <div>
+              <span class="hk-caption">Harakiri account</span>
+              <h2><#nested "header"></h2>
+            </div>
+            <span class="hk-badge">realm: harakiri</span>
+          </div>
+          <#if displayMessage && message?has_content>
+            <div class="hk-alert hk-alert-${message.type}">
+              <span class="hk-alert-title">${kcSanitize(message.summary)?no_esc}</span>
+            </div>
+          </#if>
+          <#nested "form">
+          <#if displayInfo>
+            <div class="hk-foot"><#nested "info"></div>
+          </#if>
+        </section>
+      </main>
+    </body>
+    </html>
+    </#macro>
+  info.ftl: |
+    <#import "template.ftl" as layout>
+    <@layout.registrationLayout displayMessage=false; section>
+      <#if section = "header">
+        <#if messageHeader??>
+          ${kcSanitize(msg("${messageHeader}"))?no_esc}
+        <#else>
+          ${kcSanitize(message.summary)?no_esc}
+        </#if>
+      <#elseif section = "form">
+        <div class="hk-action-summary">
+          <p>
+            ${kcSanitize(message.summary)?no_esc}
+            <#if requiredActions??>
+              <#list requiredActions>
+                <span class="hk-required-list">
+                  <#items as reqActionItem><b>${kcSanitize(msg("requiredAction.${reqActionItem}"))?no_esc}</b><#sep><span>, </span></#items>
+                </span>
+              </#list>
+            </#if>
+          </p>
+          <#if !skipLink??>
+            <#if pageRedirectUri?has_content>
+              <a class="hk-button hk-button-primary hk-link-button" href="${pageRedirectUri}">${kcSanitize(msg("backToApplication"))?no_esc}</a>
+            <#elseif actionUri?has_content>
+              <a class="hk-button hk-button-primary hk-link-button" href="${actionUri}">Continue setup</a>
+            <#elseif (client.baseUrl)?has_content>
+              <a class="hk-button hk-button-primary hk-link-button" href="${client.baseUrl}">${kcSanitize(msg("backToApplication"))?no_esc}</a>
+            </#if>
+          </#if>
+        </div>
+      </#if>
+    </@layout.registrationLayout>
+  login-update-password.ftl: |
+    <#import "template.ftl" as layout>
+    <@layout.registrationLayout displayMessage=!messagesPerField.existsError('password','password-confirm'); section>
+      <#if section = "header">
+        Set your password
+      <#elseif section = "form">
+        <form id="kc-passwd-update-form" class="hk-form" onsubmit="login.disabled = true; return true;" action="${url.loginAction}" method="post">
+          <div class="hk-field">
+            <label for="password-new" class="hk-label">New password</label>
+            <input type="password" id="password-new" name="password-new" class="hk-input" autofocus autocomplete="new-password" aria-invalid="<#if messagesPerField.existsError('password','password-confirm')>true</#if>">
+            <#if messagesPerField.existsError('password')>
+              <span id="input-error-password" class="hk-error" aria-live="polite">${kcSanitize(messagesPerField.get('password'))?no_esc}</span>
+            </#if>
+          </div>
+          <div class="hk-field">
+            <label for="password-confirm" class="hk-label">Confirm password</label>
+            <input type="password" id="password-confirm" name="password-confirm" class="hk-input" autocomplete="new-password" aria-invalid="<#if messagesPerField.existsError('password-confirm')>true</#if>">
+            <#if messagesPerField.existsError('password-confirm')>
+              <span id="input-error-password-confirm" class="hk-error" aria-live="polite">${kcSanitize(messagesPerField.get('password-confirm'))?no_esc}</span>
+            </#if>
+          </div>
+          <label class="hk-check" for="logout-sessions">
+            <input type="checkbox" id="logout-sessions" name="logout-sessions" value="on">
+            <span>Sign out from other devices</span>
+          </label>
+          <div class="hk-actions">
+            <#if isAppInitiatedAction??>
+              <button name="login" class="hk-button hk-button-primary" type="submit">${msg("doSubmit")}</button>
+              <button class="hk-button hk-button-secondary" type="submit" name="cancel-aia" value="true">${msg("doCancel")}</button>
+            <#else>
+              <button name="login" class="hk-button hk-button-primary hk-button-block" type="submit">Save password</button>
+            </#if>
+          </div>
+        </form>
+      </#if>
+    </@layout.registrationLayout>
+  login-update-profile.ftl: |
+    <#import "template.ftl" as layout>
+    <#import "user-profile-commons.ftl" as userProfileCommons>
+    <@layout.registrationLayout displayMessage=messagesPerField.exists('global') displayRequiredFields=true; section>
+      <#if section = "header">
+        Complete your profile
+      <#elseif section = "form">
+        <form id="kc-update-profile-form" class="hk-form" action="${url.loginAction}" method="post">
+          <@userProfileCommons.userProfileFormFields/>
+          <div class="hk-actions">
+            <#if isAppInitiatedAction??>
+              <button class="hk-button hk-button-primary" type="submit">${msg("doSubmit")}</button>
+              <button class="hk-button hk-button-secondary" type="submit" name="cancel-aia" value="true" formnovalidate>${msg("doCancel")}</button>
+            <#else>
+              <button class="hk-button hk-button-primary hk-button-block" type="submit">Save profile</button>
+            </#if>
+          </div>
+        </form>
+      </#if>
+    </@layout.registrationLayout>
   login.ftl: |
     <!doctype html>
     <html lang="en">
@@ -129,6 +319,80 @@ data:
       </main>
     </body>
     </html>
+  email-html-template.ftl: |
+    <#macro emailLayout>
+    <!doctype html>
+    <html lang="${locale.language!'en'}">
+    <body style="margin:0;padding:0;background:#fafaf7;color:#0f0f0e;font-family:'Hanken Grotesk','Segoe UI',Arial,sans-serif;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#fafaf7;padding:32px 16px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #ecebe5;border-radius:8px;overflow:hidden;">
+              <tr>
+                <td style="padding:22px 26px;border-bottom:1px solid #ecebe5;background:#f4f3ee;">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="font-size:18px;font-weight:700;color:#0f0f0e;">
+                        <span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:#b8331f;color:#fff7f0;font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace;font-size:12px;font-weight:700;margin-right:8px;vertical-align:middle;">h.</span>
+                        harakiri
+                      </td>
+                      <td align="right" style="font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace;font-size:11px;color:#7a7a72;">sealed account setup</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:34px 34px 30px;">
+                  <#nested>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:18px 34px 24px;border-top:1px solid #ecebe5;color:#7a7a72;font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace;font-size:11px;line-height:1.6;">
+                  Keycloak owns credentials. Harakiri stores workspace access and sandbox control-plane state.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+    </#macro>
+  email-html-executeActions.ftl: |
+    <#outputformat "plainText">
+    <#assign requiredActionsText><#if requiredActions??><#list requiredActions><#items as reqActionItem>${msg("requiredAction.${reqActionItem}")}<#sep>, </#sep></#items></#list></#if></#assign>
+    </#outputformat>
+    <#import "template.ftl" as layout>
+    <@layout.emailLayout>
+      <h1 style="margin:0 0 14px;font-size:28px;line-height:1.05;letter-spacing:0;font-weight:700;color:#0f0f0e;">Complete your Harakiri account.</h1>
+      <p style="margin:0 0 18px;font-size:15px;line-height:1.55;color:#2a2a27;">You were invited to join a Harakiri workspace. Finish the Keycloak setup to verify your email and choose a password.</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" style="margin:22px 0;">
+        <tr>
+          <td style="background:#0f0f0e;border-radius:6px;">
+            <a href="${link}" style="display:inline-block;padding:12px 18px;color:#f7f7f3;text-decoration:none;font-size:14px;font-weight:600;">Open account setup</a>
+          </td>
+        </tr>
+      </table>
+      <div style="margin:24px 0;padding:14px 16px;border:1px solid #ecebe5;border-radius:6px;background:#f4f3ee;">
+        <div style="font-family:'JetBrains Mono','SFMono-Regular',Consolas,monospace;font-size:11px;text-transform:uppercase;color:#7a7a72;letter-spacing:.08em;margin-bottom:8px;">Required actions</div>
+        <div style="font-size:14px;color:#0f0f0e;">${requiredActionsText}</div>
+      </div>
+      <p style="margin:0;color:#7a7a72;font-size:13px;line-height:1.55;">This link expires in ${linkExpirationFormatter(linkExpiration)}. If you did not expect this invitation, ignore this email.</p>
+      <p style="margin:18px 0 0;color:#a8a89f;font-size:12px;line-height:1.5;word-break:break-all;">${link}</p>
+    </@layout.emailLayout>
+  email-text-executeActions.ftl: |
+    <#ftl output_format="plainText">
+    <#assign requiredActionsText><#if requiredActions??><#list requiredActions><#items as reqActionItem>${msg("requiredAction.${reqActionItem}")}<#sep>, </#items></#list><#else></#if></#assign>
+    Complete your Harakiri account setup
+
+    You were invited to join a Harakiri workspace. Finish the Keycloak setup to verify your email and choose a password.
+
+    Required actions: ${requiredActionsText}
+
+    Open account setup:
+    ${link}
+
+    This link expires in ${linkExpirationFormatter(linkExpiration)}. If you did not expect this invitation, ignore this email.
   harakiri-login.css: |
     :root {
       color-scheme: light;
@@ -184,7 +448,7 @@ data:
       gap: 8px;
       font-size: 15px;
       font-weight: 600;
-      letter-spacing: -0.01em;
+      letter-spacing: 0;
       margin-bottom: 42px;
       white-space: nowrap;
     }
@@ -194,7 +458,7 @@ data:
       font-weight: 400;
     }
     .hk-brand strong {
-      letter-spacing: -0.03em;
+      letter-spacing: 0;
     }
     .hk-mark {
       width: 18px;
@@ -205,7 +469,7 @@ data:
       align-items: center;
       justify-content: center;
       font: 700 10.5px/1 var(--font-mono);
-      letter-spacing: -0.8px;
+      letter-spacing: 0;
     }
     .hk-mark::before {
       content: "h.";
@@ -235,7 +499,7 @@ data:
       max-width: 660px;
       font-size: clamp(44px, 6vw, 64px);
       line-height: 1.02;
-      letter-spacing: -0.035em;
+      letter-spacing: 0;
       font-weight: 600;
       text-wrap: pretty;
     }
@@ -329,7 +593,7 @@ data:
       margin: 0;
       font-size: 28px;
       line-height: 1;
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       font-weight: 600;
     }
     .hk-badge {
@@ -393,18 +657,155 @@ data:
       font-size: 12.5px;
     }
     .hk-alert-error { border-color: oklch(0.75 0.12 25); color: var(--err); background: oklch(0.97 0.03 25); }
-    .hk-foot {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 11.5px;
-      font-family: var(--font-mono);
-    }
-    @media (max-width: 860px) {
-      .hk-shell {
-        display: flex;
+        .hk-foot {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 18px;
+          color: var(--muted);
+          font-size: 11.5px;
+          font-family: var(--font-mono);
+        }
+        .hk-shell-compact {
+          grid-template-columns: minmax(0, 0.95fr) minmax(420px, 0.75fr);
+          max-width: 1060px;
+        }
+        .hk-shell-compact h1 { max-width: 560px; }
+        .hk-required-copy { max-width: 500px; }
+        .hk-terminal-small { max-width: 520px; }
+        .hk-field {
+          display: grid;
+          gap: 7px;
+          margin: 0;
+        }
+        .hk-label {
+          color: var(--ink-2);
+          font-size: 12px;
+          font-weight: 600;
+          margin: 0;
+        }
+        .hk-input-wrap { display: grid; gap: 7px; }
+        .hk-input-group { display: flex; align-items: stretch; }
+        .hk-input,
+        select.hk-input,
+        textarea.hk-input {
+          width: 100%;
+          min-height: 40px;
+          border: 1px solid var(--border-strong);
+          border-radius: var(--r-md);
+          background: var(--surface);
+          color: var(--ink);
+          outline: 0;
+          padding: 0 12px;
+          font: 14px var(--font-sans);
+          transition: border-color .12s ease, box-shadow .12s ease;
+        }
+        textarea.hk-input {
+          min-height: 96px;
+          padding-block: 10px;
+          resize: vertical;
+        }
+        .hk-input:focus,
+        select.hk-input:focus,
+        textarea.hk-input:focus {
+          border-color: var(--ink);
+          box-shadow: 0 0 0 3px oklch(0.15 0.01 90 / 0.06);
+        }
+        .hk-input:disabled {
+          color: var(--muted);
+          background: var(--surface-2);
+          cursor: not-allowed;
+        }
+        .hk-help {
+          color: var(--muted);
+          font-size: 12px;
+        }
+        .hk-error {
+          color: var(--err);
+          font-size: 12px;
+          line-height: 1.35;
+        }
+        .hk-check {
+          min-height: 42px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 4px;
+          padding: 10px 12px;
+          border: 1px solid var(--border);
+          border-radius: var(--r-md);
+          background: var(--surface-2);
+          color: var(--ink-2);
+          font-size: 13px;
+        }
+        .hk-check input {
+          width: 16px;
+          height: 16px;
+          margin: 0;
+          accent-color: var(--accent);
+        }
+        .hk-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 8px;
+        }
+        .hk-button {
+          min-height: 42px;
+          border: 1px solid var(--ink);
+          border-radius: var(--r-md);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 14px;
+          cursor: pointer;
+          font: 500 14px var(--font-sans);
+          text-decoration: none;
+          transition: background .12s ease, border-color .12s ease, transform .06s ease;
+        }
+        .hk-button-primary {
+          background: var(--ink);
+          color: #f7f7f3;
+        }
+        .hk-button-primary:hover { background: #1d1d1a; }
+        .hk-button-secondary {
+          background: var(--surface);
+          color: var(--ink);
+          border-color: var(--border-strong);
+        }
+        .hk-button-block { width: 100%; }
+        .hk-link-button { width: fit-content; }
+        .hk-action-summary {
+          display: grid;
+          gap: 18px;
+        }
+        .hk-action-summary p {
+          margin: 0;
+          max-width: none;
+          font-size: 15px;
+          line-height: 1.55;
+        }
+        .hk-required-list {
+          display: block;
+          margin-top: 10px;
+        }
+        .hk-required-list b {
+          display: inline-flex;
+          align-items: center;
+          min-height: 22px;
+          padding: 0 8px;
+          border-radius: var(--r-sm);
+          background: var(--surface-2);
+          color: var(--ink);
+          font: 500 12px var(--font-mono);
+        }
+        .hk-content-wrap,
+        .hk-group-title {
+          color: var(--muted);
+          font-size: 12px;
+        }
+        @media (max-width: 860px) {
+          .hk-shell {
+            display: flex;
         flex-direction: column;
         align-items: stretch;
         gap: 28px;
@@ -416,6 +817,52 @@ data:
       .hk-panel { padding: 22px; }
       .hk-foot { flex-direction: column; }
     }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+  namespace: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mailpit
+  template:
+    metadata:
+      labels:
+        app: mailpit
+    spec:
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.27
+          ports:
+            - containerPort: 1025
+              name: smtp
+            - containerPort: 8025
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8025
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit
+  namespace: keycloak
+spec:
+  selector:
+    app: mailpit
+  ports:
+    - name: smtp
+      port: 1025
+      targetPort: 1025
+    - name: http
+      port: 8025
+      targetPort: 8025
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -452,7 +899,7 @@ spec:
             - name: realm
               mountPath: /opt/keycloak/data/import
             - name: harakiri-theme
-              mountPath: /opt/keycloak/themes/harakiri/login
+              mountPath: /opt/keycloak/themes/harakiri
           readinessProbe:
             httpGet:
               path: /realms/harakiri
@@ -467,12 +914,30 @@ spec:
           configMap:
             name: keycloak-theme-harakiri
             items:
-              - key: theme.properties
-                path: theme.properties
+              - key: login-theme.properties
+                path: login/theme.properties
+              - key: email-theme.properties
+                path: email/theme.properties
+              - key: email-messages-en.properties
+                path: email/messages/messages_en.properties
+              - key: template.ftl
+                path: login/template.ftl
+              - key: info.ftl
+                path: login/info.ftl
               - key: login.ftl
-                path: login.ftl
+                path: login/login.ftl
+              - key: login-update-password.ftl
+                path: login/login-update-password.ftl
+              - key: login-update-profile.ftl
+                path: login/login-update-profile.ftl
+              - key: email-html-template.ftl
+                path: email/html/template.ftl
+              - key: email-html-executeActions.ftl
+                path: email/html/executeActions.ftl
+              - key: email-text-executeActions.ftl
+                path: email/text/executeActions.ftl
               - key: harakiri-login.css
-                path: resources/css/harakiri-login.css
+                path: login/resources/css/harakiri-login.css
 ---
 apiVersion: v1
 kind: Service

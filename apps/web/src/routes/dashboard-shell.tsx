@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { OrganizationSettings } from "@harakiri/shared";
+import type { CurrentAccountResponse } from "@harakiri/shared";
 import { api } from "../api";
 import type { UserProfile } from "../auth";
 import { Brand } from "../components/brand";
@@ -27,24 +27,26 @@ export const DashboardShellRoute = ({
   onSignOut: () => void;
 }) => {
   const sub = route.split("/")[1] ?? "sandboxes";
-  const [organization, setOrganization] = useState<OrganizationSettings | null>(null);
-  useEffect(() => { api.me().then((r) => setOrganization(r.organization)).catch(() => undefined); }, []);
-  const org = organization ?? defaultWorkspace(profile);
+  const [account, setAccount] = useState<CurrentAccountResponse | null>(null);
+  useEffect(() => { api.me().then(setAccount).catch(() => undefined); }, []);
+  const org = account?.organization ?? defaultWorkspace(profile);
   const orgInitial = (org.name || profile?.email || "H").slice(0, 1).toUpperCase();
+  const canManageMembers = account?.capabilities.canManageMembers === true;
+  const navItems = [
+    ["dashboard/sandboxes", "Sandboxes", "box"],
+    ["dashboard/templates", "Templates", "folder"],
+    ["dashboard/metrics", "Usage", "chart"],
+    ["dashboard/keys", "API keys", "key"],
+    ...(canManageMembers ? [["dashboard/members", "Members", "user"]] : []),
+    ["dashboard/settings", "Settings", "settings"]
+  ] as const;
   return (
     <div className="dash">
       <aside className="dash-side">
         <div className="dash-side-brand"><button className="btn btn-ghost" onClick={() => go("landing")} style={{ padding: 0, height: "auto" }}><Brand /></button></div>
         <div className="org-switcher"><div className="org-ava">{orgInitial}</div><div style={{ flex: 1 }}><div className="org-name">{org.slug}</div><div className="org-plan">Team - 4 seats</div></div><Icon name="chevDown" size={12} /></div>
         <nav className="side-nav">
-          {[
-            ["dashboard/sandboxes", "Sandboxes", "box"],
-            ["dashboard/templates", "Templates", "folder"],
-            ["dashboard/metrics", "Usage", "chart"],
-            ["dashboard/keys", "API keys", "key"],
-            ["dashboard/members", "Members", "user"],
-            ["dashboard/settings", "Settings", "settings"]
-          ].map(([key, label, icon]) => (
+          {navItems.map(([key, label, icon]) => (
             <a key={key} className={`side-link ${route === key ? "active" : ""}`} onClick={() => go(key as Route)}><Icon name={icon} size={14} /><span>{label}</span></a>
           ))}
         </nav>
@@ -56,7 +58,8 @@ export const DashboardShellRoute = ({
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}
         {sub === "keys" ? <ApiKeysRoute /> : null}
-        {sub === "members" ? <MembersRoute /> : null}
+        {sub === "members" && account && !canManageMembers ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Member management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}
+        {sub === "members" && canManageMembers ? <MembersRoute /> : null}
         {sub === "settings" ? <SettingsRoute /> : null}
       </main>
     </div>

@@ -37,6 +37,7 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
   assert.equal(openApiDocument.openapi, "3.1.0");
   assert.deepEqual([...openApiPathMethodPairs].sort(), [
     "DELETE /v1/api-keys/{id}",
+    "DELETE /v1/org/members/{id}",
     "DELETE /v1/registry-credentials/{id}",
     "DELETE /v1/sandboxes/{id}",
     "DELETE /v1/sandboxes/{id}/routes/{port}",
@@ -64,6 +65,9 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "PATCH /v1/org/settings",
     "POST /v1/api-keys",
     "POST /v1/me/onboarding/complete",
+    "POST /v1/org/invitations",
+    "POST /v1/org/invitations/{id}/cancel",
+    "POST /v1/org/invitations/{id}/resend",
     "POST /v1/org/members",
     "POST /v1/registry-credentials",
     "POST /v1/sandboxes",

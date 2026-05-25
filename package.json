@@ -27,6 +27,7 @@
     "ports:restart": "bash infra/scripts/port-forward.sh restart",
     "ports:status": "bash infra/scripts/port-forward.sh status",
     "smoke": "bash infra/scripts/smoke.sh",
+    "smoke:members": "bash infra/scripts/member-invitation-smoke.sh",
     "smoke:ttl": "bash infra/scripts/ttl-smoke.sh",
     "smoke:renew": "bash infra/scripts/renew-smoke.sh",
     "smoke:templates": "bash infra/scripts/template-catalog-smoke.sh",

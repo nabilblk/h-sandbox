@@ -5,11 +5,11 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 ## Components
 
 - Web app: high-fidelity React dashboard based on `sandbox_mockups/`.
-- Control-plane API: Fastify service that owns orgs, API keys, sandbox records, routing, schedules, usage, and audit events.
+- Control-plane API: Fastify service that owns orgs, invitations, memberships, API keys, sandbox records, routing, schedules, usage, and audit events.
 - Scheduler: worker process that kills expired sandboxes, records lifecycle
   events, and runs template retention cleanup.
 - PostgreSQL: source of truth for control-plane data.
-- Keycloak: OIDC identity provider for browser users.
+- Keycloak: OIDC identity provider for browser users, password setup, and email verification.
 - OpenSandbox: runtime provider for sandbox lifecycle.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
 - Template builder: k0s worker deployment that consumes queued image-import and
@@ -44,14 +44,16 @@ CLI, and documented template/runtime behavior.
 
 1. A Keycloak session or API key authenticates to the Harakiri API.
 2. The API writes control-plane intent to PostgreSQL.
-3. The API calls OpenSandbox for sandbox lifecycle operations.
-4. Terminal commands, filesystem metadata, metrics, logs, and HTTP route
+3. For member invitations, the API stores invitation intent and asks Keycloak
+   to send required-action setup emails; Keycloak remains the credential owner.
+4. The API calls OpenSandbox for sandbox lifecycle operations.
+5. Terminal commands, filesystem metadata, metrics, logs, and HTTP route
    targets use OpenSandbox APIs. For the sandbox data plane, Harakiri resolves
    the OpenSandbox `execd` endpoint on port `44772` and calls that endpoint
    with the returned access headers.
-5. The scheduler reconciles provider state, TTL, idle schedules, and template
+6. The scheduler reconciles provider state, TTL, idle schedules, and template
    retention cleanup.
-6. The web app and CLI read the persisted control-plane state.
+7. The web app and CLI read the persisted control-plane state.
 
 ## Template Build Subsystem
 

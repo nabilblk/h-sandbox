@@ -21,6 +21,7 @@ Useful local URLs:
 - Web: `http://127.0.0.1:15173`
 - API: `http://127.0.0.1:18082`
 - Keycloak: `http://127.0.0.1:18084`
+- Mailpit: `http://127.0.0.1:18086`
 - OpenSandbox proxy: `http://127.0.0.1:18083`
 - OpenSandbox gateway: `http://127.0.0.1:18085`
 
@@ -57,6 +58,8 @@ The deploy script:
 - builds the official OpenSandbox ingress component locally as `opensandbox-ingress:local` for the k0s node architecture
 - applies PostgreSQL, Keycloak, API, scheduler, and web manifests
 - applies the Harakiri Keycloak login theme from the `keycloak-theme-harakiri` ConfigMap
+- installs Mailpit in the Keycloak namespace for development invite-email capture
+- configures Keycloak realm SMTP to send development invitation emails to Mailpit
 - installs or upgrades the official OpenSandbox all-in-one Helm chart with gateway mode enabled
 
 The k0s manifest sets `OPEN_SANDBOX_ALLOW_FALLBACK=0`, so sandbox tests fail
@@ -71,7 +74,7 @@ those requests to `OPEN_SANDBOX_GATEWAY_URL` with the returned
 pnpm ports
 ```
 
-This uses kubeconfig `infra/k0s/harakiri.kubeconfig`, opens the API, web, Keycloak, OpenSandbox server, and OpenSandbox gateway forwards, and stores logs/PIDs under `/tmp/harakiri-portforwards`.
+This uses kubeconfig `infra/k0s/harakiri.kubeconfig`, opens the API, web, Keycloak, Mailpit, OpenSandbox server, and OpenSandbox gateway forwards, and stores logs/PIDs under `/tmp/harakiri-portforwards`.
 When `tmux` is available, the forwards run in a persistent `harakiri-port-forwards` tmux session.
 
 ```bash
@@ -81,12 +84,52 @@ pnpm ports:restart
 bash infra/scripts/port-forward.sh attach
 ```
 
+## Member Invitations
+
+Harakiri stores invitation state and organization access. Keycloak owns user
+identity, password setup, and email verification. The API needs Keycloak admin
+credentials to create users and trigger required-action setup emails:
+
+```bash
+KEYCLOAK_ADMIN_BASE_URL=http://keycloak.keycloak.svc.cluster.local:8080
+KEYCLOAK_ADMIN_REALM=harakiri
+KEYCLOAK_ADMIN_TOKEN_REALM=master
+KEYCLOAK_ADMIN_CLIENT_ID=admin-cli
+KEYCLOAK_ADMIN_USERNAME=admin
+KEYCLOAK_ADMIN_PASSWORD=...
+KEYCLOAK_INVITATION_CLIENT_ID=harakiri-web
+KEYCLOAK_INVITATION_REDIRECT_URI=http://127.0.0.1:15173/#dashboard/sandboxes
+```
+
+The k0s development manifests use the local Keycloak admin account and Mailpit.
+After `pnpm deploy:k0s && pnpm ports:restart`, open Mailpit at
+`http://127.0.0.1:18086` to inspect invitation emails.
+
+To verify manually:
+
+```bash
+curl http://127.0.0.1:18082/v1/org/invitations \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"email":"invite-smoke@example.com"}'
+```
+
+Then open Mailpit, follow the Keycloak action link, set a password, and sign in
+with the invited email. The next login accepts the pending invitation, creates
+the membership, and routes the user into the invited organization. A regular
+member should not see the Members navigation item; direct member-management API
+requests should return `403`.
+
+For production, replace Mailpit with real SMTP in Keycloak and use a Keycloak
+service account or managed admin secret instead of the development admin user.
+
 ## Smoke Test
 
 Core platform checks:
 
 ```bash
 pnpm smoke
+pnpm smoke:members
 pnpm smoke:ttl
 pnpm smoke:templates
 pnpm smoke:template-redaction
@@ -115,6 +158,9 @@ available inside the runtime, and checks control-plane events record only the
 env key name plus runtime workdir metadata.
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
+`pnpm smoke:members` verifies admin member-management capability, Keycloak
+invitation delivery to Mailpit when available, existing-Keycloak-user
+membership activation, and regular-member `403` authorization.
 
 Environment-specific public route checks are intentionally outside the generic
 runbook:

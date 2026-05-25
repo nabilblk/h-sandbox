@@ -4,10 +4,25 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 : "${HARAKIRI_PUBLIC_API_URL:=https://sb-api.harakiri.io}"
+: "${HARAKIRI_PUBLIC_WEB_URL:=https://sb.harakiri.io}"
 : "${HARAKIRI_PUBLIC_KEYCLOAK_URL:=https://sb-auth.harakiri.io}"
 : "${HARAKIRI_SANDBOX_ROUTE_DOMAIN:=harakiri.io}"
 : "${HARAKIRI_SANDBOX_ROUTE_SCHEME:=https}"
 : "${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST:=http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri}"
+: "${HARAKIRI_KEYCLOAK_SMTP_HOST:=smtp.sendgrid.net}"
+: "${HARAKIRI_KEYCLOAK_SMTP_PORT:=587}"
+: "${HARAKIRI_KEYCLOAK_SMTP_FROM:=no-reply@harakiri.io}"
+: "${HARAKIRI_KEYCLOAK_SMTP_FROM_DISPLAY:=Harakiri}"
+: "${HARAKIRI_KEYCLOAK_SMTP_AUTH:=true}"
+: "${HARAKIRI_KEYCLOAK_SMTP_USER:=apikey}"
+: "${HARAKIRI_KEYCLOAK_SMTP_PASSWORD:=${SENDGRID_API_KEY:-}}"
+: "${HARAKIRI_KEYCLOAK_SMTP_STARTTLS:=true}"
+: "${HARAKIRI_KEYCLOAK_SMTP_SSL:=false}"
+if [[ -n "${HARAKIRI_KEYCLOAK_SMTP_PASSWORD}" ]]; then
+  : "${HARAKIRI_CONFIGURE_KEYCLOAK_SMTP:=1}"
+else
+  : "${HARAKIRI_CONFIGURE_KEYCLOAK_SMTP:=0}"
+fi
 
 # The maintainer k0s lab already has these components installed. Override to 1
 # when bootstrapping a fresh cluster from this wrapper.
@@ -15,10 +30,21 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 : "${HARAKIRI_INSTALL_INGRESS_NGINX:=0}"
 
 export HARAKIRI_PUBLIC_API_URL
+export HARAKIRI_PUBLIC_WEB_URL
 export HARAKIRI_PUBLIC_KEYCLOAK_URL
 export HARAKIRI_SANDBOX_ROUTE_DOMAIN
 export HARAKIRI_SANDBOX_ROUTE_SCHEME
 export HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST
+export HARAKIRI_CONFIGURE_KEYCLOAK_SMTP
+export HARAKIRI_KEYCLOAK_SMTP_HOST
+export HARAKIRI_KEYCLOAK_SMTP_PORT
+export HARAKIRI_KEYCLOAK_SMTP_FROM
+export HARAKIRI_KEYCLOAK_SMTP_FROM_DISPLAY
+export HARAKIRI_KEYCLOAK_SMTP_AUTH
+export HARAKIRI_KEYCLOAK_SMTP_USER
+export HARAKIRI_KEYCLOAK_SMTP_PASSWORD
+export HARAKIRI_KEYCLOAK_SMTP_STARTTLS
+export HARAKIRI_KEYCLOAK_SMTP_SSL
 export HARAKIRI_BUILD_OPEN_SANDBOX_INGRESS
 export HARAKIRI_INSTALL_INGRESS_NGINX
 

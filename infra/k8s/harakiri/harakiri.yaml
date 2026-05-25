@@ -7,6 +7,8 @@ type: Opaque
 stringData:
   DATABASE_URL: postgres://harakiri:harakiri@harakiri-postgres.harakiri.svc.cluster.local:5432/harakiri
   OPEN_SANDBOX_API_KEY: dev-opensandbox-key
+  KEYCLOAK_ADMIN_USERNAME: admin
+  KEYCLOAK_ADMIN_PASSWORD: admin
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -16,6 +18,7 @@ metadata:
 data:
   API_PORT: "8080"
   PUBLIC_API_URL: "http://127.0.0.1:18082"
+  PUBLIC_WEB_URL: "http://127.0.0.1:15173"
   PUBLIC_KEYCLOAK_URL: "http://127.0.0.1:18084"
   PUBLIC_KEYCLOAK_REALM: "harakiri"
   PUBLIC_KEYCLOAK_CLIENT_ID: "harakiri-web"
@@ -70,6 +73,7 @@ data:
   KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
   KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
   KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
+  KEYCLOAK_INVITATION_REDIRECT_URI: "http://127.0.0.1:15173/#dashboard/sandboxes"
   OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_GATEWAY_URL: "http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_ALLOW_FALLBACK: "0"

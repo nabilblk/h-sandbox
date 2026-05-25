@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { recordAuditEvent } from "./audit.js";
 import { requireAuth } from "./auth.js";
 import { query as defaultQuery } from "./db.js";
+import { keycloakAdminClient, type KeycloakAdminClient } from "./providers/auth/keycloak-admin.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "./providers/runtime/index.js";
 import { registerAccountRoutes } from "./routes/account.js";
 import { registerApiKeyRoutes } from "./routes/api-keys.js";
@@ -25,6 +26,7 @@ export type RouteDependencies = {
   requireAuth?: typeof requireAuth;
   recordAudit?: typeof defaultAudit;
   recordSandboxEvent?: ReturnType<typeof createSandboxEventRecorder>;
+  keycloakAdmin?: KeycloakAdminClient;
 };
 
 export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDependencies = {}) => {
@@ -40,7 +42,7 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
     return authHandler(request, reply);
   });
 
-  await registerAccountRoutes(app, { query, recordAudit: audit });
+  await registerAccountRoutes(app, { query, recordAudit: audit, keycloakAdmin: dependencies.keycloakAdmin ?? keycloakAdminClient });
   await registerTemplateRoutes(app, { query, recordAudit: audit });
   await registerTemplateBuildRoutes(app, { query, recordAudit: audit });
   await registerApiKeyRoutes(app, { query, recordAudit: audit });
