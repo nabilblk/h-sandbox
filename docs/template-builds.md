@@ -3,8 +3,8 @@
 Template builds are the control-plane path from a Dockerfile, Git source, or
 existing image reference to an immutable template version. The current
 implementation includes an image-import worker that resolves existing OCI image
-references to immutable digests, plus Dockerfile build execution through a
-Kaniko Kubernetes Job in k0s. Git builds remain future work.
+references to immutable digests, plus Dockerfile build execution through the
+rootless BuildKit Kubernetes builder. Git builds remain future work.
 
 ## Data Flow
 
@@ -24,9 +24,11 @@ Kaniko Kubernetes Job in k0s. Git builds remain future work.
 6. For `sourceType=image`, the builder resolves the registry
    manifest digest and creates a digest-pinned runtime version.
 7. For `sourceType=dockerfile`, the builder creates a Kubernetes Job with a
-   context-exporter init container and a Kaniko container. Kaniko builds the OCI
-   image, pushes it to the configured registry, and writes the pushed digest to
-   the Job termination log.
+   context-exporter init container and a rootless BuildKit container. BuildKit
+   creates the OCI image, pushes it to the configured registry, exports registry
+   cache metadata, and writes the pushed digest metadata to the Job termination
+   log. Set `TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy` only when the legacy
+   compatibility provider is needed.
 8. On success, the worker writes a `ready` `template_versions` row, attaches the
    build ID, digest, resources, ports, workdir, metadata, provenance, deferred
    scan status, and promotes the desired alias.
@@ -231,36 +233,42 @@ builder actor label `harakiri-template-builder`.
 Build list responses include the resulting template version ID when a build has
 produced one. Build detail surfaces the redacted build metadata and uploaded
 context summary: context digest, archive size, file count, format, and upload
-timestamp. Dockerfile builds also expose the Kubernetes builder runtime
-metadata after completion: `builderJobName`, `builderPodName`,
-`builderPodUid`, `builderNodeName`, and `builderNamespace`. The context archive
-itself is not returned by the API.
+timestamp. Dockerfile builds also expose builder runtime metadata after
+completion: `builderJobName`, `builderPodName`, `builderPodUid`,
+`builderNodeName`, and `builderNamespace`, plus provider-specific details under
+`builderDetails`. The context archive itself is not returned by the API.
+Build context archives are accessed through `BlobStore`, and build logs are
+appended and listed through `BuildLogStore`. The active compatibility
+implementation still uses PostgreSQL tables.
 
 The dashboard keeps failed build records actionable. Selecting a failed row
 shows a failure panel that classifies image policy, registry digest lookup, and
-Dockerfile/Kaniko errors, links to product troubleshooting docs, and keeps Retry
-beside the retained error. If logs are still loading or were not recorded before
-the failure, the log viewer states that explicitly instead of looking empty.
+Dockerfile builder errors, links to product troubleshooting docs, and keeps
+Retry beside the retained error. If logs are still loading or were not recorded
+before the failure, the log viewer states that explicitly instead of looking
+empty.
 
 If a template is archived while a queued or building record exists, the API
 marks those active builds `canceled`. If a Kubernetes build job finishes after
 the record was canceled, the builder ignores the result instead of promoting it
 back onto the archived template.
 
-For Dockerfile builds, the worker creates a short-lived Kubernetes Job in the
-`harakiri` namespace. The Job uses the API image as a context-exporter init
-container, reads the verified archive from PostgreSQL, expands it into an
-emptyDir workspace, and then runs Kaniko against that workspace. Kaniko pushes
-to `TEMPLATE_REGISTRY_PUSH_HOST`; Harakiri stores the runtime image using
-`TEMPLATE_REGISTRY_RUNTIME_HOST` so OpenSandbox can pull the digest-pinned image
-from the node-local registry. The worker stores the Job name, Pod name, Pod UID,
-namespace, and Kubernetes node name in the build metadata so operators can
-correlate dashboard/API records with cluster logs.
+For Dockerfile builds, the default BuildKit builder creates a short-lived
+Kubernetes Job in the `harakiri` namespace. The Job uses the API image as a
+context-exporter init container, reads the verified archive through the control
+plane storage path, expands it into an emptyDir workspace, and then runs
+`moby/buildkit:rootless` with `buildctl-daemonless.sh` against that workspace.
+The builder pushes to `TEMPLATE_REGISTRY_PUSH_HOST`; Harakiri stores the
+runtime image using `TEMPLATE_REGISTRY_RUNTIME_HOST` so OpenSandbox can pull
+the digest-pinned image from the node-local registry. The worker stores the Job
+name, Pod name, Pod UID, namespace, Kubernetes node name, BuildKit image,
+rootless flags, cache reference, and registry mode in the build metadata so
+operators can correlate dashboard/API records with cluster logs.
 Generated repositories include an organization namespace:
 `<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/<template-id>`.
-Kaniko cache repositories use the same organization namespace. This keeps team
-images and cache layers separated even when multiple organizations share one
-registry host.
+Builder cache repositories use the same organization namespace. This keeps
+team images and cache layers separated even when multiple organizations share
+one registry host.
 
 Before a successful build inserts the ready `template_versions` row, the worker
 also creates a short-lived Pod using the digest-pinned runtime image. This

@@ -2,15 +2,72 @@
 
 Command-line client for Harakiri Sandbox.
 
+## Install From This Repository
+
+Build and install the CLI as a normal executable instead of invoking
+`node packages/cli/dist/index.js` directly:
+
+```bash
+pnpm install
+pnpm cli:pack
+npm install -g ./dist-packages/harakiri-cli-0.1.0.tgz
+harakiri --version
+```
+
+`pnpm cli:pack` runs the package build first, which compiles the SDK and CLI and
+marks `dist/index.js` executable. The installed `harakiri` binary is the same
+entrypoint that a published npm package will expose through the package `bin`
+field.
+
+For development without a global install:
+
+```bash
+pnpm --filter @harakiri/cli build
+pnpm --filter @harakiri/cli exec harakiri --version
+```
+
+When the package is published, install it with:
+
+```bash
+npm install -g @harakiri/cli
+```
+
+## Configure
+
+Store the API URL and key once:
+
+```bash
+harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
+```
+
+The CLI also reads `HARAKIRI_API_URL` and `HARAKIRI_API_KEY`. Local login
+settings are written to `~/.config/harakiri/config.json`.
+
+## Common Commands
+
 ```bash
 harakiri init
-harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
 harakiri create --template python-3.12-data --env HARAKIRI_ENV_SMOKE=env-ok
 harakiri run --stdin agent.py
+harakiri files sbx_... --path /workspace
+harakiri logs sbx_...
+harakiri expose sbx_... --port 3000
+harakiri routes sbx_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
+harakiri registry upsert --name ghcr --registry-host ghcr.io --username robot --secret "$TOKEN" --purpose push_pull
 ```
 
 Dockerfile builds package the local context as tar+gzip, upload it to the API,
-run Kaniko in k0s, and store a digest-pinned ready template version.
+run the configured Kubernetes image builder, and store a digest-pinned ready
+template version. The default OSS builder is rootless BuildKit.
+
+## Verify Before Publishing
+
+```bash
+pnpm --filter @harakiri/cli test
+pnpm --filter @harakiri/cli typecheck
+pnpm --filter @harakiri/cli build
+pnpm cli:pack
+```

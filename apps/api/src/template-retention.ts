@@ -3,6 +3,10 @@ import { config } from "./config.js";
 import { query } from "./db.js";
 import { kubernetes } from "./kubernetes.js";
 import { recordAuditEvent } from "./audit.js";
+import type { BlobStore } from "./storage/blob-store.js";
+import type { BuildLogStore } from "./storage/build-log-store.js";
+import { PostgresTemplateBuildContextBlobStore } from "./storage/postgres-blob-store.js";
+import { buildLogStore } from "./build-logs.js";
 
 type QueryResult<T = Record<string, unknown>> = {
   rowCount?: number | null;
@@ -10,7 +14,7 @@ type QueryResult<T = Record<string, unknown>> = {
 };
 
 type QueryRunner = {
-  query: (text: string, params?: unknown[]) => Promise<QueryResult>;
+  query: <T = Record<string, unknown>>(text: string, params?: unknown[]) => Promise<QueryResult<T>>;
 };
 
 type BatchApi = {
@@ -39,8 +43,10 @@ export type TemplateRetentionReport = {
 const terminalBuildStatuses = ["success", "failed", "canceled"];
 
 const defaultDb: QueryRunner = {
-  query: (text, params = []) => query(text, params) as Promise<QueryResult>
+  query: <T = Record<string, unknown>>(text: string, params: unknown[] = []) => query<T & Record<string, unknown>>(text, params) as Promise<QueryResult<T>>
 };
+
+const defaultBuildContextStore = new PostgresTemplateBuildContextBlobStore();
 
 export const templateRetentionPolicy = (): TemplateRetentionPolicy => ({
   enabled: config.templateRetentionEnabled,
@@ -95,7 +101,7 @@ export const cleanupTemplateBuilderJobs = async (
 };
 
 export const cleanupTemplateRetention = async (
-  options: { policy?: TemplateRetentionPolicy; now?: Date; db?: QueryRunner; batch?: BatchApi } = {}
+  options: { policy?: TemplateRetentionPolicy; now?: Date; db?: QueryRunner; batch?: BatchApi; buildLogStore?: BuildLogStore; buildContextStore?: BlobStore } = {}
 ): Promise<TemplateRetentionReport> => {
   const policy = options.policy ?? templateRetentionPolicy();
   const report: TemplateRetentionReport = {
@@ -109,31 +115,31 @@ export const cleanupTemplateRetention = async (
 
   const now = options.now ?? new Date();
   const db = options.db ?? defaultDb;
+  const logs = options.buildLogStore ?? buildLogStore;
+  const contexts = options.buildContextStore ?? defaultBuildContextStore;
 
   if (enabledDays(policy.buildLogRetentionDays)) {
-    const result = await db.query(
-      `DELETE FROM template_build_logs l
-       USING template_builds b
-       WHERE l.build_id = b.id
-         AND b.status = ANY($1::text[])
+    const result = await db.query<{ id: string }>(
+      `SELECT b.id
+       FROM template_builds b
+       WHERE b.status = ANY($1::text[])
          AND b.completed_at IS NOT NULL
          AND b.completed_at < ($2::timestamptz - make_interval(days => $3::int))`,
       [terminalBuildStatuses, now, policy.buildLogRetentionDays]
     );
-    report.logsDeleted = count(result);
+    for (const row of result.rows) report.logsDeleted += await logs.delete(row.id);
   }
 
   if (enabledDays(policy.buildContextRetentionDays)) {
-    const result = await db.query(
-      `DELETE FROM template_build_contexts c
-       USING template_builds b
-       WHERE c.build_id = b.id
-         AND b.status = ANY($1::text[])
+    const result = await db.query<{ id: string }>(
+      `SELECT b.id
+       FROM template_builds b
+       WHERE b.status = ANY($1::text[])
          AND b.completed_at IS NOT NULL
          AND b.completed_at < ($2::timestamptz - make_interval(days => $3::int))`,
       [terminalBuildStatuses, now, policy.buildContextRetentionDays]
     );
-    report.contextsDeleted = count(result);
+    for (const row of result.rows) report.contextsDeleted += await contexts.delete({ store: contexts.kind, key: row.id });
   }
 
   if (enabledDays(policy.buildRetentionDays)) {

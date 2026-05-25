@@ -11,10 +11,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - "*.harakiri.io"
+        - "*.sandbox.localhost"
       secretName: harakiri-sandbox-wildcard-tls
   rules:
-    - host: "*.harakiri.io"
+    - host: "*.sandbox.localhost"
       http:
         paths:
           - path: /

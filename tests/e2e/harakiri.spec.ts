@@ -95,10 +95,12 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
     const webSandboxId = (await page.locator(".detail-id").textContent())?.trim();
     expect(webSandboxId).toMatch(/^sbx_/);
     cleanupIds.push(webSandboxId!);
+    await expect(page.locator(".detail-top")).toContainText("running", { timeout: 30_000 });
 
     const webFetched = await request.get(`${API_URL}/v1/sandboxes/${webSandboxId}`, { headers: keyHeaders(apiKey) });
     expect(webFetched.ok()).toBeTruthy();
     const webFetchedBody = await webFetched.json();
+    expect(webFetchedBody.sandbox.status).toBe("running");
     expect(webFetchedBody.sandbox.opensandboxId).toBeTruthy();
     expect(webFetchedBody.sandbox.opensandboxId).not.toMatch(/^osbx_/);
 
@@ -122,16 +124,51 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
     expect(webLogsBody.logs.length).toBeGreaterThan(0);
     expect(webLogsBody.logs.every((log: { source?: string }) => log.source === "sandbox" || log.source === "control-plane")).toBeTruthy();
 
+    await page.getByRole("button", { name: /Metrics/i }).click();
+    await expect(page.getByText("CPU snapshot")).toBeVisible({ timeout: 90_000 });
+    const webMetrics = await request.get(`${API_URL}/v1/sandboxes/${webSandboxId}/metrics`, { headers: keyHeaders(apiKey) });
+    expect(webMetrics.ok()).toBeTruthy();
+    const webMetricsBody = await webMetrics.json();
+    expect(webMetricsBody.current).toBeTruthy();
+    expect(webMetricsBody.series.length).toBeGreaterThan(0);
+
+    await page.getByRole("button", { name: /Network/i }).click();
+    await expect(page.getByText("Expose port")).toBeVisible();
+    await expect(page.getByText("No exposed ports yet.")).toBeVisible();
+    await page.screenshot({ path: "/tmp/harakiri-auth-runtime-tabs.png", fullPage: true });
+
     await page.getByRole("button", { name: /Kill/i }).click();
     await expect(page.locator(".detail-top")).toContainText("terminated", { timeout: 45_000 });
     cleanupIds.pop();
+
+    await page.getByRole("button", { name: /All sandboxes/i }).click();
+    await page.locator(".side-link", { hasText: "Templates" }).click();
+    await expect(page.getByRole("heading", { name: "Templates" })).toBeVisible();
+    await expect(page.locator(".tmpl-tab.active")).toContainText("List");
+    await expect(page.locator(".tmpl-list")).toContainText("python-3.12", { timeout: 45_000 });
+    await page.locator(".tmpl-tab", { hasText: "Builds" }).click();
+    await expect(page.locator(".tmpl-tab.active")).toContainText("Builds");
+    await expect(page.locator(".tmpl-builds")).toBeVisible();
+    await page.screenshot({ path: "/tmp/harakiri-auth-template-tabs.png", fullPage: true });
+
+    await page.goto(`${WEB_URL}/#docs`);
+    await expect(page.locator(".docs-body h1")).toContainText("Quickstart");
+    await page.locator(".docs-link", { hasText: "Template builds" }).click();
+    await expect(page.locator(".docs-body h1")).toContainText("Template builds");
+    await page.locator(".docs-link", { hasText: "API reference" }).click();
+    await expect(page.locator(".docs-body h1")).toContainText("API reference");
+    await page.screenshot({ path: "/tmp/harakiri-auth-docs.png", fullPage: true });
 
     const apiCreate = await request.post(`${API_URL}/v1/sandboxes`, {
       headers: keyHeaders(apiKey),
       data: { template: "python-3.12", name: `api-real-${Date.now()}`, ttlSeconds: 90 }
     });
     expect(apiCreate.ok()).toBeTruthy();
+    expect(apiCreate.status()).toBe(201);
     const apiCreated = await apiCreate.json();
+    expect(apiCreated.status).not.toBe("pending");
+    expect(apiCreated.operation).toBeUndefined();
+    expect(apiCreated.sandbox.status).toBe("running");
     expect(apiCreated.sandbox.opensandboxId).toBeTruthy();
     expect(apiCreated.sandbox.opensandboxId).not.toMatch(/^osbx_/);
     cleanupIds.push(apiCreated.sandbox.id);
@@ -150,11 +187,14 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
     try {
       await runCli(["login", "--api-url", API_URL, "--api-key", apiKey], cliHome);
       const create = await runCli(["create", "--template", "python-3.12", "--name", `cli-real-${Date.now()}`, "--ttl", "90"], cliHome);
+      expect(create.stdout).toContain("sealed.");
+      expect(create.stdout).not.toContain("queued.");
       const cliSandboxId = create.stdout.split(/\r?\n/).find((line) => /^sbx_/.test(line.trim()))?.trim();
       expect(cliSandboxId).toMatch(/^sbx_/);
       cleanupIds.push(cliSandboxId!);
       const cliFetched = await request.get(`${API_URL}/v1/sandboxes/${cliSandboxId}`, { headers: keyHeaders(apiKey) });
       const cliFetchedBody = await cliFetched.json();
+      expect(cliFetchedBody.sandbox.status).toBe("running");
       expect(cliFetchedBody.sandbox.opensandboxId).toBeTruthy();
       expect(cliFetchedBody.sandbox.opensandboxId).not.toMatch(/^osbx_/);
       const cliRun = await runCli(["run", cliSandboxId!, "--cmd", "python -c \"print('cli-ok')\""], cliHome);
@@ -167,6 +207,9 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
 
     const sdk = new HarakiriClient({ apiUrl: API_URL, apiKey });
     const sdkCreated = await sdk.createSandbox({ template: "python-3.12", name: `sdk-real-${Date.now()}`, ttlSeconds: 90 });
+    expect(sdkCreated.status).not.toBe("pending");
+    expect(sdkCreated.operation).toBeUndefined();
+    expect(sdkCreated.sandbox.status).toBe("running");
     expect(sdkCreated.sandbox.opensandboxId).toBeTruthy();
     expect(sdkCreated.sandbox.opensandboxId).not.toMatch(/^osbx_/);
     cleanupIds.push(sdkCreated.sandbox.id);

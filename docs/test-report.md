@@ -23,6 +23,191 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
   `pnpm test`, `pnpm build`, `git diff --check`, and
   `pnpm smoke:template-build` passed after deploying the Kaniko-based k0s
   builder.
+- Rootless BuildKit default checkpoint on 2026-05-24:
+  `pnpm --filter @harakiri/api test`,
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @harakiri/api build`,
+  `pnpm --filter @harakiri/shared test`,
+  `pnpm --filter @harakiri/sdk test`,
+  `pnpm --filter @harakiri/cli test`,
+  `pnpm --filter @harakiri/web test`,
+  `pnpm typecheck`,
+  `bash -n infra/scripts/template-build-smoke.sh`,
+  `git diff --check`,
+  and `pnpm smoke:template-build` passed after redeploying API image
+  `sha256:3e4ce24870a9f37435ae543f43026401083b6c42fc46a312ad5b5a695c6bb321`.
+  The smoke created build `bld_61ukPTP4u_EF`, version
+  `tplv_e-Xyjz2FiZEt`, digest
+  `sha256:f6eee0166e843165d3643c1d1ea266a3653a96eea7c121e7ad2b7513d2922afc`,
+  and sandbox `sbx_Vf-5JG5-U8`; the launched sandbox returned
+  `harakiri-built`. The smoke also asserted
+  `template_builds.metadata.builder = buildkit`,
+  `template_builds.metadata.builderDetails.provider = buildkit`, runtime pull
+  preflight `status = ok`, and builder Job/Pod/node metadata. Follow-up
+  cleanup audit reported `active_sandboxes=0`, `active_smoke_keys=0`, and
+  `templates_named_smoke=0`.
+- Sandbox renew and OpenSandbox transport-split checkpoint on 2026-05-24:
+  `pnpm --filter @harakiri/api test` reported 133/133 passing, `pnpm --filter
+  @harakiri/api typecheck`, `pnpm openapi:check`, `bash -n
+  infra/scripts/renew-smoke.sh`, and `git diff --check` passed after aligning
+  Harakiri renew with the current OpenSandbox `/renew-expiration` contract and
+  splitting the OpenSandbox provider into client, execd, files, logs, metrics,
+  routes, types, and facade modules. `deploy-k0s.sh` rolled the API to pod
+  `harakiri-api-64f95d457d-dg6l5`; the registry manifest digest was
+  `sha256:2092d5d8655daea6a262b4c53f00179a0f3d61fdf7d5007a2ffaee60809da793`
+  and the pod image ID was
+  `sha256:66847f882e1c4967e81b7f1877b55013c47a5fc7f32074a530084f2d46472ce8`.
+  `pnpm smoke:renew` passed with sandbox `sbx_sbvBX7hsBO` and latest renew
+  operation `succeeded` with `expiresAt=2026-05-24T22:01:28.361Z`; `pnpm smoke`
+  passed with sandbox `sbx_FgPGFJbKgS`; `pnpm smoke:route` passed with sandbox
+  `sbx_fCL_SdS6jO` and route
+  `https://61469404-5306-4bc4-9a12-d6d307bc5ba4-3000.harakiri.io`; and a live
+  runtime-panel API probe passed with sandbox `sbx_RKPnWkAAGV`, reporting
+  `files=12 cwd=/`, `logs=15`, and `metrics_cpu=2 metrics_mem=2362`. Follow-up
+  cleanup audit reported `active_sandboxes=0`, `active_smoke_keys=0`, and
+  `ready_routes=0`.
+- Sandbox lifecycle synchronous-interface checkpoint on 2026-05-24: after
+  strengthening `tests/e2e/harakiri.spec.ts`, `pnpm --filter @harakiri/cli
+  build`, `git diff --check -- tests/e2e/harakiri.spec.ts`, and
+  `HARAKIRI_CLI_BIN=$PWD/packages/cli/dist/index.js pnpm exec playwright test
+  tests/e2e/harakiri.spec.ts -g "real Web, API, CLI, and SDK sandbox workflows"`
+  passed against the deployed k0s stack. The e2e now asserts Web create lands
+  on a running detail page, API default create returns `201` with no pending
+  operation, CLI default create prints `sealed.` and not `queued.`, and SDK
+  default create returns a running sandbox with no pending operation. Cleanup
+  audit reported `active_sandboxes=0`, `active_smoke_keys=0`, and
+  `running_real_e2e=0`; latest real-flow sandboxes were
+  `sbx_1N2qvnovDG` (web), `sbx_RuQeZB0DHn` (CLI), and `sbx_iR508mdojC` (SDK),
+  all terminated.
+- Authenticated web modularization checkpoint on 2026-05-24: the same deployed
+  Web/API/CLI/SDK e2e was extended to cover sandbox detail runtime tabs,
+  filesystem/default-root behavior, logs, metrics API data, network empty
+  state, templates List/Builds tabs, and docs navigation across Quickstart,
+  Template builds, and API reference. The targeted command
+  `HARAKIRI_CLI_BIN=$PWD/packages/cli/dist/index.js pnpm exec playwright test
+  tests/e2e/harakiri.spec.ts -g "real Web, API, CLI, and SDK sandbox workflows"`
+  passed with 1/1 tests. Screenshots were saved at
+  `/tmp/harakiri-auth-runtime-tabs.png`,
+  `/tmp/harakiri-auth-template-tabs.png`, and
+  `/tmp/harakiri-auth-docs.png`; visual review confirmed the extracted routes
+  still use the existing centralized design tokens and restrained product UI.
+  Follow-up checks passed: `pnpm --filter @harakiri/web test` reported 10/10,
+  `pnpm --filter @harakiri/web typecheck`, `pnpm --filter @harakiri/web
+  build`, and `git diff --check`. Cleanup audit reported
+  `active_sandboxes=0`, `active_smoke_keys=0`, and `running_real_e2e=0`.
+- OSS documentation and governance checkpoint on 2026-05-24: added
+  `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`,
+  `.github/pull_request_template.md`, bug/feature issue templates,
+  `docs/README.md`, `docs/development.md`, and `docs/extensions.md`; package
+  manifests now declare `Apache-2.0`. `README.md` now leads with the portable
+  OSS contributor path, the core runbook links out to
+  `infra/scripts/env/harakiri/README.md` for maintainer Cloudflare/DNS details,
+  and website docs now show packaged CLI installation plus the published
+  `/openapi.json` contract. Verification passed:
+  `pnpm --filter @harakiri/web test` (10/10),
+  `pnpm --filter @harakiri/web typecheck`,
+  `pnpm --filter @harakiri/cli test` (24/24),
+  `pnpm --filter @harakiri/cli typecheck`,
+  `pnpm --filter @harakiri/sdk test` (7/7),
+  `pnpm --filter @harakiri/api test` (133/133),
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @harakiri/shared test` (5/5),
+  `pnpm openapi:check`, `pnpm build`, and `git diff --check`.
+- Phase 10 route portability checkpoint on 2026-05-24: route host/key/url
+  generation now lives in `apps/api/src/providers/runtime/route-targets.ts`.
+  The OpenSandbox route helper, sandbox runtime fallback path, operation-worker
+  fallback path, and development runtime provider all use the configured
+  `SANDBOX_ROUTE_BASE_DOMAIN` and `SANDBOX_ROUTE_PUBLIC_SCHEME` instead of
+  duplicating `sandbox.localhost`. Verification passed:
+  `pnpm --filter @harakiri/api test` (135/135),
+  `pnpm --filter @harakiri/api typecheck`, and targeted `git diff --check`.
+- Phase 10 legacy-builder reference audit on 2026-05-24: `rg` found no Kaniko
+  mentions in `apps/web`, `packages/cli`, `packages/sdk`, or
+  `packages/shared`. Remaining references are scoped to the legacy builder
+  implementation/tests, compatibility configuration, ADR/plan history,
+  legacy-provider documentation, or historical test-report evidence. Corrected
+  the BuildKit source path in `docs/extensions.md` to
+  `apps/api/src/builders/buildkit-kubernetes-builder.ts`.
+- Phase 10 deployed regression checkpoint on 2026-05-24:
+  `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm openapi:check`, and
+  `git diff --check` passed. k0s redeploy passed with
+  `HARAKIRI_BUILD_OPEN_SANDBOX_INGRESS=0 HARAKIRI_INSTALL_INGRESS_NGINX=0
+  bash infra/scripts/deploy-k0s.sh`; API image
+  `sha256:670f907f96ed4f2070706f9580ec56401c6cae81c9fc1625ff3cd68e7aaf66de`
+  and web image
+  `sha256:dcb9a80459c7dddb8490a220635715a37e4db807231e48a2c60475c55ff2869e`
+  rolled out. `pnpm ports:restart && pnpm ports:status` reported web, API,
+  Keycloak, OpenSandbox, gateway, and ingress HTTPS forwards ready. Live
+  ConfigMap values were `PUBLIC_API_URL=http://127.0.0.1:18082`,
+  `PUBLIC_KEYCLOAK_URL=http://127.0.0.1:18084`,
+  `SANDBOX_ROUTE_BASE_DOMAIN=sandbox.localhost`, and
+  `SANDBOX_ROUTE_PUBLIC_SCHEME=https`; wildcard ingress host/TLS were
+  `*.sandbox.localhost`.
+- Phase 10 live product smokes on 2026-05-24:
+  `pnpm smoke` created `sbx_ms9bGwboGN`, executed the Python agent command,
+  and killed it; `pnpm smoke:templates` passed for `python-3.12`,
+  `python-3.12-data`, and `node-20`; `pnpm smoke:route` exposed
+  `https://cbc614c8-63df-407c-abdb-ac50375e9402-3000.sandbox.localhost`;
+  `pnpm smoke:template-build` passed with build `bld_0GaloDk6IN3h`, version
+  `tplv_qu36CRNsUYSv`, digest
+  `sha256:f6eee0166e843165d3643c1d1ea266a3653a96eea7c121e7ad2b7513d2922afc`,
+  and sandbox `sbx_B43UISTgxk`; `pnpm e2e` passed 2/2 tests for the full
+  Web/API/CLI/SDK workflow and completed-user onboarding redirect; and
+  `pnpm smoke:route-ingress` exposed
+  `https://5873bb35-1b4a-4a10-85fb-6086a88bbf5c-3000.sandbox.localhost`
+  through local ingress HTTPS. Cleanup audit reported `active_sandboxes=0`,
+  `active_smoke_keys=0`, `ready_routes=0`, and `active_template_builds=0`.
+- Phase 9 local OSS contributor proof on 2026-05-24: `docker compose config`
+  passed after making PostgreSQL and Keycloak host ports overrideable.
+  `LOCAL_KEYCLOAK_PORT=18181 docker compose up -d keycloak` started Keycloak
+  with the committed realm import, and
+  `http://127.0.0.1:18181/realms/harakiri/.well-known/openid-configuration`
+  returned the imported realm metadata; the temporary Keycloak service was then
+  stopped. `pnpm db:migrate` and `pnpm db:seed` passed against local
+  PostgreSQL, seeding `lyra@k.ai`, the `Lyra Labs` workspace, and demo API key
+  `hk_live_demo_lyra_labs_0000000000000000000000000000000000`. A local API
+  started with `HARAKIRI_RUNTIME_PROVIDER=dev` accepted the seeded key; from a
+  clean temporary home the packaged CLI created sandbox `sbx_IaoHRjGptl`, ran
+  `echo local-dev-ok`, exposed port 3000 at
+  `http://dev-mpkdozdg-ddiwxg-3000.local-dev.test`, listed routes, and killed
+  the sandbox. Local cleanup reported `local_active_sandboxes=0` and
+  `local_demo_keys=1`.
+- Phase 9 docs-audience audit on 2026-05-24: removed the private absolute
+  template path from active docs, changed product and CLI examples to local
+  OSS defaults (`127.0.0.1:8080`) or `$HARAKIRI_API_URL`, and confirmed active
+  product docs/package help no longer contain the removed comparison target,
+  the stale database-centered control-plane phrase, or private paths. Remaining
+  `127.0.0.1:18082`, `harakiri.io`, Cloudflare, and legacy-builder references
+  are historical test evidence, runbook/deployment examples, completed plans,
+  legacy-provider docs, or maintainer environment docs.
+- Post-update focused verification on 2026-05-24: `pnpm --filter
+  @harakiri/web test` passed 10/10, `pnpm --filter @harakiri/web typecheck`
+  passed, `pnpm --filter @harakiri/cli test` passed 24/24, `pnpm --filter
+  @harakiri/cli typecheck` passed, `pnpm build` passed across shared, API,
+  web, SDK, and CLI packages, `docker compose config` passed, and
+  `git diff --check` passed.
+- OSS architecture refactor closeout on 2026-05-25: `pnpm test`,
+  `pnpm typecheck`, `pnpm openapi:check`, `pnpm build`, `pnpm cli:pack`,
+  `docker compose config`, and `git diff --check` passed. The current tree was
+  redeployed to k0s with API image
+  `sha256:61830fb760d6edcbd5187520e57ac37708848e51360c4e3d0a6b8f7f9b173bd3`
+  and web image
+  `sha256:770e6482c3555a04827e12e5851f9064d7ee418e55dfdca5ed855511b4fc9ac9`;
+  `pnpm ports:restart && pnpm ports:status` reported web, API, Keycloak,
+  OpenSandbox, gateway, and ingress HTTPS forwards ready. `pnpm smoke` created
+  `sbx_aaHbDz1GNn`, ran the Python agent command, and killed it.
+  `pnpm smoke:templates` passed for `python-3.12`, `python-3.12-data`, and
+  `node-20`. `pnpm smoke:route` exposed
+  `https://9c737267-4d96-42a7-8208-cb4c715b8120-3000.sandbox.localhost`.
+  `pnpm smoke:template-build` passed with build `bld_8HI6em_S-xzc`, version
+  `tplv_a5jCB8lXdOSG`, digest
+  `sha256:f6eee0166e843165d3643c1d1ea266a3653a96eea7c121e7ad2b7513d2922afc`,
+  and sandbox `sbx_kRFu4TEK2M`; the launched sandbox returned
+  `harakiri-built`. `pnpm e2e` passed 2/2 tests for Web/API/CLI/SDK workflows
+  and completed-user onboarding redirect. `pnpm smoke:route-ingress` exposed
+  `https://b6b37639-0944-480d-b043-2301e59de8fd-3000.sandbox.localhost`
+  through local ingress HTTPS. Cleanup audit reported `active_sandboxes=0`,
+  `active_smoke_keys=0`, `ready_routes=0`, and `active_template_builds=0`.
 - Documentation checkpoint on 2026-05-24: `pnpm typecheck`, `pnpm test`, and
   `pnpm build` passed after adding custom template docs. A Playwright docs
   navigation smoke check opened the product docs and verified "Create a custom

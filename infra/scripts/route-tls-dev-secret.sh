@@ -6,7 +6,7 @@ export KUBECONFIG="${KUBECONFIG:-${ROOT}/infra/k0s/harakiri.kubeconfig}"
 
 NAMESPACE="${HARAKIRI_ROUTE_TLS_NAMESPACE:-opensandbox-system}"
 SECRET_NAME="${HARAKIRI_ROUTE_TLS_SECRET:-harakiri-sandbox-wildcard-tls}"
-DOMAIN="${HARAKIRI_ROUTE_DOMAIN:-harakiri.io}"
+DOMAIN="${HARAKIRI_ROUTE_DOMAIN:-sandbox.localhost}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {

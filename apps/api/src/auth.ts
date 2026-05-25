@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { apiErrorResponse } from "@harakiri/shared";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { config } from "./config.js";
 import { hashApiKey } from "./crypto.js";
@@ -158,5 +159,5 @@ export const requireAuth = async (request: FastifyRequest, reply: FastifyReply) 
     return;
   }
 
-  return reply.code(401).send({ error: "unauthorized" });
+  return reply.code(401).send(apiErrorResponse("unauthorized"));
 };

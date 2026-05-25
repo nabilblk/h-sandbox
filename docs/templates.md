@@ -55,7 +55,7 @@ on the build record.
 ## CLI Workflow
 
 ```bash
-harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_...
+harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 harakiri template build --name open-agents-dev .
 harakiri template build --name open-agents-dev examples/templates/open-agents-dev
@@ -75,8 +75,10 @@ ID, image digest, duration, and next `harakiri create` command. Use
 `--no-wait` to enqueue and return immediately, then inspect with
 `harakiri template builds --query ...` and `harakiri template logs bld_...`.
 Image-import builds resolve an immutable source digest. Dockerfile builds upload
-their local context, run a Kaniko Job in k0s, push to the local registry, and
-create a digest-pinned ready template version.
+their local context, run a rootless BuildKit Job in k0s, push to the local
+registry, and create a digest-pinned ready template version. Set
+`TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy` only when the compatibility
+provider is required.
 
 Creating a template definition with `POST /v1/templates`, the CLI, or the
 dashboard does not create a runnable version on its own. The definition remains
@@ -140,7 +142,8 @@ organization. Over-limit requests return `template_resource_limit_exceeded` or
 Image policy is enforced at the same API boundary. Template image references,
 image-import targets, and Dockerfile `FROM` lines must use allowed registries or
 prefixes. Dynamic Dockerfile bases such as `FROM ${BASE_IMAGE}` are rejected
-until the control plane has a safe way to resolve build args before Kaniko runs.
+until the control plane has a safe way to resolve build args before the
+Kubernetes builder runs.
 
 ## API Workflow
 

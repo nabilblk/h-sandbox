@@ -19,11 +19,17 @@ const policy: TemplateRetentionPolicy = {
 
 test("cleanupTemplateRetention prunes logs, contexts, unversioned builds, and retires old versions", async () => {
   const calls: Array<{ text: string; params: unknown[] }> = [];
+  const deletedLogs: string[] = [];
+  const deletedContexts: string[] = [];
   const db = {
     async query<T = Record<string, unknown>>(text: string, params: unknown[] = []) {
       calls.push({ text, params });
-      if (text.includes("DELETE FROM template_build_logs")) return { rowCount: 2, rows: [] as T[] };
-      if (text.includes("DELETE FROM template_build_contexts")) return { rowCount: 3, rows: [] as T[] };
+      if (text.includes("FROM template_builds b") && params.includes(policy.buildLogRetentionDays)) {
+        return { rowCount: 2, rows: [{ id: "bld_log_1" }, { id: "bld_log_2" }] as T[] };
+      }
+      if (text.includes("FROM template_builds b") && params.includes(policy.buildContextRetentionDays)) {
+        return { rowCount: 2, rows: [{ id: "bld_context_1" }, { id: "bld_context_2" }] as T[] };
+      }
       if (text.includes("DELETE FROM template_builds")) return { rowCount: 4, rows: [] as T[] };
       if (text.includes("UPDATE template_versions")) return { rowCount: 1, rows: [{ id: "tplv_old", organization_id: "org_old" }] as T[] };
       return { rowCount: 1, rows: [] as T[] };
@@ -48,18 +54,47 @@ test("cleanupTemplateRetention prunes logs, contexts, unversioned builds, and re
     policy,
     now: new Date("2026-05-24T12:00:00Z"),
     db,
-    batch
+    batch,
+    buildLogStore: {
+      kind: "test",
+      async append() {
+        throw new Error("should not append");
+      },
+      async list() {
+        return [];
+      },
+      async delete(buildId: string) {
+        deletedLogs.push(buildId);
+        return buildId === "bld_log_1" ? 1 : 2;
+      }
+    },
+    buildContextStore: {
+      kind: "test",
+      async put() {
+        throw new Error("should not put");
+      },
+      async get() {
+        return null;
+      },
+      async delete(ref) {
+        deletedContexts.push(ref.key);
+        return ref.key === "bld_context_1" ? 1 : 2;
+      },
+      async exists() {
+        return false;
+      }
+    }
   });
 
   assert.deepEqual(report, {
-    logsDeleted: 2,
+    logsDeleted: 3,
     contextsDeleted: 3,
     buildsDeleted: 4,
     versionsRetired: 1,
     builderJobsDeleted: 1
   });
-  assert(calls.some((call) => call.text.includes("DELETE FROM template_build_logs")));
-  assert(calls.some((call) => call.text.includes("DELETE FROM template_build_contexts")));
+  assert.deepEqual(deletedLogs, ["bld_log_1", "bld_log_2"]);
+  assert.deepEqual(deletedContexts, ["bld_context_1", "bld_context_2"]);
   assert(calls.some((call) => call.text.includes("NOT EXISTS") && call.text.includes("template_versions")));
   assert(calls.some((call) => call.params.includes("template.version.retired")));
   assert.deepEqual(deletedJobs, ["hkbld-old"]);

@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: harakiri
       POSTGRES_PASSWORD: harakiri
     ports:
-      - "15432:5432"
+      - "${LOCAL_POSTGRES_PORT:-15432}:5432"
     volumes:
       - harakiri-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -17,13 +17,14 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
-    command: ["start-dev", "--hostname-strict=false", "--http-enabled=true"]
+    command: ["start-dev", "--hostname-strict=false", "--http-enabled=true", "--import-realm"]
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     ports:
-      - "8081:8080"
+      - "${LOCAL_KEYCLOAK_PORT:-8081}:8080"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
 
 volumes:
   harakiri-postgres:
-

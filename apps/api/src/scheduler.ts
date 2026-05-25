@@ -1,6 +1,9 @@
-import { closeDb, query } from "./db.js";
-import { openSandbox } from "./opensandbox.js";
-import { config } from "./config.js";
+import type { QueryResultRow } from "pg";
+import { closeDb, query as defaultQuery } from "./db.js";
+import { runtimeProvider as defaultRuntimeProvider } from "./providers/runtime/index.js";
+import type { RuntimeProvider, RuntimeSandboxRef } from "./providers/runtime/provider.js";
+import { config, logDeprecatedConfigWarnings } from "./config.js";
+import { processSandboxOperationQueue, type ProcessSandboxOperationQueueReport } from "./services/sandbox-operation-worker.js";
 import { cleanupTemplateRetention, type TemplateRetentionReport } from "./template-retention.js";
 
 export const normalizeState = (state?: string | null) => {
@@ -20,6 +23,23 @@ let lastTemplateRetentionAtMs = 0;
 const reportTotal = (report: TemplateRetentionReport) =>
   report.logsDeleted + report.contextsDeleted + report.buildsDeleted + report.versionsRetired + report.builderJobsDeleted;
 
+type SchedulerQuery = <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]) => Promise<{ rows: T[]; rowCount?: number | null }>;
+
+export type SchedulerDependencies = {
+  query?: SchedulerQuery;
+  runtimeProvider?: RuntimeProvider;
+  processSandboxOperationQueue?: (dependencies: {
+    query: SchedulerQuery;
+    runtimeProvider: RuntimeProvider;
+  }) => Promise<ProcessSandboxOperationQueueReport>;
+  runTemplateRetentionIfDue?: () => Promise<TemplateRetentionReport | null>;
+};
+
+const runtimeRef = (provider: RuntimeProvider, providerSandboxId: string | null | undefined): RuntimeSandboxRef => ({
+  provider: provider.kind,
+  providerSandboxId: providerSandboxId ?? ""
+});
+
 export const runTemplateRetentionIfDue = async (nowMs = Date.now()) => {
   if (!config.templateRetentionEnabled) return null;
   if (!shouldRunTemplateRetention(lastTemplateRetentionAtMs, nowMs, config.templateRetentionIntervalMs)) return null;
@@ -34,14 +54,16 @@ export const runTemplateRetentionIfDue = async (nowMs = Date.now()) => {
   }
 };
 
-const reconcile = async () => {
+export const reconcile = async (dependencies: SchedulerDependencies = {}) => {
+  const query = dependencies.query ?? defaultQuery;
+  const runtimeProvider = dependencies.runtimeProvider ?? defaultRuntimeProvider;
   const rows = await query<{ id: string; opensandbox_id: string }>(
     `SELECT id, opensandbox_id FROM sandboxes
      WHERE opensandbox_id IS NOT NULL AND status IN ('running', 'pending', 'idle')
      LIMIT 100`
   );
   for (const row of rows.rows) {
-    const provider = await openSandbox.get(row.opensandbox_id);
+    const provider = await runtimeProvider.get(runtimeRef(runtimeProvider, row.opensandbox_id));
     if (!provider) {
       await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [row.id]);
       await query(
@@ -52,7 +74,7 @@ const reconcile = async () => {
       );
       continue;
     }
-    const status = normalizeState(provider.status?.state);
+    const status = normalizeState(provider.state);
     await query(
       `UPDATE sandboxes
        SET status = $2, expires_at = COALESCE($3::timestamptz, expires_at), updated_at = now()
@@ -70,8 +92,11 @@ const reconcile = async () => {
   }
 };
 
-const tick = async () => {
-  await reconcile();
+export const tick = async (dependencies: SchedulerDependencies = {}) => {
+  const query = dependencies.query ?? defaultQuery;
+  const runtimeProvider = dependencies.runtimeProvider ?? defaultRuntimeProvider;
+  await reconcile(dependencies);
+  await (dependencies.processSandboxOperationQueue ?? processSandboxOperationQueue)({ query, runtimeProvider });
   const due = await query<{
     schedule_id: string;
     sandbox_id: string;
@@ -88,7 +113,7 @@ const tick = async () => {
      LIMIT 20`
   );
   for (const item of due.rows) {
-    if (item.opensandbox_id) await openSandbox.delete(item.opensandbox_id);
+    if (item.opensandbox_id) await runtimeProvider.delete(runtimeRef(runtimeProvider, item.opensandbox_id));
     await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [item.sandbox_id]);
     await query(
       `UPDATE sandbox_routes
@@ -103,10 +128,11 @@ const tick = async () => {
       [item.sandbox_id, item.organization_id]
     );
   }
-  await runTemplateRetentionIfDue();
+  await (dependencies.runTemplateRetentionIfDue ?? runTemplateRetentionIfDue)();
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  logDeprecatedConfigWarnings();
   console.log("harakiri scheduler started");
   const timer = setInterval(() => {
     tick().catch((error) => console.error(error));

@@ -1,14 +1,35 @@
 import type {
-  ApiKeySummary,
-  RunResult,
-  SandboxRouteSummary,
-  SandboxSummary,
-  Template,
-  TemplateBuildLogEntry,
-  TemplateBuildSummary,
-  TemplateVersionSummary,
+  ApiErrorResponse,
+  ApiKeysResponse,
+  CreateTemplateBody,
+  CreateTemplateBuildBody,
+  CreateSandboxBody,
+  CreateSandboxResponse,
+  ExposeSandboxRouteBody,
+  OkResponse,
+  PromoteTemplateBody,
+  RegistryCredentialResponse,
+  RegistryCredentialsResponse,
+  RunSandboxBody,
+  RunSandboxResponse,
+  SandboxFilesResponse,
+  SandboxLogsResponse,
+  SandboxResponse,
+  SandboxRouteResponse,
+  SandboxRoutesResponse,
+  SandboxesResponse,
+  TemplateBuildContextResponse,
+  TemplateBuildLogsResponse,
+  TemplateBuildResponse,
+  TemplateBuildsResponse,
+  TemplateResponse,
+  TemplatesResponse,
+  TemplateVersionsResponse,
+  UpsertRegistryCredentialBody,
+  UploadTemplateBuildContextBody,
   UsageSummary
 } from "@harakiri/shared";
+import { formatApiErrorResponse, parseApiErrorResponse } from "@harakiri/shared";
 
 export type HarakiriClientOptions = {
   apiUrl: string;
@@ -16,73 +37,31 @@ export type HarakiriClientOptions = {
   fetch?: typeof fetch;
 };
 
-export type CreateSandboxInput = {
-  template?: string;
-  name?: string;
-  ttlSeconds?: number;
-  env?: Record<string, string>;
-};
+export type CreateSandboxInput = CreateSandboxBody;
 
-export type RunSandboxInput = {
-  command?: string;
-  stdin?: string;
-};
+export type RunSandboxInput = RunSandboxBody;
 
-export type ExposePortInput = {
-  port: number;
-  protocol?: "http" | "https";
-};
+export type ExposePortInput = ExposeSandboxRouteBody;
 
-export type CreateTemplateInput = {
-  id?: string;
-  name: string;
-  description?: string;
-  image?: string;
-  icon?: Template["icon"];
-  tags?: string[];
-  aliases?: string[];
-  visibility?: Template["visibility"];
-  defaultEntrypoint?: string[];
-  cpuCount?: number;
-  memoryMb?: number;
-  workdir?: string;
-  defaultPorts?: number[];
-  runtimeFamily?: string;
-};
+export type CreateTemplateInput = CreateTemplateBody;
 
-export type CreateTemplateBuildInput = {
-  sourceType?: "dockerfile" | "git" | "image";
-  contextHash?: string;
-  dockerfilePath?: string;
-  buildArgs?: Record<string, unknown>;
-  imageDestination?: string;
-  metadata?: Record<string, unknown>;
-};
+export type CreateTemplateBuildInput = CreateTemplateBuildBody;
 
-export type UploadTemplateBuildContextInput = {
-  archiveBase64: string;
-  sha256: string;
-  sizeBytes: number;
-  format?: "tar+gzip";
-  fileCount?: number;
-  metadata?: Record<string, unknown>;
-};
+export type UploadTemplateBuildContextInput = UploadTemplateBuildContextBody;
 
-export type TemplateBuildContextSummary = {
-  buildId: string;
-  sha256: string;
-  sizeBytes: number;
-  format: string;
-  fileCount: number | null;
-  uploadedAt: string;
-};
+export type UpsertRegistryCredentialInput = UpsertRegistryCredentialBody;
 
 export class HarakiriApiError extends Error {
   constructor(
     public readonly status: number,
-    public readonly body: string
+    public readonly body: string,
+    public readonly details: ApiErrorResponse | null = parseApiErrorResponse(body)
   ) {
-    super(`Harakiri API ${status}: ${body}`);
+    super(formatApiErrorResponse(status, body));
+  }
+
+  get code() {
+    return this.details?.error;
   }
 }
 
@@ -114,106 +93,118 @@ export class HarakiriClient {
   }
 
   listTemplates() {
-    return this.request<{ templates: Template[] }>("/v1/templates");
+    return this.request<TemplatesResponse>("/v1/templates");
   }
 
   createTemplate(input: CreateTemplateInput) {
-    return this.request<{ template: Template }>("/v1/templates", {
+    return this.request<TemplateResponse>("/v1/templates", {
       method: "POST",
       body: JSON.stringify(input)
     });
   }
 
   getTemplate(id: string) {
-    return this.request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}`);
+    return this.request<TemplateResponse>(`/v1/templates/${encodeURIComponent(id)}`);
   }
 
   listTemplateVersions(id: string) {
-    return this.request<{ versions: TemplateVersionSummary[] }>(`/v1/templates/${encodeURIComponent(id)}/versions`);
+    return this.request<TemplateVersionsResponse>(`/v1/templates/${encodeURIComponent(id)}/versions`);
   }
 
   createTemplateBuild(id: string, input: CreateTemplateBuildInput = {}) {
-    return this.request<{ build: TemplateBuildSummary }>(`/v1/templates/${encodeURIComponent(id)}/builds`, {
+    return this.request<TemplateBuildResponse>(`/v1/templates/${encodeURIComponent(id)}/builds`, {
       method: "POST",
       body: JSON.stringify(input)
     });
   }
 
   listTemplateBuilds(params = "") {
-    return this.request<{ builds: TemplateBuildSummary[] }>(`/v1/template-builds${params}`);
+    return this.request<TemplateBuildsResponse>(`/v1/template-builds${params}`);
   }
 
   getTemplateBuild(id: string) {
-    return this.request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}`);
+    return this.request<TemplateBuildResponse>(`/v1/template-builds/${encodeURIComponent(id)}`);
   }
 
   getTemplateBuildLogs(id: string) {
-    return this.request<{ logs: TemplateBuildLogEntry[] }>(`/v1/template-builds/${encodeURIComponent(id)}/logs`);
+    return this.request<TemplateBuildLogsResponse>(`/v1/template-builds/${encodeURIComponent(id)}/logs`);
   }
 
   uploadTemplateBuildContext(id: string, input: UploadTemplateBuildContextInput) {
-    return this.request<{ context: TemplateBuildContextSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/context`, {
+    return this.request<TemplateBuildContextResponse>(`/v1/template-builds/${encodeURIComponent(id)}/context`, {
       method: "POST",
       body: JSON.stringify(input)
     });
   }
 
   cancelTemplateBuild(id: string) {
-    return this.request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+    return this.request<TemplateBuildResponse>(`/v1/template-builds/${encodeURIComponent(id)}/cancel`, { method: "POST" });
   }
 
   retryTemplateBuild(id: string) {
-    return this.request<{ build: TemplateBuildSummary }>(`/v1/template-builds/${encodeURIComponent(id)}/retry`, { method: "POST" });
+    return this.request<TemplateBuildResponse>(`/v1/template-builds/${encodeURIComponent(id)}/retry`, { method: "POST" });
   }
 
   promoteTemplateVersion(id: string, versionId: string, alias = "stable") {
-    return this.request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}/promote`, {
+    const body: PromoteTemplateBody = { versionId, alias };
+    return this.request<TemplateResponse>(`/v1/templates/${encodeURIComponent(id)}/promote`, {
       method: "POST",
-      body: JSON.stringify({ versionId, alias })
+      body: JSON.stringify(body)
     });
   }
 
   archiveTemplate(id: string) {
-    return this.request<{ template: Template }>(`/v1/templates/${encodeURIComponent(id)}/archive`, { method: "POST" });
+    return this.request<TemplateResponse>(`/v1/templates/${encodeURIComponent(id)}/archive`, { method: "POST" });
   }
 
   listSandboxes(params = "") {
-    return this.request<{ sandboxes: SandboxSummary[] }>(`/v1/sandboxes${params}`);
+    return this.request<SandboxesResponse>(`/v1/sandboxes${params}`);
   }
 
   createSandbox(input: CreateSandboxInput = {}) {
-    return this.request<{ sandbox: SandboxSummary }>("/v1/sandboxes", {
+    return this.request<CreateSandboxResponse>("/v1/sandboxes", {
       method: "POST",
       body: JSON.stringify({
         template: input.template ?? "python-3.12-data",
         name: input.name,
         ttlSeconds: input.ttlSeconds ?? 300,
-        env: input.env
+        env: input.env,
+        idempotencyKey: input.idempotencyKey,
+        wait: input.wait,
+        waitTimeoutMs: input.waitTimeoutMs
       })
     });
   }
 
   getSandbox(id: string) {
-    return this.request<{ sandbox: SandboxSummary }>(`/v1/sandboxes/${id}`);
+    return this.request<SandboxResponse>(`/v1/sandboxes/${id}`);
   }
 
   runSandbox(id: string, input: RunSandboxInput) {
-    return this.request<{ result: RunResult }>(`/v1/sandboxes/${id}/run`, {
+    return this.request<RunSandboxResponse>(`/v1/sandboxes/${id}/run`, {
       method: "POST",
       body: JSON.stringify(input)
     });
   }
 
+  getSandboxLogs(id: string) {
+    return this.request<SandboxLogsResponse>(`/v1/sandboxes/${id}/logs`);
+  }
+
+  listSandboxFiles(id: string, path?: string) {
+    return this.request<SandboxFilesResponse>(`/v1/sandboxes/${id}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`);
+  }
+
   killSandbox(id: string) {
-    return this.request<{ ok: boolean }>(`/v1/sandboxes/${id}`, { method: "DELETE" });
+    return this.request<OkResponse>(`/v1/sandboxes/${id}`, { method: "DELETE" });
   }
 
   listRoutes(id: string) {
-    return this.request<{ routes: SandboxRouteSummary[] }>(`/v1/sandboxes/${id}/routes`);
+    return this.request<SandboxRoutesResponse>(`/v1/sandboxes/${id}/routes`);
   }
 
   exposePort(id: string, input: ExposePortInput) {
-    return this.request<{ route: SandboxRouteSummary }>(`/v1/sandboxes/${id}/routes`, {
+    return this.request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes`, {
       method: "POST",
       body: JSON.stringify({ port: input.port, protocol: input.protocol ?? "http" })
     });
@@ -225,7 +216,22 @@ export class HarakiriClient {
   }
 
   listApiKeys() {
-    return this.request<{ keys: ApiKeySummary[] }>("/v1/api-keys");
+    return this.request<ApiKeysResponse>("/v1/api-keys");
+  }
+
+  listRegistryCredentials(options: { includeRevoked?: boolean } = {}) {
+    return this.request<RegistryCredentialsResponse>(`/v1/registry-credentials${options.includeRevoked ? "?includeRevoked=1" : ""}`);
+  }
+
+  upsertRegistryCredential(input: UpsertRegistryCredentialInput) {
+    return this.request<RegistryCredentialResponse>("/v1/registry-credentials", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  revokeRegistryCredential(id: string) {
+    return this.request<RegistryCredentialResponse>(`/v1/registry-credentials/${encodeURIComponent(id)}`, { method: "DELETE" });
   }
 
   usage() {

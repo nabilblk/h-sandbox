@@ -14,6 +14,40 @@ or:
 Authorization: Bearer <keycloak-jwt>
 ```
 
+Examples use `HARAKIRI_API_URL` so they work against either the local
+development API (`http://127.0.0.1:8080`) or a forwarded k0s deployment:
+
+```bash
+export HARAKIRI_API_URL=http://127.0.0.1:8080
+```
+
+## Contract Sources
+
+The current monorepo contract checkpoint has three layers:
+
+- `packages/shared/src/index.ts` owns shared TypeScript request/response types,
+  status unions, and the structured API error envelope used by the API, SDK,
+  CLI, and web app.
+- `apps/api/src/routes/*.schema.ts` owns the Zod request validation schemas used
+  by Fastify route handlers.
+- This document provides narrative examples for developers and operators.
+
+For the OSS API surface, TypeScript types and handwritten Markdown are not
+enough. ADR 0005 records the accepted direction: publish an OpenAPI 3.1
+contract from a single source that composes the request schemas, response
+schemas, auth metadata, and examples. The current contract source lives in
+`packages/shared/src/openapi.ts`; `packages/shared/src/index.ts` remains the
+TypeScript source of truth for client-facing payload types.
+
+The current generated artifact is committed at `docs/openapi.json` and is also
+served by the API at `GET /openapi.json` without authentication. Regenerate and
+check drift with:
+
+```bash
+pnpm openapi:write
+pnpm openapi:check
+```
+
 ## Endpoints
 
 - `GET /v1/me`
@@ -51,7 +85,7 @@ Authorization: Bearer <keycloak-jwt>
 ## Create Sandbox
 
 ```bash
-curl http://127.0.0.1:18082/v1/sandboxes \
+curl $HARAKIRI_API_URL/v1/sandboxes \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"template":"python-3.12-data","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'
@@ -67,12 +101,12 @@ Use a qualified version alias for human-friendly stable channels and an
 immutable version ID for reproducible automation:
 
 ```bash
-curl http://127.0.0.1:18082/v1/sandboxes \
+curl $HARAKIRI_API_URL/v1/sandboxes \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"template":"open-agents-dev:stable","name":"stable-runner"}'
 
-curl http://127.0.0.1:18082/v1/sandboxes \
+curl $HARAKIRI_API_URL/v1/sandboxes \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"template":"tplv_...","name":"pinned-runner"}'
@@ -84,20 +118,52 @@ limited to 32 KiB, and a request can include at most 64 variables. Harakiri
 records only sorted env key names in sandbox events and audit metadata, never
 the values.
 
+By default, sandbox creation waits for provider provisioning and returns
+`201 { "sandbox": ... }` when the sandbox is running. Clients that want an
+explicit asynchronous handoff can send `"wait": false` in the JSON body or
+`Prefer: respond-async`. Clients that still want the synchronous path but need
+a bounded HTTP request can send `waitTimeoutMs`; if provider provisioning is
+still running after that budget, the API returns the same pending response. In
+both pending cases the API writes the sandbox and durable provision operation,
+returns `202`, and includes a `Location` header pointing at
+`GET /v1/sandboxes/:id`:
+
+```json
+{
+  "sandbox": { "id": "sbx_...", "status": "pending" },
+  "operation": {
+    "id": "op_...",
+    "sandboxId": "sbx_...",
+    "kind": "provision",
+    "state": "queued",
+    "error": null,
+    "attempts": 0,
+    "createdAt": "2026-05-24T00:00:00.000Z",
+    "updatedAt": "2026-05-24T00:00:00.000Z"
+  },
+  "status": "pending",
+  "message": "sandbox provision queued"
+}
+```
+
+Async creation with non-empty `env` requires a configured control-plane secret
+key so the worker can replay encrypted env values. Without that key, use the
+default synchronous create path or omit `env`.
+
 When the selected template image matches an active `pull` or `push_pull`
 registry credential with encrypted username/password material, the
 OpenSandbox create request includes `image.auth.username` and
 `image.auth.password`. Credentials backed only by Kubernetes Secret references
-remain available to Kaniko and runtime pull preflight, but the OpenSandbox
-lifecycle API does not accept those Secret names directly.
+remain available to BuildKit, the legacy builder, and runtime pull preflight,
+but the OpenSandbox lifecycle API does not accept those Secret names directly.
 
 List sandbox history with optional filters:
 
 ```bash
-curl "http://127.0.0.1:18082/v1/sandboxes?template=open-agents-dev&limit=20" \
+curl "$HARAKIRI_API_URL/v1/sandboxes?template=open-agents-dev&limit=20" \
   -H "x-api-key: $HK_KEY"
 
-curl "http://127.0.0.1:18082/v1/sandboxes?templateVersionId=tplv_..." \
+curl "$HARAKIRI_API_URL/v1/sandboxes?templateVersionId=tplv_..." \
   -H "x-api-key: $HK_KEY"
 ```
 
@@ -110,7 +176,7 @@ show recent sandboxes created from the selected template.
 List templates:
 
 ```bash
-curl http://127.0.0.1:18082/v1/templates \
+curl $HARAKIRI_API_URL/v1/templates \
   -H "x-api-key: $HK_KEY"
 ```
 
@@ -134,7 +200,7 @@ Supported filters:
 Create a template definition:
 
 ```bash
-curl http://127.0.0.1:18082/v1/templates \
+curl $HARAKIRI_API_URL/v1/templates \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -163,10 +229,10 @@ policy.
 Inspect a template and its versions:
 
 ```bash
-curl http://127.0.0.1:18082/v1/templates/open-agents-dev \
+curl $HARAKIRI_API_URL/v1/templates/open-agents-dev \
   -H "x-api-key: $HK_KEY"
 
-curl http://127.0.0.1:18082/v1/templates/open-agents-dev/versions \
+curl $HARAKIRI_API_URL/v1/templates/open-agents-dev/versions \
   -H "x-api-key: $HK_KEY"
 ```
 
@@ -189,7 +255,7 @@ sandbox; if that lookup fails, sandbox creation returns
 Create a build record:
 
 ```bash
-curl http://127.0.0.1:18082/v1/templates/open-agents-dev/builds \
+curl $HARAKIRI_API_URL/v1/templates/open-agents-dev/builds \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -211,7 +277,7 @@ The CLI uploads Dockerfile build contexts after creating the build record. API
 clients can use the same endpoint with a tar+gzip archive encoded as base64:
 
 ```bash
-curl http://127.0.0.1:18082/v1/template-builds/bld_.../context \
+curl $HARAKIRI_API_URL/v1/template-builds/bld_.../context \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{
@@ -232,7 +298,7 @@ resolve the registry digest, write build logs, create a ready template version,
 and update the template's latest version:
 
 ```bash
-curl http://127.0.0.1:18082/v1/templates/ubuntu-import/builds \
+curl $HARAKIRI_API_URL/v1/templates/ubuntu-import/builds \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"sourceType":"image","imageDestination":"ubuntu:24.04"}'
@@ -241,26 +307,27 @@ curl http://127.0.0.1:18082/v1/templates/ubuntu-import/builds \
 List, inspect, and read logs:
 
 ```bash
-curl "http://127.0.0.1:18082/v1/template-builds?status=queued&q=open-agents-dev" \
+curl "$HARAKIRI_API_URL/v1/template-builds?status=queued&q=open-agents-dev" \
   -H "x-api-key: $HK_KEY"
 
-curl "http://127.0.0.1:18082/v1/template-builds?template=open-agents-dev&limit=20" \
+curl "$HARAKIRI_API_URL/v1/template-builds?template=open-agents-dev&limit=20" \
   -H "x-api-key: $HK_KEY"
 
-curl http://127.0.0.1:18082/v1/template-builds/bld_... \
+curl $HARAKIRI_API_URL/v1/template-builds/bld_... \
   -H "x-api-key: $HK_KEY"
 
-curl http://127.0.0.1:18082/v1/template-builds/bld_.../logs \
+curl $HARAKIRI_API_URL/v1/template-builds/bld_.../logs \
   -H "x-api-key: $HK_KEY"
 ```
 
 Build inspect responses include redacted `metadata`, the resulting
 `resultVersionId` when one exists, and the uploaded context summary. Completed
-Dockerfile builds also include Kubernetes builder fields in `metadata`:
+Dockerfile builds also include builder runtime fields in `metadata`:
 `builderJobName`, `builderPodName`, `builderPodUid`, `builderNodeName`, and
-`builderNamespace`. Successful image-import and Dockerfile builds include
-`runtimePullPreflight` metadata when preflight is enabled; its `status` must be
-`ok` before a ready version is inserted.
+`builderNamespace`, plus nested provider details in `builderDetails`.
+Successful image-import and Dockerfile builds include `runtimePullPreflight`
+metadata when preflight is enabled; its `status` must be `ok` before a ready
+version is inserted.
 Supported build list filters are `status`, `q`, `template`, and `limit`. The
 dashboard template detail Config tab uses `template` to show the latest redacted
 build args and metadata for a selected template.
@@ -300,7 +367,7 @@ credentials with
 least-privilege registry namespace the credential is expected to cover. The
 local k0s prototype also pushes generated Dockerfile images under
 `<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/<template-id>` so
-team images and Kaniko cache repositories do not share one flat namespace.
+team images and builder cache repositories do not share one flat namespace.
 Sandbox creation also reuses matching `pull`/`push_pull` credentials. If the
 record has `username` plus encrypted secret material, Harakiri decrypts it only
 long enough to pass OpenSandbox `image.auth`; API responses and audit metadata
@@ -309,13 +376,13 @@ still show only the credential ID and whether auth was available.
 Cancel, retry, and promote:
 
 ```bash
-curl -X POST http://127.0.0.1:18082/v1/template-builds/bld_.../cancel \
+curl -X POST $HARAKIRI_API_URL/v1/template-builds/bld_.../cancel \
   -H "x-api-key: $HK_KEY"
 
-curl -X POST http://127.0.0.1:18082/v1/template-builds/bld_.../retry \
+curl -X POST $HARAKIRI_API_URL/v1/template-builds/bld_.../retry \
   -H "x-api-key: $HK_KEY"
 
-curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/promote \
+curl -X POST $HARAKIRI_API_URL/v1/templates/open-agents-dev/promote \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"versionId":"tplv_...","alias":"stable"}'
@@ -324,7 +391,7 @@ curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/promote \
 Archive a custom template:
 
 ```bash
-curl -X POST http://127.0.0.1:18082/v1/templates/open-agents-dev/archive \
+curl -X POST $HARAKIRI_API_URL/v1/templates/open-agents-dev/archive \
   -H "x-api-key: $HK_KEY"
 ```
 
@@ -335,16 +402,17 @@ template. They remain queryable with `GET /v1/templates?status=archived`.
 Current v1 API behavior persists build records, uploaded Dockerfile contexts,
 and logs. The deployed template builder consumes queued `sourceType=image`
 records by resolving immutable source digests, and consumes
-`sourceType=dockerfile` records by running Kaniko in k0s, pushing to the local
-registry, running runtime pull preflight, optionally pre-pulling images for
-templates tagged `hot`, `prepull`, or `warm`, and writing digest-pinned ready
-versions. Git source builds are still tracked in the active custom template
-execution plan.
+`sourceType=dockerfile` records by running rootless BuildKit in k0s, pushing to
+the local registry, running runtime pull preflight, optionally pre-pulling
+images for templates tagged `hot`, `prepull`, or `warm`, and writing
+digest-pinned ready versions. The legacy Kaniko provider is still selectable
+with `TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy`. Git source builds are still
+tracked in the active custom template execution plan.
 
 ## Run Command
 
 ```bash
-curl http://127.0.0.1:18082/v1/sandboxes/sbx_x/run \
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/run \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"command":"python agent.py","stdin":"agent.py"}'
@@ -355,7 +423,7 @@ curl http://127.0.0.1:18082/v1/sandboxes/sbx_x/run \
 Routes are explicit and idempotent per sandbox/port. In k0s, Harakiri stores the route in PostgreSQL and uses the OpenSandbox ingress gateway host format. Route creation validates port `1..65535` and enforces `SANDBOX_MAX_ROUTES_PER_SANDBOX` plus `SANDBOX_MAX_ROUTES_PER_ORG`.
 
 ```bash
-curl http://127.0.0.1:18082/v1/sandboxes/sbx_x/routes \
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/routes \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
   -d '{"port":3000,"protocol":"http"}'
@@ -369,9 +437,9 @@ Response shape:
     "port": 3000,
     "protocol": "http",
     "routeKey": "opensandbox-id-3000",
-    "host": "opensandbox-id-3000.harakiri.io",
-    "url": "https://opensandbox-id-3000.harakiri.io",
-    "targetUrl": "https://opensandbox-id-3000.harakiri.io",
+    "host": "opensandbox-id-3000.sandbox.example.com",
+    "url": "https://opensandbox-id-3000.sandbox.example.com",
+    "targetUrl": "https://opensandbox-id-3000.sandbox.example.com",
     "state": "ready",
     "provider": "opensandbox-gateway",
     "providerRouteId": "opensandbox-id-3000"
@@ -380,6 +448,6 @@ Response shape:
 ```
 
 ```bash
-curl http://127.0.0.1:18082/v1/sandboxes/sbx_x/routes \
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/routes \
   -H "x-api-key: $HK_KEY"
 ```

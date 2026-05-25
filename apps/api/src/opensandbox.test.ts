@@ -92,7 +92,7 @@ test("openSandbox.create sends the resolved DB template image, entrypoint, and r
   assert.equal(body.metadata["harakiri.org"], "org_template");
   assert.equal(body.metadata["harakiri.organization"], "org_template");
   assert.equal(body.metadata["harakiri.route_mode"], "local-proxy");
-  assert.equal(body.metadata["harakiri.route_base_domain"], "harakiri.io");
+  assert.equal(body.metadata["harakiri.route_base_domain"], "sandbox.localhost");
   assert.equal(body.metadata["harakiri.route_public_scheme"], "https");
   assert.equal(body.metadata["harakiri.route_max_per_sandbox"], "8");
   assert.equal(body.metadata["harakiri.route_max_per_org"], "200");

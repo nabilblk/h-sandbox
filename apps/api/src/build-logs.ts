@@ -1,19 +1,9 @@
 import type { DbClient } from "./db.js";
-import { redactText } from "./redaction.js";
-
-const nextBuildLogLine = async (client: DbClient, buildId: string) => {
-  const result = await client.query<{ next: number }>("SELECT COALESCE(MAX(line_no), 0) + 1 AS next FROM template_build_logs WHERE build_id = $1", [buildId]);
-  return Number(result.rows[0]?.next ?? 1);
-};
+import { PostgresBuildLogStore } from "./storage/postgres-build-log-store.js";
 
 export const appendBuildLog = async (client: DbClient, buildId: string, stream: "stdout" | "stderr", message: string) => {
-  const lineNo = await nextBuildLogLine(client, buildId);
-  const redactedMessage = redactText(message);
-  await client.query(
-    `INSERT INTO template_build_logs (build_id, line_no, stream, message)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (build_id, line_no) DO UPDATE
-       SET stream = EXCLUDED.stream, message = EXCLUDED.message`,
-    [buildId, lineNo, stream, redactedMessage]
-  );
+  await new PostgresBuildLogStore(client).append({ buildId, stream, message });
 };
+
+export const buildLogStore = new PostgresBuildLogStore();
+export { PostgresBuildLogStore };

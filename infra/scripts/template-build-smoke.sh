@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 API_URL="${HARAKIRI_API_URL:-http://127.0.0.1:18082}"
 CLI="${HARAKIRI_CLI:-${ROOT}/packages/cli/dist/index.js}"
-NAME="${HARAKIRI_TEMPLATE_SMOKE_NAME:-kaniko-smoke-$(date +%s)}"
+NAME="${HARAKIRI_TEMPLATE_SMOKE_NAME:-dockerfile-smoke-$(date +%s)}"
 BUILD_TIMEOUT_SECONDS="${HARAKIRI_TEMPLATE_BUILD_TIMEOUT_SECONDS:-300}"
 KUBECONFIG_PATH="${KUBECONFIG:-${ROOT}/infra/k0s/harakiri.kubeconfig}"
 SANDBOX_ID=""
@@ -115,6 +115,12 @@ BUILDER_RUNTIME="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "$
 IFS='|' read -r BUILDER_JOB BUILDER_POD BUILDER_NODE <<<"${BUILDER_RUNTIME}"
 if [[ -z "${BUILDER_JOB}" || -z "${BUILDER_POD}" || -z "${BUILDER_NODE}" ]]; then
   echo "template build metadata missing builder job/pod/node for ${BUILD_ID}: ${BUILDER_RUNTIME}" >&2
+  exit 1
+fi
+BUILDER_KIND="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \
+  psql -U harakiri -d harakiri -qAtc "select coalesce(metadata->>'builder', '') || '|' || coalesce(metadata->'builderDetails'->>'provider', '') from template_builds where id = '${BUILD_ID}';")"
+if [[ "${BUILDER_KIND}" != "buildkit|buildkit" ]]; then
+  echo "template build ${BUILD_ID} did not use the BuildKit builder: ${BUILDER_KIND}" >&2
   exit 1
 fi
 PREFLIGHT_RUNTIME="$(kubectl --kubeconfig "${KUBECONFIG_PATH}" -n harakiri exec "${PGPOD}" -- \

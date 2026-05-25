@@ -1,0 +1,166 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  archiveTemplateForOrganization,
+  createTemplate,
+  listTemplateVersions,
+  promoteTemplate
+} from "./services/templates.js";
+import type { RuntimeTemplate } from "./templates.js";
+
+const teamTemplate: RuntimeTemplate = {
+  id: "open-agents-dev",
+  name: "Open Agents Dev",
+  description: "Agent runtime",
+  image: "docker.io/library/python@sha256:abc",
+  imageDigest: "sha256:abc",
+  icon: "file",
+  tags: ["agents"],
+  aliases: ["agents"],
+  bootMs: 220,
+  visibility: "private",
+  status: "ready",
+  ownerScope: "team",
+  defaultEntrypoint: ["sleep", "3600"],
+  cpuCount: 2,
+  memoryMb: 2048,
+  workdir: "/workspace",
+  defaultPorts: [3000],
+  runtimeFamily: "python",
+  latestVersionId: "tplv_ready",
+  templateVersionId: "tplv_ready"
+};
+
+test("createTemplate validates, inserts, resolves, and audits a custom template", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  const result = await createTemplate(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      template: {
+        name: "Open Agents Dev",
+        description: "Agent runtime",
+        image: "ubuntu:24.04",
+        icon: "file",
+        tags: ["agents"],
+        aliases: ["agents"],
+        visibility: "private",
+        defaultEntrypoint: ["sleep", "3600"],
+        cpuCount: 2,
+        memoryMb: 2048,
+        workdir: "/workspace",
+        defaultPorts: [3000],
+        runtimeFamily: "python"
+      }
+    },
+    {
+      idFactory: () => "tpl_generated",
+      resolveTemplateFn: async () => teamTemplate,
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => {
+        audits.push({ action, metadata });
+      },
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("SELECT id FROM templates")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("INSERT INTO templates")) return { rowCount: 1, rows: [] as never[] };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "created");
+  assert.equal(result.kind === "created" ? result.template?.id : null, "open-agents-dev");
+  const insert = calls.find((call) => call.text.includes("INSERT INTO templates"));
+  assert.ok(insert);
+  assert.deepEqual(insert.params?.slice(0, 5), ["open-agents-dev", "org_tpl", "Open Agents Dev", "Agent runtime", "ubuntu:24.04"]);
+  assert.equal(audits[0].action, "template.create");
+  assert.deepEqual(audits[0].metadata, { imageUri: "ubuntu:24.04", status: "building" });
+});
+
+test("listTemplateVersions resolves the requested template before querying versions", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await listTemplateVersions(
+    { organizationId: "org_tpl", templateId: "agents" },
+    {
+      resolveTemplateFn: async () => teamTemplate,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        return {
+          rowCount: 1,
+          rows: [{ id: "tplv_ready", templateId: "open-agents-dev", status: "ready" }] as never[]
+        };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "found");
+  assert.deepEqual(calls[0].params, ["open-agents-dev", "org_tpl"]);
+  if (result.kind === "found") assert.equal(result.versions[0].id, "tplv_ready");
+});
+
+test("promoteTemplate updates aliases/latest version and records audit metadata", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  const resolveRefs: string[] = [];
+  const result = await promoteTemplate(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      templateId: "open-agents-dev",
+      versionId: "tplv_new",
+      alias: "stable"
+    },
+    {
+      resolveTemplateFn: async (templateRef) => {
+        resolveRefs.push(templateRef);
+        return { ...teamTemplate, latestVersionId: templateRef === "tplv_new" ? "tplv_new" : teamTemplate.latestVersionId };
+      },
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => {
+        audits.push({ action, metadata });
+      },
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("FROM template_versions")) return { rowCount: 1, rows: [{ id: "tplv_new" }] as never[] };
+        return { rowCount: 1, rows: [] as never[] };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "promoted");
+  assert.deepEqual(resolveRefs, ["open-agents-dev", "tplv_new"]);
+  assert(calls.some((call) => call.text.includes("UPDATE template_versions")));
+  assert(calls.some((call) => call.text.includes("UPDATE templates SET latest_version_id")));
+  assert.equal(audits[0].action, "template.promote");
+  assert.deepEqual(audits[0].metadata, { versionId: "tplv_new", alias: "stable" });
+});
+
+test("archiveTemplateForOrganization cancels active builds and audits canceled ids", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  const result = await archiveTemplateForOrganization(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      templateId: "open-agents-dev"
+    },
+    {
+      archiveTemplateFn: async () => ({ ...teamTemplate, status: "archived" }),
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => {
+        audits.push({ action, metadata });
+      },
+      query: async (text, params) => {
+        calls.push({ text, params });
+        return { rowCount: 2, rows: [{ id: "tplb_1" }, { id: "tplb_2" }] as never[] };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "archived");
+  assert.deepEqual(calls[0].params, ["org_tpl", "open-agents-dev", ["queued", "building"]]);
+  assert.equal(audits[0].action, "template.archive");
+  assert.deepEqual(audits[0].metadata, { latestVersionId: "tplv_ready", canceledBuildIds: ["tplb_1", "tplb_2"] });
+});

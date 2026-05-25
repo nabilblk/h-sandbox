@@ -45,7 +45,7 @@ opensandbox-server:
         memory: 512Mi
     gateway:
       enabled: true
-      host: harakiri.io
+      host: sandbox.localhost
       gatewayRouteMode: header
       image:
         repository: opensandbox-ingress

@@ -1,6 +1,7 @@
 {
   "name": "@harakiri/cli",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "harakiri": "dist/index.js"
@@ -11,14 +12,17 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/chmod.mjs",
-    "dev": "tsx src/index.ts",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist",
+    "build": "pnpm --filter @harakiri/sdk build && pnpm clean && tsc -p tsconfig.json && node scripts/chmod.mjs",
+    "dev": "pnpm --filter @harakiri/sdk build && tsx src/index.ts",
+    "lint": "pnpm --filter @harakiri/sdk build && tsc -p tsconfig.json --noEmit",
     "pack:tgz": "pnpm build && pnpm pack --pack-destination ../../dist-packages",
-    "test": "node --test --import tsx src/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "test": "pnpm --filter @harakiri/sdk build && node --test --import tsx src/*.test.ts",
+    "typecheck": "pnpm --filter @harakiri/sdk build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@harakiri/sdk": "workspace:*",
+    "@harakiri/shared": "workspace:*",
     "commander": "^14.0.2"
   },
   "devDependencies": {

@@ -1,14 +1,15 @@
-import type { V1Job, V1Node, V1Pod } from "@kubernetes/client-node";
-import path from "node:path";
+import type { V1Node, V1Pod } from "@kubernetes/client-node";
 import { recordAuditEvent } from "./audit.js";
-import { config } from "./config.js";
+import { config, logDeprecatedConfigWarnings } from "./config.js";
 import { makeId } from "./crypto.js";
 import { closeDb, withClient } from "./db.js";
 import { kubernetes } from "./kubernetes.js";
-import { registryCredentialForImage, type RegistryCredentialRef } from "./registry-credentials.js";
-import { resolveImageDigest } from "./registry.js";
+import { registryCredentialForImage } from "./registry-credentials.js";
 import { appendBuildLog } from "./build-logs.js";
 import { redactRecord, redactText } from "./redaction.js";
+import { buildKitKubernetesBuilder } from "./builders/buildkit-kubernetes-builder.js";
+import { kanikoLegacyBuilder } from "./builders/kaniko-builder.js";
+import { imageImportBuilder } from "./builders/image-import-builder.js";
 
 type BuildRow = {
   id: string;
@@ -115,21 +116,30 @@ type RuntimeImagePrepullResult = {
   durationMs?: number;
 };
 
-const provenanceFor = (build: BuildRow, ready: ReadyImage) => ({
-  source: ready.metadata.source ?? build.source_type,
-  sourceType: build.source_type,
-  buildId: build.id,
-  templateId: build.template_id,
-  organizationId: build.organization_id,
-  imageUri: ready.imageUri,
-  imageDigest: ready.imageDigest,
-  contextHash: build.context_sha256 ?? build.context_hash ?? null,
-  dockerfilePath: build.dockerfile_path,
-  builder: ready.metadata.builder ?? (build.source_type === "dockerfile" ? "kaniko" : "registry-resolver"),
-  runtimePullPreflight: ready.metadata.runtimePullPreflight ?? null,
-  runtimeImagePrepull: ready.metadata.runtimeImagePrepull ?? null,
-  registryRepositoryPrefix: config.templateRegistryRepositoryPrefix
-});
+const provenanceFor = (build: BuildRow, ready: ReadyImage) => {
+  const builderKind = ready.metadata.builder ?? (build.source_type === "dockerfile" ? config.templateDockerfileBuilder : "image-import");
+  return {
+    source: ready.metadata.source ?? build.source_type,
+    sourceType: build.source_type,
+    buildId: build.id,
+    templateId: build.template_id,
+    organizationId: build.organization_id,
+    imageUri: ready.imageUri,
+    imageDigest: ready.imageDigest,
+    contextHash: build.context_sha256 ?? build.context_hash ?? null,
+    dockerfilePath: build.dockerfile_path,
+    builderKind,
+    builder: {
+      kind: builderKind,
+      startedAt: ready.metadata.builderStartedAt ?? null,
+      completedAt: ready.metadata.builderCompletedAt ?? null,
+      details: ready.metadata.builderDetails ?? null
+    },
+    runtimePullPreflight: ready.metadata.runtimePullPreflight ?? null,
+    runtimeImagePrepull: ready.metadata.runtimeImagePrepull ?? null,
+    registryRepositoryPrefix: config.templateRegistryRepositoryPrefix
+  };
+};
 
 const scannerNotConfigured = (): TemplateScanResult => ({
   status: "not_scanned",
@@ -192,21 +202,6 @@ const safeName = (value: string) =>
     .replace(/[^a-z0-9.-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 54) || "template";
-
-const safeRepositoryPart = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9._/-]+/g, "-")
-    .replace(/\/+/g, "/")
-    .replace(/^\/+|\/+$/g, "") || "template";
-
-const safeDockerfilePath = (value: string | null) => {
-  const normalized = path.posix.normalize((value ?? "Dockerfile").replace(/\\/g, "/"));
-  if (!normalized || normalized === "." || normalized.startsWith("../") || normalized.includes("/../") || path.posix.isAbsolute(normalized)) {
-    throw new Error(`unsafe Dockerfile path: ${value}`);
-  }
-  return normalized;
-};
 
 const appendBuildLogForBuild = async (buildId: string, message: string, stream: "stdout" | "stderr" = "stdout") =>
   withClient((client) => appendBuildLog(client, buildId, stream, message));
@@ -687,197 +682,66 @@ const failBuild = async (build: BuildRow, error: unknown) =>
 
 const imageImportReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
   const imageRef = build.image_destination ?? build.template_image;
-  const resolved = await resolveImageDigest(imageRef);
+  const result = await imageImportBuilder.build({
+    buildId: build.id,
+    organizationId: build.organization_id,
+    templateId: build.template_id,
+    source: { type: "image", imageUri: imageRef },
+    metadata: build.metadata
+  });
   return {
-    imageUri: resolved.digestPinnedRef,
-    imageDigest: resolved.digest,
+    imageUri: result.imageUri,
+    imageDigest: result.imageDigest,
     metadata: {
       source: "image-import",
       requestedImage: imageRef,
-      resolvedImage: resolved.digestPinnedRef
+      resolvedImage: result.imageUri,
+      builder: result.provenance.builder,
+      builderDetails: result.provenance.details,
+      builderStartedAt: result.provenance.startedAt,
+      builderCompletedAt: result.provenance.completedAt
     }
   };
 };
 
-export const registryNamespaceForOrganization = (organizationId: string) =>
-  `org-${safeRepositoryPart(organizationId).slice(0, 80)}`;
-
-export const buildRepository = (build: Pick<BuildRow, "organization_id" | "template_id">, host: string) => {
-  const prefix = safeRepositoryPart(config.templateRegistryRepositoryPrefix);
-  return `${host}/${prefix}/${registryNamespaceForOrganization(build.organization_id)}/${safeRepositoryPart(build.template_id)}`;
-};
-
-const buildCacheRepository = (build: Pick<BuildRow, "organization_id">) =>
-  `${config.templateRegistryPushHost}/${safeRepositoryPart(config.templateRegistryRepositoryPrefix)}/${registryNamespaceForOrganization(build.organization_id)}/cache`;
-
-const jobNameFor = (buildId: string) => `hkbld-${safeName(buildId)}`;
-
-export const buildJob = (build: BuildRow, pushRef: string, dockerfilePath: string, pushCredential: RegistryCredentialRef | null): V1Job => {
-  const pushSecretRef = pushCredential?.pushSecretRef ?? pushCredential?.secretRef ?? null;
-  return {
-    apiVersion: "batch/v1",
-    kind: "Job",
-    metadata: {
-      name: jobNameFor(build.id),
-      namespace: config.templateBuilderNamespace,
-      labels: {
-        app: "harakiri-template-build",
-        "harakiri.build": safeName(build.id),
-        "harakiri.template": safeName(build.template_id)
-      }
-    },
-    spec: {
-      backoffLimit: 0,
-      ttlSecondsAfterFinished: 600,
-      template: {
-        metadata: {
-          labels: {
-            app: "harakiri-template-build",
-            "harakiri.build": safeName(build.id),
-            "harakiri.template": safeName(build.template_id)
-          }
-        },
-        spec: {
-          restartPolicy: "Never",
-          volumes: [
-            { name: "workspace", emptyDir: {} },
-            ...(pushSecretRef
-              ? [{
-                  name: "registry-auth",
-                  secret: {
-                    secretName: pushSecretRef,
-                    items: [{ key: ".dockerconfigjson", path: "config.json" }]
-                  }
-                }]
-              : [])
-          ],
-          initContainers: [
-            {
-              name: "context-exporter",
-              image: config.templateBuilderJobImage,
-              imagePullPolicy: "IfNotPresent",
-              command: ["node", "apps/api/dist/template-build-context-exporter.js"],
-              env: [
-                { name: "TEMPLATE_BUILD_ID", value: build.id },
-                { name: "TEMPLATE_CONTEXT_DIR", value: "/workspace/context" }
-              ],
-              envFrom: [{ configMapRef: { name: "harakiri-config" } }, { secretRef: { name: "harakiri-api" } }],
-              volumeMounts: [{ name: "workspace", mountPath: "/workspace" }]
-            }
-          ],
-          containers: [
-            {
-              name: "kaniko",
-              image: config.templateBuilderKanikoImage,
-              args: [
-                "--context=dir:///workspace/context",
-                `--dockerfile=/workspace/context/${dockerfilePath}`,
-                `--destination=${pushRef}`,
-                "--digest-file=/dev/termination-log",
-                "--cache=true",
-                `--cache-repo=${buildCacheRepository(build)}`,
-                "--insecure",
-                `--insecure-registry=${config.templateRegistryPushHost}`,
-                `--skip-tls-verify-registry=${config.templateRegistryPushHost}`
-              ],
-              volumeMounts: [
-                { name: "workspace", mountPath: "/workspace" },
-                ...(pushSecretRef ? [{ name: "registry-auth", mountPath: "/kaniko/.docker", readOnly: true }] : [])
-              ]
-            }
-          ]
-        }
-      }
-    }
-  };
-};
-
-const podForJob = async (jobName: string) => {
-  const pods = await kubernetes.core().listNamespacedPod({
-    namespace: config.templateBuilderNamespace,
-    labelSelector: `job-name=${jobName}`
-  });
-  return pods.items[0] ?? null;
-};
-
-export const builderRuntimeMetadata = (jobName: string, pod: V1Pod | null) => ({
-  builderJobName: jobName,
-  builderNamespace: config.templateBuilderNamespace,
-  builderPodName: pod?.metadata?.name ?? null,
-  builderPodUid: pod?.metadata?.uid ?? null,
-  builderNodeName: pod?.spec?.nodeName ?? null
-});
-
-const appendJobLogs = async (buildId: string, jobName: string) => {
-  const pod = await podForJob(jobName).catch(() => null);
-  if (!pod?.metadata?.name) return;
-  for (const container of ["context-exporter", "kaniko"]) {
-    const text = await kubernetes
-      .core()
-      .readNamespacedPodLog({ namespace: config.templateBuilderNamespace, name: pod.metadata.name, container })
-      .catch(() => "");
-    if (!text) continue;
-    await withClient(async (client) => {
-      for (const line of text.split(/\r?\n/).filter(Boolean)) await appendBuildLog(client, buildId, "stdout", `[${container}] ${line}`);
-    });
+const dockerfileImageBuilder = () => {
+  if (config.templateDockerfileBuilder === "buildkit") {
+    return buildKitKubernetesBuilder;
   }
-};
-
-const waitForJobDigest = async (build: BuildRow, jobName: string) => {
-  const started = Date.now();
-  while (Date.now() - started < config.templateBuilderJobTimeoutMs) {
-    const job = await kubernetes.batch().readNamespacedJobStatus({ namespace: config.templateBuilderNamespace, name: jobName });
-    if ((job.status?.succeeded ?? 0) > 0) {
-      const pod = await podForJob(jobName);
-      const message = pod?.status?.containerStatuses?.find((status) => status.name === "kaniko")?.state?.terminated?.message?.trim() ?? "";
-      if (!/^sha256:[a-f0-9]{64}$/.test(message)) throw new Error(`kaniko did not report an image digest for ${build.id}`);
-      return { digest: message, pod };
-    }
-    if ((job.status?.failed ?? 0) > 0) {
-      await appendJobLogs(build.id, jobName);
-      throw new Error(`template build job ${jobName} failed`);
-    }
-    await sleep(2000);
+  if (config.templateDockerfileBuilder === "kaniko-legacy") {
+    return kanikoLegacyBuilder;
   }
-  await appendJobLogs(build.id, jobName);
-  throw new Error(`template build job ${jobName} timed out`);
+  throw new Error(`unsupported Dockerfile builder: ${config.templateDockerfileBuilder}`);
 };
 
 const dockerfileReadyImage = async (build: BuildRow): Promise<ReadyImage> => {
-  if (!build.context_sha256) throw new Error(`build ${build.id} has no uploaded context`);
-  const dockerfilePath = safeDockerfilePath(build.dockerfile_path);
-  const tag = safeName(build.id);
-  const pushRepository = buildRepository(build, config.templateRegistryPushHost);
-  const runtimeRepository = buildRepository(build, config.templateRegistryRuntimeHost);
-  const pushRef = `${pushRepository}:${tag}`;
-  const pushCredential = await registryCredentialForImage(build.organization_id, pushRef, "push");
-  const pushSecretRef = pushCredential?.pushSecretRef ?? pushCredential?.secretRef ?? null;
-  const jobName = jobNameFor(build.id);
-  await appendBuildLogForBuild(build.id, `creating Kaniko job ${jobName}`);
-  await kubernetes.batch().createNamespacedJob({
-    namespace: config.templateBuilderNamespace,
-    body: buildJob(build, pushRef, dockerfilePath, pushCredential)
+  const result = await dockerfileImageBuilder().build({
+    buildId: build.id,
+    organizationId: build.organization_id,
+    templateId: build.template_id,
+    source: {
+      type: "dockerfile",
+      contextRef: build.context_sha256 ?? "",
+      dockerfilePath: build.dockerfile_path ?? "Dockerfile",
+      buildArgs: {}
+    },
+    metadata: {
+      ...build.metadata,
+      contextSizeBytes: build.context_size_bytes,
+      contextFileCount: build.context_file_count
+    }
   });
-  const { digest, pod } = await waitForJobDigest(build, jobName);
-  await appendJobLogs(build.id, jobName);
-  const imageUri = `${runtimeRepository}@${digest}`;
-  await appendBuildLogForBuild(build.id, `pushed ${pushRef} as ${imageUri}`);
+  const details = result.provenance.details ?? {};
   return {
-    imageUri,
-    imageDigest: digest,
+    imageUri: result.imageUri,
+    imageDigest: result.imageDigest,
     metadata: {
       source: "dockerfile",
-      dockerfilePath,
-      contextHash: build.context_sha256,
-      contextSizeBytes: build.context_size_bytes,
-      contextFileCount: build.context_file_count,
-      pushedImage: pushRef,
-      runtimeImage: imageUri,
-      registryNamespace: registryNamespaceForOrganization(build.organization_id),
-      registryPushCredentialId: pushCredential?.id ?? null,
-      registryPushSecretRef: pushSecretRef,
-      builder: "kaniko",
-      ...builderRuntimeMetadata(jobName, pod)
+      ...details,
+      builder: result.provenance.builder,
+      builderDetails: details,
+      builderStartedAt: result.provenance.startedAt,
+      builderCompletedAt: result.provenance.completedAt
     }
   };
 };
@@ -919,6 +783,7 @@ export const runTemplateBuilder = async () => {
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  logDeprecatedConfigWarnings();
   runTemplateBuilder()
     .catch((error) => {
       console.error(error);

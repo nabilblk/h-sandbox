@@ -1,0 +1,232 @@
+import type React from "react";
+
+export type DocPage = {
+  id: string;
+  section: string;
+  title: string;
+  lede: string;
+  toc: string[];
+  body: React.ReactNode;
+};
+
+export const docPages: DocPage[] = [
+  {
+    id: "quickstart",
+    section: "Getting started",
+    title: "Quickstart",
+    lede: "Spawn a sealed Python sandbox, run code in it, expose a port, and end it from the dashboard or CLI.",
+    toc: ["Install", "Create", "Expose"],
+    body: (
+      <>
+        <h2>Install</h2>
+        <pre>{`pnpm cli:pack\nnpm install -g ./dist-packages/harakiri-cli-0.1.0.tgz\nharakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...`}</pre>
+        <h2>Create</h2>
+        <pre>{`harakiri create --template python-3.12-data --name first-agent\nharakiri run --stdin agent.py\nharakiri kill sbx_...`}</pre>
+        <h2>Expose</h2>
+        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0"\nharakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
+      </>
+    )
+  },
+  {
+    id: "create-sandbox",
+    section: "Sandboxes",
+    title: "Create a sandbox",
+    lede: "Create sandboxes from catalog templates, custom aliases, qualified stable aliases, or immutable template version IDs.",
+    toc: ["CLI", "API", "Dashboard", "Routing"],
+    body: (
+      <>
+        <h2>CLI</h2>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner\nharakiri status sbx_...`}</pre>
+        <h2>API</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code></span>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'\n\ncurl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","name":"stable-runner","ttlSeconds":300}'`}</pre>
+        <h2>Dashboard</h2>
+        <p>Use New sandbox when you want to start from the browser. The Environment field accepts `KEY=value` rows and passes them only to the sandbox being created.</p>
+        <h2>Routing</h2>
+        <p>Expose a port only when a process is listening on `0.0.0.0` inside the sandbox.</p>
+        <pre>{`harakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
+      </>
+    )
+  },
+  {
+    id: "custom-templates",
+    section: "Templates",
+    title: "Create a custom template",
+    lede: "Define an OpenSandbox-compatible runtime once, build it, then create sandboxes by template name or alias.",
+    toc: ["Config", "Dashboard", "Build", "Run"],
+    body: (
+      <>
+        <h2>Config</h2>
+        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot`}</pre>
+        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\nstart_command = "sleep 3600"\nready_command = "true"`}</pre>
+        <h2>Dashboard</h2>
+        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
+        <h2>Build</h2>
+        <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
+        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. A new template definition cannot create sandboxes until a build succeeds and creates a ready digest-pinned version. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
+        <h2>Run</h2>
+        <pre>{`harakiri create --template open-agents-dev --name agent-runner\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
+        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Use is enabled only after a ready version exists. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`; use `template:stable` when you want the stable channel and `tplv_...` when you need an immutable pin.</p>
+      </>
+    )
+  },
+  {
+    id: "template-builds",
+    section: "Templates",
+    title: "Template builds",
+    lede: "Build records make template image creation inspectable from the API, CLI, and dashboard.",
+    toc: ["Statuses", "Logs", "Retention", "Retry", "Troubleshooting", "Archive", "Limits"],
+    body: (
+      <>
+        <h2>Statuses</h2>
+        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, optional hot-template image pre-pull status, and context metadata in the dashboard detail pane. A template becomes runnable only after one of those successful builds creates a ready version.</p>
+        <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
+        <h2>Logs</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
+        <pre>{`harakiri template logs bld_...`}</pre>
+        <h2>Retention</h2>
+        <p>Build logs and uploaded Dockerfile contexts are retained for debugging, then pruned by the scheduler after the workspace operator policy window. Old unused versions are marked `retired` instead of deleted, so existing audit records still show which image digest a sandbox used.</p>
+        <h2>Retry</h2>
+        <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
+        <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
+        <h2>Troubleshooting</h2>
+        <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Runtime pull preflight failures mean the image was built or imported but the cluster could not pull the final digest. Optional hot-template pre-pull failures mean the image is ready, but the cluster could not warm every node cache. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
+        <h2>Archive</h2>
+        <p>Archive a template when it should no longer appear in active lists or be used for new sandboxes. Existing sandboxes keep running; queued or building template builds are canceled.</p>
+        <pre>{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</pre>
+        <h2>Limits</h2>
+        <p>If a template asks for more CPU, memory, or default ports than the workspace allows, the API returns `template_resource_limit_exceeded`. If too many builds are already queued or building, it returns `template_build_concurrency_limit_exceeded`. Image and Dockerfile base-image policy failures return `template_image_policy_violation`.</p>
+      </>
+    )
+  },
+  {
+    id: "template-troubleshooting",
+    section: "Templates",
+    title: "Template troubleshooting",
+    lede: "Use the dashboard, CLI, and API records to recover from failed builds, registry pull problems, route setup, and alias mistakes.",
+    toc: ["Failed builds", "Registry pull", "Environment", "Aliases", "Routes"],
+    body: (
+      <>
+        <h2>Failed builds</h2>
+        <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure. Very old logs and uploaded contexts can disappear after the operator retention window, but the build status and audit trail remain.</p>
+        <pre>{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</pre>
+        <h2>Registry pull</h2>
+        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Builds also fail before ready if runtime pull preflight cannot pull the final digest from the cluster. Check spelling, tag existence, registry visibility, workspace image policy, and whether the runtime registry host is reachable from k0s. A template without a ready version returns `template_not_ready` when you try to create a sandbox. Private runtime images can use a matching registry credential; if the credential includes encrypted username/password material, sandbox create passes it to OpenSandbox for the image pull. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
+        <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template inspect ubuntu-import`}</pre>
+        <h2>Environment</h2>
+        <p>Environment variables are chosen when the sandbox is created. They are not added retroactively to an existing sandbox. Use `harakiri run --env KEY=value` only when the command creates a temporary sandbox for the run.</p>
+        <pre>{`harakiri create --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri run --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok --cmd "printenv HARAKIRI_ENV_SMOKE"`}</pre>
+        <h2>Aliases</h2>
+        <p>If `harakiri create --template ...` cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use `template:stable` for a promoted channel and the immutable version ID when you need to prove exactly which image digest was selected. Bare aliases like `stable` become ambiguous when several templates have the same alias, so prefer the qualified form.</p>
+        <pre>{`harakiri template list\nharakiri template inspect open-agents-dev\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
+        <h2>Routes</h2>
+        <p>Route failures are usually separate from template builds. Start the server on `0.0.0.0` inside the sandbox, expose the matching port, then open the route from the Network tab or CLI. A server bound only to `127.0.0.1` will not be reachable through the public route.</p>
+        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0"\nharakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
+      </>
+    )
+  },
+  {
+    id: "sdk-usage",
+    section: "Templates",
+    title: "Using templates from SDKs",
+    lede: "The SDK uses the same API surface as the dashboard and CLI, so template aliases work consistently.",
+    toc: ["JavaScript", "HTTP", "Python"],
+    body: (
+      <>
+        <h2>JavaScript</h2>
+        <pre>{`import { HarakiriClient } from "@harakiri/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.run(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
+        <h2>HTTP</h2>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
+        <h2>Python</h2>
+        <p>A Python SDK is not shipped in this prototype yet. Use the HTTP API from Python until the SDK package is added.</p>
+      </>
+    )
+  },
+  {
+    id: "open-agents-template",
+    section: "Templates",
+    title: "Open Agents template",
+    lede: "The Open Agents pilot template packages browser automation, code editing, JavaScript, and Python tools for agent runtimes.",
+    toc: ["Included tools", "Build", "Ports", "Smoke test", "Expose a route"],
+    body: (
+      <>
+        <h2>Included tools</h2>
+        <ul><li>`bun`, `node`, `pnpm`, `npm`, and `yarn`</li><li>`agent-browser` and Chromium headless dependencies</li><li>`code-server`, `git`, `jq`, and Python</li><li>Writable `/workspace` directory</li></ul>
+        <h2>Build</h2>
+        <pre>{`harakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
+        <h2>Ports</h2>
+        <p>Use `3000`, `5173`, `4321`, and `8000` as default exposed-port candidates for web apps, Vite, code-server, and API servers.</p>
+        <h2>Smoke test</h2>
+        <pre>{`harakiri create --template open-agents-dev --name pilot\nharakiri run sbx_... --cmd "harakiri-open-agents-smoke"`}</pre>
+        <h2>Expose a route</h2>
+        <p>Bind your dev server to `0.0.0.0`, then expose the internal port.</p>
+        <pre>{`harakiri run sbx_... --cmd "nohup node -e \\"require('http').createServer((req,res)=>res.end('ok')).listen(3000,'0.0.0.0')\\" >/tmp/app.log 2>&1 &"\nharakiri expose sbx_... --port 3000`}</pre>
+      </>
+    )
+  },
+  {
+    id: "security-model",
+    section: "Reference",
+    title: "Security model",
+    lede: "Custom templates are untrusted inputs until the builder, registry, digest, and promotion checks succeed.",
+    toc: ["Visibility", "Digests", "Secrets", "Runtime metadata", "Image policy", "Provenance", "Audit", "Limits"],
+    body: (
+      <>
+        <h2>Visibility</h2>
+        <p>`private`, `internal`, and `public` control product visibility. Team-owned templates are visible only inside the owning workspace. Platform `public` and `internal` templates are shared for sandbox creation, while platform `private` templates stay hidden. Build, promote, archive, logs, and uploaded contexts remain scoped to the owning workspace.</p>
+        <h2>Digests</h2>
+        <p>Mutable tags can be accepted as input, but ready versions store an immutable image digest and pass runtime pull preflight before production use.</p>
+        <h2>Secrets</h2>
+        <p>Registry passwords and build secrets should live in Kubernetes Secrets, an external secret manager, or encrypted registry credential records. API responses show only whether an encrypted secret exists plus the configured pull or push Secret references. When encrypted pull credentials match a private runtime image, Harakiri can pass them to OpenSandbox for the image pull without returning the password through the API.</p>
+        <h2>Runtime metadata</h2>
+        <p>Every sandbox create request carries label-safe Harakiri metadata for the sandbox, organization, template, template version, image digest, and current route policy.</p>
+        <h2>Image policy</h2>
+        <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run. Generated Dockerfile images are stored under an organization-scoped registry namespace so teams do not share one flat repository path.</p>
+        <h2>Provenance</h2>
+        <p>Template versions keep SBOM references, provenance, runtime pull preflight status, optional hot-template pre-pull status, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
+        <h2>Audit</h2>
+        <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, version retirement, and sandbox create actions are stored as audit events with redacted metadata.</p>
+        <h2>Limits</h2>
+        <p>Template CPU, memory, default ports, and active queued/building builds are capped by the workspace policy so one team cannot exhaust builder capacity.</p>
+      </>
+    )
+  },
+  {
+    id: "api-reference",
+    section: "Reference",
+    title: "API reference",
+    lede: "The Harakiri API is the shared contract behind the dashboard, CLI, and SDK.",
+    toc: ["OpenAPI", "Templates", "Builds", "Sandboxes", "Promotion", "Archive"],
+    body: (
+      <>
+        <h2>OpenAPI</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/openapi.json</code></span>
+        <p>The repository keeps the same OpenAPI contract in `docs/openapi.json`. Use it for generated clients, contract review, and external integration checks.</p>
+        <h2>Templates</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates/:id/versions</code></span>
+        <h2>Builds</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/builds</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/template-builds/:id/context</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
+        <p>Use `GET /v1/template-builds?template=open-agents-dev&limit=20` when a UI or script needs recent build records for one template.</p>
+        <h2>Sandboxes</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?template=:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?templateVersionId=:id</code></span>
+        <p>The template detail Runs tab uses these filters to show recent sandboxes for a template or an immutable version.</p>
+        <h2>Promotion</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
+        <h2>Archive</h2>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/archive</code></span>
+        <h2>Registry credentials</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/registry-credentials</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/registry-credentials</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/registry-credentials/:id</code></span>
+        <p>Credential responses include registry host, purpose, repository prefix, Secret references, `lastUsedAt`, and `hasEncryptedSecret`, never the raw registry secret.</p>
+      </>
+    )
+  }
+];

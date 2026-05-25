@@ -1,130 +1,153 @@
 # Harakiri Sandbox
 
-Harakiri Sandbox is a working prototype of a sandbox control plane on top of OpenSandbox. It includes a high-fidelity web app based on `sandbox_mockups/`, lifecycle and routing APIs, Keycloak authentication integration, a scheduler worker, Kubernetes deployment manifests, and a `harakiri` CLI.
+Harakiri Sandbox is an open-source control plane for disposable developer
+sandboxes on top of OpenSandbox. It provides the product surface around a
+runtime provider: API keys, organization state, template builds, routes,
+scheduling, usage, audit events, a web dashboard, an SDK, and the `harakiri`
+CLI.
+
+The default runtime provider is OpenSandbox. The default Dockerfile template
+builder is rootless BuildKit running as per-build Kubernetes Jobs. PostgreSQL is
+the control-plane datastore, and Keycloak-compatible OIDC is used for browser
+authentication.
+
+## Interfaces
+
+- Web UI: React/Vite dashboard and product docs.
+- API: Fastify `/v1` control-plane API plus `/openapi.json`.
+- CLI: installable `harakiri` executable.
+- SDK: TypeScript client package for the same API.
+
+All public interface contracts should stay aligned through
+`packages/shared` and the generated OpenAPI document in `docs/openapi.json`.
 
 ## Workspace
 
-- `apps/api` - Fastify control-plane API and scheduler worker.
-- `apps/web` - React/Vite web app using the mockup design system.
-- `packages/cli` - `harakiri` command-line client.
-- `packages/shared` - shared types, templates, and API helpers.
+- `apps/api` - API server, scheduler, template builder worker, providers, and
+  services.
+- `apps/web` - React dashboard and website docs using the mockup design system.
+- `packages/cli` - command-line client.
+- `packages/sdk` - TypeScript SDK.
+- `packages/shared` - shared contracts, template metadata, and OpenAPI source.
 - `db/migrations` - PostgreSQL schema.
-- `infra/k0s` - local k0s bootstrap and verification.
+- `infra/k0s` - local k0s bootstrap.
 - `infra/k8s` - Kubernetes manifests.
-- `docs/exec-plans` - persistent execution plan.
+- `infra/scripts` - portable deployment and smoke scripts.
+- `infra/scripts/env/harakiri` - maintainer-specific harakiri.io examples.
+- `docs` - architecture, user, operator, and contributor docs.
 
-## Local Development
+## Quick Start For Contributors
 
 ```bash
 pnpm install
 cp .env.example .env
+docker compose up -d postgres keycloak
 pnpm db:migrate
 pnpm db:seed
-pnpm dev
+HARAKIRI_RUNTIME_PROVIDER=dev pnpm dev
 ```
 
-For the full deployed prototype, use:
+Then run focused interface checks:
+
+```bash
+pnpm --filter @harakiri/api test
+pnpm --filter @harakiri/web test
+pnpm --filter @harakiri/cli test
+pnpm --filter @harakiri/sdk test
+pnpm openapi:check
+```
+
+Read [docs/development.md](docs/development.md) for the complete local
+development path. It does not require Cloudflare, a public DNS zone, or a real
+OpenSandbox deployment. The local Keycloak user is `lyra@k.ai` with password
+`harakiri-dev`.
+
+## Full k0s/OpenSandbox Stack
+
+Use the full stack when changing runtime provider behavior, template builds,
+routing, manifests, or smoke tests:
 
 ```bash
 pnpm k0s:bootstrap
+export KUBECONFIG="$PWD/infra/k0s/harakiri.kubeconfig"
 pnpm deploy:k0s
-pnpm k0s:verify
+pnpm ports:restart
 pnpm smoke
+pnpm smoke:template-build
+pnpm smoke:route
 pnpm e2e
 ```
 
-See [docs/runbook.md](docs/runbook.md) for the full cluster workflow.
-See [docs/test-report.md](docs/test-report.md) for the latest self-test evidence and deployed URLs.
+See [docs/runbook.md](docs/runbook.md) for the local cluster workflow and
+[docs/test-report.md](docs/test-report.md) for the latest verification
+evidence.
 
-## Custom Template Quickstart
+## CLI
 
-Templates are named runtime images plus CPU, memory, workdir, default ports,
-aliases, and immutable versions stored by the control plane. The CLI writes
-`harakiri.toml` for OpenSandbox-compatible OCI images.
+Build and install the CLI as a real executable:
 
 ```bash
-harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
+pnpm cli:pack
+npm install -g ./dist-packages/harakiri-cli-0.1.0.tgz
+harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
+harakiri create --template python-3.12-data --name first-agent
+harakiri run sbx_... --cmd "python --version"
+harakiri expose sbx_... --port 3000
+```
+
+See [packages/cli/README.md](packages/cli/README.md) for packaging and command
+details.
+
+## Templates
+
+Templates define runtime images, resources, workdir, ports, aliases, and
+immutable versions. The CLI can initialize a template config, upload Dockerfile
+contexts, follow build logs, and create sandboxes from names, aliases, or
+version IDs:
+
+```bash
+harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --tag hot
 harakiri template build --name open-agents-dev .
 harakiri template promote open-agents-dev --version-id tplv_... --alias stable
-harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
-harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV_SMOKE=env-ok
-harakiri create --template open-agents-dev:stable --name stable-runner
-harakiri create --template tplv_... --name pinned-runner
-harakiri template archive open-agents-dev
+harakiri create --template open-agents-dev:stable --name agent-runner
 ```
 
-The Open Agents example uses the same build path with a repository template
-directory:
+Rootless BuildKit is the default Dockerfile builder. The legacy Kaniko provider
+is available only through `TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy` for
+compatibility.
 
-```bash
-harakiri template build --name open-agents-dev examples/templates/open-agents-dev
-```
-
-Current v1 behavior persists template definitions, versions, build records,
-uploaded Dockerfile build contexts, and build logs in the control plane. The deployed
-`harakiri-template-builder` worker completes image-import builds by resolving
-registry digests, and completes Dockerfile builds by launching a Kaniko Job in
-k0s, pushing to the local registry, and recording a digest-pinned ready template
-version. `harakiri template build` follows logs and prints the final build ID,
-template version ID, image digest, duration, and next create command by default;
-use `--no-wait` when a script only needs the queued build ID. Creating a
-template definition does not make it runnable by itself; sandbox creation
-requires a ready template version with an immutable image digest. Template
-versions are marked ready only after the builder verifies the digest-pinned
-image can be pulled by the k0s runtime path, and sandbox creation refuses
-templates that have no ready version. Use `template:stable` or
-`template:latest` for human-friendly promoted aliases, and use the immutable
-`tplv_...` ID when a CI job or audit trail must prove the exact image digest
-selected at sandbox create time. Templates tagged `hot`, `prepull`, or `warm`
-can also pre-pull the final image on ready k0s nodes so the next sandbox start
-does not pay the first image download on each node. Versions also carry
-SBOM/provenance and scan-status fields. By default new versions report
-`not_scanned`; operators can set
-`TEMPLATE_SCANNER_WEBHOOK_URL` to call an external scanner hook and persist the
-returned scan status and summary.
-Generated Dockerfile images are pushed under an organization-scoped repository
-namespace below `TEMPLATE_REGISTRY_REPOSITORY_PREFIX`, and registry credential
-records can be managed through the API without returning secret material.
-Sandbox creation can pass normal environment variables through `env` or
-`harakiri create --env KEY=value`; audit and event records store only key names.
-The scheduler also enforces retention for old build logs, uploaded build
-contexts, unversioned terminal build rows, unused old template versions, and
-completed builder Jobs. Production hardening still needs registry blob garbage
-collection and a production scanner service/gating policy.
-The current API already enforces configurable template CPU, memory,
-default-port, active-build, and image registry/prefix policy limits tracked in
-[docs/exec-plans/completed/custom-template-image-builds.md](docs/exec-plans/completed/custom-template-image-builds.md).
-
-For the template implementation contract, read:
+Template docs:
 
 - [docs/templates.md](docs/templates.md)
 - [docs/template-builds.md](docs/template-builds.md)
 - [docs/template-security.md](docs/template-security.md)
 - [docs/template-runtime-contract.md](docs/template-runtime-contract.md)
 
-For API, architecture, and operator workflows, read:
+## Routes
 
-- [docs/api.md](docs/api.md)
-- [docs/architecture.md](docs/architecture.md)
-- [docs/runbook.md](docs/runbook.md)
-- [docs/test-report.md](docs/test-report.md)
-
-## Expose A Sandbox Port
+Expose a port after a process is listening on `0.0.0.0` inside the sandbox:
 
 ```bash
-harakiri create --template python-3.12 --name web-preview
 harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"
 harakiri expose sbx_... --port 3000
+harakiri routes sbx_...
 ```
 
-The deployed k0s prototype uses OpenSandbox gateway host routing and returns URLs like `https://<route-key>.harakiri.io`.
+The portable smoke path checks OpenSandbox gateway routing through local
+forwards. Public DNS and Cloudflare tunnel examples are intentionally isolated
+under [infra/scripts/env/harakiri](infra/scripts/env/harakiri/README.md).
 
-For local k0s HTTPS ingress verification:
+## Documentation
 
-```bash
-pnpm route:tls-dev
-pnpm smoke:route-ingress
-```
+- [docs/README.md](docs/README.md) - documentation index by audience
+- [docs/architecture.md](docs/architecture.md) - subsystem map and data flow
+- [docs/opensandbox-boundaries.md](docs/opensandbox-boundaries.md) - runtime
+  and Kubernetes ownership rules
+- [docs/extensions.md](docs/extensions.md) - provider and extension interfaces
+- [docs/api.md](docs/api.md) - HTTP API reference
+- [CONTRIBUTING.md](CONTRIBUTING.md) - contribution workflow
+- [SECURITY.md](SECURITY.md) - security reporting and boundaries
 
-Harakiri.io Cloudflare/DNS checks are kept as environment-specific scripts under
-`infra/scripts/env/harakiri` and exposed as `pnpm env:harakiri:*` commands.
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).

@@ -14,7 +14,31 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
 - Template builder: k0s worker deployment that consumes queued image-import and
   Dockerfile template build records, writes build logs, pushes Dockerfile images
-  with Kaniko, and creates immutable template versions.
+  with rootless BuildKit by default, and creates immutable template versions.
+
+## Target OSS Module Map
+
+The current prototype is being refactored toward a small set of explicit
+subsystems. The first contract definitions live in source control even before
+all call sites are migrated, so contributors can see the intended boundaries:
+
+| Subsystem | Current primary files | Target boundary |
+|-----------|-----------------------|-----------------|
+| Runtime provider | `apps/api/src/opensandbox.ts` | `RuntimeProvider` in `apps/api/src/providers/runtime/provider.ts`, with OpenSandbox as the default implementation |
+| Image builder | `apps/api/src/template-builder.ts` | `ImageBuilder` in `apps/api/src/builders/image-builder.ts`, with rootless BuildKit as the default and Kaniko isolated as legacy |
+| Build artifacts | `template_build_contexts`, `template_build_logs`, `apps/api/src/build-context.ts`, `apps/api/src/build-logs.ts` | `BlobStore` and `BuildLogStore` in `apps/api/src/storage/` |
+| Auth provider | `apps/api/src/auth.ts` | OIDC verification through `OidcProviderConfig` and an API-key authenticator service |
+| Audit | `apps/api/src/audit.ts` | `AuditSink` in `apps/api/src/providers/audit/audit-sink.ts` |
+| API domains | `apps/api/src/routes.ts`, `apps/api/src/routes/template-builds.ts` | Small domain routers and services for sandboxes, routes, templates, builds, registry credentials, API keys, usage, and settings |
+| Scheduler | `apps/api/src/scheduler.ts` | Worker services that depend on provider interfaces and reconcile persisted control-plane intent |
+| Web app | `apps/web/src/main.tsx` | Route modules and feature components that preserve the current visual design |
+| CLI | `packages/cli/src/index.ts` | Command modules backed by the SDK request layer |
+| SDK and contracts | `packages/sdk/src/index.ts`, `packages/shared/src/index.ts` | Shared request/response contracts consumed by API, web, CLI, and SDK |
+| Deployment examples | `infra/k0s/`, `infra/scripts/`, `infra/scripts/env/harakiri/` | Generic local/k0s examples separated from harakiri.io-specific scripts |
+
+The extension interfaces above are internal implementation contracts until the
+refactor stabilizes. The public user-facing contracts remain the HTTP API, SDK,
+CLI, and documented template/runtime behavior.
 
 ## Data Flow
 
@@ -41,17 +65,17 @@ Templates are a separate control-plane subsystem from live sandboxes:
    per-organization active-build limits before accepting the build. The
    active-build check counts `queued` and `building` records under a PostgreSQL
    advisory lock.
-5. For Dockerfile builds, the CLI uploads a tar+gzip context into
-   `template_build_contexts`; the API verifies the archive size and `sha256:`
-   digest, then inspects Dockerfile `FROM` references against image policy
-   before recording it on the build.
-6. The builder claims queued records and streams logs into
-   `template_build_logs`.
+5. For Dockerfile builds, the CLI uploads a tar+gzip context through
+   `BlobStore`; the API verifies the archive size and `sha256:` digest, then
+   inspects Dockerfile `FROM` references against image policy before recording
+   it on the build. PostgreSQL remains the active compatibility implementation.
+6. The builder claims queued records and streams logs through `BuildLogStore`.
 7. For `sourceType=image`, it resolves the immutable registry digest and writes
    a ready `template_versions` row.
 8. For `sourceType=dockerfile`, it creates a Kubernetes Job that exports the
-   uploaded context, runs Kaniko, pushes the image to the k0s registry, captures
-   the pushed digest, and writes a ready `template_versions` row.
+   uploaded context, runs rootless BuildKit, pushes the image to the k0s
+   registry, captures the pushed digest from plain BuildKit output, and writes
+   a ready `template_versions` row.
 9. Before the ready version is inserted, the builder creates a short-lived
    runtime pull preflight Pod in the configured namespace and waits until the
    digest-pinned image has either started or reached a post-pull container
@@ -69,7 +93,8 @@ Templates are a separate control-plane subsystem from live sandboxes:
 12. The scheduler retention pass deletes old build logs, uploaded context
     archives, unversioned terminal build rows, and completed builder Jobs. It
     retires old ready template versions only when they are not latest/stable and
-    no active sandbox is using them.
+    no active sandbox is using them. Retention still needs to move fully behind
+    the storage interfaces.
 13. Promotion moves aliases such as `latest` or `stable` to the ready version.
 13. Sandbox creation resolves a template name, alias, or version ID through
    `resolveTemplate()` and stores the exact version/digest selected.
@@ -77,7 +102,8 @@ Templates are a separate control-plane subsystem from live sandboxes:
 The currently committed API, CLI, SDK, and dashboard support the definition,
 build-record, context-upload, log, cancel, retry, promote, and version-read
 surfaces. The k0s builder supports image-import digest resolution and
-Dockerfile execution with Kaniko. Template versions carry SBOM references,
+Dockerfile execution with rootless BuildKit, while Kaniko remains an explicit
+legacy compatibility provider. Template versions carry SBOM references,
 provenance JSON, scan status, and scan summary fields. The builder supports an
 operator-owned scanner webhook, runtime pull preflight, and a scheduler-owned
 retention policy; production scanner service selection, signing, Git build
@@ -119,7 +145,12 @@ The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run
 
 ## OpenSandbox Adapter
 
-`apps/api/src/opensandbox.ts` isolates provider calls. It uses the
+Runtime behavior is accessed through the `RuntimeProvider` contract in
+`apps/api/src/providers/runtime/provider.ts`. The default implementation is the
+OpenSandbox provider under `apps/api/src/providers/runtime/`.
+
+`apps/api/src/providers/runtime/opensandbox-transport.ts` isolates provider
+transport calls. It uses the
 OpenSandbox `/v1/sandboxes` lifecycle API for create/list/get/delete/renew.
 For normal sandbox interaction, it resolves the OpenSandbox `execd` endpoint
 with `GET /v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`, then calls
@@ -151,6 +182,12 @@ account in the OpenSandbox dataplane namespace so OpenSandbox can serve its own
 diagnostics endpoint. Harakiri's service account does not receive that
 permission.
 
+For contributor and test environments that should not call a runtime, set
+`HARAKIRI_RUNTIME_PROVIDER=dev` or `RUNTIME_PROVIDER=dev`. This enables the
+in-memory runtime provider and keeps terminal, filesystem, logs, metrics, and
+route surfaces available without OpenSandbox. The deployed k0s example uses the
+OpenSandbox provider with fallback disabled.
+
 For templates, the adapter receives the resolved runtime template: image URI,
 entrypoint, CPU, memory, TTL, name, sandbox env, organization ID, and Harakiri
 metadata. The adapter sends label-safe metadata for Harakiri sandbox ID,
@@ -167,15 +204,19 @@ auth, but not a create-time workdir field; Harakiri therefore treats Dockerfile
 
 Routes are stored in `sandbox_routes` with provider metadata: `route_key`, `host`, `url`, `state`, `provider`, and `provider_route_id`. A route is created explicitly by `POST /v1/sandboxes/:id/routes` and is idempotent for `(sandbox_id, port)`.
 
-The deployed k0s path uses the official OpenSandbox ingress gateway in header/host mode:
+The k0s path uses the official OpenSandbox ingress gateway in header/host mode:
 
 1. Harakiri derives a DNS-safe route key from the OpenSandbox provider ID and port.
-2. Harakiri returns `https://<route-key>.harakiri.io`.
-3. `ingress-nginx` forwards wildcard `*.harakiri.io` traffic to `opensandbox-ingress-gateway`.
+2. Harakiri returns `https://<route-key>.<sandbox-route-base-domain>`.
+3. `ingress-nginx` forwards wildcard sandbox-route traffic to
+   `opensandbox-ingress-gateway`.
 4. OpenSandbox resolves the host header to the sandbox pod and port.
 5. When the sandbox is killed or expires, Harakiri marks its routes `terminated` and OpenSandbox removes the backend.
 
-The route smoke suite verifies both the local gateway path and the public Cloudflare Tunnel path. Exact Cloudflare Tunnel host rules for product services take precedence, while the wildcard rule catches generated sandbox route hosts.
+The portable route smoke suite verifies the local OpenSandbox gateway path and
+local k0s ingress path. Public DNS, tunnel, and edge-certificate checks belong
+to environment-specific scripts such as the harakiri.io example under
+`infra/scripts/env/harakiri/`.
 
 Filesystem and metrics panels use OpenSandbox `execd` APIs. Directory display
 is derived from `files/search` results when possible. Because the current

@@ -1,0 +1,32 @@
+{
+  "realm": "harakiri",
+  "enabled": true,
+  "displayName": "Harakiri Sandbox",
+  "clients": [
+    {
+      "clientId": "harakiri-web",
+      "enabled": true,
+      "publicClient": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "lyra@k.ai",
+      "email": "lyra@k.ai",
+      "firstName": "Lyra",
+      "lastName": "Ito",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "harakiri-dev",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

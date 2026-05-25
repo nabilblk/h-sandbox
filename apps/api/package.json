@@ -1,19 +1,20 @@
 {
   "name": "@harakiri/api",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/server.ts",
+    "build": "pnpm --filter @harakiri/shared build && tsc -p tsconfig.json",
+    "dev": "pnpm --filter @harakiri/shared build && tsx watch src/server.ts",
     "start": "node dist/server.js",
     "scheduler": "node dist/scheduler.js",
     "template-builder": "node dist/template-builder.js",
     "db:migrate": "tsx src/migrate.ts",
     "db:seed": "tsx src/seed.ts",
-    "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test --import tsx src/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "lint": "pnpm --filter @harakiri/shared build && tsc -p tsconfig.json --noEmit",
+    "test": "pnpm --filter @harakiri/shared build && node --test --import tsx src/*.test.ts",
+    "typecheck": "pnpm --filter @harakiri/shared build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fastify/cors": "^11.1.0",

@@ -1,11 +1,12 @@
+const env = import.meta.env ?? ({} as ImportMetaEnv);
+
 const defaultKeycloakUrl = () => {
-  if (typeof location !== "undefined" && location.hostname === "sb.harakiri.io") return "https://sb-auth.harakiri.io";
-  return "http://127.0.0.1:18084";
+  return "http://127.0.0.1:8081";
 };
 
-const KEYCLOAK_URL = import.meta.env.PUBLIC_KEYCLOAK_URL ?? import.meta.env.VITE_PUBLIC_KEYCLOAK_URL ?? defaultKeycloakUrl();
-const KEYCLOAK_REALM = import.meta.env.PUBLIC_KEYCLOAK_REALM ?? import.meta.env.VITE_PUBLIC_KEYCLOAK_REALM ?? "harakiri";
-const KEYCLOAK_CLIENT_ID = import.meta.env.PUBLIC_KEYCLOAK_CLIENT_ID ?? import.meta.env.VITE_PUBLIC_KEYCLOAK_CLIENT_ID ?? "harakiri-web";
+const KEYCLOAK_URL = env.PUBLIC_KEYCLOAK_URL ?? env.VITE_PUBLIC_KEYCLOAK_URL ?? defaultKeycloakUrl();
+const KEYCLOAK_REALM = env.PUBLIC_KEYCLOAK_REALM ?? env.VITE_PUBLIC_KEYCLOAK_REALM ?? "harakiri";
+const KEYCLOAK_CLIENT_ID = env.PUBLIC_KEYCLOAK_CLIENT_ID ?? env.VITE_PUBLIC_KEYCLOAK_CLIENT_ID ?? "harakiri-web";
 
 const verifierKey = "harakiri_pkce_verifier";
 const returnRouteKey = "harakiri_return_route";

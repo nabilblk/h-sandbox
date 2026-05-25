@@ -2,12 +2,8 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import test from "node:test";
 import {
-  buildJob,
-  buildRepository,
-  builderRuntimeMetadata,
   preflightTemplateImagePull,
   prepullTemplateImage,
-  registryNamespaceForOrganization,
   runtimePullPreflightState,
   scanTemplateImage,
   templateShouldPrepull
@@ -47,31 +43,8 @@ const scanInput = {
   sourceType: "dockerfile",
   imageUri: "127.0.0.1:5000/harakiri/templates/open-agents-dev@sha256:abc",
   imageDigest: "sha256:abc",
-  provenance: { builder: "kaniko" }
+  provenance: { builder: "buildkit" }
 };
-
-test("builderRuntimeMetadata records Kubernetes job, pod, and node identity", () => {
-  const metadata = builderRuntimeMetadata("hkbld-bld-123", {
-    metadata: { name: "hkbld-bld-123-x7mqp", uid: "pod-uid-1" },
-    spec: { nodeName: "k0s-worker-1" }
-  } as any);
-
-  assert.equal(metadata.builderJobName, "hkbld-bld-123");
-  assert.equal(metadata.builderNamespace, "harakiri");
-  assert.equal(metadata.builderPodName, "hkbld-bld-123-x7mqp");
-  assert.equal(metadata.builderPodUid, "pod-uid-1");
-  assert.equal(metadata.builderNodeName, "k0s-worker-1");
-});
-
-test("builderRuntimeMetadata keeps nulls when the pod is not observable yet", () => {
-  const metadata = builderRuntimeMetadata("hkbld-bld-123", null);
-
-  assert.equal(metadata.builderJobName, "hkbld-bld-123");
-  assert.equal(metadata.builderNamespace, "harakiri");
-  assert.equal(metadata.builderPodName, null);
-  assert.equal(metadata.builderPodUid, null);
-  assert.equal(metadata.builderNodeName, null);
-});
 
 test("scanTemplateImage returns not_scanned when no scanner webhook is configured", async () => {
   const result = await scanTemplateImage(scanInput, { webhookUrl: "" });
@@ -412,45 +385,4 @@ test("prepullTemplateImage records optional failures without failing builds by d
 
   assert.equal(result.status, "failed");
   assert.match(result.reason ?? "", /ImagePullBackOff - pull access denied/);
-});
-
-test("buildRepository isolates generated images by organization namespace", () => {
-  const repository = buildRepository(
-    { organization_id: "20d5e937-4664-4e9e-869c-f12c33e3e46c", template_id: "open-agents-dev" } as any,
-    "registry.example.com"
-  );
-
-  assert.equal(registryNamespaceForOrganization("20d5e937-4664-4e9e-869c-f12c33e3e46c"), "org-20d5e937-4664-4e9e-869c-f12c33e3e46c");
-  assert.equal(repository, "registry.example.com/harakiri/templates/org-20d5e937-4664-4e9e-869c-f12c33e3e46c/open-agents-dev");
-});
-
-test("buildJob mounts the push registry credential for Kaniko", () => {
-  const job = buildJob(
-    {
-      id: "bld_private_push",
-      organization_id: "20d5e937-4664-4e9e-869c-f12c33e3e46c",
-      template_id: "open-agents-dev"
-    } as any,
-    "registry.example.com/harakiri/templates/org-20d5e937/open-agents-dev:bld-private-push",
-    "Dockerfile",
-    {
-      id: "11111111-1111-1111-1111-111111111111",
-      purpose: "push_pull",
-      repositoryPrefix: "harakiri/templates/org-20d5e937",
-      secretRef: null,
-      pullSecretRef: "private-pull",
-      pushSecretRef: "private-push"
-    }
-  );
-  const podSpec = job.spec?.template.spec;
-  const kaniko = podSpec?.containers?.find((container) => container.name === "kaniko");
-
-  assert.deepEqual(
-    podSpec?.volumes?.find((volume) => volume.name === "registry-auth")?.secret,
-    { secretName: "private-push", items: [{ key: ".dockerconfigjson", path: "config.json" }] }
-  );
-  assert.deepEqual(
-    kaniko?.volumeMounts?.find((mount) => mount.name === "registry-auth"),
-    { name: "registry-auth", mountPath: "/kaniko/.docker", readOnly: true }
-  );
 });

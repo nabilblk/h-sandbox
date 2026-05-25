@@ -1,8 +1,57 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const loadDotEnv = () => {
+  const candidates = Array.from(new Set([resolve(process.cwd(), ".env"), resolve(process.cwd(), "../..", ".env")]));
+  for (const path of candidates) {
+    if (!existsSync(path)) continue;
+    const lines = readFileSync(path, "utf8").split(/\r?\n/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+      const [rawKey, ...rawValueParts] = trimmed.split("=");
+      const key = rawKey.trim();
+      if (!key || process.env[key] !== undefined) continue;
+      const rawValue = rawValueParts.join("=").trim();
+      process.env[key] = rawValue.replace(/^(['"])(.*)\1$/, "$2");
+    }
+  }
+};
+
+loadDotEnv();
+
 const csv = (value: string | undefined, fallback = "") =>
   (value ?? fallback)
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+
+const bool = (value: string | undefined, fallback: boolean) => {
+  if (value === undefined) return fallback;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+};
+
+const defaultInsecureRegistry = (host: string) =>
+  /(^localhost(?::|$)|^127\.|\.svc(?:\.|:|$)|\.cluster\.local(?::|$)|:5000$)/.test(host);
+
+const templateRegistryPushHost = process.env.TEMPLATE_REGISTRY_PUSH_HOST ?? "harakiri-registry.harakiri.svc.cluster.local:5000";
+
+export const deprecatedConfigWarnings = () => {
+  const warnings: string[] = [];
+  if (process.env.TEMPLATE_BUILDER_PROVIDER !== undefined) {
+    warnings.push("TEMPLATE_BUILDER_PROVIDER is deprecated; use TEMPLATE_DOCKERFILE_BUILDER. The alias will be removed no earlier than 0.3.0.");
+  }
+  if (process.env.TEMPLATE_BUILDER_KANIKO_IMAGE !== undefined) {
+    warnings.push(
+      "TEMPLATE_BUILDER_KANIKO_IMAGE is deprecated; use TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE. The alias will be removed no earlier than 0.3.0."
+    );
+  }
+  return warnings;
+};
+
+export const logDeprecatedConfigWarnings = (logger: (message: string) => void = console.warn) => {
+  for (const warning of deprecatedConfigWarnings()) logger(warning);
+};
 
 export const config = {
   port: Number(process.env.API_PORT ?? 8080),
@@ -21,12 +70,18 @@ export const config = {
   publicOpenSandboxUrl: process.env.PUBLIC_OPEN_SANDBOX_URL ?? "http://127.0.0.1:18083",
   openSandboxApiKey: process.env.OPEN_SANDBOX_API_KEY ?? "dev-opensandbox-key",
   openSandboxAllowFallback: process.env.OPEN_SANDBOX_ALLOW_FALLBACK !== "0",
+  runtimeProvider: process.env.HARAKIRI_RUNTIME_PROVIDER ?? process.env.RUNTIME_PROVIDER ?? "opensandbox",
   sandboxRouteMode: process.env.SANDBOX_ROUTE_MODE ?? "local-proxy",
-  sandboxRouteBaseDomain: process.env.SANDBOX_ROUTE_BASE_DOMAIN ?? "harakiri.io",
+  sandboxRouteBaseDomain: process.env.SANDBOX_ROUTE_BASE_DOMAIN ?? "sandbox.localhost",
   sandboxRoutePublicScheme: process.env.SANDBOX_ROUTE_PUBLIC_SCHEME ?? "https",
   sandboxRouteLocalFallbackUrl: process.env.SANDBOX_ROUTE_LOCAL_FALLBACK_URL ?? process.env.PUBLIC_OPEN_SANDBOX_URL ?? "http://127.0.0.1:18083",
   sandboxMaxRoutesPerSandbox: Number(process.env.SANDBOX_MAX_ROUTES_PER_SANDBOX ?? 8),
   sandboxMaxRoutesPerOrg: Number(process.env.SANDBOX_MAX_ROUTES_PER_ORG ?? 200),
+  sandboxOperationWorkerLimit: Number(process.env.SANDBOX_OPERATION_WORKER_LIMIT ?? 10),
+  sandboxOperationMaxAttempts: Number(process.env.SANDBOX_OPERATION_MAX_ATTEMPTS ?? 3),
+  sandboxOperationLeaseMs: Number(process.env.SANDBOX_OPERATION_LEASE_MS ?? 5 * 60 * 1000),
+  controlPlaneSecretKey:
+    process.env.CONTROL_PLANE_SECRET_KEY ?? process.env.HARAKIRI_SECRET_KEY ?? process.env.TEMPLATE_REGISTRY_CREDENTIAL_KEY ?? "",
   templateMaxCpuCount: Number(process.env.TEMPLATE_MAX_CPU_COUNT ?? 8),
   templateMaxMemoryMb: Number(process.env.TEMPLATE_MAX_MEMORY_MB ?? 32768),
   templateMaxDefaultPorts: Number(process.env.TEMPLATE_MAX_DEFAULT_PORTS ?? 16),
@@ -41,9 +96,14 @@ export const config = {
   templateBuildContextMaxBytes: Number(process.env.TEMPLATE_BUILD_CONTEXT_MAX_BYTES ?? 25 * 1024 * 1024),
   templateBuilderNamespace: process.env.TEMPLATE_BUILDER_NAMESPACE ?? "harakiri",
   templateBuilderJobImage: process.env.TEMPLATE_BUILDER_JOB_IMAGE ?? "harakiri-api:dev",
-  templateBuilderKanikoImage: process.env.TEMPLATE_BUILDER_KANIKO_IMAGE ?? "gcr.io/kaniko-project/executor:v1.24.0",
+  templateDockerfileBuilder: process.env.TEMPLATE_DOCKERFILE_BUILDER ?? process.env.TEMPLATE_BUILDER_PROVIDER ?? "buildkit",
+  templateBuildkitImage: process.env.TEMPLATE_BUILDKIT_IMAGE ?? "moby/buildkit:rootless",
+  templateBuildkitdFlags: process.env.TEMPLATE_BUILDKITD_FLAGS ?? "--oci-worker-no-process-sandbox",
+  templateBuildkitRegistryInsecure: bool(process.env.TEMPLATE_BUILDKIT_REGISTRY_INSECURE, defaultInsecureRegistry(templateRegistryPushHost)),
+  templateLegacyDockerfileBuilderImage:
+    process.env.TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE ?? process.env.TEMPLATE_BUILDER_KANIKO_IMAGE ?? "gcr.io/kaniko-project/executor:v1.24.0",
   templateBuilderJobTimeoutMs: Number(process.env.TEMPLATE_BUILDER_JOB_TIMEOUT_MS ?? 15 * 60 * 1000),
-  templateRegistryPushHost: process.env.TEMPLATE_REGISTRY_PUSH_HOST ?? "harakiri-registry.harakiri.svc.cluster.local:5000",
+  templateRegistryPushHost,
   templateRegistryRuntimeHost: process.env.TEMPLATE_REGISTRY_RUNTIME_HOST ?? "127.0.0.1:5000",
   templateRegistryRepositoryPrefix: process.env.TEMPLATE_REGISTRY_REPOSITORY_PREFIX ?? "harakiri/templates",
   templateRegistryCredentialKey: process.env.TEMPLATE_REGISTRY_CREDENTIAL_KEY ?? "",

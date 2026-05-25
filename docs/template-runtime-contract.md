@@ -55,10 +55,9 @@ The planned `open-agents-dev` pilot should include:
 - Writable `/workspace`
 - Default exposed-port candidates: `3000`, `5173`, `4321`, `8000`
 
-The OpenSandbox-native Dockerfile from
-`/Users/labs/project/trash/background-agents/opensandbox-template` should be
-preferred because Harakiri runs on OpenSandbox and should emit normal OCI
-images.
+An OpenSandbox-native Dockerfile, for example one kept under
+`examples/templates/open-agents-dev`, should be preferred because Harakiri runs
+on OpenSandbox and should emit normal OCI images.
 
 ## Smoke Checks
 

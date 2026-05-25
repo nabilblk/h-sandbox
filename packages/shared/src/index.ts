@@ -1,4 +1,52 @@
-export type SandboxStatus = "running" | "idle" | "error" | "terminated" | "pending";
+export const sandboxStatuses = ["pending", "running", "idle", "error", "terminated"] as const;
+export type SandboxStatus = typeof sandboxStatuses[number];
+
+export const sandboxStatusTransitions: Record<SandboxStatus, SandboxStatus[]> = {
+  pending: ["running", "error", "terminated"],
+  running: ["idle", "error", "terminated"],
+  idle: ["running", "error", "terminated"],
+  error: ["pending", "terminated"],
+  terminated: []
+};
+
+export const canTransitionSandboxStatus = (from: SandboxStatus, to: SandboxStatus) =>
+  from === to || sandboxStatusTransitions[from]?.includes(to) === true;
+
+export const sandboxOperationKinds = ["provision", "delete", "renew", "route_expose"] as const;
+export type SandboxOperationKind = typeof sandboxOperationKinds[number];
+
+export const sandboxOperationStates = ["queued", "running", "succeeded", "failed", "canceled"] as const;
+export type SandboxOperationState = typeof sandboxOperationStates[number];
+
+export type ApiErrorResponse<TCode extends string = string, TExtra extends Record<string, unknown> = Record<string, unknown>> = {
+  error: TCode;
+  message?: string;
+} & TExtra;
+
+export const apiErrorResponse = <TCode extends string, TExtra extends Record<string, unknown> = Record<string, never>>(
+  error: TCode,
+  extra?: TExtra
+): ApiErrorResponse<TCode, TExtra> => ({ error, ...(extra ?? {}) }) as ApiErrorResponse<TCode, TExtra>;
+
+export const isApiErrorResponse = (value: unknown): value is ApiErrorResponse => {
+  if (!value || typeof value !== "object") return false;
+  return typeof (value as { error?: unknown }).error === "string";
+};
+
+export const parseApiErrorResponse = (body: string): ApiErrorResponse | null => {
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    return isApiErrorResponse(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+export const formatApiErrorResponse = (status: number, body: string) => {
+  const parsed = parseApiErrorResponse(body);
+  if (!parsed) return `Harakiri API ${status}: ${body || "request failed"}`;
+  return `Harakiri API ${status}: ${parsed.message ? `${parsed.error}: ${parsed.message}` : parsed.error}`;
+};
 
 export type Template = {
   id: string;
@@ -86,7 +134,83 @@ export type TemplateBuildContextSummary = {
   sizeBytes: number;
   format: string;
   fileCount: number | null;
+  metadata?: Record<string, unknown>;
   uploadedAt: string;
+};
+
+export type PageSummary = {
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type TemplateResponse = {
+  template: Template;
+};
+
+export type TemplatesResponse = {
+  templates: Template[];
+  page?: PageSummary;
+};
+
+export type TemplateVersionsResponse = {
+  versions: TemplateVersionSummary[];
+};
+
+export type CreateTemplateBody = {
+  id?: string;
+  name: string;
+  description?: string;
+  image?: string;
+  icon?: Template["icon"];
+  tags?: string[];
+  aliases?: string[];
+  visibility?: Template["visibility"];
+  defaultEntrypoint?: string[];
+  cpuCount?: number;
+  memoryMb?: number;
+  workdir?: string;
+  defaultPorts?: number[];
+  runtimeFamily?: string;
+};
+
+export type PromoteTemplateBody = {
+  versionId: string;
+  alias?: string;
+};
+
+export type TemplateBuildResponse = {
+  build: TemplateBuildSummary;
+};
+
+export type TemplateBuildsResponse = {
+  builds: TemplateBuildSummary[];
+};
+
+export type TemplateBuildLogsResponse = {
+  logs: TemplateBuildLogEntry[];
+};
+
+export type CreateTemplateBuildBody = {
+  sourceType?: "dockerfile" | "git" | "image";
+  contextHash?: string;
+  dockerfilePath?: string;
+  buildArgs?: Record<string, unknown>;
+  imageDestination?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type UploadTemplateBuildContextBody = {
+  archiveBase64: string;
+  sha256: string;
+  sizeBytes: number;
+  format?: "tar+gzip";
+  fileCount?: number;
+  metadata?: Record<string, unknown>;
+};
+
+export type TemplateBuildContextResponse = {
+  context: TemplateBuildContextSummary;
 };
 
 export type SandboxSummary = {
@@ -108,7 +232,44 @@ export type SandboxSummary = {
   createdAt: string;
 };
 
-export type SandboxRouteState = "provisioning" | "ready" | "unhealthy" | "terminated";
+export type SandboxOperationSummary = {
+  id: string;
+  sandboxId: string | null;
+  kind: SandboxOperationKind;
+  state: SandboxOperationState;
+  error: string | null;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateSandboxBody = {
+  template?: string;
+  name?: string;
+  ttlSeconds?: number;
+  env?: Record<string, string>;
+  idempotencyKey?: string;
+  wait?: boolean;
+  waitTimeoutMs?: number;
+};
+
+export type CreateSandboxResponse = {
+  sandbox: SandboxSummary;
+  operation?: SandboxOperationSummary;
+  status?: "created" | "pending";
+  message?: string;
+};
+
+export type SandboxesResponse = {
+  sandboxes: SandboxSummary[];
+};
+
+export type SandboxResponse = {
+  sandbox: SandboxSummary;
+};
+
+export const sandboxRouteStates = ["provisioning", "ready", "unhealthy", "terminated"] as const;
+export type SandboxRouteState = typeof sandboxRouteStates[number];
 
 export type SandboxRouteSummary = {
   port: number;
@@ -125,6 +286,19 @@ export type SandboxRouteSummary = {
   terminatedAt: string | null;
 };
 
+export type ExposeSandboxRouteBody = {
+  port: number;
+  protocol?: "http" | "https";
+};
+
+export type SandboxRouteResponse = {
+  route: SandboxRouteSummary;
+};
+
+export type SandboxRoutesResponse = {
+  routes: SandboxRouteSummary[];
+};
+
 export type ApiKeySummary = {
   id: string;
   name: string;
@@ -133,6 +307,60 @@ export type ApiKeySummary = {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+};
+
+export type ApiKeysResponse = {
+  keys: ApiKeySummary[];
+};
+
+export type CreateApiKeyBody = {
+  name: string;
+};
+
+export type CreateApiKeyResponse = {
+  key: ApiKeySummary;
+  token: string;
+};
+
+export type RegistryCredentialPurpose = "pull" | "push" | "push_pull";
+
+export type RegistryCredentialSummary = {
+  id: string;
+  name: string;
+  registryHost: string;
+  username: string | null;
+  secretRef: string | null;
+  purpose: RegistryCredentialPurpose;
+  repositoryPrefix: string;
+  pullSecretRef: string | null;
+  pushSecretRef: string | null;
+  hasEncryptedSecret: boolean;
+  metadata: Record<string, unknown>;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpsertRegistryCredentialBody = {
+  name: string;
+  registryHost: string;
+  username?: string;
+  secretRef?: string;
+  secret?: string;
+  purpose?: RegistryCredentialPurpose;
+  repositoryPrefix?: string;
+  pullSecretRef?: string;
+  pushSecretRef?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type RegistryCredentialsResponse = {
+  credentials: RegistryCredentialSummary[];
+};
+
+export type RegistryCredentialResponse = {
+  credential: RegistryCredentialSummary;
 };
 
 export type UsageSummary = {
@@ -147,6 +375,45 @@ export type UsageSummary = {
   statusBreakdown: Array<{ label: string; value: number }>;
 };
 
+export type OrganizationSettings = {
+  id?: string;
+  name: string;
+  slug: string;
+  idleTtlSeconds: number;
+  maxConcurrency: number;
+  defaultTemplateId: string | null;
+};
+
+export type OrganizationSettingsResponse = {
+  organization: OrganizationSettings;
+};
+
+export type CurrentAccountResponse = {
+  user: {
+    id: string;
+    email: string;
+    fullName: string | null;
+    onboardingCompletedAt: string | null;
+  };
+  auth: {
+    userId: string;
+    organizationId: string;
+    actorLabel: string;
+    authType?: string;
+    [key: string]: unknown;
+  };
+  organization: OrganizationSettings;
+};
+
+export type CompleteOnboardingResponse = {
+  user: {
+    id: string;
+    email: string;
+    fullName: string | null;
+    onboardingCompletedAt: string;
+  };
+};
+
 export type RunResult = {
   sandboxId: string;
   command: string;
@@ -154,6 +421,71 @@ export type RunResult = {
   stderr: string;
   exitCode: number;
   durationMs: number;
+};
+
+export type RunSandboxBody = {
+  command?: string;
+  stdin?: string;
+};
+
+export type RunSandboxResponse = {
+  result: RunResult;
+};
+
+export type SandboxLogEntry = {
+  ts: string;
+  lvl: string;
+  msg: string;
+  source?: string;
+};
+
+export type SandboxLogsResponse = {
+  logs: SandboxLogEntry[];
+};
+
+export type SandboxFileEntry = {
+  path: string;
+  name: string;
+  type: string;
+  size: number;
+  mode?: string;
+  owner?: string;
+  group?: string;
+  modifiedAt?: string | null;
+};
+
+export type SandboxFilesResponse = {
+  cwd: string;
+  files: SandboxFileEntry[];
+};
+
+export type SandboxMetricsResponse = {
+  current: {
+    cpu: number;
+    mem: number;
+    diskIo: number;
+    networkOut: number;
+    cpuCount?: number;
+    memTotal?: number;
+  };
+  series: Array<{ ts: string; cpu: number; mem: number }>;
+};
+
+export type OkResponse = {
+  ok: boolean;
+};
+
+export type HealthResponse = {
+  status: "ok";
+};
+
+export type BootstrapResponse = {
+  apiUrl: string;
+  keycloak: {
+    url: string;
+    realm: string;
+    clientId: string;
+  };
 };
 
 export const TEMPLATES: Template[] = [
@@ -273,3 +605,5 @@ export const statusLabel = (status: SandboxStatus) => {
 };
 
 export const apiPath = (path: string) => `/v1${path.startsWith("/") ? path : `/${path}`}`;
+
+export { openApiDocument, openApiJson, openApiPathMethodPairs } from "./openapi.js";

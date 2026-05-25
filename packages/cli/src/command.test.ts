@@ -73,6 +73,7 @@ const runCli = async (args: string[], options: { api: MockApi; cwd?: string }) =
   child.stderr.on("data", (chunk) => stderrChunks.push(Buffer.from(chunk)));
   const exitCode = await new Promise<number | null>((resolve) => child.on("close", resolve));
   return {
+    home,
     exitCode,
     stdout: Buffer.concat(stdoutChunks).toString("utf8"),
     stderr: Buffer.concat(stderrChunks).toString("utf8")
@@ -151,6 +152,35 @@ test("template init writes a Harakiri config with runtime metadata", async () =>
     assert.match(contents, /tags = \["custom", "hot"\]/);
     assert.match(contents, /aliases = \["agents\/browser"\]/);
     assert.match(contents, /ready_command = "test -d \/workspace"/);
+  } finally {
+    await api.close();
+  }
+});
+
+test("login command stores API config without calling the API", async () => {
+  const api = await startMockApi(() => ({ status: 500, body: { error: "login should not call api" } }));
+  try {
+    const result = await runCli(["login", "--api-url", "http://harakiri.test", "--api-key", "hk_login"], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /saved config at/);
+    assert.equal(api.requests.length, 0);
+    const config = JSON.parse(await readFile(join(result.home, ".config", "harakiri", "config.json"), "utf8"));
+    assert.deepEqual(config, { apiUrl: "http://harakiri.test", apiKey: "hk_login" });
+  } finally {
+    await api.close();
+  }
+});
+
+
+test("CLI formats structured API errors from shared envelopes", async () => {
+  const api = await startMockApi(() => ({
+    status: 409,
+    body: { error: "template_not_ready", message: "template is still building" }
+  }));
+  try {
+    const result = await runCli(["list"], { api });
+    assert.notEqual(result.exitCode, 0);
+    assert.match(result.stderr, /Harakiri API 409: template_not_ready: template is still building/);
   } finally {
     await api.close();
   }
@@ -319,6 +349,53 @@ test("create command sends repeated env flags in the sandbox payload", async () 
   }
 });
 
+test("create command supports no-wait pending sandbox responses", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 202,
+        body: {
+          sandbox: {
+            id: "sbx_pending",
+            name: "async-runner",
+            template: "python-3.12-data",
+            status: "pending"
+          },
+          operation: {
+            id: "op_pending",
+            state: "queued"
+          },
+          status: "pending",
+          message: "sandbox provision queued"
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "python-3.12-data",
+      "--name",
+      "async-runner",
+      "--no-wait"
+    ], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_pending/);
+    assert.match(result.stdout, /queued\. id=sbx_pending operation=op_pending/);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "python-3.12-data",
+      name: "async-runner",
+      ttlSeconds: 300,
+      env: {},
+      wait: false
+    });
+  } finally {
+    await api.close();
+  }
+});
+
 test("template build --source image sends image import payload and skips context upload", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/templates") {
@@ -424,6 +501,153 @@ test("template logs command prints retained build log rows", async () => {
     const result = await runCli(["template", "logs", "bld_logs"], { api });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.equal(result.stdout, "1\tstdout\tlayer pushed\n2\tstderr\twarning\n");
+  } finally {
+    await api.close();
+  }
+});
+
+test("route commands expose and list sandbox routes", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_route/routes") {
+      return {
+        body: {
+          route: {
+            id: "sbr_1",
+            sandboxId: "sbx_route",
+            port: 5173,
+            protocol: "http",
+            host: "sbx-route-5173.sandbox.localhost",
+            url: "https://sbx-route-5173.sandbox.localhost",
+            state: "active",
+            provider: "opensandbox",
+            createdAt: "2026-05-24T00:00:00.000Z",
+            updatedAt: "2026-05-24T00:00:00.000Z"
+          }
+        }
+      };
+    }
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_route/routes") {
+      return {
+        body: {
+          routes: [
+            {
+              id: "sbr_1",
+              sandboxId: "sbx_route",
+              port: 5173,
+              protocol: "http",
+              host: "sbx-route-5173.sandbox.localhost",
+              url: "https://sbx-route-5173.sandbox.localhost",
+              state: "active",
+              provider: "opensandbox",
+              createdAt: "2026-05-24T00:00:00.000Z",
+              updatedAt: "2026-05-24T00:00:00.000Z"
+            }
+          ]
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const exposed = await runCli(["expose", "sbx_route", "--port", "5173"], { api });
+    assert.equal(exposed.exitCode, 0, exposed.stderr);
+    assert.match(exposed.stdout, /https:\/\/sbx-route-5173\.sandbox\.localhost/);
+    assert.deepEqual(api.requests[0]?.body, { port: 5173, protocol: "http" });
+
+    const listed = await runCli(["routes", "sbx_route"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.equal(listed.stdout, "5173\tactive\topensandbox\thttps://sbx-route-5173.sandbox.localhost\n");
+  } finally {
+    await api.close();
+  }
+});
+
+test("files command supports explicit sandbox paths", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_files/files?path=%2Fworkspace") {
+      return {
+        body: {
+          cwd: "/workspace",
+          files: [{ path: "/workspace/agent.py", name: "agent.py", type: "FILE", size: 42, modifiedAt: null }]
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli(["files", "sbx_files", "--path", "/workspace"], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(result.stdout, "FILE\t42\t/workspace/agent.py\n");
+  } finally {
+    await api.close();
+  }
+});
+
+test("registry credential commands call the shared SDK endpoints", async () => {
+  const credential = {
+    id: "trc_ghcr",
+    name: "ghcr",
+    registryHost: "ghcr.io",
+    username: "robot",
+    secretRef: null,
+    purpose: "push_pull",
+    repositoryPrefix: "harakiri",
+    pullSecretRef: null,
+    pushSecretRef: null,
+    hasEncryptedSecret: true,
+    metadata: {},
+    lastUsedAt: null,
+    revokedAt: null,
+    createdAt: "2026-05-24T00:00:00.000Z",
+    updatedAt: "2026-05-24T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/registry-credentials?includeRevoked=1") {
+      return { body: { credentials: [credential] } };
+    }
+    if (request.method === "POST" && request.path === "/v1/registry-credentials") {
+      return { status: 201, body: { credential } };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/registry-credentials/trc_ghcr") {
+      return { body: { credential } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const upserted = await runCli([
+      "registry",
+      "upsert",
+      "--name",
+      "ghcr",
+      "--registry-host",
+      "ghcr.io",
+      "--username",
+      "robot",
+      "--secret",
+      "token",
+      "--purpose",
+      "push_pull",
+      "--repository-prefix",
+      "harakiri"
+    ], { api });
+    assert.equal(upserted.exitCode, 0, upserted.stderr);
+    assert.match(upserted.stdout, /trc_ghcr/);
+    assert.deepEqual(api.requests[0]?.body, {
+      name: "ghcr",
+      registryHost: "ghcr.io",
+      username: "robot",
+      secret: "token",
+      purpose: "push_pull",
+      repositoryPrefix: "harakiri"
+    });
+
+    const listed = await runCli(["registry", "list", "--include-revoked"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.equal(listed.stdout, "trc_ghcr\tpush_pull\tghcr.io\tghcr\tharakiri\tencrypted\n");
+
+    const revoked = await runCli(["registry", "revoke", "trc_ghcr"], { api });
+    assert.equal(revoked.exitCode, 0, revoked.stderr);
+    assert.match(revoked.stdout, /revoked registry credential ghcr/);
   } finally {
     await api.close();
   }

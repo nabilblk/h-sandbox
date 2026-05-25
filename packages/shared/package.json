@@ -1,12 +1,15 @@
 {
   "name": "@harakiri/shared",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "openapi:write": "tsx scripts/write-openapi.ts",
+    "openapi:check": "tsx scripts/write-openapi.ts --check",
     "test": "node --test --import tsx src/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -14,4 +17,3 @@
     "tsx": "^4.21.0"
   }
 }
-

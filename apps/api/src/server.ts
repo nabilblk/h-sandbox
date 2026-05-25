@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { config } from "./config.js";
+import { config, logDeprecatedConfigWarnings } from "./config.js";
 import { closeDb } from "./db.js";
 import { migrate } from "./migrate.js";
 import { registerRoutes } from "./routes.js";
@@ -22,6 +22,7 @@ export const buildServer = async () => {
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  logDeprecatedConfigWarnings();
   const app = await buildServer();
   const shutdown = async () => {
     await app.close();

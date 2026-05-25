@@ -116,25 +116,17 @@ env key name plus runtime workdir metadata.
 
 The smoke tests check API health, template listing, sandbox create/run/kill, TTL scheduler cleanup, and an exposed HTTP route through the OpenSandbox gateway. The Playwright E2E verifies Keycloak login, Keycloak JWT API auth, API key creation, sandbox create, terminal command execution, detail tabs, and browser kill. Screenshots are written to `docs/artifacts/`.
 
-Harakiri.io environment checks:
+Environment-specific public route checks are intentionally outside the generic
+runbook:
 
 ```bash
 pnpm env:harakiri:route-preflight
 pnpm env:harakiri:route-public
 ```
 
-These environment checks assume the current `harakiri.io` Cloudflare Tunnel, DNS, and edge TLS setup. They are not required for a generic core-platform deployment.
-
-The `harakiri-dev` Cloudflare Tunnel uses these prototype hostnames for the
-public developer surface:
-
-- Web: `https://sb.harakiri.io` -> local k0s web forward `127.0.0.1:15173`
-- Keycloak: `https://sb-auth.harakiri.io` -> local k0s Keycloak forward
-  `127.0.0.1:18084`
-- API: `https://sb-api.harakiri.io` -> local k0s API forward
-  `127.0.0.1:18082`
-- Sandbox routes: `https://<route-key>.harakiri.io` -> local k0s HTTPS ingress
-  forward `127.0.0.1:18087`
+Those commands are examples for one maintainer environment. See
+`infra/scripts/env/harakiri/README.md` for the Cloudflare tunnel, DNS, and
+certificate details.
 
 ## Sandbox Routes
 
@@ -157,14 +149,14 @@ curl http://127.0.0.1:18082/v1/sandboxes/sbx_.../routes \
 The k0s deployment configures:
 
 - `SANDBOX_ROUTE_MODE=opensandbox-gateway`
-- `SANDBOX_ROUTE_BASE_DOMAIN=harakiri.io`
+- `SANDBOX_ROUTE_BASE_DOMAIN=<sandbox-route-base-domain>`
 - `SANDBOX_ROUTE_PUBLIC_SCHEME=https`
-- wildcard Ingress `*.harakiri.io -> opensandbox-ingress-gateway`
+- wildcard Ingress `*.<sandbox-route-base-domain> -> opensandbox-ingress-gateway`
 - route limits `SANDBOX_MAX_ROUTES_PER_SANDBOX=8` and `SANDBOX_MAX_ROUTES_PER_ORG=200`
 
-For public access, Cloudflare resolves `*.harakiri.io` to the Cloudflare Tunnel that reaches the k0s ingress. This route shape intentionally stays one label below `harakiri.io`, so the existing `*.harakiri.io` Cloudflare edge certificate covers generated sandbox hosts. Exact Cloudflare Tunnel host rules for `app.harakiri.io`, `auth.harakiri.io`, and other services must remain above the wildcard sandbox rule.
-
-TLS secret `harakiri-sandbox-wildcard-tls` must exist in `opensandbox-system`. For local k0s verification, the deploy script creates a short-lived self-signed wildcard secret by default:
+TLS secret `harakiri-sandbox-wildcard-tls` must exist in
+`opensandbox-system`. For local k0s verification, the deploy script creates a
+short-lived self-signed wildcard secret by default:
 
 
 ```bash
@@ -172,24 +164,9 @@ pnpm route:tls-dev
 pnpm smoke:route-ingress
 ```
 
-For a real origin certificate, install cert-manager and request a Let's Encrypt wildcard certificate through Cloudflare DNS-01:
-
-```bash
-export CLOUDFLARE_API_TOKEN=... # Zone:DNS:Edit and Zone:Zone:Read
-export LETSENCRYPT_EMAIL=nabilblk@gmail.com
-pnpm env:harakiri:route-tls-letsencrypt
-kubectl -n opensandbox-system describe certificate harakiri-sandbox-wildcard-tls
-```
-
-To upsert the Cloudflare wildcard DNS record when credentials are available:
-
-```bash
-export CLOUDFLARE_API_TOKEN=...
-export CLOUDFLARE_ZONE_ID=...
-export HARAKIRI_SANDBOX_DNS_TARGET=<ingress-or-tunnel-hostname>
-pnpm env:harakiri:cloudflare-dns
-pnpm env:harakiri:route-preflight
-```
+Use your own DNS and certificate automation for a public deployment. The
+harakiri.io Cloudflare DNS-01 and tunnel example is documented separately in
+`infra/scripts/env/harakiri/README.md`.
 
 Local route verification uses the gateway forward:
 
@@ -255,8 +232,8 @@ Template build policy defaults are configured in `harakiri-config`:
 
 Template registry configuration is also carried by `harakiri-config`:
 
-- `TEMPLATE_REGISTRY_PUSH_HOST` is the registry host Kaniko pushes to from
-  inside k0s. In local development this is
+- `TEMPLATE_REGISTRY_PUSH_HOST` is the registry host the Kubernetes builder
+  pushes to from inside k0s. In local development this is
   `harakiri-registry.harakiri.svc.cluster.local:5000`.
 - `TEMPLATE_REGISTRY_RUNTIME_HOST` is the registry host stored on ready
   template versions for OpenSandbox to pull. In local development this is
@@ -331,7 +308,7 @@ For an external registry rollout, the operator sequence is:
 
 1. Create the registry namespace/repository and least-privilege push/pull
    credentials outside Harakiri.
-2. Configure the builder/Kaniko environment to use the push credential and the
+2. Configure the builder environment to use the push credential and the
    OpenSandbox runtime or node image pull path to use the pull credential. Track
    the control-plane record with `POST /v1/registry-credentials`, including
    `purpose`, `repositoryPrefix`, `pullSecretRef`, and `pushSecretRef`. When
@@ -355,7 +332,7 @@ Scanner webhook payloads are JSON:
   "sourceType": "dockerfile",
   "imageUri": "registry.example.com/harakiri/templates/open-agents-dev@sha256:...",
   "imageDigest": "sha256:...",
-  "provenance": { "builder": "kaniko" }
+  "provenance": { "builder": { "kind": "buildkit" } }
 }
 ```
 
@@ -407,20 +384,22 @@ kubectl -n harakiri exec deploy/harakiri-postgres -- psql "$DATABASE_URL" -c \
 
 The deployed template builder handles `--source image` records by resolving the
 registry digest, and handles Dockerfile records by exporting the uploaded
-context, running a Kaniko Job, pushing to the k0s registry, and creating a
-digest-pinned ready template version. New versions also include deferred SBOM,
-provenance, and scan fields. The scheduler prunes old logs, uploaded contexts,
-unversioned terminal build rows, unused superseded versions, and completed
-builder Jobs. Registry credential records and Kubernetes Secret references are
-available for production push/pull rollout; Git source builds, registry blob
-garbage collection, and real vulnerability scanning remain part of the active
-custom template execution plan.
+context, running the rootless BuildKit Kubernetes builder, pushing to the k0s
+registry, and creating a digest-pinned ready template version. New versions
+also include deferred SBOM, provenance, and scan fields. The scheduler prunes
+old logs, uploaded contexts, unversioned terminal build rows, unused superseded
+versions, and completed builder Jobs. Registry credential records and
+Kubernetes Secret references are available for production push/pull rollout;
+Git source builds, registry blob garbage collection, and real vulnerability
+scanning remain part of the active custom template execution plan.
 
 Inspect builder Jobs and logs:
 
 ```bash
 kubectl -n harakiri get jobs,pods -l app=harakiri-template-build
 kubectl -n harakiri logs job/<job-name> -c context-exporter
+kubectl -n harakiri logs job/<job-name> -c buildkit
+# Legacy compatibility only:
 kubectl -n harakiri logs job/<job-name> -c kaniko
 ```
 
@@ -462,8 +441,9 @@ Troubleshooting matrix:
 | Symptom | First checks | Usual fix |
 | --- | --- | --- |
 | Builds stay `queued` | `kubectl -n harakiri get deploy harakiri-template-builder`; active build count query above | Roll out or restart the builder, or cancel stale queued/building rows that are consuming the org limit |
-| Dockerfile build stays `building` | `kubectl -n harakiri get jobs,pods -l app=harakiri-template-build`; `kubectl -n harakiri describe job/<job-name>` | Inspect `context-exporter` and `kaniko` logs, then retry after fixing the Dockerfile, base image policy, or registry push path |
-| Kaniko reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and Kaniko can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
+| Dockerfile build stays `building` | `kubectl -n harakiri get jobs,pods -l app=harakiri-template-build`; `kubectl -n harakiri describe job/<job-name>` | Inspect `context-exporter` and builder container logs, then retry after fixing the Dockerfile, base image policy, or registry push path |
+| Builder reports no digest | `kubectl -n harakiri logs job/<job-name> -c buildkit`; build metadata query above | Confirm the destination registry accepts pushes, BuildKit can write to `TEMPLATE_REGISTRY_PUSH_HOST`, and `TEMPLATE_BUILDKIT_REGISTRY_INSECURE` matches the registry scheme |
+| Legacy builder reports no digest | `kubectl -n harakiri logs job/<job-name> -c kaniko`; build metadata query above | Confirm the destination registry accepts pushes and the legacy builder can write to `TEMPLATE_REGISTRY_PUSH_HOST` |
 | Image import cannot resolve a digest | Builder logs filtered for `registry`, `manifest`, or `digest`; API error body | Fix the tag, registry visibility, registry policy, or operator-provided pull credentials |
 | Runtime pull preflight fails | Build logs containing `runtime image pull preflight`; preflight Pod events before it is deleted; build metadata | Make `TEMPLATE_REGISTRY_RUNTIME_HOST` reachable from the k0s node and configure pull credentials in the preflight/runtime namespace |
 | Hot-template pre-pull fails | Build metadata `runtimeImagePrepull`, API build detail, and `kubectl get pods -n opensandbox -l app=harakiri-template-image-prepull` while the build is running | Confirm Harakiri can list nodes, create Pods in the pre-pull namespace, and pull the final image on each ready node; disable fail-on-error if warming is only an optimization |

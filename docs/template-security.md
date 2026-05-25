@@ -30,7 +30,7 @@ Minimum requirements:
 - Rotate credentials without changing template IDs.
 - Redact usernames, passwords, tokens, and bearer credentials from logs.
 - Never return secret material through API, CLI, or UI responses.
-- Push generated Dockerfile images and Kaniko cache layers under
+- Push generated Dockerfile images and builder cache layers under
   `<TEMPLATE_REGISTRY_REPOSITORY_PREFIX>/org-<organization-id>/...` so team
   repositories are not flattened into one shared namespace.
 
@@ -38,9 +38,9 @@ Do not pass registry passwords through template build args, metadata, or
 Dockerfile content. Those surfaces are redacted, but they are not credential
 stores. Harakiri can pass encrypted username/password pull credentials to
 OpenSandbox as `image.auth` during sandbox creation. Kubernetes Secret
-references are still operator-owned and are used by Kaniko and runtime pull
-preflight; the OpenSandbox lifecycle API does not accept those Secret names
-directly.
+references are still operator-owned and are used by BuildKit, the legacy
+builder, and runtime pull preflight; the OpenSandbox lifecycle API does not
+accept those Secret names directly.
 
 ## Digest Pinning
 
@@ -120,7 +120,7 @@ Current policy variables:
 By default, the development deployment allows Docker Hub, `mcr.microsoft.com`,
 `gcr.io`, `ghcr.io`, and the local k0s registry. Dynamic Dockerfile `FROM`
 references such as `FROM ${BASE_IMAGE}` are rejected because the API cannot
-prove they match policy before Kaniko runs.
+prove they match policy before the Kubernetes builder runs.
 
 Remaining production work:
 
@@ -139,8 +139,9 @@ Template versions now keep first-class security fields:
   organization ID, image URI, image digest, builder identity, Dockerfile path,
   and context hash where available.
 - Dockerfile build metadata: the completed build record stores the Kubernetes
-  Job, Pod, Pod UID, namespace, and node name that handled the Kaniko build so
-  operators can correlate persisted records with cluster events and logs.
+  Job, Pod, Pod UID, namespace, node name, builder kind, cache reference, and
+  rootless BuildKit settings when applicable so operators can correlate
+  persisted records with cluster events and logs.
 - Runtime pull preflight metadata: successful builds store the disposable
   preflight Pod, namespace, node, image ID when available, and duration. This
   proves the digest-pinned runtime image was pullable before the version became
