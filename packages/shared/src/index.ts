@@ -388,6 +388,30 @@ export type OrganizationSettingsResponse = {
   organization: OrganizationSettings;
 };
 
+export type OrganizationMemberSummary = {
+  id: string;
+  userId: string;
+  email: string;
+  fullName: string | null;
+  role: "admin" | "member" | string;
+  status: "active" | "pending";
+  keycloakLinked: boolean;
+  joinedAt: string;
+};
+
+export type OrganizationMembersResponse = {
+  members: OrganizationMemberSummary[];
+};
+
+export type AddOrganizationMemberBody = {
+  email: string;
+};
+
+export type AddOrganizationMemberResponse = {
+  member: OrganizationMemberSummary;
+  created: boolean;
+};
+
 export type CurrentAccountResponse = {
   user: {
     id: string;

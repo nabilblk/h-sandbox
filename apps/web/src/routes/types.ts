@@ -3,6 +3,7 @@ export type Route =
   | "onboarding"
   | "dashboard/sandboxes"
   | "dashboard/templates"
+  | "dashboard/members"
   | "dashboard/metrics"
   | "dashboard/keys"
   | "dashboard/settings"

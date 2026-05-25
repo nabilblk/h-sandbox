@@ -976,6 +976,103 @@
   gap: 16px;
 }
 
+/* MEMBERS */
+.members-workspace { max-width: none; }
+.members-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.members-card {
+  padding: 16px;
+}
+.members-card-head {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.members-help {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.members-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+.member-notice,
+.member-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+}
+.member-notice {
+  color: oklch(0.36 0.12 155);
+  background: oklch(0.94 0.05 155);
+}
+.member-error {
+  color: var(--err);
+  background: oklch(0.94 0.06 25);
+}
+.members-table {
+  overflow: hidden;
+}
+.member-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) 120px 120px 170px;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.member-row:first-child { border-top: 0; }
+.member-head {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.member-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.member-identity > span:last-child {
+  min-width: 0;
+}
+.member-identity b,
+.member-identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.member-identity small {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* INVOICES */
 .inv-row {
   display: grid; grid-template-columns: 1.4fr 1fr 0.7fr 0.7fr;
@@ -1674,6 +1771,24 @@
   .keys-row {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .members-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .member-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+  }
+
+  .member-head {
+    display: none;
+  }
+
+  .member-row > span:nth-child(3),
+  .member-row > span:nth-child(4) {
+    grid-column: 1 / -1;
   }
 
   .tmpl-grid {

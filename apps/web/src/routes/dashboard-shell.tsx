@@ -6,6 +6,7 @@ import { Brand } from "../components/brand";
 import { Icon } from "../components/icon";
 import { defaultWorkspace } from "../workspace";
 import { ApiKeysRoute } from "./api-keys";
+import { MembersRoute } from "./members";
 import { SandboxesRoute } from "./sandboxes";
 import { SettingsRoute } from "./settings";
 import { TemplatesRoute } from "./templates";
@@ -41,6 +42,7 @@ export const DashboardShellRoute = ({
             ["dashboard/templates", "Templates", "folder"],
             ["dashboard/metrics", "Usage", "chart"],
             ["dashboard/keys", "API keys", "key"],
+            ["dashboard/members", "Members", "user"],
             ["dashboard/settings", "Settings", "settings"]
           ].map(([key, label, icon]) => (
             <a key={key} className={`side-link ${route === key ? "active" : ""}`} onClick={() => go(key as Route)}><Icon name={icon} size={14} /><span>{label}</span></a>
@@ -54,6 +56,7 @@ export const DashboardShellRoute = ({
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}
         {sub === "keys" ? <ApiKeysRoute /> : null}
+        {sub === "members" ? <MembersRoute /> : null}
         {sub === "settings" ? <SettingsRoute /> : null}
       </main>
     </div>

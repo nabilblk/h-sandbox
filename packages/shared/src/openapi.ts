@@ -408,6 +408,22 @@ const schemas: Record<string, JsonSchema> = {
     defaultTemplateId: nullableString
   }, ["name", "slug", "idleTtlSeconds", "maxConcurrency", "defaultTemplateId"]),
   OrganizationSettingsResponse: objectSchema({ organization: ref("OrganizationSettings") }),
+  OrganizationMemberSummary: objectSchema({
+    id: string,
+    userId: string,
+    email: string,
+    fullName: nullableString,
+    role: string,
+    status: { type: "string", enum: ["active", "pending"] },
+    keycloakLinked: boolean,
+    joinedAt: dateTime
+  }),
+  OrganizationMembersResponse: objectSchema({ members: arrayOf(ref("OrganizationMemberSummary")) }),
+  AddOrganizationMemberBody: objectSchema({ email: string }, ["email"]),
+  AddOrganizationMemberResponse: objectSchema({
+    member: ref("OrganizationMemberSummary"),
+    created: boolean
+  }),
   CurrentAccountResponse: objectSchema({
     user: objectSchema({
       id: string,
@@ -452,6 +468,7 @@ export const openApiDocument = {
     { name: "API Keys" },
     { name: "Registry Credentials" },
     { name: "Usage" },
+    { name: "Members" },
     { name: "Organization Settings" }
   ],
   paths: {
@@ -603,6 +620,10 @@ export const openApiDocument = {
     },
     "/v1/usage": {
       get: secured({ tags: ["Usage"], summary: "Read usage summary", operationId: "getUsage", responses: { ...ok("Usage summary", ref("UsageSummary")), ...authErrorResponses } })
+    },
+    "/v1/org/members": {
+      get: secured({ tags: ["Members"], summary: "List organization members", operationId: "listOrganizationMembers", responses: { ...ok("Organization members", ref("OrganizationMembersResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Members"], summary: "Add an organization member by email", operationId: "addOrganizationMember", requestBody: jsonBody(ref("AddOrganizationMemberBody")), responses: { ...created("Added member", ref("AddOrganizationMemberResponse")), ...ok("Existing member", ref("AddOrganizationMemberResponse")), ...authErrorResponses } })
     },
     "/v1/org/settings": {
       get: secured({ tags: ["Organization Settings"], summary: "Read organization settings", operationId: "getOrganizationSettings", responses: { ...ok("Organization settings", ref("OrganizationSettingsResponse")), ...authErrorResponses } }),
