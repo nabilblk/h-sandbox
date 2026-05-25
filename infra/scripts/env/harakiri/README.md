@@ -42,6 +42,13 @@ Deploy the generic k0s manifests with these environment overrides when this
 maintainer environment should be active:
 
 ```bash
+pnpm env:harakiri:deploy-public
+```
+
+The wrapper exports the environment below and calls `infra/scripts/deploy-k0s.sh`.
+Use the explicit form when you need to override individual values:
+
+```bash
 export HARAKIRI_PUBLIC_API_URL=https://sb-api.harakiri.io
 export HARAKIRI_PUBLIC_KEYCLOAK_URL=https://sb-auth.harakiri.io
 export HARAKIRI_SANDBOX_ROUTE_DOMAIN=harakiri.io

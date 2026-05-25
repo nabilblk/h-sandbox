@@ -44,6 +44,7 @@
     "route:tls-dev": "bash infra/scripts/route-tls-dev-secret.sh",
     "smoke:route": "bash infra/scripts/route-smoke.sh",
     "smoke:route-ingress": "bash infra/scripts/route-ingress-smoke.sh",
+    "env:harakiri:deploy-public": "bash infra/scripts/env/harakiri/deploy-public.sh",
     "env:harakiri:cloudflare-dns": "bash infra/scripts/env/harakiri/cloudflare-sandbox-dns.sh",
     "env:harakiri:route-tls-letsencrypt": "bash infra/scripts/env/harakiri/route-tls-letsencrypt-cloudflare.sh",
     "env:harakiri:route-preflight": "bash infra/scripts/env/harakiri/route-preflight.sh",

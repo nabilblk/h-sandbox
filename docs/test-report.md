@@ -994,3 +994,89 @@ The run returned `cli-ok`, an `ok runtime=...` line, and the sandbox termination
   source builds, production registry blob garbage collection, production
   scanner policy, and non-root workspace ownership for custom template images
   remain pending in the active execution plan.
+
+## 2026-05-25 Public harakiri.io Deployment Verification
+
+The public deployment was redeployed with maintainer-environment settings
+through:
+
+```bash
+pnpm env:harakiri:deploy-public
+```
+
+The wrapper keeps the generic k0s deployment defaults portable while setting
+the public harakiri.io values for the maintainer lab:
+
+- `PUBLIC_API_URL=https://sb-api.harakiri.io`
+- `PUBLIC_KEYCLOAK_URL=https://sb-auth.harakiri.io`
+- `SANDBOX_ROUTE_BASE_DOMAIN=harakiri.io`
+- `SANDBOX_ROUTE_PUBLIC_SCHEME=https`
+- `KEYCLOAK_ISSUER_ALLOWLIST` includes the internal Keycloak service issuer,
+  the local port-forward issuer, and
+  `https://sb-auth.harakiri.io/realms/harakiri`.
+
+This fixed a browser failure where `https://sb.harakiri.io` was trying to call
+the local port-forward Keycloak token endpoint at `http://127.0.0.1:18084`.
+
+Public host checks:
+
+- `https://sb-api.harakiri.io/health` returned `{"status":"ok"}`.
+- `https://sb-auth.harakiri.io/realms/harakiri/.well-known/openid-configuration`
+  returned issuer `https://sb-auth.harakiri.io/realms/harakiri` and token
+  endpoint
+  `https://sb-auth.harakiri.io/realms/harakiri/protocol/openid-connect/token`.
+- A token endpoint CORS preflight from `https://sb.harakiri.io` returned
+  `access-control-allow-origin: https://sb.harakiri.io`.
+- The deployed web asset `index-D1ZPtM4z.js` had zero loopback API/Auth URL
+  references and contained the public `sb-auth.harakiri.io` and
+  `sb-api.harakiri.io` references.
+
+Public end-to-end verification:
+
+```bash
+HARAKIRI_WEB_URL=https://sb.harakiri.io \
+  HARAKIRI_API_URL=https://sb-api.harakiri.io \
+  HARAKIRI_CLI_BIN=$PWD/packages/cli/dist/index.js \
+  pnpm e2e
+```
+
+Result:
+
+```text
+2 passed (27.0s)
+```
+
+Public sandbox route verification:
+
+```bash
+pnpm env:harakiri:route-public
+```
+
+Result:
+
+```text
+created sbx_mN4vBfJLIs
+route https://98a4f1a0-231d-4cb8-b5ff-1346409c1e36-3000.harakiri.io state=ready provider=opensandbox-gateway
+resolved 98a4f1a0-231d-4cb8-b5ff-1346409c1e36-3000.harakiri.io -> 104.21.61.132
+route public HTTPS smoke passed
+```
+
+Cleanup audit:
+
+```text
+active_sandboxes=0
+ready_routes=0
+active_template_builds=0
+active_smoke_keys=0
+```
+
+All expected k0s pods in `harakiri` and `opensandbox-system` were ready after
+the redeploy. The completed test-only BuildKit Job
+`hkbkit-bld-u5u0pbhilq0o` was deleted after verification.
+
+Current deployed pod image IDs:
+
+- API:
+  `sha256:d9e0324f336004e2ebd6df6d3a51c3967e0aeac0c871f02772f926fc3280658f`
+- Web:
+  `sha256:7dda0abaf677c081efa9d8a63219862c4b0164f99b6e6820842e96d4bb94a351`
