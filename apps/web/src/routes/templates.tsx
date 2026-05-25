@@ -494,6 +494,15 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
   useEffect(() => { void loadBuilds(); }, [buildQ, buildStatus]);
   useEffect(() => { api.usage().then(setUsage).catch(() => undefined); }, []);
   useEffect(() => {
+    if (!templates.length) {
+      if (selectedTemplate) setSelectedTemplate(null);
+      return;
+    }
+    if (!selectedTemplate || !templates.some((template) => template.id === selectedTemplate.id)) {
+      setSelectedTemplate(templates[0]);
+    }
+  }, [templates, selectedTemplate?.id]);
+  useEffect(() => {
     if (!selectedBuild) {
       setBuildLogs([]);
       setBuildLogsError("");
@@ -701,27 +710,33 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
           </div>
           <div className="tmpl-list-layout">
             <div className="tmpl-list card">
-              <div className="tmpl-row tmpl-head"><span>Name</span><span>ID</span><span>CPU</span><span>Memory</span><span>Created</span><span>Updated</span><span>Visibility</span><span>Build</span><span>Version</span><span>Aliases</span><span /></div>
+              <div className="tmpl-row tmpl-head"><span>Name</span><span>Resources</span><span>Updated</span><span>Visibility</span><span>Build</span><span>Version</span><span /></div>
               {templates.map((template) => (
-                <div className={`tmpl-row ${selectedTemplate?.id === template.id ? "active" : ""}`} key={template.id}>
-                  <span className="tmpl-main-name"><b>{template.name}</b><small>{template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""} - {template.description}</small></span>
-                  <span className="num muted">{template.id}</span>
-                  <span>{template.cpuCount ?? 1} Cores</span>
-                  <span className="num">{template.memoryMb?.toLocaleString() ?? 1024} MB</span>
-                  <span className="num muted">{formatDateTime(template.createdAt)}</span>
+                <div
+                  className={`tmpl-row ${selectedTemplate?.id === template.id ? "active" : ""}`}
+                  key={template.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => viewTemplate(template)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      viewTemplate(template);
+                    }
+                  }}
+                >
+                  <span className="tmpl-main-name">
+                    <b>{template.name}</b>
+                    <small><span className="num">{template.id}</span> - {template.ownerScope === "team" ? "team" : "platform"}{template.runtimeFamily ? ` - ${template.runtimeFamily}` : ""} - {template.description}</small>
+                  </span>
+                  <span className="tmpl-resource"><b>{template.cpuCount ?? 1} cores</b><small>{template.memoryMb?.toLocaleString() ?? 1024} MB</small></span>
                   <span className="num muted">{formatDateTime(template.updatedAt)}</span>
                   <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status !== "ready" ? <span className="tag" style={{ marginLeft: 4 }}>{template.status}</span> : null}</span>
                   <span>{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">-</span>}</span>
                   <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
-                  <span className="alias-list">{template.aliases?.length ? template.aliases.slice(0, 3).map((alias) => <span className="tag" key={alias}>{alias}</span>) : <span className="num muted">-</span>}</span>
                   <span className="tmpl-actions">
-                    <button className="btn btn-ghost btn-sm" onClick={() => viewTemplate(template)}>Open</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => createFromTemplate(template.id)} disabled={!templateCanRun(template) || busy === `use:${template.id}`} title={templateCanRun(template) ? "Create a sandbox" : "Build a ready template version first"}>Use</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => queueBuild(template)} disabled={template.status === "archived" || template.ownerScope !== "team" || busy === `build:${template.id}`} title={template.ownerScope === "team" ? "Queue a build" : "Builds are available for team templates"}>Build</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => viewBuilds(template.id)}>Builds</button>
-                    {template.status !== "archived" && template.visibility === "private" && template.latestVersionId ? <button className="btn btn-ghost btn-sm" onClick={() => promoteTemplate(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
-                    {template.status !== "archived" && template.visibility === "private" ? <button className="btn btn-ghost btn-sm" onClick={() => archiveTemplate(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
-                    <button className="btn btn-ghost btn-sm" onClick={() => void navigator.clipboard?.writeText(template.id)} title="Copy template ID"><Icon name="copy" size={12} /></button>
+                    <button className="btn btn-ghost btn-sm" onClick={(event) => { event.stopPropagation(); viewTemplate(template); }}>Open</button>
+                    <button className="btn btn-ghost btn-sm" onClick={(event) => { event.stopPropagation(); void createFromTemplate(template.id); }} disabled={!templateCanRun(template) || busy === `use:${template.id}`} title={templateCanRun(template) ? "Create a sandbox" : "Build a ready template version first"}>Use</button>
                   </span>
                 </div>
               ))}
@@ -740,6 +755,8 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
               onUse={createFromTemplate}
               onBuild={queueBuild}
               onViewBuilds={viewBuilds}
+              onPromote={promoteTemplate}
+              onArchive={archiveTemplate}
               onOpenSandbox={openSandbox}
             />
           </div>
@@ -850,6 +867,8 @@ const TemplateDetailPanel = ({
   onUse,
   onBuild,
   onViewBuilds,
+  onPromote,
+  onArchive,
   onOpenSandbox
 }: {
   template: Template | null;
@@ -864,6 +883,8 @@ const TemplateDetailPanel = ({
   onUse: (id: string) => Promise<void>;
   onBuild: (template: Template) => Promise<void>;
   onViewBuilds: (templateId: string) => void;
+  onPromote: (template: Template) => Promise<void>;
+  onArchive: (templateId: string) => Promise<void>;
   onOpenSandbox: (id: string) => void;
 }) => {
   if (!template) {
@@ -880,6 +901,8 @@ const TemplateDetailPanel = ({
 
   const latestBuild = builds[0] ?? null;
   const canBuild = template.status !== "archived" && template.ownerScope === "team";
+  const canPromote = template.status !== "archived" && template.visibility === "private" && Boolean(template.latestVersionId);
+  const canArchive = template.status !== "archived" && template.visibility === "private";
   return (
     <div className="template-detail-panel card">
       <div className="template-detail-head">
@@ -898,6 +921,14 @@ const TemplateDetailPanel = ({
         {(["overview", "versions", "config", "runs"] as const).map((item) => (
           <button key={item} className={`template-detail-tab ${tab === item ? "active" : ""}`} onClick={() => onTab(item)}>{item}</button>
         ))}
+      </div>
+
+      <div className="template-detail-actions-row template-detail-primary-actions">
+        <button className="btn btn-sm" onClick={() => void onBuild(template)} disabled={!canBuild || busy === `build:${template.id}`} title={canBuild ? "Queue a build" : "Builds are available for team templates"}>Queue build</button>
+        <button className="btn btn-sm" onClick={() => onViewBuilds(template.id)}>Builds</button>
+        {canPromote ? <button className="btn btn-sm" onClick={() => void onPromote(template)} disabled={busy === `promote:${template.id}`}>Promote</button> : null}
+        {canArchive ? <button className="btn btn-sm" onClick={() => void onArchive(template.id)} disabled={busy === `archive:${template.id}`}>Archive</button> : null}
+        <button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("custom-templates")}>Docs</button>
       </div>
 
       {loading ? <div className="build-progress-note"><span className="spinner" /> Loading template control-plane data.</div> : null}
