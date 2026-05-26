@@ -92,7 +92,12 @@ test("getOrganizationSettings selects organization-scoped settings", async () =>
           slug: "workspace-labs",
           defaultTemplateId: "python-3.12",
           idleTtlSeconds: 300,
-          maxConcurrency: 200
+          maxConcurrency: 200,
+          defaultEgressPolicy: { mode: "restricted", presets: ["python-package-install"], allow: [], deny: [] },
+          egressAllowedPresets: ["python-package-install"],
+          egressCustomDomainsEnabled: false,
+          egressMaxRules: 64,
+          egressRedactDomains: true
         }] as never[]
       };
     }
@@ -122,7 +127,12 @@ test("updateOrganizationSettings merges partial patches with current settings", 
             slug: "workspace-labs",
             default_template_id: "python-3.12",
             idle_ttl_seconds: 300,
-            max_concurrency: 200
+            max_concurrency: 200,
+            default_egress_policy: { mode: "open", presets: [], allow: [], deny: [] },
+            egress_allowed_presets: ["python-package-install", "git-hosting"],
+            egress_custom_domains_enabled: false,
+            egress_max_rules: 64,
+            egress_redact_domains: true
           }] as never[]
         };
       }
@@ -135,7 +145,12 @@ test("updateOrganizationSettings merges partial patches with current settings", 
             slug: "workspace-labs",
             defaultTemplateId: "python-3.12",
             idleTtlSeconds: 300,
-            maxConcurrency: 50
+            maxConcurrency: 50,
+            defaultEgressPolicy: { mode: "open", presets: [], allow: [], deny: [] },
+            egressAllowedPresets: ["python-package-install", "git-hosting"],
+            egressCustomDomainsEnabled: false,
+            egressMaxRules: 64,
+            egressRedactDomains: true
           }] as never[]
         };
       }
@@ -143,7 +158,20 @@ test("updateOrganizationSettings merges partial patches with current settings", 
     }
   );
 
-  assert.deepEqual(calls[1].params, ["org_settings", "Runtime Team", "workspace-labs", "python-3.12", 300, 50]);
+  assert.deepEqual(calls[1].params, [
+    "org_settings",
+    "Runtime Team",
+    "workspace-labs",
+    "python-3.12",
+    300,
+    50,
+    "{\"mode\":\"open\",\"presets\":[],\"allow\":[],\"deny\":[]}",
+    ["python-package-install", "git-hosting"],
+    false,
+    64,
+    true
+  ]);
   assert.equal(updated.name, "Runtime Team");
   assert.equal(updated.maxConcurrency, 50);
+  assert.equal(updated.egressMaxRules, 64);
 });

@@ -93,6 +93,7 @@ harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
 harakiri create --template python-3.12-data --name first-agent
 harakiri run sbx_... --cmd "python --version"
 harakiri expose sbx_... --port 3000
+harakiri egress set sbx_... --mode restricted --allow api.github.com
 ```
 
 See [packages/cli/README.md](packages/cli/README.md) for packaging and command
@@ -136,6 +137,20 @@ harakiri routes sbx_...
 The portable smoke path checks OpenSandbox gateway routing through local
 forwards. Public DNS and Cloudflare tunnel examples are intentionally isolated
 under [infra/scripts/env/harakiri](infra/scripts/env/harakiri/README.md).
+
+## Outbound Access
+
+Use outbound access when a sandbox should only reach approved domains:
+
+```bash
+harakiri create --template python-3.12-data --egress restricted --egress-preset python-package-install
+harakiri egress allow sbx_... api.github.com
+harakiri egress test sbx_... https://pypi.org/simple
+```
+
+Harakiri compiles developer-facing modes and presets to OpenSandbox
+`networkPolicy` and runtime egress sidecar calls. See
+[docs/egress-control.md](docs/egress-control.md).
 
 ## Documentation
 

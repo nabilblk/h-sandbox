@@ -14,6 +14,7 @@
 
 - [API reference](api.md)
 - [Organization members](members.md)
+- [Outbound access](egress-control.md)
 - [Templates](templates.md)
 - [Template builds](template-builds.md)
 - [Template runtime contract](template-runtime-contract.md)
@@ -22,6 +23,7 @@
 ## Operators
 
 - [Runbook](runbook.md)
+- [Outbound access](egress-control.md)
 - [Template security](template-security.md)
 - [Latest verification report](test-report.md)
 

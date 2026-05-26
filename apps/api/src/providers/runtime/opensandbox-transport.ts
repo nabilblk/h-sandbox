@@ -1,4 +1,4 @@
-import type { RunResult } from "@harakiri/shared";
+import type { EgressNetworkPolicy, RunResult } from "@harakiri/shared";
 import { config } from "../../config.js";
 import { registryImageAuthForImage, type RegistryImageAuth } from "../../registry-credentials.js";
 import type { RuntimeTemplate } from "../../templates.js";
@@ -8,6 +8,7 @@ import { listFilesInSandbox } from "./opensandbox-files.js";
 import { sandboxLogs } from "./opensandbox-logs.js";
 import { sandboxMetrics } from "./opensandbox-metrics.js";
 import { ensureSandboxRoute, routePolicyMetadata } from "./opensandbox-routes.js";
+import { getSandboxEgressPolicy, patchSandboxEgressRules, setSandboxEgressPolicy } from "./opensandbox-egress.js";
 import type { ProviderList, ProviderSandbox, SandboxRouteTarget } from "./opensandbox-types.js";
 
 export type {
@@ -36,6 +37,7 @@ export const openSandboxCreateBody = (input: {
   metadata?: Record<string, string>;
   env?: Record<string, string>;
   imageAuth?: RegistryImageAuth | null;
+  egressPolicy?: EgressNetworkPolicy | null;
 }) => {
   const template = input.template;
   const env = input.env && Object.keys(input.env).length ? input.env : undefined;
@@ -56,7 +58,8 @@ export const openSandboxCreateBody = (input: {
       ...routePolicyMetadata(),
       ...(input.metadata ?? {})
     }),
-    ...(env ? { env } : {})
+    ...(env ? { env } : {}),
+    ...(input.egressPolicy ? { networkPolicy: input.egressPolicy } : {})
   };
 };
 
@@ -73,6 +76,7 @@ export const openSandbox = {
     organizationId?: string;
     metadata?: Record<string, string>;
     env?: Record<string, string>;
+    egressPolicy?: EgressNetworkPolicy | null;
   }) {
     const template = input.template;
     const registryAuth = input.organizationId ? await registryImageAuthForImage(input.organizationId, template.image, "pull") : null;
@@ -83,6 +87,7 @@ export const openSandbox = {
         ttlSeconds: input.ttlSeconds,
         name: input.name,
         env: input.env,
+        egressPolicy: input.egressPolicy,
         imageAuth: registryAuth?.auth ?? null,
         metadata: {
           ...(registryAuth?.credentialId ? { "harakiri.runtime_registry_credential": registryAuth.credentialId } : {}),
@@ -178,5 +183,17 @@ export const openSandbox = {
 
   async metrics(opensandboxId?: string | null) {
     return sandboxMetrics(requireOpenSandboxId(opensandboxId));
+  },
+
+  async getEgressPolicy(opensandboxId?: string | null) {
+    return getSandboxEgressPolicy(requireOpenSandboxId(opensandboxId));
+  },
+
+  async setEgressPolicy(opensandboxId: string | null | undefined, policy: EgressNetworkPolicy) {
+    return setSandboxEgressPolicy(requireOpenSandboxId(opensandboxId), policy);
+  },
+
+  async patchEgressRules(opensandboxId: string | null | undefined, rules: EgressNetworkPolicy["egress"]) {
+    return patchSandboxEgressRules(requireOpenSandboxId(opensandboxId), rules);
   }
 };

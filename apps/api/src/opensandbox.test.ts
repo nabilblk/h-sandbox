@@ -140,6 +140,118 @@ test("openSandboxCreateBody includes sandbox env and image auth when provided", 
   assert.equal(body.metadata["harakiri.runtime_registry_credential"], "cred_private");
 });
 
+test("openSandboxCreateBody includes OpenSandbox networkPolicy when egress is restricted", () => {
+  const template: RuntimeTemplate = {
+    id: "egress-template",
+    name: "Egress Template",
+    description: "Template with restricted outbound access",
+    image: "python:3.12-slim",
+    imageDigest: null,
+    icon: "py",
+    tags: [],
+    aliases: [],
+    bootMs: 100,
+    visibility: "public",
+    status: "ready",
+    defaultEntrypoint: ["sleep", "3600"],
+    cpuCount: 1,
+    memoryMb: 512,
+    workdir: "/",
+    defaultPorts: [],
+    runtimeFamily: "python",
+    latestVersionId: "tplv_egress",
+    templateVersionId: "tplv_egress"
+  };
+
+  const body = openSandboxCreateBody({
+    template,
+    ttlSeconds: 120,
+    name: "egress-runner",
+    egressPolicy: {
+      defaultAction: "deny",
+      egress: [{ action: "allow", target: "pypi.org" }]
+    }
+  });
+
+  assert.deepEqual(body.networkPolicy, {
+    defaultAction: "deny",
+    egress: [{ action: "allow", target: "pypi.org" }]
+  });
+});
+
+test("openSandbox egress policy calls the OpenSandbox-resolved sidecar endpoint", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/18080?use_server_proxy=true") {
+      return jsonResponse({
+        endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/18080",
+        headers: {
+          "OpenSandbox-Ingress-To": "osbx-real-18080",
+          "OPENSANDBOX-EGRESS-AUTH": "egress-token"
+        }
+      });
+    }
+    if (url === "http://127.0.0.1:18085/policy") {
+      return jsonResponse({
+        status: "ok",
+        enforcementMode: "dns+nft",
+        policy: {
+          defaultAction: "deny",
+          egress: [{ action: "allow", target: "pypi.org" }]
+        }
+      });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.setEgressPolicy("osbx-real", {
+    defaultAction: "deny",
+    egress: [{ action: "allow", target: "pypi.org" }]
+  });
+
+  assert.equal(result.enforcementMode, "dns+nft");
+  assert.equal(result.policy?.egress[0]?.target, "pypi.org");
+  const policyRequest = requests.find((request) => request.url.endsWith("/policy"));
+  assert.ok(policyRequest);
+  const headers = new Headers(policyRequest.init?.headers);
+  assert.equal(headers.get("OPENSANDBOX-EGRESS-AUTH"), "egress-token");
+  assert.equal(policyRequest.init?.method, "POST");
+});
+
+test("openSandbox egress policy retries while the sidecar route becomes ready", async () => {
+  const policyStatuses: number[] = [503, 200];
+  globalThis.fetch = async (input) => {
+    const url = requestUrl(input);
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-race/endpoints/18080?use_server_proxy=true") {
+      return jsonResponse({
+        endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-race/proxy/18080",
+        headers: {
+          "OpenSandbox-Ingress-To": "osbx-race-18080",
+          "OPENSANDBOX-EGRESS-AUTH": "egress-token"
+        }
+      });
+    }
+    if (url === "http://127.0.0.1:18085/policy") {
+      const status = policyStatuses.shift() ?? 200;
+      if (status !== 200) return jsonResponse({ message: "route not ready" }, { status });
+      return jsonResponse({
+        status: "ok",
+        enforcementMode: "dns+nft",
+        policy: { defaultAction: "allow", egress: [] }
+      });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.getEgressPolicy("osbx-race");
+
+  assert.equal(result.status, "ok");
+  assert.deepEqual(result.policy, { defaultAction: "allow", egress: [] });
+  assert.equal(policyStatuses.length, 0);
+});
+
 test("openSandbox.run uses the OpenSandbox-resolved execd endpoint and forwards endpoint headers", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = async (input, init) => {

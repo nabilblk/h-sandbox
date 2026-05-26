@@ -13,10 +13,12 @@ import type {
   RunSandboxBody,
   RunSandboxResponse,
   SandboxFilesResponse,
+  SandboxEgressResponse,
   SandboxLogsResponse,
   SandboxResponse,
   SandboxRouteResponse,
   SandboxRoutesResponse,
+  PatchSandboxEgressBody,
   SandboxesResponse,
   TemplateBuildContextResponse,
   TemplateBuildLogsResponse,
@@ -27,6 +29,8 @@ import type {
   TemplateVersionsResponse,
   UpsertRegistryCredentialBody,
   UploadTemplateBuildContextBody,
+  TestSandboxEgressBody,
+  TestSandboxEgressResponse,
   UsageSummary
 } from "@harakiri/shared";
 import { formatApiErrorResponse, parseApiErrorResponse } from "@harakiri/shared";
@@ -169,6 +173,7 @@ export class HarakiriClient {
         name: input.name,
         ttlSeconds: input.ttlSeconds ?? 300,
         env: input.env,
+        egress: input.egress,
         idempotencyKey: input.idempotencyKey,
         wait: input.wait,
         waitTimeoutMs: input.waitTimeoutMs
@@ -201,6 +206,37 @@ export class HarakiriClient {
 
   listRoutes(id: string) {
     return this.request<SandboxRoutesResponse>(`/v1/sandboxes/${id}/routes`);
+  }
+
+  getEgressPolicy(id: string) {
+    return this.request<SandboxEgressResponse>(`/v1/sandboxes/${id}/egress`);
+  }
+
+  updateEgressPolicy(id: string, input: PatchSandboxEgressBody) {
+    return this.request<SandboxEgressResponse>(`/v1/sandboxes/${id}/egress`, {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
+  }
+
+  allowEgress(id: string, domains: string[]) {
+    return this.updateEgressPolicy(id, { allow: domains });
+  }
+
+  denyEgress(id: string, domains: string[]) {
+    return this.updateEgressPolicy(id, { deny: domains });
+  }
+
+  blockEgress(id: string) {
+    return this.updateEgressPolicy(id, { mode: "blocked" });
+  }
+
+  testEgress(id: string, target: string | TestSandboxEgressBody) {
+    const body: TestSandboxEgressBody = typeof target === "string" ? { target } : target;
+    return this.request<TestSandboxEgressResponse>(`/v1/sandboxes/${id}/egress/test`, {
+      method: "POST",
+      body: JSON.stringify(body)
+    });
   }
 
   exposePort(id: string, input: ExposePortInput) {

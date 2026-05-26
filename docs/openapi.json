@@ -857,6 +857,135 @@
         }
       }
     },
+    "/v1/templates/{id}/egress": {
+      "patch": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Update template outbound access default",
+        "operationId": "updateTemplateEgress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTemplateEgressBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated template",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/templates/{id}/promote": {
       "post": {
         "security": [
@@ -3040,6 +3169,381 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SandboxMetricsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/egress": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Sandbox Runtime"
+        ],
+        "summary": "Read sandbox outbound access",
+        "operationId": "getSandboxEgress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sandbox egress policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxEgressResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Sandbox Runtime"
+        ],
+        "summary": "Update sandbox outbound access",
+        "operationId": "updateSandboxEgress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchSandboxEgressBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sandbox egress policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxEgressResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/egress/test": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Sandbox Runtime"
+        ],
+        "summary": "Test sandbox outbound access",
+        "operationId": "testSandboxEgress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestSandboxEgressBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sandbox egress test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestSandboxEgressResponse"
                 }
               }
             }
@@ -5463,6 +5967,9 @@
           "runtimeFamily": {
             "type": "string"
           },
+          "egressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
+          },
           "latestVersionId": {
             "type": [
               "string",
@@ -5614,10 +6121,25 @@
           },
           "runtimeFamily": {
             "type": "string"
+          },
+          "egressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
           }
         },
         "required": [
           "name"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateTemplateEgressBody": {
+        "type": "object",
+        "properties": {
+          "egressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
+          }
+        },
+        "required": [
+          "egressPolicy"
         ],
         "additionalProperties": false
       },
@@ -5693,6 +6215,9 @@
               "type": "integer"
             }
           },
+          "egressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
+          },
           "envSchema": {
             "type": "object",
             "additionalProperties": true
@@ -5744,6 +6269,7 @@
           "memoryMb",
           "workdir",
           "defaultPorts",
+          "egressPolicy",
           "envSchema",
           "metadata",
           "sbomRef",
@@ -6149,6 +6675,9 @@
               "null"
             ]
           },
+          "egressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -6249,6 +6778,9 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "egress": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
           },
           "idempotencyKey": {
             "type": "string"
@@ -6656,6 +7188,356 @@
         ],
         "additionalProperties": false
       },
+      "EgressNetworkRule": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "target"
+        ],
+        "additionalProperties": false
+      },
+      "EgressNetworkPolicy": {
+        "type": "object",
+        "properties": {
+          "defaultAction": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "egress": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EgressNetworkRule"
+            }
+          }
+        },
+        "required": [
+          "defaultAction",
+          "egress"
+        ],
+        "additionalProperties": false
+      },
+      "EgressPolicyInput": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "open",
+              "restricted",
+              "blocked",
+              "custom"
+            ]
+          },
+          "presets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "python-package-install",
+                "node-package-install",
+                "git-hosting",
+                "llm-apis",
+                "browser-basic"
+              ]
+            }
+          },
+          "allow": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deny": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "defaultAction": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "EgressPolicyRule": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "preset",
+              "template",
+              "sandbox",
+              "custom"
+            ]
+          },
+          "presetId": {
+            "type": "string",
+            "enum": [
+              "python-package-install",
+              "node-package-install",
+              "git-hosting",
+              "llm-apis",
+              "browser-basic"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "target",
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "EgressProviderStatus": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "enforcementMode": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "additionalProperties": false
+      },
+      "EgressPolicySummary": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "open",
+              "restricted",
+              "blocked",
+              "custom"
+            ]
+          },
+          "presets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "python-package-install",
+                "node-package-install",
+                "git-hosting",
+                "llm-apis",
+                "browser-basic"
+              ]
+            }
+          },
+          "allow": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deny": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EgressPolicyRule"
+            }
+          },
+          "compiledPolicy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EgressNetworkPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "providerStatus": {
+            "$ref": "#/components/schemas/EgressProviderStatus"
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "mode",
+          "presets",
+          "allow",
+          "deny",
+          "rules",
+          "compiledPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxEgressResponse": {
+        "type": "object",
+        "properties": {
+          "egress": {
+            "$ref": "#/components/schemas/EgressPolicySummary"
+          }
+        },
+        "required": [
+          "egress"
+        ],
+        "additionalProperties": false
+      },
+      "PatchSandboxEgressBody": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "open",
+              "restricted",
+              "blocked",
+              "custom"
+            ]
+          },
+          "presets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "python-package-install",
+                "node-package-install",
+                "git-hosting",
+                "llm-apis",
+                "browser-basic"
+              ]
+            }
+          },
+          "allow": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deny": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reset": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "TestSandboxEgressBody": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "additionalProperties": false
+      },
+      "TestSandboxEgressResponse": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "normalizedTarget": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reachable",
+              "blocked_or_unreachable",
+              "sandbox_not_running",
+              "provider_unavailable"
+            ]
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "target",
+          "normalizedTarget",
+          "url",
+          "ok",
+          "status",
+          "stdout",
+          "stderr",
+          "durationMs"
+        ],
+        "additionalProperties": false
+      },
       "ApiKeySummary": {
         "type": "object",
         "properties": {
@@ -7015,6 +7897,31 @@
               "string",
               "null"
             ]
+          },
+          "defaultEgressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
+          },
+          "egressAllowedPresets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "python-package-install",
+                "node-package-install",
+                "git-hosting",
+                "llm-apis",
+                "browser-basic"
+              ]
+            }
+          },
+          "egressCustomDomainsEnabled": {
+            "type": "boolean"
+          },
+          "egressMaxRules": {
+            "type": "integer"
+          },
+          "egressRedactDomains": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -7022,7 +7929,12 @@
           "slug",
           "idleTtlSeconds",
           "maxConcurrency",
-          "defaultTemplateId"
+          "defaultTemplateId",
+          "defaultEgressPolicy",
+          "egressAllowedPresets",
+          "egressCustomDomainsEnabled",
+          "egressMaxRules",
+          "egressRedactDomains"
         ],
         "additionalProperties": false
       },

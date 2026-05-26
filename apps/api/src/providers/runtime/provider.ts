@@ -1,4 +1,4 @@
-import type { RunResult } from "@harakiri/shared";
+import type { EgressNetworkPolicy, EgressNetworkRule, RunResult } from "@harakiri/shared";
 import type { RegistryImageAuth } from "../../registry-credentials.js";
 import type { RuntimeTemplate } from "../../templates.js";
 
@@ -25,6 +25,7 @@ export type RuntimeCreateSandboxInput = {
   metadata?: Record<string, string>;
   env?: Record<string, string>;
   imageAuth?: RegistryImageAuth | null;
+  egressPolicy?: EgressNetworkPolicy | null;
 };
 
 export type RuntimeCreateSandboxResult = RuntimeSandboxSummary & {
@@ -111,6 +112,14 @@ export type RuntimeExposeRouteInput = RuntimeSandboxRef & {
   protocol: "http" | "https";
 };
 
+export type RuntimeEgressPolicyStatus = {
+  status?: string;
+  mode?: string;
+  enforcementMode?: string;
+  reason?: string;
+  policy: EgressNetworkPolicy | null;
+};
+
 export type RuntimeRenewInput = {
   expiresAt: string;
 };
@@ -121,6 +130,7 @@ export type RuntimeProviderCapabilities = {
   logs: boolean;
   metrics: boolean;
   routes: boolean;
+  egress?: boolean;
 };
 
 export interface RuntimeProvider {
@@ -137,4 +147,7 @@ export interface RuntimeProvider {
   logs(ref: RuntimeSandboxRef): Promise<RuntimeLogEntry[]>;
   metrics(ref: RuntimeSandboxRef): Promise<RuntimeMetricsSnapshot | null>;
   exposeRoute(input: RuntimeExposeRouteInput): Promise<RuntimeRouteTarget>;
+  getEgressPolicy?(ref: RuntimeSandboxRef): Promise<RuntimeEgressPolicyStatus>;
+  setEgressPolicy?(ref: RuntimeSandboxRef, policy: EgressNetworkPolicy): Promise<RuntimeEgressPolicyStatus>;
+  patchEgressRules?(ref: RuntimeSandboxRef, rules: EgressNetworkRule[]): Promise<RuntimeEgressPolicyStatus>;
 }

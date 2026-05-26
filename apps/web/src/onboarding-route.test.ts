@@ -22,6 +22,11 @@ test("default workspace derives stable organization defaults from profile", () =
     slug: "lyra-labs",
     idleTtlSeconds: 300,
     maxConcurrency: 200,
-    defaultTemplateId: null
+    defaultTemplateId: null,
+    defaultEgressPolicy: { mode: "open", presets: [], allow: [], deny: [] },
+    egressAllowedPresets: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"],
+    egressCustomDomainsEnabled: true,
+    egressMaxRules: 128,
+    egressRedactDomains: false
   });
 });

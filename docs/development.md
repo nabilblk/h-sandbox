@@ -59,6 +59,34 @@ Useful local URLs:
 - API: `http://127.0.0.1:8080`
 - Keycloak: `http://127.0.0.1:8081`
 
+## Browser Sign-In Sessions
+
+The web app uses Keycloak's JavaScript adapter with the OIDC standard flow,
+PKCE S256, and nonce validation. Tokens are kept in adapter memory and are not
+persisted in `localStorage`. On reload, the app starts in a checking state and
+uses Keycloak SSO to recover the browser session when it still exists.
+Keycloak's session-status iframe is disabled because modern browser tracking
+protections and headless browsers can make that iframe unreliable; Harakiri
+uses refresh failures plus same-app tab broadcasts for session-expired/logout
+detection.
+
+API calls go through an async token path that refreshes the access token before
+requests and retries one `401` after a forced refresh. If refresh fails, the UI
+clears local state and shows a session-expired sign-in prompt.
+
+Logout is provider logout, not just local cleanup. The account menu calls the
+OIDC logout flow and returns to `#landing` after Keycloak accepts the
+post-logout redirect. The local dev realm config enables standard flow, disables
+implicit flow, requires PKCE S256, and allows post-logout redirects to match the
+client redirect URI list.
+
+Silent `check-sso` is optional because it needs
+`/silent-check-sso.html` registered as a valid redirect URI in Keycloak:
+
+```bash
+PUBLIC_KEYCLOAK_SILENT_CHECK_SSO=true pnpm --filter @harakiri/web dev
+```
+
 ## Interface Checks
 
 Run focused checks while developing:

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import { apiClient, loadConfig, saveConfig } from "../config.js";
 import { runtimeLine } from "../format.js";
-import { collectEnv, parsePositiveInt, printProgress } from "../utils.js";
+import { collectEnv, collectString, parsePositiveInt, printProgress } from "../utils.js";
 
 export const registerSandboxCommands = (program: Command) => {
   program
@@ -12,6 +12,10 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--name <name>", "sandbox name")
     .option("--ttl <seconds>", "idle TTL", "300")
     .option("--env <key=value>", "environment variable; can be repeated", collectEnv, {})
+    .option("--egress <mode>", "outbound access mode: open, restricted, blocked, custom")
+    .option("--egress-preset <preset>", "outbound access preset; can be repeated", collectString, [])
+    .option("--allow <domain>", "allow outbound domain; can be repeated", collectString, [])
+    .option("--deny <domain>", "deny outbound domain; can be repeated", collectString, [])
     .option("--no-wait", "enqueue sandbox creation and return before provider provisioning finishes")
     .option("--wait-timeout-ms <ms>", "maximum create wait before returning a pending sandbox", parsePositiveInt)
     .action(async (options) => {
@@ -22,6 +26,18 @@ export const registerSandboxCommands = (program: Command) => {
         name: options.name,
         ttlSeconds: Number(options.ttl),
         env: options.env,
+        ...(
+          options.egress || options.egressPreset.length || options.allow.length || options.deny.length
+            ? {
+                egress: {
+                  mode: options.egress,
+                  presets: options.egressPreset,
+                  allow: options.allow,
+                  deny: options.deny
+                }
+              }
+            : {}
+        ),
         ...(options.wait === false ? { wait: false } : {}),
         ...(options.waitTimeoutMs !== undefined ? { waitTimeoutMs: options.waitTimeoutMs } : {})
       };

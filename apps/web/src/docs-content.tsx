@@ -48,6 +48,25 @@ export const docPages: DocPage[] = [
     )
   },
   {
+    id: "session-management",
+    section: "Workspace",
+    title: "Sign-in sessions",
+    lede: "Harakiri uses Keycloak for browser sign-in, token refresh, and provider logout.",
+    toc: ["Sign in", "Refresh", "Sign out", "Session expired"],
+    body: (
+      <>
+        <h2>Sign in</h2>
+        <p>The dashboard starts an OpenID Connect Authorization Code flow with PKCE. Keycloak owns credentials, required actions, and the browser SSO session. Harakiri keeps only the intended return route in session storage while the browser leaves for Keycloak.</p>
+        <h2>Refresh</h2>
+        <p>The web app refreshes short-lived access tokens before API calls. Tokens stay in Keycloak adapter memory and are not written to `localStorage`; after a page reload, the app checks the Keycloak SSO session again instead of replaying a saved token.</p>
+        <h2>Sign out</h2>
+        <p>Use the account menu and choose Sign out of Harakiri and Keycloak. This starts OIDC provider logout and returns to the landing page after Keycloak closes the SSO session.</p>
+        <h2>Session expired</h2>
+        <p>If refresh fails or another tab signs out, Harakiri clears local state, keeps the current route, and asks you to sign in again. Other open Harakiri tabs receive the same logout or session-expired event.</p>
+      </>
+    )
+  },
+  {
     id: "create-sandbox",
     section: "Sandboxes",
     title: "Create a sandbox",
@@ -69,6 +88,36 @@ export const docPages: DocPage[] = [
     )
   },
   {
+    id: "outbound-access",
+    section: "Sandboxes",
+    title: "Outbound access",
+    lede: "Limit which public domains a sandbox can reach without managing raw network-policy rules.",
+    toc: ["Modes", "Presets", "Workspace", "Templates", "CLI", "API", "Troubleshooting"],
+    body: (
+      <>
+        <h2>Modes</h2>
+        <p>Use `open` for local prototyping, `restricted` when an agent should only reach selected domains, `blocked` for offline evaluation, and `custom` when you need explicit allow and deny rules.</p>
+        <h2>Presets</h2>
+        <p>Presets expand to domain rules for common workflows such as Python package installs, Node package installs, Git hosting, and model API calls. Templates can define defaults; sandbox creation can override them.</p>
+        <h2>Workspace</h2>
+        <p>Admins use Settings, Outbound access to choose the default mode for new templates, enable or disable presets, allow or block custom domains, and set the max expanded rules per sandbox. These guardrails apply to templates, new sandboxes, and runtime policy changes.</p>
+        <h2>Templates</h2>
+        <p>Use the Egress tab on a team template to store the outbound access default. New sandboxes inherit the template policy unless a create request explicitly overrides it.</p>
+        <h2>CLI</h2>
+        <pre>{`harakiri create --template python-3.12-data --egress restricted --egress-preset python-package-install\nharakiri egress sbx_...\nharakiri egress allow sbx_... api.github.com\nharakiri egress block sbx_...\nharakiri egress test sbx_... https://pypi.org/simple`}</pre>
+        <h2>API</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes/:id/egress</code></span>
+        <span className="api-endpoint"><span className="api-method patch">PATCH</span><code>/v1/sandboxes/:id/egress</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/egress/test</code></span>
+        <span className="api-endpoint"><span className="api-method patch">PATCH</span><code>/v1/templates/:id/egress</code></span>
+        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","egress":{"mode":"restricted","presets":["python-package-install"],"allow":["api.github.com"]}}'`}</pre>
+        <h2>Troubleshooting</h2>
+        <p>Open a sandbox, then use Network, Outbound access. Test access returns whether the target is reachable from inside the sandbox. If the provider status is unavailable, OpenSandbox did not return a ready egress sidecar endpoint.</p>
+        <p>Test access depends on the sandbox image having a probe tool such as `curl`, `wget`, or `python3`. Minimal images can still enforce policy even when the test cannot run.</p>
+      </>
+    )
+  },
+  {
     id: "custom-templates",
     section: "Templates",
     title: "Create a custom template",
@@ -78,15 +127,15 @@ export const docPages: DocPage[] = [
       <>
         <h2>Config</h2>
         <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot`}</pre>
-        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\nstart_command = "sleep 3600"\nready_command = "true"`}</pre>
+        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\negress_mode = "restricted"\negress_presets = ["python-package-install", "git-hosting"]\nstart_command = "sleep 3600"\nready_command = "true"`}</pre>
         <h2>Dashboard</h2>
-        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
+        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Set Outbound access during creation when the runtime should start restricted by default. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>
         <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
         <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. A new template definition cannot create sandboxes until a build succeeds and creates a ready digest-pinned version. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
         <pre>{`harakiri create --template open-agents-dev --name agent-runner\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
-        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Egress, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Egress stores the template's outbound access default for new sandboxes. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
         <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Use is enabled only after a ready version exists. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`; use `template:stable` when you want the stable channel and `tplv_...` when you need an immutable pin.</p>
       </>
     )

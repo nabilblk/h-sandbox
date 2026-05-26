@@ -198,6 +198,97 @@ button { font: inherit; color: inherit; }
 .topnav .links a.active { color: var(--ink); background: var(--surface-2); }
 .topnav .right { display: flex; gap: 8px; align-items: center; }
 
+.account-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.account-trigger {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: 0 8px 0 3px;
+  cursor: pointer;
+}
+
+.account-trigger:hover { background: var(--surface-2); }
+.account-trigger.compact {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+  border-color: transparent;
+  background: transparent;
+}
+.account-trigger.compact:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+.account-trigger.compact svg { display: none; }
+.account-trigger-label {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.account-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 292px;
+  z-index: 40;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.account-popover-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+}
+
+.account-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.account-email,
+.account-workspace {
+  color: var(--muted);
+  font-size: 12px;
+}
+.account-workspace {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+  margin: 2px 0 6px;
+  font-family: var(--font-mono);
+}
+.account-menu-item {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  padding: 7px 8px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.account-menu-item:hover { background: var(--surface-2); }
+
 /* Subtle blink */
 @keyframes blink { 50% { opacity: 0.2; } }
 .blink { animation: blink 1s steps(2, end) infinite; }

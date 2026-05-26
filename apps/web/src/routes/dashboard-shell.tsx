@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CurrentAccountResponse } from "@harakiri/shared";
 import { api } from "../api";
 import type { UserProfile } from "../auth";
+import { AccountMenu } from "../components/account-menu";
 import { Brand } from "../components/brand";
 import { Icon } from "../components/icon";
 import { defaultWorkspace } from "../workspace";
@@ -53,7 +54,7 @@ export const DashboardShellRoute = ({
         <div className="side-foot"><div className="usage-mini"><div className="usage-mini-h"><span>Status</span><span className="num" style={{ color: "var(--ok)" }}>operational</span></div><div style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--font-mono)" }}>v0.41.2 - all systems</div></div></div>
       </aside>
       <main className="dash-main">
-        <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm"><Icon name="search" size={13} /><span className="kbd">CmdK</span></button><button className="btn btn-ghost btn-sm" onClick={() => go("docs")}><Icon name="book" size={13} /></button><button className="btn btn-ghost btn-sm"><Icon name="bell" size={13} /></button><button className="ava-sm" onClick={onSignOut} title={profile?.email ?? "Sign out"}>{orgInitial}</button></div></div>
+        <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm"><Icon name="search" size={13} /><span className="kbd">CmdK</span></button><button className="btn btn-ghost btn-sm" onClick={() => go("docs")}><Icon name="book" size={13} /></button><button className="btn btn-ghost btn-sm"><Icon name="bell" size={13} /></button><AccountMenu compact profile={profile} workspace={org.slug} avatarLabel={orgInitial} onSignOut={onSignOut} /></div></div>
         {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} /> : null}
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}

@@ -67,6 +67,7 @@ export type Template = {
   workdir: string;
   defaultPorts: number[];
   runtimeFamily: string;
+  egressPolicy?: EgressPolicyInput | null;
   latestVersionId?: string | null;
   latestBuildId?: string | null;
   latestBuildStatus?: string | null;
@@ -90,6 +91,7 @@ export type TemplateVersionSummary = {
   workdir: string;
   defaultPorts: number[];
   envSchema: Record<string, unknown>;
+  egressPolicy?: EgressPolicyInput | null;
   metadata: Record<string, unknown>;
   sbomRef: string | null;
   provenance: Record<string, unknown>;
@@ -172,6 +174,11 @@ export type CreateTemplateBody = {
   workdir?: string;
   defaultPorts?: number[];
   runtimeFamily?: string;
+  egressPolicy?: EgressPolicyInput | null;
+};
+
+export type UpdateTemplateEgressBody = {
+  egressPolicy: EgressPolicyInput;
 };
 
 export type PromoteTemplateBody = {
@@ -229,6 +236,7 @@ export type SandboxSummary = {
   publicUrl: string | null;
   templateVersionId?: string | null;
   templateImageDigest?: string | null;
+  egressPolicy?: EgressPolicyInput | null;
   createdAt: string;
 };
 
@@ -248,6 +256,7 @@ export type CreateSandboxBody = {
   name?: string;
   ttlSeconds?: number;
   env?: Record<string, string>;
+  egress?: EgressPolicyInput | null;
   idempotencyKey?: string;
   wait?: boolean;
   waitTimeoutMs?: number;
@@ -298,6 +307,238 @@ export type SandboxRouteResponse = {
 export type SandboxRoutesResponse = {
   routes: SandboxRouteSummary[];
 };
+
+export const egressModes = ["open", "restricted", "blocked", "custom"] as const;
+export type EgressMode = typeof egressModes[number];
+
+export const egressPresetIds = [
+  "python-package-install",
+  "node-package-install",
+  "git-hosting",
+  "llm-apis",
+  "browser-basic"
+] as const;
+export type EgressPresetId = typeof egressPresetIds[number];
+
+export type EgressRuleAction = "allow" | "deny";
+
+export type EgressNetworkRule = {
+  action: EgressRuleAction;
+  target: string;
+};
+
+export type EgressNetworkPolicy = {
+  defaultAction: EgressRuleAction;
+  egress: EgressNetworkRule[];
+};
+
+export type EgressPolicyInput = {
+  mode?: EgressMode;
+  presets?: EgressPresetId[];
+  allow?: string[];
+  deny?: string[];
+  defaultAction?: EgressRuleAction;
+};
+
+export type EgressPolicyRule = EgressNetworkRule & {
+  source: "preset" | "template" | "sandbox" | "custom";
+  presetId?: EgressPresetId;
+};
+
+export type EgressProviderStatus = {
+  available: boolean;
+  status?: string;
+  mode?: string;
+  enforcementMode?: string;
+  reason?: string;
+  error?: string;
+  checkedAt?: string;
+};
+
+export type EgressPolicySummary = {
+  mode: EgressMode;
+  presets: EgressPresetId[];
+  allow: string[];
+  deny: string[];
+  rules: EgressPolicyRule[];
+  compiledPolicy: EgressNetworkPolicy | null;
+  providerStatus?: EgressProviderStatus;
+  updatedAt?: string | null;
+};
+
+export type SandboxEgressResponse = {
+  egress: EgressPolicySummary;
+};
+
+export type PatchSandboxEgressBody = {
+  mode?: EgressMode;
+  presets?: EgressPresetId[];
+  allow?: string[];
+  deny?: string[];
+  reset?: boolean;
+};
+
+export type TestSandboxEgressBody = {
+  target: string;
+};
+
+export type TestSandboxEgressResponse = {
+  target: string;
+  normalizedTarget: string;
+  url: string;
+  ok: boolean;
+  status: "reachable" | "blocked_or_unreachable" | "sandbox_not_running" | "provider_unavailable";
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+};
+
+export const egressPresetCatalog: Record<EgressPresetId, { label: string; description: string; domains: string[] }> = {
+  "python-package-install": {
+    label: "Python packages",
+    description: "Allow pip, uv, PyPI, and Python package artifacts.",
+    domains: ["pypi.org", "*.pypi.org", "files.pythonhosted.org", "*.pythonhosted.org", "astral.sh", "*.astral.sh"]
+  },
+  "node-package-install": {
+    label: "Node packages",
+    description: "Allow npm registry and Node distribution endpoints.",
+    domains: ["registry.npmjs.org", "*.npmjs.org", "nodejs.org", "*.nodejs.org"]
+  },
+  "git-hosting": {
+    label: "Git hosting",
+    description: "Allow GitHub source, API, raw, and archive downloads.",
+    domains: ["github.com", "api.github.com", "raw.githubusercontent.com", "objects.githubusercontent.com", "codeload.github.com"]
+  },
+  "llm-apis": {
+    label: "LLM APIs",
+    description: "Allow common hosted model API domains.",
+    domains: ["api.openai.com", "api.anthropic.com"]
+  },
+  "browser-basic": {
+    label: "Browser basic",
+    description: "Use open mode with explicit deny rules for risky endpoints.",
+    domains: []
+  }
+};
+
+const invalidEgressTargetReason = (target: string) => {
+  const trimmed = target.trim().toLowerCase().replace(/\.$/, "");
+  if (!trimmed) return "domain is required";
+  if (trimmed === "*" || trimmed === "*.") return "bare wildcards are not supported";
+  if (/^https?:\/\//i.test(trimmed)) return "use a hostname, not a URL";
+  if (/[/?#]/.test(trimmed)) return "paths and query strings are not supported";
+  if (/\s/.test(trimmed)) return "spaces are not supported";
+  if (trimmed.includes(":")) return "ports and IP literals are not supported";
+  if (trimmed === "localhost" || trimmed.endsWith(".localhost")) return "localhost is not supported";
+  if (trimmed === "169.254.169.254") return "metadata endpoints are not supported";
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(trimmed)) return "IP addresses are not supported";
+  const body = trimmed.startsWith("*.") ? trimmed.slice(2) : trimmed;
+  if (!body.includes(".")) return "use a fully qualified domain name";
+  const labels = body.split(".");
+  if (labels.some((label) => !label || label.length > 63)) return "domain labels must be 1-63 characters";
+  if (labels.some((label) => !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))) {
+    return "domain labels may contain letters, numbers, and hyphens";
+  }
+  return null;
+};
+
+export const normalizeEgressTarget = (target: string) => {
+  const normalized = target.trim().toLowerCase().replace(/\.$/, "");
+  const reason = invalidEgressTargetReason(normalized);
+  if (reason) throw new Error(`invalid egress target "${target}": ${reason}`);
+  return normalized;
+};
+
+export const isEgressTargetValid = (target: string) => invalidEgressTargetReason(target) === null;
+
+const uniqueNormalizedTargets = (values: string[] | undefined) => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values ?? []) {
+    const normalized = normalizeEgressTarget(value);
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push(normalized);
+  }
+  return result;
+};
+
+const validPresetIds = new Set<string>(egressPresetIds);
+
+const normalizePresets = (presets: EgressPresetId[] | undefined) => {
+  const seen = new Set<EgressPresetId>();
+  const result: EgressPresetId[] = [];
+  for (const preset of presets ?? []) {
+    if (!validPresetIds.has(preset)) throw new Error(`invalid egress preset "${preset}"`);
+    if (seen.has(preset)) continue;
+    seen.add(preset);
+    result.push(preset);
+  }
+  return result;
+};
+
+const inferEgressMode = (input?: EgressPolicyInput | null): EgressMode => {
+  if (input?.mode) return input.mode;
+  if ((input?.presets?.length ?? 0) > 0 || (input?.allow?.length ?? 0) > 0) return "restricted";
+  if ((input?.deny?.length ?? 0) > 0) return "open";
+  return "open";
+};
+
+export const compileEgressPolicy = (input?: EgressPolicyInput | null): EgressPolicySummary => {
+  const mode = inferEgressMode(input);
+  const presets = normalizePresets(input?.presets);
+  const presetAllowRules = presets.flatMap((presetId) =>
+    egressPresetCatalog[presetId].domains.map((target) => ({
+      action: "allow" as const,
+      target: normalizeEgressTarget(target),
+      source: "preset" as const,
+      presetId
+    }))
+  );
+  const explicitAllow = uniqueNormalizedTargets(input?.allow);
+  const explicitDeny = uniqueNormalizedTargets(input?.deny);
+  const allowRules: EgressPolicyRule[] = [
+    ...presetAllowRules,
+    ...explicitAllow.map((target) => ({ action: "allow" as const, target, source: "sandbox" as const }))
+  ];
+  const denyRules: EgressPolicyRule[] = explicitDeny.map((target) => ({ action: "deny" as const, target, source: "sandbox" as const }));
+  const dedupedRules: EgressPolicyRule[] = [];
+  const seen = new Set<string>();
+  for (const rule of [...allowRules, ...denyRules]) {
+    const key = `${rule.action}:${rule.target}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    dedupedRules.push(rule);
+  }
+
+  if (mode === "blocked") {
+    const compiledPolicy = { defaultAction: "deny" as const, egress: [] };
+    return { mode, presets: [], allow: [], deny: [], rules: [], compiledPolicy };
+  }
+
+  if (mode === "open") {
+    const compiledPolicy = denyRules.length
+      ? { defaultAction: "allow" as const, egress: denyRules.map(({ action, target }) => ({ action, target })) }
+      : null;
+    return { mode, presets: [], allow: [], deny: explicitDeny, rules: denyRules, compiledPolicy };
+  }
+
+  const defaultAction = mode === "custom" ? input?.defaultAction ?? (denyRules.length > 0 && allowRules.length === 0 ? "allow" : "deny") : "deny";
+  const rules = defaultAction === "allow" ? denyRules : dedupedRules;
+  return {
+    mode,
+    presets,
+    allow: explicitAllow,
+    deny: explicitDeny,
+    rules,
+    compiledPolicy: {
+      defaultAction,
+      egress: rules.map(({ action, target }) => ({ action, target }))
+    }
+  };
+};
+
+export const defaultEgressPolicyInput: EgressPolicyInput = { mode: "open", presets: [], allow: [], deny: [] };
 
 export type ApiKeySummary = {
   id: string;
@@ -382,6 +623,11 @@ export type OrganizationSettings = {
   idleTtlSeconds: number;
   maxConcurrency: number;
   defaultTemplateId: string | null;
+  defaultEgressPolicy: EgressPolicyInput;
+  egressAllowedPresets: EgressPresetId[];
+  egressCustomDomainsEnabled: boolean;
+  egressMaxRules: number;
+  egressRedactDomains: boolean;
 };
 
 export type OrganizationSettingsResponse = {

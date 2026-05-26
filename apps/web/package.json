@@ -14,9 +14,10 @@
   "dependencies": {
     "@harakiri/shared": "workspace:*",
     "@vitejs/plugin-react": "^5.1.1",
-    "vite": "^7.2.6",
+    "keycloak-js": "^26.2.4",
     "react": "^19.2.1",
-    "react-dom": "^19.2.1"
+    "react-dom": "^19.2.1",
+    "vite": "^7.2.6"
   },
   "devDependencies": {
     "@types/react": "^19.2.7",

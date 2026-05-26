@@ -14,7 +14,7 @@ type DocsRouteProps = TopNavProps & {
   onSignOut: () => void;
 };
 
-export const DocsRoute = ({ go, profile, onSignIn, onSignOut }: DocsRouteProps) => {
+export const DocsRoute = ({ go, profile, onSignIn, onSignOut, authStatus }: DocsRouteProps) => {
   const [active, setActive] = useState(() => {
     const requested = sessionStorage.getItem(docsPageKey);
     return requested && docPages.some((item) => item.id === requested) ? requested : "quickstart";
@@ -23,7 +23,7 @@ export const DocsRoute = ({ go, profile, onSignIn, onSignOut }: DocsRouteProps) 
   const sections = Array.from(new Set(docPages.map((item) => item.section)));
   return (
     <div className="app">
-      <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} />
+      <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} authStatus={authStatus} />
       <div className="docs">
         <aside className="docs-side">
           {sections.map((section) => (

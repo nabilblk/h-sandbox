@@ -5,7 +5,8 @@ import {
   createSandboxRoute,
   getSandboxMetrics,
   listSandboxFiles,
-  listSandboxLogs
+  listSandboxLogs,
+  testSandboxEgress
 } from "./services/sandbox-runtime.js";
 
 const fakeRuntimeProvider = (overrides: Partial<RuntimeProvider> = {}): RuntimeProvider => ({
@@ -140,6 +141,46 @@ test("getSandboxMetrics returns persisted metrics when provider metrics are unav
   assert.equal(metrics?.current.cpu, 19);
   assert.equal(metrics?.current.mem, 512);
   assert(!calls.some((call) => call.text.includes("UPDATE sandboxes SET cpu_pct")));
+});
+
+test("testSandboxEgress sends a newline-safe shell command to the runtime", async () => {
+  let runInput: Parameters<RuntimeProvider["run"]>[0] | undefined;
+  const result = await testSandboxEgress(
+    { organizationId: "org_runtime", sandboxId: "sbx_runtime", target: "https://api.github.com" },
+    {
+      runtimeProvider: fakeRuntimeProvider({
+        run: async (input) => {
+          runInput = input;
+          return {
+            sandboxId: input.controlPlaneSandboxId,
+            command: input.command,
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+            durationMs: 9
+          };
+        }
+      }),
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      actorUserId: "user_runtime",
+      actorLabel: "runtime@test.local",
+      query: async (text, params) => {
+        assert.match(text, /SELECT id, opensandbox_id, status FROM sandboxes/);
+        assert.deepEqual(params, ["sbx_runtime", "org_runtime"]);
+        return { rowCount: 1, rows: [{ id: "sbx_runtime", opensandbox_id: "provider_sbx", status: "running" }] as never[] };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "ok");
+  assert.ok(runInput);
+  assert.equal(runInput.providerSandboxId, "provider_sbx");
+  assert.equal(runInput.controlPlaneSandboxId, "sbx_runtime");
+  assert.match(runInput.command, /^HARAKIRI_EGRESS_TEST_TARGET='https:\/\/api\.github\.com\/' sh -lc '/);
+  assert.match(runInput.command, /\ntarget="\$HARAKIRI_EGRESS_TEST_TARGET"/);
+  assert.doesNotMatch(runInput.command, /sh -lc "\\n/);
+  if (result.kind === "ok") assert.equal(result.response.status, "reachable");
 });
 
 test("createSandboxRoute exposes through the runtime provider and records audit/event", async () => {

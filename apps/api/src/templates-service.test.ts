@@ -4,7 +4,8 @@ import {
   archiveTemplateForOrganization,
   createTemplate,
   listTemplateVersions,
-  promoteTemplate
+  promoteTemplate,
+  updateTemplateEgress
 } from "./services/templates.js";
 import type { RuntimeTemplate } from "./templates.js";
 
@@ -30,6 +31,14 @@ const teamTemplate: RuntimeTemplate = {
   latestVersionId: "tplv_ready",
   templateVersionId: "tplv_ready"
 };
+
+const orgEgressSettingsRow = () => ({
+  defaultEgressPolicy: { mode: "open", presets: [], allow: [], deny: [] },
+  egressAllowedPresets: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"],
+  egressCustomDomainsEnabled: true,
+  egressMaxRules: 128,
+  egressRedactDomains: false
+});
 
 test("createTemplate validates, inserts, resolves, and audits a custom template", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
@@ -64,6 +73,7 @@ test("createTemplate validates, inserts, resolves, and audits a custom template"
       query: async (text, params) => {
         calls.push({ text, params });
         if (text.includes("SELECT id FROM templates")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
         if (text.includes("INSERT INTO templates")) return { rowCount: 1, rows: [] as never[] };
         throw new Error(`unexpected query: ${text}`);
       }
@@ -98,6 +108,89 @@ test("listTemplateVersions resolves the requested template before querying versi
   assert.equal(result.kind, "found");
   assert.deepEqual(calls[0].params, ["open-agents-dev", "org_tpl"]);
   if (result.kind === "found") assert.equal(result.versions[0].id, "tplv_ready");
+});
+
+test("updateTemplateEgress validates workspace guardrails and records template audit", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  const result = await updateTemplateEgress(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      templateId: "open-agents-dev",
+      egressPolicy: { mode: "restricted", presets: ["python-package-install"], allow: ["api.github.com"], deny: [] }
+    },
+    {
+      resolveTemplateFn: async () => teamTemplate,
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => {
+        audits.push({ action, metadata });
+      },
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("UPDATE templates")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("UPDATE template_versions")) return { rowCount: 1, rows: [] as never[] };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "updated");
+  assert(calls.some((call) => call.text.includes("UPDATE templates")));
+  assert(calls.some((call) => call.text.includes("UPDATE template_versions")));
+  assert.equal(audits[0].action, "template.egress.updated");
+  assert.deepEqual(audits[0].metadata, { mode: "restricted", ruleCount: 7, presetCount: 1 });
+});
+
+test("updateTemplateEgress rejects disabled custom domains", async () => {
+  const result = await updateTemplateEgress(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      templateId: "open-agents-dev",
+      egressPolicy: { mode: "restricted", presets: ["python-package-install"], allow: ["api.github.com"], deny: [] }
+    },
+    {
+      resolveTemplateFn: async () => teamTemplate,
+      recordAudit: async () => undefined,
+      query: async (text) => {
+        if (text.includes("default_egress_policy")) return {
+          rowCount: 1,
+          rows: [{ ...orgEgressSettingsRow(), egressCustomDomainsEnabled: false }] as never[]
+        };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "egress_custom_domains_disabled");
+});
+
+test("updateTemplateEgress rejects disabled presets", async () => {
+  const result = await updateTemplateEgress(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      templateId: "open-agents-dev",
+      egressPolicy: { mode: "restricted", presets: ["llm-apis"], allow: [], deny: [] }
+    },
+    {
+      resolveTemplateFn: async () => teamTemplate,
+      recordAudit: async () => undefined,
+      query: async (text) => {
+        if (text.includes("default_egress_policy")) return {
+          rowCount: 1,
+          rows: [{ ...orgEgressSettingsRow(), egressAllowedPresets: ["python-package-install"] }] as never[]
+        };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "egress_preset_not_allowed");
 });
 
 test("promoteTemplate updates aliases/latest version and records audit metadata", async () => {

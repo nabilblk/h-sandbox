@@ -26,6 +26,7 @@ type BuildRow = {
   template_memory_mb: number;
   template_workdir: string;
   template_default_ports: number[];
+  template_egress_policy: Record<string, unknown>;
   template_tags: string[];
   context_sha256?: string;
   context_size_bytes?: number;
@@ -456,6 +457,7 @@ const claimBuild = async (sourceType: "image" | "dockerfile") =>
                 t.memory_mb AS template_memory_mb,
                 t.workdir AS template_workdir,
                 t.default_ports AS template_default_ports,
+                t.egress_policy AS template_egress_policy,
                 t.tags AS template_tags,
                 c.sha256 AS context_sha256,
                 c.size_bytes AS context_size_bytes,
@@ -564,8 +566,8 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
         `INSERT INTO template_versions
          (id, template_id, organization_id, build_id, version_number, aliases,
           image_uri, image_digest, status, default_entrypoint, cpu_count, memory_mb,
-          workdir, default_ports, metadata, provenance, scan_status, scan_summary, promoted_at)
-         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13, $14, $15, $16, now())`,
+          workdir, default_ports, egress_policy, metadata, provenance, scan_status, scan_summary, promoted_at)
+         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, now())`,
         [
           versionId,
           build.template_id,
@@ -579,6 +581,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
           build.template_memory_mb,
           build.template_workdir,
           build.template_default_ports,
+          JSON.stringify(build.template_egress_policy ?? { mode: "open", presets: [], allow: [], deny: [] }),
           redactRecord({ ...build.metadata, ...readyWithPreflight.metadata }),
           provenance,
           scan.status,

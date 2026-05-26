@@ -120,6 +120,7 @@ const schemas: Record<string, JsonSchema> = {
     workdir: string,
     defaultPorts: arrayOf(integer),
     runtimeFamily: string,
+    egressPolicy: ref("EgressPolicyInput"),
     latestVersionId: nullableString,
     latestBuildId: nullableString,
     latestBuildStatus: nullableString,
@@ -146,8 +147,12 @@ const schemas: Record<string, JsonSchema> = {
     memoryMb: integer,
     workdir: string,
     defaultPorts: arrayOf(integer),
-    runtimeFamily: string
+    runtimeFamily: string,
+    egressPolicy: ref("EgressPolicyInput")
   }, ["name"]),
+  UpdateTemplateEgressBody: objectSchema({
+    egressPolicy: ref("EgressPolicyInput")
+  }, ["egressPolicy"]),
   PromoteTemplateBody: objectSchema({
     versionId: string,
     alias: string
@@ -166,6 +171,7 @@ const schemas: Record<string, JsonSchema> = {
     memoryMb: integer,
     workdir: string,
     defaultPorts: arrayOf(integer),
+    egressPolicy: ref("EgressPolicyInput"),
     envSchema: freeObject,
     metadata: freeObject,
     sbomRef: nullableString,
@@ -248,6 +254,7 @@ const schemas: Record<string, JsonSchema> = {
     publicUrl: nullableString,
     templateVersionId: nullableString,
     templateImageDigest: nullableString,
+    egressPolicy: ref("EgressPolicyInput"),
     createdAt: dateTime
   }, ["id", "name", "template", "status", "cpu", "mem", "started", "owner", "cost", "ttlSeconds", "expiresAt", "publicUrl", "createdAt"]),
   SandboxOperationSummary: objectSchema({
@@ -265,6 +272,7 @@ const schemas: Record<string, JsonSchema> = {
     name: string,
     ttlSeconds: integer,
     env: { type: "object", additionalProperties: { type: "string" } },
+    egress: ref("EgressPolicyInput"),
     idempotencyKey: string,
     wait: boolean,
     waitTimeoutMs: integer
@@ -342,6 +350,65 @@ const schemas: Record<string, JsonSchema> = {
   }),
   SandboxRouteResponse: objectSchema({ route: ref("SandboxRouteSummary") }),
   SandboxRoutesResponse: objectSchema({ routes: arrayOf(ref("SandboxRouteSummary")) }),
+  EgressNetworkRule: objectSchema({
+    action: { type: "string", enum: ["allow", "deny"] },
+    target: string
+  }),
+  EgressNetworkPolicy: objectSchema({
+    defaultAction: { type: "string", enum: ["allow", "deny"] },
+    egress: arrayOf(ref("EgressNetworkRule"))
+  }),
+  EgressPolicyInput: objectSchema({
+    mode: { type: "string", enum: ["open", "restricted", "blocked", "custom"] },
+    presets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),
+    allow: arrayOf(string),
+    deny: arrayOf(string),
+    defaultAction: { type: "string", enum: ["allow", "deny"] }
+  }, []),
+  EgressPolicyRule: objectSchema({
+    action: { type: "string", enum: ["allow", "deny"] },
+    target: string,
+    source: { type: "string", enum: ["preset", "template", "sandbox", "custom"] },
+    presetId: { type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }
+  }, ["action", "target", "source"]),
+  EgressProviderStatus: objectSchema({
+    available: boolean,
+    status: string,
+    mode: string,
+    enforcementMode: string,
+    reason: string,
+    error: string,
+    checkedAt: dateTime
+  }, ["available"]),
+  EgressPolicySummary: objectSchema({
+    mode: { type: "string", enum: ["open", "restricted", "blocked", "custom"] },
+    presets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),
+    allow: arrayOf(string),
+    deny: arrayOf(string),
+    rules: arrayOf(ref("EgressPolicyRule")),
+    compiledPolicy: { anyOf: [ref("EgressNetworkPolicy"), { type: "null" }] },
+    providerStatus: ref("EgressProviderStatus"),
+    updatedAt: { type: ["string", "null"], format: "date-time" }
+  }, ["mode", "presets", "allow", "deny", "rules", "compiledPolicy"]),
+  SandboxEgressResponse: objectSchema({ egress: ref("EgressPolicySummary") }),
+  PatchSandboxEgressBody: objectSchema({
+    mode: { type: "string", enum: ["open", "restricted", "blocked", "custom"] },
+    presets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),
+    allow: arrayOf(string),
+    deny: arrayOf(string),
+    reset: boolean
+  }, []),
+  TestSandboxEgressBody: objectSchema({ target: string }),
+  TestSandboxEgressResponse: objectSchema({
+    target: string,
+    normalizedTarget: string,
+    url: string,
+    ok: boolean,
+    status: { type: "string", enum: ["reachable", "blocked_or_unreachable", "sandbox_not_running", "provider_unavailable"] },
+    stdout: string,
+    stderr: string,
+    durationMs: number
+  }),
   ApiKeySummary: objectSchema({
     id: string,
     name: string,
@@ -405,8 +472,13 @@ const schemas: Record<string, JsonSchema> = {
     slug: string,
     idleTtlSeconds: integer,
     maxConcurrency: integer,
-    defaultTemplateId: nullableString
-  }, ["name", "slug", "idleTtlSeconds", "maxConcurrency", "defaultTemplateId"]),
+    defaultTemplateId: nullableString,
+    defaultEgressPolicy: ref("EgressPolicyInput"),
+    egressAllowedPresets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),
+    egressCustomDomainsEnabled: boolean,
+    egressMaxRules: integer,
+    egressRedactDomains: boolean
+  }, ["name", "slug", "idleTtlSeconds", "maxConcurrency", "defaultTemplateId", "defaultEgressPolicy", "egressAllowedPresets", "egressCustomDomainsEnabled", "egressMaxRules", "egressRedactDomains"]),
   OrganizationSettingsResponse: objectSchema({ organization: ref("OrganizationSettings") }),
   AccountCapabilities: objectSchema({
     canManageMembers: boolean
@@ -540,6 +612,9 @@ export const openApiDocument = {
     "/v1/templates/{id}/versions": {
       get: secured({ tags: ["Templates"], summary: "List template versions", operationId: "listTemplateVersions", parameters: [templateIdPath], responses: { ...ok("Template versions", ref("TemplateVersionsResponse")), ...authErrorResponses } })
     },
+    "/v1/templates/{id}/egress": {
+      patch: secured({ tags: ["Templates"], summary: "Update template outbound access default", operationId: "updateTemplateEgress", parameters: [templateIdPath], requestBody: jsonBody(ref("UpdateTemplateEgressBody")), responses: { ...ok("Updated template", ref("TemplateResponse")), ...authErrorResponses } })
+    },
     "/v1/templates/{id}/promote": {
       post: secured({ tags: ["Templates"], summary: "Promote a template version", operationId: "promoteTemplateVersion", parameters: [templateIdPath], requestBody: jsonBody(ref("PromoteTemplateBody")), responses: { ...ok("Promoted template", ref("TemplateResponse")), ...authErrorResponses } })
     },
@@ -619,6 +694,13 @@ export const openApiDocument = {
     },
     "/v1/sandboxes/{id}/metrics": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox metrics", operationId: "getSandboxMetrics", parameters: [pathId], responses: { ...ok("Sandbox metrics", ref("SandboxMetricsResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/egress": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox outbound access", operationId: "getSandboxEgress", parameters: [pathId], responses: { ...ok("Sandbox egress policy", ref("SandboxEgressResponse")), ...authErrorResponses } }),
+      patch: secured({ tags: ["Sandbox Runtime"], summary: "Update sandbox outbound access", operationId: "updateSandboxEgress", parameters: [pathId], requestBody: jsonBody(ref("PatchSandboxEgressBody")), responses: { ...ok("Sandbox egress policy", ref("SandboxEgressResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/egress/test": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Test sandbox outbound access", operationId: "testSandboxEgress", parameters: [pathId], requestBody: jsonBody(ref("TestSandboxEgressBody")), responses: { ...ok("Sandbox egress test result", ref("TestSandboxEgressResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/routes": {
       get: secured({ tags: ["Routes"], summary: "List sandbox routes", operationId: "listSandboxRoutes", parameters: [pathId], responses: { ...ok("Sandbox routes", ref("SandboxRoutesResponse")), ...authErrorResponses } }),

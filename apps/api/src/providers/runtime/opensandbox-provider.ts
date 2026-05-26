@@ -33,7 +33,8 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
     filesystem: true,
     logs: true,
     metrics: true,
-    routes: true
+    routes: true,
+    egress: true
   },
 
   async create(input) {
@@ -113,6 +114,18 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
 
   exposeRoute(input) {
     return openSandbox.ensureRoute(input.providerSandboxId, input.port);
+  },
+
+  getEgressPolicy(ref) {
+    return openSandbox.getEgressPolicy(ref.providerSandboxId);
+  },
+
+  setEgressPolicy(ref, policy) {
+    return openSandbox.setEgressPolicy(ref.providerSandboxId, policy);
+  },
+
+  patchEgressRules(ref, rules) {
+    return openSandbox.patchEgressRules(ref.providerSandboxId, rules);
   }
 };
 

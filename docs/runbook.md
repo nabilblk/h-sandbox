@@ -123,6 +123,38 @@ requests should return `403`.
 For production, replace Mailpit with real SMTP in Keycloak and use a Keycloak
 service account or managed admin secret instead of the development admin user.
 
+## Web OIDC Client
+
+The browser app is a public OIDC client. Keep the Keycloak client aligned with
+these settings:
+
+- Standard flow enabled.
+- Implicit flow disabled.
+- PKCE code challenge method set to `S256`.
+- Valid redirect URIs include the web origin/path used by the dashboard.
+- Valid post-logout redirect URIs include the same web origin/path, or use `+`
+  in Keycloak to mirror the valid redirect URI list.
+- Web origins include the deployed web origin.
+
+The web bundle reads:
+
+```bash
+PUBLIC_KEYCLOAK_URL=https://...
+PUBLIC_KEYCLOAK_REALM=harakiri
+PUBLIC_KEYCLOAK_CLIENT_ID=harakiri-web
+PUBLIC_KEYCLOAK_SILENT_CHECK_SSO=false
+```
+
+Keep `PUBLIC_KEYCLOAK_SILENT_CHECK_SSO=false` unless
+`https://<web-host>/silent-check-sso.html` is also registered as a valid
+redirect URI. Without silent check-sso, reloads still use Keycloak `check-sso`,
+but the browser may briefly leave and return to the app while the SSO session is
+checked.
+
+The frontend disables Keycloak's session-status iframe. Do not depend on that
+iframe for browser logout detection; use short access-token lifetimes, refresh
+failure handling, and Harakiri's same-app tab broadcast instead.
+
 ## Smoke Test
 
 Core platform checks:

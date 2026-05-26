@@ -53,6 +53,8 @@ harakiri files sbx_... --path /workspace
 harakiri logs sbx_...
 harakiri expose sbx_... --port 3000
 harakiri routes sbx_...
+harakiri egress set sbx_... --mode restricted --allow api.github.com
+harakiri egress test sbx_... https://api.github.com
 harakiri template init --name open-agents-dev --dockerfile Dockerfile
 harakiri template build --name open-agents-dev .
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04

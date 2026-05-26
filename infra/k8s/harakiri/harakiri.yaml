@@ -22,6 +22,7 @@ data:
   PUBLIC_KEYCLOAK_URL: "http://127.0.0.1:18084"
   PUBLIC_KEYCLOAK_REALM: "harakiri"
   PUBLIC_KEYCLOAK_CLIENT_ID: "harakiri-web"
+  PUBLIC_KEYCLOAK_SILENT_CHECK_SSO: "false"
   PUBLIC_OPEN_SANDBOX_URL: "http://127.0.0.1:18083"
   SANDBOX_ROUTE_MODE: "opensandbox-gateway"
   SANDBOX_ROUTE_BASE_DOMAIN: "sandbox.localhost"

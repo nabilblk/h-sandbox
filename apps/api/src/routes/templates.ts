@@ -8,12 +8,13 @@ import {
   listTemplateVersions,
   listTemplatesForOrganization,
   promoteTemplate,
+  updateTemplateEgress,
   type Audit,
   type Query
 } from "../services/templates.js";
 import { templateMutationForbidden } from "../services/template-policies.js";
 import { query as defaultQuery } from "../db.js";
-import { templateCreateSchema, templatePromoteSchema } from "./templates.schema.js";
+import { templateCreateSchema, templateEgressSchema, templatePromoteSchema } from "./templates.schema.js";
 
 export type TemplateRouteDependencies = {
   query?: Query;
@@ -60,6 +61,10 @@ export const registerTemplateRoutes = async (app: FastifyInstance, dependencies:
       { query, recordAudit: audit }
     );
     if (result.kind === "resource_limit" || result.kind === "image_policy") return reply.code(422).send(result.payload);
+    if (result.kind === "egress_policy_invalid") return reply.code(400).send(apiErrorResponse("egress_policy_invalid", { message: result.message }));
+    if (result.kind === "egress_preset_not_allowed") return reply.code(403).send(apiErrorResponse("egress_preset_not_allowed", { preset: result.preset }));
+    if (result.kind === "egress_custom_domains_disabled") return reply.code(403).send(apiErrorResponse("egress_custom_domains_disabled"));
+    if (result.kind === "egress_rule_limit_exceeded") return reply.code(429).send(apiErrorResponse("egress_rule_limit_exceeded", { limit: result.limit }));
     if (result.kind === "template_exists") return reply.code(409).send(apiErrorResponse("template_exists", { template: result.template }));
     if (!result.template) throw new Error("template read after create failed");
     return reply.code(201).send({ template: result.template } satisfies TemplateResponse);
@@ -77,6 +82,29 @@ export const registerTemplateRoutes = async (app: FastifyInstance, dependencies:
     const result = await listTemplateVersions({ organizationId: request.auth.organizationId, templateId: id }, { query });
     if (result.kind === "template_not_found") return reply.code(404).send(apiErrorResponse("template_not_found"));
     return { versions: result.versions } satisfies TemplateVersionsResponse;
+  });
+
+  app.patch("/v1/templates/:id/egress", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = templateEgressSchema.parse(request.body ?? {});
+    const result = await updateTemplateEgress(
+      {
+        organizationId: request.auth.organizationId,
+        userId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        templateId: id,
+        egressPolicy: body.egressPolicy
+      },
+      { query, recordAudit: audit }
+    );
+    if (result.kind === "template_not_found") return reply.code(404).send(apiErrorResponse("template_not_found"));
+    if (result.kind === "template_not_mutable") return reply.code(403).send(templateMutationForbidden);
+    if (result.kind === "egress_policy_invalid") return reply.code(400).send(apiErrorResponse("egress_policy_invalid", { message: result.message }));
+    if (result.kind === "egress_preset_not_allowed") return reply.code(403).send(apiErrorResponse("egress_preset_not_allowed", { preset: result.preset }));
+    if (result.kind === "egress_custom_domains_disabled") return reply.code(403).send(apiErrorResponse("egress_custom_domains_disabled"));
+    if (result.kind === "egress_rule_limit_exceeded") return reply.code(429).send(apiErrorResponse("egress_rule_limit_exceeded", { limit: result.limit }));
+    if (!result.template) throw new Error("template read after egress update failed");
+    return { template: result.template } satisfies TemplateResponse;
   });
 
   app.post("/v1/templates/:id/promote", async (request, reply) => {

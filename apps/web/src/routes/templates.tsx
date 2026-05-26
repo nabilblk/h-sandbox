@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { TEMPLATES, type SandboxSummary, type Template, type TemplateBuildLogEntry, type TemplateBuildSummary, type TemplateVersionSummary, type UsageSummary } from "@harakiri/shared";
+import {
+  TEMPLATES,
+  egressModes,
+  egressPresetCatalog,
+  type EgressMode,
+  type EgressPolicyInput,
+  type EgressPresetId,
+  type SandboxSummary,
+  type Template,
+  type TemplateBuildLogEntry,
+  type TemplateBuildSummary,
+  type TemplateVersionSummary,
+  type UsageSummary
+} from "@harakiri/shared";
 import { api } from "../api";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
@@ -31,6 +44,18 @@ const parseTemplatePorts = (value: string) =>
 
 const splitEntrypoint = (value: string) => value.trim().split(/\s+/).filter(Boolean);
 
+const emptyEgressPolicy = (): EgressPolicyInput => ({ mode: "open", presets: [], allow: [], deny: [] });
+
+const normalizeEgressPolicy = (policy?: EgressPolicyInput | null): EgressPolicyInput => ({
+  mode: policy?.mode ?? "open",
+  presets: policy?.presets ?? [],
+  allow: policy?.allow ?? [],
+  deny: policy?.deny ?? [],
+  ...(policy?.defaultAction ? { defaultAction: policy.defaultAction } : {})
+});
+
+const splitDomainInput = (value: string) => value.split(/[,\s]+/).map((item) => item.trim()).filter(Boolean);
+
 const tomlString = (value: string) => `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
 const defaultDockerfile = `FROM ubuntu:24.04
@@ -55,6 +80,68 @@ const iconForRuntime = (runtimeFamily: string, ports: number[]): Template["icon"
   return "file";
 };
 
+const EgressPolicyControls = ({
+  policy,
+  onChange,
+  disabled = false
+}: {
+  policy: EgressPolicyInput;
+  onChange: (policy: EgressPolicyInput) => void;
+  disabled?: boolean;
+}) => {
+  const normalized = normalizeEgressPolicy(policy);
+  const [domain, setDomain] = useState("");
+  const setMode = (mode: EgressMode) => onChange({ ...normalized, mode });
+  const togglePreset = (presetId: EgressPresetId) => {
+    const presets = new Set(normalized.presets);
+    if (presets.has(presetId)) presets.delete(presetId);
+    else presets.add(presetId);
+    onChange({ ...normalized, presets: [...presets] });
+  };
+  const addAllow = () => {
+    const values = splitDomainInput(domain);
+    if (!values.length) return;
+    onChange({ ...normalized, mode: normalized.mode === "open" ? "restricted" : normalized.mode, allow: Array.from(new Set([...(normalized.allow ?? []), ...values])) });
+    setDomain("");
+  };
+  const removeTarget = (kind: "allow" | "deny", target: string) =>
+    onChange({ ...normalized, [kind]: (normalized[kind] ?? []).filter((value) => value !== target) });
+  return (
+    <div className="template-egress-editor">
+      <div className="segmented egress-modes">
+        {egressModes.map((mode) => (
+          <button key={mode} type="button" className={normalized.mode === mode ? "active" : ""} disabled={disabled} onClick={() => setMode(mode)}>{mode}</button>
+        ))}
+      </div>
+      <div className="egress-presets compact">
+        {Object.entries(egressPresetCatalog).map(([id, preset]) => {
+          const presetId = id as EgressPresetId;
+          const active = normalized.presets?.includes(presetId);
+          return (
+            <button key={id} type="button" className={`preset-chip ${active ? "active" : ""}`} disabled={disabled} onClick={() => togglePreset(presetId)}>
+              <span>{preset.label}</span>
+              <small>{preset.domains.length ? `${preset.domains.length} domains` : "open-mode helper"}</small>
+            </button>
+          );
+        })}
+      </div>
+      <div className="egress-add">
+        <input className="input" value={domain} onChange={(event) => setDomain(event.target.value)} placeholder="api.github.com or *.pythonhosted.org" disabled={disabled} />
+        <button type="button" className="btn btn-sm" onClick={addAllow} disabled={disabled || !domain.trim()}><Icon name="plus" size={12} /> Add domain</button>
+      </div>
+      <div className="template-egress-targets">
+        {(normalized.allow ?? []).map((target) => (
+          <span key={`allow-${target}`} className="tag allow">allow {target}<button type="button" onClick={() => removeTarget("allow", target)} disabled={disabled}><Icon name="x" size={9} /></button></span>
+        ))}
+        {(normalized.deny ?? []).map((target) => (
+          <span key={`deny-${target}`} className="tag deny">deny {target}<button type="button" onClick={() => removeTarget("deny", target)} disabled={disabled}><Icon name="x" size={9} /></button></span>
+        ))}
+        {!(normalized.allow?.length || normalized.deny?.length) ? <span className="muted">No custom domains.</span> : null}
+      </div>
+    </div>
+  );
+};
+
 type TemplateDraft = {
   id: string;
   name: string;
@@ -66,6 +153,7 @@ type TemplateDraft = {
   tags: string[];
   entrypoint: string[];
   runtimeFamily: string;
+  egressPolicy: EgressPolicyInput;
   source: "dockerfile" | "image" | "clone";
   dockerfilePath: string;
   image: string;
@@ -82,6 +170,9 @@ const generatedTemplateConfig = (draft: TemplateDraft) => [
   `workdir = ${tomlString(draft.workdir)}`,
   `ports = [${draft.ports.join(", ")}]`,
   draft.tags.length ? `tags = [${draft.tags.map(tomlString).join(", ")}]` : "",
+  `egress_mode = ${tomlString(draft.egressPolicy.mode ?? "open")}`,
+  (draft.egressPolicy.presets?.length ?? 0) > 0 ? `egress_presets = [${(draft.egressPolicy.presets ?? []).map(tomlString).join(", ")}]` : "",
+  (draft.egressPolicy.allow?.length ?? 0) > 0 ? `egress_allow = [${(draft.egressPolicy.allow ?? []).map(tomlString).join(", ")}]` : "",
   `start_command = ${tomlString(draft.entrypoint.join(" ") || "sleep 3600")}`,
   draft.source === "dockerfile" ? `dockerfile = ${tomlString(draft.dockerfilePath)}` : `image = ${tomlString(draft.image)}`,
   draft.cloneSource ? `clone_source = ${tomlString(draft.cloneSource)}` : ""
@@ -146,6 +237,7 @@ const NewTemplateModal = ({
   const [hotTemplate, setHotTemplate] = useState(false);
   const [entrypoint, setEntrypoint] = useState("sleep 3600");
   const [runtimeFamily, setRuntimeFamily] = useState("custom");
+  const [egressPolicy, setEgressPolicy] = useState<EgressPolicyInput>(() => emptyEgressPolicy());
   const [image, setImage] = useState("ubuntu:24.04");
   const [dockerfile, setDockerfile] = useState(defaultDockerfile);
   const [cloneId, setCloneId] = useState(() => templates.find((template) => template.status !== "archived")?.id ?? "");
@@ -165,6 +257,7 @@ const NewTemplateModal = ({
     tags: Array.from(new Set(["custom", runtimeFamily.trim() || "custom", ...(hotTemplate ? ["hot"] : [])].filter(Boolean))),
     entrypoint: splitEntrypoint(entrypoint),
     runtimeFamily: runtimeFamily.trim() || "custom",
+    egressPolicy: normalizeEgressPolicy(egressPolicy),
     source: mode,
     dockerfilePath: "Dockerfile",
     image: mode === "dockerfile" ? baseImageFromDockerfile(dockerfile) : mode === "clone" ? selectedClone?.image ?? image : image.trim(),
@@ -183,6 +276,7 @@ const NewTemplateModal = ({
     setPorts((selectedClone.defaultPorts ?? []).join(", "));
     setHotTemplate((selectedClone.tags ?? []).some((tag) => ["hot", "prepull", "warm"].includes(tag.toLowerCase())));
     setRuntimeFamily(selectedClone.runtimeFamily ?? "custom");
+    setEgressPolicy(normalizeEgressPolicy(selectedClone.egressPolicy));
     setImage(selectedClone.image);
     setEntrypoint((selectedClone.defaultEntrypoint ?? ["sleep", "3600"]).join(" "));
   }, [mode, cloneId, selectedClone, idTouched]);
@@ -210,7 +304,8 @@ const NewTemplateModal = ({
         memoryMb: draft.memoryMb,
         workdir: draft.workdir,
         defaultPorts: draft.ports,
-        runtimeFamily: draft.runtimeFamily
+        runtimeFamily: draft.runtimeFamily,
+        egressPolicy: draft.egressPolicy
       };
       const created = await api.createTemplate(payload);
       let build: TemplateBuildSummary | null = null;
@@ -300,6 +395,9 @@ const NewTemplateModal = ({
                   </select>
                 </Field>
               ) : null}
+              <Field label="Outbound access">
+                <EgressPolicyControls policy={egressPolicy} onChange={setEgressPolicy} disabled={loading} />
+              </Field>
               {mode === "dockerfile" ? (
                 <>
                   <Field label="Dockerfile">
@@ -409,6 +507,10 @@ const templateConfigToml = (template: Template, latestBuild?: TemplateBuildSumma
   `ports = ${tomlArray(template.defaultPorts ?? [])}`,
   `tags = ${tomlArray(template.tags ?? [])}`,
   `aliases = ${tomlArray(template.aliases ?? [])}`,
+  `egress_mode = ${tomlString(template.egressPolicy?.mode ?? "open")}`,
+  template.egressPolicy?.presets?.length ? `egress_presets = ${tomlArray(template.egressPolicy.presets)}` : null,
+  template.egressPolicy?.allow?.length ? `egress_allow = ${tomlArray(template.egressPolicy.allow)}` : null,
+  template.egressPolicy?.deny?.length ? `egress_deny = ${tomlArray(template.egressPolicy.deny)}` : null,
   `start_command = ${tomlString((template.defaultEntrypoint ?? ["sleep", "3600"]).join(" "))}`,
   latestBuild?.dockerfilePath ? `dockerfile = ${tomlString(latestBuild.dockerfilePath)}` : null
 ].filter(Boolean).join("\n");
@@ -426,7 +528,7 @@ const { sandbox } = await client.createSandbox({
 });
 
 await client.run(sandbox.id, { command: "python --version" });`;
-type TemplateDetailTab = "overview" | "versions" | "config" | "runs";
+type TemplateDetailTab = "overview" | "versions" | "egress" | "config" | "runs";
 
 export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [tab, setTab] = useState<"list" | "builds">("list");
@@ -758,6 +860,10 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
               onPromote={promoteTemplate}
               onArchive={archiveTemplate}
               onOpenSandbox={openSandbox}
+              onTemplateUpdated={(template) => {
+                setSelectedTemplate(template);
+                setTemplates((current) => current.map((item) => item.id === template.id ? template : item));
+              }}
             />
           </div>
         </>
@@ -854,6 +960,60 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
   );
 };
 
+const TemplateEgressSection = ({
+  template,
+  mutable,
+  onUpdated
+}: {
+  template: Template;
+  mutable: boolean;
+  onUpdated: (template: Template) => void;
+}) => {
+  const [policy, setPolicy] = useState<EgressPolicyInput>(() => normalizeEgressPolicy(template.egressPolicy));
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    setPolicy(normalizeEgressPolicy(template.egressPolicy));
+    setMessage("");
+  }, [template.id, template.egressPolicy]);
+  const save = async () => {
+    setSaving(true);
+    setMessage("");
+    try {
+      const result = await api.updateTemplateEgress(template.id, { egressPolicy: normalizeEgressPolicy(policy) });
+      onUpdated(result.template);
+      setMessage("Template default updated. New sandboxes inherit this policy.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to update outbound access.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const inheritedCount = (policy.presets?.length ?? 0) + (policy.allow?.length ?? 0) + (policy.deny?.length ?? 0);
+  return (
+    <div className="template-detail-section">
+      <div className="template-egress-head">
+        <div>
+          <div className="field-l">Template default</div>
+          <div className="template-detail-sub">Applied when a sandbox is created from this template unless the user overrides it.</div>
+        </div>
+        <div className="egress-status-row">
+          <span className={`pill ${policy.mode === "restricted" ? "idle" : policy.mode === "blocked" ? "" : "live"}`}><span className="dot" /> {policy.mode ?? "open"}</span>
+          <span className="tag">{inheritedCount} rules</span>
+        </div>
+      </div>
+      <EgressPolicyControls policy={policy} onChange={setPolicy} disabled={!mutable || saving} />
+      {message ? <div className={`template-egress-message ${message.includes("updated") ? "ok" : ""}`}>{message}</div> : null}
+      <div className="template-detail-actions-row">
+        <button className="btn btn-primary btn-sm" onClick={save} disabled={!mutable || saving}>{saving ? <><span className="spinner" /> Saving</> : "Save outbound default"}</button>
+        <button className="btn btn-sm" onClick={() => setPolicy(emptyEgressPolicy())} disabled={!mutable || saving}>Reset to open</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => openDocsPage("egress-control")}>Docs</button>
+      </div>
+      {!mutable ? <div className="template-egress-message">Platform and archived templates are read-only. Fork or create a team template to change the default.</div> : null}
+    </div>
+  );
+};
+
 const TemplateDetailPanel = ({
   template,
   tab,
@@ -869,7 +1029,8 @@ const TemplateDetailPanel = ({
   onViewBuilds,
   onPromote,
   onArchive,
-  onOpenSandbox
+  onOpenSandbox,
+  onTemplateUpdated
 }: {
   template: Template | null;
   tab: TemplateDetailTab;
@@ -886,6 +1047,7 @@ const TemplateDetailPanel = ({
   onPromote: (template: Template) => Promise<void>;
   onArchive: (templateId: string) => Promise<void>;
   onOpenSandbox: (id: string) => void;
+  onTemplateUpdated: (template: Template) => void;
 }) => {
   if (!template) {
     return (
@@ -918,7 +1080,7 @@ const TemplateDetailPanel = ({
       </div>
 
       <div className="template-detail-tabs">
-        {(["overview", "versions", "config", "runs"] as const).map((item) => (
+        {(["overview", "versions", "egress", "config", "runs"] as const).map((item) => (
           <button key={item} className={`template-detail-tab ${tab === item ? "active" : ""}`} onClick={() => onTab(item)}>{item}</button>
         ))}
       </div>
@@ -980,6 +1142,14 @@ const TemplateDetailPanel = ({
           ))}
           {versions.length ? null : <div className="empty-state">No versions have been recorded for this template yet.</div>}
         </div>
+      ) : null}
+
+      {tab === "egress" ? (
+        <TemplateEgressSection
+          template={template}
+          mutable={canBuild}
+          onUpdated={onTemplateUpdated}
+        />
       ) : null}
 
       {tab === "config" ? (

@@ -2,6 +2,8 @@ import type {
   AddOrganizationMemberResponse,
   CompleteOnboardingResponse,
   CurrentAccountResponse,
+  EgressPolicyInput,
+  EgressPresetId,
   OrganizationMemberMutationResponse,
   OrganizationMemberSummary,
   OrganizationMembersResponse
@@ -37,6 +39,11 @@ export type OrganizationSnapshot = {
   defaultTemplateId: string | null;
   idleTtlSeconds: number;
   maxConcurrency: number;
+  defaultEgressPolicy: EgressPolicyInput;
+  egressAllowedPresets: EgressPresetId[];
+  egressCustomDomainsEnabled: boolean;
+  egressMaxRules: number;
+  egressRedactDomains: boolean;
 };
 
 export type RoleSnapshot = {
@@ -281,7 +288,12 @@ export const getCurrentAccount = async (
 ): Promise<CurrentAccountResponse> => {
   const org = await query<OrganizationSnapshot>(
     `SELECT o.id, o.name, o.slug, o.default_template_id AS "defaultTemplateId",
-            o.idle_ttl_seconds AS "idleTtlSeconds", o.max_concurrency AS "maxConcurrency"
+            o.idle_ttl_seconds AS "idleTtlSeconds", o.max_concurrency AS "maxConcurrency",
+            o.default_egress_policy AS "defaultEgressPolicy",
+            o.egress_allowed_presets AS "egressAllowedPresets",
+            o.egress_custom_domains_enabled AS "egressCustomDomainsEnabled",
+            o.egress_max_rules AS "egressMaxRules",
+            o.egress_redact_domains AS "egressRedactDomains"
      FROM organizations o WHERE o.id = $1`,
     [input.auth.organizationId]
   );

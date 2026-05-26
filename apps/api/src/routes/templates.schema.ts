@@ -1,7 +1,15 @@
 import { z } from "zod";
+import { egressModes, egressPresetIds } from "@harakiri/shared";
 
 const templateVisibilitySchema = z.enum(["public", "private", "internal"]);
 const templateIconSchema = z.enum(["py", "node", "globe", "box", "file"]);
+export const egressPolicySchema = z.object({
+  mode: z.enum(egressModes).default("open"),
+  presets: z.array(z.enum(egressPresetIds)).default([]),
+  allow: z.array(z.string().min(1).max(253)).default([]),
+  deny: z.array(z.string().min(1).max(253)).default([]),
+  defaultAction: z.enum(["allow", "deny"]).optional()
+});
 
 export const templateCreateSchema = z.object({
   id: z.string().min(2).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/).optional(),
@@ -17,7 +25,8 @@ export const templateCreateSchema = z.object({
   memoryMb: z.number().int().min(128).max(262144).default(2048),
   workdir: z.string().min(1).default("/workspace"),
   defaultPorts: z.array(z.number().int().min(1).max(65535)).default([]),
-  runtimeFamily: z.string().min(1).max(80).default("custom")
+  runtimeFamily: z.string().min(1).max(80).default("custom"),
+  egressPolicy: egressPolicySchema.optional()
 });
 
 export const templatePromoteSchema = z.object({
@@ -25,5 +34,10 @@ export const templatePromoteSchema = z.object({
   alias: z.string().min(1).max(80).default("stable")
 });
 
+export const templateEgressSchema = z.object({
+  egressPolicy: egressPolicySchema
+});
+
 export type TemplateCreateBody = z.infer<typeof templateCreateSchema>;
 export type TemplatePromoteBody = z.infer<typeof templatePromoteSchema>;
+export type TemplateEgressBody = z.infer<typeof templateEgressSchema>;

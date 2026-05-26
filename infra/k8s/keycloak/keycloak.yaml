@@ -38,6 +38,12 @@ data:
           "redirectUris": ["*"],
           "webOrigins": ["*"],
           "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "frontchannelLogout": true,
+          "attributes": {
+            "pkce.code.challenge.method": "S256",
+            "post.logout.redirect.uris": "+"
+          },
           "directAccessGrantsEnabled": true
         }
       ],

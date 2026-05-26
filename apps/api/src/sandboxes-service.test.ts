@@ -91,6 +91,14 @@ const operationRow = (overrides: Record<string, unknown> = {}) => ({
   ...overrides
 });
 
+const orgEgressSettingsRow = () => ({
+  defaultEgressPolicy: { mode: "open", presets: [], allow: [], deny: [] },
+  egressAllowedPresets: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"],
+  egressCustomDomainsEnabled: true,
+  egressMaxRules: 128,
+  egressRedactDomains: false
+});
+
 test("listSandboxes builds stable filters and limit", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const sandboxes = await listSandboxes(
@@ -161,6 +169,7 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
           return { rowCount: 1, rows: [operationRow({ state: text.includes("succeeded") ? "succeeded" : "running" })] as never[] };
         }
         if (text.includes("UPDATE sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
         if (text.includes("INSERT INTO sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
           return {
@@ -178,9 +187,11 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
   assert.equal(runtimeState.createInput?.template.id, "python-3.12");
   assert.equal(runtimeState.createInput?.env.HARAKIRI_ENV_SMOKE, "ok");
   assert.equal(runtimeState.createInput?.metadata["harakiri.sandbox"], "sbx_test");
+  assert.deepEqual(runtimeState.createInput?.egressPolicy, { defaultAction: "allow", egress: [] });
   const insert = calls.find((call) => call.text.includes("INSERT INTO sandboxes"));
   assert.ok(insert);
   assert.deepEqual(insert.params?.slice(0, 5), ["sbx_test", "org_sbx", "python-3.12", "agent-runner", "user_sbx"]);
+  assert.deepEqual(JSON.parse(String(insert.params?.[11])), { defaultAction: "allow", egress: [] });
   assert(calls.some((call) => call.text.includes("INSERT INTO sandbox_operations")));
   assert(calls.some((call) => call.text.includes("UPDATE sandboxes") && call.params?.[1] === "provider_sbx"));
   assert.equal(events[0].type, "created");
@@ -222,6 +233,7 @@ test("createSandbox can enqueue async provision and return a pending sandbox", a
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_async", sandboxId: "sbx_async" })] as never[] };
         }
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
         if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
           return {
             rowCount: 1,
@@ -240,6 +252,9 @@ test("createSandbox can enqueue async provision and return a pending sandbox", a
     assert.equal(result.operation.state, "queued");
   }
   assert.equal(runtimeState.createInput, undefined);
+  const insert = calls.find((call) => call.text.includes("INSERT INTO sandboxes"));
+  assert.ok(insert);
+  assert.deepEqual(JSON.parse(String(insert.params?.[11])), { defaultAction: "allow", egress: [] });
   assert(!calls.some((call) => call.text.includes("FOR UPDATE")));
   assert.equal(events[0].type, "queued");
   assert.equal(audits[0].action, "sandbox.create.queued");
@@ -281,6 +296,7 @@ test("createSandbox returns pending when synchronous provision exceeds wait time
         if (text.includes("UPDATE sandbox_operations") && text.includes("state = 'running'")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_timeout", sandboxId: "sbx_timeout", state: "running", attempts: 1 })] as never[] };
         }
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
         if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
           return {
             rowCount: 1,
@@ -334,6 +350,7 @@ test("createSandbox records a failed operation when provider provisioning fails"
         if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) return { rowCount: 1, rows: [operationRow()] as never[] };
         if (text.includes("UPDATE sandbox_operations")) return { rowCount: 1, rows: [operationRow({ state: "failed", error: "provider unavailable" })] as never[] };
         if (text.includes("UPDATE sandboxes SET status = 'error'")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
         if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
           return {
             rowCount: 1,

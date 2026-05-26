@@ -1,4 +1,17 @@
-import { sandboxRouteStates, type RunResult, type SandboxRouteState, type SandboxRouteSummary } from "@harakiri/shared";
+import {
+  compileEgressPolicy,
+  defaultEgressPolicyInput,
+  normalizeEgressTarget,
+  type EgressNetworkPolicy,
+  type EgressPolicyInput,
+  type EgressPolicySummary,
+  type PatchSandboxEgressBody,
+  type RunResult,
+  type SandboxRouteState,
+  type SandboxRouteSummary,
+  type TestSandboxEgressResponse,
+  sandboxRouteStates
+} from "@harakiri/shared";
 import { config } from "../config.js";
 import type {
   RuntimeFileListResult,
@@ -12,6 +25,7 @@ import { query as defaultQuery } from "../db.js";
 import { claimSandboxOperationById, completeSandboxOperation, enqueueSandboxOperation, failSandboxOperation } from "./sandbox-operations.js";
 import type { Query } from "./query.js";
 import { configuredRouteTarget } from "../providers/runtime/route-targets.js";
+import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
 
 export type Audit = (
   organizationId: string,
@@ -61,6 +75,8 @@ const runtimeRef = (runtimeProvider: RuntimeProvider, providerSandboxId: string 
   provider: runtimeProvider.kind,
   providerSandboxId: providerSandboxId ?? ""
 });
+
+const shellQuote = (value: string) => `'${value.replace(/'/g, "'\\''")}'`;
 
 const fallbackRouteTarget = (sandboxId: string, port: number): RuntimeRouteTarget => {
   return configuredRouteTarget({ sandboxId, port, provider: "fallback-local" });
@@ -187,6 +203,258 @@ export const getSandboxMetrics = async (
     current: { cpu: sandbox.rows[0].cpu_pct, mem: sandbox.rows[0].memory_mb, diskIo: 0, networkOut: 0 },
     series: [{ ts, cpu: sandbox.rows[0].cpu_pct, mem: sandbox.rows[0].memory_mb }]
   };
+};
+
+type SandboxEgressRow = {
+  id: string;
+  opensandboxId: string | null;
+  status: string;
+  egressPolicy: EgressPolicyInput | null;
+  egressCompiledPolicy: EgressNetworkPolicy | null;
+  egressProviderStatus: Record<string, unknown> | null;
+  updatedAt: Date | string | null;
+};
+
+const sandboxEgressSelect = `
+  SELECT id,
+         opensandbox_id AS "opensandboxId",
+         status,
+         egress_policy AS "egressPolicy",
+         egress_compiled_policy AS "egressCompiledPolicy",
+         egress_provider_status AS "egressProviderStatus",
+         updated_at AS "updatedAt"
+  FROM sandboxes
+`;
+
+const providerUnavailable = (message: string) => ({
+  available: false,
+  error: message,
+  checkedAt: new Date().toISOString()
+});
+
+const providerAvailable = (status: Awaited<ReturnType<NonNullable<RuntimeProvider["getEgressPolicy"]>>>) => ({
+  available: true,
+  status: status.status,
+  mode: status.mode,
+  enforcementMode: status.enforcementMode,
+  reason: status.reason,
+  checkedAt: new Date().toISOString()
+});
+
+const storedEgressSummary = (row: SandboxEgressRow): EgressPolicySummary => ({
+  ...compileEgressPolicy(row.egressPolicy ?? defaultEgressPolicyInput),
+  providerStatus: row.egressProviderStatus as EgressPolicySummary["providerStatus"],
+  updatedAt: toIsoOrNull(row.updatedAt)
+});
+
+const mergeEgressPatch = (current: EgressPolicyInput | null, patch: PatchSandboxEgressBody): EgressPolicyInput => {
+  if (patch.reset) return defaultEgressPolicyInput;
+  const base = current ?? defaultEgressPolicyInput;
+  const mode = patch.mode ?? base.mode ?? "open";
+  if (mode === "blocked") return { mode, presets: [], allow: [], deny: [] };
+  return {
+    mode,
+    presets: patch.presets ?? base.presets ?? [],
+    allow: patch.allow ? [...(base.allow ?? []), ...patch.allow] : base.allow ?? [],
+    deny: patch.deny ? [...(base.deny ?? []), ...patch.deny] : base.deny ?? [],
+    defaultAction: patch.mode === "custom" || base.mode === "custom" ? patch.mode ? patch.mode === "open" ? "allow" : undefined : base.defaultAction : undefined
+  };
+};
+
+export const getSandboxEgress = async (
+  input: { organizationId: string; sandboxId: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<{ kind: "not_found" } | { kind: "ok"; egress: EgressPolicySummary }> => {
+  const query = dependencies.query ?? defaultQuery;
+  const result = await query<SandboxEgressRow>(`${sandboxEgressSelect} WHERE id = $1 AND organization_id = $2`, [
+    input.sandboxId,
+    input.organizationId
+  ]);
+  const row = result.rows[0];
+  if (!row) return { kind: "not_found" };
+  let summary = storedEgressSummary(row);
+  if (row.status !== "terminated" && row.opensandboxId && dependencies.runtimeProvider.getEgressPolicy) {
+    try {
+      const provider = await dependencies.runtimeProvider.getEgressPolicy(runtimeRef(dependencies.runtimeProvider, row.opensandboxId));
+      const status = providerAvailable(provider);
+      await query("UPDATE sandboxes SET egress_provider_status = $3::jsonb, updated_at = updated_at WHERE id = $1 AND organization_id = $2", [
+        input.sandboxId,
+        input.organizationId,
+        JSON.stringify(status)
+      ]);
+      summary = { ...summary, providerStatus: status };
+    } catch (error) {
+      const status = providerUnavailable(error instanceof Error ? error.message : String(error));
+      await query("UPDATE sandboxes SET egress_provider_status = $3::jsonb, updated_at = updated_at WHERE id = $1 AND organization_id = $2", [
+        input.sandboxId,
+        input.organizationId,
+        JSON.stringify(status)
+      ]);
+      summary = { ...summary, providerStatus: status };
+    }
+  } else if (!summary.providerStatus) {
+    summary = { ...summary, providerStatus: providerUnavailable(row.status === "terminated" ? "sandbox is terminated" : "provider does not expose egress policy") };
+  }
+  return { kind: "ok", egress: summary };
+};
+
+export type UpdateSandboxEgressResult =
+  | { kind: "not_found" }
+  | { kind: "sandbox_terminated" }
+  | { kind: "provider_unavailable"; message: string }
+  | { kind: "invalid_policy"; message: string }
+  | { kind: "preset_not_allowed"; preset: string }
+  | { kind: "custom_domains_disabled" }
+  | { kind: "rule_limit_exceeded"; limit: number }
+  | { kind: "ok"; egress: EgressPolicySummary };
+
+export const updateSandboxEgress = async (
+  input: {
+    organizationId: string;
+    actorUserId: string;
+    actorLabel: string;
+    sandboxId: string;
+    patch: PatchSandboxEgressBody;
+  },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
+): Promise<UpdateSandboxEgressResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const result = await query<SandboxEgressRow>(`${sandboxEgressSelect} WHERE id = $1 AND organization_id = $2`, [
+    input.sandboxId,
+    input.organizationId
+  ]);
+  const row = result.rows[0];
+  if (!row) return { kind: "not_found" };
+  if (row.status === "terminated") return { kind: "sandbox_terminated" };
+  const validation = await validateEgressPolicyForOrganization(
+    { organizationId: input.organizationId, policy: mergeEgressPatch(row.egressPolicy, input.patch) },
+    query
+  );
+  if (validation.kind === "invalid_policy") return { kind: "invalid_policy", message: validation.message };
+  if (validation.kind === "preset_not_allowed") return { kind: "preset_not_allowed", preset: validation.preset };
+  if (validation.kind === "custom_domains_disabled") return { kind: "custom_domains_disabled" };
+  if (validation.kind === "rule_limit_exceeded") return { kind: "rule_limit_exceeded", limit: validation.limit };
+  const summary = validation.summary;
+  if (!row.opensandboxId || !dependencies.runtimeProvider.setEgressPolicy) {
+    return { kind: "provider_unavailable", message: "runtime provider does not expose mutable egress policy" };
+  }
+  const policyForRuntime = runtimeEgressPolicyFromSummary(summary);
+  let providerStatus;
+  try {
+    const provider = await dependencies.runtimeProvider.setEgressPolicy(
+      runtimeRef(dependencies.runtimeProvider, row.opensandboxId),
+      policyForRuntime
+    );
+    providerStatus = providerAvailable(provider);
+  } catch (error) {
+    return { kind: "provider_unavailable", message: error instanceof Error ? error.message : String(error) };
+  }
+  const policyInput = policyInputFromSummary(summary);
+  await query(
+    `UPDATE sandboxes
+     SET egress_policy = $3::jsonb,
+         egress_compiled_policy = $4::jsonb,
+         egress_provider_status = $5::jsonb,
+         updated_at = now()
+     WHERE id = $1 AND organization_id = $2`,
+    [
+      input.sandboxId,
+      input.organizationId,
+      JSON.stringify(policyInput),
+      JSON.stringify(policyForRuntime),
+      JSON.stringify(providerStatus)
+    ]
+  );
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "egress.updated", `outbound access set to ${summary.mode}`, {
+    mode: summary.mode,
+    ruleCount: summary.rules.length,
+    defaultAction: policyForRuntime.defaultAction
+  });
+  await dependencies.recordAudit(input.organizationId, input.actorUserId, input.actorLabel, "sandbox.egress.updated", "sandbox", input.sandboxId, {
+    mode: summary.mode,
+    ruleCount: summary.rules.length
+  });
+  return { kind: "ok", egress: { ...summary, providerStatus, updatedAt: new Date().toISOString() } };
+};
+
+const normalizeEgressTestTarget = (target: string) => {
+  const value = target.trim();
+  const url = /^https?:\/\//i.test(value) ? new URL(value) : new URL(`https://${value}`);
+  const normalizedTarget = normalizeEgressTarget(url.hostname);
+  return {
+    normalizedTarget,
+    url: url.toString()
+  };
+};
+
+export const testSandboxEgress = async (
+  input: { organizationId: string; sandboxId: string; target: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit; actorUserId: string; actorLabel: string }
+): Promise<{ kind: "not_found" } | { kind: "sandbox_not_running"; response: TestSandboxEgressResponse } | { kind: "ok"; response: TestSandboxEgressResponse }> => {
+  const query = dependencies.query ?? defaultQuery;
+  const sandbox = await query<{ id: string; opensandbox_id: string | null; status: string }>(
+    "SELECT id, opensandbox_id, status FROM sandboxes WHERE id = $1 AND organization_id = $2",
+    [input.sandboxId, input.organizationId]
+  );
+  if (!sandbox.rowCount) return { kind: "not_found" };
+  const target = normalizeEgressTestTarget(input.target);
+  if (sandbox.rows[0].status !== "running") {
+    return {
+      kind: "sandbox_not_running",
+      response: {
+        target: input.target,
+        normalizedTarget: target.normalizedTarget,
+        url: target.url,
+        ok: false,
+        status: "sandbox_not_running",
+        stdout: "",
+        stderr: `sandbox is ${sandbox.rows[0].status}`,
+        durationMs: 0
+      }
+    };
+  }
+  const script = `
+target="$HARAKIRI_EGRESS_TEST_TARGET"
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSIL --max-time 8 "$target" >/tmp/harakiri-egress-test 2>&1
+elif command -v wget >/dev/null 2>&1; then
+  wget -q --spider --timeout=8 "$target" >/tmp/harakiri-egress-test 2>&1
+elif command -v python3 >/dev/null 2>&1; then
+  python3 - <<'PY'
+import os, urllib.request
+urllib.request.urlopen(os.environ["HARAKIRI_EGRESS_TEST_TARGET"], timeout=8).read(1)
+PY
+else
+  echo "no curl, wget, or python3 available" >&2
+  exit 127
+fi
+`;
+  const started = Date.now();
+  const result = await dependencies.runtimeProvider.run({
+    ...runtimeRef(dependencies.runtimeProvider, sandbox.rows[0].opensandbox_id),
+    controlPlaneSandboxId: input.sandboxId,
+    command: `HARAKIRI_EGRESS_TEST_TARGET=${shellQuote(target.url)} sh -lc ${shellQuote(script)}`
+  });
+  const ok = result.exitCode === 0;
+  const response: TestSandboxEgressResponse = {
+    target: input.target,
+    normalizedTarget: target.normalizedTarget,
+    url: target.url,
+    ok,
+    status: ok ? "reachable" : "blocked_or_unreachable",
+    stdout: result.stdout,
+    stderr: result.stderr,
+    durationMs: result.durationMs || Date.now() - started
+  };
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "egress.tested", `tested outbound access to ${target.normalizedTarget}`, {
+    target: target.normalizedTarget,
+    ok
+  });
+  await dependencies.recordAudit(input.organizationId, dependencies.actorUserId, dependencies.actorLabel, "sandbox.egress.tested", "sandbox", input.sandboxId, {
+    target: target.normalizedTarget,
+    ok
+  });
+  return { kind: "ok", response };
 };
 
 export const listSandboxRoutes = async (

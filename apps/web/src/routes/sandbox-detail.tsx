@@ -1,7 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
-import type { SandboxFileEntry, SandboxRouteSummary, SandboxSummary } from "@harakiri/shared";
+import {
+  egressPresetCatalog,
+  type EgressMode,
+  type EgressPresetId,
+  type SandboxEgressResponse,
+  type SandboxFileEntry,
+  type SandboxRouteSummary,
+  type SandboxSummary,
+  type TestSandboxEgressResponse
+} from "@harakiri/shared";
 import { api } from "../api";
 import { Brand } from "../components/brand";
+import { EgressModePicker, egressModeMeta } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Chart, KPI } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
@@ -93,12 +103,23 @@ const MetricsPane = ({ id }: { id: string }) => {
 
 const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
   const [routes, setRoutes] = useState<SandboxRouteSummary[]>([]);
+  const [egress, setEgress] = useState<SandboxEgressResponse["egress"] | null>(null);
   const [port, setPort] = useState(3000);
   const [protocol, setProtocol] = useState<"http" | "https">("http");
+  const [allowTarget, setAllowTarget] = useState("");
+  const [testTarget, setTestTarget] = useState("");
+  const [testResult, setTestResult] = useState<TestSandboxEgressResponse | null>(null);
+  const [policyEvents, setPolicyEvents] = useState<RuntimeLogRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [egressBusy, setEgressBusy] = useState(false);
   const [error, setError] = useState("");
+  const [egressError, setEgressError] = useState("");
   const load = () => api.routes(sandbox.id).then((r) => setRoutes(r.routes));
-  useEffect(() => { void load(); }, [sandbox.id]);
+  const loadEgress = () => api.egress(sandbox.id).then((r) => { setEgress(r.egress); setEgressError(""); }).catch((err) => setEgressError(err instanceof Error ? err.message : "Outbound access unavailable"));
+  const loadPolicyEvents = () => api.logs(sandbox.id).then((r) => {
+    setPolicyEvents(r.logs.filter((entry) => entry.source === "control-plane" && String(entry.lvl).startsWith("egress.")).slice(-5).reverse());
+  }).catch(() => setPolicyEvents([]));
+  useEffect(() => { void load(); void loadEgress(); void loadPolicyEvents(); }, [sandbox.id]);
   const expose = async () => {
     setBusy(true);
     setError("");
@@ -111,23 +132,72 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
       setBusy(false);
     }
   };
+  const updateEgress = async (patch: { mode?: EgressMode; presets?: EgressPresetId[]; allow?: string[]; deny?: string[] }) => {
+    setEgressBusy(true);
+    setEgressError("");
+    try {
+      const result = await api.updateEgress(sandbox.id, patch);
+      setEgress(result.egress);
+      void loadPolicyEvents();
+    } catch (err) {
+      setEgressError(err instanceof Error ? err.message : "failed to update outbound access");
+    } finally {
+      setEgressBusy(false);
+    }
+  };
+  const addAllowTarget = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!allowTarget.trim()) return;
+    await updateEgress({ allow: [allowTarget.trim()] });
+    setAllowTarget("");
+  };
+  const togglePreset = (presetId: EgressPresetId) => {
+    const current = new Set(egress?.presets ?? []);
+    if (current.has(presetId)) current.delete(presetId);
+    else current.add(presetId);
+    void updateEgress({ presets: [...current] });
+  };
+  const runEgressTest = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!testTarget.trim()) return;
+    setEgressBusy(true);
+    setEgressError("");
+    try {
+      setTestResult(await api.testEgress(sandbox.id, { target: testTarget.trim() }));
+      void loadPolicyEvents();
+    } catch (err) {
+      setEgressError(err instanceof Error ? err.message : "failed to test outbound access");
+    } finally {
+      setEgressBusy(false);
+    }
+  };
   const copy = async (value: string) => { await navigator.clipboard?.writeText(value); };
+  const provider = egress?.providerStatus;
+  const policyEnforced = provider?.available === true;
+  const canEditEgress = policyEnforced && !egressBusy && sandbox.status !== "terminated";
+  const canTestEgress = !egressBusy && sandbox.status === "running";
+  const allowed = egress?.rules.filter((rule) => rule.action === "allow").length ?? 0;
+  const denied = egress?.rules.filter((rule) => rule.action === "deny").length ?? 0;
+  const currentMode = egress?.mode ? egressModeMeta[egress.mode] : null;
   return (
     <div className="network-pane">
-      <div className="network-toolbar card">
-        <div>
-          <div className="card-h">Expose port</div>
-          <div className="network-sub">Public while the sandbox is alive.</div>
+      <section className="network-section card">
+        <div className="network-section-head">
+          <div>
+            <div className="card-h">Inbound routes</div>
+            <div className="network-sub">Expose HTTP services running inside this sandbox.</div>
+          </div>
+          <div className="network-toolbar">
+            <select className="input network-protocol" value={protocol} onChange={(e) => setProtocol(e.target.value as "http" | "https")}>
+              <option value="http">HTTP</option>
+              <option value="https">HTTPS</option>
+            </select>
+            <input className="input mono network-port" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
+            <button className="btn btn-primary btn-sm" onClick={expose} disabled={busy || sandbox.status === "terminated"}><Icon name="globe" size={12} /> {busy ? "Exposing..." : "Expose"}</button>
+          </div>
         </div>
-        <select className="input network-protocol" value={protocol} onChange={(e) => setProtocol(e.target.value as "http" | "https")}>
-          <option value="http">HTTP</option>
-          <option value="https">HTTPS</option>
-        </select>
-        <input className="input mono network-port" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
-        <button className="btn btn-primary btn-sm" onClick={expose} disabled={busy || sandbox.status === "terminated"}><Icon name="globe" size={12} /> {busy ? "Exposing..." : "Expose"}</button>
-      </div>
-      {error ? <div className="network-error">{error}</div> : null}
-      <div className="network-table card">
+        {error ? <div className="network-error">{error}</div> : null}
+        <div className="network-table">
         <div className="network-row network-head"><span>Port</span><span>URL</span><span>State</span><span>Provider</span><span /></div>
         {routes.map((route) => (
           <div key={`${route.port}-${route.host}`} className="network-row">
@@ -139,7 +209,72 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
           </div>
         ))}
         {routes.length ? null : <div className="empty-state">No exposed ports yet.</div>}
-      </div>
+        </div>
+      </section>
+      <section className="network-section card">
+        <div className="network-section-head">
+          <div>
+            <div className="card-h">Outbound access</div>
+            <div className="network-sub">Control what this sandbox can reach while it is running.</div>
+          </div>
+          <div className="egress-status-row">
+            <span className={`pill ${egress?.mode === "restricted" ? "idle" : egress?.mode === "blocked" ? "" : "live"}`}><span className="dot" /> {currentMode?.label ?? "loading"}</span>
+            <span className="tag">{allowed} allowed</span>
+            <span className="tag">{denied} denied</span>
+            <span className="tag">{provider?.available ? provider.enforcementMode ?? provider.mode ?? "enforcing" : "unavailable"}</span>
+          </div>
+        </div>
+        {egressError ? <div className="network-error">{egressError}</div> : null}
+        {egress && !policyEnforced ? (
+          <div className="network-warning">
+            Policy enforcement is unavailable for this sandbox. Access tests still run from inside the sandbox, but policy changes require the OpenSandbox egress endpoint to be available.
+            {provider?.error ? <span>{provider.error}</span> : null}
+          </div>
+        ) : null}
+        <div className="egress-grid">
+          <div className="egress-controls">
+            <EgressModePicker value={egress?.mode} disabled={!canEditEgress} onChange={(mode) => updateEgress({ mode })} />
+            <div className="egress-presets">
+              {Object.entries(egressPresetCatalog).map(([id, preset]) => {
+                const presetId = id as EgressPresetId;
+                const active = egress?.presets.includes(presetId);
+                return <button key={id} className={`preset-chip ${active ? "active" : ""}`} disabled={!canEditEgress} onClick={() => togglePreset(presetId)}><span>{preset.label}</span><small>{preset.domains.length ? `${preset.domains.length} domains` : "broad access"}</small></button>;
+              })}
+            </div>
+            <form className="egress-add" onSubmit={addAllowTarget}>
+              <input className="input" value={allowTarget} onChange={(e) => setAllowTarget(e.target.value)} placeholder="api.github.com or *.pythonhosted.org" disabled={!canEditEgress} />
+              <button className="btn btn-sm" disabled={!canEditEgress}><Icon name="plus" size={12} /> Add domain</button>
+            </form>
+            <form className="egress-test" onSubmit={runEgressTest}>
+              <input className="input" value={testTarget} onChange={(e) => setTestTarget(e.target.value)} placeholder="https://pypi.org/simple" />
+              <button className="btn btn-primary btn-sm" disabled={!canTestEgress}>Test access</button>
+            </form>
+            {testResult ? <div className={`egress-test-result ${testResult.ok ? "ok" : "blocked"}`}>{testResult.ok ? "Reachable" : "Blocked or unreachable"} <span>{testResult.normalizedTarget}</span></div> : null}
+          </div>
+          <div className="egress-rules">
+            <div className="network-row egress-head"><span>Action</span><span>Domain</span><span>Source</span></div>
+            {egress?.rules.map((rule) => (
+              <div key={`${rule.action}-${rule.target}-${rule.presetId ?? rule.source}`} className="network-row egress-rule-row">
+                <span><span className={`tag ${rule.action}`}>{rule.action}</span></span>
+                <span className="network-url"><a>{rule.target}</a></span>
+                <span className="tag">{rule.presetId ? egressPresetCatalog[rule.presetId].label : rule.source}</span>
+              </div>
+            ))}
+            {egress?.rules.length ? null : <div className="empty-state">{!policyEnforced ? "The runtime is using its default outbound access." : egress?.mode === "open" ? "This sandbox can reach the public internet." : "No outbound domains are allowed."}</div>}
+          </div>
+        </div>
+        <div className="policy-events">
+          <div className="field-l">Recent policy events</div>
+          {policyEvents.map((event) => (
+            <div className="policy-event-row" key={`${event.ts}-${event.msg}`}>
+              <span className="num muted">{new Date(event.ts).toLocaleTimeString()}</span>
+              <span className="tag">{event.lvl}</span>
+              <span>{event.msg}</span>
+            </div>
+          ))}
+          {policyEvents.length ? null : <div className="empty-state compact">No outbound access events recorded yet.</div>}
+        </div>
+      </section>
     </div>
   );
 };

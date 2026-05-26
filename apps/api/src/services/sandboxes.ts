@@ -1,7 +1,14 @@
 import { config } from "../config.js";
 import { makeId } from "../crypto.js";
 import { query as defaultQuery } from "../db.js";
-import { sandboxStatuses, type SandboxOperationSummary, type SandboxStatus, type SandboxSummary as SharedSandboxSummary } from "@harakiri/shared";
+import {
+  defaultEgressPolicyInput,
+  sandboxStatuses,
+  type EgressPolicyInput,
+  type SandboxOperationSummary,
+  type SandboxStatus,
+  type SandboxSummary as SharedSandboxSummary
+} from "@harakiri/shared";
 import type { RuntimeProvider, RuntimeSandboxRef } from "../providers/runtime/provider.js";
 import { hasSecretBoxKey } from "../secret-box.js";
 import {
@@ -20,6 +27,7 @@ import {
   storeSandboxOperationSecret,
   type SandboxOperation
 } from "./sandbox-operations.js";
+import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
 import type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
@@ -50,6 +58,7 @@ export type CreateSandboxInput = {
   idempotencyKey?: string | null;
   wait?: boolean;
   waitTimeoutMs?: number;
+  egress?: EgressPolicyInput | null;
 };
 
 export const sandboxSelect = `
@@ -59,6 +68,7 @@ export const sandboxSelect = `
          s.owner_label AS owner, s.cost_usd::float AS cost, s.ttl_seconds AS "ttlSeconds",
          s.expires_at AS "expiresAt", s.public_url AS "publicUrl",
          s.template_version_id AS "templateVersionId", s.template_image_digest AS "templateImageDigest",
+         s.egress_policy AS "egressPolicy",
          s.created_at AS "createdAt"
   FROM sandboxes s
 `;
@@ -163,6 +173,10 @@ export type CreateSandboxResult =
   | { kind: "template_not_found"; template: string }
   | { kind: "template_not_ready"; template: string; status: string }
   | { kind: "template_image_digest_unresolved"; template: string; message: string }
+  | { kind: "egress_policy_invalid"; message: string }
+  | { kind: "egress_preset_not_allowed"; preset: string }
+  | { kind: "egress_custom_domains_disabled" }
+  | { kind: "egress_rule_limit_exceeded"; limit: number }
   | { kind: "sandbox_env_not_replayable"; message: string }
   | { kind: "sandbox_provision_failed"; sandbox: SandboxSummary | null; operation: SandboxOperation; message: string };
 
@@ -222,6 +236,17 @@ export const createSandbox = async (
     const message = error instanceof Error ? error.message : String(error);
     return { kind: "template_image_digest_unresolved", template: input.templateRef, message };
   }
+  const egressPolicyInput = input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput;
+  const egressValidation = await validateEgressPolicyForOrganization(
+    { organizationId: input.organizationId, policy: egressPolicyInput },
+    query
+  );
+  if (egressValidation.kind === "invalid_policy") return { kind: "egress_policy_invalid", message: egressValidation.message };
+  if (egressValidation.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: egressValidation.preset };
+  if (egressValidation.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
+  if (egressValidation.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: egressValidation.limit };
+  const egressSummary = egressValidation.summary;
+  const runtimeEgressPolicy = runtimeEgressPolicyFromSummary(egressSummary);
 
   const id = (dependencies.idFactory ?? makeId)("sbx", 10);
   const name = input.name?.trim() || `${template.id}-runner`;
@@ -238,8 +263,8 @@ export const createSandbox = async (
     `INSERT INTO sandboxes
      (id, opensandbox_id, organization_id, template_id, name, status, cpu_pct, memory_mb,
       owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url,
-      template_version_id, template_image_digest)
-     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10)`,
+      template_version_id, template_image_digest, egress_policy, egress_compiled_policy)
+     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10, $11::jsonb, $12::jsonb)`,
     [
       id,
       input.organizationId,
@@ -250,7 +275,9 @@ export const createSandbox = async (
       input.ttlSeconds,
       publicUrl,
       template.templateVersionId,
-      template.imageDigest
+      template.imageDigest,
+      JSON.stringify(policyInputFromSummary(egressSummary)),
+      JSON.stringify(runtimeEgressPolicy)
     ]
   );
   const { operation, reused } = await enqueueSandboxOperation(
@@ -269,7 +296,9 @@ export const createSandbox = async (
         envKeys,
         envReplayable,
         actorUserId: input.userId,
-        actorLabel: input.actorLabel
+        actorLabel: input.actorLabel,
+        egressMode: egressSummary.mode,
+        egressRuleCount: egressSummary.rules.length
       }
     },
     { query, idFactory: dependencies.idFactory }
@@ -303,6 +332,8 @@ export const createSandbox = async (
       operationId: operation.id,
       envKeys,
       runtimeWorkdir: template.workdir,
+      egressMode: egressSummary.mode,
+      egressRuleCount: egressSummary.rules.length,
       ...sandboxTemplateMetadata(template)
     };
     await dependencies.recordEvent(input.organizationId, id, "queued", "sandbox provision queued", metadata);
@@ -325,6 +356,7 @@ export const createSandbox = async (
         name,
         organizationId: input.organizationId,
         env: input.env,
+        egressPolicy: runtimeEgressPolicy,
         metadata: {
           "harakiri.id": id,
           "harakiri.sandbox": id,
@@ -383,6 +415,8 @@ export const createSandbox = async (
       runtimeWorkdir: template.workdir,
       runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
       runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
+      egressMode: egressSummary.mode,
+      egressRuleCount: egressSummary.rules.length,
       ...sandboxTemplateMetadata(template)
     };
     await completeSandboxOperation(

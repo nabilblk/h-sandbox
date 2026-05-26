@@ -9,6 +9,7 @@ import type {
   TemplateResponse,
   TemplatesResponse,
   TemplateVersionsResponse,
+  UpdateTemplateEgressBody,
   UploadTemplateBuildContextBody
 } from "@harakiri/shared";
 import { request } from "./request";
@@ -17,6 +18,11 @@ export const templatesApi = {
   templates: (params = "") => request<TemplatesResponse>(`/v1/templates${params}`),
   template: (id: string) => request<TemplateResponse>(`/v1/templates/${encodeURIComponent(id)}`),
   templateVersions: (id: string) => request<TemplateVersionsResponse>(`/v1/templates/${encodeURIComponent(id)}/versions`),
+  updateTemplateEgress: (id: string, body: UpdateTemplateEgressBody) =>
+    request<TemplateResponse>(`/v1/templates/${encodeURIComponent(id)}/egress`, {
+      method: "PATCH",
+      body: JSON.stringify(body)
+    }),
   createTemplate: (body: CreateTemplateBody) =>
     request<TemplateResponse>("/v1/templates", {
       method: "POST",

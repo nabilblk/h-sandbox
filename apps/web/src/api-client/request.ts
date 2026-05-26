@@ -1,27 +1,89 @@
 import { formatApiErrorResponse } from "@harakiri/shared";
-import { auth } from "../auth";
+import { auth, AuthSessionExpiredError, type AuthSession } from "../auth";
 
 const env = import.meta.env ?? ({} as ImportMetaEnv);
 
-const defaultApiUrl = () => {
-  return "http://127.0.0.1:8080";
-};
+const defaultApiUrl = () => "http://127.0.0.1:8080";
 
 const API_URL = env.PUBLIC_API_URL ?? env.VITE_PUBLIC_API_URL ?? defaultApiUrl();
 const API_KEY = env.PUBLIC_API_KEY ?? env.VITE_PUBLIC_API_KEY;
 
-export const request = async <T>(path: string, init: RequestInit = {}) => {
-  const hasBody = init.body !== undefined;
-  const token = auth.token();
-  if (!token && !API_KEY) throw new Error("Missing authentication. Sign in with Keycloak or configure PUBLIC_API_KEY.");
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(hasBody ? { "content-type": "application/json" } : {}),
-      ...(token ? { authorization: `Bearer ${token}` } : { "x-api-key": API_KEY }),
-      ...(init.headers ?? {})
-    }
-  });
-  if (!response.ok) throw new Error(formatApiErrorResponse(response.status, await response.text()));
-  return (await response.json()) as T;
+const sessionExpiredMessage = "Session expired. Sign in again to continue.";
+const apiUnavailableMessage = `Unable to reach Harakiri API at ${API_URL}. Check the tunnel or port-forward, then refresh.`;
+const authUnavailableMessage = "Unable to reach Keycloak. Check the auth tunnel or port-forward, then sign in again.";
+
+class ApiResponseError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "ApiResponseError";
+  }
+}
+
+const isNetworkError = (error: unknown) =>
+  error instanceof TypeError && /failed to fetch|load failed|network|fetch/i.test(error.message);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const authHeaders = (token: string | null) => {
+  if (token) return { authorization: `Bearer ${token}` };
+  if (API_KEY) return { "x-api-key": API_KEY };
+  return null;
 };
+
+const fetchWithRetry = async (url: string, init: RequestInit) => {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    if (!isNetworkError(error)) throw error;
+    await sleep(250);
+    try {
+      return await fetch(url, init);
+    } catch (retryError) {
+      if (isNetworkError(retryError)) throw new Error(apiUnavailableMessage);
+      throw retryError;
+    }
+  }
+};
+
+export const createRequester = (session: AuthSession = auth) => {
+  const send = async <T>(path: string, init: RequestInit, token: string | null) => {
+    const hasBody = init.body !== undefined;
+    const credentials = authHeaders(token);
+    if (!credentials) throw new Error("Missing authentication. Sign in with Keycloak or configure PUBLIC_API_KEY.");
+    const headers = new Headers(init.headers);
+    if (hasBody && !headers.has("content-type")) headers.set("content-type", "application/json");
+    for (const [key, value] of Object.entries(credentials)) headers.set(key, value);
+    const response = await fetchWithRetry(`${API_URL}${path}`, {
+      ...init,
+      headers
+    });
+    if (!response.ok) throw new ApiResponseError(response.status, formatApiErrorResponse(response.status, await response.text()));
+    return (await response.json()) as T;
+  };
+
+  return async <T>(path: string, init: RequestInit = {}) => {
+    let token: string | null;
+    try {
+      token = await session.getAccessToken(30);
+    } catch (error) {
+      if (error instanceof AuthSessionExpiredError) throw new Error(sessionExpiredMessage);
+      if (isNetworkError(error)) throw new Error(authUnavailableMessage);
+      throw error;
+    }
+
+    try {
+      return await send<T>(path, init, token);
+    } catch (error) {
+      if (!token || !(error instanceof ApiResponseError) || error.status !== 401) throw error;
+      try {
+        const refreshed = await session.getAccessToken(-1);
+        return await send<T>(path, init, refreshed);
+      } catch (refreshError) {
+        if (refreshError instanceof AuthSessionExpiredError) throw new Error(sessionExpiredMessage);
+        throw refreshError;
+      }
+    }
+  };
+};
+
+export const request = createRequester();

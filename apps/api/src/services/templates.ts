@@ -1,6 +1,6 @@
 import { makeId } from "../crypto.js";
 import { query as defaultQuery } from "../db.js";
-import type { TemplateVersionSummary } from "@harakiri/shared";
+import { defaultEgressPolicyInput, type EgressPolicyInput, type TemplateVersionSummary } from "@harakiri/shared";
 import { activeTemplateBuildStatuses } from "../template-policy.js";
 import {
   archiveTemplate,
@@ -12,6 +12,7 @@ import {
 } from "../templates.js";
 import { templateImagePolicyPayload, templateResourceLimitPayload } from "./template-policies.js";
 import type { Query } from "./query.js";
+import { policyInputFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
 
 export type { Query } from "./query.js";
 
@@ -40,6 +41,7 @@ export type TemplateCreateInput = {
   workdir: string;
   defaultPorts: number[];
   runtimeFamily: string;
+  egressPolicy?: EgressPolicyInput | null;
 };
 
 export type TemplateVersionRow = {
@@ -56,6 +58,7 @@ export type TemplateVersionRow = {
   memoryMb: number;
   workdir: string;
   defaultPorts: number[];
+  egressPolicy: EgressPolicyInput | null;
   envSchema: Record<string, unknown>;
   metadata: Record<string, unknown>;
   sbomRef: string | null;
@@ -87,6 +90,7 @@ const mapTemplateVersion = (row: TemplateVersionRow): TemplateVersionSummary => 
   memoryMb: row.memoryMb,
   workdir: row.workdir,
   defaultPorts: row.defaultPorts,
+  egressPolicy: row.egressPolicy ?? defaultEgressPolicyInput,
   envSchema: row.envSchema,
   metadata: row.metadata,
   sbomRef: row.sbomRef,
@@ -102,7 +106,8 @@ export const templateVersionSelect = `
          version_number AS "versionNumber", aliases, image_uri AS "imageUri",
          image_digest AS "imageDigest", status, default_entrypoint AS "defaultEntrypoint",
          cpu_count AS "cpuCount", memory_mb AS "memoryMb", workdir,
-         default_ports AS "defaultPorts", env_schema AS "envSchema", metadata,
+         default_ports AS "defaultPorts", egress_policy AS "egressPolicy",
+         env_schema AS "envSchema", metadata,
          sbom_ref AS "sbomRef", provenance, scan_status AS "scanStatus",
          scan_summary AS "scanSummary",
          created_at AS "createdAt", promoted_at AS "promotedAt"
@@ -130,6 +135,10 @@ export type CreateTemplateResult =
   | { kind: "created"; template: RuntimeTemplate | null }
   | { kind: "resource_limit"; payload: NonNullable<ReturnType<typeof templateResourceLimitPayload>> }
   | { kind: "image_policy"; payload: NonNullable<ReturnType<typeof templateImagePolicyPayload>> }
+  | { kind: "egress_policy_invalid"; message: string }
+  | { kind: "egress_preset_not_allowed"; preset: string }
+  | { kind: "egress_custom_domains_disabled" }
+  | { kind: "egress_rule_limit_exceeded"; limit: number }
   | { kind: "template_exists"; template: string };
 
 export const createTemplate = async (
@@ -152,6 +161,14 @@ export const createTemplate = async (
   if (resourceLimit) return { kind: "resource_limit", payload: resourceLimit };
   const imagePolicy = templateImagePolicyPayload([{ image: body.image }]);
   if (imagePolicy) return { kind: "image_policy", payload: imagePolicy };
+  const egressValidation = await validateEgressPolicyForOrganization(
+    { organizationId: input.organizationId, policy: body.egressPolicy ?? null },
+    query
+  );
+  if (egressValidation.kind === "invalid_policy") return { kind: "egress_policy_invalid", message: egressValidation.message };
+  if (egressValidation.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: egressValidation.preset };
+  if (egressValidation.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
+  if (egressValidation.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: egressValidation.limit };
 
   const id = body.id ?? slugFor(body.name, dependencies.idFactory);
   const exists = await query("SELECT id FROM templates WHERE id = $1", [id]);
@@ -161,8 +178,9 @@ export const createTemplate = async (
     `INSERT INTO templates
      (id, organization_id, name, description, image, icon, tags, aliases, boot_ms,
       visibility, default_entrypoint, cpu_count, memory_mb, workdir, default_ports,
+      egress_policy,
       runtime_family, status, source_kind)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15, 'building', 'custom')`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, 'building', 'custom')`,
     [
       id,
       input.organizationId,
@@ -178,6 +196,7 @@ export const createTemplate = async (
       body.memoryMb,
       body.workdir,
       body.defaultPorts,
+      JSON.stringify(policyInputFromSummary(egressValidation.summary)),
       body.runtimeFamily
     ]
   );
@@ -258,6 +277,67 @@ export const promoteTemplate = async (
   });
   const promoted = await (dependencies.resolveTemplateFn ?? resolveTemplate)(input.versionId, input.organizationId);
   return { kind: "promoted", template: promoted };
+};
+
+export type UpdateTemplateEgressResult =
+  | { kind: "updated"; template: RuntimeTemplate | null }
+  | { kind: "template_not_found" }
+  | { kind: "template_not_mutable" }
+  | { kind: "egress_policy_invalid"; message: string }
+  | { kind: "egress_preset_not_allowed"; preset: string }
+  | { kind: "egress_custom_domains_disabled" }
+  | { kind: "egress_rule_limit_exceeded"; limit: number };
+
+export const updateTemplateEgress = async (
+  input: {
+    organizationId: string;
+    userId: string;
+    actorLabel: string;
+    templateId: string;
+    egressPolicy: EgressPolicyInput;
+  },
+  dependencies: {
+    query?: Query;
+    recordAudit: Audit;
+    resolveTemplateFn?: typeof resolveTemplate;
+  }
+): Promise<UpdateTemplateEgressResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const template = await (dependencies.resolveTemplateFn ?? resolveTemplate)(input.templateId, input.organizationId);
+  if (!template) return { kind: "template_not_found" };
+  if (!canMutateTemplate(template)) return { kind: "template_not_mutable" };
+
+  const validation = await validateEgressPolicyForOrganization(
+    { organizationId: input.organizationId, policy: input.egressPolicy },
+    query
+  );
+  if (validation.kind === "invalid_policy") return { kind: "egress_policy_invalid", message: validation.message };
+  if (validation.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: validation.preset };
+  if (validation.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
+  if (validation.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: validation.limit };
+
+  const policyInput = policyInputFromSummary(validation.summary);
+  await query(
+    `UPDATE templates
+     SET egress_policy = $3::jsonb, updated_at = now()
+     WHERE id = $1 AND organization_id = $2`,
+    [template.id, input.organizationId, JSON.stringify(policyInput)]
+  );
+  if (template.latestVersionId) {
+    await query(
+      `UPDATE template_versions
+       SET egress_policy = $3::jsonb
+       WHERE id = $1 AND template_id = $2 AND organization_id = $4`,
+      [template.latestVersionId, template.id, JSON.stringify(policyInput), input.organizationId]
+    );
+  }
+  await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "template.egress.updated", "template", template.id, {
+    mode: validation.summary.mode,
+    ruleCount: validation.summary.rules.length,
+    presetCount: validation.summary.presets.length
+  });
+  const updated = await (dependencies.resolveTemplateFn ?? resolveTemplate)(template.id, input.organizationId);
+  return { kind: "updated", template: updated };
 };
 
 export type ArchiveTemplateResult =

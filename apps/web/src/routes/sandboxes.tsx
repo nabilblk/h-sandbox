@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
-import { TEMPLATES, type SandboxSummary } from "@harakiri/shared";
+import {
+  TEMPLATES,
+  egressPresetCatalog,
+  type EgressMode,
+  type EgressPresetId,
+  type SandboxSummary
+} from "@harakiri/shared";
 import { api } from "../api";
+import { EgressModePicker } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
 
@@ -53,6 +60,9 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
   const [name, setName] = useState("");
   const [ttlSeconds, setTtlSeconds] = useState(300);
   const [envText, setEnvText] = useState("");
+  const [egressMode, setEgressMode] = useState<EgressMode>("open");
+  const [egressPresets, setEgressPresets] = useState<EgressPresetId[]>([]);
+  const [allowTarget, setAllowTarget] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const parseEnv = () => {
@@ -73,7 +83,18 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
     setLoading(true);
     try {
       const env = parseEnv();
-      const result = await api.createSandbox({ template, name, ttlSeconds, env });
+      const allow = allowTarget.split(",").map((value) => value.trim()).filter(Boolean);
+      const result = await api.createSandbox({
+        template,
+        name,
+        ttlSeconds,
+        env,
+        egress: egressMode === "open" && !egressPresets.length && !allow.length ? undefined : {
+          mode: egressMode,
+          presets: egressPresets,
+          allow
+        }
+      });
       onCreate(result.sandbox.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -81,7 +102,11 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
       setLoading(false);
     }
   };
+  const togglePreset = (presetId: EgressPresetId) => {
+    setEgressPresets((current) => current.includes(presetId) ? current.filter((id) => id !== presetId) : [...current, presetId]);
+    if (egressMode === "open") setEgressMode("restricted");
+  };
   return (
-    <div className="modal-wrap" onClick={onClose}><div className="modal card" onClick={(e) => e.stopPropagation()}><div className="modal-head"><h3>New sandbox</h3><button className="btn btn-ghost btn-sm" onClick={onClose}><Icon name="x" size={12} /></button></div><div className="modal-body"><Field label="Template"><div className="tmpl-pick">{TEMPLATES.slice(0, 4).map((t) => <button key={t.id} className={`tmpl-pick-c ${template === t.id ? "active" : ""}`} onClick={() => setTemplate(t.id)}><Icon name={t.icon} size={14} /><span>{t.name}</span></button>)}</div></Field><Field label="Name (optional)" hint="A label for your own reference"><input className="input" placeholder="agent-eval-runner" value={name} onChange={(e) => setName(e.target.value)} /></Field><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}><Field label="Idle TTL"><input className="input mono" type="number" value={ttlSeconds} onChange={(e) => setTtlSeconds(Number(e.target.value))} /></Field><Field label="Resources"><select className="input"><option>2 vCPU - 2 GiB</option><option>4 vCPU - 4 GiB</option></select></Field></div><Field label="Environment" hint="KEY=value per line"><textarea className="input mono sandbox-env-input" spellCheck={false} placeholder="HARAKIRI_ENV=dev" value={envText} onChange={(e) => setEnvText(e.target.value)} /></Field>{error ? <div className="build-inline-alert"><span>{error}</span></div> : null}<div className="cost-est"><span style={{ color: "var(--muted)" }}>Cold start</span><span className="num">~142ms - idle TTL {ttlSeconds}s</span></div></div><div className="modal-foot"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submit} disabled={loading}>{loading ? <><span className="spinner" /> Provisioning...</> : <>Create sandbox <Icon name="arrowR" size={11} /></>}</button></div></div></div>
+    <div className="modal-wrap" onClick={onClose}><div className="modal card" onClick={(e) => e.stopPropagation()}><div className="modal-head"><h3>New sandbox</h3><button className="btn btn-ghost btn-sm" onClick={onClose}><Icon name="x" size={12} /></button></div><div className="modal-body"><Field label="Template"><div className="tmpl-pick">{TEMPLATES.slice(0, 4).map((t) => <button key={t.id} className={`tmpl-pick-c ${template === t.id ? "active" : ""}`} onClick={() => setTemplate(t.id)}><Icon name={t.icon} size={14} /><span>{t.name}</span></button>)}</div></Field><Field label="Name (optional)" hint="A label for your own reference"><input className="input" placeholder="agent-eval-runner" value={name} onChange={(e) => setName(e.target.value)} /></Field><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}><Field label="Idle TTL"><input className="input mono" type="number" value={ttlSeconds} onChange={(e) => setTtlSeconds(Number(e.target.value))} /></Field><Field label="Resources"><select className="input"><option>2 vCPU - 2 GiB</option><option>4 vCPU - 4 GiB</option></select></Field></div><Field label="Outbound access"><EgressModePicker value={egressMode} compact onChange={setEgressMode} /><div className="egress-presets compact">{Object.entries(egressPresetCatalog).slice(0, 4).map(([id, preset]) => <button key={id} className={`preset-chip ${egressPresets.includes(id as EgressPresetId) ? "active" : ""}`} onClick={() => togglePreset(id as EgressPresetId)}><span>{preset.label}</span><small>{preset.domains.length} domains</small></button>)}</div><input className="input" placeholder="Extra allowed domains, comma separated" value={allowTarget} onChange={(e) => { setAllowTarget(e.target.value); if (egressMode === "open" && e.target.value.trim()) setEgressMode("restricted"); }} /></Field><Field label="Environment" hint="KEY=value per line"><textarea className="input mono sandbox-env-input" spellCheck={false} placeholder="HARAKIRI_ENV=dev" value={envText} onChange={(e) => setEnvText(e.target.value)} /></Field>{error ? <div className="build-inline-alert"><span>{error}</span></div> : null}<div className="cost-est"><span style={{ color: "var(--muted)" }}>Cold start</span><span className="num">~142ms - idle TTL {ttlSeconds}s</span></div></div><div className="modal-foot"><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submit} disabled={loading}>{loading ? <><span className="spinner" /> Provisioning...</> : <>Create sandbox <Icon name="arrowR" size={11} /></>}</button></div></div></div>
   );
 };

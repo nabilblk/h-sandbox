@@ -3,15 +3,19 @@ import type {
   CreateSandboxResponse,
   ExposeSandboxRouteBody,
   OkResponse,
+  PatchSandboxEgressBody,
   RunSandboxBody,
   RunSandboxResponse,
+  SandboxEgressResponse,
   SandboxFilesResponse,
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxResponse,
   SandboxRouteResponse,
   SandboxRoutesResponse,
-  SandboxesResponse
+  SandboxesResponse,
+  TestSandboxEgressBody,
+  TestSandboxEgressResponse
 } from "@harakiri/shared";
 import { request } from "./request";
 
@@ -33,5 +37,10 @@ export const sandboxesApi = {
     request<SandboxMetricsResponse>(`/v1/sandboxes/${id}/metrics`),
   routes: (id: string) => request<SandboxRoutesResponse>(`/v1/sandboxes/${id}/routes`),
   exposeRoute: (id: string, body: ExposeSandboxRouteBody) =>
-    request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) })
+    request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),
+  egress: (id: string) => request<SandboxEgressResponse>(`/v1/sandboxes/${id}/egress`),
+  updateEgress: (id: string, body: PatchSandboxEgressBody) =>
+    request<SandboxEgressResponse>(`/v1/sandboxes/${id}/egress`, { method: "PATCH", body: JSON.stringify(body) }),
+  testEgress: (id: string, body: TestSandboxEgressBody) =>
+    request<TestSandboxEgressResponse>(`/v1/sandboxes/${id}/egress/test`, { method: "POST", body: JSON.stringify(body) })
 };

@@ -1,4 +1,5 @@
 import type { RunResult } from "@harakiri/shared";
+import type { EgressNetworkPolicy, EgressNetworkRule } from "@harakiri/shared";
 import type {
   RuntimeCreateSandboxInput,
   RuntimeCreateSandboxResult,
@@ -19,6 +20,7 @@ type DevSandbox = RuntimeSandboxSummary & {
   defaultCwd: string;
   files: RuntimeFileEntry[];
   logs: RuntimeLogEntry[];
+  egressPolicy: EgressNetworkPolicy;
 };
 
 const nowIso = () => new Date().toISOString();
@@ -55,7 +57,8 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     filesystem: true,
     logs: true,
     metrics: true,
-    routes: true
+    routes: true,
+    egress: true
   };
 
   private readonly sandboxes = new Map<string, DevSandbox>();
@@ -73,7 +76,8 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
       name: input.name,
       defaultCwd,
       files: fallbackFileSet(defaultCwd),
-      logs: [{ ts: nowIso(), lvl: "created", msg: "created through in-memory runtime provider", source: "sandbox" }]
+      logs: [{ ts: nowIso(), lvl: "created", msg: "created through in-memory runtime provider", source: "sandbox" }],
+      egressPolicy: input.egressPolicy ?? { defaultAction: "allow", egress: [] }
     };
     this.sandboxes.set(providerSandboxId, sandbox);
     return {
@@ -146,6 +150,39 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
 
   async exposeRoute(input: RuntimeExposeRouteInput): Promise<RuntimeRouteTarget> {
     return configuredRouteTarget({ sandboxId: input.providerSandboxId, port: input.port, provider: "dev" });
+  }
+
+  async getEgressPolicy(ref: RuntimeSandboxRef) {
+    const sandbox = this.sandboxes.get(ref.providerSandboxId);
+    return {
+      status: sandbox ? "ok" : "missing",
+      mode: sandbox?.egressPolicy.defaultAction === "deny" ? "deny_all" : "allow_all",
+      enforcementMode: "dev",
+      policy: sandbox?.egressPolicy ?? null
+    };
+  }
+
+  async setEgressPolicy(ref: RuntimeSandboxRef, policy: EgressNetworkPolicy) {
+    const sandbox = this.sandboxes.get(ref.providerSandboxId);
+    if (sandbox) {
+      sandbox.egressPolicy = policy;
+      sandbox.logs.push({ ts: nowIso(), lvl: "egress", msg: `egress policy set to ${policy.defaultAction}`, source: "sandbox" });
+    }
+    return this.getEgressPolicy(ref);
+  }
+
+  async patchEgressRules(ref: RuntimeSandboxRef, rules: EgressNetworkRule[]) {
+    const sandbox = this.sandboxes.get(ref.providerSandboxId);
+    if (sandbox) {
+      const seen = new Set<string>();
+      const merged = [...rules, ...sandbox.egressPolicy.egress].filter((rule) => {
+        if (seen.has(rule.target)) return false;
+        seen.add(rule.target);
+        return true;
+      });
+      sandbox.egressPolicy = { ...sandbox.egressPolicy, egress: merged };
+    }
+    return this.getEgressPolicy(ref);
   }
 }
 

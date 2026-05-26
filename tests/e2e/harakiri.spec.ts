@@ -13,6 +13,7 @@ const API_URL = process.env.HARAKIRI_API_URL ?? "http://127.0.0.1:18082";
 const CLI_BIN = process.env.HARAKIRI_CLI_BIN ?? "harakiri";
 const KEYCLOAK_USER = process.env.KEYCLOAK_USER ?? "lyra@k.ai";
 const KEYCLOAK_PASSWORD = process.env.KEYCLOAK_PASSWORD ?? "harakiri-dev";
+const SEEDED_API_KEY = process.env.HARAKIRI_API_KEY ?? "hk_live_demo_lyra_labs_0000000000000000000000000000000000";
 
 const routePattern = (route: string) => new RegExp(`#${route.replace("/", "\\/")}$`);
 const keyHeaders = (apiKey: string) => ({ "x-api-key": apiKey });
@@ -68,13 +69,8 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
   await signIn(page);
   await expect(page.locator(".filter-tab.active")).toContainText("Running");
 
-  const authType = await page.evaluate(async (apiUrl) => {
-    const token = localStorage.getItem("harakiri_access_token");
-    const response = await fetch(`${apiUrl}/v1/me`, { headers: { authorization: `Bearer ${token}` } });
-    const body = await response.json();
-    return body.auth.authType;
-  }, API_URL);
-  expect(authType).toBe("keycloak");
+  const persistedAccessToken = await page.evaluate(() => localStorage.getItem("harakiri_access_token"));
+  expect(persistedAccessToken).toBeNull();
 
   apiKey = await createDashboardApiKey(page);
   const keyList = await request.get(`${API_URL}/v1/api-keys`, { headers: keyHeaders(apiKey) });
@@ -228,17 +224,13 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
   }
 });
 
-test("completed users do not return to onboarding after login", async ({ page }) => {
+test("completed users do not return to onboarding after login", async ({ page, request }) => {
   await signIn(page);
-  await page.evaluate(async (apiUrl) => {
-    const token = localStorage.getItem("harakiri_access_token");
-    const response = await fetch(`${apiUrl}/v1/me/onboarding/complete`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${token}` }
-    });
-    if (!response.ok) throw new Error(await response.text());
-    localStorage.clear();
-  }, API_URL);
+  const complete = await request.post(`${API_URL}/v1/me/onboarding/complete`, { headers: keyHeaders(SEEDED_API_KEY) });
+  expect(complete.ok()).toBeTruthy();
+  await page.locator(".account-trigger").click();
+  await page.getByText("Sign out of Harakiri and Keycloak").click();
+  await page.waitForURL(/#landing$/, { timeout: 45_000 });
 
   await page.goto(`${WEB_URL}/#onboarding`);
   await expect(page.getByRole("heading", { name: "Sign in with Keycloak." })).toBeVisible();

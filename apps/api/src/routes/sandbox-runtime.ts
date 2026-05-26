@@ -2,10 +2,12 @@ import type { FastifyInstance } from "fastify";
 import type {
   RunSandboxResponse,
   SandboxFilesResponse,
+  SandboxEgressResponse,
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxRouteResponse,
-  SandboxRoutesResponse
+  SandboxRoutesResponse,
+  TestSandboxEgressResponse
 } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
 import { query as defaultQuery } from "../db.js";
@@ -14,15 +16,18 @@ import {
   createSandboxRoute,
   deleteSandboxRoute,
   getSandboxMetrics,
+  getSandboxEgress,
   listSandboxFiles,
   listSandboxLogs,
   listSandboxRoutes,
   runSandboxCommand,
+  testSandboxEgress,
+  updateSandboxEgress,
   type Audit,
   type SandboxEventRecorder
 } from "../services/sandbox-runtime.js";
 import type { Query } from "../services/query.js";
-import { routeSchema, runSchema } from "./sandbox-runtime.schema.js";
+import { egressPatchSchema, egressTestSchema, routeSchema, runSchema } from "./sandbox-runtime.schema.js";
 
 export type SandboxRuntimeRouteDependencies = {
   query?: Query;
@@ -73,6 +78,55 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const metrics = await getSandboxMetrics({ organizationId: request.auth.organizationId, sandboxId: id }, { query, runtimeProvider });
     if (!metrics) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     return metrics satisfies SandboxMetricsResponse;
+  });
+
+  app.get("/v1/sandboxes/:id/egress", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await getSandboxEgress({ organizationId: request.auth.organizationId, sandboxId: id }, { query, runtimeProvider });
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    return { egress: result.egress } satisfies SandboxEgressResponse;
+  });
+
+  app.patch("/v1/sandboxes/:id/egress", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = egressPatchSchema.parse(request.body ?? {});
+    const result = await updateSandboxEgress(
+      {
+        organizationId: request.auth.organizationId,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        sandboxId: id,
+        patch: body
+      },
+      { query, runtimeProvider, recordEvent, recordAudit }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_terminated") return reply.code(409).send(apiErrorResponse("sandbox_terminated"));
+    if (result.kind === "invalid_policy") return reply.code(400).send(apiErrorResponse("egress_policy_invalid", { message: result.message }));
+    if (result.kind === "preset_not_allowed") return reply.code(403).send(apiErrorResponse("egress_preset_not_allowed", { preset: result.preset }));
+    if (result.kind === "custom_domains_disabled") return reply.code(403).send(apiErrorResponse("egress_custom_domains_disabled"));
+    if (result.kind === "rule_limit_exceeded") return reply.code(429).send(apiErrorResponse("egress_rule_limit_exceeded", { limit: result.limit }));
+    if (result.kind === "provider_unavailable") return reply.code(502).send(apiErrorResponse("egress_provider_unavailable", { message: result.message }));
+    return { egress: result.egress } satisfies SandboxEgressResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/egress/test", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = egressTestSchema.parse(request.body ?? {});
+    const result = await testSandboxEgress(
+      { organizationId: request.auth.organizationId, sandboxId: id, target: body.target },
+      {
+        query,
+        runtimeProvider,
+        recordEvent,
+        recordAudit,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel
+      }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_not_running") return reply.code(409).send(result.response satisfies TestSandboxEgressResponse);
+    return result.response satisfies TestSandboxEgressResponse;
   });
 
   app.get("/v1/sandboxes/:id/routes", async (request, reply) => {

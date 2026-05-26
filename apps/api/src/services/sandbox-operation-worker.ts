@@ -4,6 +4,7 @@ import type { RuntimeProvider, RuntimeRouteTarget, RuntimeSandboxRef, RuntimeSan
 import { runtimeProvider as defaultRuntimeProvider } from "../providers/runtime/index.js";
 import { configuredRouteTarget } from "../providers/runtime/route-targets.js";
 import type { RuntimeTemplate } from "../templates.js";
+import type { EgressNetworkPolicy } from "@harakiri/shared";
 import { recordSandboxEvent, type SandboxEventRecorder } from "./sandbox-events.js";
 import type { Query } from "./query.js";
 import {
@@ -109,6 +110,7 @@ type ProvisionSandboxRow = {
   defaultPorts: number[];
   runtimeFamily: string;
   templateVersionId: string | null;
+  egressCompiledPolicy: EgressNetworkPolicy | null;
 };
 
 const runtimeTemplateFromProvisionRow = (row: ProvisionSandboxRow): RuntimeTemplate => ({
@@ -185,7 +187,8 @@ const executeProvisionOperation = async (
             COALESCE(v.workdir, t.workdir) AS workdir,
             COALESCE(v.default_ports, t.default_ports) AS "defaultPorts",
             t.runtime_family AS "runtimeFamily",
-            s.template_version_id AS "templateVersionId"
+            s.template_version_id AS "templateVersionId",
+            s.egress_compiled_policy AS "egressCompiledPolicy"
      FROM sandboxes s
      JOIN templates t ON t.id = s.template_id
      LEFT JOIN template_versions v ON v.id = s.template_version_id
@@ -209,6 +212,7 @@ const executeProvisionOperation = async (
       name: row.sandboxName,
       organizationId: operation.organizationId,
       env,
+      egressPolicy: row.egressCompiledPolicy,
       metadata: {
         "harakiri.id": sandboxId,
         "harakiri.sandbox": sandboxId,
@@ -254,7 +258,9 @@ const executeProvisionOperation = async (
       runtimeWorkdir: template.workdir,
       templateId: template.id,
       templateVersionId: template.templateVersionId,
-      imageDigest: template.imageDigest
+      imageDigest: template.imageDigest,
+      egressRuleCount: row.egressCompiledPolicy?.egress.length ?? 0,
+      egressDefaultAction: row.egressCompiledPolicy?.defaultAction ?? "allow"
     });
   } catch (error) {
     if (provider?.providerSandboxId) {

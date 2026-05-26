@@ -72,6 +72,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         name: body.name,
         ttlSeconds: body.ttlSeconds,
         env: body.env,
+        egress: body.egress,
         idempotencyKey: body.idempotencyKey ?? idempotencyKey(request.headers),
         wait: body.wait ?? !preferRespondAsync(request.headers),
         waitTimeoutMs: body.waitTimeoutMs
@@ -93,6 +94,18 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         template: result.template,
         message: result.message
       }));
+    }
+    if (result.kind === "egress_policy_invalid") {
+      return reply.code(400).send(apiErrorResponse("egress_policy_invalid", { message: result.message }));
+    }
+    if (result.kind === "egress_preset_not_allowed") {
+      return reply.code(403).send(apiErrorResponse("egress_preset_not_allowed", { preset: result.preset }));
+    }
+    if (result.kind === "egress_custom_domains_disabled") {
+      return reply.code(403).send(apiErrorResponse("egress_custom_domains_disabled"));
+    }
+    if (result.kind === "egress_rule_limit_exceeded") {
+      return reply.code(429).send(apiErrorResponse("egress_rule_limit_exceeded", { limit: result.limit }));
     }
     if (result.kind === "sandbox_env_not_replayable") {
       return reply.code(400).send(apiErrorResponse("sandbox_env_not_replayable", {

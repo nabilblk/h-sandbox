@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./api";
-import { auth, type UserProfile } from "./auth";
+import { auth, type AuthSnapshot } from "./auth";
 import { Brand } from "./components/brand";
 import { Icon } from "./components/icon";
 import { DashboardShellRoute } from "./routes/dashboard-shell";
@@ -14,45 +14,98 @@ import "./styles.css";
 import "./styles-landing.css";
 import "./styles-app.css";
 
-const SignInGate = ({ onSignIn }: { onSignIn: () => void }) => (
+const isRoute = (route: string): route is Route =>
+  route === "landing" ||
+  route === "onboarding" ||
+  route === "dashboard/sandboxes" ||
+  route === "dashboard/templates" ||
+  route === "dashboard/members" ||
+  route === "dashboard/metrics" ||
+  route === "dashboard/keys" ||
+  route === "dashboard/settings" ||
+  route === "detail" ||
+  route === "docs";
+
+const routeFromHash = () => {
+  const route = location.hash.slice(1);
+  return isRoute(route) ? route : "landing";
+};
+
+const isPublicRoute = (route: Route) => route === "landing" || route === "docs";
+
+const hasOidcResponse = () => {
+  const hash = location.hash.slice(1);
+  return hash.includes("state=") && (hash.includes("code=") || hash.includes("error="));
+};
+
+const SignInGate = ({
+  onSignIn,
+  title = "Sign in with Keycloak.",
+  message = "Dashboard, sandbox detail, onboarding, API keys, usage, and settings require a Keycloak session."
+}: {
+  onSignIn: () => void;
+  title?: string;
+  message?: string;
+}) => (
   <div className="onb">
     <div className="onb-bar"><Brand /></div>
     <div className="onb-wrap" style={{ gridTemplateColumns: "1fr", maxWidth: 760 }}>
       <div className="onb-body">
-        <h1 className="onb-h">Sign in with Keycloak.</h1>
-        <p className="onb-sub">Dashboard, sandbox detail, onboarding, API keys, usage, and settings require a Keycloak session.</p>
+        <h1 className="onb-h">{title}</h1>
+        <p className="onb-sub">{message}</p>
         <div className="onb-foot"><button className="btn btn-primary" onClick={onSignIn}>Sign in <Icon name="arrowR" size={11} /></button></div>
       </div>
     </div>
   </div>
 );
 
-const LoadingGate = () => (
+const LoadingGate = ({ title = "Checking session." }: { title?: string }) => (
   <div className="onb">
     <div className="onb-bar"><Brand /></div>
     <div className="onb-wrap" style={{ gridTemplateColumns: "1fr", maxWidth: 760 }}>
       <div className="onb-body">
-        <h1 className="onb-h">Opening dashboard.</h1>
+        <h1 className="onb-h">{title}</h1>
       </div>
     </div>
   </div>
 );
 
-const App = () => {
-  const [route, setRoute] = useState<Route>(() => (location.hash.slice(1) as Route) || "landing");
+const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initialRoute: Route }) => {
+  const [route, setRoute] = useState<Route>(initialRoute);
   const [detailId, setDetailId] = useState("");
-  const [profile, setProfile] = useState<UserProfile | null>(() => auth.profile());
+  const [authState, setAuthState] = useState<AuthSnapshot>(initialAuth);
   const [onboardingGate, setOnboardingGate] = useState<"checking" | "allowed">("checking");
+  const authenticated = authState.status === "authenticated";
+  const profile = authenticated ? authState.profile : null;
+
   const resolveRoute = async (nextRoute: Route) => {
-    if (nextRoute !== "onboarding" || !auth.token()) return nextRoute;
+    if (nextRoute !== "onboarding" || !auth.isAuthenticated()) return nextRoute;
     const me = await api.me().catch(() => null);
     return me?.user?.onboardingCompletedAt ? "dashboard/sandboxes" : nextRoute;
   };
-  useEffect(() => { auth.handleCallback().then(async (nextRoute) => { if (nextRoute) { setProfile(auth.profile()); setRoute(await resolveRoute(nextRoute as Route)); } }).catch((error) => console.error(error)); }, []);
-  useEffect(() => { location.hash = route; }, [route]);
-  useEffect(() => { const onHash = () => setRoute((location.hash.slice(1) as Route) || "landing"); window.addEventListener("hashchange", onHash); return () => window.removeEventListener("hashchange", onHash); }, []);
+
   useEffect(() => {
-    if (route !== "onboarding" || !auth.token()) {
+    const unsubscribe = auth.subscribe(setAuthState);
+    return () => { unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated()) return;
+    const returnedRoute = auth.consumeReturnRoute();
+    if (!returnedRoute || !isRoute(returnedRoute)) return;
+    resolveRoute(returnedRoute).then(setRoute).catch(() => setRoute(returnedRoute));
+  }, []);
+
+  useEffect(() => { location.hash = route; }, [route]);
+
+  useEffect(() => {
+    const onHash = () => setRoute(routeFromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  useEffect(() => {
+    if (route !== "onboarding" || !auth.isAuthenticated()) {
       setOnboardingGate("checking");
       return;
     }
@@ -64,14 +117,51 @@ const App = () => {
       else setRoute(resolvedRoute);
     });
     return () => { cancelled = true; };
-  }, [route]);
+  }, [route, authState.status]);
+
   const go = (r: Route) => { setRoute(r); window.scrollTo(0, 0); };
   const openSandbox = (id: string) => { setDetailId(id); go("detail"); };
-  const signIn = () => void auth.signIn();
-  const signOut = () => { auth.signOut(); setProfile(null); };
-  if (route !== "landing" && route !== "docs" && !auth.token()) return <SignInGate onSignIn={signIn} />;
-  if (route === "onboarding" && auth.token() && onboardingGate !== "allowed") return <LoadingGate />;
-  return route === "landing" ? <LandingRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} /> : route === "onboarding" ? <OnboardingRoute go={go} profile={profile} /> : route === "detail" && detailId ? <SandboxDetailRoute id={detailId} go={go} /> : route === "docs" ? <DocsRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} /> : <DashboardShellRoute route={route === "detail" ? "dashboard/sandboxes" : route} go={go} openSandbox={openSandbox} profile={profile} onSignOut={signOut} />;
+  const signIn = () => void auth.signIn(route);
+  const signOut = () => { void auth.signOut(); };
+
+  if (authState.status === "signing-out") return <LoadingGate title="Signing out." />;
+  if (!isPublicRoute(route) && authState.status === "checking") return <LoadingGate />;
+  if (!isPublicRoute(route) && !authenticated) {
+    return (
+      <SignInGate
+        onSignIn={signIn}
+        title={authState.status === "expired" ? "Session expired." : authState.status === "error" ? "Unable to verify session." : "Sign in with Keycloak."}
+        message={authState.status === "expired" ? "Sign in again to continue where you left off." : authState.error ?? undefined}
+      />
+    );
+  }
+  if (route === "onboarding" && authenticated && onboardingGate !== "allowed") return <LoadingGate title="Opening dashboard." />;
+  return route === "landing" ? (
+    <LandingRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
+  ) : route === "onboarding" ? (
+    <OnboardingRoute go={go} profile={profile} />
+  ) : route === "detail" && detailId ? (
+    <SandboxDetailRoute id={detailId} go={go} />
+  ) : route === "docs" ? (
+    <DocsRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
+  ) : (
+    <DashboardShellRoute route={route === "detail" ? "dashboard/sandboxes" : route} go={go} openSandbox={openSandbox} profile={profile} onSignOut={signOut} />
+  );
 };
 
-createRoot(document.getElementById("root")!).render(<App />);
+const boot = async () => {
+  const requestedRoute = routeFromHash();
+  const shouldUseStoredRoute = !isPublicRoute(requestedRoute) || hasOidcResponse();
+  if (!isPublicRoute(requestedRoute)) auth.rememberReturnRoute(requestedRoute);
+  const initialAuth = await auth.init();
+  const returnedRoute =
+    shouldUseStoredRoute && initialAuth.status === "authenticated"
+      ? auth.consumeReturnRoute()
+      : shouldUseStoredRoute
+        ? auth.peekReturnRoute()
+        : null;
+  const initialRoute = returnedRoute && isRoute(returnedRoute) ? returnedRoute : requestedRoute;
+  createRoot(document.getElementById("root")!).render(<App initialAuth={initialAuth} initialRoute={initialRoute} />);
+};
+
+void boot();

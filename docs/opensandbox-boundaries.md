@@ -28,6 +28,11 @@ Harakiri uses OpenSandbox for:
   not implemented upstream.
 - HTTP route targets: resolve OpenSandbox endpoints or use the OpenSandbox
   ingress gateway path, depending on route mode.
+- Outbound access: pass the initial sandbox `networkPolicy` at OpenSandbox
+  create time, then resolve port `18080` and call the OpenSandbox egress
+  sidecar `GET /policy`, `POST /policy`, and `PATCH /policy` endpoints for
+  runtime inspection and mutation. Harakiri stores the product-facing mode and
+  compiled policy, but does not enforce packets itself.
 
 OpenSandbox endpoint responses may include access headers such as
 `OpenSandbox-Secure-Access`. Harakiri forwards those headers to the resolved
@@ -55,8 +60,8 @@ sandbox interaction:
 ## Explicit Non-Boundaries
 
 Harakiri should not use direct Kubernetes access for normal sandbox terminal
-commands, filesystem UI, metrics UI, sandbox runtime logs, route exposure, or
-sandbox lifecycle. Those paths must go through OpenSandbox APIs so the
+commands, filesystem UI, metrics UI, sandbox runtime logs, route exposure,
+egress policy, or sandbox lifecycle. Those paths must go through OpenSandbox APIs so the
 OpenSandbox provider remains the source of runtime behavior and OSS operators do
 not need to grant broad sandbox pod permissions to the Harakiri API.
 
