@@ -298,6 +298,9 @@ Verification evidence from 2026-05-31:
 - Real `pnpm publish --access public --no-git-checks` for `@h-sandbox/sdk`
   reached npm and failed with `E403` because the configured credentials require
   either a current 2FA OTP or a granular publish token with 2FA bypass enabled.
+- A follow-up real publish attempt after re-verifying `nabilblk` owner access to
+  `h-sandbox` failed with the same npm `E403` 2FA publish gate; no package was
+  published.
 - `bash -n scripts/npm-postpublish-smoke.sh` passed.
 - `pnpm publish:postcheck` is wired but cannot pass until the packages are
   published to npm.

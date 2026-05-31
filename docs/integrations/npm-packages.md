@@ -88,6 +88,21 @@ pnpm publish:dry-run
    Both packages declare `publishConfig.access=public`, so no extra access flag
    is required. Passing `--access public` is still safe.
 
+   If npm 2FA is enabled for publishing, pass the current one-time code:
+
+   ```bash
+   pnpm publish --access public --otp 123456
+   ```
+
+   For non-interactive publishing, configure npm with a granular access token
+   that has package publish permission for the `h-sandbox` organization and is
+   allowed to bypass 2FA for publish operations. A token that only proves
+   identity will pass `npm whoami` but still fail publish with:
+
+   ```text
+   E403: Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.
+   ```
+
 5. Verify from npm in clean projects:
 
    ```bash
@@ -103,7 +118,10 @@ pnpm publish:dry-run
 ## Troubleshooting
 
 - `ENEEDAUTH`: run `npm login`.
-- `E403` on publish: confirm the npm user is an owner of the `harakiri` org.
+- `E403` on publish: confirm the npm user is an owner of the `h-sandbox` org.
+- `E403` mentioning 2FA or bypass 2FA: use `--otp` with a current npm 2FA code,
+  or replace the configured token with a granular publish token that can bypass
+  2FA for the `h-sandbox` org.
 - Package install tries to fetch `@harakiri/shared`: the package boundary is
   broken; run `pnpm publish:local-check` and inspect packed manifests.
 - `harakiri` binary missing after install: verify `packages/cli/package.json`
