@@ -2,18 +2,18 @@
 
 Harakiri publishes two public npm packages:
 
-- `@harakiri/sdk` for application integrations.
-- `@harakiri/cli` for local and CI command-line workflows.
+- `@h-sandbox/sdk` for application integrations.
+- `@h-sandbox/cli` for local and CI command-line workflows.
 
 `@harakiri/shared` is an internal monorepo package. It is not published and is
 not part of the public compatibility contract. Public examples, adapters, and
-third-party applications should import only from `@harakiri/sdk`.
+third-party applications should import only from `@h-sandbox/sdk`.
 
 ## Install
 
 ```bash
-pnpm add @harakiri/sdk
-npm install -g @harakiri/cli
+pnpm add @h-sandbox/sdk
+npm install -g @h-sandbox/cli
 ```
 
 Configure both with an API key issued by Harakiri:
@@ -56,8 +56,8 @@ pnpm publish:dry-run
 2. Confirm package names are available or at the expected current version:
 
    ```bash
-   npm view @harakiri/sdk version
-   npm view @harakiri/cli version
+   npm view @h-sandbox/sdk version
+   npm view @h-sandbox/cli version
    ```
 
 3. Run local quality gates:
@@ -65,10 +65,10 @@ pnpm publish:dry-run
    ```bash
    pnpm openapi:check
    pnpm examples:check
-   pnpm --filter @harakiri/sdk test
-   pnpm --filter @harakiri/sdk typecheck
-   pnpm --filter @harakiri/cli test
-   pnpm --filter @harakiri/cli typecheck
+   pnpm --filter @h-sandbox/sdk test
+   pnpm --filter @h-sandbox/sdk typecheck
+   pnpm --filter @h-sandbox/cli test
+   pnpm --filter @h-sandbox/cli typecheck
    pnpm publish:local-check
    pnpm publish:dry-run
    ```

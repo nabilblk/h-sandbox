@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Command } from "commander";
-import type { HarakiriClient, TemplateBuildSummary } from "@harakiri/sdk";
+import type { HarakiriClient, TemplateBuildSummary } from "@h-sandbox/sdk";
 import { apiClient } from "../config.js";
 import { createBuildContextArchive } from "../context.js";
 import { templateBuildLogLine, templateBuildSuccessLines } from "../format.js";

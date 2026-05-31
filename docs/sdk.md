@@ -1,6 +1,6 @@
 # Harakiri SDK
 
-The `@harakiri/sdk` package is the recommended integration surface for
+The `@h-sandbox/sdk` package is the recommended integration surface for
 external TypeScript and Node.js applications. It wraps the public HTTP API and
 keeps callers away from OpenSandbox IDs, Kubernetes objects, route internals,
 and provider-specific command transports.
@@ -10,13 +10,13 @@ and provider-specific command transports.
 Install the public SDK from npm:
 
 ```bash
-pnpm add @harakiri/sdk
+pnpm add @h-sandbox/sdk
 # or
-npm install @harakiri/sdk
+npm install @h-sandbox/sdk
 ```
 
 ```ts
-import { HarakiriClient } from "@harakiri/sdk";
+import { HarakiriClient } from "@h-sandbox/sdk";
 
 const harakiri = new HarakiriClient({
   apiUrl: process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io",
@@ -27,7 +27,7 @@ const harakiri = new HarakiriClient({
 Use API keys for server-side integrations. Browser applications should use the
 Harakiri web app and Keycloak login flow rather than embedding API keys.
 The SDK is self-contained; external projects should import only from
-`@harakiri/sdk`. `@harakiri/shared` is an internal monorepo package and is not
+`@h-sandbox/sdk`. `@harakiri/shared` is an internal monorepo package and is not
 published as part of the public npm contract.
 
 ## Runtime Capabilities
@@ -230,7 +230,7 @@ Use subclasses when the application needs broad behavior:
 - `HarakiriServerError`
 - `HarakiriWaitTimeoutError`
 
-Stable sandbox runtime codes are exported from `@harakiri/sdk` as
+Stable sandbox runtime codes are exported from `@h-sandbox/sdk` as
 `sandboxRuntimeApiErrorCodes`. The most important integration branches are:
 
 | Scenario | Codes | Typical handling |
@@ -244,7 +244,7 @@ Stable sandbox runtime codes are exported from `@harakiri/sdk` as
 | Route or egress policy failure | `route_token_required`, `route_access_mode_conflict`, `egress_policy_invalid`, egress limit codes | Ask the user to adjust access mode or outbound policy. |
 
 ```ts
-import { HarakiriApiError, HarakiriProviderUnavailableError } from "@harakiri/sdk";
+import { HarakiriApiError, HarakiriProviderUnavailableError } from "@h-sandbox/sdk";
 
 try {
   await harakiri.files.read(sandbox.id, "/missing.txt");

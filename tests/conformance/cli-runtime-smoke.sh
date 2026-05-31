@@ -12,7 +12,7 @@ if [[ -z "${API_URL}" || -z "${API_KEY}" ]]; then
   exit 0
 fi
 
-pnpm --dir "${ROOT}" --filter @harakiri/cli build >/tmp/harakiri-cli-conformance-build.log
+pnpm --dir "${ROOT}" --filter @h-sandbox/cli build >/tmp/harakiri-cli-conformance-build.log
 
 TMP_HOME="$(mktemp -d)"
 TMP_DIR="$(mktemp -d)"

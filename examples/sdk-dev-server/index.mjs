@@ -1,4 +1,4 @@
-import { HarakiriClient } from "@harakiri/sdk";
+import { HarakiriClient } from "@h-sandbox/sdk";
 
 const harakiri = new HarakiriClient({
   apiUrl: process.env.HARAKIRI_API_URL,

@@ -1,4 +1,4 @@
-import { HarakiriClient, type CreateSandboxInput, type SandboxRouteResponse } from "@harakiri/sdk";
+import { HarakiriClient, type CreateSandboxInput, type SandboxRouteResponse } from "@h-sandbox/sdk";
 
 const apiUrl = process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io";
 const apiKey = process.env.HARAKIRI_API_KEY;

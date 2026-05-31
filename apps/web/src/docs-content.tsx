@@ -19,7 +19,7 @@ export const docPages: DocPage[] = [
     body: (
       <>
         <h2>Install</h2>
-        <pre>{`pnpm cli:pack\nnpm install -g ./dist-packages/harakiri-cli-0.1.0.tgz\nharakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...`}</pre>
+        <pre>{`npm install -g @h-sandbox/cli\nharakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...`}</pre>
         <h2>Create</h2>
         <pre>{`harakiri create --template python-3.12-data --name first-agent\nharakiri run --stdin agent.py\nharakiri kill sbx_...`}</pre>
         <h2>Expose</h2>
@@ -204,7 +204,7 @@ export const docPages: DocPage[] = [
     body: (
       <>
         <h2>JavaScript</h2>
-        <pre>{`import { HarakiriClient } from "@harakiri/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.run(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
+        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.run(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
         <h2>HTTP</h2>
         <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
         <h2>Python</h2>

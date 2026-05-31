@@ -1,21 +1,21 @@
 # Harakiri SDK
 
-`@harakiri/sdk` is the public integration surface for applications that want to
+`@h-sandbox/sdk` is the public integration surface for applications that want to
 use Harakiri as an OSS sandbox provider. The SDK speaks to the Harakiri control
 plane only; callers should not depend on OpenSandbox or Kubernetes internals.
 
 ## Install
 
 ```bash
-pnpm add @harakiri/sdk
+pnpm add @h-sandbox/sdk
 # or
-npm install @harakiri/sdk
+npm install @h-sandbox/sdk
 ```
 
 Configure the client with an API URL and an API key issued by Harakiri:
 
 ```ts
-import { HarakiriClient } from "@harakiri/sdk";
+import { HarakiriClient } from "@h-sandbox/sdk";
 
 const harakiri = new HarakiriClient({
   apiUrl: process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io",
@@ -24,7 +24,7 @@ const harakiri = new HarakiriClient({
 ```
 
 The SDK is self-contained. Public applications should import only from
-`@harakiri/sdk`; internal monorepo packages such as `@harakiri/shared` are not
+`@h-sandbox/sdk`; internal monorepo packages such as `@harakiri/shared` are not
 part of the npm installation contract.
 
 ## Core Workflow
@@ -147,7 +147,7 @@ import {
   HarakiriNotFoundError,
   HarakiriProviderUnavailableError,
   HarakiriRateLimitError
-} from "@harakiri/sdk";
+} from "@h-sandbox/sdk";
 
 try {
   await harakiri.files.read(sandboxId, "/workspace/result.json");
@@ -179,7 +179,7 @@ Common subclasses include:
 
 Sandbox runtime error codes are stable machine-readable strings. For exhaustive
 runtime-code handling, import `sandboxRuntimeApiErrorCodes` from
-`@harakiri/sdk`. Common branches are:
+`@h-sandbox/sdk`. Common branches are:
 
 | Branch | Codes |
 | --- | --- |

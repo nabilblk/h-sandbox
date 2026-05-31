@@ -7,7 +7,7 @@ Command-line client for Harakiri Sandbox.
 The published package installs a normal `harakiri` executable:
 
 ```bash
-npm install -g @harakiri/cli
+npm install -g @h-sandbox/cli
 harakiri --version
 ```
 
@@ -20,7 +20,7 @@ Build and install the CLI as a normal executable instead of invoking
 ```bash
 pnpm install
 pnpm cli:pack
-npm install -g ./dist-packages/harakiri-cli-0.1.0.tgz
+npm install -g ./dist-packages/h-sandbox-cli-0.1.0.tgz
 harakiri --version
 ```
 
@@ -32,8 +32,8 @@ field.
 For development without a global install:
 
 ```bash
-pnpm --filter @harakiri/cli build
-pnpm --filter @harakiri/cli exec harakiri --version
+pnpm --filter @h-sandbox/cli build
+pnpm --filter @h-sandbox/cli exec harakiri --version
 ```
 
 ## Configure
@@ -72,9 +72,9 @@ template version. The default OSS builder is rootless BuildKit.
 ## Verify Before Publishing
 
 ```bash
-pnpm --filter @harakiri/cli test
-pnpm --filter @harakiri/cli typecheck
-pnpm --filter @harakiri/cli build
+pnpm --filter @h-sandbox/cli test
+pnpm --filter @h-sandbox/cli typecheck
+pnpm --filter @h-sandbox/cli build
 pnpm cli:pack
 pnpm publish:local-check
 ```

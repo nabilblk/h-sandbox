@@ -82,7 +82,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@harakiri/sdk':
+      '@h-sandbox/sdk':
         specifier: workspace:*
         version: link:../sdk
       commander:

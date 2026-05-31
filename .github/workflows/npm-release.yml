@@ -34,8 +34,8 @@ jobs:
         run: |
           pnpm openapi:check
           pnpm examples:check
-          pnpm --filter @harakiri/sdk test
-          pnpm --filter @harakiri/cli test
+          pnpm --filter @h-sandbox/sdk test
+          pnpm --filter @h-sandbox/cli test
           pnpm publish:local-check
           pnpm publish:dry-run
 

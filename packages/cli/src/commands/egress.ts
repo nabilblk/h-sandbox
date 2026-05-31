@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { SandboxEgressResponse } from "@harakiri/sdk";
+import type { SandboxEgressResponse } from "@h-sandbox/sdk";
 import { apiClient } from "../config.js";
 import { collectString, printProgress } from "../utils.js";
 

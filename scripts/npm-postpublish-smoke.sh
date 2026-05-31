@@ -10,17 +10,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "verifying @harakiri/sdk@${VERSION} and @harakiri/cli@${VERSION} from npm"
+echo "verifying @h-sandbox/sdk@${VERSION} and @h-sandbox/cli@${VERSION} from npm"
 
-SDK_VERSION="$(npm view "@harakiri/sdk@${VERSION}" version)"
-CLI_VERSION="$(npm view "@harakiri/cli@${VERSION}" version)"
+SDK_VERSION="$(npm view "@h-sandbox/sdk@${VERSION}" version)"
+CLI_VERSION="$(npm view "@h-sandbox/cli@${VERSION}" version)"
 
 if [[ "${SDK_VERSION}" != "${VERSION}" ]]; then
-  echo "expected @harakiri/sdk@${VERSION}, got ${SDK_VERSION}" >&2
+  echo "expected @h-sandbox/sdk@${VERSION}, got ${SDK_VERSION}" >&2
   exit 1
 fi
 if [[ "${CLI_VERSION}" != "${VERSION}" ]]; then
-  echo "expected @harakiri/cli@${VERSION}, got ${CLI_VERSION}" >&2
+  echo "expected @h-sandbox/cli@${VERSION}, got ${CLI_VERSION}" >&2
   exit 1
 fi
 
@@ -29,7 +29,7 @@ mkdir -p "${SDK_PROJECT}"
 cd "${SDK_PROJECT}"
 npm init -y >/dev/null
 npm pkg set type=module >/dev/null
-npm install "@harakiri/sdk@${VERSION}" typescript@^5.9.3 @types/node@^24 >/dev/null
+npm install "@h-sandbox/sdk@${VERSION}" typescript@^5.9.3 @types/node@^24 >/dev/null
 if npm ls @harakiri/shared >/dev/null 2>&1; then
   echo "SDK install unexpectedly pulled @harakiri/shared" >&2
   exit 1
@@ -47,10 +47,10 @@ cat >tsconfig.json <<'JSON'
 JSON
 cp "${ROOT}/examples/sdk-typescript-quickstart/index.ts" index.ts
 ./node_modules/.bin/tsc --noEmit
-node -e 'import("@harakiri/sdk").then((sdk) => { if (!sdk.HarakiriClient) process.exit(1); })'
+node -e 'import("@h-sandbox/sdk").then((sdk) => { if (!sdk.HarakiriClient) process.exit(1); })'
 
 CLI_PREFIX="${TMP_DIR}/cli-prefix"
-npm install --global --prefix "${CLI_PREFIX}" "@harakiri/cli@${VERSION}" >/dev/null
+npm install --global --prefix "${CLI_PREFIX}" "@h-sandbox/cli@${VERSION}" >/dev/null
 if npm ls --global --prefix "${CLI_PREFIX}" @harakiri/shared >/dev/null 2>&1; then
   echo "CLI install unexpectedly pulled @harakiri/shared" >&2
   exit 1

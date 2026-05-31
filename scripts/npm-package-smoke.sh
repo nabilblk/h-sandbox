@@ -13,14 +13,14 @@ trap cleanup EXIT
 mkdir -p "${PACK_DIR}"
 
 cd "${ROOT}"
-pnpm --filter @harakiri/sdk build
-pnpm --filter @harakiri/cli build
+pnpm --filter @h-sandbox/sdk build
+pnpm --filter @h-sandbox/cli build
 pnpm package:assert
-pnpm --filter @harakiri/sdk pack --pack-destination "${PACK_DIR}" >/dev/null
-pnpm --filter @harakiri/cli pack --pack-destination "${PACK_DIR}" >/dev/null
+pnpm --filter @h-sandbox/sdk pack --pack-destination "${PACK_DIR}" >/dev/null
+pnpm --filter @h-sandbox/cli pack --pack-destination "${PACK_DIR}" >/dev/null
 
-SDK_TGZ="$(find "${PACK_DIR}" -name 'harakiri-sdk-*.tgz' -print -quit)"
-CLI_TGZ="$(find "${PACK_DIR}" -name 'harakiri-cli-*.tgz' -print -quit)"
+SDK_TGZ="$(find "${PACK_DIR}" -name 'h-sandbox-sdk-*.tgz' -print -quit)"
+CLI_TGZ="$(find "${PACK_DIR}" -name 'h-sandbox-cli-*.tgz' -print -quit)"
 
 if [[ -z "${SDK_TGZ}" || -z "${CLI_TGZ}" ]]; then
   echo "expected SDK and CLI tarballs in ${PACK_DIR}" >&2
@@ -77,7 +77,7 @@ cat >tsconfig.json <<'JSON'
 JSON
 cp "${ROOT}/examples/sdk-typescript-quickstart/index.ts" index.ts
 ./node_modules/.bin/tsc --noEmit
-node -e 'import("@harakiri/sdk").then((sdk) => { if (!sdk.HarakiriClient) process.exit(1); })'
+node -e 'import("@h-sandbox/sdk").then((sdk) => { if (!sdk.HarakiriClient) process.exit(1); })'
 
 CLI_PREFIX="${TMP_DIR}/cli-prefix"
 npm install --global --prefix "${CLI_PREFIX}" "${SDK_TGZ}" "${CLI_TGZ}" >/dev/null

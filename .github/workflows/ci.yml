@@ -35,10 +35,10 @@ jobs:
         run: pnpm --filter @harakiri/shared test
 
       - name: SDK typecheck and tests
-        run: pnpm --filter @harakiri/sdk typecheck && pnpm --filter @harakiri/sdk test
+        run: pnpm --filter @h-sandbox/sdk typecheck && pnpm --filter @h-sandbox/sdk test
 
       - name: CLI typecheck and tests
-        run: pnpm --filter @harakiri/cli typecheck && pnpm --filter @harakiri/cli test
+        run: pnpm --filter @h-sandbox/cli typecheck && pnpm --filter @h-sandbox/cli test
 
       - name: SDK and CLI package smoke
         run: pnpm publish:local-check
