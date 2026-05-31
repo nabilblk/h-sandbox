@@ -107,6 +107,8 @@ test("template init writes a Harakiri config with runtime metadata", async () =>
       "init",
       "--name",
       "Browser Agent",
+      "--description",
+      "Browser automation runtime.",
       "--id",
       "browser-agent",
       "--dockerfile",
@@ -139,10 +141,14 @@ test("template init writes a Harakiri config with runtime metadata", async () =>
 
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /wrote .*harakiri\.toml/);
+    assert.match(result.stdout, /next: harakiri template build --name browser-agent \./);
+    assert.match(result.stdout, /smoke: harakiri template smoke browser-agent/);
     assert.equal(api.requests.length, 0);
     const contents = await readFile(join(cwd, "harakiri.toml"), "utf8");
+    assert.match(contents, /harakiri template build --name browser-agent \./);
     assert.match(contents, /name = "Browser Agent"/);
     assert.match(contents, /id = "browser-agent"/);
+    assert.match(contents, /description = "Browser automation runtime\."/);
     assert.match(contents, /dockerfile = "Containerfile"/);
     assert.match(contents, /visibility = "internal"/);
     assert.match(contents, /runtime_family = "browser"/);
@@ -181,6 +187,32 @@ test("CLI formats structured API errors from shared envelopes", async () => {
     const result = await runCli(["list"], { api });
     assert.notEqual(result.exitCode, 0);
     assert.match(result.stderr, /Harakiri API 409: template_not_ready: template is still building/);
+  } finally {
+    await api.close();
+  }
+});
+
+test("capabilities command prints runtime provider capability states", async () => {
+  const api = await startMockApi((request) => {
+    assert.equal(request.method, "GET");
+    assert.equal(request.path, "/v1/runtime/capabilities");
+    return {
+      body: {
+        provider: "opensandbox",
+        generatedAt: "2026-05-29T00:00:00.000Z",
+        capabilities: [
+          { name: "commands", state: "available", required: true, reason: null },
+          { name: "egressPolicy", state: "unavailable", required: true, reason: "mutable egress policy is not exposed by this provider" }
+        ]
+      }
+    };
+  });
+  try {
+    const result = await runCli(["capabilities"], { api });
+    assert.equal(result.exitCode, 0);
+    assert.match(result.stdout, /provider\topensandbox/);
+    assert.match(result.stdout, /commands\tavailable\tyes\t-/);
+    assert.match(result.stdout, /egressPolicy\tunavailable\tyes\tmutable egress policy is not exposed by this provider/);
   } finally {
     await api.close();
   }
@@ -483,6 +515,58 @@ test("template build failure streams retained logs and exits with useful message
   }
 });
 
+test("template smoke creates a temporary sandbox and runs ready_command", async () => {
+  const context = await mkdtemp(join(tmpdir(), "harakiri-cli-smoke-"));
+  await writeFile(join(context, "harakiri.toml"), `
+name = "Smoke Template"
+workdir = "/workspace"
+ready_command = "python --version"
+`);
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 202,
+        body: {
+          sandbox: { id: "sbx_smoke", name: "smoke", template: "python-3.12", status: "pending" },
+          operation: { id: "op_smoke", sandboxId: "sbx_smoke", kind: "provision", state: "queued", error: null, attempts: 0, createdAt: "now", updatedAt: "now" },
+          status: "pending"
+        }
+      };
+    }
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_smoke") {
+      return { body: { sandbox: { id: "sbx_smoke", name: "smoke", template: "python-3.12", status: "running" } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_smoke/run") {
+      return { body: { result: { sandboxId: "sbx_smoke", command: "python --version", stdout: "Python 3.12.0\n", stderr: "", exitCode: 0, durationMs: 12 } } };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/sandboxes/sbx_smoke") return { body: { ok: true } };
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli(["template", "smoke", "python-3.12", "--context", context], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /Python 3\.12\.0/);
+
+    const create = api.requests.find((request) => request.method === "POST" && request.path === "/v1/sandboxes");
+    assert.deepEqual(create?.body, {
+      template: "python-3.12",
+      name: "smoke-python-3.12",
+      ttlSeconds: 300,
+      env: {},
+      wait: false
+    });
+    const run = api.requests.find((request) => request.method === "POST" && request.path === "/v1/sandboxes/sbx_smoke/run");
+    assert.deepEqual(run?.body, {
+      command: "python --version",
+      cwd: "/workspace",
+      timeoutMs: 120000
+    });
+    assert(api.requests.some((request) => request.method === "DELETE" && request.path === "/v1/sandboxes/sbx_smoke"));
+  } finally {
+    await api.close();
+  }
+});
+
 test("template logs command prints retained build log rows", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "GET" && request.path === "/v1/template-builds/bld_logs/logs") {
@@ -516,12 +600,23 @@ test("route commands expose and list sandbox routes", async () => {
             sandboxId: "sbx_route",
             port: 5173,
             protocol: "http",
+            accessMode: "public",
+            accessHeaderName: null,
+            tokenHint: null,
+            labels: ["preview", "vite"],
+            createdByUserId: "user_cli",
+            createdByLabel: "cli@test.local",
+            routeKey: "sbx-route-5173",
             host: "sbx-route-5173.sandbox.localhost",
             url: "https://sbx-route-5173.sandbox.localhost",
+            targetUrl: "http://sandbox:5173",
             state: "active",
             provider: "opensandbox",
+            providerRouteId: null,
             createdAt: "2026-05-24T00:00:00.000Z",
-            updatedAt: "2026-05-24T00:00:00.000Z"
+            lastCheckedAt: null,
+            lastUsedAt: null,
+            terminatedAt: null
           }
         }
       };
@@ -535,12 +630,23 @@ test("route commands expose and list sandbox routes", async () => {
               sandboxId: "sbx_route",
               port: 5173,
               protocol: "http",
+              accessMode: "public",
+              accessHeaderName: null,
+              tokenHint: null,
+              labels: ["preview", "vite"],
+              createdByUserId: "user_cli",
+              createdByLabel: "cli@test.local",
+              routeKey: "sbx-route-5173",
               host: "sbx-route-5173.sandbox.localhost",
               url: "https://sbx-route-5173.sandbox.localhost",
+              targetUrl: "http://sandbox:5173",
               state: "active",
               provider: "opensandbox",
+              providerRouteId: null,
               createdAt: "2026-05-24T00:00:00.000Z",
-              updatedAt: "2026-05-24T00:00:00.000Z"
+              lastCheckedAt: null,
+              lastUsedAt: null,
+              terminatedAt: null
             }
           ]
         }
@@ -549,14 +655,14 @@ test("route commands expose and list sandbox routes", async () => {
     return { status: 404, body: { error: "unexpected", path: request.path } };
   });
   try {
-    const exposed = await runCli(["expose", "sbx_route", "--port", "5173"], { api });
+    const exposed = await runCli(["expose", "sbx_route", "--port", "5173", "--label", "preview", "--label", "vite"], { api });
     assert.equal(exposed.exitCode, 0, exposed.stderr);
     assert.match(exposed.stdout, /https:\/\/sbx-route-5173\.sandbox\.localhost/);
-    assert.deepEqual(api.requests[0]?.body, { port: 5173, protocol: "http" });
+    assert.deepEqual(api.requests[0]?.body, { port: 5173, protocol: "http", accessMode: "public", labels: ["preview", "vite"] });
 
     const listed = await runCli(["routes", "sbx_route"], { api });
     assert.equal(listed.exitCode, 0, listed.stderr);
-    assert.equal(listed.stdout, "5173\tactive\topensandbox\thttps://sbx-route-5173.sandbox.localhost\n");
+    assert.equal(listed.stdout, "5173\tactive\tpublic\topensandbox\tpreview,vite\thttps://sbx-route-5173.sandbox.localhost\n");
   } finally {
     await api.close();
   }
@@ -578,6 +684,69 @@ test("files command supports explicit sandbox paths", async () => {
     const result = await runCli(["files", "sbx_files", "--path", "/workspace"], { api });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.equal(result.stdout, "FILE\t42\t/workspace/agent.py\n");
+  } finally {
+    await api.close();
+  }
+});
+
+test("file operation commands call sandbox file endpoints", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_files/files/read?path=%2Fworkspace%2Fagent.py&encoding=utf8") {
+      return { body: { path: "/workspace/agent.py", encoding: "utf8", content: "print('ok')\n" } };
+    }
+    if (request.method === "PUT" && request.path === "/v1/sandboxes/sbx_files/files") {
+      return { body: { file: { path: "/workspace/out.py", name: "out.py", type: "file", size: 2 } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_files/files/upload") {
+      return {
+        body: {
+          file: { path: "/workspace/upload.bin", name: "upload.bin", type: "file", size: 2 },
+          sizeBytes: 2,
+          sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec"
+        }
+      };
+    }
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_files/files/download?path=%2Fworkspace%2Fupload.bin") {
+      return {
+        body: {
+          path: "/workspace/upload.bin",
+          contentBase64: "b2s=",
+          sizeBytes: 2,
+          sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec"
+        }
+      };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/sandboxes/sbx_files/files?path=%2Fworkspace%2Fout.py") {
+      return { body: { ok: true, path: "/workspace/out.py" } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path, method: request.method } };
+  });
+  try {
+    const read = await runCli(["file-read", "sbx_files", "--path", "/workspace/agent.py"], { api });
+    assert.equal(read.exitCode, 0, read.stderr);
+    assert.equal(read.stdout, "print('ok')\n");
+
+    const write = await runCli(["file-write", "sbx_files", "--path", "/workspace/out.py", "--content", "ok", "--parents"], { api });
+    assert.equal(write.exitCode, 0, write.stderr);
+    assert.equal(write.stdout, "file\t2\t/workspace/out.py\n");
+
+    const dir = await mkdtemp(join(tmpdir(), "harakiri-cli-files-"));
+    const uploadSource = join(dir, "upload.bin");
+    const downloadTarget = join(dir, "download.bin");
+    await writeFile(uploadSource, "ok");
+
+    const upload = await runCli(["file-upload", "sbx_files", "--path", "/workspace/upload.bin", "--from", uploadSource, "--parents"], { api });
+    assert.equal(upload.exitCode, 0, upload.stderr);
+    assert.equal(upload.stdout, "file\t2\tsha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec\t/workspace/upload.bin\n");
+
+    const download = await runCli(["file-download", "sbx_files", "--path", "/workspace/upload.bin", "--to", downloadTarget], { api });
+    assert.equal(download.exitCode, 0, download.stderr);
+    assert.equal(download.stdout, "2\tsha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec\t" + downloadTarget + "\n");
+    assert.equal(await readFile(downloadTarget, "utf8"), "ok");
+
+    const removed = await runCli(["file-rm", "sbx_files", "--path", "/workspace/out.py"], { api });
+    assert.equal(removed.exitCode, 0, removed.stderr);
+    assert.match(`${removed.stdout}${removed.stderr}`, /removed \/workspace\/out.py/);
   } finally {
     await api.close();
   }

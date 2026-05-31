@@ -1,23 +1,54 @@
 {
   "name": "@harakiri/sdk",
   "version": "0.1.0",
+  "description": "TypeScript SDK for Harakiri Sandbox.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nabilblk/h-sandbox.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/nabilblk/h-sandbox#readme",
+  "bugs": {
+    "url": "https://github.com/nabilblk/h-sandbox/issues"
+  },
+  "keywords": [
+    "harakiri",
+    "sandbox",
+    "opensandbox",
+    "agents",
+    "sdk",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
   "files": [
     "dist",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "build": "pnpm clean && tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "node ../../scripts/assert-publish-worktree.mjs && pnpm build && node ../../scripts/assert-public-packages.mjs sdk",
     "test": "node --test --import tsx src/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
-  },
-  "dependencies": {
-    "@harakiri/shared": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.21.0"

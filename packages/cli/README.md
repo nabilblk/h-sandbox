@@ -4,6 +4,16 @@ Command-line client for Harakiri Sandbox.
 
 ## Install From This Repository
 
+The published package installs a normal `harakiri` executable:
+
+```bash
+npm install -g @harakiri/cli
+harakiri --version
+```
+
+To try the unpublished package from this repository, build and install the
+local tarball:
+
 Build and install the CLI as a normal executable instead of invoking
 `node packages/cli/dist/index.js` directly:
 
@@ -26,18 +36,12 @@ pnpm --filter @harakiri/cli build
 pnpm --filter @harakiri/cli exec harakiri --version
 ```
 
-When the package is published, install it with:
-
-```bash
-npm install -g @harakiri/cli
-```
-
 ## Configure
 
 Store the API URL and key once:
 
 ```bash
-harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
+harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...
 ```
 
 The CLI also reads `HARAKIRI_API_URL` and `HARAKIRI_API_KEY`. Local login
@@ -72,4 +76,5 @@ pnpm --filter @harakiri/cli test
 pnpm --filter @harakiri/cli typecheck
 pnpm --filter @harakiri/cli build
 pnpm cli:pack
+pnpm publish:local-check
 ```

@@ -1,15 +1,42 @@
 {
   "name": "@harakiri/cli",
   "version": "0.1.0",
+  "description": "Command-line client for Harakiri Sandbox.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
     "harakiri": "dist/index.js"
   },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nabilblk/h-sandbox.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/nabilblk/h-sandbox#readme",
+  "bugs": {
+    "url": "https://github.com/nabilblk/h-sandbox/issues"
+  },
+  "keywords": [
+    "harakiri",
+    "sandbox",
+    "opensandbox",
+    "agents",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "files": [
     "dist",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "clean": "rm -rf dist",
@@ -17,12 +44,12 @@
     "dev": "pnpm --filter @harakiri/sdk build && tsx src/index.ts",
     "lint": "pnpm --filter @harakiri/sdk build && tsc -p tsconfig.json --noEmit",
     "pack:tgz": "pnpm build && pnpm pack --pack-destination ../../dist-packages",
+    "prepublishOnly": "node ../../scripts/assert-publish-worktree.mjs && pnpm build && node ../../scripts/assert-public-packages.mjs cli",
     "test": "pnpm --filter @harakiri/sdk build && node --test --import tsx src/*.test.ts",
     "typecheck": "pnpm --filter @harakiri/sdk build && tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@harakiri/sdk": "workspace:*",
-    "@harakiri/shared": "workspace:*",
     "commander": "^14.0.2"
   },
   "devDependencies": {

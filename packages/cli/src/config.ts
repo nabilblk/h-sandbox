@@ -11,7 +11,7 @@ export type Config = {
 };
 
 export const configPath = join(homedir(), ".config", "harakiri", "config.json");
-export const defaultApiUrl = process.env.HARAKIRI_API_URL ?? "http://127.0.0.1:8080";
+export const defaultApiUrl = process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io";
 export const defaultKey = process.env.HARAKIRI_API_KEY;
 
 export const loadConfig = async (): Promise<Config> => {

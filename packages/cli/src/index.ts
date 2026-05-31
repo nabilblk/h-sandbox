@@ -13,10 +13,10 @@ const program = new Command();
 program
   .name("harakiri")
   .description("Harakiri Sandbox CLI")
-  .version("0.41.2")
+  .version("0.1.0")
   .addHelpText("after", `
 Examples:
-  $ harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
+  $ harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...
   $ harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV=dev
   $ harakiri run sbx_... --cmd "python --version"
   $ harakiri expose sbx_... --port 3000

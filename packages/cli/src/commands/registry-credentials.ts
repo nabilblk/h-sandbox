@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { RegistryCredentialPurpose, UpsertRegistryCredentialBody } from "@harakiri/shared";
+import type { RegistryCredentialPurpose, UpsertRegistryCredentialBody } from "@harakiri/sdk";
 import { apiClient } from "../config.js";
 import { printProgress } from "../utils.js";
 

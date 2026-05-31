@@ -1,0 +1,51 @@
+name: NPM Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "npm dist-tag"
+        default: "latest"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify packages
+        run: |
+          pnpm openapi:check
+          pnpm examples:check
+          pnpm --filter @harakiri/sdk test
+          pnpm --filter @harakiri/cli test
+          pnpm publish:local-check
+          pnpm publish:dry-run
+
+      - name: Publish SDK
+        working-directory: packages/sdk
+        run: pnpm publish --provenance --access public --tag "${{ inputs.tag }}"
+
+      - name: Publish CLI
+        working-directory: packages/cli
+        run: pnpm publish --provenance --access public --tag "${{ inputs.tag }}"
+
+      - name: Verify published packages
+        run: pnpm publish:postcheck

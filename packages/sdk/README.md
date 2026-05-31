@@ -1,17 +1,207 @@
 # Harakiri SDK
 
+`@harakiri/sdk` is the public integration surface for applications that want to
+use Harakiri as an OSS sandbox provider. The SDK speaks to the Harakiri control
+plane only; callers should not depend on OpenSandbox or Kubernetes internals.
+
+## Install
+
+```bash
+pnpm add @harakiri/sdk
+# or
+npm install @harakiri/sdk
+```
+
+Configure the client with an API URL and an API key issued by Harakiri:
+
 ```ts
 import { HarakiriClient } from "@harakiri/sdk";
 
 const harakiri = new HarakiriClient({
-  apiUrl: "http://127.0.0.1:18082",
+  apiUrl: process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io",
   apiKey: process.env.HARAKIRI_API_KEY!
 });
+```
 
+The SDK is self-contained. Public applications should import only from
+`@harakiri/sdk`; internal monorepo packages such as `@harakiri/shared` are not
+part of the npm installation contract.
+
+## Core Workflow
+
+```ts
 const { sandbox } = await harakiri.createSandbox({
   template: "python-3.12-data",
-  env: { HARAKIRI_ENV_SMOKE: "env-ok" }
+  ttlSeconds: 600,
+  idempotencyKey: "job-123",
+  env: { HARAKIRI_ENV_SMOKE: "env-ok" },
+  egress: { mode: "restricted", presets: ["python-package-install"] }
 });
-const { result } = await harakiri.runSandbox(sandbox.id, { command: "python -c 'print(2+2)'" });
+
+await harakiri.waitForSandbox(sandbox.id);
+
+const setup = await harakiri.runSandbox(sandbox.id, {
+  command: "python -c 'print(2 + 2)'",
+  cwd: "/workspace",
+  env: { HARAKIRI_MODE: "smoke" },
+  timeoutMs: 30_000
+});
+
+if (setup.result.exitCode !== 0) {
+  throw new Error(setup.result.stderr || "setup failed");
+}
+
+const { command } = await harakiri.commands.start(sandbox.id, {
+  command: "python -m http.server 3000 --bind 0.0.0.0",
+  cwd: "/workspace",
+  detached: true
+});
+
+await harakiri.commands.wait(sandbox.id, command.id, {
+  statuses: ["running"]
+});
+
+const route = await harakiri.routes.expose(sandbox.id, {
+  port: 3000,
+  accessMode: "token",
+  labels: ["preview"]
+});
+
+const previewHeaders = route.accessToken && route.accessHeaderName
+  ? { [route.accessHeaderName]: route.accessToken }
+  : {};
+
+// Pass previewHeaders when your app fetches or embeds the protected route.
+
 await harakiri.killSandbox(sandbox.id);
 ```
+
+## Runtime Surface
+
+| Need | SDK surface |
+| --- | --- |
+| Create, wait, renew, kill | `createSandbox`, `waitForSandbox`, `renewSandbox`, `killSandbox` |
+| Blocking commands | `runSandbox` |
+| Detached commands | `commands.start`, `commands.get`, `commands.wait`, `commands.logs`, `commands.kill` |
+| Files | `files.list`, `files.stat`, `files.read`, `files.write`, `files.mkdir`, `files.remove`, `files.rename` |
+| Artifacts | `files.upload`, `files.download` |
+| Routes | `routes.expose`, `routes.list`, `routes.delete`, `routes.getHost` |
+| Egress | `getOutboundAccess`, `setOutboundAccess`, `allowDomains`, `denyDomains`, `blockOutboundAccess`, `testOutboundAccess` |
+| Observability | `getSandboxLogs`, `getSandboxMetrics` |
+| Runtime capability checks | `getRuntimeCapabilities` |
+| Templates | `createTemplate`, `createTemplateBuild`, `uploadTemplateBuildContext`, `promoteTemplateVersion` |
+
+Flat compatibility methods remain available, but new integrations should prefer
+the namespaced `commands.*`, `files.*`, and `routes.*` helpers where possible.
+Adapters generated from or organized around the OpenAPI operation IDs can use
+matching aliases such as `runSandboxCommand`, `createSandboxCommand`,
+`getSandboxEgress`, and `updateSandboxEgress`.
+Command logs accept `{ cursor, tail }`. Use `tail` to bound stdout/stderr lines
+in UI and agent loops; responses include truncation flags when earlier output
+was omitted.
+Routes accept optional labels and return creator metadata plus `lastUsedAt` for
+token-protected proxy access.
+`getRuntimeCapabilities()` returns provider capability states as
+`available`, `degraded`, or `unavailable`, so adapters can hide unsupported
+workflows without checking provider names.
+
+## Files And Artifacts
+
+Use text-oriented file helpers for source files and configuration:
+
+```ts
+await harakiri.files.write(sandbox.id, {
+  path: "/workspace/notes.txt",
+  content: "ready\n",
+  createParents: true
+});
+
+const note = await harakiri.files.read(sandbox.id, "/workspace/notes.txt");
+```
+
+Use artifact helpers for binary data or generated outputs that should preserve
+size and checksum metadata:
+
+```ts
+await harakiri.files.upload(sandbox.id, {
+  path: "/workspace/input.bin",
+  contentBase64: "aGVsbG8=",
+  sizeBytes: 5,
+  createParents: true
+});
+
+const artifact = await harakiri.files.download(sandbox.id, "/workspace/input.bin");
+```
+
+Artifact transfer is currently JSON/base64 and bounded by the API-configured
+artifact size limit. Use it for small and medium artifacts; large streaming or
+signed URL transfer is a planned scale-up path.
+
+## Errors
+
+API failures throw `HarakiriApiError` subclasses. Use the class, `error.code`,
+and `error.retryable` instead of parsing text messages:
+
+```ts
+import {
+  HarakiriNotFoundError,
+  HarakiriProviderUnavailableError,
+  HarakiriRateLimitError
+} from "@harakiri/sdk";
+
+try {
+  await harakiri.files.read(sandboxId, "/workspace/result.json");
+} catch (error) {
+  if (error instanceof HarakiriNotFoundError) return null;
+  if (error instanceof HarakiriRateLimitError && error.retryable) {
+    // Retry with backoff.
+  }
+  if (error instanceof HarakiriProviderUnavailableError) {
+    // Surface a degraded runtime-provider state to the caller.
+  }
+  throw error;
+}
+```
+
+Common subclasses include:
+
+- `HarakiriAuthenticationError`
+- `HarakiriAuthorizationError`
+- `HarakiriValidationError`
+- `HarakiriNotFoundError`
+- `HarakiriConflictError`
+- `HarakiriRateLimitError`
+- `HarakiriUnsupportedCapabilityError`
+- `HarakiriProviderUnavailableError`
+- `HarakiriTimeoutApiError`
+- `HarakiriServerError`
+- `HarakiriWaitTimeoutError`
+
+Sandbox runtime error codes are stable machine-readable strings. For exhaustive
+runtime-code handling, import `sandboxRuntimeApiErrorCodes` from
+`@harakiri/sdk`. Common branches are:
+
+| Branch | Codes |
+| --- | --- |
+| Missing runtime resources | `sandbox_not_found`, `sandbox_command_not_found`, `route_not_found`, `file_not_found` |
+| State conflicts | `sandbox_not_running`, `sandbox_terminated` |
+| Unsupported capabilities | `runtime_command_unsupported`, `runtime_file_operation_unsupported` |
+| Provider unavailable | `sandbox_provision_failed`, `runtime_files_unavailable`, `egress_provider_unavailable`, `route_proxy_upstream_unreachable` |
+| Command timeout | `sandbox_command_timeout` |
+| Route and egress policy | `route_token_required`, `route_access_mode_conflict`, `egress_policy_invalid`, `egress_rule_limit_exceeded` |
+
+## Integration Guidance
+
+- Use `idempotencyKey` for retried sandbox creation.
+- Always set a TTL and renew only while work is active.
+- Prefer detached commands for long-running dev servers and background agents.
+- Expose previews with `accessMode: "token"` unless the route is intentionally
+  public.
+- Apply restricted outbound access when the domain set is known.
+- Persist important outputs outside the sandbox before killing it.
+- Log Harakiri sandbox IDs, command IDs, and route URLs in your app.
+
+More complete examples are available under `examples/`, and runtime contract
+documentation is available in `docs/sdk.md`,
+`docs/integrations/building-with-harakiri.md`, and
+`docs/integrations/capabilities-and-limits.md`.

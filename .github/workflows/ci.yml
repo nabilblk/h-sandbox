@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check OpenAPI document
+        run: pnpm openapi:check
+
+      - name: Check examples
+        run: pnpm examples:check
+
+      - name: Check template smoke scripts
+        run: pnpm templates:check
+
+      - name: Shared tests
+        run: pnpm --filter @harakiri/shared test
+
+      - name: SDK typecheck and tests
+        run: pnpm --filter @harakiri/sdk typecheck && pnpm --filter @harakiri/sdk test
+
+      - name: CLI typecheck and tests
+        run: pnpm --filter @harakiri/cli typecheck && pnpm --filter @harakiri/cli test
+
+      - name: SDK and CLI package smoke
+        run: pnpm publish:local-check
+
+      - name: API typecheck
+        run: pnpm --filter @harakiri/api typecheck

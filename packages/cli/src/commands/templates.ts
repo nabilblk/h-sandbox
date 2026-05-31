@@ -2,14 +2,14 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Command } from "commander";
-import type { HarakiriClient } from "@harakiri/sdk";
-import type { TemplateBuildSummary } from "@harakiri/shared";
+import type { HarakiriClient, TemplateBuildSummary } from "@harakiri/sdk";
 import { apiClient } from "../config.js";
 import { createBuildContextArchive } from "../context.js";
 import { templateBuildLogLine, templateBuildSuccessLines } from "../format.js";
 import { commandToEntrypoint, parseHarakiriTemplateConfig } from "../template-config.js";
 import {
   collectPort,
+  collectEnv,
   collectString,
   parsePositiveInt,
   printProgress,
@@ -24,6 +24,7 @@ type TemplateBuildResult = TemplateBuildSummary;
 
 type TemplateInitOptions = {
   name: string;
+  description: string;
   id?: string;
   dockerfile?: string;
   image?: string;
@@ -41,20 +42,31 @@ type TemplateInitOptions = {
 
 const templateConfig = (options: TemplateInitOptions) => {
   const id = templateIdFor(options.id ?? options.name);
+  const source = options.image
+    ? `image = ${tomlString(options.image)}`
+    : `dockerfile = ${tomlString(options.dockerfile ?? "Dockerfile")}`;
   return `# Harakiri sandbox template.
-# Build this as an OpenSandbox-compatible OCI image.
+# Build this directory as an OpenSandbox-compatible OCI image:
+#   harakiri template build --name ${id} .
+#   harakiri template smoke ${id}
 
+# Catalog metadata.
 name = ${tomlString(options.name)}
 id = ${tomlString(id)}
+description = ${tomlString(options.description)}
 visibility = ${tomlString(options.visibility)}
 runtime_family = ${tomlString(options.runtimeFamily)}
-${options.image ? `image = ${tomlString(options.image)}` : `dockerfile = ${tomlString(options.dockerfile ?? "Dockerfile")}`}
+aliases = ${tomlArray(options.aliases)}
+tags = ${tomlArray(options.tags)}
+
+# Image source. Use either dockerfile or image.
+${source}
+
+# Runtime defaults.
 cpu_count = ${options.cpuCount}
 memory_mb = ${options.memoryMb}
 workdir = ${tomlString(options.workdir)}
 ports = ${tomlArray(options.ports)}
-tags = ${tomlArray(options.tags)}
-aliases = ${tomlArray(options.aliases)}
 start_command = ${tomlString(options.startCommand)}
 ready_command = ${tomlString(options.readyCommand)}
 `;
@@ -140,6 +152,7 @@ export const registerTemplateCommands = (program: Command) => {
 Examples:
   $ harakiri template init --name open-agents-dev --dockerfile Dockerfile
   $ harakiri template build --name open-agents-dev .
+  $ harakiri template smoke open-agents-dev
   $ harakiri template builds --query open-agents-dev
   $ harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 `);
@@ -148,6 +161,7 @@ Examples:
     .command("init")
     .description("Create a harakiri.toml template config")
     .option("--name <name>", "template name", "open-agents-dev")
+    .option("--description <text>", "template description")
     .option("--id <id>", "template id; defaults to a slug derived from --name")
     .option("--dockerfile <file>", "Dockerfile path")
     .option("--image <ref>", "existing OCI image reference for image-import templates")
@@ -176,6 +190,7 @@ Examples:
       const aliases = uniqueStrings(options.alias.length ? options.alias : [templateIdFor(options.id ?? options.name)]);
       await writeFile(path, templateConfig({
         name: options.name,
+        description: options.description ?? `Sandbox runtime for ${options.name}.`,
         id: options.id,
         dockerfile: options.dockerfile ?? (options.image ? undefined : "Dockerfile"),
         image: options.image,
@@ -190,7 +205,64 @@ Examples:
         startCommand: options.startCommand,
         readyCommand: options.readyCommand
       }));
+      const id = templateIdFor(options.id ?? options.name);
       printProgress(`wrote ${path}`);
+      printProgress(`next: harakiri template build --name ${id} .`);
+      printProgress(`smoke: harakiri template smoke ${id}`);
+    });
+
+  template
+    .command("smoke")
+    .argument("<template-id>", "template id, name, or alias")
+    .description("Run a template readiness smoke in a fresh sandbox")
+    .option("--context <path>", "template context containing harakiri.toml", ".")
+    .option("--cmd <command>", "smoke command; defaults to ready_command from harakiri.toml")
+    .option("--cwd <path>", "working directory inside the sandbox")
+    .option("--ttl <seconds>", "temporary sandbox TTL", parsePositiveInt, 300)
+    .option("--timeout-ms <ms>", "smoke command timeout in milliseconds", parsePositiveInt, 120_000)
+    .option("--wait-timeout-ms <ms>", "sandbox readiness wait timeout in milliseconds", parsePositiveInt, 120_000)
+    .option("--env <key=value>", "sandbox environment variable; can be repeated", collectEnv, {})
+    .option("--keep", "keep the sandbox after the smoke run")
+    .addHelpText("after", `
+Examples:
+  $ harakiri template smoke open-agents-dev
+  $ harakiri template smoke open-agents-dev --cmd "harakiri-open-agents-smoke"
+  $ harakiri template smoke python-3.12-data --cmd "python --version"
+`)
+    .action(async (id, options) => {
+      const templateFile = await loadTemplateConfig(options.context);
+      const command = options.cmd ?? templateFile.readyCommand ?? "true";
+      const cwd = options.cwd ?? templateFile.workdir ?? "/workspace";
+      const client = await apiClient();
+      let sandboxId: string | null = null;
+      try {
+        const created = await client.createSandbox({
+          template: id,
+          name: `smoke-${templateIdFor(id)}`,
+          ttlSeconds: options.ttl,
+          env: options.env,
+          wait: false
+        });
+        sandboxId = created.sandbox.id;
+        printProgress(`created smoke sandbox ${sandboxId}`);
+        await client.waitForSandbox(sandboxId, { timeoutMs: options.waitTimeoutMs });
+        const result = await client.runSandbox(sandboxId, {
+          command,
+          cwd,
+          timeoutMs: options.timeoutMs
+        });
+        process.stdout.write(result.result.stdout);
+        if (result.result.stderr) process.stderr.write(result.result.stderr);
+        if (result.result.exitCode !== 0) {
+          throw new Error(`template smoke failed with exit code ${result.result.exitCode}`);
+        }
+        printProgress(`template smoke passed. sandbox=${sandboxId}`);
+      } finally {
+        if (sandboxId && !options.keep) {
+          await client.killSandbox(sandboxId).catch(() => undefined);
+          printProgress("smoke sandbox terminated.");
+        }
+      }
     });
 
   template
