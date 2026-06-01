@@ -10,17 +10,18 @@ export type TopNavProps = {
   onSignIn?: () => void;
   onSignOut?: () => void;
   authStatus?: string;
+  active?: "landing" | "docs" | "changelog";
 };
 
-export const TopNav = ({ go, profile, onSignIn, onSignOut, authStatus }: TopNavProps) => {
+export const TopNav = ({ go, profile, onSignIn, onSignOut, authStatus, active = "landing" }: TopNavProps) => {
   const initial = (profile?.name ?? profile?.email ?? "H").slice(0, 1).toUpperCase();
   return (
     <div className="topnav">
       <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
         <button className="btn btn-ghost" onClick={() => go("landing")} style={{ padding: 0, height: "auto" }}><Brand /></button>
         <div className="links" style={{ marginLeft: 8 }}>
-          <a onClick={() => go("docs")}>Docs</a>
-          <a>Changelog</a>
+          <button type="button" className={active === "docs" ? "active" : ""} onClick={() => go("docs")}>Docs</button>
+          <button type="button" className={active === "changelog" ? "active" : ""} onClick={() => go("changelog")}>Changelog</button>
         </div>
       </div>
       <div className="right">

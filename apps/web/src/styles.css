@@ -76,10 +76,17 @@ button { font: inherit; color: inherit; }
 }
 .btn:hover { background: var(--surface-2); }
 .btn:active { transform: translateY(0.5px); }
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+.btn:disabled:hover { background: var(--surface); border-color: var(--border-strong); }
 .btn-primary {
   background: var(--ink); color: #f7f7f3; border-color: var(--ink);
 }
 .btn-primary:hover { background: #1d1d1a; }
+.btn-primary:disabled:hover { background: var(--ink); border-color: var(--ink); }
 .btn-accent {
   background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
 }
@@ -190,12 +197,16 @@ button { font: inherit; color: inherit; }
 .topnav .links {
   display: flex; gap: 4px; align-items: center;
 }
-.topnav .links a {
+.topnav .links button {
+  appearance: none;
+  border: 0;
+  background: transparent;
   padding: 6px 10px; border-radius: var(--r-md);
-  color: var(--ink-2); font-size: 13px;
+  color: var(--ink-2); font: inherit; font-size: 13px;
+  cursor: pointer;
 }
-.topnav .links a:hover { background: var(--surface-2); }
-.topnav .links a.active { color: var(--ink); background: var(--surface-2); }
+.topnav .links button:hover { background: var(--surface-2); }
+.topnav .links button.active { color: var(--ink); background: var(--surface-2); }
 .topnav .right { display: flex; gap: 8px; align-items: center; }
 
 .account-menu {
@@ -325,11 +336,11 @@ button { font: inherit; color: inherit; }
     margin-left: 0 !important;
   }
 
-  .topnav .links a {
+  .topnav .links button {
     padding: 6px 8px;
   }
 
-  .topnav .links a:not(.active):not(:nth-child(3)) {
+  .topnav .links button:not(.active) {
     display: none;
   }
 

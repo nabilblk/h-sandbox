@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import {
-  egressModes,
   egressPresetCatalog,
   type EgressMode,
   type EgressPresetId,
   type OrganizationSettings
 } from "@harakiri/shared";
 import { api } from "../api";
+import { EgressModePicker } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
 
@@ -83,11 +83,7 @@ export const SettingsRoute = () => {
         <div className="settings-egress-layout">
           <div className="settings-egress-main">
             <Field label="Default mode">
-              <div className="segmented egress-modes">
-                {egressModes.map((mode) => (
-                  <button key={mode} className={org.defaultEgressPolicy.mode === mode ? "active" : ""} onClick={() => setDefaultMode(mode)} type="button">{mode}</button>
-                ))}
-              </div>
+              <EgressModePicker value={org.defaultEgressPolicy.mode} onChange={setDefaultMode} />
             </Field>
             <Field label="Available presets">
               <div className="egress-presets compact">

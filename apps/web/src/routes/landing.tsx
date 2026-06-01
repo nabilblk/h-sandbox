@@ -6,7 +6,7 @@ import type { GoToRoute } from "./types";
 
 export const LandingRoute = ({ go, profile, onSignIn, onSignOut, authStatus }: { go: GoToRoute; profile?: UserProfile | null; onSignIn: () => void; onSignOut: () => void; authStatus?: string }) => (
   <div className="landing">
-    <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} authStatus={authStatus} />
+    <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} authStatus={authStatus} active="landing" />
     <section className="hero">
       <div className="hero-inner">
         <div className="hero-eyebrow"><BrandMark size={12} /><span>Sandbox control plane for agent runtimes</span><Icon name="arrowR" size={11} /></div>

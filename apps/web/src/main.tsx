@@ -4,6 +4,7 @@ import { api } from "./api";
 import { auth, type AuthSnapshot } from "./auth";
 import { Brand } from "./components/brand";
 import { Icon } from "./components/icon";
+import { ChangelogRoute } from "./routes/changelog";
 import { DashboardShellRoute } from "./routes/dashboard-shell";
 import { DocsRoute } from "./routes/docs";
 import { LandingRoute } from "./routes/landing";
@@ -24,18 +25,30 @@ const isRoute = (route: string): route is Route =>
   route === "dashboard/keys" ||
   route === "dashboard/settings" ||
   route === "detail" ||
-  route === "docs";
+  route === "docs" ||
+  route === "changelog";
 
 const routeFromHash = () => {
   const route = location.hash.slice(1);
   return isRoute(route) ? route : "landing";
 };
 
-const isPublicRoute = (route: Route) => route === "landing" || route === "docs";
+const isPublicRoute = (route: Route) => route === "landing" || route === "docs" || route === "changelog";
+const pendingPublicRouteKey = "harakiri_pending_public_route";
 
 const hasOidcResponse = () => {
   const hash = location.hash.slice(1);
   return hash.includes("state=") && (hash.includes("code=") || hash.includes("error="));
+};
+
+const rememberPublicDeepLink = (route: Route) => {
+  if (route !== "landing" && isPublicRoute(route)) sessionStorage.setItem(pendingPublicRouteKey, route);
+};
+
+const consumePublicDeepLink = () => {
+  const route = sessionStorage.getItem(pendingPublicRouteKey);
+  sessionStorage.removeItem(pendingPublicRouteKey);
+  return route && isRoute(route) && isPublicRoute(route) ? route : null;
 };
 
 const SignInGate = ({
@@ -144,6 +157,8 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
     <SandboxDetailRoute id={detailId} go={go} />
   ) : route === "docs" ? (
     <DocsRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
+  ) : route === "changelog" ? (
+    <ChangelogRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : (
     <DashboardShellRoute route={route === "detail" ? "dashboard/sandboxes" : route} go={go} openSandbox={openSandbox} profile={profile} onSignOut={signOut} />
   );
@@ -151,16 +166,19 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
 
 const boot = async () => {
   const requestedRoute = routeFromHash();
+  rememberPublicDeepLink(requestedRoute);
   const shouldUseStoredRoute = !isPublicRoute(requestedRoute) || hasOidcResponse();
   if (!isPublicRoute(requestedRoute)) auth.rememberReturnRoute(requestedRoute);
   const initialAuth = await auth.init();
+  const pendingPublicRoute = consumePublicDeepLink();
+  const restoredPublicRoute = !hasOidcResponse() && requestedRoute === "landing" ? pendingPublicRoute : null;
   const returnedRoute =
     shouldUseStoredRoute && initialAuth.status === "authenticated"
       ? auth.consumeReturnRoute()
       : shouldUseStoredRoute
         ? auth.peekReturnRoute()
         : null;
-  const initialRoute = returnedRoute && isRoute(returnedRoute) ? returnedRoute : requestedRoute;
+  const initialRoute = returnedRoute && isRoute(returnedRoute) ? returnedRoute : restoredPublicRoute ?? requestedRoute;
   createRoot(document.getElementById("root")!).render(<App initialAuth={initialAuth} initialRoute={initialRoute} />);
 };
 

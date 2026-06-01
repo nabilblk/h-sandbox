@@ -18,5 +18,6 @@ test("dashboard shell renders navigation and template route content", () => {
   assert.match(markup, /Usage/);
   assert.match(markup, /API keys/);
   assert.doesNotMatch(markup, /Members/);
+  assert.doesNotMatch(markup, /CmdK/);
   assert.match(markup, /New template/);
 });

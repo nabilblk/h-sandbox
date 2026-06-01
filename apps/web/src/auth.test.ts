@@ -116,6 +116,16 @@ test("sign-in stores a safe return route and delegates login to Keycloak", async
   assert.equal((calls.login[0] as { scope?: string }).scope, "openid email profile");
 });
 
+test("sign-in accepts public changelog as a safe return route", async () => {
+  const { sessionStorage } = installBrowser("#changelog");
+  const { client } = createClient({ authenticated: false });
+  const session = createAuthSession(() => client);
+
+  await session.signIn();
+
+  assert.equal(sessionStorage.getItem("harakiri_auth_return_route"), "changelog");
+});
+
 test("sign-in preserves a protected route remembered before check-sso redirects", async () => {
   const { sessionStorage } = installBrowser("#landing");
   sessionStorage.setItem("harakiri_auth_return_route", "dashboard/sandboxes");

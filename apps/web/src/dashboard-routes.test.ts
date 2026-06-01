@@ -22,4 +22,5 @@ test("small dashboard routes render without dashboard shell coupling", () => {
   assert.match(settings, /Settings/);
   assert.match(settings, /Workspace controls and sandbox defaults/);
   assert.match(settings, /Outbound access/);
+  assert.match(settings, /Selected destinations/);
 });

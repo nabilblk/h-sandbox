@@ -23,7 +23,7 @@ export const DocsRoute = ({ go, profile, onSignIn, onSignOut, authStatus }: Docs
   const sections = Array.from(new Set(docPages.map((item) => item.section)));
   return (
     <div className="app">
-      <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} authStatus={authStatus} />
+      <TopNav go={go} profile={profile} onSignIn={onSignIn} onSignOut={onSignOut} authStatus={authStatus} active="docs" />
       <div className="docs">
         <aside className="docs-side">
           {sections.map((section) => (

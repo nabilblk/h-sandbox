@@ -8,6 +8,7 @@ export type Route =
   | "dashboard/keys"
   | "dashboard/settings"
   | "detail"
-  | "docs";
+  | "docs"
+  | "changelog";
 
 export type GoToRoute = (route: Route) => void;

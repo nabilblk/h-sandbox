@@ -74,6 +74,7 @@ const isInternalRoute = (route: string) => {
     route === "onboarding" ||
     route === "detail" ||
     route === "docs" ||
+    route === "changelog" ||
     route.startsWith("dashboard/")
   );
 };
