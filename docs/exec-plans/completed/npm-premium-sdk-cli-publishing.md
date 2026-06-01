@@ -2,7 +2,7 @@
 
 **Created**: 2026-05-29
 **Author**: Codex
-**Status**: Blocked On NPM 2FA Publish Gate
+**Status**: Completed
 **Priority**: {P0-P3}
 **Estimated effort**: 2-4 engineering days
 
@@ -24,14 +24,13 @@ Harakiri as a product, not reason about internal package boundaries.
 Current facts:
 
 - npm organization scope is `h-sandbox`.
-- npm package names `@h-sandbox/sdk` and `@h-sandbox/cli` are still available
-  (`npm view` returns 404 for both).
+- npm package names `@h-sandbox/sdk` and `@h-sandbox/cli` are published at
+  version `0.1.0`.
 - npm registry authentication is present:
   `npm whoami` returns `nabilblk` and `npm org ls h-sandbox` returns owner
   access.
-- Real publish currently fails with npm `E403`: npm requires either a current
-  2FA OTP for the publish command or a granular access token that is allowed to
-  bypass 2FA for package publishing.
+- The maintainer configured a granular npm token that can bypass 2FA for package
+  publishing.
 - `pnpm publish --dry-run` succeeds for `@h-sandbox/sdk` and `@h-sandbox/cli`
   without publishing `@harakiri/shared`.
 - SDK package is self-contained and no longer depends on `@harakiri/shared`.
@@ -214,20 +213,20 @@ Current facts:
       `node packages/cli/dist/index.js`.
 
 ### Phase 10: First Public Publish
-**Status**: Blocked On NPM 2FA Publish Gate
+**Status**: Complete
 - [x] Verify npm account and org ownership:
       `npm whoami`, `npm org ls h-sandbox`.
 - [x] Verify names are still available:
       `npm view @h-sandbox/sdk`, `npm view @h-sandbox/cli`.
 - [x] Run full local checks:
       typecheck, tests, build, OpenAPI check, examples check, package smoke.
-- [ ] Publish `@h-sandbox/sdk` first with public access.
-- [ ] Install `@h-sandbox/sdk` from npm into a clean external project and run
+- [x] Publish `@h-sandbox/sdk` first with public access.
+- [x] Install `@h-sandbox/sdk` from npm into a clean external project and run
       the quickstart compile smoke.
-- [ ] Publish `@h-sandbox/cli` with public access.
-- [ ] Install `@h-sandbox/cli` globally from npm and run `harakiri --version`.
-- [ ] Tag the release in git and write release notes.
-- [ ] Update docs to remove any "tarball until published" language.
+- [x] Publish `@h-sandbox/cli` with public access.
+- [x] Install `@h-sandbox/cli` globally from npm and run `harakiri --version`.
+- [x] Tag the release in git and write release notes.
+- [x] Update docs to remove any "tarball until published" language.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
@@ -242,6 +241,8 @@ Current facts:
 | 2026-05-31 | Add a dedicated post-publish smoke command | The final release needs proof that npm registry installs work, not just local tarballs; `pnpm publish:postcheck` gives one repeatable command for SDK compile and CLI binary verification | Keep manual npm install steps only; rely on workflow publish success |
 | 2026-05-31 | Use npm scope `@h-sandbox` for the public SDK and CLI | The npm organization name is `h-sandbox`, and the authenticated maintainer has owner access there; publishing under `@harakiri` would target the wrong scope | Keep `@harakiri/sdk` and request access to a separate npm org |
 | 2026-05-31 | Keep real publish pending until npm 2FA publish requirements are satisfied | npm accepts the credentials for identity and org ownership but rejects package publish with `E403` requiring either a current OTP or a granular token with publish 2FA bypass | Retry with the same token; disable account 2FA; publish from an unknown credential |
+| 2026-06-01 | Publish `@h-sandbox/sdk` before `@h-sandbox/cli` | The CLI package depends on the SDK, and pnpm rewrites the workspace dependency to `0.1.0` in the packed public manifest | Publish both simultaneously; publish CLI first |
+| 2026-06-01 | Wait for npm packument propagation before publishing the CLI | npm accepted the SDK publish and exposed dist-tags/access metadata before `npm view` could read the package document; waiting avoided building the CLI release on an unverified registry state | Publish CLI immediately after the SDK publish success message |
 
 ## Tech Debt Incurred
 - SDK-local protocol and error definitions intentionally duplicate the public
@@ -252,8 +253,7 @@ Current facts:
   keys, but it still depends on Keycloak and the target API being reachable.
 
 ## Completion Notes
-Implementation is ready for the first public publish, but npm is still blocking
-the actual registry mutation on its 2FA publish gate.
+Implementation and first public publish are complete.
 
 Package boundary changes:
 
@@ -276,7 +276,7 @@ Release automation added:
 - `.github/workflows/npm-release.yml` provides a manual npm release path with
   provenance/trusted publishing support and post-publish registry verification.
 
-Verification evidence from 2026-05-31:
+Verification evidence:
 
 - `npm view @h-sandbox/sdk version` returned 404, confirming no public package
   currently occupies the name.
@@ -301,9 +301,15 @@ Verification evidence from 2026-05-31:
 - A follow-up real publish attempt after re-verifying `nabilblk` owner access to
   `h-sandbox` failed with the same npm `E403` 2FA publish gate; no package was
   published.
+- After the maintainer reconfigured the npm token on 2026-06-01, real publish
+  succeeded for `@h-sandbox/sdk@0.1.0`.
+- `npm view @h-sandbox/sdk@0.1.0 version` returned `0.1.0`.
+- A clean external install of `@h-sandbox/sdk@0.1.0` compiled the TypeScript
+  quickstart and imported `HarakiriClient`.
+- Real publish succeeded for `@h-sandbox/cli@0.1.0`.
+- `npm view @h-sandbox/cli@0.1.0 version` returned `0.1.0`.
 - `bash -n scripts/npm-postpublish-smoke.sh` passed.
-- `pnpm publish:postcheck` is wired but cannot pass until the packages are
-  published to npm.
+- `pnpm publish:postcheck` passed against the npm registry.
 - Packed `@h-sandbox/cli` manifest resolves `@h-sandbox/sdk` to `0.1.0` and
   contains no `workspace:*` dependency.
 - `pnpm conformance:sdk` passed against the reachable deployed API using a
@@ -312,14 +318,15 @@ Verification evidence from 2026-05-31:
   temporary API key.
 - `git diff --check` passed.
 
-Real publish remains intentionally pending:
+Published packages:
 
-1. Provide a current npm 2FA OTP for publish, or configure a granular npm token
-   with package publish permission and 2FA bypass enabled.
-2. Publish `@h-sandbox/sdk@0.1.0`.
-3. Install SDK from npm in a clean external project and compile the quickstart.
-4. Publish `@h-sandbox/cli@0.1.0`.
-5. Install CLI from npm and run `harakiri --version` / `harakiri --help`.
-6. Run post-publish live SDK/CLI conformance against the deployed API.
-7. Tag the git release and update any documentation that still references
-   tarball-only pre-publication testing.
+- `@h-sandbox/sdk@0.1.0`
+- `@h-sandbox/cli@0.1.0`
+
+Release note:
+
+- `docs/release-notes/npm-sdk-cli-0.1.0.md`
+
+Git tag:
+
+- `npm-v0.1.0`

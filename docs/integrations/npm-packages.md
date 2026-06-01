@@ -50,7 +50,7 @@ pnpm publish:dry-run
 
    ```bash
    npm whoami
-   npm org ls harakiri
+   npm org ls h-sandbox
    ```
 
 2. Confirm package names are available or at the expected current version:

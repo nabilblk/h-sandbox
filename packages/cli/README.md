@@ -11,8 +11,8 @@ npm install -g @h-sandbox/cli
 harakiri --version
 ```
 
-To try the unpublished package from this repository, build and install the
-local tarball:
+To test local package changes from this repository, build and install a local
+tarball:
 
 Build and install the CLI as a normal executable instead of invoking
 `node packages/cli/dist/index.js` directly:
@@ -26,8 +26,7 @@ harakiri --version
 
 `pnpm cli:pack` runs the package build first, which compiles the SDK and CLI and
 marks `dist/index.js` executable. The installed `harakiri` binary is the same
-entrypoint that a published npm package will expose through the package `bin`
-field.
+entrypoint exposed by the published package through the package `bin` field.
 
 For development without a global install:
 
