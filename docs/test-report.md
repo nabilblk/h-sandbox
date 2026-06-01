@@ -1,12 +1,15 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-05-24
+Last updated: 2026-06-01
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Deployed URLs
 
+- Public Web: `https://sb.harakiri.io`
+- Public API: `https://sb-api.harakiri.io`
+- Public Keycloak: `https://sb-auth.harakiri.io`
 - Web: `http://127.0.0.1:15173`
 - API: `http://127.0.0.1:18082`
 - Keycloak: `http://127.0.0.1:18084`
@@ -15,6 +18,29 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- Public docs and npm integration checkpoint on 2026-06-01:
+  `pnpm --filter @harakiri/web test`, `pnpm --filter @harakiri/web
+  typecheck`, `pnpm --filter @harakiri/web build`, and `git diff --check`
+  passed after correcting the product docs and template detail SDK snippet to
+  use the published `@h-sandbox/sdk` and `@h-sandbox/cli` packages.
+  `KUBECONFIG=$PWD/infra/k0s/harakiri.kubeconfig pnpm
+  env:harakiri:deploy-public` rebuilt and deployed API image
+  `sha256:fd3ad1808fcb4bee76f690d0210a822f57b5aae39ac0e0940ae1cf8ab0ca4afa`
+  and web image
+  `sha256:b076e258cf0deb177b67c6ab77e2af4a5eb2bdb064b6f1cd8e0e9613ede4f221`.
+  The public deployment wrapper preserved `https://sb-api.harakiri.io`,
+  `https://sb.harakiri.io`, and `https://sb-auth.harakiri.io` build-time
+  URLs. `pnpm ports:restart` was required because the Cloudflare tunnel maps
+  exact `sb*` hostnames to local forwards; after restart, `pnpm ports:status`
+  reported API, web, Keycloak, Mailpit, OpenSandbox, gateway, and ingress HTTPS
+  forwards up. Public `GET https://sb-api.harakiri.io/health` returned
+  `{"status":"ok"}`, the Keycloak OIDC issuer returned
+  `https://sb-auth.harakiri.io/realms/harakiri`, and the deployed web bundle
+  `/assets/index-Ck-rm_Li.js` contained `SDK and CLI`, `@h-sandbox/sdk`, and
+  `@h-sandbox/cli` with no stale `@harakiri/sdk` or localhost API/Auth URL.
+  A browser smoke opened the public landing page, clicked Read the docs, opened
+  SDK and CLI, verified the npm package names and `runSandbox`, and saved
+  `/tmp/harakiri-sdk-cli-docs-deployed.png`.
 - `pnpm deploy:k0s` passed after building the official OpenSandbox ingress component locally as `opensandbox-ingress:local` for the k0s node architecture.
 - `pnpm typecheck` passed across the workspace.
 - `pnpm test` passed all package tests.

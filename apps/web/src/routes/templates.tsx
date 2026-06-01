@@ -515,11 +515,11 @@ const templateConfigToml = (template: Template, latestBuild?: TemplateBuildSumma
   latestBuild?.dockerfilePath ? `dockerfile = ${tomlString(latestBuild.dockerfilePath)}` : null
 ].filter(Boolean).join("\n");
 const templateCreateCommand = (template: Template) => `harakiri create --template ${templateRefForCreate(template)} --name agent-runner`;
-const templateSdkSnippet = (template: Template) => `import { HarakiriClient } from "@harakiri/sdk";
+const templateSdkSnippet = (template: Template) => `import { HarakiriClient } from "@h-sandbox/sdk";
 
 const client = new HarakiriClient({
-  apiUrl: process.env.PUBLIC_API_URL!,
-  apiKey: process.env.HK_KEY!
+  apiUrl: process.env.HARAKIRI_API_URL!,
+  apiKey: process.env.HARAKIRI_API_KEY!
 });
 
 const { sandbox } = await client.createSandbox({
@@ -527,7 +527,7 @@ const { sandbox } = await client.createSandbox({
   ttlSeconds: 300
 });
 
-await client.run(sandbox.id, { command: "python --version" });`;
+await client.runSandbox(sandbox.id, { command: "python --version" });`;
 type TemplateDetailTab = "overview" | "versions" | "egress" | "config" | "runs";
 
 export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => void }) => {

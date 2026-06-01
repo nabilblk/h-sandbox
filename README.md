@@ -52,8 +52,8 @@ Then run focused interface checks:
 ```bash
 pnpm --filter @harakiri/api test
 pnpm --filter @harakiri/web test
-pnpm --filter @harakiri/cli test
-pnpm --filter @harakiri/sdk test
+pnpm --filter @h-sandbox/cli test
+pnpm --filter @h-sandbox/sdk test
 pnpm openapi:check
 ```
 
@@ -88,7 +88,7 @@ Build and install the CLI as a real executable:
 
 ```bash
 pnpm cli:pack
-npm install -g ./dist-packages/harakiri-cli-0.1.0.tgz
+npm install -g ./dist-packages/h-sandbox-cli-0.1.0.tgz
 harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
 harakiri create --template python-3.12-data --name first-agent
 harakiri run sbx_... --cmd "python --version"

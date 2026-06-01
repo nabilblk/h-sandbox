@@ -15,15 +15,40 @@ export const docPages: DocPage[] = [
     section: "Getting started",
     title: "Quickstart",
     lede: "Spawn a sealed Python sandbox, run code in it, expose a port, and end it from the dashboard or CLI.",
-    toc: ["Install", "Create", "Expose"],
+    toc: ["Install", "Create", "Expose", "Next"],
     body: (
       <>
         <h2>Install</h2>
         <pre>{`npm install -g @h-sandbox/cli\nharakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...`}</pre>
         <h2>Create</h2>
-        <pre>{`harakiri create --template python-3.12-data --name first-agent\nharakiri run --stdin agent.py\nharakiri kill sbx_...`}</pre>
+        <pre>{`harakiri create --template python-3.12-data --name first-agent --ttl 600\nharakiri run sbx_... --cmd "python --version"\nharakiri kill sbx_...`}</pre>
         <h2>Expose</h2>
         <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0"\nharakiri expose sbx_... --port 3000\nharakiri routes sbx_...`}</pre>
+        <h2>Next</h2>
+        <p>Use SDK and CLI when integrating Harakiri into an application. Use Templates when you need a project-specific image with dependencies already installed.</p>
+      </>
+    )
+  },
+  {
+    id: "sdk-cli",
+    section: "Getting started",
+    title: "SDK and CLI",
+    lede: "Use the public npm packages for application integrations and local automation.",
+    toc: ["Packages", "Configure", "SDK flow", "CLI flow", "Contract"],
+    body: (
+      <>
+        <h2>Packages</h2>
+        <p>`@h-sandbox/sdk` is the TypeScript integration package. `@h-sandbox/cli` installs the `harakiri` executable for local development and CI scripts.</p>
+        <pre>{`npm install @h-sandbox/sdk\nnpm install -g @h-sandbox/cli`}</pre>
+        <h2>Configure</h2>
+        <p>Create an API key in the dashboard, then pass it through environment variables or `harakiri login`. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
+        <pre>{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"`}</pre>
+        <h2>SDK flow</h2>
+        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst { sandbox } = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  ttlSeconds: 600,\n  idempotencyKey: "job-123",\n  egress: { mode: "restricted", presets: ["python-package-install"] }\n});\n\nawait harakiri.waitForSandbox(sandbox.id);\nconst result = await harakiri.runSandbox(sandbox.id, {\n  command: "python -c 'print(2 + 2)'",\n  cwd: "/workspace"\n});\nconsole.log(result.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</pre>
+        <h2>CLI flow</h2>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000\nharakiri kill sbx_...`}</pre>
+        <h2>Contract</h2>
+        <p>The dashboard, CLI, and SDK use the same `/v1` API and OpenAPI contract. External applications should import only `@h-sandbox/sdk`; internal monorepo packages are not part of the public npm contract.</p>
       </>
     )
   },
@@ -204,7 +229,7 @@ export const docPages: DocPage[] = [
     body: (
       <>
         <h2>JavaScript</h2>
-        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.PUBLIC_API_URL!, apiKey: process.env.HK_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.run(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
+        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.runSandbox(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
         <h2>HTTP</h2>
         <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
         <h2>Python</h2>
