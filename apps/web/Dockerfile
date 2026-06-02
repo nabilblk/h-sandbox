@@ -10,10 +10,11 @@ ENV VITE_PUBLIC_KEYCLOAK_URL=${VITE_PUBLIC_KEYCLOAK_URL}
 ENV VITE_PUBLIC_KEYCLOAK_REALM=${VITE_PUBLIC_KEYCLOAK_REALM}
 ENV VITE_PUBLIC_KEYCLOAK_CLIENT_ID=${VITE_PUBLIC_KEYCLOAK_CLIENT_ID}
 ENV VITE_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO=${VITE_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO}
-COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
-RUN npm install -g pnpm@11.2.2 && pnpm install --frozen-lockfile=false
+RUN npm install -g pnpm@11.2.2 \
+ && pnpm install --filter @harakiri/web... --frozen-lockfile=false
 COPY packages/shared packages/shared
 COPY apps/web apps/web
 RUN pnpm --filter @harakiri/shared build && pnpm --filter @harakiri/web build

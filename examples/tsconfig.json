@@ -1,0 +1,16 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "baseUrl": ".",
+    "noEmit": true,
+    "paths": {
+      "@h-sandbox/sdk": ["../packages/sdk/src/index.ts"]
+    }
+  },
+  "include": [
+    "sdk-typescript-quickstart/index.ts",
+    "sdk-opencode-headless/index.ts",
+    "sdk-opencode-server/index.ts"
+  ]
+}

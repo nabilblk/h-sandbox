@@ -1,10 +1,11 @@
 FROM node:26-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json pnpm-workspace.yaml tsconfig.base.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY db/migrations db/migrations
-RUN npm install -g pnpm@11.2.2 && pnpm install --frozen-lockfile=false
+RUN npm install -g pnpm@11.2.2 \
+ && pnpm install --filter @harakiri/api... --frozen-lockfile=false
 
 FROM deps AS build
 COPY packages/shared packages/shared
@@ -21,4 +22,3 @@ COPY --from=build /app/packages/shared packages/shared
 COPY --from=build /app/apps/api apps/api
 EXPOSE 8080
 CMD ["node", "apps/api/dist/server.js"]
-

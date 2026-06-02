@@ -1,6 +1,6 @@
 {
   "name": "@h-sandbox/cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Command-line client for Harakiri Sandbox.",
   "license": "Apache-2.0",
   "type": "module",

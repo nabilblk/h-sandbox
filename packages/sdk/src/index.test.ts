@@ -9,7 +9,10 @@ import {
   HarakiriRateLimitError,
   HarakiriTimeoutApiError,
   HarakiriUnsupportedCapabilityError,
-  HarakiriWaitTimeoutError
+  HarakiriWaitTimeoutError,
+  createRouteFetch,
+  routeAccessHeaders,
+  waitForRouteHttp
 } from "./index.js";
 
 test("HarakiriClient normalizes the API URL and sends API key auth", async () => {
@@ -632,6 +635,7 @@ test("HarakiriClient exposes namespaced command, file, and route helpers", async
   await client.routes.expose("sbx_test", { port: 3000, labels: ["preview"] });
   await client.routes.list("sbx_test");
   await client.routes.getHost("sbx_test", 3000);
+  await client.routes.getUrl("sbx_test", 3000);
   await client.routes.delete("sbx_test", 3000);
 
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_test/commands/cmd_test/logs"));
@@ -641,6 +645,204 @@ test("HarakiriClient exposes namespaced command, file, and route helpers", async
   assert(calls.some((call) => call.method === "POST" && call.url === "http://harakiri.local/v1/sandboxes/sbx_test/routes"));
   const routeExposeCall = calls.find((call) => call.method === "POST" && call.url === "http://harakiri.local/v1/sandboxes/sbx_test/routes");
   assert.deepEqual(JSON.parse(routeExposeCall?.body ?? "{}"), { port: 3000, protocol: "http", accessMode: "public", labels: ["preview"] });
+});
+
+test("route helpers compose token and basic auth headers", () => {
+  const route = {
+    route: {
+      port: 4096,
+      protocol: "http",
+      accessMode: "token",
+      accessHeaderName: "x-harakiri-route-token",
+      tokenHint: "hrt_...",
+      labels: ["opencode"],
+      createdByUserId: "user_sdk",
+      createdByLabel: "sdk@test.local",
+      routeKey: "route_opencode",
+      host: "opencode.example.test",
+      url: "https://opencode.example.test",
+      targetUrl: "http://sandbox:4096",
+      state: "ready",
+      provider: "opensandbox-gateway",
+      providerRouteId: null,
+      createdAt: "2026-06-02T00:00:00.000Z",
+      lastCheckedAt: null,
+      lastUsedAt: null,
+      terminatedAt: null
+    },
+    accessToken: "hrt_secret",
+    accessHeaderName: "x-harakiri-route-token"
+  } as const;
+
+  assert.deepEqual(routeAccessHeaders(route), { "x-harakiri-route-token": "hrt_secret" });
+  assert.deepEqual(routeAccessHeaders(route, { basicAuth: { username: "opencode", password: "secret" } }), {
+    "x-harakiri-route-token": "hrt_secret",
+    authorization: "Basic b3BlbmNvZGU6c2VjcmV0"
+  });
+});
+
+test("createRouteFetch injects route auth headers and resolves relative paths", async () => {
+  const calls: Array<{ url: string; headers: Record<string, string> }> = [];
+  const route = {
+    route: {
+      port: 4096,
+      protocol: "http",
+      accessMode: "token",
+      accessHeaderName: "x-harakiri-route-token",
+      tokenHint: "hrt_...",
+      labels: ["opencode"],
+      createdByUserId: "user_sdk",
+      createdByLabel: "sdk@test.local",
+      routeKey: "route_opencode",
+      host: "opencode.example.test",
+      url: "https://opencode.example.test/base/",
+      targetUrl: "http://sandbox:4096",
+      state: "ready",
+      provider: "opensandbox-gateway",
+      providerRouteId: null,
+      createdAt: "2026-06-02T00:00:00.000Z",
+      lastCheckedAt: null,
+      lastUsedAt: null,
+      terminatedAt: null
+    },
+    accessToken: "hrt_secret"
+  } as const;
+
+  const routeFetch = createRouteFetch(route, {
+    basicAuth: { username: "opencode", password: "secret" },
+    headers: { "x-client": "example" },
+    fetch: async (url, init) => {
+      const headers = Object.fromEntries(new Headers(init?.headers).entries());
+      calls.push({ url: String(url), headers });
+      return Response.json({ healthy: true });
+    }
+  });
+
+  await routeFetch("/global/health", { headers: { "x-request": "health" } });
+
+  assert.equal(calls[0].url, "https://opencode.example.test/global/health");
+  assert.equal(calls[0].headers["x-harakiri-route-token"], "hrt_secret");
+  assert.equal(calls[0].headers.authorization, "Basic b3BlbmNvZGU6c2VjcmV0");
+  assert.equal(calls[0].headers["x-client"], "example");
+  assert.equal(calls[0].headers["x-request"], "health");
+});
+
+test("waitForRouteHttp polls until a route endpoint is healthy", async () => {
+  let calls = 0;
+  const route = {
+    port: 4096,
+    protocol: "http",
+    accessMode: "public",
+    accessHeaderName: null,
+    tokenHint: null,
+    labels: ["opencode"],
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    routeKey: "route_opencode",
+    host: "opencode.example.test",
+    url: "https://opencode.example.test",
+    targetUrl: "http://sandbox:4096",
+    state: "ready",
+    provider: "opensandbox-gateway",
+    providerRouteId: null,
+    createdAt: "2026-06-02T00:00:00.000Z",
+    lastCheckedAt: null,
+    lastUsedAt: null,
+    terminatedAt: null
+  } as const;
+
+  const response = await waitForRouteHttp(route, {
+    path: "/global/health",
+    intervalMs: 1,
+    timeoutMs: 100,
+    fetch: async () => {
+      calls += 1;
+      return Response.json({ healthy: calls > 1 }, { status: calls > 1 ? 200 : 503 });
+    },
+    expect: async (candidate) => candidate.ok && (await candidate.clone().json()).healthy === true
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+});
+
+test("HarakiriClient can expose a route and wait for HTTP readiness", async () => {
+  const calls: string[] = [];
+  const route = {
+    port: 4096,
+    protocol: "http",
+    accessMode: "token",
+    accessHeaderName: "x-harakiri-route-token",
+    tokenHint: "hrt_...",
+    labels: ["opencode"],
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    routeKey: "route_opencode",
+    host: "opencode.example.test",
+    url: "https://opencode.example.test",
+    targetUrl: "http://sandbox:4096",
+    state: "ready",
+    provider: "opensandbox-gateway",
+    providerRouteId: null,
+    createdAt: "2026-06-02T00:00:00.000Z",
+    lastCheckedAt: null,
+    lastUsedAt: null,
+    terminatedAt: null
+  } as const;
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push(`${init?.method ?? "GET"} ${String(url)}`);
+      return Response.json({ route, accessToken: "hrt_secret", accessHeaderName: "x-harakiri-route-token" });
+    }
+  });
+
+  const result = await client.routes.exposeAndWait("sbx_test", { port: 4096, accessMode: "token", labels: ["opencode"] }, {
+    path: "/global/health",
+    fetch: async (url, init) => {
+      assert.equal(String(url), "https://opencode.example.test/global/health");
+      assert.equal(new Headers(init?.headers).get("x-harakiri-route-token"), "hrt_secret");
+      return Response.json({ healthy: true });
+    }
+  });
+
+  assert.equal(result.route.port, 4096);
+  assert.deepEqual(calls, ["POST http://harakiri.local/v1/sandboxes/sbx_test/routes"]);
+});
+
+test("waitForRouteHttp reports route timeout details", async () => {
+  await assert.rejects(() => waitForRouteHttp({
+    port: 4096,
+    protocol: "http",
+    accessMode: "public",
+    accessHeaderName: null,
+    tokenHint: null,
+    labels: [],
+    createdByUserId: null,
+    createdByLabel: null,
+    routeKey: "route_timeout",
+    host: "timeout.example.test",
+    url: "https://timeout.example.test",
+    targetUrl: "http://sandbox:4096",
+    state: "ready",
+    provider: "dev",
+    providerRouteId: null,
+    createdAt: "2026-06-02T00:00:00.000Z",
+    lastCheckedAt: null,
+    lastUsedAt: null,
+    terminatedAt: null
+  }, {
+    timeoutMs: 0,
+    intervalMs: 0,
+    fetch: async () => new Response("not yet", { status: 503 })
+  }), (error) => {
+    assert.ok(error instanceof HarakiriWaitTimeoutError);
+    assert.equal(error.target, "route");
+    assert.equal(error.id, "route_timeout");
+    assert.equal(error.lastStatus, "503");
+    return true;
+  });
 });
 
 test("HarakiriClient exposes sandbox file operation helpers", async () => {

@@ -40,6 +40,7 @@ import type {
   SandboxMetricsResponse,
   SandboxResponse,
   SandboxRouteResponse,
+  SandboxRouteSummary,
   SandboxRoutesResponse,
   SandboxStatus,
   SandboxTerminalAttachOptions,
@@ -122,6 +123,7 @@ export type {
   SandboxMetricsResponse,
   SandboxResponse,
   SandboxRouteResponse,
+  SandboxRouteSummary,
   SandboxRoutesResponse,
   SandboxStatus,
   SandboxTerminalAttachOptions,
@@ -163,6 +165,32 @@ export type TerminalAttachRequest = {
 
 export type ExposePortInput = ExposeSandboxRouteBody;
 
+export type RouteLike = SandboxRouteSummary | SandboxRouteResponse;
+
+export type RouteBasicAuth = {
+  username: string;
+  password: string;
+};
+
+export type RouteAccessHeadersOptions = {
+  basicAuth?: RouteBasicAuth;
+};
+
+export type CreateRouteFetchOptions = RouteAccessHeadersOptions & {
+  fetch?: typeof fetch;
+  headers?: HeadersInit;
+};
+
+export type WaitForRouteHttpOptions = CreateRouteFetchOptions & {
+  path?: string;
+  init?: RequestInit;
+  timeoutMs?: number;
+  intervalMs?: number;
+  expect?: (response: Response) => boolean | Promise<boolean>;
+};
+
+export type ExposeAndWaitOptions = WaitForRouteHttpOptions;
+
 export type WaitForSandboxOptions = {
   timeoutMs?: number;
   intervalMs?: number;
@@ -178,6 +206,78 @@ export type WaitForCommandOptions = {
 export type GetCommandLogsOptions = {
   cursor?: number;
   tail?: number;
+};
+
+const isRouteResponse = (route: RouteLike): route is SandboxRouteResponse =>
+  "route" in route && typeof route.route === "object" && route.route !== null;
+
+const routeSummaryFor = (route: RouteLike) => isRouteResponse(route) ? route.route : route;
+
+const routeTokenFor = (route: RouteLike) => isRouteResponse(route) ? route.accessToken : undefined;
+
+const routeAccessHeaderNameFor = (route: RouteLike) => {
+  if (isRouteResponse(route) && route.accessHeaderName) return route.accessHeaderName;
+  return routeSummaryFor(route).accessHeaderName ?? undefined;
+};
+
+const encodeBase64 = (value: string) => {
+  if (typeof Buffer !== "undefined") return Buffer.from(value, "utf8").toString("base64");
+  return btoa(unescape(encodeURIComponent(value)));
+};
+
+const routeUrlFor = (route: RouteLike) => routeSummaryFor(route).url.replace(/\/+$/, "");
+
+const routeRequestUrlFor = (route: RouteLike, input: string | URL | Request = "/") => {
+  if (input instanceof Request) return input.url;
+  const value = String(input);
+  if (/^https?:\/\//i.test(value)) return value;
+  return new URL(value.replace(/^\/?/, "/"), `${routeUrlFor(route)}/`).toString();
+};
+
+export const routeAccessHeaders = (route: RouteLike, options: RouteAccessHeadersOptions = {}) => {
+  const headers: Record<string, string> = {};
+  const accessToken = routeTokenFor(route);
+  const accessHeaderName = routeAccessHeaderNameFor(route);
+  if (accessToken && accessHeaderName) headers[accessHeaderName] = accessToken;
+  if (options.basicAuth) {
+    headers.authorization = `Basic ${encodeBase64(`${options.basicAuth.username}:${options.basicAuth.password}`)}`;
+  }
+  return headers;
+};
+
+export const createRouteFetch = (route: RouteLike, options: CreateRouteFetchOptions = {}) => {
+  const fetchImpl = options.fetch ?? fetch;
+  return (input: string | URL | Request = "/", init: RequestInit = {}) => {
+    const headers = new Headers(options.headers);
+    new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+    const accessHeaders = routeAccessHeaders(route, options);
+    for (const [key, value] of Object.entries(accessHeaders)) headers.set(key, value);
+    return fetchImpl(routeRequestUrlFor(route, input), { ...init, headers });
+  };
+};
+
+export const waitForRouteHttp = async (route: RouteLike, options: WaitForRouteHttpOptions = {}) => {
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const intervalMs = options.intervalMs ?? 500;
+  const path = options.path ?? "/";
+  const expect = options.expect ?? ((response: Response) => response.ok);
+  const routeFetch = createRouteFetch(route, options);
+  const started = Date.now();
+  let lastError: unknown;
+  let lastResponse: Response | null = null;
+  while (Date.now() - started <= timeoutMs) {
+    try {
+      const response = await routeFetch(path, options.init);
+      lastResponse = response;
+      if (await expect(response)) return response;
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  const suffix = lastResponse ? `; last status ${lastResponse.status}` : lastError instanceof Error ? `; ${lastError.message}` : "";
+  throw new HarakiriWaitTimeoutError(`Timed out waiting for route ${routeSummaryFor(route).url}${suffix}`, "route", routeSummaryFor(route).routeKey, lastResponse?.status ? String(lastResponse.status) : undefined);
 };
 
 export type CreateTemplateInput = CreateTemplateBody;
@@ -292,7 +392,7 @@ export class HarakiriServerError extends HarakiriApiError {
 export class HarakiriWaitTimeoutError extends Error {
   constructor(
     message: string,
-    public readonly target: "sandbox" | "command",
+    public readonly target: "sandbox" | "command" | "route",
     public readonly id: string,
     public readonly lastStatus?: string
   ) {
@@ -376,7 +476,12 @@ export class HarakiriClient {
     expose: (id: string, input: ExposePortInput) => this.exposePort(id, input),
     list: (id: string) => this.listRoutes(id),
     delete: (id: string, port: number) => this.deleteRoute(id, port),
-    getHost: (id: string, port: number) => this.getHost(id, port)
+    getHost: (id: string, port: number) => this.getHost(id, port),
+    getUrl: (id: string, port: number) => this.getRouteUrl(id, port),
+    exposeAndWait: (id: string, input: ExposePortInput, options: ExposeAndWaitOptions = {}) => this.exposeAndWaitForHttp(id, input, options),
+    headers: (route: RouteLike, options: RouteAccessHeadersOptions = {}) => routeAccessHeaders(route, options),
+    fetch: (route: RouteLike, options: CreateRouteFetchOptions = {}) => createRouteFetch(route, options),
+    waitForHttp: (route: RouteLike, options: WaitForRouteHttpOptions = {}) => waitForRouteHttp(route, options)
   };
 
   private async request<T>(path: string, init: RequestInit = {}) {
@@ -828,6 +933,16 @@ export class HarakiriClient {
   async getHost(id: string, port: number) {
     const result = await this.exposePort(id, { port });
     return result.route.url;
+  }
+
+  getRouteUrl(id: string, port: number) {
+    return this.getHost(id, port);
+  }
+
+  async exposeAndWaitForHttp(id: string, input: ExposePortInput, options: ExposeAndWaitOptions = {}) {
+    const result = await this.exposePort(id, input);
+    await waitForRouteHttp(result, options);
+    return result;
   }
 
   listApiKeys() {

@@ -67,9 +67,7 @@ const route = await harakiri.routes.expose(sandbox.id, {
   labels: ["preview"]
 });
 
-const previewHeaders = route.accessToken && route.accessHeaderName
-  ? { [route.accessHeaderName]: route.accessToken }
-  : {};
+const previewHeaders = harakiri.routes.headers(route);
 
 // Pass previewHeaders when your app fetches or embeds the protected route.
 
@@ -85,7 +83,7 @@ await harakiri.killSandbox(sandbox.id);
 | Detached commands | `commands.start`, `commands.get`, `commands.wait`, `commands.logs`, `commands.kill` |
 | Files | `files.list`, `files.stat`, `files.read`, `files.write`, `files.mkdir`, `files.remove`, `files.rename` |
 | Artifacts | `files.upload`, `files.download` |
-| Routes | `routes.expose`, `routes.list`, `routes.delete`, `routes.getHost` |
+| Routes | `routes.expose`, `routes.exposeAndWait`, `routes.list`, `routes.delete`, `routes.getHost`, `routes.getUrl`, `routes.headers`, `routes.fetch`, `routes.waitForHttp` |
 | Egress | `getOutboundAccess`, `setOutboundAccess`, `allowDomains`, `denyDomains`, `blockOutboundAccess`, `testOutboundAccess` |
 | Observability | `getSandboxLogs`, `getSandboxMetrics` |
 | Runtime capability checks | `getRuntimeCapabilities` |
@@ -138,6 +136,110 @@ const artifact = await harakiri.files.download(sandbox.id, "/workspace/input.bin
 Artifact transfer is currently JSON/base64 and bounded by the API-configured
 artifact size limit. Use it for small and medium artifacts; large streaming or
 signed URL transfer is a planned scale-up path.
+
+## Routes And Agent Servers
+
+Route helpers remove repetitive token-header and readiness-polling code from
+agent integrations:
+
+```ts
+const route = await harakiri.routes.exposeAndWait(sandbox.id, {
+  port: 4096,
+  accessMode: "token",
+  labels: ["agent-server"]
+}, {
+  path: "/health",
+  timeoutMs: 30_000
+});
+
+const headers = harakiri.routes.headers(route);
+const routeFetch = harakiri.routes.fetch(route);
+await routeFetch("/health");
+```
+
+`routes.headers` returns the one-time route token header when the route was just
+created. `routes.fetch` injects that token on every request. Both helpers
+accept `basicAuth` when the service behind the route also has its own password.
+
+## OpenCode Agent Workflow
+
+The `opencode` template gives applications a coding-agent runtime without
+depending on OpenSandbox or Kubernetes internals.
+
+```ts
+const { sandbox } = await harakiri.createSandbox({
+  template: "opencode",
+  wait: true,
+  ttlSeconds: 1200,
+  env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
+  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
+});
+
+try {
+  await harakiri.runSandbox(sandbox.id, {
+    command: "git clone --depth 1 https://github.com/acme/app /workspace/project",
+    timeoutMs: 120_000
+  });
+
+  const run = await harakiri.runSandbox(sandbox.id, {
+    command: 'opencode run "review the project and propose a patch"',
+    cwd: "/workspace/project",
+    timeoutMs: 300_000
+  });
+
+  if (run.result.exitCode !== 0) throw new Error(run.result.stderr || "opencode failed");
+  console.log(run.result.stdout);
+} finally {
+  await harakiri.killSandbox(sandbox.id).catch(() => undefined);
+}
+```
+
+To connect OpenCode's HTTP server through a Harakiri route, start it on
+`0.0.0.0`, expose port `4096`, and give OpenCode's generated client a
+route-aware fetch implementation:
+
+```ts
+import { createOpencodeClient } from "@opencode-ai/sdk";
+
+const password = crypto.randomUUID();
+const { sandbox } = await harakiri.createSandbox({
+  template: "opencode",
+  wait: true,
+  env: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
+    OPENCODE_SERVER_PASSWORD: password
+  }
+});
+
+const { command } = await harakiri.commands.start(sandbox.id, {
+  command: "opencode serve --hostname 0.0.0.0 --port 4096",
+  cwd: "/workspace",
+  detached: true
+});
+await harakiri.commands.wait(sandbox.id, command.id, { statuses: ["running"] });
+
+const route = await harakiri.routes.exposeAndWait(sandbox.id, {
+  port: 4096,
+  accessMode: "token",
+  labels: ["opencode"]
+}, {
+  path: "/global/health",
+  basicAuth: { username: "opencode", password },
+  expect: async (response) => response.ok && (await response.clone().json()).healthy === true
+});
+
+const opencode = createOpencodeClient({
+  baseUrl: route.route.url,
+  fetch: harakiri.routes.fetch(route, {
+    basicAuth: { username: "opencode", password }
+  })
+});
+
+await opencode.config.get();
+```
+
+See `examples/sdk-opencode-headless` and `examples/sdk-opencode-server` for
+checked TypeScript examples.
 
 ## Errors
 

@@ -177,8 +177,11 @@ const preview = await harakiri.routes.expose(sandbox.id, {
 });
 
 await fetch(preview.route.url, {
-  headers: { [preview.accessHeaderName!]: preview.accessToken! }
+  headers: harakiri.routes.headers(preview)
 });
+
+const previewFetch = harakiri.routes.fetch(preview);
+await previewFetch("/");
 ```
 
 Store the token in your application if you need to reuse it. Later `listRoutes`
@@ -186,6 +189,124 @@ calls expose only `tokenHint`, not the token itself.
 Route summaries also expose `labels`, `createdByUserId`, `createdByLabel`, and
 `lastUsedAt`. `lastUsedAt` is updated for token routes served through the
 Harakiri proxy; direct public provider routes may not pass through Harakiri.
+
+The SDK includes route helpers that remove the repeated header and polling code
+from agent integrations:
+
+```ts
+const route = await harakiri.routes.exposeAndWait(sandbox.id, {
+  port: 4096,
+  accessMode: "token",
+  labels: ["agent-server"]
+}, {
+  path: "/health",
+  timeoutMs: 30_000
+});
+
+const headers = harakiri.routes.headers(route);
+const routeFetch = harakiri.routes.fetch(route);
+await routeFetch("/health");
+```
+
+`routes.headers` returns the one-time route token header when the route was just
+created. `routes.fetch` injects that token on every request. Both helpers accept
+OpenCode-style basic auth options when the service behind the route has its own
+credentials.
+
+## OpenCode SDK Integration
+
+The `opencode` template gives external applications a coding-agent runtime
+without depending on OpenSandbox or Kubernetes internals. The core flow is:
+
+1. Create an `opencode` sandbox with model-provider credentials in `env`.
+2. Use `runSandbox` for `opencode run` when you want a headless result.
+3. Use commands plus routes when you want `opencode serve`.
+4. Use `routes.fetch` to connect generated clients through Harakiri route-token
+   auth.
+
+Headless run:
+
+```ts
+const { sandbox } = await harakiri.createSandbox({
+  template: "opencode",
+  wait: true,
+  ttlSeconds: 1200,
+  env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
+  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
+});
+
+try {
+  await harakiri.runSandbox(sandbox.id, {
+    command: "git clone --depth 1 https://github.com/acme/app /workspace/project",
+    timeoutMs: 120_000
+  });
+
+  const run = await harakiri.runSandbox(sandbox.id, {
+    command: 'opencode run "review the project and summarize the risky files"',
+    cwd: "/workspace/project",
+    timeoutMs: 300_000
+  });
+  if (run.result.exitCode !== 0) throw new Error(run.result.stderr || "opencode failed");
+
+  const diff = await harakiri.runSandbox(sandbox.id, {
+    command: "git diff -- . ':!node_modules'",
+    cwd: "/workspace/project"
+  });
+  console.log(diff.result.stdout);
+} finally {
+  await harakiri.killSandbox(sandbox.id).catch(() => undefined);
+}
+```
+
+Server route with `@opencode-ai/sdk`:
+
+```ts
+import { createOpencodeClient } from "@opencode-ai/sdk";
+
+const password = crypto.randomUUID();
+const { sandbox } = await harakiri.createSandbox({
+  template: "opencode",
+  wait: true,
+  ttlSeconds: 1200,
+  env: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
+    OPENCODE_SERVER_PASSWORD: password
+  }
+});
+
+const { command } = await harakiri.commands.start(sandbox.id, {
+  command: "opencode serve --hostname 0.0.0.0 --port 4096",
+  cwd: "/workspace",
+  detached: true
+});
+await harakiri.commands.wait(sandbox.id, command.id, { statuses: ["running"] });
+
+const route = await harakiri.routes.exposeAndWait(sandbox.id, {
+  port: 4096,
+  accessMode: "token",
+  labels: ["opencode"]
+}, {
+  path: "/global/health",
+  basicAuth: { username: "opencode", password },
+  expect: async (response) => response.ok && (await response.clone().json()).healthy === true
+});
+
+const opencode = createOpencodeClient({
+  baseUrl: route.route.url,
+  fetch: harakiri.routes.fetch(route, {
+    basicAuth: { username: "opencode", password }
+  })
+});
+
+await opencode.config.get();
+```
+
+Common failures are easy to diagnose: missing model-provider credentials make
+`opencode run` fail inside the sandbox, `127.0.0.1` server binds make routes
+unreachable, missing `x-harakiri-route-token` headers return route auth errors,
+and mismatched `OPENCODE_SERVER_PASSWORD` values return OpenCode basic-auth
+errors. The checked examples live in `examples/sdk-opencode-headless` and
+`examples/sdk-opencode-server`.
 
 ## Outbound Access
 

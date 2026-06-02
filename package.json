@@ -53,7 +53,7 @@
     "smoke:route-ingress": "bash infra/scripts/route-ingress-smoke.sh",
     "conformance:sdk": "pnpm --filter @h-sandbox/sdk build && node --test tests/conformance/sdk-runtime.test.mjs",
     "conformance:cli": "bash tests/conformance/cli-runtime-smoke.sh",
-    "examples:check": "find examples -path '*/index.mjs' -print | sort | xargs -n1 node --check",
+    "examples:check": "find examples -path '*/index.mjs' -print | sort | xargs -n1 node --check && pnpm --filter @h-sandbox/sdk build && tsc -p examples/tsconfig.json",
     "templates:check": "find examples/templates -name smoke.sh -print | sort | xargs -n1 bash -n",
     "env:harakiri:deploy-public": "bash infra/scripts/env/harakiri/deploy-public.sh",
     "env:harakiri:cloudflare-dns": "bash infra/scripts/env/harakiri/cloudflare-sandbox-dns.sh",
@@ -62,6 +62,7 @@
     "env:harakiri:route-public": "bash infra/scripts/env/harakiri/route-public-smoke.sh"
   },
   "devDependencies": {
+    "@opencode-ai/sdk": "1.15.13",
     "@playwright/test": "^1.60.0",
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3"

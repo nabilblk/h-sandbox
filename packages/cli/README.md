@@ -20,7 +20,7 @@ Build and install the CLI as a normal executable instead of invoking
 ```bash
 pnpm install
 pnpm cli:pack
-npm install -g ./dist-packages/h-sandbox-cli-0.1.0.tgz
+npm install -g ./dist-packages/h-sandbox-cli-0.3.0.tgz
 harakiri --version
 ```
 
@@ -72,6 +72,38 @@ harakiri registry upsert --name ghcr --registry-host ghcr.io --username robot --
 Dockerfile builds package the local context as tar+gzip, upload it to the API,
 run the configured Kubernetes image builder, and store a digest-pinned ready
 template version. The default OSS builder is rootless BuildKit.
+
+## OpenCode Template Workflow
+
+Use the `opencode` template when you want a coding-agent sandbox with OpenCode
+installed. Attach for the TUI, use `opencode run` for headless automation, or
+start the OpenCode server and expose port `4096`.
+
+```bash
+harakiri create --template opencode --name opencode-agent --ttl 1200 --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+harakiri attach sbx_... --cwd /workspace
+
+harakiri run sbx_... --cwd /workspace --cmd 'opencode run "summarize this project"'
+
+harakiri create \
+  --template opencode \
+  --name opencode-server \
+  --ttl 1200 \
+  --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"
+
+harakiri run sbx_... --cwd /workspace --cmd \
+  'nohup opencode serve --hostname 0.0.0.0 --port 4096 >/tmp/opencode.log 2>&1 &'
+
+harakiri expose sbx_... --port 4096 --access token --label opencode
+harakiri routes sbx_...
+harakiri unexpose sbx_... --port 4096
+```
+
+If the route is not reachable, confirm the server was started with
+`--hostname 0.0.0.0`. Token routes require the `x-harakiri-route-token` header
+printed by `harakiri expose` or `harakiri routes`. OpenCode basic auth is
+controlled by `OPENCODE_SERVER_USERNAME` and `OPENCODE_SERVER_PASSWORD`.
 
 ## Verify Before Publishing
 

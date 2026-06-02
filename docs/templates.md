@@ -199,6 +199,12 @@ The `harakiri-opencode-smoke` script verifies the command-line tools,
 workspace write access, `opencode --version`, CLI help commands, and a local
 OpenCode `/global/health` response without requiring an LLM provider key.
 
+SDK integrations should use the same template ID with the generic Harakiri SDK
+runtime helpers. `examples/sdk-opencode-headless` shows `opencode run` plus an
+optional repository clone and diff readback. `examples/sdk-opencode-server`
+shows `opencode serve`, `routes.exposeAndWait`, route-token headers, OpenCode
+basic auth, and `@opencode-ai/sdk` connected through `routes.fetch`.
+
 `template archive` hides a custom template from active lists and prevents new
 sandbox creation by that template alias or version. Existing sandboxes keep
 running, and queued/building builds for the archived template are canceled.
