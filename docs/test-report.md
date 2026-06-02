@@ -18,6 +18,54 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- OpenCode free-model live checkpoint on 2026-06-02:
+  Official OpenCode Zen docs list free limited-time models including
+  `opencode/deepseek-v4-flash-free`, `opencode/mimo-v2.5-free`,
+  `opencode/nemotron-3-super-free`, and `opencode/big-pickle`. A live
+  Harakiri sandbox test first created sandbox `sbx_Dfq8k_UEsd` from the
+  `opencode` template with open egress and no Anthropic/OpenAI key; running
+  `opencode run --model opencode/deepseek-v4-flash-free` returned the marker
+  `HARAKIRI_FREE_MODEL_OK` and the sandbox was killed. The `llm-apis` egress
+  preset was then updated to include `opencode.ai`, docs/examples were changed
+  to default to `OPENCODE_MODEL=opencode/deepseek-v4-flash-free`, and package
+  versions were bumped to `0.3.1`. Verification passed:
+  `pnpm --filter @harakiri/shared test`,
+  `pnpm --filter @harakiri/shared build`,
+  `pnpm --filter @h-sandbox/sdk test`,
+  `pnpm --filter @h-sandbox/sdk typecheck`,
+  `pnpm --filter @h-sandbox/sdk build`,
+  `pnpm --filter @harakiri/web typecheck`,
+  `pnpm --filter @harakiri/web build`,
+  `pnpm examples:check`,
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm openapi:check`,
+  `pnpm --filter @h-sandbox/cli typecheck`,
+  `pnpm --filter @h-sandbox/cli build`,
+  `pnpm --filter @h-sandbox/cli test`,
+  `node packages/cli/dist/index.js --version` returning `0.3.1`,
+  `pnpm publish:local-check`,
+  `pnpm publish:dry-run`, and `git diff --check`. The updated public stack was
+  deployed with `KUBECONFIG=$PWD/infra/k0s/harakiri.kubeconfig pnpm
+  env:harakiri:deploy-public`, rolling API image
+  `sha256:14852d53f5cfb66434cb31eb709bfa1d24cd70eb14e9e9b9b6ca2d6197a11033`
+  and web image
+  `sha256:cee4d5bc2d46d4be72e0d0ed7bb646bd57145e765d659ebdb43ec5201a23c74a`.
+  `pnpm ports:restart && pnpm ports:status` reported all forwards up. Public
+  `GET https://sb-api.harakiri.io/health` returned `{"status":"ok"}`; k0s pods
+  `harakiri-api-7f499695cd-pfb24`,
+  `harakiri-web-64f5b87c5c-ttcgr`,
+  `harakiri-scheduler-d5f5cbdfd-f5gqv`, and
+  `harakiri-template-builder-6bb5f4bf95-wlg6k` were running. The deployed web
+  bundle `/assets/index-BWfKNpxx.js` contained
+  `opencode/deepseek-v4-flash-free` and `opencode.ai`. A second live test
+  created sandbox `sbx_aDPmogv-Gh` with `egress: { mode: "restricted",
+  presets: ["llm-apis"] }`; `getSandboxEgress` reported `mode=restricted`,
+  `rules=3`, and `presets=llm-apis`, and `opencode run --model
+  opencode/deepseek-v4-flash-free` returned
+  `HARAKIRI_RESTRICTED_FREE_MODEL_OK`. The sandbox was killed and the temporary
+  API key was revoked. npm publish completed for `@h-sandbox/sdk@0.3.1` and
+  `@h-sandbox/cli@0.3.1`; `npm view` returned `0.3.1` for both packages, and
+  `pnpm publish:postcheck` passed against the registry.
 - OpenCode SDK premium parity checkpoint on 2026-06-02:
   `pnpm --filter @h-sandbox/sdk test`, `pnpm --filter @h-sandbox/sdk
   typecheck`, `pnpm --filter @h-sandbox/sdk build`, `pnpm examples:check`,
