@@ -113,6 +113,16 @@ harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 harakiri create --template open-agents-dev:stable --name agent-runner
 ```
 
+The repository includes copyable examples under
+[examples/templates](examples/templates/README.md), including an `opencode`
+agent runtime:
+
+```bash
+harakiri template build --name opencode examples/templates/opencode
+harakiri template smoke opencode --cmd "harakiri-opencode-smoke"
+harakiri create --template opencode --name opencode-agent
+```
+
 Rootless BuildKit is the default Dockerfile builder. The legacy Kaniko provider
 is available only through `TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy` for
 compatibility.

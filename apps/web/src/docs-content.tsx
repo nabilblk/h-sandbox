@@ -265,6 +265,31 @@ export const docPages: DocPage[] = [
     )
   },
   {
+    id: "opencode-template",
+    section: "Templates",
+    title: "OpenCode template",
+    lede: "Build a coding-agent sandbox with OpenCode installed, then choose TUI, headless run, or route-exposed server mode.",
+    toc: ["Included tools", "Build", "Run", "Server route", "Troubleshooting"],
+    body: (
+      <>
+        <h2>Included tools</h2>
+        <ul><li>`opencode` from a pinned `opencode-ai` package</li><li>Node 22, `npm`, `pnpm`, and `yarn`</li><li>Python, Git, jq, ripgrep, fd, curl, and SSH tools</li><li>Writable `/workspace` directory</li><li>Default route candidate ports `4096`, `3000`, and `5173`</li></ul>
+        <h2>Build</h2>
+        <pre>{`harakiri template build --name opencode examples/templates/opencode\nharakiri template smoke opencode --cmd "harakiri-opencode-smoke"\nharakiri template promote opencode --version-id tplv_... --alias stable`}</pre>
+        <p>The smoke command verifies the installed tools, writable workspace, OpenCode CLI help, and a local OpenCode `/global/health` response. It does not require model provider credentials.</p>
+        <h2>Run</h2>
+        <pre>{`harakiri create --template opencode --name opencode-agent --ttl 1200\nharakiri attach sbx_... --cwd /workspace\n\nharakiri create --template opencode --name opencode-runner --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"\nharakiri run sbx_... --cwd /workspace --cmd 'opencode run "summarize this project"'`}</pre>
+        <p>Use the attached terminal for the OpenCode TUI. Use `opencode run` for automation. Pass provider credentials as sandbox environment variables or configure them inside the sandbox with OpenCode's own auth flow.</p>
+        <h2>Server route</h2>
+        <p>OpenCode's server defaults to loopback. Start it on `0.0.0.0` before exposing port `4096`, and protect the route with a Harakiri route token.</p>
+        <pre>{`harakiri create \\\n  --template opencode \\\n  --name opencode-server \\\n  --ttl 1200 \\\n  --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"\n\nharakiri run sbx_... --cwd /workspace --cmd \\\n  'nohup opencode serve --hostname 0.0.0.0 --port 4096 >/tmp/opencode.log 2>&1 &'\n\nharakiri expose sbx_... --port 4096 --access token --label opencode\nharakiri routes sbx_...`}</pre>
+        <p>The OpenCode username defaults to `opencode`. The CLI prints the route URL and token header for token-protected routes.</p>
+        <h2>Troubleshooting</h2>
+        <p>If the route is not reachable, check that OpenCode was started with `--hostname 0.0.0.0`. If `opencode run` fails, verify model-provider API keys inside the sandbox. If the template is not runnable, inspect the latest build with `harakiri template builds --query opencode` and `harakiri template logs bld_...`.</p>
+      </>
+    )
+  },
+  {
     id: "security-model",
     section: "Reference",
     title: "Security model",

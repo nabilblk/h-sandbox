@@ -17,6 +17,7 @@ the Harakiri CLI. Each directory keeps the same shape:
 | `node-20-app` | `node` | Node web apps, APIs, and Vite-style dev servers. |
 | `browser-chromium` | `browser` | Headless browser automation and web agents. |
 | `open-agents-dev` | `open-agents` | Browser-capable coding-agent runtime. |
+| `opencode` | `agent-opencode` | OpenCode coding-agent runtime with a route-ready server. |
 
 Build and smoke any example:
 
@@ -32,4 +33,13 @@ channel:
 ```bash
 harakiri template promote base-linux --version-id tplv_... --alias stable
 harakiri create --template base-linux:stable --name linux-runner
+```
+
+Agent templates should remain normal Harakiri templates. Build them, smoke
+them, then promote a stable alias only after the image has a ready digest:
+
+```bash
+harakiri template build --name opencode examples/templates/opencode
+harakiri template smoke opencode --cmd "harakiri-opencode-smoke"
+harakiri template promote opencode --version-id tplv_... --alias stable
 ```

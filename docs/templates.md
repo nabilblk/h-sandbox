@@ -122,6 +122,7 @@ They are normal OCI build contexts with a `Dockerfile`, `harakiri.toml`,
 | `examples/templates/node-20-app` | `node` | Node APIs, web apps, and frontend dev servers. |
 | `examples/templates/browser-chromium` | `browser` | Headless Chromium automation and web agents. |
 | `examples/templates/open-agents-dev` | `open-agents` | Browser-capable coding-agent runtime. |
+| `examples/templates/opencode` | `agent-opencode` | OpenCode coding-agent runtime with a route-ready server. |
 
 Build and smoke an example with:
 
@@ -140,6 +141,63 @@ Add the `hot`, `prepull`, or `warm` tag when a template should warm the node
 image cache after a successful build. The builder still performs runtime pull
 preflight for every ready version; the hot-template pre-pull is an optional
 startup optimization and does not replace immutable digest recording.
+
+## OpenCode Agent Template
+
+The `examples/templates/opencode` example packages OpenCode as a coding-agent
+runtime. It installs a pinned `opencode-ai` release, Node 22, package managers,
+Python, Git, jq, ripgrep, and common Linux tools. The template does not
+auto-start the OpenCode server. Create a sandbox, then choose the mode you need:
+interactive TUI through `harakiri attach`, non-interactive `opencode run`, or a
+headless server exposed through a route.
+
+Build and smoke the template:
+
+```bash
+harakiri template build --name opencode examples/templates/opencode
+harakiri template smoke opencode --cmd "harakiri-opencode-smoke"
+```
+
+Run OpenCode in an attached terminal:
+
+```bash
+harakiri create --template opencode --name opencode-agent --ttl 1200
+harakiri attach sbx_... --cwd /workspace
+```
+
+Run a non-interactive prompt:
+
+```bash
+harakiri create \
+  --template opencode \
+  --name opencode-runner \
+  --ttl 1200 \
+  --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+
+harakiri run sbx_... --cwd /workspace --cmd 'opencode run "summarize this project"'
+```
+
+Expose the OpenCode server only after binding it to `0.0.0.0`. OpenCode's
+server defaults to port `4096` and a loopback hostname, so the route-ready
+command must pass both flags:
+
+```bash
+harakiri create \
+  --template opencode \
+  --name opencode-server \
+  --ttl 1200 \
+  --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"
+
+harakiri run sbx_... --cwd /workspace --cmd \
+  'nohup opencode serve --hostname 0.0.0.0 --port 4096 >/tmp/opencode.log 2>&1 &'
+
+harakiri expose sbx_... --port 4096 --access token --label opencode
+harakiri routes sbx_...
+```
+
+The `harakiri-opencode-smoke` script verifies the command-line tools,
+workspace write access, `opencode --version`, CLI help commands, and a local
+OpenCode `/global/health` response without requiring an LLM provider key.
 
 `template archive` hides a custom template from active lists and prevents new
 sandbox creation by that template alias or version. Existing sandboxes keep

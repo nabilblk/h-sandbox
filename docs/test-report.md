@@ -1,7 +1,7 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -18,6 +18,28 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- OpenCode agent template checkpoint on 2026-06-02:
+  `bash -n examples/templates/opencode/smoke.sh`,
+  `pnpm --filter @harakiri/web typecheck`,
+  `pnpm --filter @harakiri/web build`,
+  `pnpm --filter @h-sandbox/cli build`, and `git diff --check` passed after
+  adding the `examples/templates/opencode` template and product docs. Docker
+  build and local smoke passed with
+  `docker build -t harakiri/opencode-template:local examples/templates/opencode`
+  and
+  `docker run --rm harakiri/opencode-template:local harakiri-opencode-smoke`;
+  the smoke verified Node `v22.22.3`, npm `10.9.8`, pnpm `11.5.1`, Yarn
+  `1.22.22`, OpenCode `1.15.13`, and the local OpenCode `/global/health`
+  endpoint. The deployed k0s control-plane build passed with build
+  `bld_ppJrSvnyfHwk`, version `tplv_-376iyv9hyCi`, image digest
+  `sha256:504986d309a5180a99a43e0a1db53b00d9cf26b187f78822d1642df1dfff7ccd`,
+  runtime pull preflight `ok`, and node pre-pull `ok`. Deployed template smoke
+  passed with sandbox `sbx_cXi36oFlNJ` and terminated the smoke sandbox. A live
+  route smoke created sandbox `sbx_pJWRng2-EZ`, started
+  `opencode serve --hostname 0.0.0.0 --port 4096`, exposed port `4096` through
+  `https://sb-api.harakiri.io/v1/route-proxy/...`, verified OpenCode
+  `/global/health` through Harakiri route-token access plus OpenCode basic
+  auth, and cleaned up the sandbox and temporary API key.
 - Public docs and npm integration checkpoint on 2026-06-01:
   `pnpm --filter @harakiri/web test`, `pnpm --filter @harakiri/web
   typecheck`, `pnpm --filter @harakiri/web build`, and `git diff --check`

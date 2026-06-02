@@ -1,0 +1,17 @@
+# Harakiri OpenCode template.
+# Built as a normal OpenSandbox-compatible OCI image.
+
+name = "opencode"
+id = "opencode"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "OpenCode coding-agent runtime with a route-ready headless server."
+runtime_family = "agent-opencode"
+cpu_count = 2
+memory_mb = 4096
+workdir = "/workspace"
+ports = [4096, 3000, 5173]
+aliases = ["opencode", "agents/opencode"]
+tags = ["agent", "coding", "opencode", "hot"]
+start_command = "sleep 3600"
+ready_command = "harakiri-opencode-smoke"
