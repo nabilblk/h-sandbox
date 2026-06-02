@@ -345,6 +345,10 @@ export const runtimeCapabilityNames = [
   "commandRun",
   "commands",
   "commandLogs",
+  "terminalAttach",
+  "terminalResize",
+  "shellSessions",
+  "sessionCommands",
   "filesystemList",
   "filesystemRead",
   "filesystemWrite",
@@ -359,9 +363,20 @@ export type RuntimeCapabilityName = typeof runtimeCapabilityNames[number];
 export const runtimeCapabilityStates = ["available", "degraded", "unavailable"] as const;
 export type RuntimeCapabilityState = typeof runtimeCapabilityStates[number];
 
+export const runtimeCapabilityContracts = [
+  "opensandbox_spec",
+  "opensandbox_provider",
+  "harakiri_control_plane",
+  "unavailable",
+  "unsupported"
+] as const;
+export type RuntimeCapabilityContract = typeof runtimeCapabilityContracts[number];
+
 export type RuntimeCapabilitySummary = {
   name: RuntimeCapabilityName;
   state: RuntimeCapabilityState;
+  contract: RuntimeCapabilityContract;
+  source: string;
   required: boolean;
   reason: string | null;
 };
@@ -370,6 +385,23 @@ export type RuntimeCapabilitiesResponse = {
   provider: string;
   capabilities: RuntimeCapabilitySummary[];
   generatedAt: string;
+};
+
+export type SandboxTerminalAttachOptions = {
+  cwd?: string;
+  shell?: string;
+  env?: Record<string, string>;
+  sessionName?: string;
+  cols?: number;
+  rows?: number;
+  since?: number;
+  pty?: boolean;
+};
+
+export type SandboxTerminalAttachTicketResponse = {
+  ticket: string;
+  expiresAt: string;
+  attachUrl: string;
 };
 
 export const egressModes = ["open", "restricted", "blocked", "custom"] as const;
@@ -792,6 +824,34 @@ export type RunSandboxBody = {
 };
 
 export type RunSandboxResponse = {
+  result: RunResult;
+};
+
+export type SandboxCommandSessionStatus = "running" | "closed";
+
+export type SandboxCommandSessionSummary = {
+  id: string;
+  sandboxId: string;
+  provider: string;
+  cwd: string | null;
+  status: SandboxCommandSessionStatus;
+};
+
+export type CreateSandboxCommandSessionBody = {
+  cwd?: string;
+};
+
+export type SandboxCommandSessionResponse = {
+  session: SandboxCommandSessionSummary;
+};
+
+export type RunSandboxCommandSessionBody = {
+  command: string;
+  cwd?: string;
+  timeoutMs?: number;
+};
+
+export type RunSandboxCommandSessionResponse = {
   result: RunResult;
 };
 

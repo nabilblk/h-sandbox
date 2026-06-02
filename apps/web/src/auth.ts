@@ -284,9 +284,7 @@ export const createAuthSession = (clientFactory: KeycloakClientFactory = default
     const keycloak = ensureClient();
     if (keycloak.authenticated || keycloak.idToken) {
       try {
-        await keycloak.logout({ redirectUri: postLogoutRedirectUri(), logoutMethod: "GET" });
-        clearLocalSession("anonymous", undefined, false);
-        window.location.hash = "landing";
+        void keycloak.logout({ redirectUri: postLogoutRedirectUri(), logoutMethod: "GET" });
         return;
       } catch {
         // Fall through to local cleanup if the provider logout redirect cannot start.

@@ -32,7 +32,7 @@ async function captureTemplatesWorkspace(page: Page) {
   await expect(page.locator(".tmpl-row").first()).toContainText("Name");
   await capture(page, "13-templates-list-desktop");
 
-  await page.getByRole("button", { name: "Open" }).first().click();
+  await page.locator(".tmpl-row[role='button']").first().click();
   await expect(page.getByText("Template detail")).toBeVisible();
   await capture(page, "14-template-detail-desktop");
 
@@ -102,7 +102,7 @@ test("capture deployed UI screenshots for visual review", async ({ page }) => {
   const sandboxRow = page.locator(".sbx-table .sbx-tr", { has: page.locator(".sbx-id") }).first();
   if (await sandboxRow.count()) {
     await sandboxRow.click();
-    await expect(page.getByText("Terminal")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Terminal" })).toBeVisible();
     await capture(page, "10-detail-desktop");
   }
 

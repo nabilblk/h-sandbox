@@ -6,6 +6,7 @@
 - [Architecture](architecture.md)
 - [Extension interfaces](extensions.md)
 - [OpenSandbox boundaries](opensandbox-boundaries.md)
+- [Sandbox runtime contract](sandbox-runtime-contract.md)
 - [Storage interfaces](storage.md)
 - [Builder providers](builders.md)
 - [Contributing guide](../CONTRIBUTING.md)
@@ -13,12 +14,22 @@
 ## Users
 
 - [API reference](api.md)
+- [SDK guide](sdk.md)
+- [NPM packages](integrations/npm-packages.md)
+- [Building with Harakiri](integrations/building-with-harakiri.md)
+- [Interactive terminals](integrations/interactive-terminal.md)
+- [Provider adapter shape](integrations/provider-adapter.md)
+- [Migrating from direct OpenSandbox](integrations/migrating-from-direct-opensandbox.md)
+- [Capabilities and limits](integrations/capabilities-and-limits.md)
+- [SDK conformance](integrations/conformance.md)
 - [Organization members](members.md)
 - [Outbound access](egress-control.md)
+- [Sandbox runtime contract](sandbox-runtime-contract.md)
 - [Templates](templates.md)
 - [Template builds](template-builds.md)
 - [Template runtime contract](template-runtime-contract.md)
 - [CLI packaging](../packages/cli/README.md)
+- [Premium sandbox integration release notes](release-notes/premium-sandbox-integration.md)
 
 ## Operators
 

@@ -89,6 +89,8 @@ export const config = {
   sandboxRouteLocalFallbackUrl: process.env.SANDBOX_ROUTE_LOCAL_FALLBACK_URL ?? process.env.PUBLIC_OPEN_SANDBOX_URL ?? "http://127.0.0.1:18083",
   sandboxMaxRoutesPerSandbox: Number(process.env.SANDBOX_MAX_ROUTES_PER_SANDBOX ?? 8),
   sandboxMaxRoutesPerOrg: Number(process.env.SANDBOX_MAX_ROUTES_PER_ORG ?? 200),
+  sandboxFileArtifactMaxBytes: Number(process.env.SANDBOX_FILE_ARTIFACT_MAX_BYTES ?? 16 * 1024 * 1024),
+  terminalAttachTicketTtlSeconds: Number(process.env.TERMINAL_ATTACH_TICKET_TTL_SECONDS ?? 60),
   sandboxOperationWorkerLimit: Number(process.env.SANDBOX_OPERATION_WORKER_LIMIT ?? 10),
   sandboxOperationMaxAttempts: Number(process.env.SANDBOX_OPERATION_MAX_ATTEMPTS ?? 3),
   sandboxOperationLeaseMs: Number(process.env.SANDBOX_OPERATION_LEASE_MS ?? 5 * 60 * 1000),

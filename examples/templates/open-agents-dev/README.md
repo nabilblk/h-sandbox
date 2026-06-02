@@ -33,6 +33,14 @@ Use `--no-wait` if you only want to enqueue the build and inspect it later with
 ## Run And Smoke Test
 
 ```bash
+harakiri template smoke open-agents-dev --cmd "harakiri-open-agents-smoke"
+```
+
+`template smoke` creates a temporary sandbox, waits for it to become ready, runs
+the smoke command, and terminates the sandbox unless `--keep` is set. To inspect
+the runtime manually, create a sandbox and run the script yourself:
+
+```bash
 harakiri create --template open-agents-dev --name open-agents-pilot
 harakiri run sbx_... --cmd "harakiri-open-agents-smoke"
 ```

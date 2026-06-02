@@ -100,7 +100,7 @@ test("listOrganizationMembers returns active members and invitations for org adm
           keycloakUserId: "kc-invited",
           lastError: null,
           invitedAt: "2026-05-25T00:00:00.000Z",
-          expiresAt: "2026-06-01T00:00:00.000Z",
+          expiresAt: "2026-12-01T00:00:00.000Z",
           sentAt: "2026-05-25T00:01:00.000Z",
           acceptedAt: null,
           canceledAt: null
@@ -148,7 +148,7 @@ test("addOrganizationMember creates an invitation and marks delivery failure whe
           keycloakUserId: null,
           lastError: null,
           invitedAt: "2026-05-25T00:00:00.000Z",
-          expiresAt: "2026-06-01T00:00:00.000Z",
+          expiresAt: "2026-12-01T00:00:00.000Z",
           sentAt: null,
           acceptedAt: null,
           canceledAt: null
@@ -167,7 +167,7 @@ test("addOrganizationMember creates an invitation and marks delivery failure whe
           keycloakUserId: null,
           lastError: "Keycloak admin integration is not configured",
           invitedAt: "2026-05-25T00:00:00.000Z",
-          expiresAt: "2026-06-01T00:00:00.000Z",
+          expiresAt: "2026-12-01T00:00:00.000Z",
           sentAt: null,
           acceptedAt: null,
           canceledAt: null

@@ -46,6 +46,15 @@ if (commands?.state !== "available") {
 
 Capabilities use `available`, `degraded`, and `unavailable` states so
 integrations can disable unsupported workflows without parsing provider names.
+Each capability also includes `contract` and `source`:
+
+- `opensandbox_spec`: backed by a formal OpenSandbox API/spec.
+- `opensandbox_provider`: available through the current OpenSandbox provider
+  implementation, but treated as feature-detected behavior.
+- `harakiri_control_plane`: implemented by Harakiri on top of provider
+  primitives, such as token-protected route proxying.
+- `unavailable`: part of Harakiri's surface, but not exposed by this provider.
+- `unsupported`: known but outside the current supported contract.
 
 ## Core Flow
 

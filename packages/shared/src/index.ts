@@ -1,6 +1,22 @@
 export const sandboxStatuses = ["pending", "running", "idle", "error", "terminated"] as const;
 export type SandboxStatus = typeof sandboxStatuses[number];
 
+export {
+  isKnownSandboxRuntimeApiErrorCode,
+  providerUnavailableApiErrorCodes,
+  runtimePolicyApiErrorCodes,
+  sandboxConflictApiErrorCodes,
+  sandboxRuntimeApiErrorCodes,
+  timeoutApiErrorCodes,
+  unsupportedCapabilityApiErrorCodes,
+  type ProviderUnavailableApiErrorCode,
+  type RuntimePolicyApiErrorCode,
+  type SandboxConflictApiErrorCode,
+  type SandboxRuntimeApiErrorCode,
+  type TimeoutApiErrorCode,
+  type UnsupportedCapabilityApiErrorCode
+} from "./api-errors.js";
+
 export const sandboxStatusTransitions: Record<SandboxStatus, SandboxStatus[]> = {
   pending: ["running", "error", "terminated"],
   running: ["idle", "error", "terminated"],
@@ -17,6 +33,9 @@ export type SandboxOperationKind = typeof sandboxOperationKinds[number];
 
 export const sandboxOperationStates = ["queued", "running", "succeeded", "failed", "canceled"] as const;
 export type SandboxOperationState = typeof sandboxOperationStates[number];
+
+export const sandboxCommandStatuses = ["queued", "running", "succeeded", "failed", "killed"] as const;
+export type SandboxCommandStatus = typeof sandboxCommandStatuses[number];
 
 export type ApiErrorResponse<TCode extends string = string, TExtra extends Record<string, unknown> = Record<string, unknown>> = {
   error: TCode;
@@ -279,10 +298,18 @@ export type SandboxResponse = {
 
 export const sandboxRouteStates = ["provisioning", "ready", "unhealthy", "terminated"] as const;
 export type SandboxRouteState = typeof sandboxRouteStates[number];
+export const sandboxRouteAccessModes = ["public", "token"] as const;
+export type SandboxRouteAccessMode = typeof sandboxRouteAccessModes[number];
 
 export type SandboxRouteSummary = {
   port: number;
   protocol: "http" | "https";
+  accessMode: SandboxRouteAccessMode;
+  accessHeaderName: string | null;
+  tokenHint: string | null;
+  labels: string[];
+  createdByUserId: string | null;
+  createdByLabel: string | null;
   routeKey: string;
   host: string;
   url: string;
@@ -292,20 +319,89 @@ export type SandboxRouteSummary = {
   providerRouteId: string | null;
   createdAt: string;
   lastCheckedAt: string | null;
+  lastUsedAt: string | null;
   terminatedAt: string | null;
 };
 
 export type ExposeSandboxRouteBody = {
   port: number;
   protocol?: "http" | "https";
+  accessMode?: SandboxRouteAccessMode;
+  labels?: string[];
 };
 
 export type SandboxRouteResponse = {
   route: SandboxRouteSummary;
+  accessToken?: string;
+  accessHeaderName?: string;
 };
 
 export type SandboxRoutesResponse = {
   routes: SandboxRouteSummary[];
+};
+
+export const runtimeCapabilityNames = [
+  "lifecycle",
+  "commandRun",
+  "commands",
+  "commandLogs",
+  "terminalAttach",
+  "terminalResize",
+  "shellSessions",
+  "sessionCommands",
+  "filesystemList",
+  "filesystemRead",
+  "filesystemWrite",
+  "routes",
+  "tokenRoutes",
+  "egressPolicy",
+  "logs",
+  "metrics"
+] as const;
+export type RuntimeCapabilityName = typeof runtimeCapabilityNames[number];
+
+export const runtimeCapabilityStates = ["available", "degraded", "unavailable"] as const;
+export type RuntimeCapabilityState = typeof runtimeCapabilityStates[number];
+
+export const runtimeCapabilityContracts = [
+  "opensandbox_spec",
+  "opensandbox_provider",
+  "harakiri_control_plane",
+  "unavailable",
+  "unsupported"
+] as const;
+export type RuntimeCapabilityContract = typeof runtimeCapabilityContracts[number];
+
+export type RuntimeCapabilitySummary = {
+  name: RuntimeCapabilityName;
+  state: RuntimeCapabilityState;
+  contract: RuntimeCapabilityContract;
+  source: string;
+  required: boolean;
+  reason: string | null;
+};
+
+export type RuntimeCapabilitiesResponse = {
+  provider: string;
+  capabilities: RuntimeCapabilitySummary[];
+  generatedAt: string;
+};
+
+export type SandboxTerminalAttachOptions = {
+  cwd?: string;
+  shell?: string;
+  env?: Record<string, string>;
+  sessionName?: string;
+  cols?: number;
+  rows?: number;
+  since?: number;
+  pty?: boolean;
+};
+
+export type SandboxTerminalAttachTicketResponse = {
+  ticket: string;
+  expiresAt: string;
+  attachUrl: string;
 };
 
 export const egressModes = ["open", "restricted", "blocked", "custom"] as const;
@@ -722,10 +818,89 @@ export type RunResult = {
 export type RunSandboxBody = {
   command?: string;
   stdin?: string;
+  cwd?: string;
+  env?: Record<string, string>;
+  timeoutMs?: number;
 };
 
 export type RunSandboxResponse = {
   result: RunResult;
+};
+
+export type SandboxCommandSessionStatus = "running" | "closed";
+
+export type SandboxCommandSessionSummary = {
+  id: string;
+  sandboxId: string;
+  provider: string;
+  cwd: string | null;
+  status: SandboxCommandSessionStatus;
+};
+
+export type CreateSandboxCommandSessionBody = {
+  cwd?: string;
+};
+
+export type SandboxCommandSessionResponse = {
+  session: SandboxCommandSessionSummary;
+};
+
+export type RunSandboxCommandSessionBody = {
+  command: string;
+  cwd?: string;
+  timeoutMs?: number;
+};
+
+export type RunSandboxCommandSessionResponse = {
+  result: RunResult;
+};
+
+export type SandboxCommandSummary = {
+  id: string;
+  sandboxId: string;
+  provider: string;
+  providerCommandId: string | null;
+  command: string;
+  status: SandboxCommandStatus;
+  cwd: string | null;
+  envKeys: string[];
+  timeoutMs: number | null;
+  detached: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  error: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateSandboxCommandBody = {
+  command: string;
+  stdin?: string;
+  cwd?: string;
+  env?: Record<string, string>;
+  timeoutMs?: number;
+  detached?: boolean;
+};
+
+export type SandboxCommandResponse = {
+  command: SandboxCommandSummary;
+};
+
+export type SandboxCommandsResponse = {
+  commands: SandboxCommandSummary[];
+};
+
+export type SandboxCommandLogsResponse = {
+  commandId: string;
+  stdout: string;
+  stderr: string;
+  cursor?: number;
+  tail?: number;
+  stdoutTruncated?: boolean;
+  stderrTruncated?: boolean;
 };
 
 export type SandboxLogEntry = {
@@ -750,9 +925,81 @@ export type SandboxFileEntry = {
   modifiedAt?: string | null;
 };
 
+export const sandboxFileEncodings = ["utf8", "base64"] as const;
+export type SandboxFileEncoding = typeof sandboxFileEncodings[number];
+
 export type SandboxFilesResponse = {
   cwd: string;
   files: SandboxFileEntry[];
+  source?: string;
+  warnings?: string[];
+};
+
+export type SandboxFileStatResponse = {
+  file: SandboxFileEntry;
+};
+
+export type SandboxFileReadResponse = {
+  path: string;
+  encoding: SandboxFileEncoding;
+  content: string;
+};
+
+export type SandboxFileWriteBody = {
+  path: string;
+  content: string;
+  encoding?: SandboxFileEncoding;
+  createParents?: boolean;
+  mode?: string;
+};
+
+export type SandboxFileWriteResponse = {
+  file: SandboxFileEntry;
+};
+
+export type SandboxFileUploadBody = {
+  path: string;
+  contentBase64: string;
+  sizeBytes?: number;
+  sha256?: string;
+  createParents?: boolean;
+  mode?: string;
+};
+
+export type SandboxFileUploadResponse = {
+  file: SandboxFileEntry;
+  sizeBytes: number;
+  sha256: string;
+};
+
+export type SandboxFileDownloadResponse = {
+  path: string;
+  contentBase64: string;
+  sizeBytes: number;
+  sha256: string;
+};
+
+export type SandboxFileMkdirBody = {
+  path: string;
+  recursive?: boolean;
+};
+
+export type SandboxFileMkdirResponse = {
+  file: SandboxFileEntry;
+};
+
+export type SandboxFileRenameBody = {
+  fromPath: string;
+  toPath: string;
+};
+
+export type SandboxFileRenameResponse = {
+  file: SandboxFileEntry;
+};
+
+export type SandboxFileRemoveResponse = {
+  ok: boolean;
+  path: string;
 };
 
 export type SandboxMetricsResponse = {

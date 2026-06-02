@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   compileEgressPolicy,
   defaultEgressPolicyInput,
@@ -7,24 +8,44 @@ import {
   type EgressPolicySummary,
   type PatchSandboxEgressBody,
   type RunResult,
+  type RuntimeCapabilitiesResponse,
+  type RuntimeCapabilityContract,
+  type RuntimeCapabilityName,
+  type RuntimeCapabilityState,
+  type SandboxFileEncoding,
+  type SandboxFileUploadBody,
+  type CreateSandboxCommandBody,
+  type CreateSandboxCommandSessionBody,
+  type RunSandboxCommandSessionBody,
+  type SandboxCommandLogsResponse,
+  type SandboxCommandSessionResponse,
+  type RunSandboxCommandSessionResponse,
+  type SandboxCommandStatus,
+  type SandboxCommandSummary,
+  type SandboxRouteAccessMode,
   type SandboxRouteState,
   type SandboxRouteSummary,
   type TestSandboxEgressResponse,
   sandboxRouteStates
 } from "@harakiri/shared";
 import { config } from "../config.js";
+import { constantEquals, hashApiKey, makeId } from "../crypto.js";
 import type {
+  RuntimeFileError,
   RuntimeFileListResult,
   RuntimeLogEntry,
   RuntimeMetricsSnapshot,
   RuntimeProvider,
+  RuntimeStartedCommand,
   RuntimeRouteTarget,
   RuntimeSandboxRef
 } from "../providers/runtime/provider.js";
+import { RuntimeUnsupportedError } from "../providers/runtime/provider.js";
+import type { WebSocket } from "ws";
 import { query as defaultQuery } from "../db.js";
 import { claimSandboxOperationById, completeSandboxOperation, enqueueSandboxOperation, failSandboxOperation } from "./sandbox-operations.js";
 import type { Query } from "./query.js";
-import { configuredRouteTarget } from "../providers/runtime/route-targets.js";
+import { configuredRouteTarget, routeHost } from "../providers/runtime/route-targets.js";
 import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
 
 export type Audit = (
@@ -46,8 +67,16 @@ export type SandboxEventRecorder = (
 ) => Promise<unknown>;
 
 export type SandboxRouteRow = {
+  id?: string;
   port: number;
   protocol: "http" | "https";
+  accessMode: string;
+  accessHeaderName: string | null;
+  tokenHint: string | null;
+  accessTokenHash?: string | null;
+  labels?: string[] | null;
+  createdByUserId?: string | null;
+  createdByLabel?: string | null;
   routeKey: string;
   host: string;
   url: string;
@@ -57,16 +86,25 @@ export type SandboxRouteRow = {
   providerRouteId: string | null;
   createdAt?: Date | string;
   lastCheckedAt?: Date | string | null;
+  lastUsedAt?: Date | string | null;
   terminatedAt?: Date | string | null;
 };
 
 export const routeSelect = `
-  SELECT port, protocol, route_key AS "routeKey", host,
+  SELECT id::text, port, protocol, route_key AS "routeKey", host,
          COALESCE(url, target_url) AS url,
          target_url AS "targetUrl",
          state, provider, provider_route_id AS "providerRouteId",
+         COALESCE(access_mode, 'public') AS "accessMode",
+         access_header_name AS "accessHeaderName",
+         access_token_hint AS "tokenHint",
+         access_token_hash AS "accessTokenHash",
+         COALESCE(labels, '{}') AS labels,
+         created_by_user_id::text AS "createdByUserId",
+         created_by_label AS "createdByLabel",
          created_at AS "createdAt",
          last_checked_at AS "lastCheckedAt",
+         last_used_at AS "lastUsedAt",
          terminated_at AS "terminatedAt"
   FROM sandbox_routes
 `;
@@ -85,6 +123,26 @@ const fallbackRouteTarget = (sandboxId: string, port: number): RuntimeRouteTarge
 const normalizeRouteState = (state: string): SandboxRouteState =>
   sandboxRouteStates.includes(state as SandboxRouteState) ? state as SandboxRouteState : "unhealthy";
 
+const normalizeRouteAccessMode = (mode: string | null | undefined): SandboxRouteAccessMode =>
+  mode === "token" ? "token" : "public";
+
+export const sandboxRouteAccessTokenHeader = "x-harakiri-route-token";
+export const sandboxRouteAccessTokenQueryParam = "harakiri_route_token";
+
+const routeAccessTokenHint = (token: string) => `${token.slice(0, 8)}...${token.slice(-4)}`;
+
+const createRouteAccessToken = (idFactory: typeof makeId = makeId) => {
+  const token = idFactory("hrt", 32);
+  return {
+    token,
+    hash: hashApiKey(token),
+    hint: routeAccessTokenHint(token)
+  };
+};
+
+const routeProxyUrl = (routeKey: string) =>
+  `${config.publicApiUrl.replace(/\/+$/, "")}/v1/route-proxy/${encodeURIComponent(routeKey)}/`;
+
 const toIso = (value: Date | string) => {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? String(value) : parsed.toISOString();
@@ -92,9 +150,98 @@ const toIso = (value: Date | string) => {
 
 const toIsoOrNull = (value: Date | string | null | undefined) => value ? toIso(value) : null;
 
+const capabilitySummary = (
+  name: RuntimeCapabilityName,
+  state: RuntimeCapabilityState,
+  reason: string | null = null,
+  required = true,
+  availableContract: RuntimeCapabilityContract = "opensandbox_spec",
+  source = "OpenSandbox provider API"
+) => ({
+  name,
+  state,
+  contract: state === "unavailable" ? "unavailable" : availableContract,
+  source: state === "unavailable" ? reason ?? "Provider does not expose this capability" : source,
+  required,
+  reason
+});
+
+const methodState = (methods: Array<unknown>, reason: string): { state: RuntimeCapabilityState; reason: string | null } => {
+  const available = methods.filter((method) => typeof method === "function").length;
+  if (available === methods.length) return { state: "available", reason: null };
+  if (available > 0) return { state: "degraded", reason };
+  return { state: "unavailable", reason };
+};
+
+const booleanState = (available: boolean, reason: string): { state: RuntimeCapabilityState; reason: string | null } =>
+  available ? { state: "available", reason: null } : { state: "unavailable", reason };
+
+export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): RuntimeCapabilitiesResponse => {
+  const commandMethods = methodState(
+    [runtimeProvider.startCommand, runtimeProvider.getCommand, runtimeProvider.commandLogs, runtimeProvider.interruptCommand],
+    "tracked command lifecycle requires start, status, logs, and interrupt methods"
+  );
+  const commandLogMethods = methodState([runtimeProvider.commandLogs], "tracked command logs are not exposed by this provider");
+  const terminalAttachMethods = methodState(
+    [runtimeProvider.createPtySession, runtimeProvider.attachPtySession],
+    "interactive terminal attach requires provider PTY session create and WebSocket attach methods"
+  );
+  const terminalResize = booleanState(
+    Boolean(runtimeProvider.capabilities.terminalResize && runtimeProvider.attachPtySession),
+    "terminal resize events are not exposed by this provider"
+  );
+  const shellSessions = methodState(
+    [runtimeProvider.createPtySession, runtimeProvider.getPtySession, runtimeProvider.deletePtySession],
+    "shell session lifecycle requires create, status, and delete methods"
+  );
+  const sessionCommands = methodState(
+    [runtimeProvider.createCommandSession, runtimeProvider.runCommandSession, runtimeProvider.deleteCommandSession],
+    "persistent command sessions require create, run, and delete methods"
+  );
+  const fileReadMethods = methodState([runtimeProvider.statFile, runtimeProvider.readFile], "file metadata and read methods are not fully exposed");
+  const fileWriteMethods = methodState(
+    [runtimeProvider.writeFile, runtimeProvider.mkdir, runtimeProvider.removeFile, runtimeProvider.renameFile],
+    "file write, mkdir, remove, and rename methods are not fully exposed"
+  );
+  const commandRun = booleanState(Boolean(runtimeProvider.capabilities.terminal && runtimeProvider.run), "blocking command execution is not exposed by this provider");
+  const filesystemList = booleanState(Boolean(runtimeProvider.capabilities.filesystem && runtimeProvider.files), "filesystem listing is not exposed by this provider");
+  const routes = booleanState(Boolean(runtimeProvider.capabilities.routes && runtimeProvider.exposeRoute), "route exposure is not exposed by this provider");
+  const egress = booleanState(Boolean(runtimeProvider.capabilities.egress && runtimeProvider.setEgressPolicy), "mutable egress policy is not exposed by this provider");
+  const logs = booleanState(Boolean(runtimeProvider.capabilities.logs && runtimeProvider.logs), "sandbox logs are not exposed by this provider");
+  const metrics = booleanState(Boolean(runtimeProvider.capabilities.metrics && runtimeProvider.metrics), "sandbox metrics are not exposed by this provider");
+  return {
+    provider: runtimeProvider.kind,
+    generatedAt: new Date().toISOString(),
+    capabilities: [
+      capabilitySummary("lifecycle", "available", null, true, "opensandbox_spec", "OpenSandbox lifecycle API"),
+      capabilitySummary("commandRun", commandRun.state, commandRun.reason, true, "opensandbox_spec", "OpenSandbox execd command API"),
+      capabilitySummary("commands", commandMethods.state, commandMethods.reason, true, "opensandbox_spec", "OpenSandbox execd tracked command API"),
+      capabilitySummary("commandLogs", commandLogMethods.state, commandLogMethods.reason, true, "opensandbox_spec", "OpenSandbox execd command logs API"),
+      capabilitySummary("terminalAttach", terminalAttachMethods.state, terminalAttachMethods.reason, true, "opensandbox_provider", "OpenSandbox execd PTY implementation"),
+      capabilitySummary("terminalResize", terminalResize.state, terminalResize.reason, false, "opensandbox_provider", "OpenSandbox execd PTY WebSocket implementation"),
+      capabilitySummary("shellSessions", shellSessions.state, shellSessions.reason, false, "opensandbox_provider", "OpenSandbox execd PTY session lifecycle implementation"),
+      capabilitySummary("sessionCommands", sessionCommands.state, sessionCommands.reason, false, "opensandbox_spec", "OpenSandbox execd persistent session API"),
+      capabilitySummary("filesystemList", filesystemList.state, filesystemList.reason, true, "opensandbox_spec", "OpenSandbox execd filesystem API"),
+      capabilitySummary("filesystemRead", fileReadMethods.state, fileReadMethods.reason, true, "opensandbox_spec", "OpenSandbox execd filesystem API"),
+      capabilitySummary("filesystemWrite", fileWriteMethods.state, fileWriteMethods.reason, true, "opensandbox_spec", "OpenSandbox execd filesystem API"),
+      capabilitySummary("routes", routes.state, routes.reason, true, "opensandbox_provider", "OpenSandbox sandbox route endpoint and gateway integration"),
+      capabilitySummary("tokenRoutes", routes.state, routes.state === "available" ? null : "token routes require route exposure support", true, "harakiri_control_plane", "Harakiri route proxy and access-token control plane"),
+      capabilitySummary("egressPolicy", egress.state, egress.reason, true, "opensandbox_provider", "OpenSandbox egress policy endpoint"),
+      capabilitySummary("logs", logs.state, logs.reason, true, "opensandbox_provider", "OpenSandbox diagnostics logs endpoint"),
+      capabilitySummary("metrics", metrics.state, metrics.reason, true, "opensandbox_spec", "OpenSandbox execd metrics API")
+    ]
+  };
+};
+
 const mapSandboxRouteRow = (row: SandboxRouteRow): SandboxRouteSummary => ({
   port: row.port,
   protocol: row.protocol,
+  accessMode: normalizeRouteAccessMode(row.accessMode),
+  accessHeaderName: row.accessHeaderName ?? null,
+  tokenHint: row.tokenHint ?? null,
+  labels: row.labels ?? [],
+  createdByUserId: row.createdByUserId ?? null,
+  createdByLabel: row.createdByLabel ?? null,
   routeKey: row.routeKey,
   host: row.host,
   url: row.url,
@@ -104,34 +251,719 @@ const mapSandboxRouteRow = (row: SandboxRouteRow): SandboxRouteSummary => ({
   providerRouteId: row.providerRouteId,
   createdAt: toIsoOrNull(row.createdAt) ?? new Date().toISOString(),
   lastCheckedAt: toIsoOrNull(row.lastCheckedAt),
+  lastUsedAt: toIsoOrNull(row.lastUsedAt),
   terminatedAt: toIsoOrNull(row.terminatedAt)
 });
 
+const runResultFromCommand = (command: SandboxCommandSummary): RunResult => {
+  const durationMs = command.startedAt && command.finishedAt
+    ? Math.max(0, Date.parse(command.finishedAt) - Date.parse(command.startedAt))
+    : 0;
+  return {
+    sandboxId: command.sandboxId,
+    command: command.command,
+    stdout: command.stdout,
+    stderr: command.stderr,
+    exitCode: command.exitCode ?? (command.status === "succeeded" ? 0 : 1),
+    durationMs
+  };
+};
+
+const websocketOpen = 1;
+
+const sendTerminalControlFrame = (client: WebSocket, payload: Record<string, unknown>) => {
+  if (client.readyState !== websocketOpen) return;
+  client.send(JSON.stringify(payload));
+};
+
 export const runSandboxCommand = async (
-  input: { organizationId: string; sandboxId: string; command?: string; stdin?: string },
+  input: {
+    organizationId: string;
+    sandboxId: string;
+    command?: string;
+    stdin?: string;
+    cwd?: string;
+    env?: Record<string, string>;
+    timeoutMs?: number;
+  },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
-): Promise<RunResult | null> => {
+): Promise<
+  | { kind: "ok"; result: RunResult }
+  | { kind: "not_found" }
+  | { kind: "sandbox_not_running"; status: string }
+  | { kind: "unsupported"; message: string }
+> => {
   const query = dependencies.query ?? defaultQuery;
+  const command = input.command ?? (input.stdin ? "python agent.py" : "ls");
+  if (dependencies.runtimeProvider.startCommand) {
+    const tracked = await createSandboxCommand(
+      {
+        organizationId: input.organizationId,
+        sandboxId: input.sandboxId,
+        body: {
+          command,
+          stdin: input.stdin,
+          cwd: input.cwd,
+          env: input.env,
+          timeoutMs: input.timeoutMs,
+          detached: false
+        }
+      },
+      dependencies
+    );
+    if (tracked.kind === "not_found") return { kind: "not_found" };
+    if (tracked.kind === "sandbox_not_running") return tracked;
+    if (tracked.kind === "unsupported") return tracked;
+    return { kind: "ok", result: runResultFromCommand(tracked.command) };
+  }
+
   const sandbox = await query<{ id: string; opensandbox_id: string | null }>(
     "SELECT id, opensandbox_id FROM sandboxes WHERE id = $1 AND organization_id = $2",
     [input.sandboxId, input.organizationId]
   );
-  if (!sandbox.rowCount) return null;
-  const command = input.command ?? (input.stdin ? "python agent.py" : "ls");
+  if (!sandbox.rowCount) return { kind: "not_found" };
   const result = await dependencies.runtimeProvider.run({
     ...runtimeRef(dependencies.runtimeProvider, sandbox.rows[0].opensandbox_id),
     controlPlaneSandboxId: input.sandboxId,
     command,
-    stdin: input.stdin
+    stdin: input.stdin,
+    cwd: input.cwd,
+    env: input.env,
+    timeoutMs: input.timeoutMs
   });
   await query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1", [
     input.sandboxId
   ]);
   await dependencies.recordEvent(input.organizationId, input.sandboxId, "run", `command: ${command}`, {
     exitCode: result.exitCode,
-    durationMs: result.durationMs
+    durationMs: result.durationMs,
+    cwd: input.cwd,
+    envKeys: Object.keys(input.env ?? {}),
+    timeoutMs: input.timeoutMs
   });
-  return result;
+  return { kind: "ok", result };
+};
+
+type SandboxCommandRow = Omit<SandboxCommandSummary, "status" | "envKeys" | "timeoutMs" | "exitCode" | "startedAt" | "finishedAt" | "createdAt" | "updatedAt"> & {
+  status: string;
+  envKeys: string[];
+  timeoutMs: number | null;
+  exitCode: number | null;
+  startedAt: Date | string | null;
+  finishedAt: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
+const commandColumns = (alias = "sandbox_commands") => `
+  ${alias}.id, ${alias}.sandbox_id AS "sandboxId", ${alias}.provider,
+  ${alias}.provider_command_id AS "providerCommandId", ${alias}.command,
+  ${alias}.status, ${alias}.cwd, ${alias}.env_keys AS "envKeys",
+  ${alias}.timeout_ms AS "timeoutMs", ${alias}.detached, ${alias}.stdout,
+  ${alias}.stderr, ${alias}.exit_code AS "exitCode", ${alias}.error,
+  ${alias}.started_at AS "startedAt", ${alias}.finished_at AS "finishedAt",
+  ${alias}.created_at AS "createdAt", ${alias}.updated_at AS "updatedAt"
+`;
+
+const commandSelect = `SELECT ${commandColumns()} FROM sandbox_commands`;
+
+const normalizeCommandStatus = (status: string): SandboxCommandStatus => {
+  if (status === "queued" || status === "running" || status === "succeeded" || status === "failed" || status === "killed") return status;
+  return "failed";
+};
+
+const mapCommandRow = (row: SandboxCommandRow): SandboxCommandSummary => ({
+  ...row,
+  status: normalizeCommandStatus(row.status),
+  startedAt: toIsoOrNull(row.startedAt),
+  finishedAt: toIsoOrNull(row.finishedAt),
+  createdAt: toIso(row.createdAt),
+  updatedAt: toIso(row.updatedAt)
+});
+
+const resultFromStartedCommand = (started: RuntimeStartedCommand) => ({
+  providerCommandId: started.providerCommandId,
+  status: started.status,
+  stdout: started.stdout,
+  stderr: started.stderr,
+  exitCode: started.exitCode,
+  error: started.error ?? null,
+  startedAt: started.startedAt ?? new Date().toISOString(),
+  finishedAt: started.finishedAt ?? (started.status === "running" ? null : new Date().toISOString())
+});
+
+export const createSandboxCommand = async (
+  input: {
+    organizationId: string;
+    sandboxId: string;
+    body: CreateSandboxCommandBody;
+  },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; idFactory?: typeof makeId }
+): Promise<
+  | { kind: "ok"; command: SandboxCommandSummary }
+  | { kind: "not_found" }
+  | { kind: "sandbox_not_running"; status: string }
+  | { kind: "unsupported"; message: string }
+> => {
+  const query = dependencies.query ?? defaultQuery;
+  const command = input.body.command.trim();
+  if (!command) return { kind: "unsupported", message: "Command cannot be empty." };
+  if (!dependencies.runtimeProvider.startCommand) return { kind: "unsupported", message: "Runtime provider does not support tracked commands." };
+
+  const sandbox = await query<{ id: string; opensandbox_id: string | null; status: string }>(
+    "SELECT id, opensandbox_id, status FROM sandboxes WHERE id = $1 AND organization_id = $2",
+    [input.sandboxId, input.organizationId]
+  );
+  if (!sandbox.rowCount) return { kind: "not_found" };
+  if (sandbox.rows[0].status !== "running" && sandbox.rows[0].status !== "idle") {
+    return { kind: "sandbox_not_running", status: sandbox.rows[0].status };
+  }
+
+  const commandId = (dependencies.idFactory ?? makeId)("cmd", 12);
+  await query(
+    `INSERT INTO sandbox_commands
+     (id, organization_id, sandbox_id, provider, command, status, cwd, env_keys, timeout_ms, detached, started_at)
+     VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, now())`,
+    [
+      commandId,
+      input.organizationId,
+      input.sandboxId,
+      dependencies.runtimeProvider.kind,
+      command,
+      input.body.cwd ?? null,
+      Object.keys(input.body.env ?? {}),
+      input.body.timeoutMs ?? null,
+      Boolean(input.body.detached)
+    ]
+  );
+
+  try {
+    const started = await dependencies.runtimeProvider.startCommand({
+      ...runtimeRef(dependencies.runtimeProvider, sandbox.rows[0].opensandbox_id),
+      controlPlaneSandboxId: input.sandboxId,
+      command,
+      stdin: input.body.stdin,
+      cwd: input.body.cwd,
+      env: input.body.env,
+      timeoutMs: input.body.timeoutMs,
+      detached: input.body.detached
+    });
+    const result = resultFromStartedCommand(started);
+    const updated = await query<SandboxCommandRow>(
+      `WITH updated AS (
+         UPDATE sandbox_commands
+         SET provider_command_id = $2, status = $3, stdout = $4, stderr = $5,
+             exit_code = $6, error = $7, started_at = COALESCE($8::timestamptz, started_at),
+             finished_at = $9::timestamptz, updated_at = now()
+         WHERE id = $1 AND organization_id = $10
+         RETURNING *
+       )
+       SELECT ${commandColumns("updated")} FROM updated`,
+      [
+        commandId,
+        result.providerCommandId,
+        result.status,
+        result.stdout,
+        result.stderr,
+        result.exitCode,
+        result.error,
+        result.startedAt,
+        result.finishedAt,
+        input.organizationId
+      ]
+    );
+    await query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1", [input.sandboxId]);
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.started", `command: ${command}`, {
+      commandId,
+      providerCommandId: result.providerCommandId,
+      detached: Boolean(input.body.detached),
+      cwd: input.body.cwd,
+      envKeys: Object.keys(input.body.env ?? {})
+    });
+    return { kind: "ok", command: mapCommandRow(updated.rows[0]) };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const updated = await query<SandboxCommandRow>(
+      `WITH updated AS (
+         UPDATE sandbox_commands
+         SET status = 'failed', stderr = $2, error = $2, finished_at = now(), updated_at = now()
+         WHERE id = $1 AND organization_id = $3
+         RETURNING *
+       )
+       SELECT ${commandColumns("updated")} FROM updated`,
+      [commandId, message, input.organizationId]
+    );
+    return { kind: "ok", command: mapCommandRow(updated.rows[0]) };
+  }
+};
+
+export const listSandboxCommands = async (
+  input: { organizationId: string; sandboxId: string },
+  query: Query = defaultQuery
+) => {
+  const sandbox = await query("SELECT id FROM sandboxes WHERE id = $1 AND organization_id = $2", [input.sandboxId, input.organizationId]);
+  if (!sandbox.rowCount) return null;
+  const result = await query<SandboxCommandRow>(
+    `${commandSelect}
+     WHERE sandbox_id = $1 AND id IN (SELECT id FROM sandbox_commands WHERE organization_id = $2)
+     ORDER BY created_at DESC
+     LIMIT 100`,
+    [input.sandboxId, input.organizationId]
+  );
+  return result.rows.map(mapCommandRow);
+};
+
+const refreshCommand = async (
+  row: SandboxCommandRow,
+  input: { organizationId: string; sandboxId: string },
+  dependencies: { query: Query; runtimeProvider: RuntimeProvider; providerSandboxId: string | null }
+) => {
+  const command = mapCommandRow(row);
+  if (!command.providerCommandId || !dependencies.runtimeProvider.getCommand || command.status !== "running") return command;
+  const providerState = await dependencies.runtimeProvider.getCommand({
+    ...runtimeRef(dependencies.runtimeProvider, dependencies.providerSandboxId),
+    providerCommandId: command.providerCommandId
+  });
+  const updated = await dependencies.query<SandboxCommandRow>(
+    `WITH updated AS (
+       UPDATE sandbox_commands
+       SET status = $3, exit_code = $4, error = $5,
+           started_at = COALESCE($6::timestamptz, started_at),
+           finished_at = COALESCE($7::timestamptz, finished_at),
+           updated_at = now()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING *
+     )
+     SELECT ${commandColumns("updated")} FROM updated`,
+    [
+      command.id,
+      input.organizationId,
+      providerState.status,
+      providerState.exitCode,
+      providerState.error ?? null,
+      providerState.startedAt,
+      providerState.finishedAt
+    ]
+  );
+  return mapCommandRow(updated.rows[0]);
+};
+
+export const getSandboxCommand = async (
+  input: { organizationId: string; sandboxId: string; commandId: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+) => {
+  const query = dependencies.query ?? defaultQuery;
+  const result = await query<SandboxCommandRow & { opensandboxId: string | null }>(
+    `SELECT ${commandColumns("c")}, s.opensandbox_id AS "opensandboxId"
+     FROM sandbox_commands c
+     JOIN sandboxes s ON s.id = c.sandbox_id AND s.organization_id = c.organization_id
+     WHERE c.sandbox_id = $1 AND c.organization_id = $2 AND c.id = $3`,
+    [input.sandboxId, input.organizationId, input.commandId]
+  );
+  if (!result.rowCount) return null;
+  return refreshCommand(result.rows[0], input, { query, runtimeProvider: dependencies.runtimeProvider, providerSandboxId: result.rows[0].opensandboxId });
+};
+
+export const getSandboxCommandLogs = async (
+  input: { organizationId: string; sandboxId: string; commandId: string; cursor?: number; tail?: number },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+) => {
+  const query = dependencies.query ?? defaultQuery;
+  const result = await query<(SandboxCommandRow & { opensandboxId: string | null })>(
+    `SELECT ${commandColumns("c")}, s.opensandbox_id AS "opensandboxId"
+     FROM sandbox_commands c
+     JOIN sandboxes s ON s.id = c.sandbox_id AND s.organization_id = c.organization_id
+     WHERE c.sandbox_id = $1 AND c.organization_id = $2 AND c.id = $3`,
+    [input.sandboxId, input.organizationId, input.commandId]
+  );
+  if (!result.rowCount) return null;
+  const command = mapCommandRow(result.rows[0]);
+  const applyTail = (logs: { stdout: string; stderr: string; cursor?: number }): SandboxCommandLogsResponse => {
+    const truncate = (value: string) => {
+      if (input.tail === undefined) return { value, truncated: false };
+      const hadTrailingNewline = value.endsWith("\n");
+      const lines = value.split(/\r?\n/);
+      if (lines.at(-1) === "") lines.pop();
+      if (lines.length <= input.tail) return { value, truncated: false };
+      return {
+        value: `${lines.slice(-input.tail).join("\n")}${hadTrailingNewline ? "\n" : ""}`,
+        truncated: true
+      };
+    };
+    const stdout = truncate(logs.stdout);
+    const stderr = truncate(logs.stderr);
+    return {
+      commandId: command.id,
+      stdout: stdout.value,
+      stderr: stderr.value,
+      cursor: logs.cursor,
+      ...(input.tail === undefined ? {} : {
+        tail: input.tail,
+        stdoutTruncated: stdout.truncated,
+        stderrTruncated: stderr.truncated
+      })
+    };
+  };
+  if (command.providerCommandId && command.detached && dependencies.runtimeProvider.commandLogs) {
+    return applyTail(await dependencies.runtimeProvider.commandLogs({
+      ...runtimeRef(dependencies.runtimeProvider, result.rows[0].opensandboxId),
+      providerCommandId: command.providerCommandId,
+      cursor: input.cursor
+    }));
+  }
+  return applyTail({ stdout: command.stdout, stderr: command.stderr });
+};
+
+export const killSandboxCommand = async (
+  input: { organizationId: string; sandboxId: string; commandId: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+) => {
+  const query = dependencies.query ?? defaultQuery;
+  const result = await query<(SandboxCommandRow & { opensandboxId: string | null })>(
+    `SELECT ${commandColumns("c")}, s.opensandbox_id AS "opensandboxId"
+     FROM sandbox_commands c
+     JOIN sandboxes s ON s.id = c.sandbox_id AND s.organization_id = c.organization_id
+     WHERE c.sandbox_id = $1 AND c.organization_id = $2 AND c.id = $3`,
+    [input.sandboxId, input.organizationId, input.commandId]
+  );
+  if (!result.rowCount) return null;
+  const command = mapCommandRow(result.rows[0]);
+  if (command.providerCommandId && command.status === "running" && dependencies.runtimeProvider.interruptCommand) {
+    await dependencies.runtimeProvider.interruptCommand({
+      ...runtimeRef(dependencies.runtimeProvider, result.rows[0].opensandboxId),
+      providerCommandId: command.providerCommandId
+    });
+  }
+  const updated = await query<SandboxCommandRow>(
+    `WITH updated AS (
+       UPDATE sandbox_commands
+       SET status = 'killed', exit_code = COALESCE(exit_code, 130), finished_at = now(), updated_at = now()
+       WHERE id = $1 AND organization_id = $2
+       RETURNING *
+     )
+     SELECT ${commandColumns("updated")} FROM updated`,
+    [input.commandId, input.organizationId]
+  );
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.killed", `command killed: ${command.command}`, {
+    commandId: command.id,
+    providerCommandId: command.providerCommandId
+  });
+  return mapCommandRow(updated.rows[0]);
+};
+
+type SandboxRuntimeContext = {
+  ref: RuntimeSandboxRef;
+  status: string;
+  workdir: string;
+};
+
+const getSandboxRuntimeContext = async (
+  input: { organizationId: string; sandboxId: string },
+  query: Query,
+  runtimeProvider: RuntimeProvider
+): Promise<SandboxRuntimeContext | null> => {
+  const sandbox = await query<{ id: string; opensandboxId: string | null; status: string; workdir: string | null }>(
+    `SELECT s.id, s.opensandbox_id AS "opensandboxId", s.status,
+            COALESCE(v.workdir, t.workdir, '/') AS workdir
+     FROM sandboxes s
+     JOIN templates t ON t.id = s.template_id
+     LEFT JOIN template_versions v ON v.id = s.template_version_id
+     WHERE s.id = $1 AND s.organization_id = $2`,
+    [input.sandboxId, input.organizationId]
+  );
+  const row = sandbox.rows[0];
+  if (!row) return null;
+  return {
+    ref: runtimeRef(runtimeProvider, row.opensandboxId),
+    status: row.status,
+    workdir: row.workdir ?? "/"
+  };
+};
+
+const sessionNotFound = (error: unknown) =>
+  typeof (error as { status?: unknown }).status === "number" && (error as { status: number }).status === 404;
+
+const renewSandboxActivity = (query: Query, input: { organizationId: string; sandboxId: string }) =>
+  query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1 AND organization_id = $2", [
+    input.sandboxId,
+    input.organizationId
+  ]);
+
+export type SandboxCommandSessionMutationResult =
+  | { kind: "ok"; response: SandboxCommandSessionResponse }
+  | { kind: "not_found" }
+  | { kind: "sandbox_not_running"; status: string }
+  | { kind: "session_not_found" }
+  | { kind: "unsupported"; message: string }
+  | { kind: "provider_unavailable"; message: string };
+
+export const createSandboxCommandSession = async (
+  input: {
+    organizationId: string;
+    sandboxId: string;
+    body: CreateSandboxCommandSessionBody;
+  },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+): Promise<SandboxCommandSessionMutationResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const runtimeProvider = dependencies.runtimeProvider;
+  if (!runtimeProvider.createCommandSession) {
+    return { kind: "unsupported", message: "Runtime provider does not support persistent command sessions." };
+  }
+
+  const context = await getSandboxRuntimeContext(input, query, runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  if (context.status !== "running" && context.status !== "idle") return { kind: "sandbox_not_running", status: context.status };
+
+  const cwd = input.body.cwd ?? context.workdir;
+  try {
+    const session = await runtimeProvider.createCommandSession({ ...context.ref, cwd });
+    await renewSandboxActivity(query, input);
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.session.created", "command session created", {
+      providerSessionId: session.providerSessionId,
+      cwd
+    });
+    return {
+      kind: "ok",
+      response: {
+        session: {
+          id: session.providerSessionId,
+          sandboxId: input.sandboxId,
+          provider: runtimeProvider.kind,
+          cwd: session.cwd ?? cwd,
+          status: "running"
+        }
+      }
+    };
+  } catch (error) {
+    if (sessionNotFound(error)) return { kind: "session_not_found" };
+    return { kind: "provider_unavailable", message: error instanceof Error ? error.message : String(error) };
+  }
+};
+
+export type SandboxCommandSessionRunResult =
+  | { kind: "ok"; response: RunSandboxCommandSessionResponse }
+  | { kind: "not_found" }
+  | { kind: "sandbox_not_running"; status: string }
+  | { kind: "session_not_found" }
+  | { kind: "unsupported"; message: string }
+  | { kind: "provider_unavailable"; message: string };
+
+export const runSandboxCommandSession = async (
+  input: {
+    organizationId: string;
+    sandboxId: string;
+    sessionId: string;
+    body: RunSandboxCommandSessionBody;
+  },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+): Promise<SandboxCommandSessionRunResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const runtimeProvider = dependencies.runtimeProvider;
+  if (!runtimeProvider.runCommandSession) {
+    return { kind: "unsupported", message: "Runtime provider does not support persistent command session runs." };
+  }
+
+  const command = input.body.command.trim();
+  if (!command) return { kind: "unsupported", message: "Command cannot be empty." };
+  const context = await getSandboxRuntimeContext(input, query, runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  if (context.status !== "running" && context.status !== "idle") return { kind: "sandbox_not_running", status: context.status };
+
+  try {
+    const started = Date.now();
+    const result = await runtimeProvider.runCommandSession({
+      ...context.ref,
+      providerSessionId: input.sessionId,
+      command,
+      cwd: input.body.cwd,
+      timeoutMs: input.body.timeoutMs
+    });
+    await renewSandboxActivity(query, input);
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.session.run", `session command: ${command}`, {
+      providerSessionId: input.sessionId,
+      cwd: input.body.cwd,
+      timeoutMs: input.body.timeoutMs,
+      exitCode: result.exitCode,
+      durationMs: result.durationMs
+    });
+    return {
+      kind: "ok",
+      response: {
+        result: {
+          sandboxId: input.sandboxId,
+          command,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+          durationMs: result.durationMs ?? Date.now() - started
+        }
+      }
+    };
+  } catch (error) {
+    if (sessionNotFound(error)) return { kind: "session_not_found" };
+    return { kind: "provider_unavailable", message: error instanceof Error ? error.message : String(error) };
+  }
+};
+
+export const deleteSandboxCommandSession = async (
+  input: { organizationId: string; sandboxId: string; sessionId: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+): Promise<SandboxCommandSessionMutationResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const runtimeProvider = dependencies.runtimeProvider;
+  if (!runtimeProvider.deleteCommandSession) {
+    return { kind: "unsupported", message: "Runtime provider does not support persistent command session deletion." };
+  }
+  const context = await getSandboxRuntimeContext(input, query, runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  if (context.status !== "running" && context.status !== "idle") return { kind: "sandbox_not_running", status: context.status };
+
+  try {
+    await runtimeProvider.deleteCommandSession({ ...context.ref, providerSessionId: input.sessionId });
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.session.deleted", "command session deleted", {
+      providerSessionId: input.sessionId
+    });
+    return {
+      kind: "ok",
+      response: {
+        session: {
+          id: input.sessionId,
+          sandboxId: input.sandboxId,
+          provider: runtimeProvider.kind,
+          cwd: null,
+          status: "closed"
+        }
+      }
+    };
+  } catch (error) {
+    if (sessionNotFound(error)) return { kind: "session_not_found" };
+    return { kind: "provider_unavailable", message: error instanceof Error ? error.message : String(error) };
+  }
+};
+
+export type AttachSandboxTerminalResult =
+  | { kind: "ok" }
+  | { kind: "not_found" }
+  | { kind: "sandbox_not_running"; status: string }
+  | { kind: "unsupported"; message: string }
+  | { kind: "provider_unavailable"; message: string };
+
+export const attachSandboxTerminal = async (
+  input: {
+    organizationId: string;
+    actorUserId: string;
+    actorLabel: string;
+    sandboxId: string;
+    client: WebSocket;
+    cwd?: string;
+    shell?: string;
+    env?: Record<string, string>;
+    sessionName?: string;
+    cols?: number;
+    rows?: number;
+    since?: number;
+    pty?: boolean;
+  },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+): Promise<AttachSandboxTerminalResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const runtimeProvider = dependencies.runtimeProvider;
+  if (!runtimeProvider.createPtySession || !runtimeProvider.attachPtySession) {
+    return { kind: "unsupported", message: "Runtime provider does not support interactive terminal attach." };
+  }
+
+  const sandbox = await query<{ id: string; opensandboxId: string | null; status: string; workdir: string | null }>(
+    `SELECT s.id, s.opensandbox_id AS "opensandboxId", s.status,
+            COALESCE(v.workdir, t.workdir, '/') AS workdir
+     FROM sandboxes s
+     JOIN templates t ON t.id = s.template_id
+     LEFT JOIN template_versions v ON v.id = s.template_version_id
+     WHERE s.id = $1 AND s.organization_id = $2`,
+    [input.sandboxId, input.organizationId]
+  );
+  const row = sandbox.rows[0];
+  if (!row) return { kind: "not_found" };
+  if (row.status !== "running" && row.status !== "idle") return { kind: "sandbox_not_running", status: row.status };
+  if (!row.opensandboxId) return { kind: "provider_unavailable", message: "Sandbox does not have an OpenSandbox runtime id." };
+
+  const cwd = input.cwd ?? row.workdir ?? "/";
+  const ref = runtimeRef(runtimeProvider, row.opensandboxId);
+  let providerSessionId: string | undefined;
+  const startedAt = Date.now();
+  const renewLease = () =>
+    query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1 AND organization_id = $2", [
+      input.sandboxId,
+      input.organizationId
+    ]);
+
+  let renewTimer: ReturnType<typeof setInterval> | undefined;
+  try {
+    const session = await runtimeProvider.createPtySession({
+      ...ref,
+      cwd,
+      cols: input.cols,
+      rows: input.rows,
+      shell: input.shell,
+      env: input.env,
+      sessionName: input.sessionName
+    });
+    providerSessionId = session.providerSessionId;
+    await renewLease();
+    renewTimer = setInterval(() => {
+      void renewLease().catch(() => undefined);
+    }, 30_000);
+    renewTimer.unref?.();
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminal.attach.started", "terminal attached", {
+      providerSessionId,
+      cwd,
+      shell: input.shell,
+      sessionName: input.sessionName,
+      cols: input.cols,
+      rows: input.rows,
+      envKeys: Object.keys(input.env ?? {}),
+      actorUserId: input.actorUserId,
+      actorLabel: input.actorLabel
+    });
+    sendTerminalControlFrame(input.client, {
+      type: "connected",
+      session_id: providerSessionId,
+      mode: "pty",
+      cwd
+    });
+
+    await runtimeProvider.attachPtySession({
+      ...ref,
+      providerSessionId,
+      client: input.client,
+      since: input.since,
+      pty: input.pty
+    });
+
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminal.attach.ended", "terminal detached", {
+      providerSessionId,
+      durationMs: Date.now() - startedAt,
+      actorUserId: input.actorUserId,
+      actorLabel: input.actorLabel
+    });
+    return { kind: "ok" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminal.attach.failed", "terminal attach failed", {
+      providerSessionId,
+      message,
+      durationMs: Date.now() - startedAt,
+      actorUserId: input.actorUserId,
+      actorLabel: input.actorLabel
+    }).catch(() => undefined);
+    if (error instanceof RuntimeUnsupportedError) return { kind: "unsupported", message };
+    return { kind: "provider_unavailable", message };
+  } finally {
+    if (renewTimer) clearInterval(renewTimer);
+    if (providerSessionId && runtimeProvider.deletePtySession) {
+      await runtimeProvider.deletePtySession({ ...ref, providerSessionId }).catch(() => undefined);
+    }
+  }
 };
 
 export const listSandboxLogs = async (
@@ -159,7 +991,11 @@ export const listSandboxLogs = async (
 export const listSandboxFiles = async (
   input: { organizationId: string; sandboxId: string; path?: string },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
-): Promise<{ kind: "not_found" } | { kind: "unavailable"; files: RuntimeFileListResult } | { kind: "ok"; cwd: string; files: RuntimeFileListResult["files"] }> => {
+): Promise<
+  | { kind: "not_found" }
+  | { kind: "unavailable"; files: RuntimeFileListResult }
+  | { kind: "ok"; cwd: string; files: RuntimeFileListResult["files"]; source: string; warnings?: string[] }
+> => {
   const query = dependencies.query ?? defaultQuery;
   const sandbox = await query<{ opensandbox_id: string | null; workdir: string | null }>(
     `SELECT s.opensandbox_id, COALESCE(v.workdir, t.workdir, '/') AS workdir
@@ -176,7 +1012,221 @@ export const listSandboxFiles = async (
     defaultCwd: sandbox.rows[0].workdir ?? "/"
   });
   if (!files.ok) return { kind: "unavailable", files };
-  return { kind: "ok", cwd: files.cwd, files: files.files };
+  return { kind: "ok", cwd: files.cwd, files: files.files, source: files.source, warnings: files.warnings };
+};
+
+type SandboxFileContext = {
+  ref: RuntimeSandboxRef;
+  defaultCwd: string;
+};
+
+type SandboxFileOperationResult<T> =
+  | { kind: "not_found" }
+  | { kind: "unsupported"; message: string }
+  | { kind: "file_error"; error: RuntimeFileError }
+  | { kind: "invalid_artifact"; code: string; message: string; statusCode?: number }
+  | ({ kind: "ok" } & T);
+
+const getSandboxFileContext = async (
+  input: { organizationId: string; sandboxId: string },
+  query: Query,
+  runtimeProvider: RuntimeProvider
+): Promise<SandboxFileContext | null> => {
+  const sandbox = await query<{ opensandbox_id: string | null; workdir: string | null }>(
+    `SELECT s.opensandbox_id, COALESCE(v.workdir, t.workdir, '/') AS workdir
+     FROM sandboxes s
+     JOIN templates t ON t.id = s.template_id
+     LEFT JOIN template_versions v ON v.id = s.template_version_id
+     WHERE s.id = $1 AND s.organization_id = $2`,
+    [input.sandboxId, input.organizationId]
+  );
+  if (!sandbox.rowCount) return null;
+  return {
+    ref: runtimeRef(runtimeProvider, sandbox.rows[0].opensandbox_id),
+    defaultCwd: sandbox.rows[0].workdir ?? "/"
+  };
+};
+
+const unsupportedFileOperation = (operation: string) => ({
+  kind: "unsupported" as const,
+  message: `Runtime provider does not support sandbox file ${operation}.`
+});
+
+export const statSandboxFile = async (
+  input: { organizationId: string; sandboxId: string; path: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number] }>> => {
+  const query = dependencies.query ?? defaultQuery;
+  if (!dependencies.runtimeProvider.statFile) return unsupportedFileOperation("stat");
+  const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  const result = await dependencies.runtimeProvider.statFile({ ...context.ref, path: input.path, defaultCwd: context.defaultCwd });
+  return result.ok ? { kind: "ok", file: result.file } : { kind: "file_error", error: result.error };
+};
+
+export const readSandboxFile = async (
+  input: { organizationId: string; sandboxId: string; path: string; encoding: SandboxFileEncoding },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ path: string; encoding: SandboxFileEncoding; content: string }>> => {
+  const query = dependencies.query ?? defaultQuery;
+  if (!dependencies.runtimeProvider.readFile) return unsupportedFileOperation("read");
+  const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  const result = await dependencies.runtimeProvider.readFile({ ...context.ref, path: input.path, defaultCwd: context.defaultCwd, encoding: input.encoding });
+  return result.ok ? { kind: "ok", path: result.path, encoding: result.encoding, content: result.content } : { kind: "file_error", error: result.error };
+};
+
+export const writeSandboxFile = async (
+  input: { organizationId: string; sandboxId: string; path: string; content: string; encoding: SandboxFileEncoding; createParents?: boolean; mode?: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number] }>> => {
+  const query = dependencies.query ?? defaultQuery;
+  if (!dependencies.runtimeProvider.writeFile) return unsupportedFileOperation("write");
+  const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  const result = await dependencies.runtimeProvider.writeFile({
+    ...context.ref,
+    path: input.path,
+    defaultCwd: context.defaultCwd,
+    content: input.content,
+    encoding: input.encoding,
+    createParents: input.createParents,
+    mode: input.mode
+  });
+  return result.ok ? { kind: "ok", file: result.file } : { kind: "file_error", error: result.error };
+};
+
+const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
+const artifactSha256 = (content: Buffer) => `sha256:${createHash("sha256").update(content).digest("hex")}`;
+
+const decodeArtifactBase64 = (body: SandboxFileUploadBody, maxBytes = config.sandboxFileArtifactMaxBytes) => {
+  if (body.contentBase64.length % 4 !== 0) {
+    return {
+      kind: "invalid_artifact" as const,
+      code: "sandbox_file_artifact_invalid_base64",
+      message: "Artifact contentBase64 must be canonical base64.",
+      statusCode: 400
+    };
+  }
+  const padding = body.contentBase64.endsWith("==") ? 2 : body.contentBase64.endsWith("=") ? 1 : 0;
+  const decodedSize = body.contentBase64.length / 4 * 3 - padding;
+  if (decodedSize > maxBytes) {
+    return {
+      kind: "invalid_artifact" as const,
+      code: "sandbox_file_artifact_too_large",
+      message: `Artifact exceeds ${maxBytes} bytes.`,
+      statusCode: 413
+    };
+  }
+  if (!base64Pattern.test(body.contentBase64)) {
+    return {
+      kind: "invalid_artifact" as const,
+      code: "sandbox_file_artifact_invalid_base64",
+      message: "Artifact contentBase64 must be canonical base64.",
+      statusCode: 400
+    };
+  }
+  const content = Buffer.from(body.contentBase64, "base64");
+  if (content.toString("base64") !== body.contentBase64) {
+    return {
+      kind: "invalid_artifact" as const,
+      code: "sandbox_file_artifact_invalid_base64",
+      message: "Artifact contentBase64 must be canonical base64.",
+      statusCode: 400
+    };
+  }
+  if (body.sizeBytes !== undefined && body.sizeBytes !== content.byteLength) {
+    return {
+      kind: "invalid_artifact" as const,
+      code: "sandbox_file_artifact_size_mismatch",
+      message: `Artifact declared ${body.sizeBytes} bytes but decoded to ${content.byteLength} bytes.`,
+      statusCode: 400
+    };
+  }
+  const sha256 = artifactSha256(content);
+  if (body.sha256 && body.sha256.toLowerCase() !== sha256) {
+    return {
+      kind: "invalid_artifact" as const,
+      code: "sandbox_file_artifact_checksum_mismatch",
+      message: "Artifact sha256 does not match contentBase64.",
+      statusCode: 400
+    };
+  }
+  return { kind: "ok" as const, content, sha256 };
+};
+
+export const uploadSandboxFileArtifact = async (
+  input: { organizationId: string; sandboxId: string } & SandboxFileUploadBody,
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number]; sizeBytes: number; sha256: string }>> => {
+  const decoded = decodeArtifactBase64(input);
+  if (decoded.kind !== "ok") return decoded;
+  const written = await writeSandboxFile(
+    {
+      organizationId: input.organizationId,
+      sandboxId: input.sandboxId,
+      path: input.path,
+      content: input.contentBase64,
+      encoding: "base64",
+      createParents: input.createParents,
+      mode: input.mode
+    },
+    dependencies
+  );
+  if (written.kind !== "ok") return written;
+  return { kind: "ok", file: written.file, sizeBytes: decoded.content.byteLength, sha256: decoded.sha256 };
+};
+
+export const downloadSandboxFileArtifact = async (
+  input: { organizationId: string; sandboxId: string; path: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ path: string; contentBase64: string; sizeBytes: number; sha256: string }>> => {
+  const read = await readSandboxFile({ ...input, encoding: "base64" }, dependencies);
+  if (read.kind !== "ok") return read;
+  const decoded = decodeArtifactBase64({ path: input.path, contentBase64: read.content });
+  if (decoded.kind !== "ok") return decoded;
+  return { kind: "ok", path: read.path, contentBase64: read.content, sizeBytes: decoded.content.byteLength, sha256: decoded.sha256 };
+};
+
+export const mkdirSandboxFile = async (
+  input: { organizationId: string; sandboxId: string; path: string; recursive?: boolean },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number] }>> => {
+  const query = dependencies.query ?? defaultQuery;
+  if (!dependencies.runtimeProvider.mkdir) return unsupportedFileOperation("mkdir");
+  const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  const result = await dependencies.runtimeProvider.mkdir({ ...context.ref, path: input.path, defaultCwd: context.defaultCwd, recursive: input.recursive });
+  return result.ok ? { kind: "ok", file: result.file } : { kind: "file_error", error: result.error };
+};
+
+export const removeSandboxFile = async (
+  input: { organizationId: string; sandboxId: string; path: string; recursive?: boolean },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ path: string }>> => {
+  const query = dependencies.query ?? defaultQuery;
+  if (!dependencies.runtimeProvider.removeFile) return unsupportedFileOperation("remove");
+  const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  const result = await dependencies.runtimeProvider.removeFile({ ...context.ref, path: input.path, defaultCwd: context.defaultCwd, recursive: input.recursive });
+  return result.ok ? { kind: "ok", path: result.path } : { kind: "file_error", error: result.error };
+};
+
+export const renameSandboxFile = async (
+  input: { organizationId: string; sandboxId: string; fromPath: string; toPath: string },
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
+): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number] }>> => {
+  const query = dependencies.query ?? defaultQuery;
+  if (!dependencies.runtimeProvider.renameFile) return unsupportedFileOperation("rename");
+  const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
+  if (!context) return { kind: "not_found" };
+  const result = await dependencies.runtimeProvider.renameFile({
+    ...context.ref,
+    fromPath: input.fromPath,
+    toPath: input.toPath,
+    defaultCwd: context.defaultCwd
+  });
+  return result.ok ? { kind: "ok", file: result.file } : { kind: "file_error", error: result.error };
 };
 
 export const getSandboxMetrics = async (
@@ -466,10 +1516,13 @@ export const listSandboxRoutes = async (
     [input.sandboxId, input.organizationId]
   );
   if (!sandbox.rowCount) return null;
-  const existing = await query<SandboxRouteRow>(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 ORDER BY port ASC`, [
-    input.sandboxId,
-    input.organizationId
-  ]);
+  const existing = await query<SandboxRouteRow>(
+    `${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND state <> 'terminated' ORDER BY port ASC`,
+    [
+      input.sandboxId,
+      input.organizationId
+    ]
+  );
   return existing.rows.map(mapSandboxRouteRow);
 };
 
@@ -478,8 +1531,9 @@ export type CreateSandboxRouteResult =
   | { kind: "sandbox_terminated" }
   | { kind: "sandbox_route_limit_exceeded"; limit: number }
   | { kind: "organization_route_limit_exceeded"; limit: number }
+  | { kind: "route_access_mode_conflict"; existing: SandboxRouteAccessMode }
   | { kind: "existing"; route: SandboxRouteSummary }
-  | { kind: "created"; route: SandboxRouteSummary };
+  | { kind: "created"; route: SandboxRouteSummary; accessToken?: string; accessHeaderName?: string };
 
 export const createSandboxRoute = async (
   input: {
@@ -489,9 +1543,11 @@ export const createSandboxRoute = async (
     sandboxId: string;
     port: number;
     protocol: "http" | "https";
+    accessMode: SandboxRouteAccessMode;
+    labels?: string[];
     idempotencyKey?: string | null;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit; idFactory?: typeof makeId }
 ): Promise<CreateSandboxRouteResult> => {
   const query = dependencies.query ?? defaultQuery;
   const sandbox = await query<{ id: string; opensandbox_id: string | null; status: string }>(
@@ -501,12 +1557,19 @@ export const createSandboxRoute = async (
   if (!sandbox.rowCount) return { kind: "sandbox_not_found" };
   if (sandbox.rows[0].status === "terminated") return { kind: "sandbox_terminated" };
 
-  const existing = await query<SandboxRouteRow>(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`, [
-    input.sandboxId,
-    input.organizationId,
-    input.port
-  ]);
-  if (existing.rowCount) return { kind: "existing", route: mapSandboxRouteRow(existing.rows[0]) };
+  const existing = await query<SandboxRouteRow>(
+    `${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3 AND state <> 'terminated'`,
+    [
+      input.sandboxId,
+      input.organizationId,
+      input.port
+    ]
+  );
+  if (existing.rowCount) {
+    const route = mapSandboxRouteRow(existing.rows[0]);
+    if (route.accessMode !== input.accessMode) return { kind: "route_access_mode_conflict", existing: route.accessMode };
+    return { kind: "existing", route };
+  }
 
   const [sandboxRouteCount, orgRouteCount] = await Promise.all([
     query<{ count: string }>("SELECT count(*) FROM sandbox_routes WHERE sandbox_id = $1 AND state <> 'terminated'", [input.sandboxId]),
@@ -519,6 +1582,7 @@ export const createSandboxRoute = async (
     return { kind: "organization_route_limit_exceeded", limit: config.sandboxMaxRoutesPerOrg };
   }
 
+  const access = input.accessMode === "token" ? createRouteAccessToken(dependencies.idFactory) : null;
   const { operation } = await enqueueSandboxOperation(
     {
       organizationId: input.organizationId,
@@ -529,7 +1593,14 @@ export const createSandboxRoute = async (
         sandboxId: input.sandboxId,
         providerSandboxId: sandbox.rows[0].opensandbox_id,
         port: input.port,
-        protocol: input.protocol
+        protocol: input.protocol,
+        accessMode: input.accessMode,
+        accessTokenHash: access?.hash ?? null,
+        accessTokenHint: access?.hint ?? null,
+        accessHeaderName: access ? sandboxRouteAccessTokenHeader : null,
+        labels: input.labels ?? [],
+        createdByUserId: input.actorUserId,
+        createdByLabel: input.actorLabel
       }
     },
     { query }
@@ -545,24 +1616,34 @@ export const createSandboxRoute = async (
           protocol: input.protocol
         })
       : fallbackRouteTarget(input.sandboxId, input.port);
+    const publicUrl = input.accessMode === "token" ? routeProxyUrl(providerRoute.routeKey) : providerRoute.url;
+    const publicHost = input.accessMode === "token" ? routeHost(publicUrl) : providerRoute.host;
 
     await query(
       `INSERT INTO sandbox_routes
-       (sandbox_id, organization_id, port, protocol, route_key, host, url, target_url, state, provider, provider_route_id, last_checked_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
-       ON CONFLICT (sandbox_id, port) DO NOTHING`,
+       (sandbox_id, organization_id, port, protocol, route_key, host, url, target_url, state, provider, provider_route_id,
+        access_mode, access_token_hash, access_token_hint, access_header_name, created_by_user_id, created_by_label, labels, last_checked_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
+       ON CONFLICT (sandbox_id, port) WHERE state <> 'terminated' DO NOTHING`,
       [
         input.sandboxId,
         input.organizationId,
         input.port,
         input.protocol,
         providerRoute.routeKey,
-        providerRoute.host,
-        providerRoute.url,
+        publicHost,
+        publicUrl,
         providerRoute.targetUrl,
         providerRoute.state,
         providerRoute.provider,
-        providerRoute.providerRouteId
+        providerRoute.providerRouteId,
+        input.accessMode,
+        access?.hash ?? null,
+        access?.hint ?? null,
+        access ? sandboxRouteAccessTokenHeader : null,
+        input.actorUserId,
+        input.actorLabel,
+        input.labels ?? []
       ]
     );
     await completeSandboxOperation(
@@ -570,8 +1651,9 @@ export const createSandboxRoute = async (
         operationId: activeOperation.id,
         result: {
           routeKey: providerRoute.routeKey,
-          host: providerRoute.host,
-          url: providerRoute.url,
+          host: publicHost,
+          url: publicUrl,
+          accessMode: input.accessMode,
           provider: providerRoute.provider,
           providerRouteId: providerRoute.providerRouteId
         }
@@ -586,19 +1668,160 @@ export const createSandboxRoute = async (
   await dependencies.recordEvent(input.organizationId, input.sandboxId, "route.created", `exposed ${input.protocol} port ${input.port}`, {
     port: input.port,
     routeKey: providerRoute.routeKey,
+    accessMode: input.accessMode,
+    labels: input.labels ?? [],
     provider: providerRoute.provider,
     operationId: activeOperation.id
   });
   await dependencies.recordAudit(input.organizationId, input.actorUserId, input.actorLabel, "sandbox.route.create", "sandbox", input.sandboxId, {
     port: input.port,
-    routeKey: providerRoute.routeKey
+    routeKey: providerRoute.routeKey,
+    accessMode: input.accessMode,
+    labels: input.labels ?? []
   });
-  const created = await query<SandboxRouteRow>(`${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`, [
-    input.sandboxId,
-    input.organizationId,
-    input.port
+  const created = await query<SandboxRouteRow>(
+    `${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3 AND state <> 'terminated'`,
+    [
+      input.sandboxId,
+      input.organizationId,
+      input.port
+    ]
+  );
+  return {
+    kind: "created",
+    route: mapSandboxRouteRow(created.rows[0]),
+    accessToken: access?.token,
+    accessHeaderName: access ? sandboxRouteAccessTokenHeader : undefined
+  };
+};
+
+type SandboxRouteProxyRow = {
+  id: string;
+  routeKey: string;
+  targetUrl: string;
+  state: string;
+  accessMode: string;
+  accessTokenHash: string | null;
+  accessHeaderName: string | null;
+};
+
+export type SandboxRouteProxyTargetResult =
+  | { kind: "not_found" }
+  | { kind: "route_not_ready"; state: SandboxRouteState }
+  | { kind: "public_route" }
+  | { kind: "unauthorized"; headerName: string }
+  | { kind: "ok"; targetUrl: string; headerName: string };
+
+export const getSandboxRouteProxyTarget = async (
+  input: { routeKey: string; token?: string | null },
+  query: Query = defaultQuery
+): Promise<SandboxRouteProxyTargetResult> => {
+  const result = await query<SandboxRouteProxyRow>(
+    `SELECT id::text,
+            route_key AS "routeKey",
+            target_url AS "targetUrl",
+            state,
+            COALESCE(access_mode, 'public') AS "accessMode",
+            access_token_hash AS "accessTokenHash",
+            access_header_name AS "accessHeaderName"
+     FROM sandbox_routes
+     WHERE route_key = $1 AND state <> 'terminated'
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [input.routeKey]
+  );
+  const route = result.rows[0];
+  if (!route) return { kind: "not_found" };
+  const state = normalizeRouteState(route.state);
+  if (state !== "ready") return { kind: "route_not_ready", state };
+  const headerName = route.accessHeaderName ?? sandboxRouteAccessTokenHeader;
+  if (normalizeRouteAccessMode(route.accessMode) !== "token") return { kind: "public_route" };
+  if (!route.accessTokenHash || !input.token) return { kind: "unauthorized", headerName };
+  const presentedHash = hashApiKey(input.token);
+  if (!constantEquals(presentedHash, route.accessTokenHash)) return { kind: "unauthorized", headerName };
+  await query("UPDATE sandbox_routes SET last_used_at = now(), updated_at = now() WHERE id = $1", [route.id]);
+  return { kind: "ok", targetUrl: route.targetUrl, headerName };
+};
+
+type SandboxRouteProxyHeaderValue = string | string[] | undefined;
+
+export type SandboxRouteProxyRequestResult =
+  | Exclude<SandboxRouteProxyTargetResult, { kind: "ok" }>
+  | { kind: "upstream_unreachable"; message: string }
+  | { kind: "ok"; status: number; headers: Record<string, string>; body: Buffer };
+
+const proxyBodyFromRequest = (method: string, body: unknown): string | ArrayBuffer | undefined => {
+  if (method === "GET" || method === "HEAD" || body === undefined) return undefined;
+  if (Buffer.isBuffer(body)) {
+    const copy = new Uint8Array(body.byteLength);
+    copy.set(body);
+    return copy.buffer;
+  }
+  return typeof body === "string" ? body : JSON.stringify(body);
+};
+
+const proxyHeadersFromRequest = (headers: Record<string, SandboxRouteProxyHeaderValue>) => {
+  const upstreamHeaders = new Headers();
+  const skipHeaders = new Set([
+    "host",
+    "connection",
+    "content-length",
+    "transfer-encoding",
+    "keep-alive",
+    "upgrade",
+    "proxy-authenticate",
+    "proxy-authorization",
+    sandboxRouteAccessTokenHeader
   ]);
-  return { kind: "created", route: mapSandboxRouteRow(created.rows[0]) };
+  for (const [key, value] of Object.entries(headers)) {
+    if (skipHeaders.has(key.toLowerCase()) || value === undefined) continue;
+    if (Array.isArray(value)) value.forEach((entry) => upstreamHeaders.append(key, entry));
+    else upstreamHeaders.set(key, value);
+  }
+  return upstreamHeaders;
+};
+
+export const proxySandboxRouteRequest = async (
+  input: {
+    routeKey: string;
+    path?: string;
+    url: string;
+    method: string;
+    headers: Record<string, SandboxRouteProxyHeaderValue>;
+    body: unknown;
+    token?: string | null;
+  },
+  dependencies: { query?: Query; fetch?: typeof fetch } = {}
+): Promise<SandboxRouteProxyRequestResult> => {
+  const query = dependencies.query ?? defaultQuery;
+  const fetcher = dependencies.fetch ?? fetch;
+  const target = await getSandboxRouteProxyTarget({ routeKey: input.routeKey, token: input.token }, query);
+  if (target.kind !== "ok") return target;
+
+  const originalUrl = new URL(input.url, "http://harakiri.local");
+  originalUrl.searchParams.delete(sandboxRouteAccessTokenQueryParam);
+  const upstreamBase = target.targetUrl.endsWith("/") ? target.targetUrl : `${target.targetUrl}/`;
+  const upstreamUrl = new URL(input.path ?? "", upstreamBase);
+  upstreamUrl.search = originalUrl.searchParams.toString();
+
+  let upstream: Awaited<ReturnType<typeof fetch>>;
+  try {
+    upstream = await fetcher(upstreamUrl, {
+      method: input.method,
+      headers: proxyHeadersFromRequest(input.headers),
+      body: proxyBodyFromRequest(input.method, input.body)
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { kind: "upstream_unreachable", message };
+  }
+
+  const headers: Record<string, string> = {};
+  for (const header of ["content-type", "cache-control", "etag", "last-modified", "location"]) {
+    const value = upstream.headers.get(header);
+    if (value) headers[header] = value;
+  }
+  return { kind: "ok", status: upstream.status, headers, body: Buffer.from(await upstream.arrayBuffer()) };
 };
 
 export const deleteSandboxRoute = async (
@@ -614,14 +1837,14 @@ export const deleteSandboxRoute = async (
   const query = dependencies.query ?? defaultQuery;
   const result = await query<SandboxRouteRow>(
     `${routeSelect}
-     WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`,
+     WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3 AND state <> 'terminated'`,
     [input.sandboxId, input.organizationId, input.port]
   );
   if (!result.rowCount) return null;
   await query(
     `UPDATE sandbox_routes
      SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
-     WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`,
+     WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3 AND state <> 'terminated'`,
     [input.sandboxId, input.organizationId, input.port]
   );
   await dependencies.recordEvent(input.organizationId, input.sandboxId, "route.terminated", `route for port ${input.port} disabled`, {

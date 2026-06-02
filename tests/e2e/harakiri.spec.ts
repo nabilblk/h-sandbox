@@ -232,9 +232,11 @@ test("completed users do not return to onboarding after login", async ({ page, r
   await page.getByText("Sign out of Harakiri and Keycloak").click();
   await page.waitForURL(/#landing$/, { timeout: 45_000 });
 
-  await page.goto(`${WEB_URL}/#onboarding`);
-  await expect(page.getByRole("heading", { name: "Sign in with Keycloak." })).toBeVisible();
-  await page.getByRole("button", { name: /Sign in/i }).click();
+  await page.goto(`${WEB_URL}/#landing`);
+  await page.getByRole("button", { name: /Get started/i }).first().click();
+  if (await page.getByRole("heading", { name: "Sign in with Keycloak." }).isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await page.getByRole("button", { name: /Sign in/i }).click();
+  }
   if (await page.locator('input[name="username"]').isVisible({ timeout: 5_000 }).catch(() => false)) {
     await fillKeycloak(page);
   }

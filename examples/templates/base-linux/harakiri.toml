@@ -1,0 +1,16 @@
+# Harakiri base Linux template.
+
+name = "base-linux"
+id = "base-linux"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "Small Ubuntu-based runtime with common shell and bootstrap tools."
+runtime_family = "linux"
+cpu_count = 1
+memory_mb = 1024
+workdir = "/workspace"
+ports = [8000]
+aliases = ["base-linux", "linux/base"]
+tags = ["custom"]
+start_command = "sleep 3600"
+ready_command = "harakiri-base-linux-smoke"

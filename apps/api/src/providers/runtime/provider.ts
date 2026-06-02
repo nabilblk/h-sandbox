@@ -1,8 +1,18 @@
-import type { EgressNetworkPolicy, EgressNetworkRule, RunResult } from "@harakiri/shared";
+import type { EgressNetworkPolicy, EgressNetworkRule, RunResult, SandboxFileEncoding } from "@harakiri/shared";
+import type { WebSocket } from "ws";
 import type { RegistryImageAuth } from "../../registry-credentials.js";
 import type { RuntimeTemplate } from "../../templates.js";
 
 export type RuntimeProviderKind = "opensandbox" | "dev" | string;
+
+export class RuntimeUnsupportedError extends Error {
+  readonly code = "runtime_unsupported";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "RuntimeUnsupportedError";
+  }
+}
 
 export type RuntimeSandboxState = "pending" | "running" | "idle" | "error" | "terminated" | string;
 
@@ -37,6 +47,93 @@ export type RuntimeRunInput = RuntimeSandboxRef & {
   controlPlaneSandboxId: string;
   command: string;
   stdin?: string;
+  cwd?: string;
+  env?: Record<string, string>;
+  timeoutMs?: number;
+};
+
+export type RuntimeCommandStatus = "queued" | "running" | "succeeded" | "failed" | "killed";
+
+export type RuntimeStartCommandInput = RuntimeRunInput & {
+  detached?: boolean;
+};
+
+export type RuntimeStartedCommand = {
+  providerCommandId: string | null;
+  status: RuntimeCommandStatus;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  error?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs?: number;
+};
+
+export type RuntimeCommandState = {
+  providerCommandId: string;
+  command?: string;
+  status: RuntimeCommandStatus;
+  exitCode: number | null;
+  error?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+};
+
+export type RuntimeCommandLogs = {
+  stdout: string;
+  stderr: string;
+  cursor?: number;
+};
+
+export type RuntimeCommandSession = {
+  providerSessionId: string;
+  cwd?: string | null;
+};
+
+export type RuntimeCreateCommandSessionInput = RuntimeSandboxRef & {
+  cwd?: string;
+};
+
+export type RuntimeRunCommandSessionInput = RuntimeSandboxRef & {
+  providerSessionId: string;
+  command: string;
+  cwd?: string;
+  timeoutMs?: number;
+};
+
+export type RuntimeCommandSessionRun = {
+  command: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  durationMs?: number;
+};
+
+export type RuntimePtySession = {
+  providerSessionId: string;
+};
+
+export type RuntimeCreatePtySessionInput = RuntimeSandboxRef & {
+  cwd?: string;
+  cols?: number;
+  rows?: number;
+  shell?: string;
+  env?: Record<string, string>;
+  sessionName?: string;
+};
+
+export type RuntimePtySessionStatus = {
+  providerSessionId: string;
+  running: boolean;
+  outputOffset?: number;
+};
+
+export type RuntimePtyAttachInput = RuntimeSandboxRef & {
+  providerSessionId: string;
+  client: WebSocket;
+  since?: number;
+  pty?: boolean;
 };
 
 export type RuntimeFileEntry = {
@@ -75,6 +172,45 @@ export type RuntimeFileListResult = RuntimeFileListSuccess | RuntimeFileListUnav
 
 export type RuntimeListFilesInput = RuntimeSandboxRef & {
   path?: string;
+  defaultCwd: string;
+};
+
+export type RuntimeFileError = {
+  code: "file_not_found" | "file_permission_denied" | "runtime_files_unavailable" | "invalid_file_path" | string;
+  message: string;
+  recoverable: boolean;
+  statusCode?: number;
+};
+
+export type RuntimeFileResult<T> = { ok: true } & T | { ok: false; error: RuntimeFileError };
+
+export type RuntimeFilePathInput = RuntimeSandboxRef & {
+  path: string;
+  defaultCwd: string;
+};
+
+export type RuntimeReadFileInput = RuntimeFilePathInput & {
+  encoding: SandboxFileEncoding;
+};
+
+export type RuntimeWriteFileInput = RuntimeFilePathInput & {
+  content: string;
+  encoding: SandboxFileEncoding;
+  createParents?: boolean;
+  mode?: string;
+};
+
+export type RuntimeMkdirInput = RuntimeFilePathInput & {
+  recursive?: boolean;
+};
+
+export type RuntimeRemoveFileInput = RuntimeFilePathInput & {
+  recursive?: boolean;
+};
+
+export type RuntimeRenameFileInput = RuntimeSandboxRef & {
+  fromPath: string;
+  toPath: string;
   defaultCwd: string;
 };
 
@@ -126,6 +262,10 @@ export type RuntimeRenewInput = {
 
 export type RuntimeProviderCapabilities = {
   terminal: boolean;
+  terminalAttach?: boolean;
+  terminalResize?: boolean;
+  shellSessions?: boolean;
+  sessionCommands?: boolean;
   filesystem: boolean;
   logs: boolean;
   metrics: boolean;
@@ -143,7 +283,24 @@ export interface RuntimeProvider {
   delete(ref: RuntimeSandboxRef): Promise<void>;
   renew(ref: RuntimeSandboxRef, input: RuntimeRenewInput): Promise<void>;
   run(input: RuntimeRunInput): Promise<RunResult>;
+  startCommand?(input: RuntimeStartCommandInput): Promise<RuntimeStartedCommand>;
+  getCommand?(ref: RuntimeSandboxRef & { providerCommandId: string }): Promise<RuntimeCommandState>;
+  commandLogs?(ref: RuntimeSandboxRef & { providerCommandId: string; cursor?: number }): Promise<RuntimeCommandLogs>;
+  interruptCommand?(ref: RuntimeSandboxRef & { providerCommandId: string }): Promise<void>;
+  createCommandSession?(input: RuntimeCreateCommandSessionInput): Promise<RuntimeCommandSession>;
+  runCommandSession?(input: RuntimeRunCommandSessionInput): Promise<RuntimeCommandSessionRun>;
+  deleteCommandSession?(input: RuntimeSandboxRef & { providerSessionId: string }): Promise<void>;
+  createPtySession?(input: RuntimeCreatePtySessionInput): Promise<RuntimePtySession>;
+  getPtySession?(input: RuntimeSandboxRef & { providerSessionId: string }): Promise<RuntimePtySessionStatus>;
+  deletePtySession?(input: RuntimeSandboxRef & { providerSessionId: string }): Promise<void>;
+  attachPtySession?(input: RuntimePtyAttachInput): Promise<void>;
   files(input: RuntimeListFilesInput): Promise<RuntimeFileListResult>;
+  statFile?(input: RuntimeFilePathInput): Promise<RuntimeFileResult<{ file: RuntimeFileEntry }>>;
+  readFile?(input: RuntimeReadFileInput): Promise<RuntimeFileResult<{ path: string; encoding: SandboxFileEncoding; content: string }>>;
+  writeFile?(input: RuntimeWriteFileInput): Promise<RuntimeFileResult<{ file: RuntimeFileEntry }>>;
+  mkdir?(input: RuntimeMkdirInput): Promise<RuntimeFileResult<{ file: RuntimeFileEntry }>>;
+  removeFile?(input: RuntimeRemoveFileInput): Promise<RuntimeFileResult<{ path: string }>>;
+  renameFile?(input: RuntimeRenameFileInput): Promise<RuntimeFileResult<{ file: RuntimeFileEntry }>>;
   logs(ref: RuntimeSandboxRef): Promise<RuntimeLogEntry[]>;
   metrics(ref: RuntimeSandboxRef): Promise<RuntimeMetricsSnapshot | null>;
   exposeRoute(input: RuntimeExposeRouteInput): Promise<RuntimeRouteTarget>;

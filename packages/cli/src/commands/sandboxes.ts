@@ -1,8 +1,166 @@
 import { readFile, writeFile } from "node:fs/promises";
 import type { Command } from "commander";
+import WebSocket, { type RawData } from "ws";
 import { apiClient, loadConfig, saveConfig } from "../config.js";
 import { runtimeLine } from "../format.js";
 import { collectEnv, collectString, parsePositiveInt, printProgress } from "../utils.js";
+
+const stdinFramePrefix = 0x00;
+const stdoutFramePrefix = 0x01;
+const stderrFramePrefix = 0x02;
+const replayFramePrefix = 0x03;
+
+const rawDataToBuffer = (data: RawData): Buffer => {
+  if (Buffer.isBuffer(data)) return data;
+  if (Array.isArray(data)) return Buffer.concat(data);
+  return Buffer.from(data);
+};
+
+const terminalAttachUrl = (apiUrl: string, sandboxId: string, query: Record<string, string | number | boolean | string[] | undefined>) => {
+  const url = new URL(`${apiUrl.replace(/\/+$/, "")}/v1/sandboxes/${encodeURIComponent(sandboxId)}/terminal/attach`);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  for (const [key, value] of Object.entries(query)) {
+    if (Array.isArray(value)) {
+      for (const item of value) url.searchParams.append(key, item);
+    } else if (value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return url.toString();
+};
+
+const attachToSandbox = async (
+  id: string,
+  options: { cwd?: string; shell?: string; env?: Record<string, string>; sessionName?: string; raw?: boolean; cols?: number; rows?: number; since?: number; pty?: boolean }
+) => {
+  const config = await loadConfig();
+  if (!config.apiKey) throw new Error(`missing API key. Run "harakiri login --api-url ${config.apiUrl} --api-key hk_live_..." first.`);
+  const ws = new WebSocket(terminalAttachUrl(config.apiUrl, id, {
+    cwd: options.cwd,
+    shell: options.shell,
+    sessionName: options.sessionName,
+    env: Object.entries(options.env ?? {}).map(([key, value]) => `${key}=${value}`),
+    cols: options.cols,
+    rows: options.rows,
+    since: options.since,
+    pty: options.pty
+  }), {
+    headers: { "x-api-key": config.apiKey }
+  });
+
+  const stdin = process.stdin;
+  const stdout = process.stdout;
+  const stderr = process.stderr;
+  const useRawMode = options.raw !== false && stdin.isTTY && typeof stdin.setRawMode === "function";
+  const previousRawMode = stdin.isTTY ? Boolean(stdin.isRaw) : false;
+  let connected = false;
+  let exitCode = 0;
+  let explicitError = false;
+  const pendingFrames: Buffer[] = [];
+
+  const sendJson = (payload: Record<string, unknown>) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
+  };
+  const sendResize = () => {
+    const cols = options.cols ?? stdout.columns;
+    const rows = options.rows ?? stdout.rows;
+    if (cols && rows) sendJson({ type: "resize", cols, rows });
+  };
+  const sendFrame = (frame: Buffer) => {
+    if (connected && ws.readyState === WebSocket.OPEN) {
+      ws.send(frame, { binary: true });
+      return;
+    }
+    pendingFrames.push(frame);
+  };
+  const flushPendingFrames = () => {
+    while (pendingFrames.length && ws.readyState === WebSocket.OPEN) {
+      ws.send(pendingFrames.shift() as Buffer, { binary: true });
+    }
+  };
+  const onStdinData = (chunk: Buffer) => {
+    sendFrame(Buffer.concat([Buffer.from([stdinFramePrefix]), chunk]));
+  };
+  const onSigint = () => {
+    sendJson({ type: "signal", signal: "SIGINT" });
+  };
+  const cleanup = () => {
+    stdin.off("data", onStdinData);
+    stdout.off("resize", sendResize);
+    process.off("SIGINT", onSigint);
+    if (useRawMode) stdin.setRawMode(previousRawMode);
+    if (!previousRawMode) stdin.pause();
+  };
+
+  return await new Promise<number>((resolve, reject) => {
+    ws.on("open", () => {
+      if (useRawMode) stdin.setRawMode(true);
+      stdin.resume();
+      stdin.on("data", onStdinData);
+      stdout.on("resize", sendResize);
+      process.on("SIGINT", onSigint);
+    });
+    ws.on("message", (data, isBinary) => {
+      if (!isBinary) {
+        const text = rawDataToBuffer(data).toString("utf8");
+        try {
+          const frame = JSON.parse(text) as { type?: string; code?: string; error?: string; message?: string; exit_code?: number };
+          if (frame.type === "connected") {
+            connected = true;
+            sendResize();
+            flushPendingFrames();
+            return;
+          }
+          if (frame.type === "exit") {
+            exitCode = typeof frame.exit_code === "number" ? frame.exit_code : exitCode;
+            return;
+          }
+          if (frame.type === "error") {
+            exitCode = 1;
+            explicitError = true;
+            stderr.write(`harakiri attach: ${frame.code ?? "error"}${frame.error ? `: ${frame.error}` : ""}\n`);
+            return;
+          }
+          if (frame.error) {
+            exitCode = 1;
+            explicitError = true;
+            stderr.write(`harakiri attach: ${frame.error}${frame.message ? `: ${frame.message}` : ""}\n`);
+            return;
+          }
+        } catch {
+          stderr.write(text.endsWith("\n") ? text : `${text}\n`);
+          return;
+        }
+        return;
+      }
+
+      const buffer = rawDataToBuffer(data);
+      if (!buffer.length) return;
+      const payload = buffer.subarray(1);
+      if (buffer[0] === stdoutFramePrefix) stdout.write(payload);
+      else if (buffer[0] === stderrFramePrefix) stderr.write(payload);
+      else if (buffer[0] === replayFramePrefix) stdout.write(buffer.subarray(9));
+      else stdout.write(buffer);
+    });
+    ws.on("error", (error) => {
+      cleanup();
+      reject(error);
+    });
+    ws.on("close", (code, reason) => {
+      cleanup();
+      const suffix = reason.length ? `: ${reason.toString("utf8")}` : "";
+      if (code !== 1000 && !explicitError) {
+        stderr.write(`harakiri attach: connection closed (${code})${suffix}\n`);
+      }
+      if (code === 1000 && !connected && !explicitError) {
+        stderr.write(`harakiri attach: connection closed before the terminal was ready${suffix}\n`);
+      } else if (code === 1000 && connected && !explicitError && stderr.isTTY) {
+        stderr.write(`harakiri attach: session closed${suffix}\n`);
+      }
+      resolve(exitCode || (code === 1000 && connected ? 0 : 1));
+    });
+  });
+};
 
 export const registerSandboxCommands = (program: Command) => {
   program
@@ -94,9 +252,9 @@ export const registerSandboxCommands = (program: Command) => {
       const client = await apiClient();
       const result = await client.getRuntimeCapabilities();
       console.log(`provider\t${result.provider}`);
-      console.log("capability\tstate\trequired\treason");
+      console.log("capability\tstate\tcontract\trequired\tsource\treason");
       for (const capability of result.capabilities) {
-        console.log(`${capability.name}\t${capability.state}\t${capability.required ? "yes" : "no"}\t${capability.reason ?? "-"}`);
+        console.log(`${capability.name}\t${capability.state}\t${capability.contract}\t${capability.required ? "yes" : "no"}\t${capability.source}\t${capability.reason ?? "-"}`);
       }
     });
 
@@ -156,6 +314,31 @@ export const registerSandboxCommands = (program: Command) => {
         printProgress("sandbox terminated. disk zeroed.");
       }
       printProgress(`roundtrip ${Date.now() - started}ms`);
+    });
+
+  program
+    .command("attach")
+    .argument("<id>", "sandbox id")
+    .description("Attach an interactive terminal to a running sandbox")
+    .option("--cwd <path>", "working directory inside the sandbox")
+    .option("--shell <path>", "shell to request for the terminal session")
+    .option("--env <key=value>", "environment variable for the terminal session; can be repeated", collectEnv, {})
+    .option("--session-name <name>", "client-visible terminal session name")
+    .option("--cols <n>", "initial terminal columns", parsePositiveInt)
+    .option("--rows <n>", "initial terminal rows", parsePositiveInt)
+    .option("--since <offset>", "replay PTY output from an OpenSandbox output offset", parsePositiveInt)
+    .option("--no-raw", "do not put the local terminal into raw mode")
+    .action(async (id, options) => {
+      process.exitCode = await attachToSandbox(id, {
+        cwd: options.cwd,
+        shell: options.shell,
+        env: Object.keys(options.env).length ? options.env : undefined,
+        sessionName: options.sessionName,
+        cols: options.cols,
+        rows: options.rows,
+        since: options.since,
+        raw: options.raw
+      });
     });
 
   program
@@ -399,6 +582,55 @@ export const registerSandboxCommands = (program: Command) => {
       const client = await apiClient();
       const result = await client.killCommand(id, commandId);
       printProgress(`${result.command.id} ${result.command.status}`);
+    });
+
+  const session = command
+    .command("session")
+    .description("Manage persistent command sessions");
+
+  session
+    .command("create")
+    .argument("<id>", "sandbox id")
+    .option("--cwd <path>", "working directory inside the sandbox")
+    .description("Create a persistent command session")
+    .action(async (id, options) => {
+      const client = await apiClient();
+      const result = await client.commands.sessions.create(id, { cwd: options.cwd });
+      console.log(result.session.id);
+      printProgress(`${result.session.status} cwd=${result.session.cwd ?? "-"}`);
+    });
+
+  session
+    .command("run")
+    .argument("<id>", "sandbox id")
+    .argument("<session-id>", "command session id")
+    .requiredOption("--cmd <command>", "command to run")
+    .option("--cwd <path>", "working directory override for this run")
+    .option("--timeout-ms <ms>", "command timeout in milliseconds", parsePositiveInt)
+    .description("Run a command in a persistent session")
+    .action(async (id, sessionId, options) => {
+      const client = await apiClient();
+      const result = await client.commands.sessions.run(id, sessionId, {
+        command: options.cmd,
+        cwd: options.cwd,
+        timeoutMs: options.timeoutMs
+      });
+      process.stdout.write(result.result.stdout);
+      if (result.result.stderr) process.stderr.write(result.result.stderr);
+      console.log(runtimeLine(result.result.durationMs));
+      if (result.result.exitCode !== 0) process.exitCode = result.result.exitCode;
+    });
+
+  session
+    .command("delete")
+    .alias("rm")
+    .argument("<id>", "sandbox id")
+    .argument("<session-id>", "command session id")
+    .description("Delete a persistent command session")
+    .action(async (id, sessionId) => {
+      const client = await apiClient();
+      const result = await client.commands.sessions.delete(id, sessionId);
+      printProgress(`${result.session.id} ${result.session.status}`);
     });
 
   program

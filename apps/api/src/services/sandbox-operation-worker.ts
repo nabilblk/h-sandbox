@@ -2,7 +2,7 @@ import { config } from "../config.js";
 import { query as defaultQuery } from "../db.js";
 import type { RuntimeProvider, RuntimeRouteTarget, RuntimeSandboxRef, RuntimeSandboxSummary } from "../providers/runtime/provider.js";
 import { runtimeProvider as defaultRuntimeProvider } from "../providers/runtime/index.js";
-import { configuredRouteTarget } from "../providers/runtime/route-targets.js";
+import { configuredRouteTarget, routeHost } from "../providers/runtime/route-targets.js";
 import type { RuntimeTemplate } from "../templates.js";
 import type { EgressNetworkPolicy } from "@harakiri/shared";
 import { recordSandboxEvent, type SandboxEventRecorder } from "./sandbox-events.js";
@@ -51,6 +51,7 @@ const runtimeRef = (runtimeProvider: RuntimeProvider, providerSandboxId: string 
 const stringValue = (value: unknown) => (typeof value === "string" && value.trim() ? value : null);
 const numberValue = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 const protocolValue = (value: unknown): "http" | "https" => (value === "https" ? "https" : "http");
+const routeAccessModeValue = (value: unknown) => value === "token" ? "token" as const : "public" as const;
 const normalizedProviderState = (state: string) => {
   const value = state.toLowerCase();
   if (value.includes("terminat") || value.includes("stopped") || value.includes("delete")) return "terminated";
@@ -62,6 +63,9 @@ const normalizedProviderState = (state: string) => {
 const fallbackRouteTarget = (sandboxId: string, port: number): RuntimeRouteTarget => {
   return configuredRouteTarget({ sandboxId, port, provider: "fallback-local" });
 };
+
+const routeProxyUrl = (routeKey: string) =>
+  `${config.publicApiUrl.replace(/\/+$/, "")}/v1/route-proxy/${encodeURIComponent(routeKey)}/`;
 
 const routeSelect = `
   SELECT port, protocol, route_key AS "routeKey", host,
@@ -409,6 +413,16 @@ const executeRouteExposeOperation = async (
   if (!sandboxId) throw new NonRetryableOperationError("route operation is missing sandbox id");
   if (!port) throw new NonRetryableOperationError("route operation is missing port");
   const protocol = protocolValue(operation.request.protocol);
+  const accessMode = routeAccessModeValue(operation.request.accessMode);
+  const accessTokenHash = stringValue(operation.request.accessTokenHash);
+  const accessTokenHint = stringValue(operation.request.accessTokenHint);
+  const accessHeaderName = accessMode === "token" ? stringValue(operation.request.accessHeaderName) ?? "x-harakiri-route-token" : null;
+  const labels = stringArrayValue(operation.request.labels);
+  const createdByUserId = stringValue(operation.request.createdByUserId);
+  const createdByLabel = stringValue(operation.request.createdByLabel);
+  if (accessMode === "token" && !accessTokenHash) {
+    throw new NonRetryableOperationError("token route operation is missing access token hash");
+  }
   const sandbox = await dependencies.query<{ opensandbox_id: string | null; status: string }>(
     "SELECT opensandbox_id, status FROM sandboxes WHERE id = $1 AND organization_id = $2",
     [sandboxId, operation.organizationId]
@@ -416,7 +430,7 @@ const executeRouteExposeOperation = async (
   if (!sandbox.rowCount) throw new NonRetryableOperationError("sandbox not found for route operation");
   if (sandbox.rows[0].status === "terminated") throw new NonRetryableOperationError("sandbox terminated before route exposure");
   const existing = await dependencies.query<{ routeKey: string; host: string; url: string; provider: string; providerRouteId: string | null }>(
-    `${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3`,
+    `${routeSelect} WHERE sandbox_id = $1 AND organization_id = $2 AND port = $3 AND state <> 'terminated'`,
     [sandboxId, operation.organizationId, port]
   );
   if (existing.rowCount) {
@@ -431,23 +445,33 @@ const executeRouteExposeOperation = async (
         protocol
       })
     : fallbackRouteTarget(sandboxId, port);
+  const publicUrl = accessMode === "token" ? routeProxyUrl(providerRoute.routeKey) : providerRoute.url;
+  const publicHost = accessMode === "token" ? routeHost(publicUrl) : providerRoute.host;
   await dependencies.query(
     `INSERT INTO sandbox_routes
-     (sandbox_id, organization_id, port, protocol, route_key, host, url, target_url, state, provider, provider_route_id, last_checked_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now())
-     ON CONFLICT (sandbox_id, port) DO NOTHING`,
+     (sandbox_id, organization_id, port, protocol, route_key, host, url, target_url, state, provider, provider_route_id,
+      access_mode, access_token_hash, access_token_hint, access_header_name, created_by_user_id, created_by_label, labels, last_checked_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
+     ON CONFLICT (sandbox_id, port) WHERE state <> 'terminated' DO NOTHING`,
     [
       sandboxId,
       operation.organizationId,
       port,
       protocol,
       providerRoute.routeKey,
-      providerRoute.host,
-      providerRoute.url,
+      publicHost,
+      publicUrl,
       providerRoute.targetUrl,
       providerRoute.state,
       providerRoute.provider,
-      providerRoute.providerRouteId
+      providerRoute.providerRouteId,
+      accessMode,
+      accessTokenHash,
+      accessTokenHint,
+      accessHeaderName,
+      createdByUserId,
+      createdByLabel,
+      labels
     ]
   );
   await completeSandboxOperation(
@@ -455,8 +479,9 @@ const executeRouteExposeOperation = async (
       operationId: operation.id,
       result: {
         routeKey: providerRoute.routeKey,
-        host: providerRoute.host,
-        url: providerRoute.url,
+        host: publicHost,
+        url: publicUrl,
+        accessMode,
         provider: providerRoute.provider,
         providerRouteId: providerRoute.providerRouteId
       }
@@ -467,7 +492,9 @@ const executeRouteExposeOperation = async (
     operationId: operation.id,
     port,
     routeKey: providerRoute.routeKey,
-    provider: providerRoute.provider
+    provider: providerRoute.provider,
+    accessMode,
+    labels
   });
 };
 

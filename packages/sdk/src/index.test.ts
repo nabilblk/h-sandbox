@@ -150,7 +150,14 @@ test("HarakiriClient exposes sandbox runtime helpers", async () => {
         return Response.json({
           provider: "opensandbox",
           generatedAt: "2026-05-29T00:00:00.000Z",
-          capabilities: [{ name: "commands", state: "available", required: true, reason: null }]
+          capabilities: [{
+            name: "commands",
+            state: "available",
+            contract: "opensandbox_spec",
+            source: "OpenSandbox execd tracked command API",
+            required: true,
+            reason: null
+          }]
         });
       }
       if (String(url).endsWith("/metrics")) {
@@ -294,6 +301,99 @@ test("HarakiriClient exposes tracked command helpers", async () => {
     timeoutMs: 30_000,
     detached: true
   });
+});
+
+test("HarakiriClient exposes persistent command session helpers", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const session = {
+    id: "ses_test",
+    sandboxId: "sbx_test",
+    provider: "opensandbox",
+    cwd: "/workspace",
+    status: "running"
+  };
+  const result = {
+    sandboxId: "sbx_test",
+    command: "pwd",
+    stdout: "/workspace\n",
+    stderr: "",
+    exitCode: 0,
+    durationMs: 5
+  };
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      if (String(url).endsWith("/run")) return Response.json({ result });
+      return Response.json({ session });
+    }
+  });
+
+  await client.commands.sessions.create("sbx_test", { cwd: "/workspace" });
+  await client.commands.sessions.run("sbx_test", "ses_test", { command: "pwd", timeoutMs: 30_000 });
+  await client.commands.sessions.delete("sbx_test", "ses_test");
+
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/command-sessions"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/command-sessions/ses_test/run"],
+    ["DELETE", "http://harakiri.local/v1/sandboxes/sbx_test/command-sessions/ses_test"]
+  ]);
+  assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), { cwd: "/workspace" });
+  assert.deepEqual(JSON.parse(calls[1].body ?? "{}"), { command: "pwd", timeoutMs: 30_000 });
+});
+
+test("HarakiriClient creates terminal attach URL and Node WebSocket request headers", () => {
+  const client = new HarakiriClient({
+    apiUrl: "https://harakiri.local/",
+    apiKey: "hk_live_test"
+  });
+
+  const request = client.terminal.attachRequest("sbx_test", {
+    cwd: "/workspace",
+    shell: "/bin/bash",
+    env: { FOO: "bar", BAZ: "qux" },
+    sessionName: "sdk-terminal",
+    cols: 120,
+    rows: 40,
+    since: 8,
+    pty: false
+  });
+
+  assert.deepEqual(request.headers, { "x-api-key": "hk_live_test" });
+  const url = new URL(request.url);
+  assert.equal(url.protocol, "wss:");
+  assert.equal(url.pathname, "/v1/sandboxes/sbx_test/terminal/attach");
+  assert.equal(url.searchParams.get("cwd"), "/workspace");
+  assert.equal(url.searchParams.get("shell"), "/bin/bash");
+  assert.deepEqual(url.searchParams.getAll("env"), ["FOO=bar", "BAZ=qux"]);
+  assert.equal(url.searchParams.get("sessionName"), "sdk-terminal");
+  assert.equal(url.searchParams.get("cols"), "120");
+  assert.equal(url.searchParams.get("rows"), "40");
+  assert.equal(url.searchParams.get("since"), "8");
+  assert.equal(url.searchParams.get("pty"), "false");
+});
+
+test("HarakiriClient creates browser terminal attach tickets", async () => {
+  const calls: Array<{ method: string; url: string }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "https://harakiri.local/",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url) });
+      return Response.json({
+        ticket: "hat_test",
+        expiresAt: "2026-06-02T12:00:00.000Z",
+        attachUrl: "wss://harakiri.local/v1/sandboxes/sbx_test/terminal/attach?ticket=hat_test"
+      });
+    }
+  });
+
+  const ticket = await client.terminal.attachTicket("sbx_test");
+
+  assert.deepEqual(calls, [{ method: "POST", url: "https://harakiri.local/v1/sandboxes/sbx_test/terminal/attach-ticket" }]);
+  assert.equal(ticket.ticket, "hat_test");
+  assert.equal(ticket.attachUrl, "wss://harakiri.local/v1/sandboxes/sbx_test/terminal/attach?ticket=hat_test");
 });
 
 test("HarakiriClient exposes OpenAPI-shaped sandbox runtime aliases", async () => {

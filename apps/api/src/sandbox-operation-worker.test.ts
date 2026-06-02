@@ -10,7 +10,16 @@ const operationRow = (overrides: Record<string, unknown> = {}) => ({
   kind: "route_expose",
   state: "running",
   idempotencyKey: null,
-  request: { sandboxId: "sbx_worker", providerSandboxId: "provider_sbx", port: 3000, protocol: "http" },
+  request: {
+    sandboxId: "sbx_worker",
+    providerSandboxId: "provider_sbx",
+    port: 3000,
+    protocol: "http",
+    accessMode: "public",
+    labels: ["preview"],
+    createdByUserId: "user_worker",
+    createdByLabel: "worker@test.local"
+  },
   result: {},
   error: null,
   attempts: 1,
@@ -109,7 +118,10 @@ test("processSandboxOperationQueue claims and completes a queued route exposure"
     staleProvisionFailed: 0
   });
   assert(calls.some((call) => call.text.includes("FOR UPDATE SKIP LOCKED")));
-  assert(calls.some((call) => call.text.includes("INSERT INTO sandbox_routes")));
+  const insert = calls.find((call) => call.text.includes("INSERT INTO sandbox_routes"));
+  assert.ok(insert);
+  assert.deepEqual(insert.params?.slice(0, 6), ["sbx_worker", "org_worker", 3000, "http", "provider_sbx-3000", "provider_sbx-3000.example.test"]);
+  assert.deepEqual(insert.params?.slice(11, 18), ["public", null, null, null, "user_worker", "worker@test.local", ["preview"]]);
   assert(calls.some((call) => call.text.includes("state = 'succeeded'")));
 });
 

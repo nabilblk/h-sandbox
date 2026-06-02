@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { WebSocketServer } from "ws";
 
 type RecordedRequest = {
   method: string;
@@ -54,7 +55,34 @@ const startMockApi = async (handler: (request: RecordedRequest) => { status?: nu
   } satisfies MockApi;
 };
 
-const runCli = async (args: string[], options: { api: MockApi; cwd?: string }) => {
+const startMockWebSocketApi = async (
+  handler: (request: IncomingMessage) => { messages?: unknown[]; closeCode?: number; closeReason?: string }
+) => {
+  const requests: Array<{ path: string; apiKey: string | undefined }> = [];
+  const server = createServer();
+  const wss = new WebSocketServer({ noServer: true });
+  server.on("upgrade", (request, socket, head) => {
+    requests.push({ path: request.url ?? "/", apiKey: request.headers["x-api-key"] as string | undefined });
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      const result = handler(request);
+      for (const message of result.messages ?? []) ws.send(JSON.stringify(message));
+      ws.close(result.closeCode ?? 1000, result.closeReason ?? "done");
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    requests,
+    close: () => new Promise<void>((resolve, reject) => {
+      wss.close();
+      server.close((error) => error ? reject(error) : resolve());
+    })
+  };
+};
+
+const runCli = async (args: string[], options: { api: { url: string }; cwd?: string }) => {
   const home = await mkdtemp(join(tmpdir(), "harakiri-cli-home-"));
   const child = spawn(process.execPath, ["--import", tsxImport, cliPath, ...args], {
     cwd: options.cwd ?? packageRoot,
@@ -201,8 +229,8 @@ test("capabilities command prints runtime provider capability states", async () 
         provider: "opensandbox",
         generatedAt: "2026-05-29T00:00:00.000Z",
         capabilities: [
-          { name: "commands", state: "available", required: true, reason: null },
-          { name: "egressPolicy", state: "unavailable", required: true, reason: "mutable egress policy is not exposed by this provider" }
+          { name: "commands", state: "available", contract: "opensandbox_spec", source: "OpenSandbox execd tracked command API", required: true, reason: null },
+          { name: "egressPolicy", state: "unavailable", contract: "unavailable", source: "mutable egress policy is not exposed by this provider", required: true, reason: "mutable egress policy is not exposed by this provider" }
         ]
       }
     };
@@ -211,8 +239,141 @@ test("capabilities command prints runtime provider capability states", async () 
     const result = await runCli(["capabilities"], { api });
     assert.equal(result.exitCode, 0);
     assert.match(result.stdout, /provider\topensandbox/);
-    assert.match(result.stdout, /commands\tavailable\tyes\t-/);
-    assert.match(result.stdout, /egressPolicy\tunavailable\tyes\tmutable egress policy is not exposed by this provider/);
+    assert.match(result.stdout, /commands\tavailable\topensandbox_spec\tyes\tOpenSandbox execd tracked command API\t-/);
+    assert.match(result.stdout, /egressPolicy\tunavailable\tunavailable\tyes\tmutable egress policy is not exposed by this provider\tmutable egress policy is not exposed by this provider/);
+  } finally {
+    await api.close();
+  }
+});
+
+test("command session subcommands create, run, and delete persistent sessions", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_cli/command-sessions") {
+      return {
+        status: 201,
+        body: {
+          session: { id: "ses_cli", sandboxId: "sbx_cli", provider: "opensandbox", cwd: "/workspace", status: "running" }
+        }
+      };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_cli/command-sessions/ses_cli/run") {
+      return {
+        body: {
+          result: { sandboxId: "sbx_cli", command: "pwd", stdout: "/workspace\n", stderr: "", exitCode: 0, durationMs: 6 }
+        }
+      };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/sandboxes/sbx_cli/command-sessions/ses_cli") {
+      return {
+        body: {
+          session: { id: "ses_cli", sandboxId: "sbx_cli", provider: "opensandbox", cwd: null, status: "closed" }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const created = await runCli(["command", "session", "create", "sbx_cli", "--cwd", "/workspace"], { api });
+    assert.equal(created.exitCode, 0, created.stderr);
+    assert.match(created.stdout, /^ses_cli/m);
+    assert.match(created.stdout, /cwd=\/workspace/);
+
+    const run = await runCli(["command", "session", "run", "sbx_cli", "ses_cli", "--cmd", "pwd", "--timeout-ms", "30000"], { api });
+    assert.equal(run.exitCode, 0, run.stderr);
+    assert.match(run.stdout, /\/workspace/);
+    assert.match(run.stdout, /runtime=0\.01s/);
+
+    const deleted = await runCli(["command", "session", "delete", "sbx_cli", "ses_cli"], { api });
+    assert.equal(deleted.exitCode, 0, deleted.stderr);
+    assert.match(deleted.stdout, /ses_cli closed/);
+
+    assert.deepEqual(api.requests.map((request) => [request.method, request.path]), [
+      ["POST", "/v1/sandboxes/sbx_cli/command-sessions"],
+      ["POST", "/v1/sandboxes/sbx_cli/command-sessions/ses_cli/run"],
+      ["DELETE", "/v1/sandboxes/sbx_cli/command-sessions/ses_cli"]
+    ]);
+    assert.deepEqual(api.requests[0]?.body, { cwd: "/workspace" });
+    assert.deepEqual(api.requests[1]?.body, { command: "pwd", timeoutMs: 30_000 });
+  } finally {
+    await api.close();
+  }
+});
+
+test("attach command sends terminal options and prints API error frames", async () => {
+  const api = await startMockWebSocketApi(() => ({
+    messages: [{ error: "runtime_terminal_unsupported", message: "OpenSandbox PTY does not support per-attach environment variables yet." }],
+    closeCode: 1011,
+    closeReason: "runtime_terminal_unsupported"
+  }));
+  try {
+    const result = await runCli([
+      "attach",
+      "sbx_cli",
+      "--cwd",
+      "/workspace",
+      "--shell",
+      "/bin/zsh",
+      "--env",
+      "FOO=bar",
+      "--env",
+      "BAZ=qux",
+      "--session-name",
+      "cli-attach",
+      "--cols",
+      "120",
+      "--rows",
+      "40",
+      "--since",
+      "8",
+      "--no-raw"
+    ], { api });
+
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /harakiri attach: runtime_terminal_unsupported: OpenSandbox PTY does not support per-attach environment variables yet\./);
+    assert.equal(api.requests.length, 1);
+    assert.equal(api.requests[0]?.apiKey, "hk_test_cli");
+    const url = new URL(api.requests[0]?.path ?? "/", "http://harakiri.test");
+    assert.equal(url.pathname, "/v1/sandboxes/sbx_cli/terminal/attach");
+    assert.equal(url.searchParams.get("cwd"), "/workspace");
+    assert.equal(url.searchParams.get("shell"), "/bin/zsh");
+    assert.deepEqual(url.searchParams.getAll("env"), ["FOO=bar", "BAZ=qux"]);
+    assert.equal(url.searchParams.get("sessionName"), "cli-attach");
+    assert.equal(url.searchParams.get("cols"), "120");
+    assert.equal(url.searchParams.get("rows"), "40");
+    assert.equal(url.searchParams.get("since"), "8");
+  } finally {
+    await api.close();
+  }
+});
+
+test("attach command exits cleanly after a connected terminal closes", async () => {
+  const api = await startMockWebSocketApi(() => ({
+    messages: [{ type: "connected", session_id: "pty_cli", mode: "pty" }],
+    closeCode: 1000,
+    closeReason: "provider closed"
+  }));
+  try {
+    const result = await runCli(["attach", "sbx_cli", "--no-raw"], { api });
+
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    assert.equal(api.requests.length, 1);
+  } finally {
+    await api.close();
+  }
+});
+
+test("attach command fails if the terminal closes before it is ready", async () => {
+  const api = await startMockWebSocketApi(() => ({
+    closeCode: 1000,
+    closeReason: "not ready"
+  }));
+  try {
+    const result = await runCli(["attach", "sbx_cli", "--no-raw"], { api });
+
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /connection closed before the terminal was ready: not ready/);
+    assert.equal(api.requests.length, 1);
   } finally {
     await api.close();
   }

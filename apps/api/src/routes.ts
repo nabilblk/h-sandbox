@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import websocket from "@fastify/websocket";
 import { recordAuditEvent } from "./audit.js";
 import { requireAuth } from "./auth.js";
 import { query as defaultQuery } from "./db.js";
@@ -16,9 +17,17 @@ import { registerTemplateRoutes } from "./routes/templates.js";
 import { registerUsageRoutes } from "./routes/usage.js";
 import type { Query } from "./services/query.js";
 import { recordSandboxEvent as createSandboxEventRecorder } from "./services/sandbox-events.js";
+import { terminalAttachTicketQueryParam } from "./services/terminal-attach-tickets.js";
 
 const defaultAudit = async (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) =>
   recordAuditEvent({ organizationId, actorUserId, actorLabel, action, targetType, targetId, metadata });
+
+const terminalAttachPathPattern = /^\/v1\/sandboxes\/[^/]+\/terminal\/attach$/;
+
+const isTicketAuthenticatedTerminalAttach = (url: string) => {
+  const parsed = new URL(url, "http://harakiri.local");
+  return terminalAttachPathPattern.test(parsed.pathname) && parsed.searchParams.has(terminalAttachTicketQueryParam);
+};
 
 export type RouteDependencies = {
   runtimeProvider?: RuntimeProvider;
@@ -35,10 +44,13 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
   const authHandler = dependencies.requireAuth ?? requireAuth;
   const audit = dependencies.recordAudit ?? defaultAudit;
   const event = dependencies.recordSandboxEvent ?? createSandboxEventRecorder(query);
+  await app.register(websocket);
   await registerSystemRoutes(app);
 
   app.addHook("preHandler", async (request, reply) => {
-    if (publicRoutePaths.has(request.url)) return;
+    const path = request.url.split("?")[0] ?? request.url;
+    if (publicRoutePaths.has(path) || path.startsWith("/v1/route-proxy/") || path === "/v1/route-proxy") return;
+    if (isTicketAuthenticatedTerminalAttach(request.url)) return;
     return authHandler(request, reply);
   });
 

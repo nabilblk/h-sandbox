@@ -34,7 +34,7 @@ export const docPages: DocPage[] = [
     section: "Getting started",
     title: "SDK and CLI",
     lede: "Use the public npm packages for application integrations and local automation.",
-    toc: ["Packages", "Configure", "SDK flow", "CLI flow", "Contract"],
+    toc: ["Packages", "Configure", "SDK flow", "CLI flow", "Terminal", "Contract"],
     body: (
       <>
         <h2>Packages</h2>
@@ -47,6 +47,11 @@ export const docPages: DocPage[] = [
         <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst { sandbox } = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  ttlSeconds: 600,\n  idempotencyKey: "job-123",\n  egress: { mode: "restricted", presets: ["python-package-install"] }\n});\n\nawait harakiri.waitForSandbox(sandbox.id);\nconst result = await harakiri.runSandbox(sandbox.id, {\n  command: "python -c 'print(2 + 2)'",\n  cwd: "/workspace"\n});\nconsole.log(result.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</pre>
         <h2>CLI flow</h2>
         <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000\nharakiri kill sbx_...`}</pre>
+        <h2>Terminal</h2>
+        <p>Use `attach` for an interactive human terminal. Use command sessions for stateful automation that needs `cd`, exported variables, or setup steps without taking over the local terminal.</p>
+        <pre>{`harakiri attach sbx_... --cwd /workspace\n\nSESSION_ID=$(harakiri command session create sbx_... --cwd /workspace | head -n1)\nharakiri command session run sbx_... "$SESSION_ID" --cmd "cd /tmp && pwd"\nharakiri command session run sbx_... "$SESSION_ID" --cmd "pwd"\nharakiri command session delete sbx_... "$SESSION_ID"`}</pre>
+        <p>The browser dashboard uses the same attach endpoint through a short-lived `/terminal/attach-ticket`, so Keycloak-authenticated users can open a WebSocket terminal without putting API keys in JavaScript.</p>
+        <p>The current OpenSandbox PTY provider launches Bash. Harakiri exposes `--shell` and `--env` as stable attach options, but non-default shell or per-attach env values return `runtime_terminal_unsupported` until OpenSandbox exposes those fields.</p>
         <h2>Contract</h2>
         <p>The dashboard, CLI, and SDK use the same `/v1` API and OpenAPI contract. External applications should import only `@h-sandbox/sdk`; internal monorepo packages are not part of the public npm contract.</p>
       </>

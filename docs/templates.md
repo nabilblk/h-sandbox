@@ -30,24 +30,36 @@ workflow.
 `harakiri template init` writes a `harakiri.toml` config:
 
 ```toml
+# Harakiri sandbox template.
+# Build this directory as an OpenSandbox-compatible OCI image:
+#   harakiri template build --name open-agents-dev .
+#   harakiri template smoke open-agents-dev
+
+# Catalog metadata.
 name = "open-agents-dev"
 id = "open-agents-dev"
-dockerfile = "Dockerfile"
+description = "Sandbox runtime for open-agents-dev."
 visibility = "private"
 runtime_family = "custom"
+aliases = ["open-agents-dev"]
+tags = ["custom", "hot"]
+
+# Image source. Use either dockerfile or image.
+dockerfile = "Dockerfile"
+
+# Runtime defaults.
 cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
-tags = ["custom", "hot"]
-aliases = ["open-agents-dev"]
 start_command = "sleep 3600"
 ready_command = "true"
 ```
 
 Current CLI support reads command flags first, then `harakiri.toml`. The
-config supports `id`, `name`, `dockerfile`, `image`, `visibility`, CPU, memory,
-workdir, ports, aliases, tags, runtime family, `start_command`, and
+config supports `id`, `name`, `description`, `dockerfile`, `image`,
+`visibility`, CPU, memory, workdir, ports, aliases, tags, runtime family,
+`start_command`, and
 `ready_command`. For Dockerfile builds, the CLI archives the local context as
 tar+gzip, uploads it to the API, and stores a verified `sha256:` context hash
 on the build record.
@@ -55,12 +67,13 @@ on the build record.
 ## CLI Workflow
 
 ```bash
-harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
+harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...
 harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
 harakiri template build --name open-agents-dev .
 harakiri template build --name open-agents-dev examples/templates/open-agents-dev
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04
 harakiri template inspect open-agents-dev
+harakiri template smoke open-agents-dev --cmd "harakiri-open-agents-smoke"
 harakiri create --template open-agents-dev --name agent-runner
 harakiri template promote open-agents-dev --version-id tplv_... --alias stable
 harakiri create --template open-agents-dev:stable --name stable-runner
@@ -80,11 +93,48 @@ registry, and create a digest-pinned ready template version. Set
 `TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy` only when the compatibility
 provider is required.
 
+`template smoke` creates a temporary sandbox from the template, waits for it to
+run, executes `ready_command` from `harakiri.toml` or an explicit `--cmd`, and
+terminates the sandbox unless `--keep` is passed. Use it after a successful
+build and before promotion:
+
+```bash
+harakiri template smoke open-agents-dev
+harakiri template smoke open-agents-dev --cmd "harakiri-open-agents-smoke"
+```
+
 Creating a template definition with `POST /v1/templates`, the CLI, or the
 dashboard does not create a runnable version on its own. The definition remains
 non-runnable until an image-import or Dockerfile build succeeds and records a
 ready `template_versions` row with `image_digest`. `harakiri create` and
 `POST /v1/sandboxes` reject templates that do not yet have a ready version.
+
+## Reference Template Examples
+
+The repository includes first-class template examples in `examples/templates`.
+They are normal OCI build contexts with a `Dockerfile`, `harakiri.toml`,
+`smoke.sh`, and README:
+
+| Directory | Runtime family | Primary use |
+| --- | --- | --- |
+| `examples/templates/base-linux` | `linux` | Small general-purpose Linux devbox. |
+| `examples/templates/python-3.12-data` | `python-data` | Python data analysis, model evaluation, and notebook-like scripts. |
+| `examples/templates/node-20-app` | `node` | Node APIs, web apps, and frontend dev servers. |
+| `examples/templates/browser-chromium` | `browser` | Headless Chromium automation and web agents. |
+| `examples/templates/open-agents-dev` | `open-agents` | Browser-capable coding-agent runtime. |
+
+Build and smoke an example with:
+
+```bash
+harakiri template build --name base-linux examples/templates/base-linux
+harakiri template smoke base-linux
+```
+
+Use these examples as starting points for organization-owned templates rather
+than as a hidden platform dependency. Each example validates the same runtime
+contract: required tools exist, `/workspace` is writable, long-running servers
+can bind to configured ports, and browser-capable images can launch Chromium
+headlessly when they claim browser support.
 
 Add the `hot`, `prepull`, or `warm` tag when a template should warm the node
 image cache after a successful build. The builder still performs runtime pull

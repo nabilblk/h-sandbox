@@ -1,0 +1,16 @@
+# Harakiri browser automation template.
+
+name = "Browser Chromium"
+id = "browser-chromium"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "Headless Chromium runtime for browser automation and web agents."
+runtime_family = "browser"
+cpu_count = 2
+memory_mb = 2048
+workdir = "/workspace"
+ports = [3000, 5173, 9222]
+aliases = ["browser-chromium", "browser/chromium"]
+tags = ["custom", "browser"]
+start_command = "sleep 3600"
+ready_command = "harakiri-browser-chromium-smoke"

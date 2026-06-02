@@ -1,3 +1,5 @@
+import { sandboxRuntimeApiErrorCodes } from "./api-errors.js";
+
 type JsonSchema = Record<string, unknown>;
 
 type Operation = {
@@ -76,6 +78,8 @@ const secured = (operation: Operation): Operation => ({
 });
 
 const pathId = parameter("id", "path", string);
+const commandIdPath = parameter("commandId", "path", string);
+const sessionIdPath = parameter("sessionId", "path", string);
 const portPath = parameter("port", "path", integer);
 const templateIdPath = parameter("id", "path", string);
 const buildIdPath = parameter("id", "path", string);
@@ -83,9 +87,17 @@ const credentialIdPath = parameter("id", "path", string);
 
 const schemas: Record<string, JsonSchema> = {
   ApiErrorResponse: objectSchema({
-    error: string,
+    error: {
+      ...string,
+      description: "Stable machine-readable error code. Sandbox runtime endpoints use the SandboxRuntimeApiErrorCode vocabulary."
+    },
     message: string
   }, ["error"]),
+  SandboxRuntimeApiErrorCode: {
+    type: "string",
+    enum: [...sandboxRuntimeApiErrorCodes],
+    description: "Stable error codes used or reserved by public sandbox runtime endpoints."
+  },
   OkResponse: objectSchema({ ok: boolean }),
   HealthResponse: objectSchema({ status: { type: "string", enum: ["ok"] } }),
   BootstrapResponse: objectSchema({
@@ -287,7 +299,10 @@ const schemas: Record<string, JsonSchema> = {
   SandboxResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
   RunSandboxBody: objectSchema({
     command: string,
-    stdin: string
+    stdin: string,
+    cwd: string,
+    env: { type: "object", additionalProperties: { type: "string" } },
+    timeoutMs: integer
   }, []),
   RunResult: objectSchema({
     sandboxId: string,
@@ -298,6 +313,62 @@ const schemas: Record<string, JsonSchema> = {
     durationMs: number
   }),
   RunSandboxResponse: objectSchema({ result: ref("RunResult") }),
+  SandboxCommandSessionSummary: objectSchema({
+    id: string,
+    sandboxId: string,
+    provider: string,
+    cwd: nullableString,
+    status: { type: "string", enum: ["running", "closed"] }
+  }),
+  CreateSandboxCommandSessionBody: objectSchema({
+    cwd: string
+  }, []),
+  SandboxCommandSessionResponse: objectSchema({ session: ref("SandboxCommandSessionSummary") }),
+  RunSandboxCommandSessionBody: objectSchema({
+    command: string,
+    cwd: string,
+    timeoutMs: integer
+  }, ["command"]),
+  RunSandboxCommandSessionResponse: objectSchema({ result: ref("RunResult") }),
+  SandboxCommandSummary: objectSchema({
+    id: string,
+    sandboxId: string,
+    provider: string,
+    providerCommandId: nullableString,
+    command: string,
+    status: { type: "string", enum: ["queued", "running", "succeeded", "failed", "killed"] },
+    cwd: nullableString,
+    envKeys: arrayOf(string),
+    timeoutMs: { type: ["integer", "null"] },
+    detached: boolean,
+    stdout: string,
+    stderr: string,
+    exitCode: { type: ["integer", "null"] },
+    error: nullableString,
+    startedAt: { type: ["string", "null"], format: "date-time" },
+    finishedAt: { type: ["string", "null"], format: "date-time" },
+    createdAt: dateTime,
+    updatedAt: dateTime
+  }),
+  CreateSandboxCommandBody: objectSchema({
+    command: string,
+    stdin: string,
+    cwd: string,
+    env: { type: "object", additionalProperties: { type: "string" } },
+    timeoutMs: integer,
+    detached: boolean
+  }, ["command"]),
+  SandboxCommandResponse: objectSchema({ command: ref("SandboxCommandSummary") }),
+  SandboxCommandsResponse: objectSchema({ commands: arrayOf(ref("SandboxCommandSummary")) }),
+  SandboxCommandLogsResponse: objectSchema({
+    commandId: string,
+    stdout: string,
+    stderr: string,
+    cursor: integer,
+    tail: integer,
+    stdoutTruncated: boolean,
+    stderrTruncated: boolean
+  }, ["commandId", "stdout", "stderr"]),
   SandboxLogEntry: objectSchema({
     ts: string,
     lvl: string,
@@ -317,8 +388,57 @@ const schemas: Record<string, JsonSchema> = {
   }, ["path", "name", "type", "size"]),
   SandboxFilesResponse: objectSchema({
     cwd: string,
-    files: arrayOf(ref("SandboxFileEntry"))
+    files: arrayOf(ref("SandboxFileEntry")),
+    source: string,
+    warnings: arrayOf(string)
   }),
+  SandboxFileStatResponse: objectSchema({ file: ref("SandboxFileEntry") }),
+  SandboxFileReadResponse: objectSchema({
+    path: string,
+    encoding: { type: "string", enum: ["utf8", "base64"] },
+    content: string
+  }, ["path", "encoding", "content"]),
+  SandboxFileWriteBody: objectSchema({
+    path: string,
+    content: string,
+    encoding: { type: "string", enum: ["utf8", "base64"] },
+    createParents: boolean,
+    mode: string
+  }, ["path", "content"]),
+  SandboxFileWriteResponse: objectSchema({ file: ref("SandboxFileEntry") }),
+  SandboxFileUploadBody: objectSchema({
+    path: string,
+    contentBase64: string,
+    sizeBytes: integer,
+    sha256: string,
+    createParents: boolean,
+    mode: string
+  }, ["path", "contentBase64"]),
+  SandboxFileUploadResponse: objectSchema({
+    file: ref("SandboxFileEntry"),
+    sizeBytes: integer,
+    sha256: string
+  }, ["file", "sizeBytes", "sha256"]),
+  SandboxFileDownloadResponse: objectSchema({
+    path: string,
+    contentBase64: string,
+    sizeBytes: integer,
+    sha256: string
+  }, ["path", "contentBase64", "sizeBytes", "sha256"]),
+  SandboxFileMkdirBody: objectSchema({
+    path: string,
+    recursive: boolean
+  }, ["path"]),
+  SandboxFileMkdirResponse: objectSchema({ file: ref("SandboxFileEntry") }),
+  SandboxFileRenameBody: objectSchema({
+    fromPath: string,
+    toPath: string
+  }, ["fromPath", "toPath"]),
+  SandboxFileRenameResponse: objectSchema({ file: ref("SandboxFileEntry") }),
+  SandboxFileRemoveResponse: objectSchema({
+    ok: boolean,
+    path: string
+  }, ["ok", "path"]),
   SandboxMetricsResponse: objectSchema({
     current: objectSchema({
       cpu: number,
@@ -332,11 +452,19 @@ const schemas: Record<string, JsonSchema> = {
   }),
   ExposeSandboxRouteBody: objectSchema({
     port: integer,
-    protocol: { type: "string", enum: ["http", "https"] }
+    protocol: { type: "string", enum: ["http", "https"] },
+    accessMode: { type: "string", enum: ["public", "token"] },
+    labels: arrayOf(string)
   }, ["port"]),
   SandboxRouteSummary: objectSchema({
     port: integer,
     protocol: { type: "string", enum: ["http", "https"] },
+    accessMode: { type: "string", enum: ["public", "token"] },
+    accessHeaderName: nullableString,
+    tokenHint: nullableString,
+    labels: arrayOf(string),
+    createdByUserId: nullableString,
+    createdByLabel: nullableString,
     routeKey: string,
     host: string,
     url: string,
@@ -346,10 +474,62 @@ const schemas: Record<string, JsonSchema> = {
     providerRouteId: nullableString,
     createdAt: dateTime,
     lastCheckedAt: { type: ["string", "null"], format: "date-time" },
+    lastUsedAt: { type: ["string", "null"], format: "date-time" },
     terminatedAt: { type: ["string", "null"], format: "date-time" }
   }),
-  SandboxRouteResponse: objectSchema({ route: ref("SandboxRouteSummary") }),
+  SandboxRouteResponse: objectSchema({ route: ref("SandboxRouteSummary"), accessToken: string, accessHeaderName: string }, ["route"]),
   SandboxRoutesResponse: objectSchema({ routes: arrayOf(ref("SandboxRouteSummary")) }),
+  RuntimeCapabilitySummary: objectSchema({
+    name: {
+      type: "string",
+      enum: [
+        "lifecycle",
+        "commandRun",
+        "commands",
+        "commandLogs",
+        "terminalAttach",
+        "terminalResize",
+        "shellSessions",
+        "sessionCommands",
+        "filesystemList",
+        "filesystemRead",
+        "filesystemWrite",
+        "routes",
+        "tokenRoutes",
+        "egressPolicy",
+        "logs",
+        "metrics"
+      ]
+    },
+    state: { type: "string", enum: ["available", "degraded", "unavailable"] },
+    contract: {
+      type: "string",
+      enum: [
+        "opensandbox_spec",
+        "opensandbox_provider",
+        "harakiri_control_plane",
+        "unavailable",
+        "unsupported"
+      ],
+      description: "Where the capability is implemented: formal OpenSandbox API/spec, current OpenSandbox provider behavior, Harakiri control-plane overlay, unavailable in this provider, or unsupported."
+    },
+    source: {
+      ...string,
+      description: "Human-readable provider or control-plane source for this capability."
+    },
+    required: boolean,
+    reason: nullableString
+  }),
+  RuntimeCapabilitiesResponse: objectSchema({
+    provider: string,
+    capabilities: arrayOf(ref("RuntimeCapabilitySummary")),
+    generatedAt: dateTime
+  }),
+  SandboxTerminalAttachTicketResponse: objectSchema({
+    ticket: string,
+    expiresAt: dateTime,
+    attachUrl: string
+  }),
   EgressNetworkRule: objectSchema({
     action: { type: "string", enum: ["allow", "deny"] },
     target: string
@@ -683,14 +863,60 @@ export const openApiDocument = {
     "/v1/sandboxes/{id}/renew": {
       post: secured({ tags: ["Sandboxes"], summary: "Renew a sandbox TTL", operationId: "renewSandbox", parameters: [pathId], responses: { ...ok("Renewed sandbox", ref("OkResponse")), ...authErrorResponses } })
     },
+    "/v1/runtime/capabilities": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Read runtime provider capabilities", operationId: "getRuntimeCapabilities", responses: { ...ok("Runtime capabilities", ref("RuntimeCapabilitiesResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/terminal/attach-ticket": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Create a short-lived terminal attach ticket", operationId: "createSandboxTerminalAttachTicket", parameters: [pathId], responses: { ...created("Terminal attach ticket", ref("SandboxTerminalAttachTicketResponse")), ...authErrorResponses } })
+    },
     "/v1/sandboxes/{id}/run": {
       post: secured({ tags: ["Sandbox Runtime"], summary: "Run a command in a sandbox", operationId: "runSandboxCommand", parameters: [pathId], requestBody: jsonBody(ref("RunSandboxBody")), responses: { ...ok("Command result", ref("RunSandboxResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/commands": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "List sandbox commands", operationId: "listSandboxCommands", parameters: [pathId], responses: { ...ok("Sandbox commands", ref("SandboxCommandsResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Start a sandbox command", operationId: "createSandboxCommand", parameters: [pathId], requestBody: jsonBody(ref("CreateSandboxCommandBody")), responses: { ...created("Started sandbox command", ref("SandboxCommandResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/commands/{commandId}": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Get a sandbox command", operationId: "getSandboxCommand", parameters: [pathId, commandIdPath], responses: { ...ok("Sandbox command", ref("SandboxCommandResponse")), ...authErrorResponses } }),
+      delete: secured({ tags: ["Sandbox Runtime"], summary: "Interrupt a sandbox command", operationId: "killSandboxCommand", parameters: [pathId, commandIdPath], responses: { ...ok("Sandbox command", ref("SandboxCommandResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/commands/{commandId}/logs": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox command logs", operationId: "getSandboxCommandLogs", parameters: [pathId, commandIdPath, parameter("cursor", "query", integer, false), parameter("tail", "query", integer, false)], responses: { ...ok("Sandbox command logs", ref("SandboxCommandLogsResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/command-sessions": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Create a persistent command session", operationId: "createSandboxCommandSession", parameters: [pathId], requestBody: jsonBody(ref("CreateSandboxCommandSessionBody")), responses: { ...created("Created command session", ref("SandboxCommandSessionResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/command-sessions/{sessionId}": {
+      delete: secured({ tags: ["Sandbox Runtime"], summary: "Delete a persistent command session", operationId: "deleteSandboxCommandSession", parameters: [pathId, sessionIdPath], responses: { ...ok("Deleted command session", ref("SandboxCommandSessionResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/command-sessions/{sessionId}/run": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Run a command in a persistent session", operationId: "runSandboxCommandSession", parameters: [pathId, sessionIdPath], requestBody: jsonBody(ref("RunSandboxCommandSessionBody")), responses: { ...ok("Command result", ref("RunSandboxCommandSessionResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/logs": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox logs", operationId: "getSandboxLogs", parameters: [pathId], responses: { ...ok("Sandbox logs", ref("SandboxLogsResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/files": {
-      get: secured({ tags: ["Sandbox Runtime"], summary: "List sandbox files", operationId: "listSandboxFiles", parameters: [pathId, parameter("path", "query", string, false)], responses: { ...ok("Sandbox files", ref("SandboxFilesResponse")), ...authErrorResponses } })
+      get: secured({ tags: ["Sandbox Runtime"], summary: "List sandbox files", operationId: "listSandboxFiles", parameters: [pathId, parameter("path", "query", string, false)], responses: { ...ok("Sandbox files", ref("SandboxFilesResponse")), ...authErrorResponses } }),
+      put: secured({ tags: ["Sandbox Runtime"], summary: "Write a sandbox file", operationId: "writeSandboxFile", parameters: [pathId], requestBody: jsonBody(ref("SandboxFileWriteBody")), responses: { ...ok("Sandbox file", ref("SandboxFileWriteResponse")), ...authErrorResponses } }),
+      delete: secured({ tags: ["Sandbox Runtime"], summary: "Remove a sandbox file or directory", operationId: "removeSandboxFile", parameters: [pathId, parameter("path", "query", string, true), parameter("recursive", "query", boolean, false)], responses: { ...ok("Removed sandbox file", ref("SandboxFileRemoveResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/files/stat": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Stat a sandbox file", operationId: "statSandboxFile", parameters: [pathId, parameter("path", "query", string, true)], responses: { ...ok("Sandbox file metadata", ref("SandboxFileStatResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/files/read": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Read a sandbox file", operationId: "readSandboxFile", parameters: [pathId, parameter("path", "query", string, true), parameter("encoding", "query", string, false)], responses: { ...ok("Sandbox file content", ref("SandboxFileReadResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/files/upload": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Upload a sandbox file artifact", operationId: "uploadSandboxFile", parameters: [pathId], requestBody: jsonBody(ref("SandboxFileUploadBody")), responses: { ...ok("Uploaded sandbox artifact", ref("SandboxFileUploadResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/files/download": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Download a sandbox file artifact", operationId: "downloadSandboxFile", parameters: [pathId, parameter("path", "query", string, true)], responses: { ...ok("Downloaded sandbox artifact", ref("SandboxFileDownloadResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/files/mkdir": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Create a sandbox directory", operationId: "mkdirSandboxFile", parameters: [pathId], requestBody: jsonBody(ref("SandboxFileMkdirBody")), responses: { ...ok("Sandbox directory", ref("SandboxFileMkdirResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/files/rename": {
+      post: secured({ tags: ["Sandbox Runtime"], summary: "Rename a sandbox file", operationId: "renameSandboxFile", parameters: [pathId], requestBody: jsonBody(ref("SandboxFileRenameBody")), responses: { ...ok("Renamed sandbox file", ref("SandboxFileRenameResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/metrics": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox metrics", operationId: "getSandboxMetrics", parameters: [pathId], responses: { ...ok("Sandbox metrics", ref("SandboxMetricsResponse")), ...authErrorResponses } })

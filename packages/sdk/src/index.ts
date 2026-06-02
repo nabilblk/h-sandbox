@@ -3,6 +3,7 @@ import type {
   ApiKeysResponse,
   CreateTemplateBody,
   CreateTemplateBuildBody,
+  CreateSandboxCommandSessionBody,
   CreateSandboxCommandBody,
   CreateSandboxBody,
   CreateSandboxResponse,
@@ -13,9 +14,12 @@ import type {
   RegistryCredentialsResponse,
   RunSandboxBody,
   RunSandboxResponse,
+  RunSandboxCommandSessionBody,
+  RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
   SandboxCommandLogsResponse,
   SandboxCommandResponse,
+  SandboxCommandSessionResponse,
   SandboxCommandStatus,
   SandboxCommandsResponse,
   SandboxFilesResponse,
@@ -38,6 +42,8 @@ import type {
   SandboxRouteResponse,
   SandboxRoutesResponse,
   SandboxStatus,
+  SandboxTerminalAttachOptions,
+  SandboxTerminalAttachTicketResponse,
   PatchSandboxEgressBody,
   SandboxesResponse,
   TemplateBuildContextResponse,
@@ -78,6 +84,7 @@ export type {
   ApiKeysResponse,
   CreateTemplateBody,
   CreateTemplateBuildBody,
+  CreateSandboxCommandSessionBody,
   CreateSandboxCommandBody,
   CreateSandboxBody,
   CreateSandboxResponse,
@@ -89,9 +96,12 @@ export type {
   RegistryCredentialsResponse,
   RunSandboxBody,
   RunSandboxResponse,
+  RunSandboxCommandSessionBody,
+  RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
   SandboxCommandLogsResponse,
   SandboxCommandResponse,
+  SandboxCommandSessionResponse,
   SandboxCommandStatus,
   SandboxCommandsResponse,
   SandboxEgressResponse,
@@ -114,6 +124,8 @@ export type {
   SandboxRouteResponse,
   SandboxRoutesResponse,
   SandboxStatus,
+  SandboxTerminalAttachOptions,
+  SandboxTerminalAttachTicketResponse,
   PatchSandboxEgressBody,
   SandboxesResponse,
   TemplateBuildContextResponse,
@@ -141,6 +153,13 @@ export type CreateSandboxInput = CreateSandboxBody;
 
 export type RunSandboxInput = RunSandboxBody;
 export type CreateSandboxCommandInput = CreateSandboxCommandBody;
+export type CreateSandboxCommandSessionInput = CreateSandboxCommandSessionBody;
+export type RunSandboxCommandSessionInput = RunSandboxCommandSessionBody;
+export type TerminalAttachOptions = SandboxTerminalAttachOptions;
+export type TerminalAttachRequest = {
+  url: string;
+  headers: Record<string, string>;
+};
 
 export type ExposePortInput = ExposeSandboxRouteBody;
 
@@ -327,7 +346,18 @@ export class HarakiriClient {
     get: (id: string, commandId: string) => this.getCommand(id, commandId),
     logs: (id: string, commandId: string, options: GetCommandLogsOptions = {}) => this.getCommandLogs(id, commandId, options),
     kill: (id: string, commandId: string) => this.killCommand(id, commandId),
-    wait: (id: string, commandId: string, options: WaitForCommandOptions = {}) => this.waitForCommand(id, commandId, options)
+    wait: (id: string, commandId: string, options: WaitForCommandOptions = {}) => this.waitForCommand(id, commandId, options),
+    sessions: {
+      create: (id: string, input: CreateSandboxCommandSessionInput = {}) => this.createCommandSession(id, input),
+      run: (id: string, sessionId: string, input: RunSandboxCommandSessionInput) => this.runCommandSession(id, sessionId, input),
+      delete: (id: string, sessionId: string) => this.deleteCommandSession(id, sessionId)
+    }
+  };
+
+  readonly terminal = {
+    attachUrl: (id: string, options: TerminalAttachOptions = {}) => this.createTerminalAttachUrl(id, options),
+    attachRequest: (id: string, options: TerminalAttachOptions = {}) => this.createTerminalAttachRequest(id, options),
+    attachTicket: (id: string) => this.createTerminalAttachTicket(id)
   };
 
   readonly files = {
@@ -560,6 +590,80 @@ export class HarakiriClient {
 
   killSandboxCommand(id: string, commandId: string) {
     return this.killCommand(id, commandId);
+  }
+
+  createCommandSession(id: string, input: CreateSandboxCommandSessionInput = {}) {
+    return this.request<SandboxCommandSessionResponse>(`/v1/sandboxes/${id}/command-sessions`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  createSandboxCommandSession(id: string, input: CreateSandboxCommandSessionInput = {}) {
+    return this.createCommandSession(id, input);
+  }
+
+  runCommandSession(id: string, sessionId: string, input: RunSandboxCommandSessionInput) {
+    return this.request<RunSandboxCommandSessionResponse>(
+      `/v1/sandboxes/${id}/command-sessions/${encodeURIComponent(sessionId)}/run`,
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      }
+    );
+  }
+
+  runSandboxCommandSession(id: string, sessionId: string, input: RunSandboxCommandSessionInput) {
+    return this.runCommandSession(id, sessionId, input);
+  }
+
+  deleteCommandSession(id: string, sessionId: string) {
+    return this.request<SandboxCommandSessionResponse>(`/v1/sandboxes/${id}/command-sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE"
+    });
+  }
+
+  deleteSandboxCommandSession(id: string, sessionId: string) {
+    return this.deleteCommandSession(id, sessionId);
+  }
+
+  createTerminalAttachUrl(id: string, options: TerminalAttachOptions = {}) {
+    const url = new URL(`${this.apiUrl}/v1/sandboxes/${encodeURIComponent(id)}/terminal/attach`);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    if (options.cwd) url.searchParams.set("cwd", options.cwd);
+    if (options.shell) url.searchParams.set("shell", options.shell);
+    if (options.sessionName) url.searchParams.set("sessionName", options.sessionName);
+    for (const [key, value] of Object.entries(options.env ?? {})) url.searchParams.append("env", `${key}=${value}`);
+    if (options.cols !== undefined) url.searchParams.set("cols", String(options.cols));
+    if (options.rows !== undefined) url.searchParams.set("rows", String(options.rows));
+    if (options.since !== undefined) url.searchParams.set("since", String(options.since));
+    if (options.pty !== undefined) url.searchParams.set("pty", options.pty ? "true" : "false");
+    return url.toString();
+  }
+
+  createSandboxTerminalAttachUrl(id: string, options: TerminalAttachOptions = {}) {
+    return this.createTerminalAttachUrl(id, options);
+  }
+
+  createTerminalAttachRequest(id: string, options: TerminalAttachOptions = {}): TerminalAttachRequest {
+    return {
+      url: this.createTerminalAttachUrl(id, options),
+      headers: { "x-api-key": this.apiKey }
+    };
+  }
+
+  createSandboxTerminalAttachRequest(id: string, options: TerminalAttachOptions = {}) {
+    return this.createTerminalAttachRequest(id, options);
+  }
+
+  createTerminalAttachTicket(id: string) {
+    return this.request<SandboxTerminalAttachTicketResponse>(`/v1/sandboxes/${id}/terminal/attach-ticket`, {
+      method: "POST"
+    });
+  }
+
+  createSandboxTerminalAttachTicket(id: string) {
+    return this.createTerminalAttachTicket(id);
   }
 
   getSandboxLogs(id: string) {

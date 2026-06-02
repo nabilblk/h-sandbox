@@ -812,7 +812,7 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
           </div>
           <div className="tmpl-list-layout">
             <div className="tmpl-list card">
-              <div className="tmpl-row tmpl-head"><span>Name</span><span>Resources</span><span>Updated</span><span>Visibility</span><span>Build</span><span>Version</span><span /></div>
+              <div className="tmpl-row tmpl-head"><span>Name</span><span>Resources</span><span>Updated</span><span>Access</span><span>Health</span><span /></div>
               {templates.map((template) => (
                 <div
                   className={`tmpl-row ${selectedTemplate?.id === template.id ? "active" : ""}`}
@@ -834,11 +834,10 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
                   <span className="tmpl-resource"><b>{template.cpuCount ?? 1} cores</b><small>{template.memoryMb?.toLocaleString() ?? 1024} MB</small></span>
                   <span className="num muted">{formatDateTime(template.updatedAt)}</span>
                   <span><span className={`tag ${template.visibility === "internal" ? "tag-lock" : ""}`}>{template.visibility === "internal" ? <Icon name="lock" size={10} /> : null}{template.visibility}</span>{template.status !== "ready" ? <span className="tag" style={{ marginLeft: 4 }}>{template.status}</span> : null}</span>
-                  <span>{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">-</span>}</span>
-                  <span className="num muted">{shortDigest(template.imageDigest ?? template.latestVersionId)}</span>
+                  <span className="tmpl-health">{template.latestBuildStatus ? <span className={`build-badge ${template.latestBuildStatus}`} title={template.latestBuildId ?? undefined}>{template.latestBuildStatus}</span> : <span className="num muted">no build</span>}<small>{shortDigest(template.imageDigest ?? template.latestVersionId)}</small></span>
                   <span className="tmpl-actions">
-                    <button className="btn btn-ghost btn-sm" onClick={(event) => { event.stopPropagation(); viewTemplate(template); }}>Open</button>
                     <button className="btn btn-ghost btn-sm" onClick={(event) => { event.stopPropagation(); void createFromTemplate(template.id); }} disabled={!templateCanRun(template) || busy === `use:${template.id}`} title={templateCanRun(template) ? "Create a sandbox" : "Build a ready template version first"}>Use</button>
+                    <button className="btn btn-ghost btn-sm icon-only" onClick={(event) => { event.stopPropagation(); void navigator.clipboard?.writeText(template.id); }} title="Copy template ID" aria-label="Copy template ID"><Icon name="copy" size={12} /></button>
                   </span>
                 </div>
               ))}

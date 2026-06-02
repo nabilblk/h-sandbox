@@ -50,9 +50,11 @@
   },
   "dependencies": {
     "@h-sandbox/sdk": "workspace:*",
-    "commander": "^14.0.2"
+    "commander": "^14.0.2",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@types/ws": "^8.18.1",
     "tsx": "^4.21.0"
   }
 }

@@ -18,17 +18,28 @@ runtime; the image itself is responsible for exposing useful tools and services.
 ## Recommended harakiri.toml Fields
 
 ```toml
+# Harakiri sandbox template.
+# Build this directory as an OpenSandbox-compatible OCI image:
+#   harakiri template build --name open-agents-dev .
+#   harakiri template smoke open-agents-dev
+
+# Catalog metadata.
 name = "open-agents-dev"
 id = "open-agents-dev"
-dockerfile = "Dockerfile"
+description = "Sandbox runtime for open-agents-dev."
 visibility = "private"
 runtime_family = "custom"
+aliases = ["open-agents-dev"]
+tags = ["custom", "hot"]
+
+# Image source. Use either dockerfile or image.
+dockerfile = "Dockerfile"
+
+# Runtime defaults.
 cpu_count = 2
 memory_mb = 2048
 workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
-tags = ["custom", "hot"]
-aliases = ["open-agents-dev"]
 start_command = "sleep 3600"
 ready_command = "true"
 ```
@@ -62,6 +73,13 @@ on OpenSandbox and should emit normal OCI images.
 ## Smoke Checks
 
 Run these inside a sandbox created from the template:
+
+```bash
+harakiri template smoke open-agents-dev
+```
+
+`template smoke` uses `ready_command` from `harakiri.toml` by default. Template
+authors can also run the underlying checks directly inside a sandbox:
 
 ```bash
 bun --version

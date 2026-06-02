@@ -158,7 +158,8 @@ test("sign-out uses provider logout with a Harakiri post-logout redirect", async
 
   assert.equal(sessionStorage.getItem("harakiri_auth_return_route"), null);
   assert.deepEqual(calls.logout[0], { redirectUri: "http://app.test/#landing", logoutMethod: "GET" });
-  assert.equal(session.snapshot().status, "anonymous");
+  assert.equal(session.snapshot().status, "signing-out");
+  assert.equal(globalThis.location.hash, "#dashboard/sandboxes");
 });
 
 test("storage logout events clear an authenticated tab", async () => {

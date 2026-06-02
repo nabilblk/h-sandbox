@@ -11,15 +11,30 @@ Harakiri uses OpenSandbox for:
 
 - Sandbox lifecycle: create, list, get, delete, and renew through
   `/v1/sandboxes`.
-- Sandbox terminal commands: resolve port `44772` with
-  `/v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`, then call
-  `execd` `POST /command`.
+- Sandbox terminal commands and persisted command resources: resolve port
+  `44772` with `/v1/sandboxes/:id/endpoints/44772?use_server_proxy=true`,
+  then call `execd` `POST /command`, `GET /command/status/:id`,
+  `GET /command/:id/logs`, and `DELETE /command?id=...`.
+- Persistent non-interactive command sessions: resolve the same `execd`
+  endpoint, then call OpenSandbox `POST /session`,
+  `POST /session/:sessionId/run`, and `DELETE /session/:sessionId`. Harakiri
+  owns org auth, TTL renewal, session lifecycle events, and stable API/CLI/SDK
+  semantics; OpenSandbox owns the bash session itself.
+- Interactive terminals: resolve the same OpenSandbox `execd` endpoint on port
+  `44772`, create an OpenSandbox PTY session with `POST /pty`, and bridge the
+  authenticated Harakiri WebSocket to `GET /pty/:sessionId/ws`. Harakiri
+  records attach lifecycle metadata only; it does not store terminal input or
+  output.
 - Filesystem metadata: call `execd` `GET /files/search`. Harakiri synthesizes
   immediate directory rows from returned file paths because the current
   portable OpenSandbox API searches files rather than listing directories. When
   provider search fails for a path such as `/`, fall back to an OpenSandbox
   `execd` command that lists immediate directory entries; do not use Kubernetes
   pod exec.
+- Filesystem mutations and file content: use OpenSandbox endpoint-resolved
+  `execd` commands for stat/read/write/mkdir/remove/rename while OpenSandbox
+  lacks stable dedicated endpoints for those operations. This fallback is still
+  provider-owned OpenSandbox data-plane access, not Kubernetes pod exec.
 - Metrics: call `execd` `GET /metrics`.
 - Sandbox diagnostic logs: call OpenSandbox diagnostics
   `/v1/sandboxes/:id/diagnostics/logs?scope=container` when available, with a

@@ -51,7 +51,12 @@ settings are written to `~/.config/harakiri/config.json`.
 ```bash
 harakiri init
 harakiri create --template python-3.12-data --env HARAKIRI_ENV_SMOKE=env-ok
+harakiri attach sbx_... --cwd /workspace
 harakiri run --stdin agent.py
+harakiri command run sbx_... --cmd "python -m http.server 3000" --detached
+harakiri command session create sbx_... --cwd /workspace
+harakiri command session run sbx_... sess_... --cmd "pwd"
+harakiri command session delete sbx_... sess_...
 harakiri files sbx_... --path /workspace
 harakiri logs sbx_...
 harakiri expose sbx_... --port 3000

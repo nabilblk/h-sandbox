@@ -1,0 +1,16 @@
+# Harakiri Python data template.
+
+name = "Python 3.12 Data"
+id = "python-3.12-data"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "Python 3.12 runtime with common data and analysis packages."
+runtime_family = "python-data"
+cpu_count = 2
+memory_mb = 2048
+workdir = "/workspace"
+ports = [8000, 8888]
+aliases = ["python-3.12-data", "python/data"]
+tags = ["custom", "python"]
+start_command = "sleep 3600"
+ready_command = "harakiri-python-data-smoke"

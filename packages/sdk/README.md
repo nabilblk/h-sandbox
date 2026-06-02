@@ -101,9 +101,11 @@ in UI and agent loops; responses include truncation flags when earlier output
 was omitted.
 Routes accept optional labels and return creator metadata plus `lastUsedAt` for
 token-protected proxy access.
-`getRuntimeCapabilities()` returns provider capability states as
-`available`, `degraded`, or `unavailable`, so adapters can hide unsupported
-workflows without checking provider names.
+`getRuntimeCapabilities()` returns provider capability states plus contract
+metadata. Use `state` to decide whether a feature is usable, and use
+`contract` to understand whether it is backed by a formal OpenSandbox API, a
+feature-detected OpenSandbox provider behavior, or a Harakiri control-plane
+overlay.
 
 ## Files And Artifacts
 

@@ -19,6 +19,8 @@ Examples:
   $ harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...
   $ harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV=dev
   $ harakiri run sbx_... --cmd "python --version"
+  $ harakiri attach sbx_... --cwd /workspace
+  $ harakiri command session create sbx_... --cwd /workspace
   $ harakiri expose sbx_... --port 3000
   $ harakiri egress set sbx_... --mode restricted --allow api.github.com
 `);

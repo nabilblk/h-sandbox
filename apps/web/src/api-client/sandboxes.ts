@@ -6,6 +6,8 @@ import type {
   PatchSandboxEgressBody,
   RunSandboxBody,
   RunSandboxResponse,
+  SandboxCommandResponse,
+  SandboxCommandsResponse,
   SandboxEgressResponse,
   SandboxFilesResponse,
   SandboxLogsResponse,
@@ -13,6 +15,7 @@ import type {
   SandboxResponse,
   SandboxRouteResponse,
   SandboxRoutesResponse,
+  SandboxTerminalAttachTicketResponse,
   SandboxesResponse,
   TestSandboxEgressBody,
   TestSandboxEgressResponse
@@ -30,6 +33,11 @@ export const sandboxesApi = {
       method: "POST",
       body: JSON.stringify(body)
     }),
+  commands: (id: string) => request<SandboxCommandsResponse>(`/v1/sandboxes/${id}/commands`),
+  killCommand: (id: string, commandId: string) =>
+    request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, { method: "DELETE" }),
+  terminalAttachTicket: (id: string) =>
+    request<SandboxTerminalAttachTicketResponse>(`/v1/sandboxes/${id}/terminal/attach-ticket`, { method: "POST" }),
   logs: (id: string) => request<SandboxLogsResponse>(`/v1/sandboxes/${id}/logs`),
   files: (id: string, path?: string) =>
     request<SandboxFilesResponse>(`/v1/sandboxes/${id}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`),

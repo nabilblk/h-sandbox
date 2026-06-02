@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   egressPresetCatalog,
   type EgressMode,
   type EgressPresetId,
+  type SandboxCommandSummary,
   type SandboxEgressResponse,
   type SandboxFileEntry,
   type SandboxRouteSummary,
@@ -26,48 +27,209 @@ export const SandboxDetailRoute = ({ id, go }: { id: string; go: GoToRoute }) =>
 };
 
 type TerminalLine = { kind: "cmd" | "stdout" | "stderr" | "muted" | "ok"; text: string };
+type TerminalStatus = "connecting" | "attached" | "closed" | "error";
 
-const splitOutput = (text: string, kind: TerminalLine["kind"]) =>
-  text.split(/\r?\n/).filter(Boolean).map((line) => ({ kind, text: line }));
+const stdinFramePrefix = 0x00;
+const stdoutFramePrefix = 0x01;
+const stderrFramePrefix = 0x02;
+const replayFramePrefix = 0x03;
+
+const stripAnsi = (value: string) => value.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
+
+const terminalText = (bytes: Uint8Array, prefix: number) => {
+  const offset = prefix === replayFramePrefix ? 9 : 1;
+  return stripAnsi(new TextDecoder().decode(bytes.slice(offset)).replace(/\r/g, ""));
+};
+
+const commandIsRunning = (command: SandboxCommandSummary) => command.status === "running" || command.status === "queued";
+
+const commandRuntime = (command: SandboxCommandSummary) => {
+  const start = command.startedAt ?? command.createdAt;
+  const end = command.finishedAt ?? command.updatedAt;
+  const ms = Date.parse(end) - Date.parse(start);
+  if (!Number.isFinite(ms) || ms < 0) return "pending";
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = Math.round(ms / 1000);
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+};
 
 const TerminalPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
+  const terminalRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
   const [lines, setLines] = useState<TerminalLine[]>([
-    { kind: "muted", text: "harakiri v0.41.2 - attaching to " + sandbox.id },
-    { kind: "muted", text: "connection sealed - TTL " + sandbox.ttlSeconds + "s" }
+    { kind: "muted", text: "harakiri terminal - attaching to " + sandbox.id },
+    { kind: "muted", text: "requesting short-lived attach ticket" }
   ]);
   const [input, setInput] = useState("");
+  const [status, setStatus] = useState<TerminalStatus>("connecting");
+  const [reconnectKey, setReconnectKey] = useState(0);
+  const [commands, setCommands] = useState<SandboxCommandSummary[]>([]);
+  const [commandsError, setCommandsError] = useState("");
+  const loadCommands = () =>
+    api.commands(sandbox.id)
+      .then((response) => {
+        setCommands(response.commands.slice(0, 8));
+        setCommandsError("");
+      })
+      .catch((error) => {
+        setCommands([]);
+        setCommandsError(error instanceof Error ? error.message : "Command history unavailable.");
+      });
+  useEffect(() => { void loadCommands(); }, [sandbox.id]);
+  useEffect(() => {
+    terminalRef.current?.scrollTo({ top: terminalRef.current.scrollHeight });
+  }, [lines]);
+  useEffect(() => {
+    let cancelled = false;
+    let socket: WebSocket | null = null;
+    const append = (kind: TerminalLine["kind"], text: string) => {
+      if (!text) return;
+      setLines((current) => [...current, ...text.split(/\n/).filter(Boolean).map((line) => ({ kind, text: line }))]);
+    };
+    const terminalSize = () => {
+      const rect = terminalRef.current?.getBoundingClientRect();
+      return {
+        cols: Math.max(40, Math.floor((rect?.width ?? 960) / 8)),
+        rows: Math.max(12, Math.floor((rect?.height ?? 520) / 21))
+      };
+    };
+    const sendResize = () => {
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify({ type: "resize", ...terminalSize() }));
+    };
+    const handleFrame = async (event: MessageEvent) => {
+      if (typeof event.data === "string") {
+        try {
+          const frame = JSON.parse(event.data) as { type?: string; error?: string; message?: string; code?: string; session_id?: string; mode?: string };
+          if (frame.type === "connected") {
+            setStatus("attached");
+            append("ok", `connection sealed - ${frame.mode ?? "pty"} ${frame.session_id ?? ""}`.trim());
+            sendResize();
+            return;
+          }
+          if (frame.type === "error" || frame.error) {
+            setStatus("error");
+            append("stderr", `${frame.error ?? frame.code ?? "terminal_error"}${frame.message ? `: ${frame.message}` : ""}`);
+            return;
+          }
+        } catch {
+          append("stdout", event.data);
+        }
+        return;
+      }
+      const buffer = event.data instanceof Blob ? new Uint8Array(await event.data.arrayBuffer()) : new Uint8Array(event.data as ArrayBuffer);
+      if (!buffer.length) return;
+      if (buffer[0] === stdoutFramePrefix || buffer[0] === replayFramePrefix) append("stdout", terminalText(buffer, buffer[0]));
+      else if (buffer[0] === stderrFramePrefix) append("stderr", terminalText(buffer, buffer[0]));
+      else append("stdout", stripAnsi(new TextDecoder().decode(buffer).replace(/\r/g, "")));
+    };
+    setStatus("connecting");
+    setLines([
+      { kind: "muted", text: "harakiri terminal - attaching to " + sandbox.id },
+      { kind: "muted", text: "requesting short-lived attach ticket" }
+    ]);
+    api.terminalAttachTicket(sandbox.id)
+      .then((ticket) => {
+        if (cancelled) return;
+        socket = new WebSocket(ticket.attachUrl);
+        socketRef.current = socket;
+        socket.binaryType = "arraybuffer";
+        socket.onopen = () => {
+          setStatus("connecting");
+          append("muted", `ticket expires ${new Date(ticket.expiresAt).toLocaleTimeString()}`);
+          append("muted", "websocket open - waiting for provider terminal");
+        };
+        socket.onmessage = (event) => { void handleFrame(event); };
+        socket.onerror = () => {
+          setStatus("error");
+          append("stderr", "terminal websocket error");
+        };
+        socket.onclose = (event) => {
+          if (cancelled) return;
+          setStatus(event.code === 1000 ? "closed" : "error");
+          append(event.code === 1000 ? "muted" : "stderr", `connection closed (${event.code || "unknown"})${event.reason ? `: ${event.reason}` : ""}`);
+        };
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setStatus("error");
+        append("stderr", error instanceof Error ? error.message : "terminal attach failed");
+      });
+    window.addEventListener("resize", sendResize);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("resize", sendResize);
+      socket?.close(1000, "terminal pane closed");
+      if (socketRef.current === socket) socketRef.current = null;
+    };
+  }, [sandbox.id, reconnectKey]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     const cmd = input.trim();
     setInput("");
     setLines((current) => [...current, { kind: "cmd", text: cmd }]);
-    try {
-      const response = await api.run(sandbox.id, { command: cmd });
-      const result = response.result;
-      setLines((current) => [
-        ...current,
-        ...splitOutput(result.stdout, "stdout"),
-        ...splitOutput(result.stderr, "stderr"),
-        { kind: result.exitCode === 0 ? "ok" : "stderr", text: `exit=${result.exitCode} runtime=${(result.durationMs / 1000).toFixed(2)}s` }
-      ]);
-    } catch (error) {
-      setLines((current) => [...current, { kind: "stderr", text: error instanceof Error ? error.message : "command failed" }]);
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || status !== "attached") {
+      setLines((current) => [...current, { kind: "stderr", text: "terminal is not attached" }]);
+      return;
     }
+    socket.send(new Uint8Array([stdinFramePrefix, ...new TextEncoder().encode(`${cmd}\n`)]));
   };
-  return <div className="term-pane"><div className="file-tree"><div className="ft-section">Workspace</div><div className="ft-row active"><Icon name="terminal" size={12} /><span className="ft-name">live shell</span></div><div className="ft-row"><Icon name="file" size={12} /><span className="ft-name">stdout</span></div><div className="ft-row"><Icon name="logs" size={12} /><span className="ft-name">stderr</span></div></div><div className="term">{lines.map((line, index) => <div key={index} className={`term-line ${line.kind}`}>{line.text}</div>)}<form className="term-input" onSubmit={submit}><input value={input} onChange={(e) => setInput(e.target.value)} autoFocus placeholder="Run a command..." /><span className="blink" style={{ color: "#e6e3da" }}>|</span></form></div><div className="detail-side"><div className="ds-section"><div className="ds-h">Instance</div><div className="ds-row"><span className="l">vCPU</span><span className="v">1</span></div><div className="ds-row"><span className="l">Memory</span><span className="v">1 GiB</span></div><div className="ds-row"><span className="l">TTL</span><span className="v">{sandbox.ttlSeconds}s</span></div></div></div></div>;
+  const killCommand = async (commandId: string) => {
+    await api.killCommand(sandbox.id, commandId);
+    await loadCommands();
+  };
+  const sendInterrupt = () => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: "signal", signal: "SIGINT" }));
+    socket.send(new Uint8Array([stdinFramePrefix, 0x03]));
+  };
+  const closeTerminal = () => {
+    socketRef.current?.close(1000, "closed from dashboard");
+  };
+  return <div className="term-pane"><div className="file-tree"><div className="ft-section">Terminal</div><div className="ft-row active"><Icon name="terminal" size={12} /><span className="ft-name">PTY attach</span></div><div className="ft-row"><Icon name="logs" size={12} /><span className="ft-name">stdout/stderr stream</span></div><div className="ft-section">Controls</div><button className="btn btn-sm terminal-side-action" onClick={() => setReconnectKey((value) => value + 1)}><Icon name="refresh" size={12} /> Reconnect</button><button className="btn btn-sm terminal-side-action" onClick={sendInterrupt} disabled={status !== "attached"}><Icon name="stop" size={11} /> Ctrl-C</button><button className="btn btn-sm terminal-side-action" onClick={closeTerminal} disabled={status === "closed"}>Close</button></div><div className="term" ref={terminalRef}>{lines.map((line, index) => <div key={index} className={`term-line ${line.kind}`}>{line.text}</div>)}<form className="term-input" onSubmit={submit}><input value={input} onChange={(e) => setInput(e.target.value)} autoFocus placeholder={status === "attached" ? "Run a shell command..." : "Waiting for terminal..."} disabled={status !== "attached"} /><span className="blink" style={{ color: "#e6e3da" }}>|</span></form></div><div className="detail-side"><div className="ds-section"><div className="ds-h">Connection</div><div className="ds-row"><span className="l">Status</span><span className={`pill terminal-status ${status}`}><span className="dot" /> {status}</span></div><div className="ds-row"><span className="l">Mode</span><span className="v">PTY</span></div><div className="ds-row"><span className="l">TTL</span><span className="v">{sandbox.ttlSeconds}s</span></div></div><div className="ds-section command-history"><div className="ds-h">Recent API commands</div>{commands.map((command) => <div className="command-history-row" key={command.id}><div><div className="command-history-cmd">{command.command}</div><div className="command-history-meta"><span className={`build-badge ${command.status}`}>{command.status}</span><span>{command.exitCode === null ? commandRuntime(command) : `exit ${command.exitCode} - ${commandRuntime(command)}`}</span></div></div>{commandIsRunning(command) ? <button className="btn btn-ghost btn-sm icon-only" onClick={() => void killCommand(command.id)} title="Interrupt command" aria-label="Interrupt command"><Icon name="stop" size={11} /></button> : null}</div>)}{commands.length ? null : <div className="empty-state compact">{commandsError || "Tracked commands started through the API appear here."}</div>}</div></div></div>;
 };
 
 const FilesPane = ({ id }: { id: string }) => {
   const [cwd, setCwd] = useState<string | undefined>();
   const [files, setFiles] = useState<SandboxFileEntry[]>([]);
   const [error, setError] = useState("");
-  useEffect(() => { api.files(id, cwd).then((r) => { setCwd(r.cwd); setFiles(r.files); setError(""); }).catch((err) => { setFiles([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); }); }, [id, cwd]);
+  const [loading, setLoading] = useState(false);
+  const load = (path = cwd) => {
+    setLoading(true);
+    return api.files(id, path)
+      .then((r) => { setCwd(r.cwd); setFiles(r.files); setError(""); })
+      .catch((err) => { setFiles([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); })
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.files(id, cwd)
+      .then((r) => {
+        if (cancelled) return;
+        setCwd(r.cwd);
+        setFiles(r.files);
+        setError("");
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setFiles([]);
+        setError(err instanceof Error ? err.message : "Filesystem unavailable");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [id, cwd]);
   const open = (file: SandboxFileEntry) => { if (file.type === "directory") setCwd(file.path); };
   const current = cwd ?? "/";
   const parent = current === "/" ? "/" : current.split("/").slice(0, -1).join("/") || "/";
-  const refresh = () => api.files(id, cwd).then((r) => { setCwd(r.cwd); setFiles(r.files); setError(""); }).catch((err) => { setFiles([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); });
-  return <div className="files-pane"><div className="files-toolbar"><button className="btn btn-sm" onClick={() => setCwd(parent)} disabled={current === "/"}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> Up</button><code>{current}</code><button className="btn btn-ghost btn-sm" onClick={refresh}><Icon name="refresh" size={12} /> Refresh</button></div><div className="files-table card"><div className="files-row files-head"><span>Name</span><span>Kind</span><span>Size</span><span>Modified</span><span>Path</span></div>{files.map((f) => <button key={f.path} className={`files-row ${f.type === "directory" ? "clickable" : ""}`} onClick={() => open(f)}><span className="files-name"><Icon name={f.type === "directory" ? "folder" : "file"} size={13} />{f.name}</span><span><span className="tag">{f.type}</span></span><span className="num">{formatBytes(f.size)}</span><span className="num muted">{formatDateTime(f.modifiedAt)}</span><span className="files-path">{f.path}</span></button>)}</div>{files.length ? null : <div className="empty-state">{error || "No files found at this path."}</div>}</div>;
+  const visibleFiles = files.slice(0, 300);
+  const hiddenCount = Math.max(0, files.length - visibleFiles.length);
+  return <div className="files-pane"><div className="files-toolbar"><button className="btn btn-sm" onClick={() => setCwd(parent)} disabled={current === "/" || loading}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> Up</button><code>{current}</code><span className="files-count num">{loading ? "loading" : `${files.length} entries`}</span><button className="btn btn-ghost btn-sm" onClick={() => void load()} disabled={loading}><Icon name="refresh" size={12} /> Refresh</button></div>{hiddenCount ? <div className="files-notice">Showing first {visibleFiles.length} entries. Narrow the path before working with very large directories.</div> : null}<div className="files-table card"><div className="files-row files-head"><span>Name</span><span>Kind</span><span>Size</span><span>Modified</span><span>Path</span></div>{visibleFiles.map((f) => <button key={f.path} className={`files-row ${f.type === "directory" ? "clickable" : ""}`} onClick={() => open(f)} disabled={loading}><span className="files-name"><Icon name={f.type === "directory" ? "folder" : "file"} size={13} />{f.name}</span><span><span className="tag">{f.type}</span></span><span className="num">{formatBytes(f.size)}</span><span className="num muted">{formatDateTime(f.modifiedAt)}</span><span className="files-path">{f.path}</span></button>)}</div>{files.length ? null : <div className="empty-state">{loading ? "Loading files..." : error || "This directory is empty."}</div>}</div>;
 };
 
 type RuntimeLogRow = {
@@ -79,8 +241,22 @@ type RuntimeLogRow = {
 
 const LogsPane = ({ id }: { id: string }) => {
   const [logs, setLogs] = useState<RuntimeLogRow[]>([]);
-  useEffect(() => { api.logs(id).then((r) => setLogs(r.logs)).catch(() => setLogs([])); }, [id]);
-  return <div className="logs-pane rich-logs"><div className="logs-row logs-head"><span>Time</span><span>Source</span><span>Level</span><span>Message</span></div>{logs.map((l, i) => <div key={i} className="logs-row"><span className="ts">{new Date(l.ts).toLocaleTimeString()}</span><span className="tag">{l.source ?? "control-plane"}</span><span className={`lvl ${l.lvl}`}>{String(l.lvl).toUpperCase()}</span><span className="log-msg">{l.msg}</span></div>)}</div>;
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api.logs(id)
+      .then((r) => { setLogs(r.logs); setError(""); })
+      .catch((cause) => {
+        setLogs([]);
+        setError(cause instanceof Error ? cause.message : "Logs are unavailable for this sandbox.");
+      });
+  }, [id]);
+  return (
+    <div className="logs-pane rich-logs">
+      <div className="logs-row logs-head"><span>Time</span><span>Source</span><span>Level</span><span>Message</span></div>
+      {logs.map((l, i) => <div key={i} className="logs-row"><span className="ts">{new Date(l.ts).toLocaleTimeString()}</span><span className="tag">{l.source ?? "control-plane"}</span><span className={`lvl ${l.lvl}`}>{String(l.lvl).toUpperCase()}</span><span className="log-msg">{l.msg}</span></div>)}
+      {logs.length ? null : <div className="empty-state">{error || "No runtime or control-plane logs have been recorded yet."}</div>}
+    </div>
+  );
 };
 
 type MetricsSnapshot = {
@@ -97,8 +273,22 @@ type MetricsSnapshot = {
 
 const MetricsPane = ({ id }: { id: string }) => {
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
-  useEffect(() => { api.metrics(id).then(setMetrics); }, [id]);
-  return <div style={{ padding: 24, overflow: "auto", height: "100%" }}><div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 14 }}><KPI label="CPU" v={`${metrics?.current?.cpu ?? 0}%`} delta={`${metrics?.current?.cpuCount ?? 1} vCPU visible`} /><KPI label="Memory" v={`${metrics?.current?.mem ?? 0} MB`} delta={metrics?.current?.memTotal ? `of ${metrics.current.memTotal} MB node memory` : "live snapshot"} /><KPI label="Disk I/O" v={`${metrics?.current?.diskIo ?? 0} KB/s`} delta="not exposed by execd" /><KPI label="Network out" v={`${metrics?.current?.networkOut ?? 0} KB/s`} delta="not exposed by execd" /></div><div className="card" style={{ padding: 22 }}><div className="card-h">CPU snapshot</div><Chart data={(metrics?.series ?? []).map((m) => m.cpu)} /></div></div>;
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api.metrics(id)
+      .then((snapshot) => { setMetrics(snapshot); setError(""); })
+      .catch((cause) => {
+        setMetrics(null);
+        setError(cause instanceof Error ? cause.message : "Metrics are unavailable for this sandbox.");
+      });
+  }, [id]);
+  return (
+    <div className="metrics-pane">
+      {error ? <div className="network-warning">Metrics snapshot is unavailable.<span>{error}</span></div> : null}
+      <div className="metrics-kpis"><KPI label="CPU" v={`${metrics?.current?.cpu ?? 0}%`} delta={`${metrics?.current?.cpuCount ?? 1} vCPU visible`} /><KPI label="Memory" v={`${metrics?.current?.mem ?? 0} MB`} delta={metrics?.current?.memTotal ? `of ${metrics.current.memTotal} MB node memory` : "live snapshot"} /><KPI label="Disk I/O" v={`${metrics?.current?.diskIo ?? 0} KB/s`} delta="provider snapshot pending" /><KPI label="Network out" v={`${metrics?.current?.networkOut ?? 0} KB/s`} delta="provider snapshot pending" /></div>
+      <div className="card metrics-chart"><div className="card-h">CPU snapshot</div><Chart data={(metrics?.series ?? []).map((m) => m.cpu)} /></div>
+    </div>
+  );
 };
 
 const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
@@ -193,11 +383,11 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
               <option value="https">HTTPS</option>
             </select>
             <input className="input mono network-port" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
-            <button className="btn btn-primary btn-sm" onClick={expose} disabled={busy || sandbox.status === "terminated"}><Icon name="globe" size={12} /> {busy ? "Exposing..." : "Expose"}</button>
+            <button className="btn btn-primary btn-sm" onClick={expose} disabled={busy || sandbox.status === "terminated"}><Icon name="globe" size={12} /> {busy ? "Exposing..." : "Expose port"}</button>
           </div>
         </div>
         {error ? <div className="network-error">{error}</div> : null}
-        <div className="network-table">
+        <div className="network-table route-table">
         <div className="network-row network-head"><span>Port</span><span>URL</span><span>State</span><span>Provider</span><span /></div>
         {routes.map((route) => (
           <div key={`${route.port}-${route.host}`} className="network-row">
@@ -208,7 +398,7 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
             <span className="network-actions"><button className="btn btn-ghost btn-sm" onClick={() => copy(route.url)}><Icon name="copy" size={12} /></button><button className="btn btn-ghost btn-sm" onClick={() => window.open(route.url, "_blank", "noopener,noreferrer")}>Open <Icon name="arrowR" size={11} /></button></span>
           </div>
         ))}
-        {routes.length ? null : <div className="empty-state">No exposed ports yet.</div>}
+        {routes.length ? null : <div className="empty-state">No exposed ports yet. Start a server on 0.0.0.0 inside the sandbox, then expose the matching port.</div>}
         </div>
       </section>
       <section className="network-section card">

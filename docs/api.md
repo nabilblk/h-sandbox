@@ -67,9 +67,28 @@ pnpm openapi:check
 - `POST /v1/sandboxes`
 - `GET /v1/sandboxes/:id`
 - `DELETE /v1/sandboxes/:id`
+- `GET /v1/runtime/capabilities`
 - `POST /v1/sandboxes/:id/run`
+- `GET /v1/sandboxes/:id/commands`
+- `POST /v1/sandboxes/:id/commands`
+- `GET /v1/sandboxes/:id/commands/:commandId`
+- `DELETE /v1/sandboxes/:id/commands/:commandId`
+- `GET /v1/sandboxes/:id/commands/:commandId/logs`
+- `POST /v1/sandboxes/:id/terminal/attach-ticket`
+- `GET /v1/sandboxes/:id/terminal/attach` WebSocket upgrade
+- `POST /v1/sandboxes/:id/command-sessions`
+- `POST /v1/sandboxes/:id/command-sessions/:sessionId/run`
+- `DELETE /v1/sandboxes/:id/command-sessions/:sessionId`
 - `GET /v1/sandboxes/:id/logs`
 - `GET /v1/sandboxes/:id/files`
+- `GET /v1/sandboxes/:id/files/stat`
+- `GET /v1/sandboxes/:id/files/read`
+- `GET /v1/sandboxes/:id/files/download`
+- `PUT /v1/sandboxes/:id/files`
+- `POST /v1/sandboxes/:id/files/upload`
+- `POST /v1/sandboxes/:id/files/mkdir`
+- `POST /v1/sandboxes/:id/files/rename`
+- `DELETE /v1/sandboxes/:id/files`
 - `GET /v1/sandboxes/:id/metrics`
 - `POST /v1/sandboxes/:id/renew`
 - `GET /v1/sandboxes/:id/routes`
@@ -87,6 +106,19 @@ pnpm openapi:check
 - `POST /v1/org/invitations/:id/cancel`
 - `POST /v1/org/members`
 - `DELETE /v1/org/members/:id`
+
+## Error Envelope
+
+API errors use one flat machine-readable envelope:
+
+```json
+{ "error": "sandbox_not_found", "message": "optional operator detail" }
+```
+
+Sandbox runtime endpoints publish their stable code vocabulary in the OpenAPI
+component `SandboxRuntimeApiErrorCode` and in `@h-sandbox/sdk` as
+`sandboxRuntimeApiErrorCodes`. SDK integrations should branch on `error.code`
+or the SDK error subclass, not on text messages.
 
 ## Organization Members
 
@@ -473,24 +505,176 @@ digest-pinned ready versions. The legacy Kaniko provider is still selectable
 with `TEMPLATE_DOCKERFILE_BUILDER=kaniko-legacy`. Git source builds are still
 tracked in the active custom template execution plan.
 
+## Runtime Capabilities
+
+Use `/v1/runtime/capabilities` before wiring advanced integrations that depend
+on provider-backed features:
+
+```bash
+curl $HARAKIRI_API_URL/v1/runtime/capabilities \
+  -H "x-api-key: $HK_KEY"
+```
+
+The response is machine-readable for SDKs and dashboard degraded states:
+
+```json
+{
+  "provider": "opensandbox",
+  "generatedAt": "2026-05-29T00:00:00.000Z",
+  "capabilities": [
+    {
+      "name": "commands",
+      "state": "available",
+      "contract": "opensandbox_spec",
+      "source": "OpenSandbox execd tracked command API",
+      "required": true,
+      "reason": null
+    },
+    {
+      "name": "terminalAttach",
+      "state": "available",
+      "contract": "opensandbox_provider",
+      "source": "OpenSandbox execd PTY implementation",
+      "required": true,
+      "reason": null
+    }
+  ]
+}
+```
+
+`state` is `available`, `degraded`, or `unavailable`. `contract` explains
+whether the feature comes from the formal OpenSandbox API/spec, current
+OpenSandbox provider behavior, Harakiri's control-plane overlay, or is
+unavailable/unsupported. Treat unavailable required capabilities as integration
+blockers and degraded capabilities as features that should show a quieter
+fallback path.
+
 ## Run Command
+
+Use `/run` for a blocking command when the caller wants stdout/stderr and exit
+status in one response:
 
 ```bash
 curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/run \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
-  -d '{"command":"python agent.py","stdin":"agent.py"}'
+  -d '{"command":"python agent.py","stdin":"agent.py","cwd":"/workspace","timeoutMs":30000}'
+```
+
+Use command resources for persisted command history and detached/background
+processes:
+
+```bash
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/commands \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"command":"python -m http.server 3000","cwd":"/workspace","detached":true}'
+```
+
+Response shape:
+
+```json
+{
+  "command": {
+    "id": "cmd_...",
+    "sandboxId": "sbx_x",
+    "provider": "opensandbox",
+    "providerCommandId": "execd-command-id",
+    "command": "python -m http.server 3000",
+    "status": "running",
+    "cwd": "/workspace",
+    "envKeys": [],
+    "timeoutMs": null,
+    "detached": true,
+    "stdout": "",
+    "stderr": "",
+    "exitCode": null,
+    "error": null,
+    "startedAt": "2026-05-29T00:00:00.000Z",
+    "finishedAt": null,
+    "createdAt": "2026-05-29T00:00:00.000Z",
+    "updatedAt": "2026-05-29T00:00:00.000Z"
+  }
+}
+```
+
+List, inspect, read logs, and interrupt a tracked command:
+
+```bash
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/commands \
+  -H "x-api-key: $HK_KEY"
+
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/commands/cmd_... \
+  -H "x-api-key: $HK_KEY"
+
+curl "$HARAKIRI_API_URL/v1/sandboxes/sbx_x/commands/cmd_.../logs?cursor=0&tail=200" \
+  -H "x-api-key: $HK_KEY"
+
+curl -X DELETE $HARAKIRI_API_URL/v1/sandboxes/sbx_x/commands/cmd_... \
+  -H "x-api-key: $HK_KEY"
+```
+
+`cursor` asks the runtime provider for logs after a provider cursor when that
+provider supports it. `tail` is provider-neutral and trims the returned stdout
+and stderr to the last N lines. Responses include `stdoutTruncated` and
+`stderrTruncated` when a tail value was applied.
+
+## Files And Artifacts
+
+List, read, and write ordinary files:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes/sbx_x/files?path=/workspace" \
+  -H "x-api-key: $HK_KEY"
+
+curl "$HARAKIRI_API_URL/v1/sandboxes/sbx_x/files/read?path=/workspace/agent.py" \
+  -H "x-api-key: $HK_KEY"
+
+curl -X PUT $HARAKIRI_API_URL/v1/sandboxes/sbx_x/files \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"path":"/workspace/agent.py","content":"print(\"ok\")\n","createParents":true}'
+```
+
+Use artifact endpoints for binary payloads. Upload accepts canonical base64,
+validates decoded size, and verifies `sha256` when provided. The default
+decoded limit is `SANDBOX_FILE_ARTIFACT_MAX_BYTES=16777216`.
+
+```bash
+curl -X POST $HARAKIRI_API_URL/v1/sandboxes/sbx_x/files/upload \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "path": "/workspace/input.bin",
+    "contentBase64": "aGVsbG8=",
+    "sizeBytes": 5,
+    "sha256": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+    "createParents": true
+  }'
+
+curl "$HARAKIRI_API_URL/v1/sandboxes/sbx_x/files/download?path=/workspace/input.bin" \
+  -H "x-api-key: $HK_KEY"
 ```
 
 ## Expose Port
 
-Routes are explicit and idempotent per sandbox/port. In k0s, Harakiri stores the route in PostgreSQL and uses the OpenSandbox ingress gateway host format. Route creation validates port `1..65535` and enforces `SANDBOX_MAX_ROUTES_PER_SANDBOX` plus `SANDBOX_MAX_ROUTES_PER_ORG`.
+Routes are explicit and idempotent per sandbox/port. In k0s, Harakiri stores the
+route in the control plane and uses OpenSandbox to expose the upstream port.
+Route creation validates port `1..65535` and enforces
+`SANDBOX_MAX_ROUTES_PER_SANDBOX` plus `SANDBOX_MAX_ROUTES_PER_ORG`.
+
+The default `accessMode` is `public`, which returns the direct OpenSandbox
+preview URL. `accessMode: "token"` returns a Harakiri proxy URL and a route
+token. The token is only returned on creation, is stored as a hash, and must be
+sent as `x-harakiri-route-token` or the `harakiri_route_token` query parameter.
+Set `PUBLIC_API_URL` to the externally reachable API origin in deployments where
+token-protected routes will be opened outside the local port-forward.
 
 ```bash
 curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/routes \
   -H "x-api-key: $HK_KEY" \
   -H "content-type: application/json" \
-  -d '{"port":3000,"protocol":"http"}'
+  -d '{"port":3000,"protocol":"http","accessMode":"public","labels":["preview","web"]}'
 ```
 
 Response shape:
@@ -500,16 +684,68 @@ Response shape:
   "route": {
     "port": 3000,
     "protocol": "http",
+    "accessMode": "public",
+    "accessHeaderName": null,
+    "tokenHint": null,
+    "labels": ["preview", "web"],
+    "createdByUserId": "user_...",
+    "createdByLabel": "agent-runner@example.com",
     "routeKey": "opensandbox-id-3000",
     "host": "opensandbox-id-3000.sandbox.example.com",
     "url": "https://opensandbox-id-3000.sandbox.example.com",
     "targetUrl": "https://opensandbox-id-3000.sandbox.example.com",
     "state": "ready",
     "provider": "opensandbox-gateway",
-    "providerRouteId": "opensandbox-id-3000"
+    "providerRouteId": "opensandbox-id-3000",
+    "createdAt": "2026-05-29T00:00:00.000Z",
+    "lastCheckedAt": "2026-05-29T00:00:00.000Z",
+    "lastUsedAt": null,
+    "terminatedAt": null
   }
 }
 ```
+
+Token-protected preview:
+
+```bash
+curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/routes \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"port":5173,"accessMode":"token"}'
+```
+
+```json
+{
+  "route": {
+    "port": 5173,
+    "protocol": "http",
+    "accessMode": "token",
+    "accessHeaderName": "x-harakiri-route-token",
+    "tokenHint": "hrt_abcd...wxyz",
+    "labels": [],
+    "createdByUserId": "user_...",
+    "createdByLabel": "agent-runner@example.com",
+    "routeKey": "opensandbox-id-5173",
+    "host": "sb-api.example.com",
+    "url": "https://sb-api.example.com/v1/route-proxy/opensandbox-id-5173/",
+    "targetUrl": "https://opensandbox-id-5173.sandbox.example.com",
+    "state": "ready",
+    "provider": "opensandbox-gateway",
+    "providerRouteId": "opensandbox-id-5173",
+    "createdAt": "2026-05-29T00:00:00.000Z",
+    "lastCheckedAt": "2026-05-29T00:00:00.000Z",
+    "lastUsedAt": null,
+    "terminatedAt": null
+  },
+  "accessToken": "hrt_abcd...",
+  "accessHeaderName": "x-harakiri-route-token"
+}
+```
+
+Route records include user-supplied labels, creator metadata, and `lastUsedAt`.
+The proxy updates `lastUsedAt` for token-protected access. Public direct
+provider routes may not pass through Harakiri, so their `lastUsedAt` is
+best-effort.
 
 ```bash
 curl $HARAKIRI_API_URL/v1/sandboxes/sbx_x/routes \

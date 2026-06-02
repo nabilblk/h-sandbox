@@ -1,0 +1,16 @@
+# Harakiri Node app template.
+
+name = "Node 20 App"
+id = "node-20-app"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "Node 20 runtime for web apps, APIs, and dev servers."
+runtime_family = "node"
+cpu_count = 1
+memory_mb = 1024
+workdir = "/workspace"
+ports = [3000, 5173, 8000]
+aliases = ["node-20-app", "node/app"]
+tags = ["custom", "node"]
+start_command = "sleep 3600"
+ready_command = "harakiri-node-app-smoke"
