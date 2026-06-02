@@ -171,7 +171,6 @@ const { sandbox } = await harakiri.createSandbox({
   template: "opencode",
   wait: true,
   ttlSeconds: 1200,
-  env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
   egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
 });
 
@@ -182,7 +181,7 @@ try {
   });
 
   const run = await harakiri.runSandbox(sandbox.id, {
-    command: 'opencode run "review the project and propose a patch"',
+    command: 'opencode run --model opencode/deepseek-v4-flash-free "review the project and propose a patch"',
     cwd: "/workspace/project",
     timeoutMs: 300_000
   });
@@ -206,7 +205,6 @@ const { sandbox } = await harakiri.createSandbox({
   template: "opencode",
   wait: true,
   env: {
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
     OPENCODE_SERVER_PASSWORD: password
   }
 });

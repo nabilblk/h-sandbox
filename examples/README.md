@@ -41,7 +41,7 @@ Harakiri API:
 ```bash
 export HARAKIRI_API_URL=https://sb-api.harakiri.io
 export HARAKIRI_API_KEY=hk_live_...
-export ANTHROPIC_API_KEY=sk-ant-...
+export OPENCODE_MODEL=opencode/deepseek-v4-flash-free
 
 pnpm exec tsx examples/sdk-opencode-headless/index.ts
 pnpm exec tsx examples/sdk-opencode-server/index.ts

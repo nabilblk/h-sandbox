@@ -508,7 +508,7 @@ export const egressPresetCatalog: Record<EgressPresetId, { label: string; descri
   "llm-apis": {
     label: "LLM APIs",
     description: "Allow common hosted model API domains.",
-    domains: ["api.openai.com", "api.anthropic.com"]
+    domains: ["api.openai.com", "api.anthropic.com", "opencode.ai"]
   },
   "browser-basic": {
     label: "Browser basic",

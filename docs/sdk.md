@@ -216,9 +216,11 @@ credentials.
 ## OpenCode SDK Integration
 
 The `opencode` template gives external applications a coding-agent runtime
-without depending on OpenSandbox or Kubernetes internals. The core flow is:
+without depending on OpenSandbox or Kubernetes internals. It can use OpenCode
+Zen free models such as `opencode/deepseek-v4-flash-free`, or any configured
+provider key you pass through the sandbox environment. The core flow is:
 
-1. Create an `opencode` sandbox with model-provider credentials in `env`.
+1. Create an `opencode` sandbox with restricted egress for Git and model APIs.
 2. Use `runSandbox` for `opencode run` when you want a headless result.
 3. Use commands plus routes when you want `opencode serve`.
 4. Use `routes.fetch` to connect generated clients through Harakiri route-token
@@ -231,7 +233,6 @@ const { sandbox } = await harakiri.createSandbox({
   template: "opencode",
   wait: true,
   ttlSeconds: 1200,
-  env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY! },
   egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
 });
 
@@ -242,7 +243,7 @@ try {
   });
 
   const run = await harakiri.runSandbox(sandbox.id, {
-    command: 'opencode run "review the project and summarize the risky files"',
+    command: 'opencode run --model opencode/deepseek-v4-flash-free "review the project and summarize the risky files"',
     cwd: "/workspace/project",
     timeoutMs: 300_000
   });
@@ -269,7 +270,6 @@ const { sandbox } = await harakiri.createSandbox({
   wait: true,
   ttlSeconds: 1200,
   env: {
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
     OPENCODE_SERVER_PASSWORD: password
   }
 });
@@ -301,12 +301,12 @@ const opencode = createOpencodeClient({
 await opencode.config.get();
 ```
 
-Common failures are easy to diagnose: missing model-provider credentials make
-`opencode run` fail inside the sandbox, `127.0.0.1` server binds make routes
-unreachable, missing `x-harakiri-route-token` headers return route auth errors,
-and mismatched `OPENCODE_SERVER_PASSWORD` values return OpenCode basic-auth
-errors. The checked examples live in `examples/sdk-opencode-headless` and
-`examples/sdk-opencode-server`.
+Common failures are easy to diagnose: paid or BYOK models fail if their
+provider credentials are missing inside the sandbox, `127.0.0.1` server binds
+make routes unreachable, missing `x-harakiri-route-token` headers return route
+auth errors, and mismatched `OPENCODE_SERVER_PASSWORD` values return OpenCode
+basic-auth errors. The checked examples live in `examples/sdk-opencode-headless`
+and `examples/sdk-opencode-server`.
 
 ## Outbound Access
 

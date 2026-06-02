@@ -171,11 +171,14 @@ Run a non-interactive prompt:
 harakiri create \
   --template opencode \
   --name opencode-runner \
-  --ttl 1200 \
-  --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+  --ttl 1200
 
-harakiri run sbx_... --cwd /workspace --cmd 'opencode run "summarize this project"'
+harakiri run sbx_... --cwd /workspace --cmd \
+  'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"'
 ```
+
+The example uses an OpenCode Zen free model. Paid or bring-your-own-key models
+can still receive provider credentials as sandbox environment variables.
 
 Expose the OpenCode server only after binding it to `0.0.0.0`. OpenCode's
 server defaults to port `4096` and a loopback hostname, so the route-ready

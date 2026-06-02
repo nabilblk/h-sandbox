@@ -49,14 +49,15 @@ for non-interactive prompts:
 harakiri create \
   --template opencode \
   --name opencode-runner \
-  --ttl 1200 \
-  --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+  --ttl 1200
 
-harakiri run sbx_... --cwd /workspace --cmd 'opencode run "summarize this project"'
+harakiri run sbx_... --cwd /workspace --cmd \
+  'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"'
 ```
 
-Pass provider credentials as sandbox environment variables or configure them
-inside the sandbox with OpenCode's own auth/config commands.
+The example uses an OpenCode Zen free model. For paid or bring-your-own-key
+models, pass provider credentials as sandbox environment variables or configure
+them inside the sandbox with OpenCode's own auth/config commands.
 
 ## Expose The OpenCode Server
 
@@ -85,8 +86,9 @@ URL and the token header required for token-protected routes.
 
 - If a route opens but OpenCode is unreachable, confirm the server was started
   with `--hostname 0.0.0.0`.
-- If `opencode run` fails with provider errors, verify the relevant model API
-  keys are present inside the sandbox environment.
+- If `opencode run` fails with provider errors, verify that the selected model
+  is available and that any required API keys are present inside the sandbox
+  environment.
 - If the template is not runnable, run `harakiri template builds --query
   opencode` and inspect the latest build logs.
 - If the smoke command fails, run `harakiri run sbx_... --cmd

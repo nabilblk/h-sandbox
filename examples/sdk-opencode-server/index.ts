@@ -7,7 +7,6 @@ const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const serverPassword = process.env.OPENCODE_SERVER_PASSWORD ?? crypto.randomUUID();
 
 if (!apiKey) throw new Error("Set HARAKIRI_API_KEY before running this example.");
-if (!anthropicApiKey) throw new Error("Set ANTHROPIC_API_KEY before running this example.");
 
 const harakiri = new HarakiriClient({ apiUrl, apiKey });
 
@@ -20,7 +19,7 @@ try {
     ttlSeconds: 1200,
     wait: true,
     env: {
-      ANTHROPIC_API_KEY: anthropicApiKey,
+      ...(anthropicApiKey ? { ANTHROPIC_API_KEY: anthropicApiKey } : {}),
       OPENCODE_SERVER_PASSWORD: serverPassword
     },
     egress: {

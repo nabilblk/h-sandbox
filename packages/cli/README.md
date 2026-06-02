@@ -80,16 +80,16 @@ installed. Attach for the TUI, use `opencode run` for headless automation, or
 start the OpenCode server and expose port `4096`.
 
 ```bash
-harakiri create --template opencode --name opencode-agent --ttl 1200 --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+harakiri create --template opencode --name opencode-agent --ttl 1200
 harakiri attach sbx_... --cwd /workspace
 
-harakiri run sbx_... --cwd /workspace --cmd 'opencode run "summarize this project"'
+harakiri run sbx_... --cwd /workspace --cmd \
+  'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"'
 
 harakiri create \
   --template opencode \
   --name opencode-server \
   --ttl 1200 \
-  --env ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
   --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"
 
 harakiri run sbx_... --cwd /workspace --cmd \

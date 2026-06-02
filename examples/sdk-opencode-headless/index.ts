@@ -3,11 +3,11 @@ import { HarakiriApiError, HarakiriClient } from "@h-sandbox/sdk";
 const apiUrl = process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io";
 const apiKey = process.env.HARAKIRI_API_KEY;
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+const model = process.env.OPENCODE_MODEL ?? "opencode/deepseek-v4-flash-free";
 const repositoryUrl = process.env.OPENCODE_REPOSITORY_URL;
 const prompt = process.env.OPENCODE_PROMPT ?? "Inspect the project and summarize the most important files.";
 
 if (!apiKey) throw new Error("Set HARAKIRI_API_KEY before running this example.");
-if (!anthropicApiKey) throw new Error("Set ANTHROPIC_API_KEY before running this example.");
 
 const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
@@ -21,9 +21,7 @@ try {
     name: "sdk-opencode-headless",
     ttlSeconds: 1200,
     wait: true,
-    env: {
-      ANTHROPIC_API_KEY: anthropicApiKey
-    },
+    env: anthropicApiKey ? { ANTHROPIC_API_KEY: anthropicApiKey } : undefined,
     egress: {
       mode: "restricted",
       presets: ["git-hosting", "llm-apis", "node-package-install"]
@@ -42,7 +40,7 @@ try {
 
   const cwd = repositoryUrl ? "/workspace/project" : "/workspace";
   const run = await harakiri.runSandbox(sandbox.id, {
-    command: `opencode run ${shellQuote(prompt)}`,
+    command: `opencode run --model ${shellQuote(model)} ${shellQuote(prompt)}`,
     cwd,
     timeoutMs: 300_000
   });
