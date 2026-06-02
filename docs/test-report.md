@@ -18,6 +18,39 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- OpenCode SDK premium parity checkpoint on 2026-06-02:
+  `pnpm --filter @h-sandbox/sdk test`, `pnpm --filter @h-sandbox/sdk
+  typecheck`, `pnpm --filter @h-sandbox/sdk build`, `pnpm examples:check`,
+  `pnpm --filter @h-sandbox/cli test`, `pnpm --filter @h-sandbox/cli
+  typecheck`, `pnpm --filter @h-sandbox/cli build`,
+  `node packages/cli/dist/index.js --version`, `pnpm --filter @harakiri/web
+  typecheck`, `pnpm --filter @harakiri/web build`, `git diff --check`,
+  `pnpm publish:local-check`, and `pnpm publish:dry-run` passed after adding
+  generic SDK route helpers and checked OpenCode examples. The CLI version
+  command printed `0.3.0`. The SDK now exposes `routes.getUrl`,
+  `routes.exposeAndWait`, `routes.headers`, `routes.fetch`,
+  `routes.waitForHttp`, `routeAccessHeaders`, `createRouteFetch`, and
+  `waitForRouteHttp`; examples now cover headless OpenCode runs and
+  `opencode serve` through `@opencode-ai/sdk` using Harakiri route-token
+  headers plus OpenCode basic auth. Public docs were redeployed to k0s with
+  `KUBECONFIG=$PWD/infra/k0s/harakiri.kubeconfig pnpm
+  env:harakiri:deploy-public`, rolling API image
+  `sha256:0711c386199a35bc77994474b23393075dc7ada917786d0a338eeea17447bc02`
+  and web image
+  `sha256:910694c81f58d4fb483aff18715872d56f502b01d6f50827db5ff03e7ee923c0`.
+  `pnpm ports:restart` and `pnpm ports:status` reported API, web, Keycloak,
+  Mailpit, OpenSandbox, gateway, and ingress HTTPS forwards up. Local
+  `GET http://127.0.0.1:18082/health` and public
+  `GET https://sb-api.harakiri.io/health` returned `{"status":"ok"}`. k0s pods
+  `harakiri-api-78874f57d5-ppbjq`,
+  `harakiri-web-9cc869656-w9zbz`,
+  `harakiri-scheduler-58b855b489-mcf67`, and
+  `harakiri-template-builder-5dbcb7db56-vcwrr` were running. The public web
+  bundle `/assets/index-CR1dsM1z.js` contained `@opencode-ai/sdk`,
+  `routes.exposeAndWait`, and `routes.fetch`. npm publish completed for
+  `@h-sandbox/sdk@0.3.0` and `@h-sandbox/cli@0.3.0`; `npm view` returned
+  `0.3.0` for both packages, and `pnpm publish:postcheck` passed against the
+  registry.
 - OpenCode agent template checkpoint on 2026-06-02:
   `bash -n examples/templates/opencode/smoke.sh`,
   `pnpm --filter @harakiri/web typecheck`,

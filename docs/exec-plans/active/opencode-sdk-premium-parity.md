@@ -2,8 +2,8 @@
 
 **Created**: 2026-06-02
 **Author**: Codex
-**Status**: In Progress
-**Priority**: {P0-P3}
+**Status**: Completed
+**Priority**: P1
 **Estimated effort**: 2-4 days for parity-quality docs/examples; 1 week if SDK helpers are added and published
 
 ## Context
@@ -54,7 +54,7 @@ Any SDK helper added for this work should be useful beyond OpenCode.
       troubleshooting are consistent.
 - [x] At least one checked example is typechecked or executed against a mocked
       Harakiri client; the live smoke path is documented for maintainers.
-- [ ] Public npm package documentation and website docs are updated before the
+- [x] Public npm package documentation and website docs are updated before the
       next `@h-sandbox/sdk` / `@h-sandbox/cli` publish.
 
 ## Phases
@@ -140,19 +140,19 @@ Any SDK helper added for this work should be useful beyond OpenCode.
       promoted.
 
 ### Phase 6: Verification, Publish, And Deployment
-**Status**: In Progress
+**Status**: Complete
 - [x] Run SDK tests and typecheck after any SDK API or docs-snippet changes.
 - [x] Run web docs typecheck/build after product docs changes.
 - [x] Run CLI build/tests after CLI README/help changes if command examples are
       adjusted.
 - [x] Run `git diff --check`.
-- [ ] If SDK helpers are added, update package versioning/changelog and publish
+- [x] If SDK helpers are added, update package versioning/changelog and publish
       `@h-sandbox/sdk` according to the npm publish runbook.
-- [ ] If CLI docs/help or package metadata change, update and publish
+- [x] If CLI docs/help or package metadata change, update and publish
       `@h-sandbox/cli` as needed.
 - [x] Deploy the updated website docs to k0s and verify the public docs bundle
       contains the new OpenCode SDK content.
-- [ ] Record verification evidence in `docs/test-report.md`.
+- [x] Record verification evidence in `docs/test-report.md`.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
@@ -167,5 +167,18 @@ None yet. This plan should avoid adding template-specific branching inside the
 core SDK unless there is a clear reusable abstraction.
 
 ## Completion Notes
-To be filled when the SDK/docs parity work is implemented, verified, deployed,
-and published.
+Completed on 2026-06-02.
+
+Implementation shipped generic route helpers in `@h-sandbox/sdk` instead of
+OpenCode-specific client methods: route URL aliases, token/basic-auth header
+composition, route-aware fetch, HTTP readiness polling, and
+`routes.exposeAndWait`. The OpenCode parity layer is expressed as checked
+examples and docs that use only public Harakiri APIs plus `@opencode-ai/sdk`.
+
+Verification covered SDK tests/typecheck/build, CLI tests/typecheck/build, web
+docs typecheck/build, checked TypeScript examples, publish dry-run/local package
+smoke, deployed k0s docs smoke, public bundle content checks, npm publish, and
+post-publish npm smoke. Published versions:
+
+- `@h-sandbox/sdk@0.3.0`
+- `@h-sandbox/cli@0.3.0`
