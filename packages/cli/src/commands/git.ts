@@ -105,6 +105,18 @@ export const registerGitCommands = (program: Command) => {
     });
 
   git
+    .command("branch-delete")
+    .alias("branch-rm")
+    .argument("<id>", "sandbox id")
+    .argument("<name>", "branch name")
+    .option("--cwd <path>", "repository path inside the sandbox", "/workspace/project")
+    .description("Delete a local Git branch")
+    .action(async (id, name, options) => {
+      const client = await apiClient();
+      printRun(await client.git.deleteBranch(id, name, { cwd: options.cwd }));
+    });
+
+  git
     .command("add")
     .argument("<id>", "sandbox id")
     .argument("[paths...]", "paths to stage")

@@ -47,6 +47,7 @@ import { claimSandboxOperationById, completeSandboxOperation, enqueueSandboxOper
 import type { Query } from "./query.js";
 import { configuredRouteTarget, routeHost } from "../providers/runtime/route-targets.js";
 import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
+import { redactText } from "../redaction.js";
 
 export type Audit = (
   organizationId: string,
@@ -226,6 +227,16 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
       capabilitySummary("filesystemWrite", fileWriteMethods.state, fileWriteMethods.reason, true, "opensandbox_spec", "OpenSandbox execd filesystem API"),
       capabilitySummary("routes", routes.state, routes.reason, true, "opensandbox_provider", "OpenSandbox sandbox route endpoint and gateway integration"),
       capabilitySummary("tokenRoutes", routes.state, routes.state === "available" ? null : "token routes require route exposure support", true, "harakiri_control_plane", "Harakiri route proxy and access-token control plane"),
+      capabilitySummary(
+        "git",
+        commandRun.state === "available" ? "degraded" : commandRun.state,
+        commandRun.state === "available"
+          ? "Git operations are Harakiri SDK/CLI helpers over sandbox commands and require the selected template to include the git binary."
+          : "Git operations require blocking command execution support.",
+        false,
+        "harakiri_control_plane",
+        "Harakiri SDK/CLI Git helpers over sandbox command execution"
+      ),
       capabilitySummary("egressPolicy", egress.state, egress.reason, true, "opensandbox_provider", "OpenSandbox egress policy endpoint"),
       capabilitySummary("logs", logs.state, logs.reason, true, "opensandbox_provider", "OpenSandbox diagnostics logs endpoint"),
       capabilitySummary("metrics", metrics.state, metrics.reason, true, "opensandbox_spec", "OpenSandbox execd metrics API")
@@ -269,6 +280,20 @@ const runResultFromCommand = (command: SandboxCommandSummary): RunResult => {
   };
 };
 
+const redactRunResult = (result: RunResult): RunResult => ({
+  ...result,
+  command: redactText(result.command),
+  stdout: redactText(result.stdout),
+  stderr: redactText(result.stderr)
+});
+
+const redactStartedCommand = <T extends { stdout: string; stderr: string; error: string | null }>(command: T): T => ({
+  ...command,
+  stdout: redactText(command.stdout),
+  stderr: redactText(command.stderr),
+  error: command.error ? redactText(command.error) : command.error
+});
+
 const websocketOpen = 1;
 
 const sendTerminalControlFrame = (client: WebSocket, payload: Record<string, unknown>) => {
@@ -295,6 +320,7 @@ export const runSandboxCommand = async (
 > => {
   const query = dependencies.query ?? defaultQuery;
   const command = input.command ?? (input.stdin ? "python agent.py" : "ls");
+  const redactedCommand = redactText(command);
   if (dependencies.runtimeProvider.startCommand) {
     const tracked = await createSandboxCommand(
       {
@@ -334,14 +360,15 @@ export const runSandboxCommand = async (
   await query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1", [
     input.sandboxId
   ]);
-  await dependencies.recordEvent(input.organizationId, input.sandboxId, "run", `command: ${command}`, {
-    exitCode: result.exitCode,
-    durationMs: result.durationMs,
+  const redactedResult = redactRunResult({ ...result, command: redactedCommand });
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "run", `command: ${redactedCommand}`, {
+    exitCode: redactedResult.exitCode,
+    durationMs: redactedResult.durationMs,
     cwd: input.cwd,
     envKeys: Object.keys(input.env ?? {}),
     timeoutMs: input.timeoutMs
   });
-  return { kind: "ok", result };
+  return { kind: "ok", result: redactedResult };
 };
 
 type SandboxCommandRow = Omit<SandboxCommandSummary, "status" | "envKeys" | "timeoutMs" | "exitCode" | "startedAt" | "finishedAt" | "createdAt" | "updatedAt"> & {
@@ -374,7 +401,11 @@ const normalizeCommandStatus = (status: string): SandboxCommandStatus => {
 
 const mapCommandRow = (row: SandboxCommandRow): SandboxCommandSummary => ({
   ...row,
+  command: redactText(row.command),
   status: normalizeCommandStatus(row.status),
+  stdout: redactText(row.stdout),
+  stderr: redactText(row.stderr),
+  error: row.error ? redactText(row.error) : row.error,
   startedAt: toIsoOrNull(row.startedAt),
   finishedAt: toIsoOrNull(row.finishedAt),
   createdAt: toIso(row.createdAt),
@@ -407,6 +438,7 @@ export const createSandboxCommand = async (
 > => {
   const query = dependencies.query ?? defaultQuery;
   const command = input.body.command.trim();
+  const redactedCommand = redactText(command);
   if (!command) return { kind: "unsupported", message: "Command cannot be empty." };
   if (!dependencies.runtimeProvider.startCommand) return { kind: "unsupported", message: "Runtime provider does not support tracked commands." };
 
@@ -429,7 +461,7 @@ export const createSandboxCommand = async (
       input.organizationId,
       input.sandboxId,
       dependencies.runtimeProvider.kind,
-      command,
+      redactedCommand,
       input.body.cwd ?? null,
       Object.keys(input.body.env ?? {}),
       input.body.timeoutMs ?? null,
@@ -448,7 +480,7 @@ export const createSandboxCommand = async (
       timeoutMs: input.body.timeoutMs,
       detached: input.body.detached
     });
-    const result = resultFromStartedCommand(started);
+    const result = redactStartedCommand(resultFromStartedCommand(started));
     const updated = await query<SandboxCommandRow>(
       `WITH updated AS (
          UPDATE sandbox_commands
@@ -473,7 +505,7 @@ export const createSandboxCommand = async (
       ]
     );
     await query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1", [input.sandboxId]);
-    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.started", `command: ${command}`, {
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.started", `command: ${redactedCommand}`, {
       commandId,
       providerCommandId: result.providerCommandId,
       detached: Boolean(input.body.detached),
@@ -482,7 +514,7 @@ export const createSandboxCommand = async (
     });
     return { kind: "ok", command: mapCommandRow(updated.rows[0]) };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = redactText(error instanceof Error ? error.message : String(error));
     const updated = await query<SandboxCommandRow>(
       `WITH updated AS (
          UPDATE sandbox_commands
@@ -540,7 +572,7 @@ const refreshCommand = async (
       input.organizationId,
       providerState.status,
       providerState.exitCode,
-      providerState.error ?? null,
+      providerState.error ? redactText(providerState.error) : null,
       providerState.startedAt,
       providerState.finishedAt
     ]
@@ -590,8 +622,8 @@ export const getSandboxCommandLogs = async (
         truncated: true
       };
     };
-    const stdout = truncate(logs.stdout);
-    const stderr = truncate(logs.stderr);
+    const stdout = truncate(redactText(logs.stdout));
+    const stderr = truncate(redactText(logs.stderr));
     return {
       commandId: command.id,
       stdout: stdout.value,
@@ -644,7 +676,7 @@ export const killSandboxCommand = async (
      SELECT ${commandColumns("updated")} FROM updated`,
     [input.commandId, input.organizationId]
   );
-  await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.killed", `command killed: ${command.command}`, {
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.killed", `command killed: ${redactText(command.command)}`, {
     commandId: command.id,
     providerCommandId: command.providerCommandId
   });
@@ -765,6 +797,7 @@ export const runSandboxCommandSession = async (
   }
 
   const command = input.body.command.trim();
+  const redactedCommand = redactText(command);
   if (!command) return { kind: "unsupported", message: "Command cannot be empty." };
   const context = await getSandboxRuntimeContext(input, query, runtimeProvider);
   if (!context) return { kind: "not_found" };
@@ -780,24 +813,25 @@ export const runSandboxCommandSession = async (
       timeoutMs: input.body.timeoutMs
     });
     await renewSandboxActivity(query, input);
-    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.session.run", `session command: ${command}`, {
+    const redactedResult = redactRunResult({
+      sandboxId: input.sandboxId,
+      command: redactedCommand,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode,
+      durationMs: result.durationMs ?? Date.now() - started
+    });
+    await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.session.run", `session command: ${redactedCommand}`, {
       providerSessionId: input.sessionId,
       cwd: input.body.cwd,
       timeoutMs: input.body.timeoutMs,
-      exitCode: result.exitCode,
-      durationMs: result.durationMs
+      exitCode: redactedResult.exitCode,
+      durationMs: redactedResult.durationMs
     });
     return {
       kind: "ok",
       response: {
-        result: {
-          sandboxId: input.sandboxId,
-          command,
-          stdout: result.stdout,
-          stderr: result.stderr,
-          exitCode: result.exitCode,
-          durationMs: result.durationMs ?? Date.now() - started
-        }
+        result: redactedResult
       }
     };
   } catch (error) {

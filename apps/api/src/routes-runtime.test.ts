@@ -165,11 +165,14 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     const routesCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "routes");
     const terminalAttachCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "terminalAttach");
     const tokenRoutesCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "tokenRoutes");
+    const gitCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "git");
     assert.equal(commandsCapability?.state, "unavailable");
     assert.equal(commandsCapability?.contract, "unavailable");
     assert.equal(routesCapability?.contract, "opensandbox_provider");
     assert.equal(terminalAttachCapability?.contract, "unavailable");
     assert.equal(tokenRoutesCapability?.contract, "harakiri_control_plane");
+    assert.equal(gitCapability?.state, "degraded");
+    assert.equal(gitCapability?.contract, "harakiri_control_plane");
 
     const run = await app.inject({
       method: "POST",

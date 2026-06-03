@@ -33,7 +33,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       persisted in `.git/config` by default.
 - [ ] Any intentionally persisted credential mode is explicit, named with a
       danger prefix, documented, and auditable.
-- [ ] Git command output, route logs, command logs, UI, and API errors redact
+- [x] Git command output, route logs, command logs, UI, and API errors redact
       tokens and passwords.
 - [ ] Public/private repository clone, status, branch, commit, pull, push,
       remotes, and config are documented and tested.
@@ -57,7 +57,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       intentionally stored remote credentials.
 - [x] Choose safe defaults: credentials stripped from remote URLs, shallow clone
       optional, no implicit push credentials, and redacted logs.
-- [ ] Define provider capability metadata for Git support so API/UI/SDK can
+- [x] Define provider capability metadata for Git support so API/UI/SDK can
       report unavailable Git behavior honestly.
 
 ### Phase 2: API And Control Plane State
@@ -68,7 +68,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       reason.
 - [ ] Add audit events for clone, auth mode selection, commit, push, and source
       bootstrap failures.
-- [ ] Add secret-redaction helpers shared by API services, logs, and command
+- [x] Add secret-redaction helpers shared by API services, logs, and command
       response formatting.
 - [ ] Ensure idempotency keys work when source bootstrap is requested.
 
@@ -80,7 +80,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       credential options.
 - [x] Add `git.status(path)` with structured branch, ahead/behind, and file
       status parsing.
-- [ ] Add branch helpers: list, checkout, create, and delete.
+- [x] Add branch helpers: list, checkout, create, and delete.
 - [x] Add `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remoteAdd`,
       `git.setConfig`, `git.getConfig`, and `git.configureUser`.
 - [ ] Detect missing `git` binary and return a typed unsupported-runtime error
@@ -105,23 +105,24 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 - [x] Include examples for public clone, private clone with one-shot token,
       configure identity, branch, commit, push, and source bootstrap during
       sandbox creation.
-- [ ] Add troubleshooting for missing git binary, private repo auth failures,
+- [x] Add troubleshooting for missing git binary, private repo auth failures,
       egress blocked, branch not found, dirty worktree, and push rejected.
 - [x] Explicitly explain credential persistence risks and redaction limits.
 
 ### Phase 6: Verification
 **Status**: In Progress
 - [x] Unit test command composition and structured parser behavior.
-- [ ] Mock API/SDK tests for all Git methods and create-source payloads.
+- [x] Mock API/SDK tests for Git helpers, create-source payloads, capability
+      metadata, and redaction behavior.
 - [ ] Live smoke public repo clone in k0s.
 - [ ] Live smoke private repo clone using a short-lived test token if available.
 - [ ] Verify no token appears in API logs, command logs, CLI output, DB
       provenance, or browser UI.
-- [ ] Run SDK/API/CLI typecheck, tests, build, OpenAPI generation/check, and
+- [x] Run SDK/API/CLI typecheck, tests, build, OpenAPI generation/check, and
       `git diff --check`.
-      SDK tests/typecheck, CLI tests/typecheck/build, examples typecheck, web
-      typecheck, and `git diff --check` passed for the first slice. API,
-      OpenAPI, and live smoke verification remain.
+      Shared, SDK, CLI, and API tests passed. Shared, SDK, CLI, API, and web
+      typechecks passed. API, web, and CLI builds passed. OpenAPI write/check
+      and `git diff --check` passed. Live k0s clone smokes remain.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
@@ -132,8 +133,8 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 | 2026-06-04 | Use `GIT_ASKPASS` for default private repository credentials | Passing credentials in repository URLs can leak through provider stderr or stored command logs. Askpass keeps command text and Git remotes credential-free by default. | Credentialed URL expansion; persistent credential helpers; direct Kubernetes exec. |
 
 ## Tech Debt Incurred
-Current slice leaves server-side Git provenance, Git audit records, provider
-capability metadata, dashboard UI, and live k0s Git smoke tests for follow-up.
+Current slice leaves server-side Git provenance, Git audit records, dashboard
+UI, typed missing-binary errors, and live k0s Git smoke tests for follow-up.
 If shell-based Git command composition becomes too complex, track the follow-up
 to move to a small in-sandbox Git helper binary or provider-native Git API once
 OpenSandbox exposes one.
@@ -153,3 +154,22 @@ OpenSandbox exposes one.
 - Updated SDK docs, CLI docs, website docs, and examples.
 - Verified SDK tests/typecheck, CLI tests/typecheck/build, examples typecheck,
   web typecheck, and `git diff --check`.
+
+2026-06-04 redaction/capability slice:
+- Added the `git` runtime capability to shared protocol types, the SDK
+  protocol mirror, OpenAPI generation, and API capability responses. It reports
+  as a Harakiri control-plane overlay and remains degraded when command
+  execution exists but template-level Git availability is not guaranteed.
+- Redacted command text, command stdout/stderr/errors, command logs, command
+  session output, sandbox event messages, and sandbox event metadata before
+  API responses or persistence.
+- Kept raw commands flowing to the runtime provider so one-shot credential
+  workflows still work while stored command records remain sanitized.
+- Added branch deletion support to `sandbox.git`, `client.git`, and
+  `harakiri git branch-delete` / `branch-rm`.
+- Added troubleshooting docs for missing Git binaries, private repository auth,
+  egress blocks, branch errors, dirty worktrees, missing commit identity, and
+  push failures across SDK, CLI, and website docs.
+- Verified shared, SDK, CLI, and API tests; shared, SDK, CLI, API, and web
+  typechecks; API, web, and CLI builds; OpenAPI write/check; and
+  `git diff --check`.

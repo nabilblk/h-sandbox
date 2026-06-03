@@ -9,8 +9,17 @@ test("recordSandboxEvent stores event metadata through the injected query", asyn
     return { rowCount: 1, rows: [] as never[] };
   });
 
-  await recorder("org_evt", "sbx_evt", "created", "created through provider", { provider: "fake" });
+  await recorder("org_evt", "sbx_evt", "created", "created through provider token=secret-value", {
+    provider: "fake",
+    nested: { apiKey: "hk_live_secret" }
+  });
 
   assert.match(calls[0].text, /INSERT INTO sandbox_events/);
-  assert.deepEqual(calls[0].params, ["sbx_evt", "org_evt", "created", "created through provider", { provider: "fake" }]);
+  assert.deepEqual(calls[0].params, [
+    "sbx_evt",
+    "org_evt",
+    "created",
+    "created through provider token=[redacted]",
+    { provider: "fake", nested: { apiKey: "[redacted]" } }
+  ]);
 });

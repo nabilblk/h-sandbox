@@ -460,6 +460,91 @@ test("runSandboxCommand uses the tracked command resource when available", async
   assert.equal(events[0].type, "command.started");
 });
 
+test("createSandboxCommand redacts credentialed Git URLs in stored command records and output", async () => {
+  const rawCommand = "git clone https://oauth2:ghp_secret@github.com/acme/private.git /workspace/project";
+  const redactedCommand = "git clone https://oauth2:[redacted]@github.com/acme/private.git /workspace/project";
+  const events: Array<{ type: string; message: string; metadata?: Record<string, unknown> }> = [];
+  const provider = fakeRuntimeProvider({
+    startCommand: async (input) => {
+      assert.equal(input.command, rawCommand);
+      return {
+        providerCommandId: "provider_cmd",
+        status: "failed",
+        stdout: `cloning ${rawCommand}\n`,
+        stderr: "fatal: https://oauth2:ghp_secret@github.com/acme/private.git denied\n",
+        exitCode: 128,
+        error: "token=ghp_secret",
+        startedAt: "2026-05-29T00:00:00.000Z",
+        finishedAt: "2026-05-29T00:00:00.012Z"
+      };
+    }
+  });
+  const query = async (text: string, params?: unknown[]) => {
+    if (text.includes("SELECT id, opensandbox_id, status FROM sandboxes")) {
+      return { rowCount: 1, rows: [{ id: "sbx_runtime", opensandbox_id: "provider_sbx", status: "running" }] as never[] };
+    }
+    if (text.includes("INSERT INTO sandbox_commands")) {
+      assert.equal(params?.[4], redactedCommand);
+      return { rowCount: 1, rows: [] as never[] };
+    }
+    if (text.includes("WITH updated AS") && text.includes("provider_command_id")) {
+      assert.equal(params?.[3], `cloning ${redactedCommand}\n`);
+      assert.equal(params?.[4], "fatal: https://oauth2:[redacted]@github.com/acme/private.git denied\n");
+      assert.equal(params?.[6], "token=[redacted]");
+      return {
+        rowCount: 1,
+        rows: [{
+          id: "cmd_git",
+          sandboxId: "sbx_runtime",
+          provider: "fake",
+          providerCommandId: "provider_cmd",
+          command: rawCommand,
+          status: "failed",
+          cwd: "/workspace",
+          envKeys: [],
+          timeoutMs: 15_000,
+          detached: false,
+          stdout: `cloning ${rawCommand}\n`,
+          stderr: "fatal: https://oauth2:ghp_secret@github.com/acme/private.git denied\n",
+          exitCode: 128,
+          error: "token=ghp_secret",
+          startedAt: new Date("2026-05-29T00:00:00Z"),
+          finishedAt: new Date("2026-05-29T00:00:00.012Z"),
+          createdAt: new Date("2026-05-29T00:00:00Z"),
+          updatedAt: new Date("2026-05-29T00:00:00.012Z")
+        }] as never[]
+      };
+    }
+    if (text.includes("UPDATE sandboxes SET last_active_at")) return { rowCount: 1, rows: [] as never[] };
+    throw new Error(`unexpected query: ${text}`);
+  };
+
+  const result = await createSandboxCommand(
+    {
+      organizationId: "org_runtime",
+      sandboxId: "sbx_runtime",
+      body: { command: rawCommand, cwd: "/workspace", timeoutMs: 15_000 }
+    },
+    {
+      runtimeProvider: provider,
+      query,
+      idFactory: () => "cmd_git",
+      recordEvent: async (_organizationId, _sandboxId, type, message, metadata) => {
+        events.push({ type, message, metadata });
+      }
+    }
+  );
+
+  assert.equal(result.kind, "ok");
+  if (result.kind === "ok") {
+    assert.equal(result.command.command, redactedCommand);
+    assert.equal(result.command.stdout, `cloning ${redactedCommand}\n`);
+    assert.equal(result.command.stderr, "fatal: https://oauth2:[redacted]@github.com/acme/private.git denied\n");
+    assert.equal(result.command.error, "token=[redacted]");
+  }
+  assert.equal(events[0].message, `command: ${redactedCommand}`);
+});
+
 test("persistent command sessions resolve sandbox context and renew activity", async () => {
   const events: Array<{ type: string; metadata?: Record<string, unknown> }> = [];
   const provider = fakeRuntimeProvider({

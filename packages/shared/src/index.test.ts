@@ -69,6 +69,7 @@ test("runtime capability vocabulary separates command and interactive terminal s
   assert.ok(runtimeCapabilityNames.includes("terminalResize"));
   assert.ok(runtimeCapabilityNames.includes("shellSessions"));
   assert.ok(runtimeCapabilityNames.includes("sessionCommands"));
+  assert.ok(runtimeCapabilityNames.includes("git"));
   assert.ok(runtimeCapabilityContracts.includes("opensandbox_spec"));
   assert.ok(runtimeCapabilityContracts.includes("opensandbox_provider"));
   assert.ok(runtimeCapabilityContracts.includes("harakiri_control_plane"));

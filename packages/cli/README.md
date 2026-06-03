@@ -90,6 +90,8 @@ harakiri create \
 
 harakiri git status sbx_... --cwd /workspace/project
 harakiri git add sbx_... . --cwd /workspace/project
+harakiri git branch sbx_... agent/change --cwd /workspace/project
+harakiri git branch-delete sbx_... agent/change --cwd /workspace/project
 harakiri git user sbx_... --cwd /workspace/project --name "Harakiri" --email "agent@harakiri.local"
 harakiri git commit sbx_... --cwd /workspace/project -m "agent update"
 
@@ -102,6 +104,17 @@ harakiri git clone sbx_... https://github.com/acme/private.git \
 The default credential mode is one-shot. The CLI resets `origin` to a
 credential-free URL after clone. Use `--preserve-credentials` only when the
 repository must keep credentials in `.git/config`.
+
+Git troubleshooting:
+
+| Symptom | What to check |
+| --- | --- |
+| `git binary not found in sandbox image` | Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
+| Private clone fails | Export the token env var before running the command and pass its name with `--token-env`. |
+| Clone or pull is blocked | Add the `git-hosting` egress preset, or allow the required Git hostnames in the sandbox/template policy. |
+| Branch command fails | Run `harakiri git branches sbx_... --cwd /workspace/project` and verify the target branch or checkout ref. |
+| Commit fails | Configure identity with `harakiri git user sbx_... --name ... --email ...`. |
+| Push is rejected | Pull/rebase first, verify write scope, and pass one-shot credentials to `harakiri git push`. |
 
 ## OpenCode Template Workflow
 

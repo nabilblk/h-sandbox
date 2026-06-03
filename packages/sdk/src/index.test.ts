@@ -262,6 +262,18 @@ test("HarakiriSandbox Git helpers parse status and branch data", async () => {
           }
         });
       }
+      if (String(url).endsWith("/run") && body.command.includes("branch -D")) {
+        return Response.json({
+          result: {
+            sandboxId: "sbx_git",
+            command: body.command,
+            stdout: "Deleted branch feature/work\n",
+            stderr: "",
+            exitCode: 0,
+            durationMs: 3
+          }
+        });
+      }
       return Response.json({ ok: true });
     }
   });
@@ -280,6 +292,8 @@ test("HarakiriSandbox Git helpers parse status and branch data", async () => {
 
   const branches = await sandbox.git.branches({ cwd: "/workspace/project" });
   assert.deepEqual(branches.branches, ["main", "feature/work"]);
+  const deleted = await sandbox.git.deleteBranch("feature/work", { cwd: "/workspace/project" });
+  assert.equal(deleted.stdout.includes("Deleted branch"), true);
 });
 
 test("Git helper errors redact credentials", async () => {

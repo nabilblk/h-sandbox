@@ -34,7 +34,7 @@ export const docPages: DocPage[] = [
     section: "Getting started",
     title: "SDK and CLI",
     lede: "Use the public npm packages for application integrations and local automation.",
-    toc: ["Packages", "Configure", "Sandbox object", "SDK flow", "Git", "CLI flow", "Terminal", "Contract"],
+    toc: ["Packages", "Configure", "Sandbox object", "SDK flow", "Git", "Git troubleshooting", "CLI flow", "Terminal", "Contract"],
     body: (
       <>
         <h2>Packages</h2>
@@ -52,6 +52,8 @@ export const docPages: DocPage[] = [
         <p>Use <code>source: {"{ type: \"git\" }"}</code> when a sandbox should start from a repository. The SDK consumes the source contract, creates the sandbox normally, waits for readiness, and clones through the tracked command API. For restricted egress, the <code>git-hosting</code> preset is added automatically unless disabled.</p>
         <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "open-agents-dev",\n  egress: { mode: "restricted", presets: ["llm-apis"] },\n  source: {\n    type: "git",\n    url: "https://github.com/acme/project.git",\n    branch: "main",\n    targetPath: "/workspace/project",\n    shallow: true\n  }\n});\n\nconst status = await sandbox.git.status({ cwd: "/workspace/project" });\nconsole.log(status.branch, status.clean);`}</pre>
         <p>Private HTTPS repositories use one-shot token credentials by default. Command records store environment variable names, not token values, and the SDK resets `origin` to a credential-free URL after clone.</p>
+        <h2>Git troubleshooting</h2>
+        <p>If Git is unavailable, use a template that includes the `git` binary, such as `open-agents-dev`, `opencode`, or a custom template that installs it. If private clone or push fails, verify the token scope and pass credentials as one-shot env values. If clone or pull is unreachable with restricted egress, add the `git-hosting` preset or allow the required Git hostnames. For commit failures, configure identity first with `sandbox.git.configureUser` or `harakiri git user`.</p>
         <h2>CLI flow</h2>
         <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri create --template open-agents-dev --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri git status sbx_... --cwd /workspace/project\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000\nharakiri kill sbx_...`}</pre>
         <h2>Terminal</h2>

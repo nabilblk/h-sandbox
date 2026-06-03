@@ -496,6 +496,7 @@ const schemas: Record<string, JsonSchema> = {
         "filesystemWrite",
         "routes",
         "tokenRoutes",
+        "git",
         "egressPolicy",
         "logs",
         "metrics"

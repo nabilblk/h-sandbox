@@ -130,7 +130,7 @@ await harakiri.killSandbox(sandbox.id);
 | Artifacts | `files.upload`, `files.download` |
 | Routes | `routes.expose`, `routes.exposeAndWait`, `routes.list`, `routes.delete`, `routes.getHost`, `routes.getUrl`, `routes.headers`, `routes.fetch`, `routes.waitForHttp` |
 | Egress | `getOutboundAccess`, `setOutboundAccess`, `allowDomains`, `denyDomains`, `blockOutboundAccess`, `testOutboundAccess` |
-| Git | `git.clone`, `git.status`, `git.branches`, `git.checkout`, `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remotes`, `git.configureUser` |
+| Git | `git.clone`, `git.status`, `git.branches`, `git.checkout`, `git.createBranch`, `git.deleteBranch`, `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remotes`, `git.configureUser` |
 | Observability | `getSandboxLogs`, `getSandboxMetrics` |
 | Runtime capability checks | `getRuntimeCapabilities` |
 | Templates | `createTemplate`, `createTemplateBuild`, `uploadTemplateBuildContext`, `promoteTemplateVersion` |
@@ -196,6 +196,17 @@ await sandbox.git.clone("https://github.com/acme/private.git", {
 
 `credentialPersistence: "dangerously-store-in-remote"` is available only for
 workflows that deliberately want credentials persisted in `.git/config`.
+
+Git troubleshooting:
+
+| Symptom | What to check |
+| --- | --- |
+| `git binary not found in sandbox image` | Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
+| Private clone fails with `Authentication failed` | Confirm the token is present in the process environment and has repository read scope. Prefer one-shot credentials over credentialed URLs. |
+| Clone or pull cannot reach GitHub | If egress is restricted, include the `git-hosting` preset or allow the required Git hostnames. |
+| Branch checkout fails | Check `branch`, `commit`, and `targetPath`; tags and branches are passed directly to Git. |
+| Commit fails with missing identity | Run `sandbox.git.configureUser({ name, email }, { cwd })` before committing. |
+| Push is rejected | Pull/rebase first, verify the token has write scope, and use explicit one-shot credentials for the push operation. |
 
 ## Files And Artifacts
 

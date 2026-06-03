@@ -897,6 +897,7 @@ export class HarakiriSandbox {
     branches: (options: GitCommandOptions = {}) => this.client.git.branches(this.id, options),
     checkout: (ref: string, options: GitCommandOptions = {}) => this.client.git.checkout(this.id, ref, options),
     createBranch: (name: string, options: GitCommandOptions = {}) => this.client.git.createBranch(this.id, name, options),
+    deleteBranch: (name: string, options: GitCommandOptions = {}) => this.client.git.deleteBranch(this.id, name, options),
     add: (paths: string[] = ["."], options: GitCommandOptions = {}) => this.client.git.add(this.id, paths, options),
     commit: (message: string, options: GitCommitOptions = {}) => this.client.git.commit(this.id, message, options),
     pull: (options: GitPullOptions = {}) => this.client.git.pull(this.id, options),
@@ -973,6 +974,7 @@ export class HarakiriClient {
     branches: (id: string, options: GitCommandOptions = {}) => this.listGitBranches(id, options),
     checkout: (id: string, ref: string, options: GitCommandOptions = {}) => this.checkoutGitRef(id, ref, options),
     createBranch: (id: string, name: string, options: GitCommandOptions = {}) => this.createGitBranch(id, name, options),
+    deleteBranch: (id: string, name: string, options: GitCommandOptions = {}) => this.deleteGitBranch(id, name, options),
     add: (id: string, paths: string[] = ["."], options: GitCommandOptions = {}) => this.addGitPaths(id, paths, options),
     commit: (id: string, message: string, options: GitCommitOptions = {}) => this.commitGitChanges(id, message, options),
     pull: (id: string, options: GitPullOptions = {}) => this.pullGitRepository(id, options),
@@ -1241,6 +1243,15 @@ export class HarakiriClient {
     const cwd = options.cwd ?? defaultGitPath;
     return this.executeGitCommand(id, "branch", {
       command: `${gitPrefix(cwd)} checkout -b ${shellQuote(name)}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  deleteGitBranch(id: string, name: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "branch delete", {
+      command: `${gitPrefix(cwd)} branch -D ${shellQuote(name)}`,
       env: options.env,
       timeoutMs: options.timeoutMs
     });
