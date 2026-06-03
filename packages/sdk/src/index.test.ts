@@ -5,6 +5,7 @@ import {
   HarakiriAuthenticationError,
   HarakiriClient,
   HarakiriConflictError,
+  HarakiriGitCommandError,
   HarakiriNotFoundError,
   HarakiriProviderUnavailableError,
   HarakiriRateLimitError,
@@ -13,6 +14,7 @@ import {
   HarakiriUnsupportedCapabilityError,
   HarakiriWaitTimeoutError,
   createRouteFetch,
+  redactGitSecrets,
   routeAccessHeaders,
   waitForRouteHttp
 } from "./index.js";
@@ -161,6 +163,154 @@ test("HarakiriClient forwards sandbox async create options", async () => {
     wait: false,
     idempotencyKey: "idem_1"
   });
+});
+
+test("HarakiriClient bootstraps Git sources through command APIs", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      const path = String(url);
+      if (path.endsWith("/v1/sandboxes") && init?.method === "POST") {
+        return Response.json({
+          sandbox: sandboxSummary({ id: "sbx_git", status: "pending" }),
+          status: "pending"
+        }, { status: 202 });
+      }
+      if (path.endsWith("/v1/sandboxes/sbx_git") && !path.endsWith("/run")) {
+        return Response.json({ sandbox: sandboxSummary({ id: "sbx_git", status: "running" }) });
+      }
+      if (path.endsWith("/v1/sandboxes/sbx_git/run")) {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        return Response.json({
+          result: {
+            sandboxId: "sbx_git",
+            command: body.command,
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+            durationMs: 12
+          }
+        });
+      }
+      return Response.json({ ok: true });
+    }
+  });
+
+  const result = await client.createSandbox({
+    template: "python-3.12-data",
+    wait: true,
+    egress: { mode: "restricted", presets: ["python-package-install"] },
+    source: {
+      type: "git",
+      url: "https://github.com/acme/project.git",
+      branch: "main",
+      targetPath: "/workspace/project",
+      credentials: { type: "token", token: "ghp_secret", username: "oauth2" }
+    }
+  });
+
+  assert.equal(result.sandbox.status, "running");
+  const createBody = JSON.parse(calls[0].body ?? "{}");
+  assert.equal(createBody.source, undefined);
+  assert.deepEqual(createBody.egress.presets, ["python-package-install", "git-hosting"]);
+  assert.equal(JSON.stringify(createBody).includes("ghp_secret"), false);
+
+  const runBody = JSON.parse(calls.find((call) => call.url.endsWith("/run"))?.body ?? "{}");
+  assert.equal(runBody.command.includes("$HARAKIRI_GIT_TOKEN"), true);
+  assert.equal(runBody.command.includes("ghp_secret"), false);
+  assert.equal(runBody.command.includes("git 'clone'"), true);
+  assert.equal(runBody.command.includes("'https://github.com/acme/project.git'"), true);
+  assert.equal(runBody.command.includes("'/workspace/project'"), true);
+  assert.equal(runBody.command.includes("oauth2:"), false);
+  assert.equal(runBody.command.includes("remote set-url origin"), false);
+  assert.deepEqual(runBody.env, {
+    HARAKIRI_GIT_USERNAME: "oauth2",
+    HARAKIRI_GIT_TOKEN: "ghp_secret"
+  });
+});
+
+test("HarakiriSandbox Git helpers parse status and branch data", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      if (String(url).endsWith("/run") && body.command.includes("status --short")) {
+        return Response.json({
+          result: {
+            sandboxId: "sbx_git",
+            command: body.command,
+            stdout: "## main...origin/main [ahead 1, behind 2]\n M src/app.ts\n?? README.md\n",
+            stderr: "",
+            exitCode: 0,
+            durationMs: 5
+          }
+        });
+      }
+      if (String(url).endsWith("/run") && body.command.includes("branch --format")) {
+        return Response.json({
+          result: {
+            sandboxId: "sbx_git",
+            command: body.command,
+            stdout: "main\nfeature/work\n",
+            stderr: "",
+            exitCode: 0,
+            durationMs: 4
+          }
+        });
+      }
+      return Response.json({ ok: true });
+    }
+  });
+  const sandbox = client.sandboxes.wrap(sandboxSummary({ id: "sbx_git" }));
+
+  const status = await sandbox.git.status({ cwd: "/workspace/project" });
+  assert.equal(status.branch, "main");
+  assert.equal(status.upstream, "origin/main");
+  assert.equal(status.ahead, 1);
+  assert.equal(status.behind, 2);
+  assert.equal(status.clean, false);
+  assert.deepEqual(status.files.map((file) => [file.index, file.workingTree, file.path]), [
+    [" ", "M", "src/app.ts"],
+    ["?", "?", "README.md"]
+  ]);
+
+  const branches = await sandbox.git.branches({ cwd: "/workspace/project" });
+  assert.deepEqual(branches.branches, ["main", "feature/work"]);
+});
+
+test("Git helper errors redact credentials", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      assert.equal(body.command.includes("ghp_secret"), false);
+      return Response.json({
+        result: {
+          sandboxId: "sbx_git",
+          command: body.command,
+          stdout: "",
+          stderr: "fatal: could not read from https://oauth2:ghp_secret@github.com/acme/private.git\n",
+          exitCode: 128,
+          durationMs: 9
+        }
+      });
+    }
+  });
+
+  await assert.rejects(() => client.git.clone("sbx_git", "https://github.com/acme/private.git", {
+    credentials: { type: "token", token: "ghp_secret", username: "oauth2" }
+  }), (error) => {
+    assert.ok(error instanceof HarakiriGitCommandError);
+    assert.equal(error.message.includes("ghp_secret"), false);
+    assert.equal(error.result.stderr.includes("ghp_secret"), false);
+    return true;
+  });
+  assert.equal(redactGitSecrets("https://user:secret@example.test/repo.git", ["secret"]), "https://[redacted]@example.test/repo.git");
 });
 
 test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namespaces", async () => {

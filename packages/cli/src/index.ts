@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { registerAuthCommands } from "./commands/auth.js";
 import { registerConfigCommands } from "./commands/config.js";
 import { registerEgressCommands } from "./commands/egress.js";
+import { registerGitCommands } from "./commands/git.js";
 import { registerRegistryCredentialCommands } from "./commands/registry-credentials.js";
 import { registerRouteCommands } from "./commands/routes.js";
 import { registerSandboxCommands } from "./commands/sandboxes.js";
@@ -20,6 +21,7 @@ Examples:
   $ harakiri create --template open-agents-dev --name agent-runner --env HARAKIRI_ENV=dev
   $ harakiri run sbx_... --cmd "python --version"
   $ harakiri attach sbx_... --cwd /workspace
+  $ harakiri git clone sbx_... https://github.com/acme/project.git --path /workspace/project
   $ harakiri command session create sbx_... --cwd /workspace
   $ harakiri expose sbx_... --port 3000
   $ harakiri egress set sbx_... --mode restricted --allow api.github.com
@@ -29,6 +31,7 @@ registerConfigCommands(program);
 registerAuthCommands(program);
 registerTemplateCommands(program);
 registerSandboxCommands(program);
+registerGitCommands(program);
 registerRouteCommands(program);
 registerEgressCommands(program);
 registerRegistryCredentialCommands(program);

@@ -130,6 +130,7 @@ await harakiri.killSandbox(sandbox.id);
 | Artifacts | `files.upload`, `files.download` |
 | Routes | `routes.expose`, `routes.exposeAndWait`, `routes.list`, `routes.delete`, `routes.getHost`, `routes.getUrl`, `routes.headers`, `routes.fetch`, `routes.waitForHttp` |
 | Egress | `getOutboundAccess`, `setOutboundAccess`, `allowDomains`, `denyDomains`, `blockOutboundAccess`, `testOutboundAccess` |
+| Git | `git.clone`, `git.status`, `git.branches`, `git.checkout`, `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remotes`, `git.configureUser` |
 | Observability | `getSandboxLogs`, `getSandboxMetrics` |
 | Runtime capability checks | `getRuntimeCapabilities` |
 | Templates | `createTemplate`, `createTemplateBuild`, `uploadTemplateBuildContext`, `promoteTemplateVersion` |
@@ -149,6 +150,52 @@ metadata. Use `state` to decide whether a feature is usable, and use
 `contract` to understand whether it is backed by a formal OpenSandbox API, a
 feature-detected OpenSandbox provider behavior, or a Harakiri control-plane
 overlay.
+
+## Git Sources And Repositories
+
+Use `source: { type: "git" }` when a sandbox should start from a repository.
+The SDK creates the sandbox through the normal API, waits for it to become
+ready, then clones through Harakiri's tracked command API. The `source` object
+is not sent to `/v1/sandboxes`; it is an SDK workflow contract that remains
+provider-neutral.
+
+```ts
+const sandbox = await harakiri.sandboxes.create({
+  template: "open-agents-dev",
+  ttlSeconds: 1200,
+  egress: { mode: "restricted", presets: ["llm-apis"] },
+  source: {
+    type: "git",
+    url: "https://github.com/acme/project.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    shallow: true
+  }
+});
+
+const status = await sandbox.git.status({ cwd: "/workspace/project" });
+console.log(status.branch, status.clean);
+```
+
+Private HTTPS repositories can use a token for a single operation. Pass secrets
+through environment variables in your application and into the SDK; Harakiri
+puts only environment variable names in tracked command records, not token
+values. By default the clone resets `origin` to the credential-free repository
+URL after cloning.
+
+```ts
+await sandbox.git.clone("https://github.com/acme/private.git", {
+  targetPath: "/workspace/private",
+  credentials: {
+    type: "token",
+    token: process.env.GITHUB_TOKEN!,
+    username: "x-access-token"
+  }
+});
+```
+
+`credentialPersistence: "dangerously-store-in-remote"` is available only for
+workflows that deliberately want credentials persisted in `.git/config`.
 
 ## Files And Artifacts
 

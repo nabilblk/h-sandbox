@@ -4,6 +4,7 @@ import WebSocket, { type RawData } from "ws";
 import { apiClient, loadConfig, saveConfig } from "../config.js";
 import { runtimeLine } from "../format.js";
 import { collectEnv, collectString, parsePositiveInt, printProgress } from "../utils.js";
+import { gitCredentialsFromOptions } from "./git.js";
 
 const stdinFramePrefix = 0x00;
 const stdoutFramePrefix = 0x01;
@@ -174,9 +175,19 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--egress-preset <preset>", "outbound access preset; can be repeated", collectString, [])
     .option("--allow <domain>", "allow outbound domain; can be repeated", collectString, [])
     .option("--deny <domain>", "deny outbound domain; can be repeated", collectString, [])
+    .option("--git <url>", "clone a Git repository after sandbox creation")
+    .option("--git-branch <branch>", "branch or tag to clone")
+    .option("--git-commit <sha>", "commit to checkout after clone")
+    .option("--git-path <path>", "target path inside the sandbox", "/workspace/project")
+    .option("--git-depth <n>", "shallow clone depth", parsePositiveInt)
+    .option("--git-submodules", "initialize Git submodules recursively")
+    .option("--git-token-env <name>", "environment variable containing an HTTPS Git token")
+    .option("--git-username <name>", "HTTPS Git username; defaults to x-access-token for token auth")
+    .option("--git-preserve-credentials", "dangerously leave credentials in the Git remote URL")
     .option("--no-wait", "enqueue sandbox creation and return before provider provisioning finishes")
     .option("--wait-timeout-ms <ms>", "maximum create wait before returning a pending sandbox", parsePositiveInt)
     .action(async (options) => {
+      if (options.git && options.wait === false) throw new Error("--git requires waiting for sandbox readiness; omit --no-wait");
       printProgress("provisioning microVM...");
       const started = Date.now();
       const body = {
@@ -196,6 +207,21 @@ export const registerSandboxCommands = (program: Command) => {
               }
             : {}
         ),
+        ...(options.git
+          ? {
+              source: {
+                type: "git" as const,
+                url: options.git,
+                branch: options.gitBranch,
+                commit: options.gitCommit,
+                targetPath: options.gitPath,
+                depth: options.gitDepth,
+                submodules: options.gitSubmodules ? "recursive" as const : undefined,
+                credentials: gitCredentialsFromOptions({ tokenEnv: options.gitTokenEnv, username: options.gitUsername }),
+                credentialPersistence: options.gitPreserveCredentials ? "dangerously-store-in-remote" as const : undefined
+              }
+            }
+          : {}),
         ...(options.wait === false ? { wait: false } : {}),
         ...(options.waitTimeoutMs !== undefined ? { waitTimeoutMs: options.waitTimeoutMs } : {})
       };

@@ -34,7 +34,7 @@ export const docPages: DocPage[] = [
     section: "Getting started",
     title: "SDK and CLI",
     lede: "Use the public npm packages for application integrations and local automation.",
-    toc: ["Packages", "Configure", "Sandbox object", "SDK flow", "CLI flow", "Terminal", "Contract"],
+    toc: ["Packages", "Configure", "Sandbox object", "SDK flow", "Git", "CLI flow", "Terminal", "Contract"],
     body: (
       <>
         <h2>Packages</h2>
@@ -48,8 +48,12 @@ export const docPages: DocPage[] = [
         <pre>{`import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: false,\n  ttlSeconds: 600,\n  idempotencyKey: "job-123"\n});\n\nawait sandbox.wait();\nawait sandbox.files.write({\n  path: "/workspace/task.py",\n  content: "print(2 + 2)\\n",\n  createParents: true\n});\nconst run = await sandbox.run({ command: "python /workspace/task.py" });\nconsole.log(run.result.stdout);\n\nconst reconnected = await HarakiriSandbox.connect(harakiri, sandbox.id);\nconsole.log(reconnected.summary.status);\nawait sandbox.kill();`}</pre>
         <h2>SDK flow</h2>
         <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst { sandbox } = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  ttlSeconds: 600,\n  idempotencyKey: "job-123",\n  egress: { mode: "restricted", presets: ["python-package-install"] }\n});\n\nawait harakiri.waitForSandbox(sandbox.id);\nconst result = await harakiri.runSandbox(sandbox.id, {\n  command: "python -c 'print(2 + 2)'",\n  cwd: "/workspace"\n});\nconsole.log(result.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</pre>
+        <h2>Git</h2>
+        <p>Use <code>source: {"{ type: \"git\" }"}</code> when a sandbox should start from a repository. The SDK consumes the source contract, creates the sandbox normally, waits for readiness, and clones through the tracked command API. For restricted egress, the <code>git-hosting</code> preset is added automatically unless disabled.</p>
+        <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "open-agents-dev",\n  egress: { mode: "restricted", presets: ["llm-apis"] },\n  source: {\n    type: "git",\n    url: "https://github.com/acme/project.git",\n    branch: "main",\n    targetPath: "/workspace/project",\n    shallow: true\n  }\n});\n\nconst status = await sandbox.git.status({ cwd: "/workspace/project" });\nconsole.log(status.branch, status.clean);`}</pre>
+        <p>Private HTTPS repositories use one-shot token credentials by default. Command records store environment variable names, not token values, and the SDK resets `origin` to a credential-free URL after clone.</p>
         <h2>CLI flow</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000\nharakiri kill sbx_...`}</pre>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri create --template open-agents-dev --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri git status sbx_... --cwd /workspace/project\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000\nharakiri kill sbx_...`}</pre>
         <h2>Terminal</h2>
         <p>Use `attach` for an interactive human terminal. Use command sessions for stateful automation that needs `cd`, exported variables, or setup steps without taking over the local terminal.</p>
         <pre>{`harakiri attach sbx_... --cwd /workspace\n\nSESSION_ID=$(harakiri command session create sbx_... --cwd /workspace | head -n1)\nharakiri command session run sbx_... "$SESSION_ID" --cmd "cd /tmp && pwd"\nharakiri command session run sbx_... "$SESSION_ID" --cmd "pwd"\nharakiri command session delete sbx_... "$SESSION_ID"`}</pre>
@@ -108,7 +112,7 @@ export const docPages: DocPage[] = [
     body: (
       <>
         <h2>CLI</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner\nharakiri status sbx_...`}</pre>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri create --template open-agents-dev --name repo-runner --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner\nharakiri status sbx_...`}</pre>
         <h2>API</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code></span>
         <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'\n\ncurl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","name":"stable-runner","ttlSeconds":300}'`}</pre>

@@ -11,6 +11,7 @@
   "include": [
     "sdk-typescript-quickstart/index.ts",
     "sdk-sandbox-object/index.ts",
+    "sdk-git-workflow/index.ts",
     "sdk-opencode-headless/index.ts",
     "sdk-opencode-server/index.ts"
   ]

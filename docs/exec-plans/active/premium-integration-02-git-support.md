@@ -2,7 +2,7 @@
 
 **Created**: 2026-06-03
 **Author**: Codex
-**Status**: Not Started
+**Status**: In Progress
 **Priority**: {P0-P3}
 **Estimated effort**: 1-2 engineering weeks
 
@@ -46,16 +46,16 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 ## Phases
 
 ### Phase 1: Contract Design
-**Status**: Not Started
-- [ ] Define `SandboxGitOptions`, `GitCredentials`, `GitCloneOptions`,
+**Status**: In Progress
+- [x] Define `SandboxGitOptions`, `GitCredentials`, `GitCloneOptions`,
       `GitStatus`, `GitBranchList`, `GitRemote`, and `GitCommitOptions`.
-- [ ] Define source bootstrap input on `CreateSandboxInput`, for example
+- [x] Define source bootstrap input on `CreateSandboxInput`, for example
       `source: { type: "git", url, branch?, commit?, path?, depth?,
       submodules?, credentials?, egressPreset? }`.
-- [ ] Define credential modes:
+- [x] Define credential modes:
       one-shot inline credentials, credential helper authentication, and
       intentionally stored remote credentials.
-- [ ] Choose safe defaults: credentials stripped from remote URLs, shallow clone
+- [x] Choose safe defaults: credentials stripped from remote URLs, shallow clone
       optional, no implicit push credentials, and redacted logs.
 - [ ] Define provider capability metadata for Git support so API/UI/SDK can
       report unavailable Git behavior honestly.
@@ -73,45 +73,45 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 - [ ] Ensure idempotency keys work when source bootstrap is requested.
 
 ### Phase 3: Runtime Git Operations
-**Status**: Not Started
-- [ ] Implement Git operations by composing Harakiri tracked commands and
+**Status**: In Progress
+- [x] Implement Git operations by composing Harakiri tracked commands and
       command sessions.
-- [ ] Add `git.clone(url, options)` with branch, depth, path, submodules, and
+- [x] Add `git.clone(url, options)` with branch, depth, path, submodules, and
       credential options.
-- [ ] Add `git.status(path)` with structured branch, ahead/behind, and file
+- [x] Add `git.status(path)` with structured branch, ahead/behind, and file
       status parsing.
 - [ ] Add branch helpers: list, checkout, create, and delete.
-- [ ] Add `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remoteAdd`,
+- [x] Add `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remoteAdd`,
       `git.setConfig`, `git.getConfig`, and `git.configureUser`.
 - [ ] Detect missing `git` binary and return a typed unsupported-runtime error
       with template guidance.
 
 ### Phase 4: SDK And CLI Experience
-**Status**: Not Started
-- [ ] Add SDK helpers on the new runtime class and on the existing client where
+**Status**: In Progress
+- [x] Add SDK helpers on the new runtime class and on the existing client where
       appropriate.
-- [ ] Add CLI commands such as `harakiri git clone`, `git status`, `git push`,
+- [x] Add CLI commands such as `harakiri git clone`, `git status`, `git push`,
       or a practical subset if command count becomes too large.
-- [ ] Add `harakiri create --git <url>` with branch, path, depth, and preset
+- [x] Add `harakiri create --git <url>` with branch, path, depth, and preset
       flags for the common bootstrap path.
-- [ ] Ensure CLI secret handling uses env vars, prompts, or config references
+- [x] Ensure CLI secret handling uses env vars, prompts, or config references
       rather than showing tokens in shell history.
-- [ ] Keep all Git helpers generic and not specific to any downstream project.
+- [x] Keep all Git helpers generic and not specific to any downstream project.
 
 ### Phase 5: Documentation
-**Status**: Not Started
-- [ ] Add Git integration docs to `docs/sdk.md`, `packages/sdk/README.md`, and
+**Status**: In Progress
+- [x] Add Git integration docs to `docs/sdk.md`, `packages/sdk/README.md`, and
       website docs.
-- [ ] Include examples for public clone, private clone with one-shot token,
+- [x] Include examples for public clone, private clone with one-shot token,
       configure identity, branch, commit, push, and source bootstrap during
       sandbox creation.
 - [ ] Add troubleshooting for missing git binary, private repo auth failures,
       egress blocked, branch not found, dirty worktree, and push rejected.
-- [ ] Explicitly explain credential persistence risks and redaction limits.
+- [x] Explicitly explain credential persistence risks and redaction limits.
 
 ### Phase 6: Verification
-**Status**: Not Started
-- [ ] Unit test command composition and structured parser behavior.
+**Status**: In Progress
+- [x] Unit test command composition and structured parser behavior.
 - [ ] Mock API/SDK tests for all Git methods and create-source payloads.
 - [ ] Live smoke public repo clone in k0s.
 - [ ] Live smoke private repo clone using a short-lived test token if available.
@@ -119,17 +119,37 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       provenance, or browser UI.
 - [ ] Run SDK/API/CLI typecheck, tests, build, OpenAPI generation/check, and
       `git diff --check`.
+      SDK tests/typecheck, CLI tests/typecheck/build, examples typecheck, web
+      typecheck, and `git diff --check` passed for the first slice. API,
+      OpenAPI, and live smoke verification remain.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
 |------|----------|-----------|------------------------|
 | 2026-06-03 | Model Git as a first-class SDK/CLI surface inspired by E2B's `sandbox.git` docs | Source checkout is a common agent workflow and should not require every integrator to hand-roll shell commands. | Leave Git as raw command examples; create a project-specific adapter; depend on direct Kubernetes exec. |
 | 2026-06-03 | Default to one-shot credentials and strip credentials from remotes | Private repo support is necessary, but storing credentials inside the sandbox should be explicit and risky by name. | Always store credentials; require only public repositories; hide credentials in a global Harakiri secret store before a clear product design. |
+| 2026-06-04 | Implement the first slice in the SDK/CLI instead of changing the API schema | This ships a useful public integration surface immediately while keeping the API body stable and preserving the OpenSandbox control-plane boundary. | Add server-side Git endpoints and provenance first; keep Git as docs-only shell snippets. |
+| 2026-06-04 | Use `GIT_ASKPASS` for default private repository credentials | Passing credentials in repository URLs can leak through provider stderr or stored command logs. Askpass keeps command text and Git remotes credential-free by default. | Credentialed URL expansion; persistent credential helpers; direct Kubernetes exec. |
 
 ## Tech Debt Incurred
-None planned. If shell-based Git command composition becomes too complex, track
-the follow-up to move to a small in-sandbox Git helper binary or provider-native
-Git API once OpenSandbox exposes one.
+Current slice leaves server-side Git provenance, Git audit records, provider
+capability metadata, dashboard UI, and live k0s Git smoke tests for follow-up.
+If shell-based Git command composition becomes too complex, track the follow-up
+to move to a small in-sandbox Git helper binary or provider-native Git API once
+OpenSandbox exposes one.
 
 ## Completion Notes
-Fill in when complete.
+2026-06-04 slice:
+- Added SDK `client.git.*` and `sandbox.git.*` helpers for clone, status,
+  branches, checkout, create branch, add, commit, pull, push, remotes, config,
+  and Git user configuration.
+- Added SDK `createSandbox({ source: { type: "git" } })` bootstrap. The SDK
+  consumes the source contract and then uses tracked command APIs; `source` is
+  not sent to `/v1/sandboxes`.
+- Added CLI `harakiri git ...` commands and `harakiri create --git ...`.
+- Added one-shot token handling through env vars and `GIT_ASKPASS`, with
+  `dangerously-store-in-remote` / `--preserve-credentials` as the explicit
+  persistent credential mode.
+- Updated SDK docs, CLI docs, website docs, and examples.
+- Verified SDK tests/typecheck, CLI tests/typecheck/build, examples typecheck,
+  web typecheck, and `git diff --check`.

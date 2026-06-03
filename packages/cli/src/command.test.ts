@@ -542,6 +542,89 @@ test("create command sends repeated env flags in the sandbox payload", async () 
   }
 });
 
+test("create command bootstraps Git sources without sending secrets in command text", async () => {
+  process.env.HARAKIRI_TEST_GIT_TOKEN = "ghp_cli_secret";
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_git_cli",
+            name: "git-runner",
+            template: "open-agents-dev",
+            status: "running"
+          }
+        }
+      };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_git_cli/run") {
+      const body = request.body as { command: string };
+      return {
+        body: {
+          result: {
+            sandboxId: "sbx_git_cli",
+            command: body.command,
+            stdout: "",
+            stderr: "",
+            exitCode: 0,
+            durationMs: 15
+          }
+        }
+      };
+    }
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_git_cli") {
+      return {
+        body: {
+          sandbox: {
+            id: "sbx_git_cli",
+            name: "git-runner",
+            template: "open-agents-dev",
+            status: "running"
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "open-agents-dev",
+      "--name",
+      "git-runner",
+      "--git",
+      "https://github.com/acme/project.git",
+      "--git-branch",
+      "main",
+      "--git-path",
+      "/workspace/project",
+      "--git-token-env",
+      "HARAKIRI_TEST_GIT_TOKEN"
+    ], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_git_cli/);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "open-agents-dev",
+      name: "git-runner",
+      ttlSeconds: 300,
+      env: {}
+    });
+    const runBody = api.requests.find((request) => request.path.endsWith("/run"))?.body as { command: string; env: Record<string, string> };
+    assert.equal(runBody.command.includes("$HARAKIRI_GIT_TOKEN"), true);
+    assert.equal(runBody.command.includes("ghp_cli_secret"), false);
+    assert.equal(runBody.command.includes("'https://github.com/acme/project.git'"), true);
+    assert.deepEqual(runBody.env, {
+      HARAKIRI_GIT_USERNAME: "x-access-token",
+      HARAKIRI_GIT_TOKEN: "ghp_cli_secret"
+    });
+  } finally {
+    delete process.env.HARAKIRI_TEST_GIT_TOKEN;
+    await api.close();
+  }
+});
+
 test("create command supports no-wait pending sandbox responses", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/sandboxes") {

@@ -51,6 +51,8 @@ settings are written to `~/.config/harakiri/config.json`.
 ```bash
 harakiri init
 harakiri create --template python-3.12-data --env HARAKIRI_ENV_SMOKE=env-ok
+harakiri create --template open-agents-dev --git https://github.com/acme/project.git --git-path /workspace/project
+harakiri git status sbx_... --cwd /workspace/project
 harakiri attach sbx_... --cwd /workspace
 harakiri run --stdin agent.py
 harakiri command run sbx_... --cmd "python -m http.server 3000" --detached
@@ -72,6 +74,34 @@ harakiri registry upsert --name ghcr --registry-host ghcr.io --username robot --
 Dockerfile builds package the local context as tar+gzip, upload it to the API,
 run the configured Kubernetes image builder, and store a digest-pinned ready
 template version. The default OSS builder is rootless BuildKit.
+
+## Git Workflow
+
+Clone repositories through Harakiri's command API. Tokens are read from
+environment variables so they do not appear in command-line history.
+
+```bash
+harakiri create \
+  --template open-agents-dev \
+  --name repo-runner \
+  --git https://github.com/acme/project.git \
+  --git-branch main \
+  --git-path /workspace/project
+
+harakiri git status sbx_... --cwd /workspace/project
+harakiri git add sbx_... . --cwd /workspace/project
+harakiri git user sbx_... --cwd /workspace/project --name "Harakiri" --email "agent@harakiri.local"
+harakiri git commit sbx_... --cwd /workspace/project -m "agent update"
+
+export GITHUB_TOKEN=ghp_...
+harakiri git clone sbx_... https://github.com/acme/private.git \
+  --path /workspace/private \
+  --token-env GITHUB_TOKEN
+```
+
+The default credential mode is one-shot. The CLI resets `origin` to a
+credential-free URL after clone. Use `--preserve-credentials` only when the
+repository must keep credentials in `.git/config`.
 
 ## OpenCode Template Workflow
 

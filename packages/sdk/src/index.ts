@@ -153,7 +153,43 @@ export type HarakiriClientOptions = {
   fetch?: typeof fetch;
 };
 
-export type CreateSandboxInput = CreateSandboxBody;
+export type GitCredentialPersistence = "one-shot" | "dangerously-store-in-remote";
+
+export type GitTokenCredentials = {
+  type?: "token";
+  token: string;
+  username?: string;
+};
+
+export type GitBasicCredentials = {
+  type: "basic";
+  username: string;
+  password: string;
+};
+
+export type GitCredentials = GitTokenCredentials | GitBasicCredentials;
+
+export type GitSourceInput = {
+  type: "git";
+  url: string;
+  branch?: string;
+  commit?: string;
+  targetPath?: string;
+  depth?: number;
+  shallow?: boolean;
+  submodules?: boolean | "recursive";
+  credentials?: GitCredentials;
+  credentialPersistence?: GitCredentialPersistence;
+  applyEgressPreset?: boolean;
+  timeoutMs?: number;
+};
+
+export type SandboxSourceInput = GitSourceInput;
+
+export type CreateSandboxInput = CreateSandboxBody & {
+  source?: SandboxSourceInput;
+  cleanupOnSourceError?: boolean;
+};
 
 export type RunSandboxInput = RunSandboxBody;
 export type CreateSandboxCommandInput = CreateSandboxCommandBody;
@@ -210,10 +246,298 @@ export type GetCommandLogsOptions = {
   tail?: number;
 };
 
+export type GitCommandRunResult = RunSandboxResponse["result"];
+
+export type GitCommandOptions = {
+  cwd?: string;
+  timeoutMs?: number;
+  env?: Record<string, string>;
+};
+
+export type GitCloneOptions = {
+  branch?: string;
+  commit?: string;
+  targetPath?: string;
+  depth?: number;
+  shallow?: boolean;
+  submodules?: boolean | "recursive";
+  credentials?: GitCredentials;
+  credentialPersistence?: GitCredentialPersistence;
+  timeoutMs?: number;
+  env?: Record<string, string>;
+};
+
+export type GitCloneResult = GitCommandRunResult & {
+  path: string;
+  url: string;
+};
+
+export type GitStatusFile = {
+  path: string;
+  index: string;
+  workingTree: string;
+  raw: string;
+};
+
+export type GitStatusResult = GitCommandRunResult & {
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  clean: boolean;
+  files: GitStatusFile[];
+};
+
+export type GitBranchResult = GitCommandRunResult & {
+  branches: string[];
+};
+
+export type GitCommitOptions = GitCommandOptions & {
+  all?: boolean;
+  allowEmpty?: boolean;
+  authorName?: string;
+  authorEmail?: string;
+};
+
+export type GitPullOptions = GitCommandOptions & {
+  remote?: string;
+  branch?: string;
+  rebase?: boolean;
+  credentials?: GitCredentials;
+  remoteUrl?: string;
+  credentialPersistence?: GitCredentialPersistence;
+};
+
+export type GitPushOptions = GitCommandOptions & {
+  remote?: string;
+  branch?: string;
+  setUpstream?: boolean;
+  credentials?: GitCredentials;
+  remoteUrl?: string;
+  credentialPersistence?: GitCredentialPersistence;
+};
+
 export type HarakiriSandboxOptions = {
   client: HarakiriClient;
   sandbox: SandboxSummary;
 };
+
+const defaultGitPath = "/workspace/project";
+
+const shellQuote = (value: string) => {
+  if (value === "") return "''";
+  return `'${value.replace(/'/g, "'\\''")}'`;
+};
+
+const shellDoubleStatic = (value: string) =>
+  value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, "\\\"")
+    .replace(/`/g, "\\`")
+    .replace(/\$/g, "\\$");
+
+const doubleQuotedGitUrl = (parts: Array<string | { env: string }>) =>
+  `"${parts.map((part) => typeof part === "string" ? shellDoubleStatic(part) : `$${part.env}`).join("")}"`;
+
+export const sanitizeGitUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    parsed.username = "";
+    parsed.password = "";
+    return parsed.toString();
+  } catch {
+    return url.replace(/\/\/[^/\s@]+@/g, "//");
+  }
+};
+
+export const redactGitSecrets = (value: string, secrets: string[] = []) => {
+  let redacted = value.replace(/(https?:\/\/)([^/\s:@]+):([^/\s@]+)@/gi, "$1[redacted]@");
+  for (const secret of secrets.filter(Boolean)) {
+    redacted = redacted.split(secret).join("[redacted]");
+  }
+  return redacted;
+};
+
+const gitSecretValues = (credentials?: GitCredentials) => {
+  if (!credentials) return [];
+  if (credentials.type === "basic") return [credentials.password];
+  return [credentials.token];
+};
+
+const gitCredentialEnv = (credentials?: GitCredentials): Record<string, string> => {
+  if (!credentials) return {};
+  if (credentials.type === "basic") {
+    return {
+      HARAKIRI_GIT_USERNAME: credentials.username,
+      HARAKIRI_GIT_PASSWORD: credentials.password
+    };
+  }
+  return {
+    HARAKIRI_GIT_USERNAME: credentials.username ?? "x-access-token",
+    HARAKIRI_GIT_TOKEN: credentials.token
+  };
+};
+
+const gitAskPassSetup = (credentials?: GitCredentials) => {
+  if (!credentials) return { before: [] as string[], after: [] as string[] };
+  return {
+    before: [
+      "askpass_file=\"$(mktemp /tmp/harakiri-git-askpass.XXXXXX)\"",
+      "cat > \"$askpass_file\" <<'HARAKIRI_GIT_ASKPASS'",
+      "#!/bin/sh",
+      "case \"$1\" in",
+      "  *Username*|*username*) printf '%s\\n' \"$HARAKIRI_GIT_USERNAME\" ;;",
+      "  *Password*|*password*) printf '%s\\n' \"${HARAKIRI_GIT_PASSWORD:-$HARAKIRI_GIT_TOKEN}\" ;;",
+      "  *) printf '%s\\n' \"${HARAKIRI_GIT_PASSWORD:-$HARAKIRI_GIT_TOKEN}\" ;;",
+      "esac",
+      "HARAKIRI_GIT_ASKPASS",
+      "chmod 700 \"$askpass_file\"",
+      "export GIT_ASKPASS=\"$askpass_file\" GIT_TERMINAL_PROMPT=0"
+    ],
+    after: ["rm -f \"$askpass_file\""]
+  };
+};
+
+const credentialedGitUrlExpression = (url: string, credentials?: GitCredentials) => {
+  const sanitized = sanitizeGitUrl(url);
+  if (!credentials) return shellQuote(sanitized);
+  let parsed: URL;
+  try {
+    parsed = new URL(sanitized);
+  } catch {
+    throw new Error("Git credentials are only supported for HTTPS repository URLs.");
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new Error("Git credentials are only supported for HTTPS repository URLs.");
+  }
+  const passwordEnv = credentials.type === "basic" ? "HARAKIRI_GIT_PASSWORD" : "HARAKIRI_GIT_TOKEN";
+  return doubleQuotedGitUrl([
+    `${parsed.protocol}//`,
+    { env: "HARAKIRI_GIT_USERNAME" },
+    ":",
+    { env: passwordEnv },
+    "@",
+    `${parsed.host}${parsed.pathname}${parsed.search}${parsed.hash}`
+  ]);
+};
+
+const gitPrefix = (cwd: string) => `command -v git >/dev/null 2>&1 || { echo 'git binary not found in sandbox image' >&2; exit 127; }\ngit -C ${shellQuote(cwd)}`;
+
+const runResultWithRedaction = (response: RunSandboxResponse, secrets: string[] = []) => ({
+  ...response.result,
+  command: redactGitSecrets(response.result.command, secrets),
+  stdout: redactGitSecrets(response.result.stdout, secrets),
+  stderr: redactGitSecrets(response.result.stderr, secrets)
+});
+
+export class HarakiriGitCommandError extends Error {
+  constructor(
+    message: string,
+    public readonly sandboxId: string,
+    public readonly operation: string,
+    public readonly result: GitCommandRunResult
+  ) {
+    super(message);
+    this.name = "HarakiriGitCommandError";
+  }
+}
+
+const parseGitStatus = (result: GitCommandRunResult): GitStatusResult => {
+  const lines = result.stdout.split(/\r?\n/).filter(Boolean);
+  const branchLine = lines.find((line) => line.startsWith("## "));
+  const fileLines = lines.filter((line) => !line.startsWith("## "));
+  let branch: string | null = null;
+  let upstream: string | null = null;
+  let ahead = 0;
+  let behind = 0;
+
+  if (branchLine) {
+    const body = branchLine.slice(3);
+    const bracketIndex = body.indexOf(" [");
+    const branchSpec = bracketIndex >= 0 ? body.slice(0, bracketIndex) : body;
+    const divergence = bracketIndex >= 0 ? body.slice(bracketIndex) : "";
+    if (branchSpec.includes("...")) {
+      const [local, remote] = branchSpec.split("...");
+      branch = local || null;
+      upstream = remote || null;
+    } else {
+      branch = branchSpec || null;
+    }
+    const aheadMatch = divergence.match(/ahead (\d+)/);
+    const behindMatch = divergence.match(/behind (\d+)/);
+    ahead = aheadMatch ? Number(aheadMatch[1]) : 0;
+    behind = behindMatch ? Number(behindMatch[1]) : 0;
+  }
+
+  const files = fileLines.map((line): GitStatusFile => ({
+    path: line.slice(3),
+    index: line[0] ?? " ",
+    workingTree: line[1] ?? " ",
+    raw: line
+  }));
+
+  return {
+    ...result,
+    branch,
+    upstream,
+    ahead,
+    behind,
+    clean: files.length === 0,
+    files
+  };
+};
+
+const buildGitCloneCommand = (url: string, options: GitCloneOptions = {}) => {
+  const targetPath = options.targetPath ?? defaultGitPath;
+  const depth = options.depth ?? (options.shallow ? 1 : undefined);
+  const args = ["clone"];
+  if (depth !== undefined) args.push("--depth", String(depth));
+  if (options.branch) args.push("--branch", options.branch);
+  const repoExpression = shellQuote(sanitizeGitUrl(url));
+  const askPass = gitAskPassSetup(options.credentials);
+  const clone = `git ${args.map(shellQuote).join(" ")} ${repoExpression} ${shellQuote(targetPath)}`;
+  const commands = [
+    "set -eu",
+    ...askPass.before,
+    "command -v git >/dev/null 2>&1 || { echo 'git binary not found in sandbox image' >&2; exit 127; }",
+    clone
+  ];
+  if (options.credentials && options.credentialPersistence === "dangerously-store-in-remote") {
+    commands.push(`git -C ${shellQuote(targetPath)} remote set-url origin ${credentialedGitUrlExpression(url, options.credentials)}`);
+  }
+  if (options.commit) commands.push(`git -C ${shellQuote(targetPath)} checkout --detach ${shellQuote(options.commit)}`);
+  if (options.submodules) {
+    commands.push(`git -C ${shellQuote(targetPath)} submodule update --init${options.submodules === "recursive" || options.submodules === true ? " --recursive" : ""}`);
+  }
+  commands.push(...askPass.after);
+  return { command: commands.join("\n"), targetPath, env: gitCredentialEnv(options.credentials), secrets: gitSecretValues(options.credentials) };
+};
+
+const buildTemporaryRemoteCommand = (
+  cwd: string,
+  remote: string,
+  remoteUrl: string | undefined,
+  credentials: GitCredentials | undefined,
+  credentialPersistence: GitCredentialPersistence | undefined,
+  action: string
+) => {
+  if (!credentials || !remoteUrl) return action;
+  const remoteExpression = credentialPersistence === "dangerously-store-in-remote"
+    ? credentialedGitUrlExpression(remoteUrl, credentials)
+    : shellQuote(sanitizeGitUrl(remoteUrl));
+  const setRemote = `git -C ${shellQuote(cwd)} remote set-url ${shellQuote(remote)} ${remoteExpression}`;
+  if (credentialPersistence === "dangerously-store-in-remote") return `${setRemote}\n${action}`;
+  return [
+    `previous_remote_url="$(git -C ${shellQuote(cwd)} remote get-url ${shellQuote(remote)} 2>/dev/null || true)"`,
+    "restore_remote_url() { if [ -n \"$previous_remote_url\" ]; then git -C " + shellQuote(cwd) + " remote set-url " + shellQuote(remote) + " \"$previous_remote_url\"; fi; }",
+    "trap restore_remote_url EXIT",
+    setRemote,
+    action,
+    "trap - EXIT",
+    "restore_remote_url"
+  ].join("\n");
+};
+
 
 const isRouteResponse = (route: RouteLike): route is SandboxRouteResponse =>
   "route" in route && typeof route.route === "object" && route.route !== null;
@@ -566,6 +890,23 @@ export class HarakiriSandbox {
     block: () => this.client.blockOutboundAccess(this.id),
     test: (target: string | TestSandboxEgressBody) => this.client.testOutboundAccess(this.id, target)
   };
+
+  readonly git = {
+    clone: (url: string, options: GitCloneOptions = {}) => this.client.git.clone(this.id, url, options),
+    status: (options: GitCommandOptions = {}) => this.client.git.status(this.id, options),
+    branches: (options: GitCommandOptions = {}) => this.client.git.branches(this.id, options),
+    checkout: (ref: string, options: GitCommandOptions = {}) => this.client.git.checkout(this.id, ref, options),
+    createBranch: (name: string, options: GitCommandOptions = {}) => this.client.git.createBranch(this.id, name, options),
+    add: (paths: string[] = ["."], options: GitCommandOptions = {}) => this.client.git.add(this.id, paths, options),
+    commit: (message: string, options: GitCommitOptions = {}) => this.client.git.commit(this.id, message, options),
+    pull: (options: GitPullOptions = {}) => this.client.git.pull(this.id, options),
+    push: (options: GitPushOptions = {}) => this.client.git.push(this.id, options),
+    remotes: (options: GitCommandOptions = {}) => this.client.git.remotes(this.id, options),
+    remoteAdd: (name: string, url: string, options: GitCommandOptions = {}) => this.client.git.remoteAdd(this.id, name, url, options),
+    setConfig: (key: string, value: string, options: GitCommandOptions = {}) => this.client.git.setConfig(this.id, key, value, options),
+    getConfig: (key: string, options: GitCommandOptions = {}) => this.client.git.getConfig(this.id, key, options),
+    configureUser: (input: { name: string; email: string }, options: GitCommandOptions = {}) => this.client.git.configureUser(this.id, input, options)
+  };
 }
 
 export class HarakiriClient {
@@ -624,6 +965,23 @@ export class HarakiriClient {
     headers: (route: RouteLike, options: RouteAccessHeadersOptions = {}) => routeAccessHeaders(route, options),
     fetch: (route: RouteLike, options: CreateRouteFetchOptions = {}) => createRouteFetch(route, options),
     waitForHttp: (route: RouteLike, options: WaitForRouteHttpOptions = {}) => waitForRouteHttp(route, options)
+  };
+
+  readonly git = {
+    clone: (id: string, url: string, options: GitCloneOptions = {}) => this.cloneGitRepository(id, url, options),
+    status: (id: string, options: GitCommandOptions = {}) => this.getGitStatus(id, options),
+    branches: (id: string, options: GitCommandOptions = {}) => this.listGitBranches(id, options),
+    checkout: (id: string, ref: string, options: GitCommandOptions = {}) => this.checkoutGitRef(id, ref, options),
+    createBranch: (id: string, name: string, options: GitCommandOptions = {}) => this.createGitBranch(id, name, options),
+    add: (id: string, paths: string[] = ["."], options: GitCommandOptions = {}) => this.addGitPaths(id, paths, options),
+    commit: (id: string, message: string, options: GitCommitOptions = {}) => this.commitGitChanges(id, message, options),
+    pull: (id: string, options: GitPullOptions = {}) => this.pullGitRepository(id, options),
+    push: (id: string, options: GitPushOptions = {}) => this.pushGitRepository(id, options),
+    remotes: (id: string, options: GitCommandOptions = {}) => this.listGitRemotes(id, options),
+    remoteAdd: (id: string, name: string, url: string, options: GitCommandOptions = {}) => this.addGitRemote(id, name, url, options),
+    setConfig: (id: string, key: string, value: string, options: GitCommandOptions = {}) => this.setGitConfig(id, key, value, options),
+    getConfig: (id: string, key: string, options: GitCommandOptions = {}) => this.getGitConfig(id, key, options),
+    configureUser: (id: string, input: { name: string; email: string }, options: GitCommandOptions = {}) => this.configureGitUser(id, input, options)
   };
 
   readonly sandboxes = {
@@ -720,20 +1078,58 @@ export class HarakiriClient {
     return this.request<SandboxesResponse>(`/v1/sandboxes${params}`);
   }
 
-  createSandbox(input: CreateSandboxInput = {}) {
-    return this.request<CreateSandboxResponse>("/v1/sandboxes", {
+  async createSandbox(input: CreateSandboxInput = {}) {
+    const { source, cleanupOnSourceError, ...createInput } = input;
+    if (source && createInput.wait === false) {
+      throw new Error("Git source bootstrap requires sandbox readiness. Omit wait:false, or create first and call sandbox.git.clone later.");
+    }
+    const egress = source?.type === "git" && source.applyEgressPreset !== false
+      ? this.egressWithGitPreset(createInput.egress)
+      : createInput.egress;
+    const result = await this.request<CreateSandboxResponse>("/v1/sandboxes", {
       method: "POST",
       body: JSON.stringify({
-        template: input.template ?? "python-3.12-data",
-        name: input.name,
-        ttlSeconds: input.ttlSeconds ?? 300,
-        env: input.env,
-        egress: input.egress,
-        idempotencyKey: input.idempotencyKey,
-        wait: input.wait,
-        waitTimeoutMs: input.waitTimeoutMs
+        template: createInput.template ?? "python-3.12-data",
+        name: createInput.name,
+        ttlSeconds: createInput.ttlSeconds ?? 300,
+        env: createInput.env,
+        egress,
+        idempotencyKey: createInput.idempotencyKey,
+        wait: createInput.wait,
+        waitTimeoutMs: createInput.waitTimeoutMs
       })
     });
+    if (!source) return result;
+
+    try {
+      const ready = result.sandbox.status === "running" || result.sandbox.status === "idle"
+        ? { sandbox: result.sandbox }
+        : await this.waitForSandbox(result.sandbox.id, { timeoutMs: Math.max(createInput.waitTimeoutMs ?? 0, 60_000) });
+      await this.cloneGitRepository(ready.sandbox.id, source.url, {
+        branch: source.branch,
+        commit: source.commit,
+        targetPath: source.targetPath,
+        depth: source.depth,
+        shallow: source.shallow,
+        submodules: source.submodules,
+        credentials: source.credentials,
+        credentialPersistence: source.credentialPersistence,
+        timeoutMs: source.timeoutMs
+      });
+      const refreshed = await this.getSandbox(result.sandbox.id);
+      return { ...result, sandbox: refreshed.sandbox };
+    } catch (error) {
+      if (cleanupOnSourceError) await this.killSandbox(result.sandbox.id).catch(() => undefined);
+      throw error;
+    }
+  }
+
+  private egressWithGitPreset(egress: CreateSandboxBody["egress"]) {
+    if (!egress || egress.mode === "open" || egress.mode === "blocked") return egress;
+    return {
+      ...egress,
+      presets: Array.from(new Set([...(egress.presets ?? []), "git-hosting"]))
+    };
   }
 
   getSandbox(id: string) {
@@ -775,6 +1171,212 @@ export class HarakiriClient {
 
   runSandboxCommand(id: string, input: RunSandboxInput) {
     return this.runSandbox(id, input);
+  }
+
+  private async executeGitCommand(
+    id: string,
+    operation: string,
+    input: RunSandboxInput,
+    secrets: string[] = []
+  ): Promise<GitCommandRunResult> {
+    const response = await this.runSandbox(id, input);
+    const result = runResultWithRedaction(response, secrets);
+    if (result.exitCode !== 0) {
+      throw new HarakiriGitCommandError(
+        `Git ${operation} failed in sandbox ${id}: ${result.stderr || result.stdout || `exit ${result.exitCode}`}`,
+        id,
+        operation,
+        result
+      );
+    }
+    return result;
+  }
+
+  cloneGitRepository(id: string, url: string, options: GitCloneOptions = {}): Promise<GitCloneResult> {
+    const built = buildGitCloneCommand(url, options);
+    return this.executeGitCommand(id, "clone", {
+      command: built.command,
+      env: { ...(options.env ?? {}), ...built.env },
+      timeoutMs: options.timeoutMs ?? 120_000
+    }, built.secrets).then((result) => ({
+      ...result,
+      path: built.targetPath,
+      url: sanitizeGitUrl(url)
+    }));
+  }
+
+  async getGitStatus(id: string, options: GitCommandOptions = {}): Promise<GitStatusResult> {
+    const cwd = options.cwd ?? defaultGitPath;
+    const result = await this.executeGitCommand(id, "status", {
+      command: `${gitPrefix(cwd)} status --short --branch --porcelain=v1`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+    return parseGitStatus(result);
+  }
+
+  async listGitBranches(id: string, options: GitCommandOptions = {}): Promise<GitBranchResult> {
+    const cwd = options.cwd ?? defaultGitPath;
+    const result = await this.executeGitCommand(id, "branches", {
+      command: `${gitPrefix(cwd)} branch --format='%(refname:short)'`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+    return {
+      ...result,
+      branches: result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+    };
+  }
+
+  checkoutGitRef(id: string, ref: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "checkout", {
+      command: `${gitPrefix(cwd)} checkout ${shellQuote(ref)}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  createGitBranch(id: string, name: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "branch", {
+      command: `${gitPrefix(cwd)} checkout -b ${shellQuote(name)}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  addGitPaths(id: string, paths: string[] = ["."], options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    const targets = paths.length ? paths : ["."];
+    return this.executeGitCommand(id, "add", {
+      command: `${gitPrefix(cwd)} add -- ${targets.map(shellQuote).join(" ")}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  commitGitChanges(id: string, message: string, options: GitCommitOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    const config = [
+      options.authorName ? `-c user.name=${shellQuote(options.authorName)}` : "",
+      options.authorEmail ? `-c user.email=${shellQuote(options.authorEmail)}` : ""
+    ].filter(Boolean).join(" ");
+    const args = [
+      "commit",
+      options.all ? "-a" : "",
+      options.allowEmpty ? "--allow-empty" : "",
+      "-m",
+      shellQuote(message)
+    ].filter(Boolean).join(" ");
+    return this.executeGitCommand(id, "commit", {
+      command: `${gitPrefix(cwd)}${config ? ` ${config}` : ""} ${args}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  pullGitRepository(id: string, options: GitPullOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    const remote = options.remote ?? "origin";
+    const askPass = gitAskPassSetup(options.credentials);
+    const args = [
+      "git",
+      "-C",
+      shellQuote(cwd),
+      "pull",
+      options.rebase ? "--rebase" : "",
+      shellQuote(remote),
+      options.branch ? shellQuote(options.branch) : ""
+    ].filter(Boolean).join(" ");
+    const command = [
+      "set -eu",
+      ...askPass.before,
+      "command -v git >/dev/null 2>&1 || { echo 'git binary not found in sandbox image' >&2; exit 127; }",
+      buildTemporaryRemoteCommand(cwd, remote, options.remoteUrl, options.credentials, options.credentialPersistence, args),
+      ...askPass.after
+    ].join("\n");
+    return this.executeGitCommand(id, "pull", {
+      command,
+      env: { ...(options.env ?? {}), ...gitCredentialEnv(options.credentials) },
+      timeoutMs: options.timeoutMs
+    }, gitSecretValues(options.credentials));
+  }
+
+  pushGitRepository(id: string, options: GitPushOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    const remote = options.remote ?? "origin";
+    const askPass = gitAskPassSetup(options.credentials);
+    const args = [
+      "git",
+      "-C",
+      shellQuote(cwd),
+      "push",
+      options.setUpstream ? "--set-upstream" : "",
+      shellQuote(remote),
+      options.branch ? shellQuote(options.branch) : ""
+    ].filter(Boolean).join(" ");
+    const command = [
+      "set -eu",
+      ...askPass.before,
+      "command -v git >/dev/null 2>&1 || { echo 'git binary not found in sandbox image' >&2; exit 127; }",
+      buildTemporaryRemoteCommand(cwd, remote, options.remoteUrl, options.credentials, options.credentialPersistence, args),
+      ...askPass.after
+    ].join("\n");
+    return this.executeGitCommand(id, "push", {
+      command,
+      env: { ...(options.env ?? {}), ...gitCredentialEnv(options.credentials) },
+      timeoutMs: options.timeoutMs
+    }, gitSecretValues(options.credentials));
+  }
+
+  listGitRemotes(id: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "remotes", {
+      command: `${gitPrefix(cwd)} remote -v`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  addGitRemote(id: string, name: string, url: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "remote add", {
+      command: `${gitPrefix(cwd)} remote add ${shellQuote(name)} ${shellQuote(sanitizeGitUrl(url))}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  setGitConfig(id: string, key: string, value: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "config", {
+      command: `${gitPrefix(cwd)} config ${shellQuote(key)} ${shellQuote(value)}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  getGitConfig(id: string, key: string, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "config get", {
+      command: `${gitPrefix(cwd)} config --get ${shellQuote(key)}`,
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
+  }
+
+  configureGitUser(id: string, input: { name: string; email: string }, options: GitCommandOptions = {}) {
+    const cwd = options.cwd ?? defaultGitPath;
+    return this.executeGitCommand(id, "configure user", {
+      command: [
+        "set -eu",
+        `${gitPrefix(cwd)} config user.name ${shellQuote(input.name)}`,
+        `git -C ${shellQuote(cwd)} config user.email ${shellQuote(input.email)}`
+      ].join("\n"),
+      env: options.env,
+      timeoutMs: options.timeoutMs
+    });
   }
 
   startCommand(id: string, input: CreateSandboxCommandInput) {

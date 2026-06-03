@@ -160,6 +160,53 @@ Command logs support provider cursors and provider-neutral tailing. When
 `tail` is set, the response includes `stdoutTruncated` and `stderrTruncated`
 flags so adapters can tell users that earlier output was omitted.
 
+## Git Sources
+
+Use a Git source when a sandbox should start with a repository checkout. This is
+implemented on top of Harakiri command resources, so it works through the same
+control-plane API as normal commands and does not require Kubernetes access.
+
+```ts
+const sandbox = await harakiri.sandboxes.create({
+  template: "open-agents-dev",
+  ttlSeconds: 1200,
+  egress: { mode: "restricted", presets: ["llm-apis"] },
+  source: {
+    type: "git",
+    url: "https://github.com/acme/project.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    shallow: true
+  }
+});
+
+const status = await sandbox.git.status({ cwd: "/workspace/project" });
+console.log(status.branch, status.files);
+```
+
+When the create request uses `egress.mode: "restricted"` or `custom`, the SDK
+adds the `git-hosting` preset unless `source.applyEgressPreset` is set to
+`false`. The API body stays stable: `source` is consumed by the SDK and is not
+sent to `/v1/sandboxes`.
+
+For private HTTPS repositories, pass a one-shot token. The tracked command text
+contains `$HARAKIRI_GIT_TOKEN` instead of the secret value, and the clone resets
+`origin` to the credential-free URL after checkout.
+
+```ts
+await sandbox.git.clone("https://github.com/acme/private.git", {
+  targetPath: "/workspace/private",
+  credentials: {
+    type: "token",
+    token: process.env.GITHUB_TOKEN!,
+    username: "x-access-token"
+  }
+});
+```
+
+Use `credentialPersistence: "dangerously-store-in-remote"` only when the
+repository must keep credentials in `.git/config` for later Git operations.
+
 ## Files
 
 Filesystem helpers support ordinary agent workflows:
