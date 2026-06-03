@@ -30,6 +30,53 @@ The SDK is self-contained; external projects should import only from
 `@h-sandbox/sdk`. `@harakiri/shared` is an internal monorepo package and is not
 published as part of the public npm contract.
 
+## Sandbox Object
+
+`HarakiriSandbox` is the object-oriented integration surface for code that owns
+one sandbox at a time. It wraps a Harakiri sandbox ID, caches the latest
+`SandboxSummary`, and binds commands, files, routes, egress, logs, metrics, and
+lifecycle operations to that sandbox.
+
+```ts
+import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";
+
+const harakiri = new HarakiriClient({
+  apiUrl: process.env.HARAKIRI_API_URL!,
+  apiKey: process.env.HARAKIRI_API_KEY!
+});
+
+const sandbox = await harakiri.sandboxes.create({
+  template: "python-3.12-data",
+  wait: false,
+  ttlSeconds: 600,
+  idempotencyKey: "job-123"
+});
+
+await sandbox.wait({ timeoutMs: 90_000 });
+
+await sandbox.files.write({
+  path: "/workspace/task.py",
+  content: "print(2 + 2)\n",
+  createParents: true
+});
+
+const run = await sandbox.run({
+  command: "python /workspace/task.py",
+  timeoutMs: 30_000
+});
+console.log(run.result.stdout);
+
+const reconnected = await HarakiriSandbox.connect(harakiri, sandbox.id);
+console.log(reconnected.summary.status);
+
+await sandbox.kill();
+```
+
+`refresh()` and `wait()` update the cached summary. Runtime operations delegate
+to the same public API methods as `HarakiriClient`, so error subclasses and API
+contracts remain identical. Use `harakiri.sandboxes.wrap(summary)` when a list
+or create response already returned a `SandboxSummary`.
+
 ## Runtime Capabilities
 
 External apps can inspect the active runtime provider before enabling advanced
@@ -393,6 +440,8 @@ try {
 - Set command `timeoutMs` for blocking or foreground work.
 - Use `waitForSandbox` after asynchronous sandbox creation.
 - Use `commands.wait` for detached process state transitions.
+- Prefer `HarakiriSandbox` for adapter code that works with one sandbox at a
+  time, and keep `HarakiriClient` for bulk operations or OpenAPI-shaped calls.
 - Retry idempotent reads and list operations at the application layer if the
   network fails.
 - For sandbox creation, use `idempotencyKey` when the caller may retry the same

@@ -5,8 +5,10 @@ import {
   HarakiriAuthenticationError,
   HarakiriClient,
   HarakiriConflictError,
+  HarakiriNotFoundError,
   HarakiriProviderUnavailableError,
   HarakiriRateLimitError,
+  HarakiriSandbox,
   HarakiriTimeoutApiError,
   HarakiriUnsupportedCapabilityError,
   HarakiriWaitTimeoutError,
@@ -14,6 +16,27 @@ import {
   routeAccessHeaders,
   waitForRouteHttp
 } from "./index.js";
+import type { SandboxSummary } from "./index.js";
+
+const sandboxSummary = (overrides: Partial<Pick<SandboxSummary, "id" | "name" | "template" | "status">> = {}): SandboxSummary => ({
+  id: overrides.id ?? "sbx_test",
+  opensandboxId: "osbx_test",
+  name: overrides.name ?? "sdk-test",
+  template: overrides.template ?? "python-3.12-data",
+  status: overrides.status ?? "running",
+  cpu: 3,
+  mem: 128,
+  started: "00h 00m",
+  owner: "sdk@test.local",
+  cost: 0,
+  ttlSeconds: 300,
+  expiresAt: "2026-06-03T12:00:00.000Z",
+  publicUrl: null,
+  templateVersionId: null,
+  templateImageDigest: null,
+  egressPolicy: null,
+  createdAt: "2026-06-03T11:55:00.000Z"
+});
 
 test("HarakiriClient normalizes the API URL and sends API key auth", async () => {
   const calls: Array<{ url: string; headers: HeadersInit | undefined }> = [];
@@ -137,6 +160,128 @@ test("HarakiriClient forwards sandbox async create options", async () => {
     ttlSeconds: 300,
     wait: false,
     idempotencyKey: "idem_1"
+  });
+});
+
+test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namespaces", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const command = {
+    id: "cmd_test",
+    sandboxId: "sbx_obj",
+    provider: "opensandbox",
+    providerCommandId: "provider_cmd",
+    command: "python -m http.server 3000 --bind 0.0.0.0",
+    status: "running",
+    cwd: "/workspace",
+    envKeys: [],
+    timeoutMs: null,
+    detached: true,
+    stdout: "",
+    stderr: "",
+    exitCode: null,
+    error: null,
+    startedAt: "2026-06-03T12:00:00.000Z",
+    finishedAt: null,
+    createdAt: "2026-06-03T12:00:00.000Z",
+    updatedAt: "2026-06-03T12:00:00.000Z"
+  };
+  const route = {
+    port: 3000,
+    protocol: "http",
+    accessMode: "token",
+    accessHeaderName: "x-harakiri-route-token",
+    tokenHint: "hrt_...",
+    labels: ["preview"],
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    routeKey: "route_sdk",
+    host: "route.example.test",
+    url: "https://route.example.test",
+    targetUrl: "http://sandbox:3000",
+    state: "ready",
+    provider: "opensandbox-gateway",
+    providerRouteId: null,
+    createdAt: "2026-06-03T12:00:00.000Z",
+    lastCheckedAt: null,
+    lastUsedAt: null,
+    terminatedAt: null
+  };
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      const path = String(url);
+      if (path.endsWith("/v1/sandboxes") && init?.method === "POST") {
+        return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "pending" }) });
+      }
+      if (path.endsWith("/v1/sandboxes/sbx_obj") && init?.method === "DELETE") return Response.json({ ok: true });
+      if (path.endsWith("/v1/sandboxes/sbx_obj")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "running" }) });
+      if (path.endsWith("/renew")) return Response.json({ ok: true });
+      if (path.endsWith("/run")) return Response.json({ result: { sandboxId: "sbx_obj", command: "pwd", stdout: "/workspace\n", stderr: "", exitCode: 0, durationMs: 5 } });
+      if (path.endsWith("/commands")) return Response.json(init?.method === "POST" ? { command } : { commands: [command] });
+      if (path.endsWith("/commands/cmd_test")) return Response.json({ command });
+      if (path.endsWith("/commands/cmd_test/logs")) return Response.json({ commandId: "cmd_test", stdout: "ready\n", stderr: "" });
+      if (path.endsWith("/files") && init?.method === "PUT") return Response.json({ file: { path: "/workspace/app.py", name: "app.py", type: "file", size: 12 } });
+      if (path.includes("/files/read")) return Response.json({ path: "/workspace/app.py", encoding: "utf8", content: "print('ok')\n" });
+      if (path.endsWith("/routes")) return Response.json(init?.method === "POST" ? { route, accessToken: "hrt_secret" } : { routes: [route] });
+      if (path.endsWith("/egress")) return Response.json({ egress: { mode: "restricted", presets: ["python-package-install"], rules: [], providerStatus: { available: true } } });
+      if (path.endsWith("/egress/test")) return Response.json({ target: "https://pypi.org", allowed: true, reason: "allowed" });
+      if (path.endsWith("/logs")) return Response.json({ logs: [{ ts: "2026-06-03T12:00:00.000Z", lvl: "info", msg: "created" }] });
+      if (path.endsWith("/metrics")) return Response.json({ current: { cpu: 4, mem: 128, diskIo: 0, networkOut: 0, cpuCount: 1, memTotal: 1024 }, series: [] });
+      return Response.json({ ok: true });
+    }
+  });
+
+  const sandbox = await client.sandboxes.create({ template: "python-3.12-data", wait: false });
+  assert.ok(sandbox instanceof HarakiriSandbox);
+  assert.equal(sandbox.id, "sbx_obj");
+  assert.equal(sandbox.status, "pending");
+
+  await sandbox.wait({ intervalMs: 0 });
+  assert.equal(sandbox.status, "running");
+
+  const connected = await HarakiriSandbox.connect(client, "sbx_obj");
+  assert.equal(connected.summary.id, "sbx_obj");
+  assert.equal((await client.sandboxes.connect("sbx_obj")).id, "sbx_obj");
+
+  await sandbox.run({ command: "pwd", cwd: "/workspace" });
+  const started = await sandbox.commands.start({ command: command.command, cwd: "/workspace", detached: true });
+  await sandbox.commands.wait(started.command.id, { statuses: ["running"], intervalMs: 0 });
+  await sandbox.commands.logs(started.command.id);
+  await sandbox.files.write({ path: "/workspace/app.py", content: "print('ok')\n", createParents: true });
+  await sandbox.files.read("/workspace/app.py");
+  const exposed = await sandbox.routes.expose({ port: 3000, accessMode: "token", labels: ["preview"] });
+  assert.deepEqual(sandbox.routes.headers(exposed), { "x-harakiri-route-token": "hrt_secret" });
+  await sandbox.egress.update({ mode: "restricted", presets: ["python-package-install"] });
+  await sandbox.egress.test("https://pypi.org");
+  await sandbox.logs();
+  await sandbox.metrics();
+  await sandbox.renew();
+  await sandbox.kill();
+  assert.equal(sandbox.status, "terminated");
+
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes" && call.method === "POST"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/run" && call.method === "POST"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/files" && call.method === "PUT"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/routes" && call.method === "POST"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/egress" && call.method === "PATCH"));
+});
+
+test("HarakiriSandbox preserves typed API errors from delegated calls", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async () => Response.json({ error: "sandbox_not_found", message: "gone" }, { status: 404 })
+  });
+  const sandbox = client.sandboxes.wrap(sandboxSummary({ id: "sbx_missing" }));
+
+  await assert.rejects(() => sandbox.refresh(), (error) => {
+    assert.ok(error instanceof HarakiriNotFoundError);
+    assert.ok(error instanceof HarakiriApiError);
+    assert.equal(error.status, 404);
+    assert.equal(error.code, "sandbox_not_found");
+    return true;
   });
 });
 

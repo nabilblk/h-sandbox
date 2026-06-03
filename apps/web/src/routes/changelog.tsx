@@ -9,6 +9,7 @@ const entries = [
     date: "June 2026",
     title: "Developer integration surface",
     items: [
+      "Added the high-level HarakiriSandbox SDK object for one-sandbox integrations.",
       "Published install and smoke-test documentation for the SDK and CLI.",
       "Added examples for provider adapters, runtime conformance, and custom templates.",
       "Documented the sandbox runtime contract and integration boundaries."

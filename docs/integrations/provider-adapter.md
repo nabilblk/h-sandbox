@@ -8,6 +8,7 @@ The following adapter shape is enough for most agent runtimes:
 ```ts
 import {
   HarakiriClient,
+  HarakiriSandbox,
   HarakiriApiError,
   HarakiriProviderUnavailableError,
   HarakiriWaitTimeoutError
@@ -17,18 +18,22 @@ export class HarakiriSandboxProvider {
   constructor(private readonly harakiri: HarakiriClient) {}
 
   async create(input: { template: string; env?: Record<string, string> }) {
-    const created = await this.harakiri.createSandbox({
+    const sandbox = await this.harakiri.sandboxes.create({
       template: input.template,
       env: input.env,
       wait: false,
       idempotencyKey: `agent-${crypto.randomUUID()}`
     });
-    await this.harakiri.waitForSandbox(created.sandbox.id, { timeoutMs: 90_000 });
-    return created.sandbox.id;
+    await sandbox.wait({ timeoutMs: 90_000 });
+    return sandbox;
   }
 
-  async run(id: string, command: string, cwd = "/workspace") {
-    return this.harakiri.commands.start(id, {
+  connect(id: string) {
+    return HarakiriSandbox.connect(this.harakiri, id);
+  }
+
+  async run(sandbox: HarakiriSandbox, command: string, cwd = "/workspace") {
+    return sandbox.commands.start({
       command,
       cwd,
       detached: false,
@@ -36,19 +41,23 @@ export class HarakiriSandboxProvider {
     });
   }
 
-  async writeFile(id: string, path: string, content: string) {
-    return this.harakiri.files.write(id, { path, content, createParents: true });
+  async writeFile(sandbox: HarakiriSandbox, path: string, content: string) {
+    return sandbox.files.write({ path, content, createParents: true });
   }
 
-  async expose(id: string, port: number) {
-    return this.harakiri.routes.expose(id, { port, accessMode: "token" });
+  async expose(sandbox: HarakiriSandbox, port: number) {
+    return sandbox.routes.expose({ port, accessMode: "token" });
   }
 
-  async destroy(id: string) {
-    await this.harakiri.killSandbox(id);
+  async destroy(sandbox: HarakiriSandbox) {
+    await sandbox.kill();
   }
 }
 ```
+
+Persist `sandbox.id` in your application if the work may continue after a
+process restart, then call `connect(id)` to rehydrate the object without
+creating a new sandbox.
 
 ## Error Handling
 

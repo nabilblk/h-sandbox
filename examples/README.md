@@ -32,6 +32,7 @@ Available examples:
 - `sdk-dev-server`: full agent-style flow with setup, detached server, preview.
 - `sdk-template-build`: create and build a custom Dockerfile template.
 - `sdk-typescript-quickstart`: TypeScript compile smoke for SDK consumers.
+- `sdk-sandbox-object`: object-oriented `HarakiriSandbox` flow for adapters.
 - `sdk-opencode-headless`: run `opencode run` in an `opencode` sandbox, with an optional repository clone and diff readback.
 - `sdk-opencode-server`: start `opencode serve`, expose port 4096, wait for health, and connect `@opencode-ai/sdk` through Harakiri route auth.
 

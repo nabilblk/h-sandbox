@@ -27,6 +27,50 @@ The SDK is self-contained. Public applications should import only from
 `@h-sandbox/sdk`; internal monorepo packages such as `@harakiri/shared` are not
 part of the npm installation contract.
 
+## Sandbox Object
+
+New integrations should prefer the high-level `HarakiriSandbox` object when a
+workflow owns one sandbox at a time. It wraps the sandbox ID, keeps the latest
+`SandboxSummary`, and binds commands, files, routes, egress, logs, metrics, and
+lifecycle methods to that sandbox.
+
+```ts
+import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";
+
+const harakiri = new HarakiriClient({
+  apiUrl: process.env.HARAKIRI_API_URL!,
+  apiKey: process.env.HARAKIRI_API_KEY!
+});
+
+const sandbox = await harakiri.sandboxes.create({
+  template: "python-3.12-data",
+  wait: false,
+  ttlSeconds: 600,
+  idempotencyKey: "job-123"
+});
+
+await sandbox.wait();
+await sandbox.files.write({
+  path: "/workspace/task.py",
+  content: "print(2 + 2)\n",
+  createParents: true
+});
+
+const run = await sandbox.run({
+  command: "python /workspace/task.py",
+  timeoutMs: 30_000
+});
+
+console.log(run.result.stdout);
+await sandbox.kill();
+```
+
+Use `HarakiriSandbox.connect(harakiri, sandboxId)` or
+`harakiri.sandboxes.connect(sandboxId)` when a worker restarts and needs to
+reattach to a known sandbox. `refresh()` and `wait()` update the cached summary;
+methods such as `run`, `files.*`, and `routes.*` delegate directly to the public
+Harakiri API and preserve the same typed errors as `HarakiriClient`.
+
 ## Core Workflow
 
 ```ts
@@ -78,6 +122,7 @@ await harakiri.killSandbox(sandbox.id);
 
 | Need | SDK surface |
 | --- | --- |
+| One-sandbox workflow | `harakiri.sandboxes.create`, `harakiri.sandboxes.connect`, `HarakiriSandbox` |
 | Create, wait, renew, kill | `createSandbox`, `waitForSandbox`, `renewSandbox`, `killSandbox` |
 | Blocking commands | `runSandbox` |
 | Detached commands | `commands.start`, `commands.get`, `commands.wait`, `commands.logs`, `commands.kill` |
@@ -307,3 +352,5 @@ More complete examples are available under `examples/`, and runtime contract
 documentation is available in `docs/sdk.md`,
 `docs/integrations/building-with-harakiri.md`, and
 `docs/integrations/capabilities-and-limits.md`.
+The `examples/sdk-sandbox-object` example is the recommended starting point for
+adapter authors who want the high-level `HarakiriSandbox` object.

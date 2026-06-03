@@ -34,7 +34,7 @@ export const docPages: DocPage[] = [
     section: "Getting started",
     title: "SDK and CLI",
     lede: "Use the public npm packages for application integrations and local automation.",
-    toc: ["Packages", "Configure", "SDK flow", "CLI flow", "Terminal", "Contract"],
+    toc: ["Packages", "Configure", "Sandbox object", "SDK flow", "CLI flow", "Terminal", "Contract"],
     body: (
       <>
         <h2>Packages</h2>
@@ -43,6 +43,9 @@ export const docPages: DocPage[] = [
         <h2>Configure</h2>
         <p>Create an API key in the dashboard, then pass it through environment variables or `harakiri login`. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
         <pre>{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"`}</pre>
+        <h2>Sandbox object</h2>
+        <p>`HarakiriSandbox` wraps one sandbox ID and binds commands, files, routes, egress, logs, metrics, and lifecycle methods to that sandbox. Use `refresh()` or `wait()` when your code needs an updated cached summary.</p>
+        <pre>{`import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: false,\n  ttlSeconds: 600,\n  idempotencyKey: "job-123"\n});\n\nawait sandbox.wait();\nawait sandbox.files.write({\n  path: "/workspace/task.py",\n  content: "print(2 + 2)\\n",\n  createParents: true\n});\nconst run = await sandbox.run({ command: "python /workspace/task.py" });\nconsole.log(run.result.stdout);\n\nconst reconnected = await HarakiriSandbox.connect(harakiri, sandbox.id);\nconsole.log(reconnected.summary.status);\nawait sandbox.kill();`}</pre>
         <h2>SDK flow</h2>
         <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst { sandbox } = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  ttlSeconds: 600,\n  idempotencyKey: "job-123",\n  egress: { mode: "restricted", presets: ["python-package-install"] }\n});\n\nawait harakiri.waitForSandbox(sandbox.id);\nconst result = await harakiri.runSandbox(sandbox.id, {\n  command: "python -c 'print(2 + 2)'",\n  cwd: "/workspace"\n});\nconsole.log(result.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</pre>
         <h2>CLI flow</h2>

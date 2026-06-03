@@ -43,6 +43,7 @@ import type {
   SandboxRouteSummary,
   SandboxRoutesResponse,
   SandboxStatus,
+  SandboxSummary,
   SandboxTerminalAttachOptions,
   SandboxTerminalAttachTicketResponse,
   PatchSandboxEgressBody,
@@ -126,6 +127,7 @@ export type {
   SandboxRouteSummary,
   SandboxRoutesResponse,
   SandboxStatus,
+  SandboxSummary,
   SandboxTerminalAttachOptions,
   SandboxTerminalAttachTicketResponse,
   PatchSandboxEgressBody,
@@ -206,6 +208,11 @@ export type WaitForCommandOptions = {
 export type GetCommandLogsOptions = {
   cursor?: number;
   tail?: number;
+};
+
+export type HarakiriSandboxOptions = {
+  client: HarakiriClient;
+  sandbox: SandboxSummary;
 };
 
 const isRouteResponse = (route: RouteLike): route is SandboxRouteResponse =>
@@ -426,6 +433,141 @@ export const createHarakiriApiError = (status: number, body: string) => {
   return new HarakiriApiError(status, body, details, { category: "unknown", retryable: false });
 };
 
+export class HarakiriSandbox {
+  readonly client: HarakiriClient;
+  private current: SandboxSummary;
+
+  constructor(options: HarakiriSandboxOptions) {
+    this.client = options.client;
+    this.current = options.sandbox;
+  }
+
+  static async create(client: HarakiriClient, input: CreateSandboxInput = {}) {
+    const result = await client.createSandbox(input);
+    return new HarakiriSandbox({ client, sandbox: result.sandbox });
+  }
+
+  static async connect(client: HarakiriClient, id: string) {
+    const result = await client.getSandbox(id);
+    return new HarakiriSandbox({ client, sandbox: result.sandbox });
+  }
+
+  static wrap(client: HarakiriClient, sandbox: SandboxSummary) {
+    return new HarakiriSandbox({ client, sandbox });
+  }
+
+  get id() {
+    return this.current.id;
+  }
+
+  get name() {
+    return this.current.name;
+  }
+
+  get template() {
+    return this.current.template;
+  }
+
+  get status() {
+    return this.current.status;
+  }
+
+  get summary() {
+    return this.current;
+  }
+
+  async refresh() {
+    const result = await this.client.getSandbox(this.id);
+    this.current = result.sandbox;
+    return this;
+  }
+
+  async wait(options: WaitForSandboxOptions = {}) {
+    const result = await this.client.waitForSandbox(this.id, options);
+    this.current = result.sandbox;
+    return this;
+  }
+
+  async renew() {
+    const result = await this.client.renewSandbox(this.id);
+    await this.refresh();
+    return result;
+  }
+
+  async kill() {
+    const result = await this.client.killSandbox(this.id);
+    this.current = { ...this.current, status: "terminated" };
+    return result;
+  }
+
+  run(input: RunSandboxInput) {
+    return this.client.runSandbox(this.id, input);
+  }
+
+  logs() {
+    return this.client.getSandboxLogs(this.id);
+  }
+
+  metrics() {
+    return this.client.getSandboxMetrics(this.id);
+  }
+
+  readonly commands = {
+    start: (input: CreateSandboxCommandInput) => this.client.commands.start(this.id, input),
+    run: (input: CreateSandboxCommandInput) => this.client.commands.run(this.id, input),
+    list: () => this.client.commands.list(this.id),
+    get: (commandId: string) => this.client.commands.get(this.id, commandId),
+    logs: (commandId: string, options: GetCommandLogsOptions = {}) => this.client.commands.logs(this.id, commandId, options),
+    kill: (commandId: string) => this.client.commands.kill(this.id, commandId),
+    wait: (commandId: string, options: WaitForCommandOptions = {}) => this.client.commands.wait(this.id, commandId, options),
+    sessions: {
+      create: (input: CreateSandboxCommandSessionInput = {}) => this.client.commands.sessions.create(this.id, input),
+      run: (sessionId: string, input: RunSandboxCommandSessionInput) => this.client.commands.sessions.run(this.id, sessionId, input),
+      delete: (sessionId: string) => this.client.commands.sessions.delete(this.id, sessionId)
+    }
+  };
+
+  readonly terminal = {
+    attachUrl: (options: TerminalAttachOptions = {}) => this.client.terminal.attachUrl(this.id, options),
+    attachRequest: (options: TerminalAttachOptions = {}) => this.client.terminal.attachRequest(this.id, options),
+    attachTicket: () => this.client.terminal.attachTicket(this.id)
+  };
+
+  readonly files = {
+    list: (path?: string) => this.client.files.list(this.id, path),
+    stat: (path: string) => this.client.files.stat(this.id, path),
+    read: (path: string, options: { encoding?: "utf8" | "base64" } = {}) => this.client.files.read(this.id, path, options),
+    write: (input: SandboxFileWriteBody) => this.client.files.write(this.id, input),
+    mkdir: (input: SandboxFileMkdirBody) => this.client.files.mkdir(this.id, input),
+    remove: (path: string, options: { recursive?: boolean } = {}) => this.client.files.remove(this.id, path, options),
+    rename: (input: SandboxFileRenameBody) => this.client.files.rename(this.id, input),
+    upload: (input: SandboxFileUploadBody) => this.client.files.upload(this.id, input),
+    download: (path: string) => this.client.files.download(this.id, path)
+  };
+
+  readonly routes = {
+    expose: (input: ExposePortInput) => this.client.routes.expose(this.id, input),
+    list: () => this.client.routes.list(this.id),
+    delete: (port: number) => this.client.routes.delete(this.id, port),
+    getHost: (port: number) => this.client.routes.getHost(this.id, port),
+    getUrl: (port: number) => this.client.routes.getUrl(this.id, port),
+    exposeAndWait: (input: ExposePortInput, options: ExposeAndWaitOptions = {}) => this.client.routes.exposeAndWait(this.id, input, options),
+    headers: (route: RouteLike, options: RouteAccessHeadersOptions = {}) => this.client.routes.headers(route, options),
+    fetch: (route: RouteLike, options: CreateRouteFetchOptions = {}) => this.client.routes.fetch(route, options),
+    waitForHttp: (route: RouteLike, options: WaitForRouteHttpOptions = {}) => this.client.routes.waitForHttp(route, options)
+  };
+
+  readonly egress = {
+    get: () => this.client.getEgressPolicy(this.id),
+    update: (input: PatchSandboxEgressBody) => this.client.updateEgressPolicy(this.id, input),
+    set: (input: PatchSandboxEgressBody) => this.client.setOutboundAccess(this.id, input),
+    allow: (domains: string[]) => this.client.allowDomains(this.id, domains),
+    deny: (domains: string[]) => this.client.denyDomains(this.id, domains),
+    block: () => this.client.blockOutboundAccess(this.id),
+    test: (target: string | TestSandboxEgressBody) => this.client.testOutboundAccess(this.id, target)
+  };
+}
+
 export class HarakiriClient {
   private readonly apiUrl: string;
   private readonly apiKey: string;
@@ -482,6 +624,17 @@ export class HarakiriClient {
     headers: (route: RouteLike, options: RouteAccessHeadersOptions = {}) => routeAccessHeaders(route, options),
     fetch: (route: RouteLike, options: CreateRouteFetchOptions = {}) => createRouteFetch(route, options),
     waitForHttp: (route: RouteLike, options: WaitForRouteHttpOptions = {}) => waitForRouteHttp(route, options)
+  };
+
+  readonly sandboxes = {
+    create: (input: CreateSandboxInput = {}) => HarakiriSandbox.create(this, input),
+    connect: (id: string) => HarakiriSandbox.connect(this, id),
+    wrap: (sandbox: SandboxSummary) => HarakiriSandbox.wrap(this, sandbox),
+    list: (params = "") => this.listSandboxes(params),
+    get: (id: string) => this.getSandbox(id),
+    wait: (id: string, options: WaitForSandboxOptions = {}) => this.waitForSandbox(id, options),
+    renew: (id: string) => this.renewSandbox(id),
+    kill: (id: string) => this.killSandbox(id)
   };
 
   private async request<T>(path: string, init: RequestInit = {}) {
