@@ -9,7 +9,201 @@ export type DocPage = {
   body: React.ReactNode;
 };
 
+const ArchitectureDiagram = () => (
+  <svg className="docs-arch-svg" viewBox="0 0 1120 720" role="img" aria-labelledby="harakiri-architecture-title harakiri-architecture-desc">
+    <title id="harakiri-architecture-title">Harakiri architecture diagram</title>
+    <desc id="harakiri-architecture-desc">Harakiri exposes dashboard, CLI, SDK, and API surfaces through a control plane backed by Keycloak and PostgreSQL, then delegates runtime execution to OpenSandbox on Kubernetes.</desc>
+    <defs>
+      <linearGradient id="archPanel" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#ffffff" />
+        <stop offset="1" stopColor="#f4f3ee" />
+      </linearGradient>
+      <linearGradient id="archDark" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#191917" />
+        <stop offset="1" stopColor="#2a2925" />
+      </linearGradient>
+      <marker id="arrowInk" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0 1 L7 4.5 L0 8 Z" fill="#2a2a27" />
+      </marker>
+      <marker id="arrowCrimson" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0 1 L7 4.5 L0 8 Z" fill="#b8331f" />
+      </marker>
+      <filter id="archShadow" x="-10%" y="-10%" width="120%" height="130%">
+        <feDropShadow dx="0" dy="14" stdDeviation="16" floodColor="#0f0f0e" floodOpacity="0.12" />
+      </filter>
+    </defs>
+
+    <rect x="18" y="18" width="1084" height="674" rx="18" fill="#fafaf7" stroke="#ecebe5" />
+    <rect x="50" y="56" width="1020" height="68" rx="12" fill="url(#archDark)" />
+    <rect x="76" y="79" width="30" height="30" rx="5" fill="#b8331f" />
+    <text x="91" y="101" textAnchor="middle" className="docs-arch-brand">h.</text>
+    <text x="134" y="99" className="docs-arch-kicker">HARAKIRI SANDBOX</text>
+    <text x="1040" y="99" textAnchor="end" className="docs-arch-kicker muted">CONTROL PLANE FOR AGENT RUNTIMES</text>
+
+    <rect x="72" y="190" width="240" height="214" rx="16" fill="url(#archPanel)" stroke="#d9d8d0" filter="url(#archShadow)" />
+    <text x="104" y="232" className="docs-arch-title">Product surface</text>
+    <text x="104" y="258" className="docs-arch-body">One contract for every</text>
+    <text x="104" y="278" className="docs-arch-body">user and automation</text>
+    <text x="104" y="298" className="docs-arch-body">entry point.</text>
+    <g className="docs-arch-tags">
+      <rect x="104" y="326" width="108" height="28" rx="6" />
+      <text x="158" y="345" textAnchor="middle">Dashboard</text>
+      <rect x="104" y="366" width="62" height="28" rx="6" />
+      <text x="135" y="385" textAnchor="middle">CLI</text>
+      <rect x="178" y="366" width="62" height="28" rx="6" />
+      <text x="209" y="385" textAnchor="middle">SDK</text>
+      <rect x="252" y="366" width="48" height="28" rx="6" />
+      <text x="276" y="385" textAnchor="middle">API</text>
+    </g>
+
+    <rect x="390" y="164" width="342" height="270" rx="18" fill="#ffffff" stroke="#b8331f" strokeWidth="1.5" filter="url(#archShadow)" />
+    <text x="430" y="212" className="docs-arch-title large">Harakiri control plane</text>
+    <text x="430" y="240" className="docs-arch-body">Product state, policy, and developer experience.</text>
+    <g className="docs-arch-grid">
+      <rect x="430" y="286" width="132" height="54" rx="9" />
+      <text x="448" y="312">Auth and orgs</text>
+      <text x="448" y="328" className="small">Keycloak boundary</text>
+      <rect x="590" y="286" width="132" height="54" rx="9" />
+      <text x="608" y="312">API keys</text>
+      <text x="608" y="328" className="small">hashed tokens</text>
+      <rect x="430" y="362" width="132" height="54" rx="9" />
+      <text x="448" y="388">Templates</text>
+      <text x="448" y="404" className="small">builds and aliases</text>
+      <rect x="590" y="362" width="132" height="54" rx="9" />
+      <text x="608" y="388">Runtime policy</text>
+      <text x="608" y="404" className="small">TTL, routes, egress</text>
+    </g>
+    <rect x="430" y="462" width="262" height="34" rx="7" fill="#f4f3ee" stroke="#ecebe5" />
+    <text x="561" y="483" textAnchor="middle" className="docs-arch-mono">PostgreSQL stores control-plane state</text>
+
+    <rect x="810" y="190" width="240" height="214" rx="16" fill="url(#archPanel)" stroke="#d9d8d0" filter="url(#archShadow)" />
+    <text x="842" y="232" className="docs-arch-title">Runtime provider</text>
+    <text x="842" y="258" className="docs-arch-body">Execution stays behind a</text>
+    <text x="842" y="278" className="docs-arch-body">provider interface.</text>
+    <rect x="842" y="314" width="160" height="56" rx="10" fill="#171719" />
+    <text x="922" y="340" textAnchor="middle" className="docs-arch-invert">OpenSandbox</text>
+    <text x="922" y="358" textAnchor="middle" className="docs-arch-invert muted">on Kubernetes</text>
+    <text x="842" y="392" className="docs-arch-body">No app code depends on</text>
+    <text x="842" y="412" className="docs-arch-body">pods, exec, or provider IDs.</text>
+
+    <path d="M312 300 H378" className="docs-arch-flow" markerEnd="url(#arrowInk)" />
+    <text x="345" y="282" textAnchor="middle" className="docs-arch-label">public contract</text>
+    <path d="M732 300 H798" className="docs-arch-flow accent" markerEnd="url(#arrowCrimson)" />
+    <text x="765" y="282" textAnchor="middle" className="docs-arch-label accent">provider boundary</text>
+    <path d="M561 434 V454" className="docs-arch-flow accent" markerEnd="url(#arrowCrimson)" />
+    <path d="M561 496 V538" className="docs-arch-flow accent" markerEnd="url(#arrowCrimson)" />
+    <path d="M930 404 V538" className="docs-arch-flow" markerEnd="url(#arrowInk)" />
+
+    <rect x="72" y="548" width="980" height="108" rx="16" fill="#ffffff" stroke="#d9d8d0" />
+    <text x="104" y="590" className="docs-arch-title">Sandbox runtime capabilities</text>
+    <text x="104" y="616" className="docs-arch-body">Commands, files, logs, metrics, routes, Git, artifacts, and egress diagnostics are exposed through Harakiri.</text>
+    <g className="docs-arch-capabilities">
+      <rect x="104" y="632" width="88" height="26" rx="6" />
+      <text x="148" y="650" textAnchor="middle">Terminal</text>
+      <rect x="206" y="632" width="72" height="26" rx="6" />
+      <text x="242" y="650" textAnchor="middle">Files</text>
+      <rect x="292" y="632" width="66" height="26" rx="6" />
+      <text x="325" y="650" textAnchor="middle">Logs</text>
+      <rect x="372" y="632" width="80" height="26" rx="6" />
+      <text x="412" y="650" textAnchor="middle">Metrics</text>
+      <rect x="466" y="632" width="76" height="26" rx="6" />
+      <text x="504" y="650" textAnchor="middle">Routes</text>
+      <rect x="556" y="632" width="54" height="26" rx="6" />
+      <text x="583" y="650" textAnchor="middle">Git</text>
+      <rect x="624" y="632" width="92" height="26" rx="6" />
+      <text x="670" y="650" textAnchor="middle">Artifacts</text>
+      <rect x="730" y="632" width="82" height="26" rx="6" />
+      <text x="771" y="650" textAnchor="middle">Egress</text>
+    </g>
+  </svg>
+);
+
 export const docPages: DocPage[] = [
+  {
+    id: "vision-architecture",
+    section: "Getting started",
+    title: "Vision and architecture",
+    lede: "Harakiri is a developer-first sandbox control plane: one product contract for disposable agent runtimes, with OpenSandbox kept behind a clean provider boundary.",
+    toc: ["Vision", "Architecture", "Principles", "Deployment", "What changes for teams"],
+    body: (
+      <div className="vision-doc">
+        <section className="vision-hero card">
+          <div className="vision-hero-copy">
+            <span className="vision-eyebrow">Open-source control plane</span>
+            <h2>Disposable sandboxes should feel like a product, not a cluster integration.</h2>
+            <p>Harakiri gives teams a stable API, SDK, CLI, dashboard, templates, routes, API keys, egress controls, and audit trail while delegating runtime execution to a provider such as OpenSandbox.</p>
+          </div>
+          <div className="vision-hero-terminal" aria-label="Harakiri command preview">
+            <span>$ harakiri create --template open-agents-dev</span>
+            <span className="muted">{"-> sealed. id=sbx_agent_7mK"}</span>
+            <span>$ harakiri expose sbx_agent_7mK --port 5173</span>
+            <span className="ok">ok route=https://sbx_agent_7mK-5173.example.dev</span>
+          </div>
+        </section>
+
+        <h2>Vision</h2>
+        <p>Agent products need the same runtime features again and again: start an isolated workspace, run commands, edit files, expose a preview, install packages, control egress, and clean up automatically. Harakiri compresses that operational complexity into a product surface that developers can adopt through one contract.</p>
+        <div className="vision-pill-row">
+          <span>Agent runtimes</span>
+          <span>Code execution</span>
+          <span>Preview routes</span>
+          <span>Template images</span>
+          <span>Policy and audit</span>
+        </div>
+
+        <h2>Architecture</h2>
+        <p>The architecture separates product responsibilities from runtime responsibilities. Harakiri owns identity, organizations, API keys, templates, scheduling, routes, egress policy, usage, audit events, and SDK/CLI contracts. The runtime provider owns sandbox execution.</p>
+        <div className="docs-arch-card">
+          <ArchitectureDiagram />
+        </div>
+
+        <h2>Principles</h2>
+        <div className="vision-principles">
+          <div>
+            <b>Provider boundary first</b>
+            <p>Application integrations use Harakiri IDs and API responses. They do not depend on OpenSandbox IDs, Kubernetes pods, or provider endpoint tokens.</p>
+          </div>
+          <div>
+            <b>Developer experience over plumbing</b>
+            <p>Complex features such as route exposure, template builds, egress presets, and Git setup become simple SDK and CLI operations.</p>
+          </div>
+          <div>
+            <b>Control-plane state is explicit</b>
+            <p>PostgreSQL stores the product record: organizations, API keys, sandboxes, routes, usage, templates, builds, operations, and audit history.</p>
+          </div>
+          <div>
+            <b>Runtime features are capability-gated</b>
+            <p>Clients can inspect what the active provider supports and degrade cleanly instead of guessing from provider names.</p>
+          </div>
+        </div>
+
+        <h2>Deployment</h2>
+        <p>A typical deployment includes the Harakiri API, web app, scheduler, template builder, PostgreSQL, Keycloak, a registry, and an OpenSandbox-backed Kubernetes runtime. Operators can swap or extend runtime, builder, and storage implementations through explicit interfaces.</p>
+        <div className="vision-deploy-grid">
+          <div><span>Identity</span><b>Keycloak</b></div>
+          <div><span>State</span><b>PostgreSQL</b></div>
+          <div><span>Control plane</span><b>API, scheduler, builder</b></div>
+          <div><span>Runtime</span><b>OpenSandbox provider</b></div>
+        </div>
+
+        <h2>What changes for teams</h2>
+        <p>Teams building background agents, code interpreters, test runners, or browser automation tools can integrate the Harakiri SDK instead of wiring directly into a runtime substrate. That keeps product code portable while Harakiri continues to improve the underlying runtime support.</p>
+        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";
+
+const harakiri = new HarakiriClient({
+  apiUrl: process.env.HARAKIRI_API_URL!,
+  apiKey: process.env.HARAKIRI_API_KEY!
+});
+
+const sandbox = await harakiri.sandboxes.create({
+  template: "open-agents-dev",
+  wait: true,
+  ttlSeconds: 900,
+  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
+});`}</pre>
+      </div>
+    )
+  },
   {
     id: "quickstart",
     section: "Getting started",

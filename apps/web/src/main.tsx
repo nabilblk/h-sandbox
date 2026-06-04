@@ -166,12 +166,15 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
 
 const boot = async () => {
   const requestedRoute = routeFromHash();
+  const isOidcResponse = hasOidcResponse();
   rememberPublicDeepLink(requestedRoute);
-  const shouldUseStoredRoute = !isPublicRoute(requestedRoute) || hasOidcResponse();
+  const shouldInitializeAuth = !isPublicRoute(requestedRoute) || isOidcResponse;
+  const shouldUseStoredRoute = !isPublicRoute(requestedRoute) || isOidcResponse;
   if (!isPublicRoute(requestedRoute)) auth.rememberReturnRoute(requestedRoute);
-  const initialAuth = await auth.init();
+  if (!shouldInitializeAuth) auth.clearLocalSession("anonymous", undefined, false);
+  const initialAuth = shouldInitializeAuth ? await auth.init() : auth.snapshot();
   const pendingPublicRoute = consumePublicDeepLink();
-  const restoredPublicRoute = !hasOidcResponse() && requestedRoute === "landing" ? pendingPublicRoute : null;
+  const restoredPublicRoute = !isOidcResponse && requestedRoute === "landing" ? pendingPublicRoute : null;
   const returnedRoute =
     shouldUseStoredRoute && initialAuth.status === "authenticated"
       ? auth.consumeReturnRoute()

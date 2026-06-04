@@ -58,8 +58,10 @@ push_system_image() {
   limactl shell "${VM_NAME}" -- sudo k0s ctr -n k8s.io images push --plain-http "${target_ref}"
 }
 
-docker build -t harakiri-api:dev -f "${ROOT}/apps/api/Dockerfile" "${ROOT}"
+docker build --provenance=false --sbom=false -t harakiri-api:dev -f "${ROOT}/apps/api/Dockerfile" "${ROOT}"
 docker build \
+  --provenance=false \
+  --sbom=false \
   --build-arg "VITE_PUBLIC_API_URL=${HARAKIRI_PUBLIC_API_URL}" \
   --build-arg "VITE_PUBLIC_KEYCLOAK_URL=${HARAKIRI_PUBLIC_KEYCLOAK_URL}" \
   --build-arg "VITE_PUBLIC_KEYCLOAK_REALM=${HARAKIRI_PUBLIC_KEYCLOAK_REALM}" \

@@ -5,6 +5,7 @@ import { docPages } from "./docs-content.js";
 
 test("docs content exposes expected product pages and renderable body markup", () => {
   assert.ok(docPages.length >= 8);
+  assert.ok(docPages.some((page) => page.id === "vision-architecture" && page.section === "Getting started"));
   assert.ok(docPages.some((page) => page.id === "quickstart" && page.section === "Getting started"));
   assert.ok(docPages.some((page) => page.id === "sdk-cli" && page.section === "Getting started"));
   assert.ok(docPages.some((page) => page.id === "team-members" && page.section === "Workspace"));
@@ -17,6 +18,12 @@ test("docs content exposes expected product pages and renderable body markup", (
   const markup = renderToStaticMarkup(quickstart.body);
   assert.match(markup, /harakiri create --template python-3\.12-data/);
   assert.match(markup, /harakiri expose sbx_\.\.\. --port 3000/);
+
+  const vision = docPages.find((page) => page.id === "vision-architecture");
+  assert.ok(vision);
+  const visionMarkup = renderToStaticMarkup(vision.body);
+  assert.match(visionMarkup, /Harakiri control plane/);
+  assert.match(visionMarkup, /ArchitectureDiagram|Harakiri architecture diagram/);
 
   const sdkCli = docPages.find((page) => page.id === "sdk-cli");
   assert.ok(sdkCli);

@@ -17,7 +17,7 @@ type DocsRouteProps = TopNavProps & {
 export const DocsRoute = ({ go, profile, onSignIn, onSignOut, authStatus }: DocsRouteProps) => {
   const [active, setActive] = useState(() => {
     const requested = sessionStorage.getItem(docsPageKey);
-    return requested && docPages.some((item) => item.id === requested) ? requested : "quickstart";
+    return requested && docPages.some((item) => item.id === requested) ? requested : docPages[0].id;
   });
   const page = docPages.find((item) => item.id === active) ?? docPages[0];
   const sections = Array.from(new Set(docPages.map((item) => item.section)));
