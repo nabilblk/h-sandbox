@@ -214,7 +214,7 @@ Git troubleshooting:
 | --- | --- |
 | `git binary not found in sandbox image` | The SDK throws `HarakiriGitUnsupportedRuntimeError` with `code: "git_runtime_unsupported"`. Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
 | Private clone fails with `Authentication failed` | Confirm the token is present in the process environment and has repository read scope. Prefer one-shot credentials over credentialed URLs. |
-| Clone or pull cannot reach GitHub | If egress is restricted, include the `git-hosting` preset or allow the required Git hostnames. |
+| Clone or pull cannot reach GitHub | The SDK throws `HarakiriGitNetworkAccessError` with `code: "git_network_access_failed"` for DNS, TCP, proxy, and likely egress failures. If egress is restricted, include the `git-hosting` preset or allow the required Git hostnames. |
 | Branch checkout fails | Check `branch`, `commit`, and `targetPath`; tags and branches are passed directly to Git. |
 | Commit fails with missing identity | Run `sandbox.git.configureUser({ name, email }, { cwd })` before committing. |
 | Push is rejected | Pull/rebase first, verify the token has write scope, and use explicit one-shot credentials for the push operation. |

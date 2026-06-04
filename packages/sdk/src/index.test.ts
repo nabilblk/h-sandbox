@@ -6,6 +6,7 @@ import {
   HarakiriClient,
   HarakiriConflictError,
   HarakiriGitCommandError,
+  HarakiriGitNetworkAccessError,
   HarakiriGitUnsupportedRuntimeError,
   HarakiriNotFoundError,
   HarakiriProviderUnavailableError,
@@ -387,6 +388,34 @@ test("Git helpers report missing git binary as a typed unsupported runtime error
     assert.match(error.templateGuidance, /template that includes git/);
     assert.match(error.message, /open-agents-dev/);
     assert.equal(error.result.exitCode, 127);
+    return true;
+  });
+});
+
+test("Git helpers report network and egress failures with actionable guidance", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async () => Response.json({
+      result: {
+        sandboxId: "sbx_git_net",
+        command: "git -C /workspace/project pull origin main",
+        stdout: "",
+        stderr: "fatal: unable to access 'https://github.com/acme/project.git/': Could not resolve host: github.com\n",
+        exitCode: 128,
+        durationMs: 8
+      }
+    })
+  });
+
+  await assert.rejects(() => client.git.pull("sbx_git_net", { cwd: "/workspace/project", branch: "main" }), (error) => {
+    assert.ok(error instanceof HarakiriGitNetworkAccessError);
+    assert.ok(error instanceof HarakiriGitCommandError);
+    assert.equal(error.code, "git_network_access_failed");
+    assert.equal(error.reason, "network_or_egress");
+    assert.match(error.egressGuidance, /git-hosting/);
+    assert.match(error.message, /git-hosting/);
+    assert.match(error.message, /github\.com/);
     return true;
   });
 });

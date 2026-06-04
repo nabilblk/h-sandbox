@@ -690,6 +690,36 @@ test("git commands print template guidance when the sandbox image lacks git", as
   }
 });
 
+test("git commands print outbound access guidance when the repository is unreachable", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_git_net/run") {
+      return {
+        body: {
+          result: {
+            sandboxId: "sbx_git_net",
+            command: (request.body as { command: string }).command,
+            stdout: "",
+            stderr: "fatal: unable to access 'https://github.com/acme/project.git/': Could not resolve host: github.com\n",
+            exitCode: 128,
+            durationMs: 8
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli(["git", "pull", "sbx_git_net", "--cwd", "/workspace/project", "--branch", "main"], { api });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /HarakiriGitNetworkAccessError|could not reach/);
+    assert.match(result.stderr, /git-hosting/);
+    assert.match(result.stderr, /github\.com/);
+  } finally {
+    await api.close();
+  }
+});
+
 test("create command supports no-wait pending sandbox responses", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/sandboxes") {

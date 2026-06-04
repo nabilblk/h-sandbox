@@ -472,6 +472,24 @@ export class HarakiriGitUnsupportedRuntimeError extends HarakiriGitCommandError 
   private static readonly guidance = "Use a sandbox template that includes git, such as open-agents-dev, opencode, or a custom template that installs git.";
 }
 
+export class HarakiriGitNetworkAccessError extends HarakiriGitCommandError {
+  readonly code = "git_network_access_failed";
+  readonly reason = "network_or_egress";
+  readonly egressGuidance = "If this sandbox uses restricted or custom outbound access, add the git-hosting egress preset or allow the required Git hostnames, then retry.";
+
+  constructor(sandboxId: string, operation: string, result: GitCommandRunResult) {
+    super(
+      `Git ${operation} could not reach the repository from sandbox ${sandboxId}. ${HarakiriGitNetworkAccessError.guidance} ${result.stderr || result.stdout || `exit ${result.exitCode}`}`,
+      sandboxId,
+      operation,
+      result
+    );
+    this.name = "HarakiriGitNetworkAccessError";
+  }
+
+  private static readonly guidance = "If this sandbox uses restricted or custom outbound access, add the git-hosting egress preset or allow the required Git hostnames, then retry.";
+}
+
 const parseGitStatus = (result: GitCommandRunResult): GitStatusResult => {
   const lines = result.stdout.split(/\r?\n/).filter(Boolean);
   const branchLine = lines.find((line) => line.startsWith("## "));
@@ -607,6 +625,11 @@ const buildTemporaryRemoteCommand = (
 
 const missingGitBinary = (result: GitCommandRunResult) =>
   result.exitCode === 127 && /git binary not found in sandbox image/i.test(`${result.stderr}\n${result.stdout}`);
+
+const gitNetworkAccessFailure = (result: GitCommandRunResult) => {
+  const output = `${result.stderr}\n${result.stdout}`;
+  return /could not resolve host|temporary failure in name resolution|failed to connect|connection timed out|network is unreachable|connection refused|name or service not known|proxy connect aborted|ssl_connect/i.test(output);
+};
 
 
 const isRouteResponse = (route: RouteLike): route is SandboxRouteResponse =>
@@ -1282,6 +1305,9 @@ export class HarakiriClient {
     if (result.exitCode !== 0) {
       if (missingGitBinary(result)) {
         throw new HarakiriGitUnsupportedRuntimeError(id, operation, result);
+      }
+      if (gitNetworkAccessFailure(result)) {
+        throw new HarakiriGitNetworkAccessError(id, operation, result);
       }
       throw new HarakiriGitCommandError(
         `Git ${operation} failed in sandbox ${id}: ${result.stderr || result.stdout || `exit ${result.exitCode}`}`,

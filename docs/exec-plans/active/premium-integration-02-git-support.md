@@ -37,7 +37,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       tokens and passwords.
 - [x] Public/private repository clone, status, branch, commit, pull, push,
       remotes, and config are documented and tested.
-- [ ] Egress restrictions are handled clearly: Git presets can be applied at
+- [x] Egress restrictions are handled clearly: Git presets can be applied at
       sandbox creation, and failed Git network access produces actionable
       errors.
 - [x] The implementation uses tracked command/session primitives and does not
@@ -61,7 +61,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       report unavailable Git behavior honestly.
 
 ### Phase 2: API And Control Plane State
-**Status**: In Progress
+**Status**: Complete
 - [x] Add API schemas for source bootstrap and Git source provenance responses.
 - [x] Store sanitized Git provenance on sandbox records: repo URL without
       credentials, branch, commit, target path, status, duration, and failure
@@ -218,3 +218,13 @@ OpenSandbox exposes one.
   before events or audit records are persisted.
 - Verified SDK tests/typecheck, API tests/typecheck, shared tests,
   OpenAPI write/check, and CLI tests for this slice.
+
+2026-06-04 Git egress failure slice:
+- Added `HarakiriGitNetworkAccessError`, a typed SDK subclass for DNS, TCP,
+  proxy, and likely sandbox-egress failures during Git operations.
+- The error exposes stable `code: "git_network_access_failed"`,
+  `reason: "network_or_egress"`, and `egressGuidance` fields.
+- CLI output now includes actionable `git-hosting` / allowed-hostname guidance
+  when Git cannot reach a repository.
+- Updated SDK, CLI, product, and website docs with the typed error and retry
+  guidance.

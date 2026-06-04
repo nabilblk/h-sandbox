@@ -121,7 +121,7 @@ Git troubleshooting:
 | --- | --- |
 | `git binary not found in sandbox image` | The CLI prints template guidance from `HarakiriGitUnsupportedRuntimeError`. Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
 | Private clone fails | Export the token env var before running the command and pass its name with `--token-env`. |
-| Clone or pull is blocked | Add the `git-hosting` egress preset, or allow the required Git hostnames in the sandbox/template policy. |
+| Clone or pull is blocked | The CLI prints `HarakiriGitNetworkAccessError` guidance for DNS, TCP, proxy, and likely egress failures. Add the `git-hosting` egress preset, or allow the required Git hostnames in the sandbox/template policy. |
 | Branch command fails | Run `harakiri git branches sbx_... --cwd /workspace/project` and verify the target branch or checkout ref. |
 | Commit fails | Configure identity with `harakiri git user sbx_... --name ... --email ...`. |
 | Push is rejected | Pull/rebase first, verify write scope, and pass one-shot credentials to `harakiri git push`. |
