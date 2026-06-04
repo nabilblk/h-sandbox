@@ -186,8 +186,14 @@ console.log(status.branch, status.files);
 
 When the create request uses `egress.mode: "restricted"` or `custom`, the SDK
 adds the `git-hosting` preset unless `source.applyEgressPreset` is set to
-`false`. The API body stays stable: `source` is consumed by the SDK and is not
-sent to `/v1/sandboxes`.
+`false`. The API receives only sanitized source provenance: repository
+credentials are stripped before the request is sent, and the SDK later patches
+the sandbox source status to `cloning`, `ready`, or `failed`.
+
+`sandbox.summary.source` exposes the sanitized repository URL, branch, commit,
+target path, clone duration, and redacted failure reason. Use it for dashboards,
+audit views, and reconnect flows; keep credential handling inside the process
+that starts the clone.
 
 For private HTTPS repositories, pass a one-shot token. The tracked command text
 contains `$HARAKIRI_GIT_TOKEN` instead of the secret value, and the clone resets
@@ -211,7 +217,7 @@ Git troubleshooting:
 
 | Symptom | What to check |
 | --- | --- |
-| `git binary not found in sandbox image` | Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
+| `git binary not found in sandbox image` | The SDK throws `HarakiriGitUnsupportedRuntimeError` with `code: "git_runtime_unsupported"`. Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
 | Private clone fails with `Authentication failed` | Confirm the token is present in the process environment and has repository read scope. Prefer one-shot credentials over credentialed URLs. |
 | Clone or pull cannot reach GitHub | If egress is restricted, include the `git-hosting` preset or allow the required Git hostnames. |
 | Branch checkout fails | Check `branch`, `commit`, and `targetPath`; tags and branches are passed directly to Git. |

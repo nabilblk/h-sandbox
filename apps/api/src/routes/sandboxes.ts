@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import type { CreateSandboxResponse, OkResponse, SandboxResponse, SandboxesResponse } from "@harakiri/shared";
+import type { CreateSandboxResponse, OkResponse, SandboxResponse, SandboxSourceResponse, SandboxesResponse } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
 import { query as defaultQuery } from "../db.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "../providers/runtime/index.js";
@@ -10,11 +10,12 @@ import {
   listSandboxes,
   renewSandbox,
   summarizeSandboxOperation,
+  updateSandboxSource,
   type Audit,
   type SandboxEventRecorder
 } from "../services/sandboxes.js";
 import type { Query } from "../services/query.js";
-import { createSandboxSchema } from "./sandboxes.schema.js";
+import { createSandboxSchema, patchSandboxSourceSchema } from "./sandboxes.schema.js";
 
 export type SandboxRouteDependencies = {
   query?: Query;
@@ -73,6 +74,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         ttlSeconds: body.ttlSeconds,
         env: body.env,
         egress: body.egress,
+        source: body.source,
         idempotencyKey: body.idempotencyKey ?? idempotencyKey(request.headers),
         wait: body.wait ?? !preferRespondAsync(request.headers),
         waitTimeoutMs: body.waitTimeoutMs
@@ -141,6 +143,23 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
     const sandbox = await getSandbox({ organizationId: request.auth.organizationId, sandboxId: id }, query);
     if (!sandbox) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     return { sandbox } satisfies SandboxResponse;
+  });
+
+  app.patch("/v1/sandboxes/:id/source", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = patchSandboxSourceSchema.parse(request.body ?? {});
+    const sandbox = await updateSandboxSource(
+      {
+        organizationId: request.auth.organizationId,
+        userId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        sandboxId: id,
+        source: body.source
+      },
+      { query, recordEvent, recordAudit }
+    );
+    if (!sandbox) return reply.code(404).send(apiErrorResponse("sandbox_not_found", { id }));
+    return { sandbox } satisfies SandboxSourceResponse;
   });
 
   app.delete("/v1/sandboxes/:id", async (request, reply) => {

@@ -2643,6 +2643,135 @@
         }
       }
     },
+    "/v1/sandboxes/{id}/source": {
+      "patch": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Sandboxes"
+        ],
+        "summary": "Update sandbox source provenance",
+        "operationId": "updateSandboxSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchSandboxSourceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sandbox source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxSourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/sandboxes/{id}/renew": {
       "post": {
         "security": [
@@ -8950,6 +9079,182 @@
         ],
         "additionalProperties": false
       },
+      "SandboxGitSourceInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "git"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "targetPath": {
+            "type": "string"
+          },
+          "depth": {
+            "type": "integer"
+          },
+          "shallow": {
+            "type": "boolean"
+          },
+          "submodules": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "recursive"
+                ]
+              }
+            ]
+          },
+          "credentialPersistence": {
+            "type": "string",
+            "enum": [
+              "one-shot",
+              "dangerously-store-in-remote"
+            ]
+          },
+          "applyEgressPreset": {
+            "type": "boolean"
+          },
+          "timeoutMs": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "type",
+          "url"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxSourceInput": {
+        "$ref": "#/components/schemas/SandboxGitSourceInput"
+      },
+      "SandboxGitSourceProvenance": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "git"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "commit": {
+            "type": "string"
+          },
+          "targetPath": {
+            "type": "string"
+          },
+          "depth": {
+            "type": "integer"
+          },
+          "shallow": {
+            "type": "boolean"
+          },
+          "submodules": {
+            "oneOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "recursive"
+                ]
+              }
+            ]
+          },
+          "credentialPersistence": {
+            "type": "string",
+            "enum": [
+              "one-shot",
+              "dangerously-store-in-remote"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "requested",
+              "cloning",
+              "ready",
+              "failed"
+            ]
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "failureReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "url",
+          "targetPath",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxSourceProvenance": {
+        "$ref": "#/components/schemas/SandboxGitSourceProvenance"
+      },
+      "PatchSandboxSourceBody": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SandboxSourceProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      },
       "SandboxSummary": {
         "type": "object",
         "properties": {
@@ -9023,6 +9328,16 @@
           },
           "egressPolicy": {
             "$ref": "#/components/schemas/EgressPolicyInput"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SandboxSourceProvenance"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -9128,6 +9443,9 @@
           "egress": {
             "$ref": "#/components/schemas/EgressPolicyInput"
           },
+          "source": {
+            "$ref": "#/components/schemas/SandboxSourceInput"
+          },
           "idempotencyKey": {
             "type": "string"
           },
@@ -9182,6 +9500,18 @@
         "additionalProperties": false
       },
       "SandboxResponse": {
+        "type": "object",
+        "properties": {
+          "sandbox": {
+            "$ref": "#/components/schemas/SandboxSummary"
+          }
+        },
+        "required": [
+          "sandbox"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxSourceResponse": {
         "type": "object",
         "properties": {
           "sandbox": {

@@ -119,6 +119,7 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/usage",
     "PATCH /v1/org/settings",
     "PATCH /v1/sandboxes/{id}/egress",
+    "PATCH /v1/sandboxes/{id}/source",
     "PATCH /v1/templates/{id}/egress",
     "POST /v1/api-keys",
     "POST /v1/me/onboarding/complete",

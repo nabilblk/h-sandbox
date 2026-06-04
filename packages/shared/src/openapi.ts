@@ -250,6 +250,40 @@ const schemas: Record<string, JsonSchema> = {
     uploadedAt: dateTime
   }, ["buildId", "sha256", "sizeBytes", "format", "fileCount", "uploadedAt"]),
   TemplateBuildContextResponse: objectSchema({ context: ref("TemplateBuildContextSummary") }),
+  SandboxGitSourceInput: objectSchema({
+    type: { type: "string", enum: ["git"] },
+    url: string,
+    branch: string,
+    commit: string,
+    targetPath: string,
+    depth: integer,
+    shallow: boolean,
+    submodules: { oneOf: [boolean, { type: "string", enum: ["recursive"] }] },
+    credentialPersistence: { type: "string", enum: ["one-shot", "dangerously-store-in-remote"] },
+    applyEgressPreset: boolean,
+    timeoutMs: integer
+  }, ["type", "url"]),
+  SandboxSourceInput: ref("SandboxGitSourceInput"),
+  SandboxGitSourceProvenance: objectSchema({
+    type: { type: "string", enum: ["git"] },
+    url: string,
+    branch: string,
+    commit: string,
+    targetPath: string,
+    depth: integer,
+    shallow: boolean,
+    submodules: { oneOf: [boolean, { type: "string", enum: ["recursive"] }] },
+    credentialPersistence: { type: "string", enum: ["one-shot", "dangerously-store-in-remote"] },
+    status: { type: "string", enum: ["requested", "cloning", "ready", "failed"] },
+    startedAt: { type: ["string", "null"], format: "date-time" },
+    completedAt: { type: ["string", "null"], format: "date-time" },
+    durationMs: { type: ["integer", "null"] },
+    failureReason: nullableString
+  }, ["type", "url", "targetPath", "status"]),
+  SandboxSourceProvenance: ref("SandboxGitSourceProvenance"),
+  PatchSandboxSourceBody: objectSchema({
+    source: { oneOf: [ref("SandboxSourceProvenance"), { type: "null" }] }
+  }, ["source"]),
   SandboxSummary: objectSchema({
     id: string,
     opensandboxId: nullableString,
@@ -267,6 +301,7 @@ const schemas: Record<string, JsonSchema> = {
     templateVersionId: nullableString,
     templateImageDigest: nullableString,
     egressPolicy: ref("EgressPolicyInput"),
+    source: { oneOf: [ref("SandboxSourceProvenance"), { type: "null" }] },
     createdAt: dateTime
   }, ["id", "name", "template", "status", "cpu", "mem", "started", "owner", "cost", "ttlSeconds", "expiresAt", "publicUrl", "createdAt"]),
   SandboxOperationSummary: objectSchema({
@@ -285,6 +320,7 @@ const schemas: Record<string, JsonSchema> = {
     ttlSeconds: integer,
     env: { type: "object", additionalProperties: { type: "string" } },
     egress: ref("EgressPolicyInput"),
+    source: ref("SandboxSourceInput"),
     idempotencyKey: string,
     wait: boolean,
     waitTimeoutMs: integer
@@ -297,6 +333,7 @@ const schemas: Record<string, JsonSchema> = {
   }, ["sandbox"]),
   SandboxesResponse: objectSchema({ sandboxes: arrayOf(ref("SandboxSummary")) }),
   SandboxResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
+  SandboxSourceResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
   RunSandboxBody: objectSchema({
     command: string,
     stdin: string,
@@ -860,6 +897,9 @@ export const openApiDocument = {
     "/v1/sandboxes/{id}": {
       get: secured({ tags: ["Sandboxes"], summary: "Get a sandbox", operationId: "getSandbox", parameters: [pathId], responses: { ...ok("Sandbox", ref("SandboxResponse")), ...authErrorResponses } }),
       delete: secured({ tags: ["Sandboxes"], summary: "Delete a sandbox", operationId: "deleteSandbox", parameters: [pathId], responses: { ...noContent("Deleted sandbox"), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/source": {
+      patch: secured({ tags: ["Sandboxes"], summary: "Update sandbox source provenance", operationId: "updateSandboxSource", parameters: [pathId], requestBody: jsonBody(ref("PatchSandboxSourceBody")), responses: { ...ok("Sandbox source", ref("SandboxSourceResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/renew": {
       post: secured({ tags: ["Sandboxes"], summary: "Renew a sandbox TTL", operationId: "renewSandbox", parameters: [pathId], responses: { ...ok("Renewed sandbox", ref("OkResponse")), ...authErrorResponses } })

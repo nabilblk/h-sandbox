@@ -10,6 +10,7 @@ import type {
   ExposeSandboxRouteBody,
   OkResponse,
   PromoteTemplateBody,
+  PatchSandboxSourceBody,
   RegistryCredentialResponse,
   RegistryCredentialsResponse,
   RunSandboxBody,
@@ -39,6 +40,8 @@ import type {
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxResponse,
+  SandboxSourceProvenance,
+  SandboxSourceResponse,
   SandboxRouteResponse,
   SandboxRouteSummary,
   SandboxRoutesResponse,
@@ -93,6 +96,7 @@ export type {
   ExposeSandboxRouteBody,
   OkResponse,
   PromoteTemplateBody,
+  PatchSandboxSourceBody,
   RegistryCredentialPurpose,
   RegistryCredentialResponse,
   RegistryCredentialsResponse,
@@ -123,6 +127,8 @@ export type {
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxResponse,
+  SandboxSourceProvenance,
+  SandboxSourceResponse,
   SandboxRouteResponse,
   SandboxRouteSummary,
   SandboxRoutesResponse,
@@ -442,6 +448,24 @@ export class HarakiriGitCommandError extends Error {
   }
 }
 
+export class HarakiriGitUnsupportedRuntimeError extends HarakiriGitCommandError {
+  readonly code = "git_runtime_unsupported";
+  readonly reason = "missing_git_binary";
+  readonly templateGuidance = "Use a sandbox template that includes git, such as open-agents-dev, opencode, or a custom template that installs git.";
+
+  constructor(sandboxId: string, operation: string, result: GitCommandRunResult) {
+    super(
+      `Git ${operation} is not supported by sandbox ${sandboxId}: git binary not found. ${HarakiriGitUnsupportedRuntimeError.guidance}`,
+      sandboxId,
+      operation,
+      result
+    );
+    this.name = "HarakiriGitUnsupportedRuntimeError";
+  }
+
+  private static readonly guidance = "Use a sandbox template that includes git, such as open-agents-dev, opencode, or a custom template that installs git.";
+}
+
 const parseGitStatus = (result: GitCommandRunResult): GitStatusResult => {
   const lines = result.stdout.split(/\r?\n/).filter(Boolean);
   const branchLine = lines.find((line) => line.startsWith("## "));
@@ -513,6 +537,34 @@ const buildGitCloneCommand = (url: string, options: GitCloneOptions = {}) => {
   return { command: commands.join("\n"), targetPath, env: gitCredentialEnv(options.credentials), secrets: gitSecretValues(options.credentials) };
 };
 
+const gitSourceForApi = (source: GitSourceInput) => ({
+  type: "git" as const,
+  url: sanitizeGitUrl(source.url),
+  branch: source.branch,
+  commit: source.commit,
+  targetPath: source.targetPath ?? defaultGitPath,
+  depth: source.depth,
+  shallow: source.shallow,
+  submodules: source.submodules,
+  credentialPersistence: source.credentialPersistence ?? (source.credentials ? "one-shot" as const : undefined),
+  applyEgressPreset: source.applyEgressPreset,
+  timeoutMs: source.timeoutMs
+});
+
+const gitSourceProvenance = (
+  source: GitSourceInput,
+  status: SandboxSourceProvenance["status"],
+  details: Partial<Omit<SandboxSourceProvenance, "type" | "url" | "targetPath" | "status">> = {}
+): SandboxSourceProvenance => {
+  const apiSource = gitSourceForApi(source);
+  const { applyEgressPreset: _applyEgressPreset, timeoutMs: _timeoutMs, ...provenance } = apiSource;
+  return {
+    ...provenance,
+    status,
+    ...details
+  };
+};
+
 const buildTemporaryRemoteCommand = (
   cwd: string,
   remote: string,
@@ -537,6 +589,9 @@ const buildTemporaryRemoteCommand = (
     "restore_remote_url"
   ].join("\n");
 };
+
+const missingGitBinary = (result: GitCommandRunResult) =>
+  result.exitCode === 127 && /git binary not found in sandbox image/i.test(`${result.stderr}\n${result.stdout}`);
 
 
 const isRouteResponse = (route: RouteLike): route is SandboxRouteResponse =>
@@ -1096,6 +1151,7 @@ export class HarakiriClient {
         ttlSeconds: createInput.ttlSeconds ?? 300,
         env: createInput.env,
         egress,
+        source: source?.type === "git" ? gitSourceForApi(source) : undefined,
         idempotencyKey: createInput.idempotencyKey,
         wait: createInput.wait,
         waitTimeoutMs: createInput.waitTimeoutMs
@@ -1107,6 +1163,11 @@ export class HarakiriClient {
       const ready = result.sandbox.status === "running" || result.sandbox.status === "idle"
         ? { sandbox: result.sandbox }
         : await this.waitForSandbox(result.sandbox.id, { timeoutMs: Math.max(createInput.waitTimeoutMs ?? 0, 60_000) });
+      const startedAt = new Date().toISOString();
+      const started = Date.now();
+      await this.updateSandboxSource(ready.sandbox.id, {
+        source: gitSourceProvenance(source, "cloning", { startedAt })
+      });
       await this.cloneGitRepository(ready.sandbox.id, source.url, {
         branch: source.branch,
         commit: source.commit,
@@ -1118,9 +1179,21 @@ export class HarakiriClient {
         credentialPersistence: source.credentialPersistence,
         timeoutMs: source.timeoutMs
       });
-      const refreshed = await this.getSandbox(result.sandbox.id);
-      return { ...result, sandbox: refreshed.sandbox };
+      const completed = await this.updateSandboxSource(ready.sandbox.id, {
+        source: gitSourceProvenance(source, "ready", {
+          startedAt,
+          completedAt: new Date().toISOString(),
+          durationMs: Date.now() - started
+        })
+      });
+      return { ...result, sandbox: completed.sandbox };
     } catch (error) {
+      await this.updateSandboxSource(result.sandbox.id, {
+        source: gitSourceProvenance(source, "failed", {
+          completedAt: new Date().toISOString(),
+          failureReason: redactGitSecrets(error instanceof Error ? error.message : String(error), gitSecretValues(source.credentials))
+        })
+      }).catch(() => undefined);
       if (cleanupOnSourceError) await this.killSandbox(result.sandbox.id).catch(() => undefined);
       throw error;
     }
@@ -1136,6 +1209,13 @@ export class HarakiriClient {
 
   getSandbox(id: string) {
     return this.request<SandboxResponse>(`/v1/sandboxes/${id}`);
+  }
+
+  updateSandboxSource(id: string, input: PatchSandboxSourceBody) {
+    return this.request<SandboxSourceResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/source`, {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
   }
 
   async waitForSandbox(id: string, options: WaitForSandboxOptions = {}) {
@@ -1184,6 +1264,9 @@ export class HarakiriClient {
     const response = await this.runSandbox(id, input);
     const result = runResultWithRedaction(response, secrets);
     if (result.exitCode !== 0) {
+      if (missingGitBinary(result)) {
+        throw new HarakiriGitUnsupportedRuntimeError(id, operation, result);
+      }
       throw new HarakiriGitCommandError(
         `Git ${operation} failed in sandbox ${id}: ${result.stderr || result.stdout || `exit ${result.exitCode}`}`,
         id,

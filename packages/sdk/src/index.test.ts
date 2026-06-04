@@ -6,6 +6,7 @@ import {
   HarakiriClient,
   HarakiriConflictError,
   HarakiriGitCommandError,
+  HarakiriGitUnsupportedRuntimeError,
   HarakiriNotFoundError,
   HarakiriProviderUnavailableError,
   HarakiriRateLimitError,
@@ -195,6 +196,15 @@ test("HarakiriClient bootstraps Git sources through command APIs", async () => {
           }
         });
       }
+      if (path.endsWith("/v1/sandboxes/sbx_git/source") && init?.method === "PATCH") {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        return Response.json({
+          sandbox: {
+            ...sandboxSummary({ id: "sbx_git", status: "running" }),
+            source: body.source
+          }
+        });
+      }
       return Response.json({ ok: true });
     }
   });
@@ -213,8 +223,15 @@ test("HarakiriClient bootstraps Git sources through command APIs", async () => {
   });
 
   assert.equal(result.sandbox.status, "running");
+  assert.equal(result.sandbox.source?.status, "ready");
   const createBody = JSON.parse(calls[0].body ?? "{}");
-  assert.equal(createBody.source, undefined);
+  assert.deepEqual(createBody.source, {
+    type: "git",
+    url: "https://github.com/acme/project.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    credentialPersistence: "one-shot"
+  });
   assert.deepEqual(createBody.egress.presets, ["python-package-install", "git-hosting"]);
   assert.equal(JSON.stringify(createBody).includes("ghp_secret"), false);
 
@@ -230,6 +247,11 @@ test("HarakiriClient bootstraps Git sources through command APIs", async () => {
     HARAKIRI_GIT_USERNAME: "oauth2",
     HARAKIRI_GIT_TOKEN: "ghp_secret"
   });
+  const sourceUpdates = calls.filter((call) => call.url.endsWith("/source")).map((call) => JSON.parse(call.body ?? "{}").source);
+  assert.equal(sourceUpdates.length, 2);
+  assert.equal(sourceUpdates[0].status, "cloning");
+  assert.equal(sourceUpdates[1].status, "ready");
+  assert.equal(JSON.stringify(sourceUpdates).includes("ghp_secret"), false);
 });
 
 test("HarakiriSandbox Git helpers parse status and branch data", async () => {
@@ -325,6 +347,39 @@ test("Git helper errors redact credentials", async () => {
     return true;
   });
   assert.equal(redactGitSecrets("https://user:secret@example.test/repo.git", ["secret"]), "https://[redacted]@example.test/repo.git");
+});
+
+test("Git helpers report missing git binary as a typed unsupported runtime error", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      assert.equal(String(url).endsWith("/run"), true);
+      const body = JSON.parse(String(init?.body ?? "{}"));
+      assert.equal(body.command.includes("command -v git"), true);
+      return Response.json({
+        result: {
+          sandboxId: "sbx_no_git",
+          command: body.command,
+          stdout: "",
+          stderr: "git binary not found in sandbox image\n",
+          exitCode: 127,
+          durationMs: 4
+        }
+      });
+    }
+  });
+
+  await assert.rejects(() => client.git.status("sbx_no_git", { cwd: "/workspace/project" }), (error) => {
+    assert.ok(error instanceof HarakiriGitUnsupportedRuntimeError);
+    assert.ok(error instanceof HarakiriGitCommandError);
+    assert.equal(error.code, "git_runtime_unsupported");
+    assert.equal(error.reason, "missing_git_binary");
+    assert.match(error.templateGuidance, /template that includes git/);
+    assert.match(error.message, /open-agents-dev/);
+    assert.equal(error.result.exitCode, 127);
+    return true;
+  });
 });
 
 test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namespaces", async () => {

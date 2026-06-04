@@ -585,6 +585,19 @@ test("create command bootstraps Git sources without sending secrets in command t
         }
       };
     }
+    if (request.method === "PATCH" && request.path === "/v1/sandboxes/sbx_git_cli/source") {
+      return {
+        body: {
+          sandbox: {
+            id: "sbx_git_cli",
+            name: "git-runner",
+            template: "open-agents-dev",
+            status: "running",
+            source: (request.body as { source: unknown }).source
+          }
+        }
+      };
+    }
     return { status: 404, body: { error: "unexpected", path: request.path } };
   });
   try {
@@ -609,7 +622,14 @@ test("create command bootstraps Git sources without sending secrets in command t
       template: "open-agents-dev",
       name: "git-runner",
       ttlSeconds: 300,
-      env: {}
+      env: {},
+      source: {
+        type: "git",
+        url: "https://github.com/acme/project.git",
+        branch: "main",
+        targetPath: "/workspace/project",
+        credentialPersistence: "one-shot"
+      }
     });
     const runBody = api.requests.find((request) => request.path.endsWith("/run"))?.body as { command: string; env: Record<string, string> };
     assert.equal(runBody.command.includes("$HARAKIRI_GIT_TOKEN"), true);
@@ -619,8 +639,40 @@ test("create command bootstraps Git sources without sending secrets in command t
       HARAKIRI_GIT_USERNAME: "x-access-token",
       HARAKIRI_GIT_TOKEN: "ghp_cli_secret"
     });
+    const sourceUpdates = api.requests.filter((request) => request.path.endsWith("/source"));
+    assert.equal(sourceUpdates.length, 2);
+    assert.equal(JSON.stringify(sourceUpdates).includes("ghp_cli_secret"), false);
   } finally {
     delete process.env.HARAKIRI_TEST_GIT_TOKEN;
+    await api.close();
+  }
+});
+
+test("git commands print template guidance when the sandbox image lacks git", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_no_git/run") {
+      return {
+        body: {
+          result: {
+            sandboxId: "sbx_no_git",
+            command: (request.body as { command: string }).command,
+            stdout: "",
+            stderr: "git binary not found in sandbox image\n",
+            exitCode: 127,
+            durationMs: 5
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli(["git", "status", "sbx_no_git", "--cwd", "/workspace/project"], { api });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /HarakiriGitUnsupportedRuntimeError|git binary not found/);
+    assert.match(result.stderr, /open-agents-dev/);
+  } finally {
     await api.close();
   }
 });

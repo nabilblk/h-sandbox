@@ -156,8 +156,9 @@ overlay.
 Use `source: { type: "git" }` when a sandbox should start from a repository.
 The SDK creates the sandbox through the normal API, waits for it to become
 ready, then clones through Harakiri's tracked command API. The `source` object
-is not sent to `/v1/sandboxes`; it is an SDK workflow contract that remains
-provider-neutral.
+is sent to `/v1/sandboxes` only as sanitized provenance. Repository credentials
+are never sent to the control plane, and the SDK updates the sandbox source
+status as `cloning`, `ready`, or `failed`.
 
 ```ts
 const sandbox = await harakiri.sandboxes.create({
@@ -197,11 +198,16 @@ await sandbox.git.clone("https://github.com/acme/private.git", {
 `credentialPersistence: "dangerously-store-in-remote"` is available only for
 workflows that deliberately want credentials persisted in `.git/config`.
 
+`sandbox.summary.source` exposes the sanitized repository URL, ref, target
+path, status, clone duration, and redacted failure reason. Use it for UI state,
+auditing, and reconnect flows; keep credential handling inside the application
+process that starts the clone.
+
 Git troubleshooting:
 
 | Symptom | What to check |
 | --- | --- |
-| `git binary not found in sandbox image` | Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
+| `git binary not found in sandbox image` | The SDK throws `HarakiriGitUnsupportedRuntimeError` with `code: "git_runtime_unsupported"`. Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
 | Private clone fails with `Authentication failed` | Confirm the token is present in the process environment and has repository read scope. Prefer one-shot credentials over credentialed URLs. |
 | Clone or pull cannot reach GitHub | If egress is restricted, include the `git-hosting` preset or allow the required Git hostnames. |
 | Branch checkout fails | Check `branch`, `commit`, and `targetPath`; tags and branches are passed directly to Git. |

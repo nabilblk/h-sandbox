@@ -6,6 +6,8 @@ import {
   sandboxStatuses,
   type EgressPolicyInput,
   type SandboxOperationSummary,
+  type SandboxSourceInput,
+  type SandboxSourceProvenance,
   type SandboxStatus,
   type SandboxSummary as SharedSandboxSummary
 } from "@harakiri/shared";
@@ -29,6 +31,7 @@ import {
 } from "./sandbox-operations.js";
 import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
 import type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
+import { redactText } from "../redaction.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
 export type SandboxSummary = SharedSandboxSummary;
@@ -37,6 +40,7 @@ type SandboxRow = Omit<SharedSandboxSummary, "status" | "expiresAt" | "createdAt
   status: string;
   expiresAt: Date | string | null;
   createdAt: Date | string;
+  source: unknown;
 };
 
 export type SandboxListFilters = {
@@ -59,6 +63,7 @@ export type CreateSandboxInput = {
   wait?: boolean;
   waitTimeoutMs?: number;
   egress?: EgressPolicyInput | null;
+  source?: SandboxSourceInput | null;
 };
 
 export const sandboxSelect = `
@@ -68,7 +73,7 @@ export const sandboxSelect = `
          s.owner_label AS owner, s.cost_usd::float AS cost, s.ttl_seconds AS "ttlSeconds",
          s.expires_at AS "expiresAt", s.public_url AS "publicUrl",
          s.template_version_id AS "templateVersionId", s.template_image_digest AS "templateImageDigest",
-         s.egress_policy AS "egressPolicy",
+         s.egress_policy AS "egressPolicy", s.source_provenance AS source,
          s.created_at AS "createdAt"
   FROM sandboxes s
 `;
@@ -88,10 +93,57 @@ const toIso = (value: Date | string) => {
 
 const toIsoOrNull = (value: Date | string | null) => value ? toIso(value) : null;
 
+const sanitizeGitUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    parsed.username = "";
+    parsed.password = "";
+    return parsed.toString();
+  } catch {
+    return url.replace(/\/\/[^/\s@]+@/g, "//");
+  }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const gitTargetPath = (value: unknown) => typeof value === "string" && value.trim() ? value : "/workspace/project";
+
+const sourceStatuses = new Set(["requested", "cloning", "ready", "failed"]);
+
+const sanitizeSourceProvenance = (source: SandboxSourceProvenance | SandboxSourceInput | null | undefined): SandboxSourceProvenance | null => {
+  if (!source || source.type !== "git") return null;
+  const record = source as Record<string, unknown>;
+  const provenance: SandboxSourceProvenance = {
+    type: "git",
+    url: sanitizeGitUrl(source.url),
+    targetPath: gitTargetPath(source.targetPath),
+    status: typeof record.status === "string" && sourceStatuses.has(record.status) ? record.status as SandboxSourceProvenance["status"] : "requested"
+  };
+  if (source.branch) provenance.branch = source.branch;
+  if (source.commit) provenance.commit = source.commit;
+  if (source.depth !== undefined) provenance.depth = source.depth;
+  if (source.shallow !== undefined) provenance.shallow = source.shallow;
+  if (source.submodules !== undefined) provenance.submodules = source.submodules;
+  if (source.credentialPersistence) provenance.credentialPersistence = source.credentialPersistence;
+  if (typeof record.startedAt === "string" || record.startedAt === null) provenance.startedAt = record.startedAt;
+  if (typeof record.completedAt === "string" || record.completedAt === null) provenance.completedAt = record.completedAt;
+  if (typeof record.durationMs === "number" || record.durationMs === null) provenance.durationMs = record.durationMs;
+  if (typeof record.failureReason === "string") provenance.failureReason = redactText(record.failureReason);
+  if (record.failureReason === null) provenance.failureReason = null;
+  return provenance;
+};
+
+const mapSourceProvenance = (value: unknown): SandboxSourceProvenance | null => {
+  if (!isRecord(value) || value.type !== "git" || typeof value.url !== "string") return null;
+  return sanitizeSourceProvenance(value as unknown as SandboxSourceProvenance);
+};
+
 const mapSandboxRow = (row: SandboxRow): SandboxSummary => ({
   ...row,
   status: normalizeSandboxStatus(row.status),
   expiresAt: toIsoOrNull(row.expiresAt),
+  source: mapSourceProvenance(row.source),
   createdAt: toIso(row.createdAt)
 });
 
@@ -252,6 +304,8 @@ export const createSandbox = async (
   const name = input.name?.trim() || `${template.id}-runner`;
   const publicUrl = `${id}.sandbox.harakiri.local`;
   const envKeys = Object.keys(input.env).sort();
+  const source = sanitizeSourceProvenance(input.source);
+  const sourceMetadata = source ? { source } : {};
   const envReplayable = envKeys.length === 0 || hasSecretBoxKey();
   if (input.wait === false && !envReplayable) {
     return {
@@ -263,8 +317,8 @@ export const createSandbox = async (
     `INSERT INTO sandboxes
      (id, opensandbox_id, organization_id, template_id, name, status, cpu_pct, memory_mb,
       owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url,
-      template_version_id, template_image_digest, egress_policy, egress_compiled_policy)
-     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10, $11::jsonb, $12::jsonb)`,
+      template_version_id, template_image_digest, egress_policy, egress_compiled_policy, source_provenance)
+     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb)`,
     [
       id,
       input.organizationId,
@@ -277,7 +331,8 @@ export const createSandbox = async (
       template.templateVersionId,
       template.imageDigest,
       JSON.stringify(policyInputFromSummary(egressSummary)),
-      JSON.stringify(runtimeEgressPolicy)
+      JSON.stringify(runtimeEgressPolicy),
+      source ? JSON.stringify(source) : null
     ]
   );
   const { operation, reused } = await enqueueSandboxOperation(
@@ -298,7 +353,8 @@ export const createSandbox = async (
         actorUserId: input.userId,
         actorLabel: input.actorLabel,
         egressMode: egressSummary.mode,
-        egressRuleCount: egressSummary.rules.length
+        egressRuleCount: egressSummary.rules.length,
+        ...sourceMetadata
       }
     },
     { query, idFactory: dependencies.idFactory }
@@ -334,6 +390,7 @@ export const createSandbox = async (
       runtimeWorkdir: template.workdir,
       egressMode: egressSummary.mode,
       egressRuleCount: egressSummary.rules.length,
+      ...sourceMetadata,
       ...sandboxTemplateMetadata(template)
     };
     await dependencies.recordEvent(input.organizationId, id, "queued", "sandbox provision queued", metadata);
@@ -417,6 +474,7 @@ export const createSandbox = async (
       runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
       egressMode: egressSummary.mode,
       egressRuleCount: egressSummary.rules.length,
+      ...sourceMetadata,
       ...sandboxTemplateMetadata(template)
     };
     await completeSandboxOperation(
@@ -426,7 +484,8 @@ export const createSandbox = async (
           provider: provider.provider,
           providerSandboxId: provider.providerSandboxId,
           runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
-          runtimeImageAuthProvided: provider.runtimeImageAuthProvided
+          runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
+          ...sourceMetadata
         }
       },
       query
@@ -453,6 +512,37 @@ export const createSandbox = async (
     return waited;
   }
   return provisionPromise;
+};
+
+export const updateSandboxSource = async (
+  input: {
+    organizationId: string;
+    userId: string;
+    actorLabel: string;
+    sandboxId: string;
+    source: SandboxSourceProvenance | null;
+  },
+  dependencies: { query?: Query; recordEvent: SandboxEventRecorder; recordAudit: Audit }
+) => {
+  const query = dependencies.query ?? defaultQuery;
+  const source = sanitizeSourceProvenance(input.source);
+  const updated = await query(
+    `UPDATE sandboxes
+     SET source_provenance = $3::jsonb, updated_at = now()
+     WHERE id = $1 AND organization_id = $2`,
+    [input.sandboxId, input.organizationId, source ? JSON.stringify(source) : null]
+  );
+  if (!updated.rowCount) return null;
+  const metadata = source ? { source } : {};
+  await dependencies.recordEvent(
+    input.organizationId,
+    input.sandboxId,
+    source ? `source.${source.status}` : "source.cleared",
+    source ? `${source.type} source ${source.status}` : "sandbox source cleared",
+    metadata
+  );
+  await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.source.update", "sandbox", input.sandboxId, metadata);
+  return getSandbox({ organizationId: input.organizationId, sandboxId: input.sandboxId }, query);
 };
 
 export const deleteSandbox = async (

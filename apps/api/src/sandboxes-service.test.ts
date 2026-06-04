@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { RuntimeProvider } from "./providers/runtime/provider.js";
-import { createSandbox, deleteSandbox, listSandboxes, renewSandbox } from "./services/sandboxes.js";
+import { createSandbox, deleteSandbox, listSandboxes, renewSandbox, updateSandboxSource } from "./services/sandboxes.js";
 import type { RuntimeTemplate } from "./templates.js";
 
 const readyTemplate: RuntimeTemplate = {
@@ -143,7 +143,14 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
       templateRef: "python-3.12",
       name: "agent-runner",
       ttlSeconds: 300,
-      env: { HARAKIRI_ENV_SMOKE: "ok" }
+      env: { HARAKIRI_ENV_SMOKE: "ok" },
+      source: {
+        type: "git",
+        url: "https://oauth2:ghp_secret@github.com/acme/private.git",
+        branch: "main",
+        targetPath: "/workspace/project",
+        credentialPersistence: "one-shot"
+      }
     },
     {
       runtimeProvider: fakeRuntimeProvider(runtimeState),
@@ -192,11 +199,38 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
   assert.ok(insert);
   assert.deepEqual(insert.params?.slice(0, 5), ["sbx_test", "org_sbx", "python-3.12", "agent-runner", "user_sbx"]);
   assert.deepEqual(JSON.parse(String(insert.params?.[11])), { defaultAction: "allow", egress: [] });
-  assert(calls.some((call) => call.text.includes("INSERT INTO sandbox_operations")));
+  assert.deepEqual(JSON.parse(String(insert.params?.[12])), {
+    type: "git",
+    url: "https://github.com/acme/private.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    credentialPersistence: "one-shot",
+    status: "requested"
+  });
+  const operationInsert = calls.find((call) => call.text.includes("INSERT INTO sandbox_operations"));
+  assert.ok(operationInsert);
+  assert.equal(JSON.stringify(operationInsert.params).includes("ghp_secret"), false);
+  assert.deepEqual(JSON.parse(String(operationInsert.params?.[5])).source, {
+    type: "git",
+    url: "https://github.com/acme/private.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    credentialPersistence: "one-shot",
+    status: "requested"
+  });
   assert(calls.some((call) => call.text.includes("UPDATE sandboxes") && call.params?.[1] === "provider_sbx"));
   assert.equal(events[0].type, "created");
   assert.equal(events[0].metadata?.runtimeWorkdir, "/workspace");
   assert.equal(events[0].metadata?.operationId, "op_test");
+  assert.equal(JSON.stringify(events[0].metadata).includes("ghp_secret"), false);
+  assert.deepEqual(events[0].metadata?.source, {
+    type: "git",
+    url: "https://github.com/acme/private.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    credentialPersistence: "one-shot",
+    status: "requested"
+  });
   assert.equal(audits[0].action, "sandbox.create");
 });
 
@@ -369,6 +403,69 @@ test("createSandbox records a failed operation when provider provisioning fails"
   assert(calls.some((call) => call.text.includes("state = 'failed'")));
   assert.equal(events[0].type, "error");
   assert.match(events[0].message, /provider unavailable/);
+});
+
+test("updateSandboxSource stores sanitized source provenance and records audit metadata", async () => {
+  const events: Array<{ type: string; message: string; metadata?: Record<string, unknown> }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const source = {
+    type: "git" as const,
+    url: "https://oauth2:ghp_secret@github.com/acme/private.git",
+    branch: "main",
+    targetPath: "/workspace/project",
+    credentialPersistence: "one-shot" as const,
+    status: "failed" as const,
+    failureReason: "fatal token=ghp_secret"
+  };
+  const result = await updateSandboxSource(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      sandboxId: "sbx_source",
+      source
+    },
+    {
+      recordEvent: async (_organizationId, _sandboxId, type, message, metadata) => events.push({ type, message, metadata }),
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => audits.push({ action, metadata }),
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("UPDATE sandboxes") && text.includes("source_provenance")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: "sbx_source",
+              opensandboxId: "provider_source",
+              name: "source-runner",
+              template: "python-3.12",
+              status: "running",
+              cpu: 3,
+              mem: 128,
+              started: "00h 01m",
+              owner: "user@test.local",
+              cost: 0,
+              ttlSeconds: 300,
+              expiresAt: null,
+              publicUrl: null,
+              source: JSON.parse(String(calls[0].params?.[2])),
+              createdAt: new Date("2026-06-04T00:00:00Z")
+            }] as never[]
+          };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.ok(result);
+  assert.equal(result?.source?.status, "failed");
+  assert.equal(result?.source?.url, "https://github.com/acme/private.git");
+  assert.equal(JSON.stringify(calls[0].params).includes("ghp_secret"), false);
+  assert.equal(events[0].type, "source.failed");
+  assert.equal(audits[0].action, "sandbox.source.update");
+  assert.equal(JSON.stringify(events[0].metadata).includes("ghp_secret"), false);
 });
 
 test("deleteSandbox and renewSandbox use injected provider refs", async () => {

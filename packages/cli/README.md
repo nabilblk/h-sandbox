@@ -105,11 +105,16 @@ The default credential mode is one-shot. The CLI resets `origin` to a
 credential-free URL after clone. Use `--preserve-credentials` only when the
 repository must keep credentials in `.git/config`.
 
+`harakiri create --git ...` sends only sanitized repository provenance to the
+API. The CLI/SDK then patches the sandbox source status through `cloning`,
+`ready`, or `failed`, so the dashboard can show bootstrap state without storing
+repository credentials.
+
 Git troubleshooting:
 
 | Symptom | What to check |
 | --- | --- |
-| `git binary not found in sandbox image` | Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
+| `git binary not found in sandbox image` | The CLI prints template guidance from `HarakiriGitUnsupportedRuntimeError`. Use a template that includes Git, such as `open-agents-dev`, `opencode`, or a custom image that installs `git`. |
 | Private clone fails | Export the token env var before running the command and pass its name with `--token-env`. |
 | Clone or pull is blocked | Add the `git-hosting` egress preset, or allow the required Git hostnames in the sandbox/template policy. |
 | Branch command fails | Run `harakiri git branches sbx_... --cwd /workspace/project` and verify the target branch or checkout ref. |

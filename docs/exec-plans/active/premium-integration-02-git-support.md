@@ -24,29 +24,29 @@ pod exec.
 Reference: https://e2b.dev/docs/sandbox/git-integration
 
 ## Success Criteria
-- [ ] `@h-sandbox/sdk` exposes `sandbox.git` and/or `harakiri.git` helpers for
+- [x] `@h-sandbox/sdk` exposes `sandbox.git` and/or `harakiri.git` helpers for
       common Git workflows.
-- [ ] `createSandbox` supports an optional source bootstrap contract for Git
+- [x] `createSandbox` supports an optional source bootstrap contract for Git
       repositories, including URL, branch, commit, target path, shallow clone,
       submodule policy, and optional credentials.
-- [ ] Git credentials can be passed safely for a single operation without being
+- [x] Git credentials can be passed safely for a single operation without being
       persisted in `.git/config` by default.
-- [ ] Any intentionally persisted credential mode is explicit, named with a
+- [x] Any intentionally persisted credential mode is explicit, named with a
       danger prefix, documented, and auditable.
 - [x] Git command output, route logs, command logs, UI, and API errors redact
       tokens and passwords.
-- [ ] Public/private repository clone, status, branch, commit, pull, push,
+- [x] Public/private repository clone, status, branch, commit, pull, push,
       remotes, and config are documented and tested.
 - [ ] Egress restrictions are handled clearly: Git presets can be applied at
       sandbox creation, and failed Git network access produces actionable
       errors.
-- [ ] The implementation uses tracked command/session primitives and does not
+- [x] The implementation uses tracked command/session primitives and does not
       introduce Kubernetes exec fallback.
 
 ## Phases
 
 ### Phase 1: Contract Design
-**Status**: In Progress
+**Status**: Complete
 - [x] Define `SandboxGitOptions`, `GitCredentials`, `GitCloneOptions`,
       `GitStatus`, `GitBranchList`, `GitRemote`, and `GitCommitOptions`.
 - [x] Define source bootstrap input on `CreateSandboxInput`, for example
@@ -61,19 +61,22 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
       report unavailable Git behavior honestly.
 
 ### Phase 2: API And Control Plane State
-**Status**: Not Started
-- [ ] Add API schemas for source bootstrap and Git operation responses.
-- [ ] Store sanitized Git provenance on sandbox records: repo URL without
+**Status**: In Progress
+- [x] Add API schemas for source bootstrap and Git source provenance responses.
+- [x] Store sanitized Git provenance on sandbox records: repo URL without
       credentials, branch, commit, target path, status, duration, and failure
       reason.
-- [ ] Add audit events for clone, auth mode selection, commit, push, and source
-      bootstrap failures.
+- [ ] Add explicit Git operation audit events for commit, push, pull, and config
+      changes.
+- [x] Add sanitized source provenance on create/queued audit metadata, plus
+      source update audit/events for cloning, ready, failed, and cleared states.
 - [x] Add secret-redaction helpers shared by API services, logs, and command
       response formatting.
-- [ ] Ensure idempotency keys work when source bootstrap is requested.
+- [x] Ensure idempotency keys keep the sanitized source bootstrap request in the
+      queued operation payload.
 
 ### Phase 3: Runtime Git Operations
-**Status**: In Progress
+**Status**: Complete
 - [x] Implement Git operations by composing Harakiri tracked commands and
       command sessions.
 - [x] Add `git.clone(url, options)` with branch, depth, path, submodules, and
@@ -83,11 +86,11 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 - [x] Add branch helpers: list, checkout, create, and delete.
 - [x] Add `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remoteAdd`,
       `git.setConfig`, `git.getConfig`, and `git.configureUser`.
-- [ ] Detect missing `git` binary and return a typed unsupported-runtime error
+- [x] Detect missing `git` binary and return a typed unsupported-runtime error
       with template guidance.
 
 ### Phase 4: SDK And CLI Experience
-**Status**: In Progress
+**Status**: Complete
 - [x] Add SDK helpers on the new runtime class and on the existing client where
       appropriate.
 - [x] Add CLI commands such as `harakiri git clone`, `git status`, `git push`,
@@ -99,7 +102,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 - [x] Keep all Git helpers generic and not specific to any downstream project.
 
 ### Phase 5: Documentation
-**Status**: In Progress
+**Status**: Complete
 - [x] Add Git integration docs to `docs/sdk.md`, `packages/sdk/README.md`, and
       website docs.
 - [x] Include examples for public clone, private clone with one-shot token,
@@ -133,8 +136,8 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 | 2026-06-04 | Use `GIT_ASKPASS` for default private repository credentials | Passing credentials in repository URLs can leak through provider stderr or stored command logs. Askpass keeps command text and Git remotes credential-free by default. | Credentialed URL expansion; persistent credential helpers; direct Kubernetes exec. |
 
 ## Tech Debt Incurred
-Current slice leaves server-side Git provenance, Git audit records, dashboard
-UI, typed missing-binary errors, and live k0s Git smoke tests for follow-up.
+Current slice leaves explicit Git operation audit records, dashboard source
+provenance UI, and live k0s Git smoke tests for follow-up.
 If shell-based Git command composition becomes too complex, track the follow-up
 to move to a small in-sandbox Git helper binary or provider-native Git API once
 OpenSandbox exposes one.
@@ -145,8 +148,8 @@ OpenSandbox exposes one.
   branches, checkout, create branch, add, commit, pull, push, remotes, config,
   and Git user configuration.
 - Added SDK `createSandbox({ source: { type: "git" } })` bootstrap. The SDK
-  consumes the source contract and then uses tracked command APIs; `source` is
-  not sent to `/v1/sandboxes`.
+  sends only sanitized source provenance to `/v1/sandboxes`, waits for the
+  sandbox to become ready, then uses tracked command APIs for the clone.
 - Added CLI `harakiri git ...` commands and `harakiri create --git ...`.
 - Added one-shot token handling through env vars and `GIT_ASKPASS`, with
   `dangerously-store-in-remote` / `--preserve-credentials` as the explicit
@@ -170,6 +173,36 @@ OpenSandbox exposes one.
 - Added troubleshooting docs for missing Git binaries, private repository auth,
   egress blocks, branch errors, dirty worktrees, missing commit identity, and
   push failures across SDK, CLI, and website docs.
+- Verified shared, SDK, CLI, and API tests; shared, SDK, CLI, API, and web
+  typechecks; API, web, and CLI builds; OpenAPI write/check; and
+  `git diff --check`.
+
+2026-06-04 missing-runtime slice:
+- Added `HarakiriGitUnsupportedRuntimeError`, a typed SDK subclass for the
+  known `git binary not found in sandbox image` case. It exposes stable
+  `code: "git_runtime_unsupported"`, `reason: "missing_git_binary"`, and
+  `templateGuidance` fields.
+- Kept normal non-zero Git commands on `HarakiriGitCommandError`, so ordinary
+  Git failures continue to expose the redacted command result.
+- Added SDK and CLI regression tests for the missing-Git path; the CLI now
+  prints template guidance through the same top-level error handling path.
+- Updated SDK, CLI, product docs, and website docs to document the typed error.
+- Verified SDK tests/typecheck, CLI tests/build, and web typecheck for this
+  slice.
+
+2026-06-04 source-provenance slice:
+- Added `source_provenance` persistence on sandbox records with sanitized Git
+  URL, branch, commit, target path, status, duration, and redacted failure
+  reason.
+- Added create-source and patch-source protocol types, OpenAPI schemas, API
+  validation, and `PATCH /v1/sandboxes/{id}/source`.
+- Updated SDK `createSandbox({ source })` to send sanitized source metadata,
+  patch status through `cloning`, `ready`, or `failed`, and never send Git
+  credentials to the API provenance contract.
+- Added API service tests, SDK tests, CLI tests, shared OpenAPI surface tests,
+  and regenerated `docs/openapi.json`.
+- Updated SDK, CLI, product, and website docs to describe sanitized source
+  provenance and the safe dashboard/reconnect use case.
 - Verified shared, SDK, CLI, and API tests; shared, SDK, CLI, API, and web
   typechecks; API, web, and CLI builds; OpenAPI write/check; and
   `git diff --check`.

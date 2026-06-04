@@ -239,6 +239,43 @@ export type TemplateBuildContextResponse = {
   context: TemplateBuildContextSummary;
 };
 
+export type GitCredentialPersistence = "one-shot" | "dangerously-store-in-remote";
+
+export type SandboxGitSourceInput = {
+  type: "git";
+  url: string;
+  branch?: string;
+  commit?: string;
+  targetPath?: string;
+  depth?: number;
+  shallow?: boolean;
+  submodules?: boolean | "recursive";
+  credentialPersistence?: GitCredentialPersistence;
+  applyEgressPreset?: boolean;
+  timeoutMs?: number;
+};
+
+export type SandboxSourceInput = SandboxGitSourceInput;
+
+export type SandboxSourceStatus = "requested" | "cloning" | "ready" | "failed";
+
+export type SandboxGitSourceProvenance = Omit<SandboxGitSourceInput, "applyEgressPreset" | "timeoutMs"> & {
+  type: "git";
+  url: string;
+  targetPath: string;
+  status: SandboxSourceStatus;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number | null;
+  failureReason?: string | null;
+};
+
+export type SandboxSourceProvenance = SandboxGitSourceProvenance;
+
+export type PatchSandboxSourceBody = {
+  source: SandboxSourceProvenance | null;
+};
+
 export type SandboxSummary = {
   id: string;
   opensandboxId?: string | null;
@@ -256,6 +293,7 @@ export type SandboxSummary = {
   templateVersionId?: string | null;
   templateImageDigest?: string | null;
   egressPolicy?: EgressPolicyInput | null;
+  source?: SandboxSourceProvenance | null;
   createdAt: string;
 };
 
@@ -276,6 +314,7 @@ export type CreateSandboxBody = {
   ttlSeconds?: number;
   env?: Record<string, string>;
   egress?: EgressPolicyInput | null;
+  source?: SandboxSourceInput;
   idempotencyKey?: string;
   wait?: boolean;
   waitTimeoutMs?: number;
@@ -293,6 +332,10 @@ export type SandboxesResponse = {
 };
 
 export type SandboxResponse = {
+  sandbox: SandboxSummary;
+};
+
+export type SandboxSourceResponse = {
   sandbox: SandboxSummary;
 };
 
