@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { registerApiErrorHandler } from "./api-error-handler.js";
 import { config, logDeprecatedConfigWarnings } from "./config.js";
 import { closeDb } from "./db.js";
 import { migrate } from "./migrate.js";
@@ -11,6 +12,7 @@ export const buildServer = async () => {
   if (config.seedOnBoot) await seed();
 
   const app = Fastify({ logger: true, bodyLimit: Math.ceil(config.templateBuildContextMaxBytes * 1.4) + 4096 });
+  registerApiErrorHandler(app);
   await app.register(cors, {
     origin: true,
     credentials: true,

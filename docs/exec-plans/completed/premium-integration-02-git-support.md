@@ -2,7 +2,7 @@
 
 **Created**: 2026-06-03
 **Author**: Codex
-**Status**: In Progress
+**Status**: Completed
 **Priority**: {P0-P3}
 **Estimated effort**: 1-2 engineering weeks
 
@@ -113,19 +113,24 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 - [x] Explicitly explain credential persistence risks and redaction limits.
 
 ### Phase 6: Verification
-**Status**: In Progress
+**Status**: Complete
 - [x] Unit test command composition and structured parser behavior.
 - [x] Mock API/SDK tests for Git helpers, create-source payloads, capability
       metadata, and redaction behavior.
-- [ ] Live smoke public repo clone in k0s.
-- [ ] Live smoke private repo clone using a short-lived test token if available.
-- [ ] Verify no token appears in API logs, command logs, CLI output, DB
+- [x] Live smoke public repo clone in k0s.
+- [x] Live smoke private repo clone using a short-lived test token if available.
+      `GITHUB_TOKEN` and `GH_TOKEN` were not available in the environment, so a
+      true private repository authorization smoke was skipped. A one-shot
+      fake-token redaction smoke covered the credential transport and storage
+      path without using a real secret.
+- [x] Verify no token appears in API logs, command logs, CLI output, DB
       provenance, or browser UI.
 - [x] Run SDK/API/CLI typecheck, tests, build, OpenAPI generation/check, and
       `git diff --check`.
       Shared, SDK, CLI, and API tests passed. Shared, SDK, CLI, API, and web
       typechecks passed. API, web, and CLI builds passed. OpenAPI write/check
-      and `git diff --check` passed. Live k0s clone smokes remain.
+      and `git diff --check` passed. The current tree was deployed to k0s and
+      public live Git smokes passed through `https://sb-api.harakiri.io`.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
@@ -134,10 +139,16 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 | 2026-06-03 | Default to one-shot credentials and strip credentials from remotes | Private repo support is necessary, but storing credentials inside the sandbox should be explicit and risky by name. | Always store credentials; require only public repositories; hide credentials in a global Harakiri secret store before a clear product design. |
 | 2026-06-04 | Implement the first slice in the SDK/CLI instead of changing the API schema | This ships a useful public integration surface immediately while keeping the API body stable and preserving the OpenSandbox control-plane boundary. | Add server-side Git endpoints and provenance first; keep Git as docs-only shell snippets. |
 | 2026-06-04 | Use `GIT_ASKPASS` for default private repository credentials | Passing credentials in repository URLs can leak through provider stderr or stored command logs. Askpass keeps command text and Git remotes credential-free by default. | Credentialed URL expansion; persistent credential helpers; direct Kubernetes exec. |
+| 2026-06-04 | Add a centralized Zod validation error handler after live smoke exposed a 500 for invalid create input | Route schema failures are client input errors and should return a structured 400, not a generic server error. | Wrap only the sandbox create route; leave route parser errors to Fastify defaults. |
 
 ## Tech Debt Incurred
-Current slice leaves dashboard source provenance UI and live k0s Git smoke
-tests for follow-up.
+- Dashboard source provenance UI remains a useful follow-up. The API and SDK
+  now expose sanitized source state, but the dashboard does not yet surface it
+  as a first-class detail panel.
+- A true private repository live clone still needs a short-lived test token or
+  disposable private repository fixture. The deployed fake-token smoke verifies
+  one-shot credential transport and storage redaction, but it does not prove
+  authorization against a private remote.
 If shell-based Git command composition becomes too complex, track the follow-up
 to move to a small in-sandbox Git helper binary or provider-native Git API once
 OpenSandbox exposes one.
@@ -228,3 +239,31 @@ OpenSandbox exposes one.
   when Git cannot reach a repository.
 - Updated SDK, CLI, product, and website docs with the typed error and retry
   guidance.
+
+2026-06-04 deployed verification and validation fix:
+- Deployed the current tree to k0s with `pnpm env:harakiri:deploy-public` and
+  restarted repo-managed port forwards with `pnpm ports:restart`.
+- Verified public web/API/auth exposure through Cloudflare:
+  `https://sb.harakiri.io`, `https://sb-api.harakiri.io/health`, and
+  `https://sb-auth.harakiri.io/realms/harakiri`.
+- Live public Git bootstrap smoke passed through the deployed API:
+  `harakiri create --template open-agents-dev --egress restricted --git
+  https://github.com/octocat/Hello-World.git --git-branch master --git-depth 1`
+  created sandbox `sbx_sLeg5-3XaN`; `harakiri git status` reported
+  `master...origin/master` and a clean worktree.
+- Deployed DB inspection confirmed sanitized `source_provenance` with
+  `source.status=ready`, no direct Kubernetes exec use, and structured
+  `git.clone` / `git.status` sandbox events and audit entries.
+- Live one-shot credential redaction smoke used a fake GitHub-shaped token via
+  `--git-token-env`. The clone completed in sandbox `sbx_88BrxhlVhl`, the
+  exact fake token had zero DB matches across `sandboxes`, `sandbox_commands`,
+  `sandbox_events`, and `audit_events`, and `harakiri git remotes` showed clean
+  credential-free remote URLs.
+- Cleaned up both smoke sandboxes and the temporary API key.
+- Fixed a deployed API validation bug found during smoke testing:
+  `waitTimeoutMs > 30000` now returns `400 validation_error` instead of
+  `500 Internal Server Error`.
+- Verified the validation fix with `pnpm --filter @harakiri/api test`,
+  `pnpm --filter @harakiri/api typecheck`, `pnpm --filter @harakiri/api build`,
+  `git diff --check`, redeploy, and a public invalid-create request returning
+  `400 validation_error`.
