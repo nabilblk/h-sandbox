@@ -9,6 +9,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 : "${HARAKIRI_SANDBOX_ROUTE_DOMAIN:=harakiri.io}"
 : "${HARAKIRI_SANDBOX_ROUTE_SCHEME:=https}"
 : "${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST:=http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri}"
+: "${HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI:=${HARAKIRI_PUBLIC_WEB_URL}/#dashboard/sandboxes}"
 : "${HARAKIRI_KEYCLOAK_SMTP_HOST:=smtp.sendgrid.net}"
 : "${HARAKIRI_KEYCLOAK_SMTP_PORT:=587}"
 : "${HARAKIRI_KEYCLOAK_SMTP_FROM:=no-reply@harakiri.io}"
@@ -35,6 +36,7 @@ export HARAKIRI_PUBLIC_KEYCLOAK_URL
 export HARAKIRI_SANDBOX_ROUTE_DOMAIN
 export HARAKIRI_SANDBOX_ROUTE_SCHEME
 export HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST
+export HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI
 export HARAKIRI_CONFIGURE_KEYCLOAK_SMTP
 export HARAKIRI_KEYCLOAK_SMTP_HOST
 export HARAKIRI_KEYCLOAK_SMTP_PORT
