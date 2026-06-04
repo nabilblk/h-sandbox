@@ -4,6 +4,7 @@ import {
   HarakiriApiError,
   HarakiriAuthenticationError,
   HarakiriClient,
+  HarakiriCommandEndedError,
   HarakiriConflictError,
   HarakiriGitCommandError,
   HarakiriGitNetworkAccessError,
@@ -14,6 +15,7 @@ import {
   HarakiriSandbox,
   HarakiriTimeoutApiError,
   HarakiriUnsupportedCapabilityError,
+  HarakiriUnsupportedLifecycleCapabilityError,
   HarakiriWaitTimeoutError,
   createRouteFetch,
   redactGitSecrets,
@@ -39,7 +41,52 @@ const sandboxSummary = (overrides: Partial<Pick<SandboxSummary, "id" | "name" | 
   templateVersionId: null,
   templateImageDigest: null,
   egressPolicy: null,
-  createdAt: "2026-06-03T11:55:00.000Z"
+  createdAt: "2026-06-03T11:55:00.000Z",
+  runtimeMetadata: {
+    workdir: "/workspace",
+    user: "root",
+    shell: "/bin/sh",
+    template: {
+      id: overrides.template ?? "python-3.12-data",
+      versionId: null,
+      imageDigest: null,
+      runtimeFamily: "python"
+    },
+    ports: {
+      default: [3000],
+      exposed: []
+    },
+    routes: {
+      mode: "local-proxy",
+      baseDomain: "sandbox.localhost",
+      publicScheme: "https",
+      defaultAccessMode: "public",
+      maxRoutesPerSandbox: 8,
+      maxRoutesPerOrg: 200
+    },
+    egress: {
+      mode: "open",
+      presets: [],
+      allow: [],
+      deny: [],
+      ruleCount: 0
+    },
+    limits: {
+      fileArtifactMaxBytes: 16 * 1024 * 1024,
+      commandTimeoutMs: 30_000,
+      terminalAttachTicketTtlSeconds: 60
+    },
+    lifecycle: {
+      ttlSeconds: 300,
+      expiresAt: "2026-06-03T12:00:00.000Z",
+      createdAt: "2026-06-03T11:55:00.000Z"
+    },
+    provider: {
+      kind: "opensandbox",
+      sandboxId: "osbx_test",
+      capabilities: []
+    }
+  }
 });
 
 test("HarakiriClient normalizes the API URL and sends API key auth", async () => {
@@ -436,6 +483,8 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
     stdout: "",
     stderr: "",
     exitCode: null,
+    finishReason: null,
+    signal: null,
     error: null,
     startedAt: "2026-06-03T12:00:00.000Z",
     finishedAt: null,
@@ -494,18 +543,24 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
   assert.ok(sandbox instanceof HarakiriSandbox);
   assert.equal(sandbox.id, "sbx_obj");
   assert.equal(sandbox.status, "pending");
+  assert.equal(sandbox.runtimeMetadata.workdir, "/workspace");
+  assert.equal(sandbox.runtimeMetadata.provider.kind, "opensandbox");
 
   await sandbox.wait({ intervalMs: 0 });
   assert.equal(sandbox.status, "running");
+  assert.equal(sandbox.runtimeMetadata.template.id, "python-3.12-data");
 
   const connected = await HarakiriSandbox.connect(client, "sbx_obj");
   assert.equal(connected.summary.id, "sbx_obj");
+  assert.equal(connected.runtimeMetadata.ports.default[0], 3000);
   assert.equal((await client.sandboxes.connect("sbx_obj")).id, "sbx_obj");
 
   await sandbox.run({ command: "pwd", cwd: "/workspace" });
   const started = await sandbox.commands.start({ command: command.command, cwd: "/workspace", detached: true });
   await sandbox.commands.wait(started.command.id, { statuses: ["running"], intervalMs: 0 });
   await sandbox.commands.logs(started.command.id);
+  const process = await sandbox.processes.start({ command: command.command, cwd: "/workspace" });
+  await sandbox.processes.tail(process.command.id, 10);
   await sandbox.files.write({ path: "/workspace/app.py", content: "print('ok')\n", createParents: true });
   await sandbox.files.read("/workspace/app.py");
   const exposed = await sandbox.routes.expose({ port: 3000, accessMode: "token", labels: ["preview"] });
@@ -515,6 +570,9 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
   await sandbox.logs();
   await sandbox.metrics();
   await sandbox.renew();
+  await sandbox.reconnect();
+  assert.equal(sandbox.lifecycle.ttlSeconds, 300);
+  assert.equal(sandbox.expiresAt, "2026-06-03T12:00:00.000Z");
   await sandbox.kill();
   assert.equal(sandbox.status, "terminated");
 
@@ -523,6 +581,35 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/files" && call.method === "PUT"));
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/routes" && call.method === "POST"));
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/egress" && call.method === "PATCH"));
+});
+
+test("HarakiriSandbox lifecycle unsupported methods fail fast with typed errors", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async () => {
+      throw new Error("unsupported lifecycle methods should not call the API");
+    }
+  });
+  const sandbox = client.sandboxes.wrap(sandboxSummary({ id: "sbx_lifecycle" }));
+
+  assert.throws(() => sandbox.pause(), (error) => {
+    assert.ok(error instanceof HarakiriUnsupportedLifecycleCapabilityError);
+    assert.equal(error.capability, "lifecyclePause");
+    assert.equal(error.retryable, false);
+    return true;
+  });
+  assert.throws(() => sandbox.resume(), (error) => {
+    assert.ok(error instanceof HarakiriUnsupportedLifecycleCapabilityError);
+    assert.equal(error.capability, "lifecycleResume");
+    return true;
+  });
+  assert.throws(() => sandbox.snapshot(), (error) => {
+    assert.ok(error instanceof HarakiriUnsupportedLifecycleCapabilityError);
+    assert.equal(error.capability, "lifecycleSnapshot");
+    return true;
+  });
+  assert.throws(() => client.sandboxes.snapshot("sbx_lifecycle"), HarakiriUnsupportedLifecycleCapabilityError);
 });
 
 test("HarakiriSandbox preserves typed API errors from delegated calls", async () => {
@@ -669,6 +756,8 @@ test("HarakiriClient exposes tracked command helpers", async () => {
     stdout: "",
     stderr: "",
     exitCode: null,
+    finishReason: null,
+    signal: null,
     error: null,
     startedAt: "2026-05-29T00:00:00.000Z",
     finishedAt: null,
@@ -687,12 +776,14 @@ test("HarakiriClient exposes tracked command helpers", async () => {
   });
 
   await client.startCommand("sbx_test", { command: "npm run dev", cwd: "/workspace/app", env: { NODE_ENV: "dev" }, timeoutMs: 30_000, detached: true });
+  await client.processes.start("sbx_test", { command: "npm run dev", cwd: "/workspace/app" });
   await client.listCommands("sbx_test");
   await client.getCommand("sbx_test", "cmd_test");
   await client.getCommandLogs("sbx_test", "cmd_test", { cursor: 3, tail: 25 });
   await client.killCommand("sbx_test", "cmd_test");
 
   assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/commands"],
     ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/commands"],
     ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/commands"],
     ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/commands/cmd_test"],
@@ -904,6 +995,8 @@ test("HarakiriClient fails fast when a tracked command reaches a terminal error"
         stdout: "",
         stderr: "boom",
         exitCode: 1,
+        finishReason: "error",
+        signal: null,
         error: "boom",
         startedAt: "2026-05-29T00:00:00.000Z",
         finishedAt: "2026-05-29T00:00:01.000Z",
@@ -915,7 +1008,13 @@ test("HarakiriClient fails fast when a tracked command reaches a terminal error"
 
   await assert.rejects(
     () => client.waitForCommand("sbx_test", "cmd_test", { intervalMs: 0 }),
-    /Command cmd_test reached failed before succeeding/
+    (error) => {
+      assert.ok(error instanceof HarakiriCommandEndedError);
+      assert.equal(error.status, "failed");
+      assert.equal(error.exitCode, 1);
+      assert.equal(error.finishReason, "error");
+      return true;
+    }
   );
 });
 
@@ -938,6 +1037,8 @@ test("HarakiriClient exposes typed wait timeouts", async () => {
         stdout: "",
         stderr: "",
         exitCode: null,
+        finishReason: null,
+        signal: null,
         error: null,
         startedAt: "2026-05-29T00:00:00.000Z",
         finishedAt: null,
@@ -972,6 +1073,8 @@ test("HarakiriClient exposes namespaced command, file, and route helpers", async
     stdout: "",
     stderr: "",
     exitCode: null,
+    finishReason: null,
+    signal: null,
     error: null,
     startedAt: "2026-05-29T00:00:00.000Z",
     finishedAt: null,
@@ -1008,8 +1111,8 @@ test("HarakiriClient exposes namespaced command, file, and route helpers", async
       if (path.endsWith("/commands")) return Response.json(init?.method === "POST" ? { command } : { commands: [command] });
       if (path.endsWith("/commands/cmd_test/logs")) return Response.json({ commandId: "cmd_test", stdout: "ready\n", stderr: "" });
       if (path.includes("/files/read")) return Response.json({ path: "/workspace/app.py", encoding: "utf8", content: "print('ok')\n" });
-      if (path.includes("/files/download")) return Response.json({ path: "/workspace/app.py", contentBase64: "b2s=", sizeBytes: 2, sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec" });
-      if (path.includes("/files/upload")) return Response.json({ file: { path: "/workspace/app.py", name: "app.py", type: "file", size: 2 }, sizeBytes: 2, sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec" });
+      if (path.includes("/files/download")) return Response.json({ path: "/workspace/app.py", contentBase64: "b2s=", sizeBytes: 2, sha256: "sha256:2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df", transfer: { mode: "json-base64", encoding: "base64", maxBytes: 16777216 } });
+      if (path.includes("/files/upload")) return Response.json({ file: { path: "/workspace/app.py", name: "app.py", type: "file", size: 2 }, sizeBytes: 2, sha256: "sha256:2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df", transfer: { mode: "json-base64", encoding: "base64", maxBytes: 16777216 } });
       if (path.includes("/files/stat") || path.endsWith("/files") || path.includes("/files/rename") || path.includes("/files/mkdir")) {
         return Response.json({ file: { path: "/workspace/app.py", name: "app.py", type: "file", size: 12 } });
       }
@@ -1021,16 +1124,20 @@ test("HarakiriClient exposes namespaced command, file, and route helpers", async
   });
 
   await client.commands.start("sbx_test", { command: "npm run dev", detached: true });
+  await client.processes.start("sbx_test", { command: "npm run dev" });
   await client.commands.list("sbx_test");
   await client.commands.get("sbx_test", "cmd_test");
   await client.commands.logs("sbx_test", "cmd_test");
   await client.commandLogs("sbx_test", "cmd_test");
+  await client.processes.tail("sbx_test", "cmd_test", 10);
   await client.commands.kill("sbx_test", "cmd_test");
   await client.files.stat("sbx_test", "/workspace/app.py");
   await client.files.read("sbx_test", "/workspace/app.py");
   await client.files.write("sbx_test", { path: "/workspace/app.py", content: "print('ok')\n" });
   await client.files.upload("sbx_test", { path: "/workspace/app.py", contentBase64: "b2s=", sizeBytes: 2 });
   await client.files.download("sbx_test", "/workspace/app.py");
+  await client.artifacts.upload("sbx_test", { path: "/workspace/app.py", contentBase64: "b2s=", sizeBytes: 2 });
+  await client.artifacts.download("sbx_test", "/workspace/app.py");
   await client.files.mkdir("sbx_test", { path: "/workspace" });
   await client.files.rename("sbx_test", { fromPath: "/workspace/app.py", toPath: "/workspace/main.py" });
   await client.files.remove("sbx_test", "/workspace/main.py");
@@ -1256,8 +1363,8 @@ test("HarakiriClient exposes sandbox file operation helpers", async () => {
     fetch: async (url, init) => {
       calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
       if (String(url).includes("/files/read")) return Response.json({ path: "/workspace/file.txt", encoding: "utf8", content: "ok" });
-      if (String(url).includes("/files/download")) return Response.json({ path: "/workspace/file.txt", contentBase64: "b2s=", sizeBytes: 2, sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec" });
-      if (String(url).includes("/files/upload")) return Response.json({ file, sizeBytes: 2, sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec" });
+      if (String(url).includes("/files/download")) return Response.json({ path: "/workspace/file.txt", contentBase64: "b2s=", sizeBytes: 2, sha256: "sha256:2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df", transfer: { mode: "json-base64", encoding: "base64", maxBytes: 16777216 } });
+      if (String(url).includes("/files/upload")) return Response.json({ file, sizeBytes: 2, sha256: "sha256:2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df", transfer: { mode: "json-base64", encoding: "base64", maxBytes: 16777216 } });
       if (String(url).includes("/files?path=") && init?.method === "DELETE") return Response.json({ ok: true, path: "/workspace/file.txt" });
       return Response.json({ file });
     }
@@ -1268,6 +1375,9 @@ test("HarakiriClient exposes sandbox file operation helpers", async () => {
   await client.writeSandboxFile("sbx_test", { path: "/workspace/file.txt", content: "ok", createParents: true });
   await client.uploadSandboxFile("sbx_test", { path: "/workspace/file.txt", contentBase64: "b2s=", sizeBytes: 2 });
   await client.downloadSandboxFile("sbx_test", "/workspace/file.txt");
+  const sandbox = HarakiriSandbox.wrap(client, sandboxSummary());
+  await sandbox.artifacts.upload({ path: "/workspace/file.txt", contentBase64: "b2s=", sizeBytes: 2 });
+  await sandbox.artifacts.download("/workspace/file.txt");
   await client.mkdirSandboxFile("sbx_test", { path: "/workspace/src", recursive: true });
   await client.removeSandboxFile("sbx_test", "/workspace/file.txt", { recursive: false });
   await client.renameSandboxFile("sbx_test", { fromPath: "/workspace/file.txt", toPath: "/workspace/done.txt" });
@@ -1276,6 +1386,8 @@ test("HarakiriClient exposes sandbox file operation helpers", async () => {
     ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/files/stat?path=%2Fworkspace%2Ffile.txt"],
     ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/files/read?path=%2Fworkspace%2Ffile.txt"],
     ["PUT", "http://harakiri.local/v1/sandboxes/sbx_test/files"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/files/upload"],
+    ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/files/download?path=%2Fworkspace%2Ffile.txt"],
     ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/files/upload"],
     ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/files/download?path=%2Fworkspace%2Ffile.txt"],
     ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/files/mkdir"],

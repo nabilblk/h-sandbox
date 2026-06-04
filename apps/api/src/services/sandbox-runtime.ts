@@ -24,6 +24,7 @@ import {
   type RunSandboxCommandSessionResponse,
   type SandboxCommandStatus,
   type SandboxCommandSummary,
+  type SandboxFileTransferMetadata,
   type SandboxRouteAccessMode,
   type SandboxRouteState,
   type SandboxRouteSummary,
@@ -260,6 +261,15 @@ const capabilitySummary = (
   reason
 });
 
+const unsupportedCapabilitySummary = (name: RuntimeCapabilityName, reason: string) => ({
+  name,
+  state: "unavailable" as const,
+  contract: "unsupported" as const,
+  source: "Current runtime provider contract",
+  required: false,
+  reason
+});
+
 const methodState = (methods: Array<unknown>, reason: string): { state: RuntimeCapabilityState; reason: string | null } => {
   const available = methods.filter((method) => typeof method === "function").length;
   if (available === methods.length) return { state: "available", reason: null };
@@ -308,9 +318,18 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
     generatedAt: new Date().toISOString(),
     capabilities: [
       capabilitySummary("lifecycle", "available", null, true, "opensandbox_spec", "OpenSandbox lifecycle API"),
+      capabilitySummary("lifecycleRenew", "available", null, true, "opensandbox_spec", "OpenSandbox renew API"),
+      capabilitySummary("lifecycleKill", "available", null, true, "opensandbox_spec", "OpenSandbox delete API"),
+      capabilitySummary("lifecycleReconnect", "available", null, true, "harakiri_control_plane", "Harakiri persisted sandbox lookup and runtime attach APIs"),
+      unsupportedCapabilitySummary("lifecyclePause", "Pause is not exposed by OpenSandbox or the current Harakiri runtime provider."),
+      unsupportedCapabilitySummary("lifecycleResume", "Resume is not exposed because pause is not supported by OpenSandbox or the current Harakiri runtime provider."),
+      unsupportedCapabilitySummary("lifecycleSnapshot", "Snapshot and restore are not exposed by OpenSandbox or the current Harakiri runtime provider."),
       capabilitySummary("commandRun", commandRun.state, commandRun.reason, true, "opensandbox_spec", "OpenSandbox execd command API"),
       capabilitySummary("commands", commandMethods.state, commandMethods.reason, true, "opensandbox_spec", "OpenSandbox execd tracked command API"),
+      capabilitySummary("detachedCommands", commandMethods.state, commandMethods.reason, true, "opensandbox_spec", "OpenSandbox execd background command API persisted by Harakiri command IDs"),
       capabilitySummary("commandLogs", commandLogMethods.state, commandLogMethods.reason, true, "opensandbox_spec", "OpenSandbox execd command logs API"),
+      capabilitySummary("commandLogTail", commandLogMethods.state, commandLogMethods.reason, true, "harakiri_control_plane", "Harakiri cursor and tail helpers for detached command logs"),
+      capabilitySummary("commandKill", commandMethods.state, commandMethods.reason, true, "opensandbox_spec", "OpenSandbox execd command interrupt API"),
       capabilitySummary("terminalAttach", terminalAttachMethods.state, terminalAttachMethods.reason, true, "opensandbox_provider", "OpenSandbox execd PTY implementation"),
       capabilitySummary("terminalResize", terminalResize.state, terminalResize.reason, false, "opensandbox_provider", "OpenSandbox execd PTY WebSocket implementation"),
       capabilitySummary("shellSessions", shellSessions.state, shellSessions.reason, false, "opensandbox_provider", "OpenSandbox execd PTY session lifecycle implementation"),
@@ -510,12 +529,23 @@ const normalizeCommandStatus = (status: string): SandboxCommandStatus => {
   return "failed";
 };
 
+const commandFinishMetadata = (row: SandboxCommandRow): Pick<SandboxCommandSummary, "finishReason" | "signal"> => {
+  const status = normalizeCommandStatus(row.status);
+  if (status === "queued" || status === "running") return { finishReason: null, signal: null };
+  if (status === "killed") return { finishReason: "killed", signal: row.exitCode === 130 ? "SIGINT" : null };
+  if (status === "succeeded") return { finishReason: "exit", signal: null };
+  const message = `${row.error ?? ""}\n${row.stderr ?? ""}`;
+  if (/timeout|timed out/i.test(message)) return { finishReason: "timeout", signal: null };
+  return { finishReason: row.exitCode === null ? "unknown" : "error", signal: null };
+};
+
 const mapCommandRow = (row: SandboxCommandRow): SandboxCommandSummary => ({
   ...row,
   command: redactText(row.command),
   status: normalizeCommandStatus(row.status),
   stdout: redactText(row.stdout),
   stderr: redactText(row.stderr),
+  ...commandFinishMetadata(row),
   error: row.error ? redactText(row.error) : row.error,
   startedAt: toIsoOrNull(row.startedAt),
   finishedAt: toIsoOrNull(row.finishedAt),
@@ -1273,6 +1303,11 @@ export const writeSandboxFile = async (
 
 const base64Pattern = /^[A-Za-z0-9+/]*={0,2}$/;
 const artifactSha256 = (content: Buffer) => `sha256:${createHash("sha256").update(content).digest("hex")}`;
+const artifactTransfer = () => ({
+  mode: "json-base64" as const,
+  encoding: "base64" as const,
+  maxBytes: config.sandboxFileArtifactMaxBytes
+});
 
 const decodeArtifactBase64 = (body: SandboxFileUploadBody, maxBytes = config.sandboxFileArtifactMaxBytes) => {
   if (body.contentBase64.length % 4 !== 0) {
@@ -1333,7 +1368,7 @@ const decodeArtifactBase64 = (body: SandboxFileUploadBody, maxBytes = config.san
 export const uploadSandboxFileArtifact = async (
   input: { organizationId: string; sandboxId: string } & SandboxFileUploadBody,
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
-): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number]; sizeBytes: number; sha256: string }>> => {
+): Promise<SandboxFileOperationResult<{ file: RuntimeFileListResult["files"][number]; sizeBytes: number; sha256: string; transfer: SandboxFileTransferMetadata }>> => {
   const decoded = decodeArtifactBase64(input);
   if (decoded.kind !== "ok") return decoded;
   const written = await writeSandboxFile(
@@ -1349,18 +1384,18 @@ export const uploadSandboxFileArtifact = async (
     dependencies
   );
   if (written.kind !== "ok") return written;
-  return { kind: "ok", file: written.file, sizeBytes: decoded.content.byteLength, sha256: decoded.sha256 };
+  return { kind: "ok", file: written.file, sizeBytes: decoded.content.byteLength, sha256: decoded.sha256, transfer: artifactTransfer() };
 };
 
 export const downloadSandboxFileArtifact = async (
   input: { organizationId: string; sandboxId: string; path: string },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
-): Promise<SandboxFileOperationResult<{ path: string; contentBase64: string; sizeBytes: number; sha256: string }>> => {
+): Promise<SandboxFileOperationResult<{ path: string; contentBase64: string; sizeBytes: number; sha256: string; transfer: SandboxFileTransferMetadata }>> => {
   const read = await readSandboxFile({ ...input, encoding: "base64" }, dependencies);
   if (read.kind !== "ok") return read;
   const decoded = decodeArtifactBase64({ path: input.path, contentBase64: read.content });
   if (decoded.kind !== "ok") return decoded;
-  return { kind: "ok", path: read.path, contentBase64: read.content, sizeBytes: decoded.content.byteLength, sha256: decoded.sha256 };
+  return { kind: "ok", path: read.path, contentBase64: read.content, sizeBytes: decoded.content.byteLength, sha256: decoded.sha256, transfer: artifactTransfer() };
 };
 
 export const mkdirSandboxFile = async (
@@ -1873,7 +1908,9 @@ export const createSandboxRoute = async (
 type SandboxRouteProxyRow = {
   id: string;
   routeKey: string;
+  host: string;
   targetUrl: string;
+  provider: string;
   state: string;
   accessMode: string;
   accessTokenHash: string | null;
@@ -1885,7 +1922,7 @@ export type SandboxRouteProxyTargetResult =
   | { kind: "route_not_ready"; state: SandboxRouteState }
   | { kind: "public_route" }
   | { kind: "unauthorized"; headerName: string }
-  | { kind: "ok"; targetUrl: string; headerName: string };
+  | { kind: "ok"; targetUrl: string; headerName: string; provider: string; host: string; routeKey: string };
 
 export const getSandboxRouteProxyTarget = async (
   input: { routeKey: string; token?: string | null },
@@ -1894,7 +1931,9 @@ export const getSandboxRouteProxyTarget = async (
   const result = await query<SandboxRouteProxyRow>(
     `SELECT id::text,
             route_key AS "routeKey",
+            host,
             target_url AS "targetUrl",
+            provider,
             state,
             COALESCE(access_mode, 'public') AS "accessMode",
             access_token_hash AS "accessTokenHash",
@@ -1915,7 +1954,7 @@ export const getSandboxRouteProxyTarget = async (
   const presentedHash = hashApiKey(input.token);
   if (!constantEquals(presentedHash, route.accessTokenHash)) return { kind: "unauthorized", headerName };
   await query("UPDATE sandbox_routes SET last_used_at = now(), updated_at = now() WHERE id = $1", [route.id]);
-  return { kind: "ok", targetUrl: route.targetUrl, headerName };
+  return { kind: "ok", targetUrl: route.targetUrl, headerName, provider: route.provider, host: route.host, routeKey: route.routeKey };
 };
 
 type SandboxRouteProxyHeaderValue = string | string[] | undefined;
@@ -1956,6 +1995,16 @@ const proxyHeadersFromRequest = (headers: Record<string, SandboxRouteProxyHeader
   return upstreamHeaders;
 };
 
+const opensandboxGatewayProxyTarget = (target: Extract<SandboxRouteProxyTargetResult, { kind: "ok" }>) => {
+  if (target.provider !== "opensandbox-gateway") return null;
+  const gatewayUrl = config.openSandboxGatewayUrl.trim();
+  if (!gatewayUrl) return null;
+  return {
+    baseUrl: gatewayUrl.replace(/\/+$/, ""),
+    routeKey: target.routeKey
+  };
+};
+
 export const proxySandboxRouteRequest = async (
   input: {
     routeKey: string;
@@ -1975,15 +2024,19 @@ export const proxySandboxRouteRequest = async (
 
   const originalUrl = new URL(input.url, "http://harakiri.local");
   originalUrl.searchParams.delete(sandboxRouteAccessTokenQueryParam);
-  const upstreamBase = target.targetUrl.endsWith("/") ? target.targetUrl : `${target.targetUrl}/`;
+  const gatewayTarget = opensandboxGatewayProxyTarget(target);
+  const upstreamBaseUrl = gatewayTarget?.baseUrl ?? target.targetUrl;
+  const upstreamBase = upstreamBaseUrl.endsWith("/") ? upstreamBaseUrl : `${upstreamBaseUrl}/`;
   const upstreamUrl = new URL(input.path ?? "", upstreamBase);
   upstreamUrl.search = originalUrl.searchParams.toString();
+  const upstreamHeaders = proxyHeadersFromRequest(input.headers);
+  if (gatewayTarget) upstreamHeaders.set("OpenSandbox-Ingress-To", gatewayTarget.routeKey);
 
   let upstream: Awaited<ReturnType<typeof fetch>>;
   try {
     upstream = await fetcher(upstreamUrl, {
       method: input.method,
-      headers: proxyHeadersFromRequest(input.headers),
+      headers: upstreamHeaders,
       body: proxyBodyFromRequest(input.method, input.body)
     });
   } catch (error) {

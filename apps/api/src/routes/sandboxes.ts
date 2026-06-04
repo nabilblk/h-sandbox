@@ -57,7 +57,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
           templateVersionId,
           limit: rawLimit
         }
-      }, query)
+      }, { query, runtimeProvider })
     } satisfies SandboxesResponse;
     return response;
   });
@@ -140,7 +140,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
 
   app.get("/v1/sandboxes/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const sandbox = await getSandbox({ organizationId: request.auth.organizationId, sandboxId: id }, query);
+    const sandbox = await getSandbox({ organizationId: request.auth.organizationId, sandboxId: id }, { query, runtimeProvider });
     if (!sandbox) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     return { sandbox } satisfies SandboxResponse;
   });
@@ -156,7 +156,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         sandboxId: id,
         source: body.source
       },
-      { query, recordEvent, recordAudit }
+      { query, runtimeProvider, recordEvent, recordAudit }
     );
     if (!sandbox) return reply.code(404).send(apiErrorResponse("sandbox_not_found", { id }));
     return { sandbox } satisfies SandboxSourceResponse;

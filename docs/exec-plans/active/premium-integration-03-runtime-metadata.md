@@ -2,7 +2,7 @@
 
 **Created**: 2026-06-03
 **Author**: Codex
-**Status**: Not Started
+**Status**: Completed
 **Priority**: {P0-P3}
 **Estimated effort**: 3-5 engineering days
 
@@ -19,63 +19,84 @@ runtime. Harakiri should collect and present product-level metadata from
 template configuration, control-plane state, and provider capabilities.
 
 ## Success Criteria
-- [ ] Sandbox create/get/list responses expose resolved runtime metadata in a
+- [x] Sandbox create/get/list responses expose resolved runtime metadata in a
       stable, typed object.
-- [ ] Metadata includes workdir, user, template ID/version, runtime family,
+- [x] Metadata includes workdir, user, template ID/version, runtime family,
       default ports, exposed ports, route access default, egress mode, artifact
       limit, command timeout defaults, TTL, and provider capability states.
-- [ ] SDK exposes the metadata on both sandbox summaries and runtime-class
+- [x] SDK exposes the metadata on both sandbox summaries and runtime-class
       instances.
-- [ ] CLI and dashboard show the most useful metadata without adding visual
+- [x] CLI and dashboard show the most useful metadata without adding visual
       noise.
-- [ ] Metadata values are sourced from template config/control-plane/provider
+- [x] Metadata values are sourced from template config/control-plane/provider
       capability data, not guessed by the UI.
-- [ ] OpenAPI, docs, and tests define the contract clearly.
+- [x] OpenAPI, docs, and tests define the contract clearly.
 
 ## Phases
 
 ### Phase 1: Metadata Schema
-**Status**: Not Started
-- [ ] Audit current sandbox summary, template config, and runtime capability
+**Status**: Completed
+- [x] Audit current sandbox summary, template config, and runtime capability
       types.
-- [ ] Define a `SandboxRuntimeMetadata` schema with stable field names and
+- [x] Define a `SandboxRuntimeMetadata` schema with stable field names and
       optional provider-specific metadata kept in a separate object.
-- [ ] Decide which fields are required versus nullable when a provider cannot
+- [x] Decide which fields are required versus nullable when a provider cannot
       resolve them.
-- [ ] Add config defaults for workdir, user, shell, route access, command
+- [x] Add config defaults for workdir, user, shell, route access, command
       timeout, artifact size, and default ports where missing.
 
 ### Phase 2: API And SDK
-**Status**: Not Started
-- [ ] Add metadata to create/get/list sandbox API responses.
-- [ ] Add API tests for metadata on newly created, existing, and terminated
+**Status**: Completed
+- [x] Add metadata to create/get/list sandbox API responses.
+- [x] Add API tests for metadata on newly created, existing, and terminated
       sandboxes.
-- [ ] Add SDK protocol types and accessors.
-- [ ] Ensure the runtime SDK class refreshes metadata when sandbox state
+- [x] Add SDK protocol types and accessors.
+- [x] Ensure the runtime SDK class refreshes metadata when sandbox state
       changes.
 
 ### Phase 3: CLI And Dashboard
-**Status**: Not Started
-- [ ] Add selected metadata to CLI `inspect` or `get` output.
-- [ ] Add dashboard detail display for workdir, user, TTL, default ports,
+**Status**: Completed
+- [x] Add selected metadata to CLI `inspect` or `get` output.
+- [x] Add dashboard detail display for workdir, user, TTL, default ports,
       egress mode, and capability warnings.
-- [ ] Keep dense list screens focused; avoid adding too many columns.
-- [ ] Use existing design tokens and compact table/pill components.
+- [x] Keep dense list screens focused; avoid adding too many columns.
+- [x] Use existing design tokens and compact table/pill components.
 
 ### Phase 4: Documentation And Verification
-**Status**: Not Started
-- [ ] Update `docs/integrations/capabilities-and-limits.md`, `docs/sdk.md`, and
+**Status**: Completed
+- [x] Update `docs/integrations/capabilities-and-limits.md`, `docs/sdk.md`, and
       website docs.
-- [ ] Add tests for metadata serialization and SDK typing.
-- [ ] Run API/SDK/web typecheck/build, OpenAPI check, and `git diff --check`.
+- [x] Add tests for metadata serialization and SDK typing.
+- [x] Run API/SDK/web typecheck/build, OpenAPI check, and `git diff --check`.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
 |------|----------|-----------|------------------------|
 | 2026-06-03 | Treat runtime metadata as control-plane contract, not UI inference | Integrators need one stable source of truth and UIs should not guess template/runtime details. | Keep metadata only in template docs; compute it in the SDK; expose provider-specific raw OpenSandbox data. |
+| 2026-06-04 | Expose metadata on `SandboxSummary.runtimeMetadata` | Create/get/list already return sandbox summaries, and external apps need the same fields consistently across API, SDK, CLI, and dashboard. | Add a separate metadata endpoint; put fields only on templates; expose raw provider metadata. |
+| 2026-06-04 | Source exposed ports from persisted sandbox routes | Routes are Harakiri control-plane records with access mode, token state, labels, and public URLs. | Query OpenSandbox directly in the UI; infer routes from default ports. |
 
 ## Tech Debt Incurred
-None planned.
+None.
 
 ## Completion Notes
-Fill in when complete.
+Completed 2026-06-04.
+
+Implemented shared and SDK protocol types, API row mapping, provider capability
+inclusion, CLI status output, dashboard detail display, OpenAPI generation, and
+docs updates.
+
+Verification:
+- `pnpm --filter @harakiri/api test -- sandboxes-service.test.ts`
+- `pnpm --filter @h-sandbox/sdk test`
+- `pnpm --filter @h-sandbox/cli test`
+- `pnpm --filter @harakiri/web test -- docs-content.test.ts sandbox-detail-route.test.ts`
+- `pnpm openapi:check`
+- `pnpm typecheck`
+- `pnpm build`
+- `git diff --check`
+- `pnpm deploy:k0s`
+- Live forwarded API smoke created sandbox `sbx_kXFN3po2Fj`, verified
+  `runtimeMetadata`, then terminated it.
+- Browser docs smoke on `http://127.0.0.1:15173/#docs` confirmed the Runtime
+  metadata section renders.

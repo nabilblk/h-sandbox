@@ -107,6 +107,24 @@ pnpm openapi:check
 - `POST /v1/org/members`
 - `DELETE /v1/org/members/:id`
 
+## Sandbox Runtime Metadata
+
+`POST /v1/sandboxes`, `GET /v1/sandboxes`, and `GET /v1/sandboxes/:id` return
+`sandbox.runtimeMetadata`. This is the stable integration contract for resolved
+runtime facts:
+
+- workdir, user, shell
+- template ID, version ID, image digest, runtime family
+- default ports and currently exposed route URLs
+- route mode, base domain, public scheme, and default access mode
+- egress mode, presets, custom allow/deny lists, and rule count
+- file artifact size, command timeout, and terminal attach ticket TTL
+- sandbox TTL and lifecycle timestamps
+- active provider kind, provider sandbox ID, and capability states
+
+External apps should read those values from the API/SDK instead of deriving
+them from template names or OpenSandbox internals.
+
 ## Error Envelope
 
 API errors use one flat machine-readable envelope:
@@ -118,7 +136,8 @@ API errors use one flat machine-readable envelope:
 Sandbox runtime endpoints publish their stable code vocabulary in the OpenAPI
 component `SandboxRuntimeApiErrorCode` and in `@h-sandbox/sdk` as
 `sandboxRuntimeApiErrorCodes`. SDK integrations should branch on `error.code`
-or the SDK error subclass, not on text messages.
+or the SDK error subclass, not on text messages. See [errors.md](errors.md) for
+retry guidance and common fixes.
 
 ## Organization Members
 
@@ -589,6 +608,8 @@ Response shape:
     "stdout": "",
     "stderr": "",
     "exitCode": null,
+    "finishReason": null,
+    "signal": null,
     "error": null,
     "startedAt": "2026-05-29T00:00:00.000Z",
     "finishedAt": null,
@@ -619,6 +640,9 @@ provider supports it. `tail` is provider-neutral and trims the returned stdout
 and stderr to the last N lines. Responses include `stdoutTruncated` and
 `stderrTruncated` when a tail value was applied.
 
+See [processes.md](processes.md) for SDK process aliases, CLI wait/tail
+commands, command-ended errors, and the recommended reattach pattern.
+
 ## Files And Artifacts
 
 List, read, and write ordinary files:
@@ -638,7 +662,10 @@ curl -X PUT $HARAKIRI_API_URL/v1/sandboxes/sbx_x/files \
 
 Use artifact endpoints for binary payloads. Upload accepts canonical base64,
 validates decoded size, and verifies `sha256` when provided. The default
-decoded limit is `SANDBOX_FILE_ARTIFACT_MAX_BYTES=16777216`.
+decoded limit is `SANDBOX_FILE_ARTIFACT_MAX_BYTES=16777216`. Upload and
+download responses include `transfer.mode=json-base64`,
+`transfer.encoding=base64`, and `transfer.maxBytes` so clients can present the
+active limit and reject unsupported transfer modes.
 
 ```bash
 curl -X POST $HARAKIRI_API_URL/v1/sandboxes/sbx_x/files/upload \
@@ -656,12 +683,17 @@ curl "$HARAKIRI_API_URL/v1/sandboxes/sbx_x/files/download?path=/workspace/input.
   -H "x-api-key: $HK_KEY"
 ```
 
+See [filesystem-artifacts.md](filesystem-artifacts.md) for path behavior,
+checksum rules, provider degraded states, and SDK/CLI examples.
+
 ## Expose Port
 
 Routes are explicit and idempotent per sandbox/port. In k0s, Harakiri stores the
 route in the control plane and uses OpenSandbox to expose the upstream port.
 Route creation validates port `1..65535` and enforces
 `SANDBOX_MAX_ROUTES_PER_SANDBOX` plus `SANDBOX_MAX_ROUTES_PER_ORG`.
+See [routes.md](routes.md) for adapter cache guidance, CLI wait/open options,
+and cleanup behavior.
 
 The default `accessMode` is `public`, which returns the direct OpenSandbox
 preview URL. `accessMode: "token"` returns a Harakiri proxy URL and a route

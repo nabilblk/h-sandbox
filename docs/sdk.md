@@ -77,6 +77,31 @@ to the same public API methods as `HarakiriClient`, so error subclasses and API
 contracts remain identical. Use `harakiri.sandboxes.wrap(summary)` when a list
 or create response already returned a `SandboxSummary`.
 
+## Runtime Metadata
+
+Every sandbox summary includes a typed `runtimeMetadata` object. Use it instead
+of guessing work directories, default ports, shell, egress state, route defaults,
+or provider capability support from template names.
+
+```ts
+const sandbox = await harakiri.sandboxes.create({
+  template: "open-agents-dev",
+  wait: true
+});
+
+const metadata = sandbox.runtimeMetadata;
+console.log(metadata.workdir);
+console.log(metadata.template.versionId);
+console.log(metadata.ports.default);
+console.log(metadata.provider.capabilities);
+```
+
+`runtimeMetadata` is also present on raw `SandboxSummary` objects returned by
+`createSandbox`, `getSandbox`, and `listSandboxes`. It includes the resolved
+template ID/version/digest, runtime family, user, shell, workdir, default and
+exposed ports, route policy defaults, egress mode/rule count, artifact and
+command timeout limits, TTL timestamps, and provider capability states.
+
 ## Runtime Capabilities
 
 External apps can inspect the active runtime provider before enabling advanced
@@ -248,10 +273,12 @@ await harakiri.files.rename(sandbox.id, {
 });
 ```
 
-Use artifact helpers when moving binary payloads through JSON:
+Use artifact helpers when moving binary payloads through JSON. `files.upload`
+and `files.download` remain compatible aliases, but `artifacts.*` communicates
+that the operation is checksum-verified binary transfer:
 
 ```ts
-await harakiri.files.upload(sandbox.id, {
+await harakiri.artifacts.upload(sandbox.id, {
   path: "/workspace/input.tar.gz",
   contentBase64: archive.toString("base64"),
   sizeBytes: archive.byteLength,
@@ -259,12 +286,14 @@ await harakiri.files.upload(sandbox.id, {
   createParents: true
 });
 
-const artifact = await harakiri.files.download(sandbox.id, "/workspace/input.tar.gz");
+const artifact = await harakiri.artifacts.download(sandbox.id, "/workspace/input.tar.gz");
+console.log(artifact.sha256, artifact.transfer.maxBytes);
 ```
 
 Artifact upload/download is base64 encoded and limited by
 `SANDBOX_FILE_ARTIFACT_MAX_BYTES`, which defaults to 16 MiB. The API validates
-decoded size and optional `sha256` before writing.
+decoded size and optional `sha256` before writing, and every response includes
+`transfer.mode`, `transfer.encoding`, and `transfer.maxBytes`.
 
 ## Preview Routes
 

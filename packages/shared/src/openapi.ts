@@ -284,6 +284,60 @@ const schemas: Record<string, JsonSchema> = {
   PatchSandboxSourceBody: objectSchema({
     source: { oneOf: [ref("SandboxSourceProvenance"), { type: "null" }] }
   }, ["source"]),
+  SandboxRuntimeRouteMetadata: objectSchema({
+    port: integer,
+    protocol: { type: "string", enum: ["http", "https"] },
+    accessMode: { type: "string", enum: ["public", "token"] },
+    state: { type: "string", enum: ["provisioning", "ready", "unhealthy", "terminated"] },
+    host: string,
+    url: string,
+    labels: arrayOf(string)
+  }),
+  SandboxRuntimeMetadata: objectSchema({
+    workdir: string,
+    user: string,
+    shell: string,
+    template: objectSchema({
+      id: string,
+      versionId: nullableString,
+      imageDigest: nullableString,
+      runtimeFamily: string
+    }),
+    ports: objectSchema({
+      default: arrayOf(integer),
+      exposed: arrayOf(ref("SandboxRuntimeRouteMetadata"))
+    }),
+    routes: objectSchema({
+      mode: string,
+      baseDomain: string,
+      publicScheme: string,
+      defaultAccessMode: { type: "string", enum: ["public", "token"] },
+      maxRoutesPerSandbox: integer,
+      maxRoutesPerOrg: integer
+    }),
+    egress: objectSchema({
+      mode: { type: "string", enum: ["open", "restricted", "blocked", "custom"] },
+      presets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),
+      allow: arrayOf(string),
+      deny: arrayOf(string),
+      ruleCount: integer
+    }),
+    limits: objectSchema({
+      fileArtifactMaxBytes: integer,
+      commandTimeoutMs: integer,
+      terminalAttachTicketTtlSeconds: integer
+    }),
+    lifecycle: objectSchema({
+      ttlSeconds: integer,
+      expiresAt: { type: ["string", "null"], format: "date-time" },
+      createdAt: dateTime
+    }),
+    provider: objectSchema({
+      kind: string,
+      sandboxId: nullableString,
+      capabilities: arrayOf(ref("RuntimeCapabilitySummary"))
+    })
+  }),
   SandboxSummary: objectSchema({
     id: string,
     opensandboxId: nullableString,
@@ -302,8 +356,9 @@ const schemas: Record<string, JsonSchema> = {
     templateImageDigest: nullableString,
     egressPolicy: ref("EgressPolicyInput"),
     source: { oneOf: [ref("SandboxSourceProvenance"), { type: "null" }] },
-    createdAt: dateTime
-  }, ["id", "name", "template", "status", "cpu", "mem", "started", "owner", "cost", "ttlSeconds", "expiresAt", "publicUrl", "createdAt"]),
+    createdAt: dateTime,
+    runtimeMetadata: ref("SandboxRuntimeMetadata")
+  }, ["id", "name", "template", "status", "cpu", "mem", "started", "owner", "cost", "ttlSeconds", "expiresAt", "publicUrl", "createdAt", "runtimeMetadata"]),
   SandboxOperationSummary: objectSchema({
     id: string,
     sandboxId: nullableString,
@@ -415,6 +470,8 @@ const schemas: Record<string, JsonSchema> = {
     stdout: string,
     stderr: string,
     exitCode: { type: ["integer", "null"] },
+    finishReason: { type: ["string", "null"], enum: ["exit", "error", "killed", "timeout", "unknown", null] },
+    signal: nullableString,
     error: nullableString,
     startedAt: { type: ["string", "null"], format: "date-time" },
     finishedAt: { type: ["string", "null"], format: "date-time" },
@@ -486,17 +543,24 @@ const schemas: Record<string, JsonSchema> = {
     createParents: boolean,
     mode: string
   }, ["path", "contentBase64"]),
+  SandboxFileTransferMetadata: objectSchema({
+    mode: { type: "string", enum: ["json-base64"] },
+    encoding: { type: "string", enum: ["base64"] },
+    maxBytes: integer
+  }, ["mode", "encoding", "maxBytes"]),
   SandboxFileUploadResponse: objectSchema({
     file: ref("SandboxFileEntry"),
     sizeBytes: integer,
-    sha256: string
-  }, ["file", "sizeBytes", "sha256"]),
+    sha256: string,
+    transfer: ref("SandboxFileTransferMetadata")
+  }, ["file", "sizeBytes", "sha256", "transfer"]),
   SandboxFileDownloadResponse: objectSchema({
     path: string,
     contentBase64: string,
     sizeBytes: integer,
-    sha256: string
-  }, ["path", "contentBase64", "sizeBytes", "sha256"]),
+    sha256: string,
+    transfer: ref("SandboxFileTransferMetadata")
+  }, ["path", "contentBase64", "sizeBytes", "sha256", "transfer"]),
   SandboxFileMkdirBody: objectSchema({
     path: string,
     recursive: boolean

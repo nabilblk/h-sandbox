@@ -276,6 +276,62 @@ export type PatchSandboxSourceBody = {
   source: SandboxSourceProvenance | null;
 };
 
+export type SandboxRuntimeRouteMetadata = {
+  port: number;
+  protocol: "http" | "https";
+  accessMode: SandboxRouteAccessMode;
+  state: SandboxRouteState;
+  host: string;
+  url: string;
+  labels: string[];
+};
+
+export type SandboxRuntimeMetadata = {
+  workdir: string;
+  user: string;
+  shell: string;
+  template: {
+    id: string;
+    versionId: string | null;
+    imageDigest: string | null;
+    runtimeFamily: string;
+  };
+  ports: {
+    default: number[];
+    exposed: SandboxRuntimeRouteMetadata[];
+  };
+  routes: {
+    mode: string;
+    baseDomain: string;
+    publicScheme: string;
+    defaultAccessMode: SandboxRouteAccessMode;
+    maxRoutesPerSandbox: number;
+    maxRoutesPerOrg: number;
+  };
+  egress: {
+    mode: EgressMode;
+    presets: EgressPresetId[];
+    allow: string[];
+    deny: string[];
+    ruleCount: number;
+  };
+  limits: {
+    fileArtifactMaxBytes: number;
+    commandTimeoutMs: number;
+    terminalAttachTicketTtlSeconds: number;
+  };
+  lifecycle: {
+    ttlSeconds: number;
+    expiresAt: string | null;
+    createdAt: string;
+  };
+  provider: {
+    kind: string;
+    sandboxId: string | null;
+    capabilities: RuntimeCapabilitySummary[];
+  };
+};
+
 export type SandboxSummary = {
   id: string;
   opensandboxId?: string | null;
@@ -295,6 +351,7 @@ export type SandboxSummary = {
   egressPolicy?: EgressPolicyInput | null;
   source?: SandboxSourceProvenance | null;
   createdAt: string;
+  runtimeMetadata: SandboxRuntimeMetadata;
 };
 
 export type SandboxOperationSummary = {
@@ -385,9 +442,18 @@ export type SandboxRoutesResponse = {
 
 export const runtimeCapabilityNames = [
   "lifecycle",
+  "lifecycleRenew",
+  "lifecycleKill",
+  "lifecycleReconnect",
+  "lifecyclePause",
+  "lifecycleResume",
+  "lifecycleSnapshot",
   "commandRun",
   "commands",
+  "detachedCommands",
   "commandLogs",
+  "commandLogTail",
+  "commandKill",
   "terminalAttach",
   "terminalResize",
   "shellSessions",
@@ -950,6 +1016,8 @@ export type SandboxCommandSummary = {
   stdout: string;
   stderr: string;
   exitCode: number | null;
+  finishReason: "exit" | "error" | "killed" | "timeout" | "unknown" | null;
+  signal: string | null;
   error: string | null;
   startedAt: string | null;
   finishedAt: string | null;
@@ -1048,10 +1116,17 @@ export type SandboxFileUploadBody = {
   mode?: string;
 };
 
+export type SandboxFileTransferMetadata = {
+  mode: "json-base64";
+  encoding: "base64";
+  maxBytes: number;
+};
+
 export type SandboxFileUploadResponse = {
   file: SandboxFileEntry;
   sizeBytes: number;
   sha256: string;
+  transfer: SandboxFileTransferMetadata;
 };
 
 export type SandboxFileDownloadResponse = {
@@ -1059,6 +1134,7 @@ export type SandboxFileDownloadResponse = {
   contentBase64: string;
   sizeBytes: number;
   sha256: string;
+  transfer: SandboxFileTransferMetadata;
 };
 
 export type SandboxFileMkdirBody = {

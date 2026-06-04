@@ -9255,6 +9255,295 @@
         ],
         "additionalProperties": false
       },
+      "SandboxRuntimeRouteMetadata": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "http",
+              "https"
+            ]
+          },
+          "accessMode": {
+            "type": "string",
+            "enum": [
+              "public",
+              "token"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "ready",
+              "unhealthy",
+              "terminated"
+            ]
+          },
+          "host": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "port",
+          "protocol",
+          "accessMode",
+          "state",
+          "host",
+          "url",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxRuntimeMetadata": {
+        "type": "object",
+        "properties": {
+          "workdir": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "shell": {
+            "type": "string"
+          },
+          "template": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "versionId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "imageDigest": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "runtimeFamily": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "versionId",
+              "imageDigest",
+              "runtimeFamily"
+            ],
+            "additionalProperties": false
+          },
+          "ports": {
+            "type": "object",
+            "properties": {
+              "default": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "exposed": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/SandboxRuntimeRouteMetadata"
+                }
+              }
+            },
+            "required": [
+              "default",
+              "exposed"
+            ],
+            "additionalProperties": false
+          },
+          "routes": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string"
+              },
+              "baseDomain": {
+                "type": "string"
+              },
+              "publicScheme": {
+                "type": "string"
+              },
+              "defaultAccessMode": {
+                "type": "string",
+                "enum": [
+                  "public",
+                  "token"
+                ]
+              },
+              "maxRoutesPerSandbox": {
+                "type": "integer"
+              },
+              "maxRoutesPerOrg": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "mode",
+              "baseDomain",
+              "publicScheme",
+              "defaultAccessMode",
+              "maxRoutesPerSandbox",
+              "maxRoutesPerOrg"
+            ],
+            "additionalProperties": false
+          },
+          "egress": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "restricted",
+                  "blocked",
+                  "custom"
+                ]
+              },
+              "presets": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "python-package-install",
+                    "node-package-install",
+                    "git-hosting",
+                    "llm-apis",
+                    "browser-basic"
+                  ]
+                }
+              },
+              "allow": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "deny": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ruleCount": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "mode",
+              "presets",
+              "allow",
+              "deny",
+              "ruleCount"
+            ],
+            "additionalProperties": false
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "fileArtifactMaxBytes": {
+                "type": "integer"
+              },
+              "commandTimeoutMs": {
+                "type": "integer"
+              },
+              "terminalAttachTicketTtlSeconds": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "fileArtifactMaxBytes",
+              "commandTimeoutMs",
+              "terminalAttachTicketTtlSeconds"
+            ],
+            "additionalProperties": false
+          },
+          "lifecycle": {
+            "type": "object",
+            "properties": {
+              "ttlSeconds": {
+                "type": "integer"
+              },
+              "expiresAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "ttlSeconds",
+              "expiresAt",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          },
+          "provider": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string"
+              },
+              "sandboxId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "capabilities": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/RuntimeCapabilitySummary"
+                }
+              }
+            },
+            "required": [
+              "kind",
+              "sandboxId",
+              "capabilities"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "workdir",
+          "user",
+          "shell",
+          "template",
+          "ports",
+          "routes",
+          "egress",
+          "limits",
+          "lifecycle",
+          "provider"
+        ],
+        "additionalProperties": false
+      },
       "SandboxSummary": {
         "type": "object",
         "properties": {
@@ -9342,6 +9631,9 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "runtimeMetadata": {
+            "$ref": "#/components/schemas/SandboxRuntimeMetadata"
           }
         },
         "required": [
@@ -9357,7 +9649,8 @@
           "ttlSeconds",
           "expiresAt",
           "publicUrl",
-          "createdAt"
+          "createdAt",
+          "runtimeMetadata"
         ],
         "additionalProperties": false
       },
@@ -9816,6 +10109,26 @@
               "null"
             ]
           },
+          "finishReason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "exit",
+              "error",
+              "killed",
+              "timeout",
+              "unknown",
+              null
+            ]
+          },
+          "signal": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "error": {
             "type": [
               "string",
@@ -9859,6 +10172,8 @@
           "stdout",
           "stderr",
           "exitCode",
+          "finishReason",
+          "signal",
           "error",
           "startedAt",
           "finishedAt",
@@ -10172,6 +10487,32 @@
         ],
         "additionalProperties": false
       },
+      "SandboxFileTransferMetadata": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "json-base64"
+            ]
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "base64"
+            ]
+          },
+          "maxBytes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode",
+          "encoding",
+          "maxBytes"
+        ],
+        "additionalProperties": false
+      },
       "SandboxFileUploadResponse": {
         "type": "object",
         "properties": {
@@ -10183,12 +10524,16 @@
           },
           "sha256": {
             "type": "string"
+          },
+          "transfer": {
+            "$ref": "#/components/schemas/SandboxFileTransferMetadata"
           }
         },
         "required": [
           "file",
           "sizeBytes",
-          "sha256"
+          "sha256",
+          "transfer"
         ],
         "additionalProperties": false
       },
@@ -10206,13 +10551,17 @@
           },
           "sha256": {
             "type": "string"
+          },
+          "transfer": {
+            "$ref": "#/components/schemas/SandboxFileTransferMetadata"
           }
         },
         "required": [
           "path",
           "contentBase64",
           "sizeBytes",
-          "sha256"
+          "sha256",
+          "transfer"
         ],
         "additionalProperties": false
       },

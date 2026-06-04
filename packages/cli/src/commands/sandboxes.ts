@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import type { Command } from "commander";
 import WebSocket, { type RawData } from "ws";
@@ -29,6 +30,42 @@ const terminalAttachUrl = (apiUrl: string, sandboxId: string, query: Record<stri
   }
   return url.toString();
 };
+
+const lifecycleCapabilityNames = new Set([
+  "lifecycle",
+  "lifecycleRenew",
+  "lifecycleKill",
+  "lifecycleReconnect",
+  "lifecyclePause",
+  "lifecycleResume",
+  "lifecycleSnapshot"
+]);
+
+const printJson = (value: unknown) => {
+  console.log(JSON.stringify(value, null, 2));
+};
+
+const sha256Digest = (content: Buffer) => `sha256:${createHash("sha256").update(content).digest("hex")}`;
+
+const commandStatusLine = (command: {
+  id: string;
+  status: string;
+  exitCode: number | null;
+  finishReason?: string | null;
+  signal?: string | null;
+  detached?: boolean;
+  providerCommandId?: string | null;
+  command: string;
+}) => [
+  command.id,
+  command.status,
+  command.detached ? "detached" : "foreground",
+  `exit=${command.exitCode ?? "-"}`,
+  command.finishReason ? `reason=${command.finishReason}` : null,
+  command.signal ? `signal=${command.signal}` : null,
+  command.providerCommandId ? `provider=${command.providerCommandId}` : null,
+  command.command
+].filter(Boolean).join("\t");
 
 const attachToSandbox = async (
   id: string,
@@ -255,10 +292,37 @@ export const registerSandboxCommands = (program: Command) => {
     .command("status")
     .argument("<id>", "sandbox id")
     .description("Show sandbox status")
-    .action(async (id) => {
+    .option("--json", "print sandbox status as JSON")
+    .action(async (id, options: { json?: boolean }) => {
       const client = await apiClient();
       const result = await client.getSandbox(id);
-      console.log(`${result.sandbox.id} ${result.sandbox.status} ${result.sandbox.template} ${result.sandbox.publicUrl ?? ""}`.trim());
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      const runtime = result.sandbox.runtimeMetadata;
+      console.log(`${result.sandbox.id}\t${result.sandbox.status}\t${result.sandbox.template}`);
+      console.log(`created-at\t${result.sandbox.createdAt}`);
+      console.log(`ttl-seconds\t${result.sandbox.ttlSeconds}`);
+      console.log(`expires-at\t${result.sandbox.expiresAt ?? "-"}`);
+      if (!runtime) {
+        if (result.sandbox.publicUrl) console.log(`url\t${result.sandbox.publicUrl}`);
+        return;
+      }
+      console.log(`workdir\t${runtime.workdir}`);
+      console.log(`user\t${runtime.user}`);
+      console.log(`shell\t${runtime.shell}`);
+      console.log(`template-version\t${runtime.template.versionId ?? "-"}`);
+      console.log(`default-ports\t${runtime.ports.default.length ? runtime.ports.default.join(",") : "-"}`);
+      console.log(`exposed-ports\t${runtime.ports.exposed.length ? runtime.ports.exposed.map((route) => `${route.port}:${route.url}`).join(",") : "-"}`);
+      console.log(`egress\t${runtime.egress.mode} (${runtime.egress.ruleCount} rules)`);
+      console.log(`provider\t${runtime.provider.kind}`);
+      console.log(`provider-sandbox\t${runtime.provider.sandboxId ?? "-"}`);
+      console.log(`lifecycle\tcreated=${runtime.lifecycle.createdAt}\texpires=${runtime.lifecycle.expiresAt ?? "-"}\tttl=${runtime.lifecycle.ttlSeconds}`);
+      const lifecycleCapabilities = runtime.provider.capabilities.filter((capability) => lifecycleCapabilityNames.has(capability.name));
+      for (const capability of lifecycleCapabilities) {
+        console.log(`capability.${capability.name}\t${capability.state}\t${capability.contract}\t${capability.reason ?? "-"}`);
+      }
     });
 
   program
@@ -445,17 +509,25 @@ export const registerSandboxCommands = (program: Command) => {
     .requiredOption("--from <file>", "local file to upload")
     .option("--mode <mode>", "file mode, for example 0644")
     .option("--parents", "create parent directories")
+    .option("--json", "print JSON")
     .description("Upload a local artifact into a sandbox")
     .action(async (id, options) => {
       const content = await readFile(options.from);
+      const sha256 = sha256Digest(content);
       const client = await apiClient();
       const result = await client.uploadSandboxFile(id, {
         path: options.path,
         contentBase64: content.toString("base64"),
         sizeBytes: content.byteLength,
+        sha256,
         mode: options.mode,
         createParents: options.parents
       });
+      if (result.sha256 !== sha256) throw new Error(`uploaded artifact checksum mismatch: expected ${sha256}, got ${result.sha256}`);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
       console.log(`${result.file.type}\t${result.sizeBytes}\t${result.sha256}\t${result.file.path}`);
     });
 
@@ -464,14 +536,25 @@ export const registerSandboxCommands = (program: Command) => {
     .argument("<id>", "sandbox id")
     .requiredOption("--path <path>", "source path inside the sandbox")
     .option("--to <file>", "local destination; stdout is used when omitted")
+    .option("--json", "print JSON metadata instead of file bytes")
     .description("Download a sandbox artifact")
     .action(async (id, options) => {
       const client = await apiClient();
       const result = await client.downloadSandboxFile(id, options.path);
       const content = Buffer.from(result.contentBase64, "base64");
+      const sha256 = sha256Digest(content);
+      if (sha256 !== result.sha256) throw new Error(`downloaded artifact checksum mismatch: expected ${result.sha256}, got ${sha256}`);
       if (options.to) {
         await writeFile(options.to, content);
+        if (options.json) {
+          printJson({ ...result, contentBase64: undefined, localPath: options.to });
+          return;
+        }
         console.log(`${result.sizeBytes}\t${result.sha256}\t${options.to}`);
+        return;
+      }
+      if (options.json) {
+        printJson({ ...result, contentBase64: undefined });
         return;
       }
       process.stdout.write(content);
@@ -532,6 +615,7 @@ export const registerSandboxCommands = (program: Command) => {
 
   const command = program
     .command("command")
+    .alias("process")
     .description("Manage tracked sandbox commands");
 
   command
@@ -542,6 +626,7 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--timeout-ms <ms>", "command timeout in milliseconds", parsePositiveInt)
     .option("--run-env <key=value>", "environment variable for this command; can be repeated", collectEnv, {})
     .option("--detached", "start a background command and return its command id")
+    .option("--json", "print JSON")
     .description("Start a tracked command")
     .action(async (id, options) => {
       const client = await apiClient();
@@ -553,6 +638,10 @@ export const registerSandboxCommands = (program: Command) => {
         env: Object.keys(runEnv).length ? runEnv : undefined,
         detached: options.detached
       });
+      if (options.json) {
+        printJson(result);
+        return;
+      }
       if (options.detached) {
         console.log(`${result.command.id}\t${result.command.status}\t${result.command.providerCommandId ?? ""}`.trim());
         return;
@@ -565,22 +654,56 @@ export const registerSandboxCommands = (program: Command) => {
   command
     .command("list")
     .argument("<id>", "sandbox id")
+    .option("--json", "print JSON")
     .description("List tracked commands")
-    .action(async (id) => {
+    .action(async (id, options) => {
       const client = await apiClient();
       const result = await client.listCommands(id);
-      for (const row of result.commands) console.log(`${row.id}\t${row.status}\t${row.detached ? "detached" : "foreground"}\t${row.command}`);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      for (const row of result.commands) console.log(commandStatusLine(row));
     });
 
   command
     .command("status")
     .argument("<id>", "sandbox id")
     .argument("<command-id>", "command id")
+    .option("--json", "print JSON")
     .description("Read tracked command status")
-    .action(async (id, commandId) => {
+    .action(async (id, commandId, options) => {
       const client = await apiClient();
       const result = await client.getCommand(id, commandId);
-      console.log(`${result.command.id}\t${result.command.status}\texit=${result.command.exitCode ?? "-"}\t${result.command.command}`);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log(commandStatusLine(result.command));
+    });
+
+  command
+    .command("wait")
+    .argument("<id>", "sandbox id")
+    .argument("<command-id>", "command id")
+    .option("--status <status>", "target command status; can be repeated", collectString, [])
+    .option("--timeout-ms <ms>", "maximum wait in milliseconds", parsePositiveInt)
+    .option("--interval-ms <ms>", "poll interval in milliseconds", parsePositiveInt)
+    .option("--json", "print JSON")
+    .description("Wait for a tracked command status")
+    .action(async (id, commandId, options) => {
+      const client = await apiClient();
+      const statuses = (options.status as string[] | undefined)?.length ? options.status as ["queued" | "running" | "succeeded" | "failed" | "killed"] : undefined;
+      const result = await client.waitForCommand(id, commandId, {
+        statuses,
+        timeoutMs: options.timeoutMs,
+        intervalMs: options.intervalMs
+      });
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log(commandStatusLine(result.command));
     });
 
   command
@@ -589,10 +712,36 @@ export const registerSandboxCommands = (program: Command) => {
     .argument("<command-id>", "command id")
     .option("--cursor <line>", "line cursor for detached command logs", parsePositiveInt)
     .option("--tail <lines>", "return only the last N stdout/stderr lines", parsePositiveInt)
+    .option("--json", "print JSON")
     .description("Read tracked command logs")
     .action(async (id, commandId, options) => {
       const client = await apiClient();
       const result = await client.getCommandLogs(id, commandId, { cursor: options.cursor, tail: options.tail });
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+      if (result.stdoutTruncated || result.stderrTruncated) printProgress(`tail=${result.tail} truncated=${[result.stdoutTruncated ? "stdout" : "", result.stderrTruncated ? "stderr" : ""].filter(Boolean).join(",")}`);
+      if (result.cursor !== undefined) printProgress(`cursor=${result.cursor}`);
+    });
+
+  command
+    .command("tail")
+    .argument("<id>", "sandbox id")
+    .argument("<command-id>", "command id")
+    .option("--lines <lines>", "number of stdout/stderr lines", parsePositiveInt, 100)
+    .option("--cursor <line>", "line cursor for detached command logs", parsePositiveInt)
+    .option("--json", "print JSON")
+    .description("Tail tracked command logs")
+    .action(async (id, commandId, options) => {
+      const client = await apiClient();
+      const result = await client.getCommandLogs(id, commandId, { cursor: options.cursor, tail: options.lines });
+      if (options.json) {
+        printJson(result);
+        return;
+      }
       process.stdout.write(result.stdout);
       if (result.stderr) process.stderr.write(result.stderr);
       if (result.stdoutTruncated || result.stderrTruncated) printProgress(`tail=${result.tail} truncated=${[result.stdoutTruncated ? "stdout" : "", result.stderrTruncated ? "stderr" : ""].filter(Boolean).join(",")}`);
@@ -603,10 +752,15 @@ export const registerSandboxCommands = (program: Command) => {
     .command("kill")
     .argument("<id>", "sandbox id")
     .argument("<command-id>", "command id")
+    .option("--json", "print JSON")
     .description("Interrupt a tracked command")
-    .action(async (id, commandId) => {
+    .action(async (id, commandId, options) => {
       const client = await apiClient();
       const result = await client.killCommand(id, commandId);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
       printProgress(`${result.command.id} ${result.command.status}`);
     });
 

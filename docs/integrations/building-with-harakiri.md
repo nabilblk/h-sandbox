@@ -91,7 +91,7 @@ stable Harakiri contract:
 | Stop process | `commands.kill` |
 | Write project files | `files.write` |
 | Read generated output | `files.read` |
-| Move binary artifacts | `files.upload`, `files.download` |
+| Move binary artifacts | `artifacts.upload`, `artifacts.download` (`files.upload/download` remain aliases) |
 | List workspace | `files.list` |
 | Expose web preview | `routes.expose` |
 | Restrict egress | `setOutboundAccess`, `allowDomains`, `denyDomains` |

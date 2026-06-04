@@ -1,7 +1,7 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-06-02
+Last updated: 2026-06-04
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -18,6 +18,36 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- Integration conformance checkpoint on 2026-06-04:
+  Added SDK and CLI conformance smokes that install packed package tarballs and
+  use only public package surfaces. The SDK smoke imports `@h-sandbox/sdk` from
+  a temporary consumer project; the CLI smoke installs `@h-sandbox/sdk` and
+  `@h-sandbox/cli` into a temporary npm prefix and runs the installed
+  `harakiri` binary. The flow covers sandbox create/wait/run, filesystem
+  operations, artifact upload/download checksum metadata, detached command
+  lifecycle, token route expose/list/fetch, metrics, logs, egress policy update
+  and probe, renew, and cleanup. During live testing, conformance exposed a
+  real route-proxy bug: token routes backed by OpenSandbox gateway were fetched
+  through the gateway service without the required `OpenSandbox-Ingress-To`
+  header. The API route proxy now detects `opensandbox-gateway` routes and uses
+  the internal gateway URL with the official route header. The CLI route command
+  now keeps `expose --json` stdout parseable by sending route progress to
+  stderr. Verification passed:
+  `pnpm --filter @harakiri/api test -- routes-runtime.test.ts sandbox-runtime-service.test.ts`,
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm --filter @h-sandbox/cli test -- command.test.ts`,
+  `pnpm --filter @h-sandbox/cli typecheck`,
+  `pnpm --filter @h-sandbox/cli build`,
+  `pnpm deploy:k0s`, `pnpm ports:restart && pnpm ports:status`,
+  `HARAKIRI_CONFORMANCE_ROUTE_FETCH=1 HARAKIRI_CONFORMANCE_ROUTE_BASE_URL=http://127.0.0.1:18082 pnpm conformance`,
+  `pnpm publish:local-check`, `pnpm typecheck`, and `git diff --check`. The
+  deployed API image digest was
+  `sha256:51cb54b71cb09e065c978e15917435c2e4ff3d6da615d185870d4ac5145490c9`
+  and the web image digest was
+  `sha256:2c58a18b01559bdd803ebb2f006250681e9a14232f7230aa0f0b375f0770bbb5`.
+  Local forwards for API, web, Keycloak, Mailpit, OpenSandbox, gateway, and
+  ingress HTTPS were all up, and `GET http://127.0.0.1:18082/health` returned
+  `{"status":"ok"}`.
 - OpenCode free-model live checkpoint on 2026-06-02:
   Official OpenCode Zen docs list free limited-time models including
   `opencode/deepseek-v4-flash-free`, `opencode/mimo-v2.5-free`,

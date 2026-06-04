@@ -18,10 +18,12 @@ import type {
   RunSandboxCommandSessionBody,
   RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
+  RuntimeCapabilityName,
   SandboxCommandLogsResponse,
   SandboxCommandMetadata,
   SandboxCommandResponse,
   SandboxCommandSessionResponse,
+  SandboxCommandSummary,
   SandboxCommandStatus,
   SandboxCommandsResponse,
   SandboxFilesResponse,
@@ -33,6 +35,7 @@ import type {
   SandboxFileRenameBody,
   SandboxFileRenameResponse,
   SandboxFileStatResponse,
+  SandboxFileTransferMetadata,
   SandboxFileUploadBody,
   SandboxFileUploadResponse,
   SandboxFileWriteBody,
@@ -48,6 +51,7 @@ import type {
   SandboxRouteResponse,
   SandboxRouteSummary,
   SandboxRoutesResponse,
+  SandboxRuntimeMetadata,
   SandboxStatus,
   SandboxSummary,
   SandboxTerminalAttachOptions,
@@ -108,10 +112,12 @@ export type {
   RunSandboxCommandSessionBody,
   RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
+  RuntimeCapabilityName,
   SandboxCommandLogsResponse,
   SandboxCommandMetadata,
   SandboxCommandResponse,
   SandboxCommandSessionResponse,
+  SandboxCommandSummary,
   SandboxCommandStatus,
   SandboxCommandsResponse,
   SandboxEgressResponse,
@@ -124,6 +130,7 @@ export type {
   SandboxFileRenameBody,
   SandboxFileRenameResponse,
   SandboxFileStatResponse,
+  SandboxFileTransferMetadata,
   SandboxFileUploadBody,
   SandboxFileUploadResponse,
   SandboxFileWriteBody,
@@ -138,6 +145,7 @@ export type {
   SandboxRouteResponse,
   SandboxRouteSummary,
   SandboxRoutesResponse,
+  SandboxRuntimeMetadata,
   SandboxStatus,
   SandboxSummary,
   SandboxTerminalAttachOptions,
@@ -825,6 +833,55 @@ export class HarakiriWaitTimeoutError extends Error {
   }
 }
 
+export class HarakiriCommandEndedError extends Error {
+  readonly category = "command_ended";
+  readonly retryable = false;
+
+  constructor(
+    message: string,
+    public readonly sandboxId: string,
+    public readonly commandId: string,
+    public readonly command: SandboxCommandSummary
+  ) {
+    super(message);
+    this.name = "HarakiriCommandEndedError";
+  }
+
+  get status() {
+    return this.command.status;
+  }
+
+  get exitCode() {
+    return this.command.exitCode;
+  }
+
+  get finishReason() {
+    return this.command.finishReason;
+  }
+}
+
+export class HarakiriUnsupportedLifecycleCapabilityError extends Error {
+  readonly category = "unsupported_capability";
+  readonly retryable = false;
+
+  constructor(
+    public readonly capability: Extract<RuntimeCapabilityName, "lifecyclePause" | "lifecycleResume" | "lifecycleSnapshot">,
+    message: string
+  ) {
+    super(message);
+    this.name = "HarakiriUnsupportedLifecycleCapabilityError";
+  }
+}
+
+const unsupportedLifecycleCapability = (
+  capability: Extract<RuntimeCapabilityName, "lifecyclePause" | "lifecycleResume" | "lifecycleSnapshot">,
+  action: string
+) =>
+  new HarakiriUnsupportedLifecycleCapabilityError(
+    capability,
+    `${action} is not supported by the current Harakiri/OpenSandbox lifecycle contract. Use TTL renew, reconnect/get, and kill cleanup instead.`
+  );
+
 const includesCode = (codes: readonly string[], code: string | undefined) => Boolean(code && codes.includes(code));
 const isTimeoutCode = (code: string | undefined) => includesCode(timeoutApiErrorCodes, code) || Boolean(code && /timeout|timed_out/.test(code));
 const isUnsupportedCapabilityCode = (code: string | undefined) =>
@@ -893,6 +950,18 @@ export class HarakiriSandbox {
     return this.current;
   }
 
+  get runtimeMetadata() {
+    return this.current.runtimeMetadata;
+  }
+
+  get lifecycle() {
+    return this.current.runtimeMetadata.lifecycle;
+  }
+
+  get expiresAt() {
+    return this.current.expiresAt;
+  }
+
   async refresh() {
     const result = await this.client.getSandbox(this.id);
     this.current = result.sandbox;
@@ -911,10 +980,26 @@ export class HarakiriSandbox {
     return result;
   }
 
+  reconnect() {
+    return this.refresh();
+  }
+
   async kill() {
     const result = await this.client.killSandbox(this.id);
     this.current = { ...this.current, status: "terminated" };
     return result;
+  }
+
+  pause(): never {
+    throw unsupportedLifecycleCapability("lifecyclePause", "Sandbox pause");
+  }
+
+  resume(): never {
+    throw unsupportedLifecycleCapability("lifecycleResume", "Sandbox resume");
+  }
+
+  snapshot(): never {
+    throw unsupportedLifecycleCapability("lifecycleSnapshot", "Sandbox snapshot");
   }
 
   run(input: RunSandboxInput) {
@@ -944,6 +1029,16 @@ export class HarakiriSandbox {
     }
   };
 
+  readonly processes = {
+    start: (input: CreateSandboxCommandInput) => this.client.processes.start(this.id, { ...input, detached: input.detached ?? true }),
+    list: () => this.client.processes.list(this.id),
+    get: (processId: string) => this.client.processes.get(this.id, processId),
+    logs: (processId: string, options: GetCommandLogsOptions = {}) => this.client.processes.logs(this.id, processId, options),
+    tail: (processId: string, lines = 100) => this.client.processes.tail(this.id, processId, lines),
+    wait: (processId: string, options: WaitForCommandOptions = {}) => this.client.processes.wait(this.id, processId, options),
+    kill: (processId: string) => this.client.processes.kill(this.id, processId)
+  };
+
   readonly terminal = {
     attachUrl: (options: TerminalAttachOptions = {}) => this.client.terminal.attachUrl(this.id, options),
     attachRequest: (options: TerminalAttachOptions = {}) => this.client.terminal.attachRequest(this.id, options),
@@ -960,6 +1055,11 @@ export class HarakiriSandbox {
     rename: (input: SandboxFileRenameBody) => this.client.files.rename(this.id, input),
     upload: (input: SandboxFileUploadBody) => this.client.files.upload(this.id, input),
     download: (path: string) => this.client.files.download(this.id, path)
+  };
+
+  readonly artifacts = {
+    upload: (input: SandboxFileUploadBody) => this.client.artifacts.upload(this.id, input),
+    download: (path: string) => this.client.artifacts.download(this.id, path)
   };
 
   readonly routes = {
@@ -1031,6 +1131,16 @@ export class HarakiriClient {
     }
   };
 
+  readonly processes = {
+    start: (id: string, input: CreateSandboxCommandInput) => this.startCommand(id, { ...input, detached: input.detached ?? true }),
+    list: (id: string) => this.listCommands(id),
+    get: (id: string, processId: string) => this.getCommand(id, processId),
+    logs: (id: string, processId: string, options: GetCommandLogsOptions = {}) => this.getCommandLogs(id, processId, options),
+    tail: (id: string, processId: string, lines = 100) => this.getCommandLogs(id, processId, { tail: lines }),
+    wait: (id: string, processId: string, options: WaitForCommandOptions = {}) => this.waitForCommand(id, processId, options),
+    kill: (id: string, processId: string) => this.killCommand(id, processId)
+  };
+
   readonly terminal = {
     attachUrl: (id: string, options: TerminalAttachOptions = {}) => this.createTerminalAttachUrl(id, options),
     attachRequest: (id: string, options: TerminalAttachOptions = {}) => this.createTerminalAttachRequest(id, options),
@@ -1045,6 +1155,11 @@ export class HarakiriClient {
     mkdir: (id: string, input: SandboxFileMkdirBody) => this.mkdirSandboxFile(id, input),
     remove: (id: string, path: string, options: { recursive?: boolean } = {}) => this.removeSandboxFile(id, path, options),
     rename: (id: string, input: SandboxFileRenameBody) => this.renameSandboxFile(id, input),
+    upload: (id: string, input: SandboxFileUploadBody) => this.uploadSandboxFile(id, input),
+    download: (id: string, path: string) => this.downloadSandboxFile(id, path)
+  };
+
+  readonly artifacts = {
     upload: (id: string, input: SandboxFileUploadBody) => this.uploadSandboxFile(id, input),
     download: (id: string, path: string) => this.downloadSandboxFile(id, path)
   };
@@ -1085,9 +1200,19 @@ export class HarakiriClient {
     wrap: (sandbox: SandboxSummary) => HarakiriSandbox.wrap(this, sandbox),
     list: (params = "") => this.listSandboxes(params),
     get: (id: string) => this.getSandbox(id),
+    reconnect: (id: string) => HarakiriSandbox.connect(this, id),
     wait: (id: string, options: WaitForSandboxOptions = {}) => this.waitForSandbox(id, options),
     renew: (id: string) => this.renewSandbox(id),
-    kill: (id: string) => this.killSandbox(id)
+    kill: (id: string) => this.killSandbox(id),
+    pause: (_id: string) => {
+      throw unsupportedLifecycleCapability("lifecyclePause", "Sandbox pause");
+    },
+    resume: (_id: string) => {
+      throw unsupportedLifecycleCapability("lifecycleResume", "Sandbox resume");
+    },
+    snapshot: (_id: string) => {
+      throw unsupportedLifecycleCapability("lifecycleSnapshot", "Sandbox snapshot");
+    }
   };
 
   private async request<T>(path: string, init: RequestInit = {}) {
@@ -1577,7 +1702,7 @@ export class HarakiriClient {
       last = await this.getCommand(id, commandId);
       if (targetStatuses.has(last.command.status)) return last;
       if (!options.statuses && (last.command.status === "failed" || last.command.status === "killed")) {
-        throw new Error(`Command ${commandId} reached ${last.command.status} before succeeding`);
+        throw new HarakiriCommandEndedError(`Command ${commandId} reached ${last.command.status} before succeeding`, id, commandId, last.command);
       }
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }

@@ -6,6 +6,7 @@ import {
   type SandboxCommandSummary,
   type SandboxEgressResponse,
   type SandboxFileEntry,
+  type SandboxRouteAccessMode,
   type SandboxRouteSummary,
   type SandboxSummary,
   type TestSandboxEgressResponse
@@ -23,7 +24,59 @@ export const SandboxDetailRoute = ({ id, go }: { id: string; go: GoToRoute }) =>
   const [tab, setTab] = useState("terminal");
   useEffect(() => { api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, [id]);
   if (!sandbox) return <div className="dash-page">Loading...</div>;
-  return <div className="detail"><aside className="dash-side" style={{ padding: "16px 0" }}><div className="dash-side-brand" style={{ padding: "6px 20px 16px" }}><Brand /></div><div style={{ padding: "0 12px 12px" }}><button className="btn btn-sm" style={{ width: "100%" }} onClick={() => go("dashboard/sandboxes")}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> All sandboxes</button></div></aside><main className="detail-main"><div className="detail-top"><div style={{ display: "flex", alignItems: "baseline", gap: 10, flex: 1 }}><span className="detail-name">{sandbox.name}</span><span className="detail-id">{sandbox.id}</span><span className={`pill ${sandbox.status === "running" ? "live" : ""}`}><span className="dot" /> {sandbox.status}</span><span className="tag">{sandbox.template}</span></div><button className="btn btn-sm" style={{ color: "var(--err)" }} onClick={() => api.killSandbox(sandbox.id).then(() => api.sandbox(id).then((r) => setSandbox(r.sandbox)))}><Icon name="stop" size={11} /> Kill</button></div><div className="detail-tabs">{[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"]].map(([k, label, icon]) => <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}><Icon name={icon} size={12} /> {label}</button>)}</div><div className="detail-body">{tab === "terminal" ? <TerminalPane sandbox={sandbox} /> : null}{tab === "files" ? <FilesPane id={sandbox.id} /> : null}{tab === "logs" ? <LogsPane id={sandbox.id} /> : null}{tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}{tab === "network" ? <NetworkPane sandbox={sandbox} /> : null}</div></main></div>;
+  const refreshSandbox = () => api.sandbox(id).then((r) => setSandbox(r.sandbox));
+  const isActive = sandbox.status === "running" || sandbox.status === "idle" || sandbox.status === "pending";
+  return (
+    <div className="detail">
+      <aside className="dash-side" style={{ padding: "16px 0" }}>
+        <div className="dash-side-brand" style={{ padding: "6px 20px 16px" }}><Brand /></div>
+        <div style={{ padding: "0 12px 12px" }}>
+          <button className="btn btn-sm" style={{ width: "100%" }} onClick={() => go("dashboard/sandboxes")}>
+            <Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> All sandboxes
+          </button>
+        </div>
+      </aside>
+      <main className="detail-main">
+        <div className="detail-top">
+          <div className="detail-title-wrap">
+            <div className="detail-title-line">
+              <span className="detail-name">{sandbox.name}</span>
+              <span className="detail-id">{sandbox.id}</span>
+              <span className={`pill ${sandbox.status === "running" ? "live" : ""}`}><span className="dot" /> {sandbox.status}</span>
+              <span className="tag">{sandbox.template}</span>
+            </div>
+            <div className="detail-lifecycle-line">
+              <span>TTL {sandbox.ttlSeconds}s</span>
+              <span>expires {sandbox.expiresAt ? formatDateTime(sandbox.expiresAt) : "-"}</span>
+              <span>created {formatDateTime(sandbox.createdAt)}</span>
+            </div>
+          </div>
+          <div className="detail-actions">
+            <button className="btn btn-sm" disabled={!isActive} onClick={() => api.renewSandbox(sandbox.id).then(refreshSandbox)}>
+              <Icon name="refresh" size={12} /> Renew
+            </button>
+            <button className="btn btn-sm" style={{ color: "var(--err)" }} disabled={sandbox.status === "terminated"} onClick={() => api.killSandbox(sandbox.id).then(refreshSandbox)}>
+              <Icon name="stop" size={11} /> Kill
+            </button>
+          </div>
+        </div>
+        <div className="detail-tabs">
+          {[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"]].map(([k, label, icon]) => (
+            <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
+              <Icon name={icon} size={12} /> {label}
+            </button>
+          ))}
+        </div>
+        <div className="detail-body">
+          {tab === "terminal" ? <TerminalPane sandbox={sandbox} /> : null}
+          {tab === "files" ? <FilesPane id={sandbox.id} /> : null}
+          {tab === "logs" ? <LogsPane id={sandbox.id} /> : null}
+          {tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}
+          {tab === "network" ? <NetworkPane sandbox={sandbox} /> : null}
+        </div>
+      </main>
+    </div>
+  );
 };
 
 type TerminalLine = { kind: "cmd" | "stdout" | "stderr" | "muted" | "ok"; text: string };
@@ -53,8 +106,16 @@ const commandRuntime = (command: SandboxCommandSummary) => {
   return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
 };
 
+const commandOutcome = (command: SandboxCommandSummary) => {
+  const runtime = commandRuntime(command);
+  if (command.exitCode !== null) return `exit ${command.exitCode} - ${runtime}`;
+  if (command.finishReason) return `${command.finishReason}${command.signal ? ` ${command.signal}` : ""} - ${runtime}`;
+  return runtime;
+};
+
 const TerminalPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
+  const runtime = sandbox.runtimeMetadata;
   const socketRef = useRef<WebSocket | null>(null);
   const [lines, setLines] = useState<TerminalLine[]>([
     { kind: "muted", text: "harakiri terminal - attaching to " + sandbox.id },
@@ -189,19 +250,21 @@ const TerminalPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
   const closeTerminal = () => {
     socketRef.current?.close(1000, "closed from dashboard");
   };
-  return <div className="term-pane"><div className="file-tree"><div className="ft-section">Terminal</div><div className="ft-row active"><Icon name="terminal" size={12} /><span className="ft-name">PTY attach</span></div><div className="ft-row"><Icon name="logs" size={12} /><span className="ft-name">stdout/stderr stream</span></div><div className="ft-section">Controls</div><button className="btn btn-sm terminal-side-action" onClick={() => setReconnectKey((value) => value + 1)}><Icon name="refresh" size={12} /> Reconnect</button><button className="btn btn-sm terminal-side-action" onClick={sendInterrupt} disabled={status !== "attached"}><Icon name="stop" size={11} /> Ctrl-C</button><button className="btn btn-sm terminal-side-action" onClick={closeTerminal} disabled={status === "closed"}>Close</button></div><div className="term" ref={terminalRef}>{lines.map((line, index) => <div key={index} className={`term-line ${line.kind}`}>{line.text}</div>)}<form className="term-input" onSubmit={submit}><input value={input} onChange={(e) => setInput(e.target.value)} autoFocus placeholder={status === "attached" ? "Run a shell command..." : "Waiting for terminal..."} disabled={status !== "attached"} /><span className="blink" style={{ color: "#e6e3da" }}>|</span></form></div><div className="detail-side"><div className="ds-section"><div className="ds-h">Connection</div><div className="ds-row"><span className="l">Status</span><span className={`pill terminal-status ${status}`}><span className="dot" /> {status}</span></div><div className="ds-row"><span className="l">Mode</span><span className="v">PTY</span></div><div className="ds-row"><span className="l">TTL</span><span className="v">{sandbox.ttlSeconds}s</span></div></div><div className="ds-section command-history"><div className="ds-h">Recent API commands</div>{commands.map((command) => <div className="command-history-row" key={command.id}><div><div className="command-history-cmd">{command.command}</div><div className="command-history-meta"><span className={`build-badge ${command.status}`}>{command.status}</span><span>{command.exitCode === null ? commandRuntime(command) : `exit ${command.exitCode} - ${commandRuntime(command)}`}</span></div></div>{commandIsRunning(command) ? <button className="btn btn-ghost btn-sm icon-only" onClick={() => void killCommand(command.id)} title="Interrupt command" aria-label="Interrupt command"><Icon name="stop" size={11} /></button> : null}</div>)}{commands.length ? null : <div className="empty-state compact">{commandsError || "Tracked commands started through the API appear here."}</div>}</div></div></div>;
+  return <div className="term-pane"><div className="file-tree"><div className="ft-section">Terminal</div><div className="ft-row active"><Icon name="terminal" size={12} /><span className="ft-name">PTY attach</span></div><div className="ft-row"><Icon name="logs" size={12} /><span className="ft-name">stdout/stderr stream</span></div><div className="ft-section">Controls</div><button className="btn btn-sm terminal-side-action" onClick={() => setReconnectKey((value) => value + 1)}><Icon name="refresh" size={12} /> Reconnect</button><button className="btn btn-sm terminal-side-action" onClick={sendInterrupt} disabled={status !== "attached"}><Icon name="stop" size={11} /> Ctrl-C</button><button className="btn btn-sm terminal-side-action" onClick={closeTerminal} disabled={status === "closed"}>Close</button></div><div className="term" ref={terminalRef}>{lines.map((line, index) => <div key={index} className={`term-line ${line.kind}`}>{line.text}</div>)}<form className="term-input" onSubmit={submit}><input value={input} onChange={(e) => setInput(e.target.value)} autoFocus placeholder={status === "attached" ? "Run a shell command..." : "Waiting for terminal..."} disabled={status !== "attached"} /><span className="blink" style={{ color: "#e6e3da" }}>|</span></form></div><div className="detail-side"><div className="ds-section"><div className="ds-h">Connection</div><div className="ds-row"><span className="l">Status</span><span className={`pill terminal-status ${status}`}><span className="dot" /> {status}</span></div><div className="ds-row"><span className="l">Mode</span><span className="v">PTY</span></div><div className="ds-row"><span className="l">TTL</span><span className="v">{sandbox.ttlSeconds}s</span></div></div><div className="ds-section"><div className="ds-h">Runtime</div><div className="ds-row"><span className="l">Workdir</span><span className="v">{runtime?.workdir ?? "/"}</span></div><div className="ds-row"><span className="l">User</span><span className="v">{runtime?.user ?? "root"}</span></div><div className="ds-row"><span className="l">Shell</span><span className="v">{runtime?.shell ?? "/bin/sh"}</span></div><div className="ds-row"><span className="l">Ports</span><span className="v">{runtime?.ports.default.length ? runtime.ports.default.join(", ") : "none"}</span></div></div><div className="ds-section command-history"><div className="ds-h">Detached commands</div>{commands.map((command) => <div className="command-history-row" key={command.id}><div><div className="command-history-cmd">{command.command}</div><div className="command-history-meta"><span className={`build-badge ${command.status}`}>{command.status}</span><span>{command.detached ? "process" : "foreground"}</span><span>{commandOutcome(command)}</span></div></div>{commandIsRunning(command) ? <button className="btn btn-ghost btn-sm icon-only" onClick={() => void killCommand(command.id)} title="Interrupt command" aria-label="Interrupt command"><Icon name="stop" size={11} /></button> : null}</div>)}{commands.length ? null : <div className="empty-state compact">{commandsError || "Detached commands started through the SDK, CLI, or API appear here."}</div>}</div></div></div>;
 };
 
 const FilesPane = ({ id }: { id: string }) => {
   const [cwd, setCwd] = useState<string | undefined>();
   const [files, setFiles] = useState<SandboxFileEntry[]>([]);
+  const [source, setSource] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const load = (path = cwd) => {
     setLoading(true);
     return api.files(id, path)
-      .then((r) => { setCwd(r.cwd); setFiles(r.files); setError(""); })
-      .catch((err) => { setFiles([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); })
+      .then((r) => { setCwd(r.cwd); setFiles(r.files); setSource(r.source ?? "provider"); setWarnings(r.warnings ?? []); setError(""); })
+      .catch((err) => { setFiles([]); setSource(""); setWarnings([]); setError(err instanceof Error ? err.message : "Filesystem unavailable"); })
       .finally(() => setLoading(false));
   };
   useEffect(() => {
@@ -212,11 +275,15 @@ const FilesPane = ({ id }: { id: string }) => {
         if (cancelled) return;
         setCwd(r.cwd);
         setFiles(r.files);
+        setSource(r.source ?? "provider");
+        setWarnings(r.warnings ?? []);
         setError("");
       })
       .catch((err) => {
         if (cancelled) return;
         setFiles([]);
+        setSource("");
+        setWarnings([]);
         setError(err instanceof Error ? err.message : "Filesystem unavailable");
       })
       .finally(() => {
@@ -229,7 +296,7 @@ const FilesPane = ({ id }: { id: string }) => {
   const parent = current === "/" ? "/" : current.split("/").slice(0, -1).join("/") || "/";
   const visibleFiles = files.slice(0, 300);
   const hiddenCount = Math.max(0, files.length - visibleFiles.length);
-  return <div className="files-pane"><div className="files-toolbar"><button className="btn btn-sm" onClick={() => setCwd(parent)} disabled={current === "/" || loading}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> Up</button><code>{current}</code><span className="files-count num">{loading ? "loading" : `${files.length} entries`}</span><button className="btn btn-ghost btn-sm" onClick={() => void load()} disabled={loading}><Icon name="refresh" size={12} /> Refresh</button></div>{hiddenCount ? <div className="files-notice">Showing first {visibleFiles.length} entries. Narrow the path before working with very large directories.</div> : null}<div className="files-table card"><div className="files-row files-head"><span>Name</span><span>Kind</span><span>Size</span><span>Modified</span><span>Path</span></div>{visibleFiles.map((f) => <button key={f.path} className={`files-row ${f.type === "directory" ? "clickable" : ""}`} onClick={() => open(f)} disabled={loading}><span className="files-name"><Icon name={f.type === "directory" ? "folder" : "file"} size={13} />{f.name}</span><span><span className="tag">{f.type}</span></span><span className="num">{formatBytes(f.size)}</span><span className="num muted">{formatDateTime(f.modifiedAt)}</span><span className="files-path">{f.path}</span></button>)}</div>{files.length ? null : <div className="empty-state">{loading ? "Loading files..." : error || "This directory is empty."}</div>}</div>;
+  return <div className="files-pane"><div className="files-toolbar"><button className="btn btn-sm" onClick={() => setCwd(parent)} disabled={current === "/" || loading}><Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> Up</button><code>{current}</code><span className="files-count num">{loading ? "loading" : `${files.length} entries`}</span>{source ? <span className="files-source tag">{source}</span> : null}<button className="btn btn-ghost btn-sm" onClick={() => void load()} disabled={loading}><Icon name="refresh" size={12} /> Refresh</button></div>{warnings.map((warning) => <div className="files-notice warning" key={warning}>{warning}</div>)}{hiddenCount ? <div className="files-notice">Showing first {visibleFiles.length} entries. Narrow the path before working with very large directories.</div> : null}<div className="files-table card"><div className="files-row files-head"><span>Name</span><span>Kind</span><span>Size</span><span>Modified</span><span>Path</span></div>{visibleFiles.map((f) => <button key={f.path} className={`files-row ${f.type === "directory" ? "clickable" : ""}`} onClick={() => open(f)} disabled={loading}><span className="files-name"><Icon name={f.type === "directory" ? "folder" : "file"} size={13} />{f.name}</span><span><span className="tag">{f.type}</span></span><span className="num">{formatBytes(f.size)}</span><span className="num muted">{formatDateTime(f.modifiedAt)}</span><span className="files-path">{f.path}</span></button>)}</div>{files.length ? null : <div className="empty-state">{loading ? "Loading files..." : error || "This directory is empty."}</div>}</div>;
 };
 
 type RuntimeLogRow = {
@@ -296,6 +363,9 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
   const [egress, setEgress] = useState<SandboxEgressResponse["egress"] | null>(null);
   const [port, setPort] = useState(3000);
   const [protocol, setProtocol] = useState<"http" | "https">("http");
+  const [accessMode, setAccessMode] = useState<SandboxRouteAccessMode>("public");
+  const [labelsText, setLabelsText] = useState("");
+  const [routeToken, setRouteToken] = useState<{ routeKey: string; url: string; headerName: string; token: string } | null>(null);
   const [allowTarget, setAllowTarget] = useState("");
   const [testTarget, setTestTarget] = useState("");
   const [testResult, setTestResult] = useState<TestSandboxEgressResponse | null>(null);
@@ -313,11 +383,29 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
   const expose = async () => {
     setBusy(true);
     setError("");
+    setRouteToken(null);
     try {
-      const result = await api.exposeRoute(sandbox.id, { port, protocol });
+      const labels = labelsText.split(",").map((label) => label.trim()).filter(Boolean);
+      const result = await api.exposeRoute(sandbox.id, { port, protocol, accessMode, labels: labels.length ? labels : undefined });
       setRoutes((current) => [...current.filter((route) => route.port !== result.route.port), result.route].sort((a, b) => a.port - b.port));
+      if (result.accessToken && result.accessHeaderName) {
+        setRouteToken({ routeKey: result.route.routeKey, url: result.route.url, headerName: result.accessHeaderName, token: result.accessToken });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed to expose route");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const deleteRoute = async (route: SandboxRouteSummary) => {
+    setBusy(true);
+    setError("");
+    try {
+      await api.deleteRoute(sandbox.id, route.port);
+      setRoutes((current) => current.filter((entry) => entry.port !== route.port));
+      if (routeToken?.routeKey === route.routeKey) setRouteToken(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "failed to delete route");
     } finally {
       setBusy(false);
     }
@@ -369,13 +457,14 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
   const allowed = egress?.rules.filter((rule) => rule.action === "allow").length ?? 0;
   const denied = egress?.rules.filter((rule) => rule.action === "deny").length ?? 0;
   const currentMode = egress?.mode ? egressModeMeta[egress.mode] : null;
+  const defaultPorts = sandbox.runtimeMetadata?.ports.default ?? [];
   return (
     <div className="network-pane">
       <section className="network-section card">
         <div className="network-section-head">
           <div>
             <div className="card-h">Inbound routes</div>
-            <div className="network-sub">Expose HTTP services running inside this sandbox.</div>
+            <div className="network-sub">Expose HTTP services running inside this sandbox.{defaultPorts.length ? ` Template ports: ${defaultPorts.join(", ")}.` : ""}</div>
           </div>
           <div className="network-toolbar">
             <select className="input network-protocol" value={protocol} onChange={(e) => setProtocol(e.target.value as "http" | "https")}>
@@ -383,19 +472,37 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
               <option value="https">HTTPS</option>
             </select>
             <input className="input mono network-port" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(Number(e.target.value))} />
+            <div className="route-access-picker" role="radiogroup" aria-label="Route access mode">
+              {(["public", "token"] as const).map((mode) => (
+                <button key={mode} type="button" role="radio" aria-checked={accessMode === mode} className={`filter-tab ${accessMode === mode ? "active" : ""}`} onClick={() => setAccessMode(mode)}>
+                  {mode === "public" ? "Public" : "Token"}
+                </button>
+              ))}
+            </div>
+            <input className="input network-labels" value={labelsText} onChange={(event) => setLabelsText(event.target.value)} placeholder="labels: preview, vite" />
             <button className="btn btn-primary btn-sm" onClick={expose} disabled={busy || sandbox.status === "terminated"}><Icon name="globe" size={12} /> {busy ? "Exposing..." : "Expose port"}</button>
           </div>
         </div>
         {error ? <div className="network-error">{error}</div> : null}
+        {routeToken ? (
+          <div className="route-token-box">
+            <div>
+              <strong>Route token shown once.</strong>
+              <span>Store this header if an external client needs to reuse the protected route.</span>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => copy(`${routeToken.headerName}: ${routeToken.token}`)}><Icon name="copy" size={12} /> Header</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => copy(routeToken.url)}><Icon name="copy" size={12} /> URL</button>
+          </div>
+        ) : null}
         <div className="network-table route-table">
-        <div className="network-row network-head"><span>Port</span><span>URL</span><span>State</span><span>Provider</span><span /></div>
+        <div className="network-row network-head"><span>Port</span><span>URL</span><span>Access</span><span>State</span><span /></div>
         {routes.map((route) => (
           <div key={`${route.port}-${route.host}`} className="network-row">
             <span className="num">{route.port}/{route.protocol}</span>
             <span className="network-url"><a href={route.url} target="_blank" rel="noreferrer">{route.url}</a><small>{route.targetUrl !== route.url ? `target ${route.targetUrl}` : route.host}</small></span>
-            <span><span className={`pill ${route.state === "ready" ? "live" : route.state === "terminated" ? "" : "idle"}`}><span className="dot" /> {route.state}</span></span>
-            <span className="tag">{route.provider}</span>
-            <span className="network-actions"><button className="btn btn-ghost btn-sm" onClick={() => copy(route.url)}><Icon name="copy" size={12} /></button><button className="btn btn-ghost btn-sm" onClick={() => window.open(route.url, "_blank", "noopener,noreferrer")}>Open <Icon name="arrowR" size={11} /></button></span>
+            <span className="route-access-cell"><span className="tag">{route.accessMode}</span>{route.tokenHint ? <small>{route.tokenHint}</small> : null}{route.labels.length ? <small>{route.labels.join(", ")}</small> : null}</span>
+            <span><span className={`pill ${route.state === "ready" ? "live" : route.state === "terminated" ? "" : "idle"}`}><span className="dot" /> {route.state}</span><small className="route-provider">{route.provider}</small></span>
+            <span className="network-actions"><button className="btn btn-ghost btn-sm" onClick={() => copy(route.url)} title="Copy route URL"><Icon name="copy" size={12} /></button><button className="btn btn-ghost btn-sm" onClick={() => window.open(route.url, "_blank", "noopener,noreferrer")}>Open <Icon name="arrowR" size={11} /></button><button className="btn btn-ghost btn-sm route-delete" disabled={busy} onClick={() => void deleteRoute(route)} title="Delete route"><Icon name="x" size={12} /></button></span>
           </div>
         ))}
         {routes.length ? null : <div className="empty-state">No exposed ports yet. Start a server on 0.0.0.0 inside the sandbox, then expose the matching port.</div>}

@@ -2,9 +2,16 @@ import { config } from "../config.js";
 import { makeId } from "../crypto.js";
 import { query as defaultQuery } from "../db.js";
 import {
+  compileEgressPolicy,
   defaultEgressPolicyInput,
+  sandboxRouteAccessModes,
+  sandboxRouteStates,
   sandboxStatuses,
   type EgressPolicyInput,
+  type SandboxRouteAccessMode,
+  type SandboxRouteState,
+  type SandboxRuntimeMetadata,
+  type SandboxRuntimeRouteMetadata,
   type SandboxOperationSummary,
   type SandboxSourceInput,
   type SandboxSourceProvenance,
@@ -30,17 +37,26 @@ import {
   type SandboxOperation
 } from "./sandbox-operations.js";
 import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
-import type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
+import { getRuntimeCapabilities, type Audit, type SandboxEventRecorder } from "./sandbox-runtime.js";
 import { redactText } from "../redaction.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
 export type SandboxSummary = SharedSandboxSummary;
 
-type SandboxRow = Omit<SharedSandboxSummary, "status" | "expiresAt" | "createdAt"> & {
+type SandboxRow = Omit<SharedSandboxSummary, "status" | "expiresAt" | "createdAt" | "runtimeMetadata" | "source"> & {
   status: string;
-  expiresAt: Date | string | null;
-  createdAt: Date | string;
-  source: unknown;
+  expiresAt?: Date | string | null;
+  createdAt?: Date | string | null;
+  source?: unknown;
+  runtimeWorkdir?: string | null;
+  runtimeDefaultPorts?: number[] | null;
+  runtimeFamily?: string | null;
+  runtimeExposedPorts?: unknown;
+};
+
+type SandboxReadDependencies = Query | {
+  query?: Query;
+  runtimeProvider?: RuntimeProvider;
 };
 
 export type SandboxListFilters = {
@@ -74,8 +90,28 @@ export const sandboxSelect = `
          s.expires_at AS "expiresAt", s.public_url AS "publicUrl",
          s.template_version_id AS "templateVersionId", s.template_image_digest AS "templateImageDigest",
          s.egress_policy AS "egressPolicy", s.source_provenance AS source,
-         s.created_at AS "createdAt"
+         s.created_at AS "createdAt",
+         COALESCE(v.workdir, t.workdir, '/') AS "runtimeWorkdir",
+         COALESCE(v.default_ports, t.default_ports, '{}') AS "runtimeDefaultPorts",
+         COALESCE(t.runtime_family, 'linux') AS "runtimeFamily",
+         COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+             'port', r.port,
+             'protocol', r.protocol,
+             'accessMode', r.access_mode,
+             'state', r.state,
+             'host', r.host,
+             'url', COALESCE(r.url, r.target_url),
+             'labels', r.labels
+           ) ORDER BY r.port, r.created_at)
+           FROM sandbox_routes r
+           WHERE r.sandbox_id = s.id
+             AND r.organization_id = s.organization_id
+             AND r.state <> 'terminated'
+         ), '[]'::jsonb) AS "runtimeExposedPorts"
   FROM sandboxes s
+  LEFT JOIN templates t ON t.id = s.template_id
+  LEFT JOIN template_versions v ON v.id = s.template_version_id
 `;
 
 const runtimeRef = (runtimeProvider: RuntimeProvider, providerSandboxId: string | null | undefined): RuntimeSandboxRef => ({
@@ -92,6 +128,17 @@ const toIso = (value: Date | string) => {
 };
 
 const toIsoOrNull = (value: Date | string | null) => value ? toIso(value) : null;
+const createdAtIso = (value: Date | string | null | undefined) => value ? toIso(value) : new Date(0).toISOString();
+
+const readDependencies = (dependencies?: SandboxReadDependencies) => {
+  if (typeof dependencies === "function") {
+    return { query: dependencies, runtimeProvider: undefined };
+  }
+  return {
+    query: dependencies?.query ?? defaultQuery,
+    runtimeProvider: dependencies?.runtimeProvider
+  };
+};
 
 const sanitizeGitUrl = (url: string) => {
   try {
@@ -139,21 +186,121 @@ const mapSourceProvenance = (value: unknown): SandboxSourceProvenance | null => 
   return sanitizeSourceProvenance(value as unknown as SandboxSourceProvenance);
 };
 
-const mapSandboxRow = (row: SandboxRow): SandboxSummary => ({
-  ...row,
-  status: normalizeSandboxStatus(row.status),
-  expiresAt: toIsoOrNull(row.expiresAt),
-  source: mapSourceProvenance(row.source),
-  createdAt: toIso(row.createdAt)
-});
+const numberList = (value: unknown) => Array.isArray(value)
+  ? value.map(Number).filter((item) => Number.isInteger(item) && item > 0)
+  : [];
+
+const stringList = (value: unknown) => Array.isArray(value)
+  ? value.filter((item): item is string => typeof item === "string")
+  : [];
+
+const routeAccessMode = (value: unknown): SandboxRouteAccessMode =>
+  sandboxRouteAccessModes.includes(value as SandboxRouteAccessMode) ? value as SandboxRouteAccessMode : "public";
+
+const routeState = (value: unknown): SandboxRouteState =>
+  sandboxRouteStates.includes(value as SandboxRouteState) ? value as SandboxRouteState : "unhealthy";
+
+const runtimeRouteMetadata = (value: unknown): SandboxRuntimeRouteMetadata[] => {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item)) return [];
+    const port = Number(item.port);
+    if (!Number.isInteger(port) || port <= 0) return [];
+    const protocol = item.protocol === "https" ? "https" : "http";
+    return [{
+      port,
+      protocol,
+      accessMode: routeAccessMode(item.accessMode),
+      state: routeState(item.state),
+      host: typeof item.host === "string" ? item.host : "",
+      url: typeof item.url === "string" ? item.url : "",
+      labels: stringList(item.labels)
+    }];
+  });
+};
 
 const routePolicySummary = () => ({
   mode: config.sandboxRouteMode,
   baseDomain: config.sandboxRouteBaseDomain,
   publicScheme: config.sandboxRoutePublicScheme,
+  defaultAccessMode: routeAccessMode(config.sandboxRouteDefaultAccessMode),
   maxRoutesPerSandbox: config.sandboxMaxRoutesPerSandbox,
   maxRoutesPerOrg: config.sandboxMaxRoutesPerOrg
 });
+
+const sandboxRuntimeMetadata = (
+  row: SandboxRow,
+  input: { createdAt: string; expiresAt: string | null; runtimeProvider?: RuntimeProvider }
+): SandboxRuntimeMetadata => {
+  let egress;
+  try {
+    egress = compileEgressPolicy(row.egressPolicy ?? defaultEgressPolicyInput);
+  } catch {
+    egress = compileEgressPolicy(defaultEgressPolicyInput);
+  }
+  const capabilities = input.runtimeProvider ? getRuntimeCapabilities(input.runtimeProvider).capabilities : [];
+  return {
+    workdir: row.runtimeWorkdir || "/",
+    user: config.sandboxRuntimeUser,
+    shell: config.sandboxRuntimeShell,
+    template: {
+      id: row.template,
+      versionId: row.templateVersionId ?? null,
+      imageDigest: row.templateImageDigest ?? null,
+      runtimeFamily: row.runtimeFamily || "linux"
+    },
+    ports: {
+      default: numberList(row.runtimeDefaultPorts),
+      exposed: runtimeRouteMetadata(row.runtimeExposedPorts)
+    },
+    routes: routePolicySummary(),
+    egress: {
+      mode: egress.mode,
+      presets: egress.presets,
+      allow: egress.allow,
+      deny: egress.deny,
+      ruleCount: egress.rules.length
+    },
+    limits: {
+      fileArtifactMaxBytes: config.sandboxFileArtifactMaxBytes,
+      commandTimeoutMs: config.sandboxCommandTimeoutMs,
+      terminalAttachTicketTtlSeconds: config.terminalAttachTicketTtlSeconds
+    },
+    lifecycle: {
+      ttlSeconds: row.ttlSeconds ?? 0,
+      expiresAt: input.expiresAt,
+      createdAt: input.createdAt
+    },
+    provider: {
+      kind: input.runtimeProvider?.kind ?? config.runtimeProvider,
+      sandboxId: row.opensandboxId ?? null,
+      capabilities
+    }
+  };
+};
+
+const mapSandboxRow = (row: SandboxRow, runtimeProvider?: RuntimeProvider): SandboxSummary => {
+  const createdAt = createdAtIso(row.createdAt);
+  const expiresAt = toIsoOrNull(row.expiresAt ?? null);
+  return {
+    ...row,
+    cpu: Number(row.cpu ?? 0),
+    mem: Number(row.mem ?? 0),
+    started: row.started ?? "-",
+    owner: row.owner ?? "",
+    cost: Number(row.cost ?? 0),
+    ttlSeconds: Number(row.ttlSeconds ?? 0),
+    publicUrl: row.publicUrl ?? null,
+    templateVersionId: row.templateVersionId ?? null,
+    templateImageDigest: row.templateImageDigest ?? null,
+    egressPolicy: row.egressPolicy ?? defaultEgressPolicyInput,
+    status: normalizeSandboxStatus(row.status),
+    expiresAt,
+    source: mapSourceProvenance(row.source),
+    createdAt,
+    runtimeMetadata: sandboxRuntimeMetadata(row, { createdAt, expiresAt, runtimeProvider })
+  };
+};
 
 const sandboxTemplateMetadata = (template: RuntimeTemplate) => ({
   templateId: template.id,
@@ -181,8 +328,9 @@ export const summarizeSandboxOperation = (operation: SandboxOperation): SandboxO
 
 export const listSandboxes = async (
   input: { organizationId: string; filters?: SandboxListFilters },
-  query: Query = defaultQuery
+  dependencies?: SandboxReadDependencies
 ): Promise<SandboxSummary[]> => {
+  const { query, runtimeProvider } = readDependencies(dependencies);
   const filters = input.filters ?? {};
   const params: unknown[] = [input.organizationId];
   let where = "WHERE s.organization_id = $1";
@@ -205,18 +353,19 @@ export const listSandboxes = async (
   }
   params.push(limit);
   const result = await query<SandboxRow>(`${sandboxSelect} ${where} ORDER BY s.created_at DESC LIMIT $${params.length}`, params);
-  return result.rows.map(mapSandboxRow);
+  return result.rows.map((row) => mapSandboxRow(row, runtimeProvider));
 };
 
 export const getSandbox = async (
   input: { organizationId: string; sandboxId: string },
-  query: Query = defaultQuery
+  dependencies?: SandboxReadDependencies
 ) => {
+  const { query, runtimeProvider } = readDependencies(dependencies);
   const result = await query<SandboxRow>(`${sandboxSelect} WHERE s.id = $1 AND s.organization_id = $2`, [
     input.sandboxId,
     input.organizationId
   ]);
-  return result.rowCount ? mapSandboxRow(result.rows[0]) : null;
+  return result.rowCount ? mapSandboxRow(result.rows[0], runtimeProvider) : null;
 };
 
 export type CreateSandboxResult =
@@ -256,7 +405,7 @@ export const createSandbox = async (
     );
     const operation = existing.rows[0];
     if (operation?.sandboxId) {
-      const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, query);
+      const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider });
       if (sandbox && operation.state === "failed") {
         return {
           kind: "sandbox_provision_failed",
@@ -370,7 +519,7 @@ export const createSandbox = async (
     );
   }
   if (reused) {
-    const sandbox = operation.sandboxId ? await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, query) : null;
+    const sandbox = operation.sandboxId ? await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider }) : null;
     if (sandbox && (sandbox.status === "pending" || operation.state === "queued" || operation.state === "running")) {
       return {
         kind: "pending",
@@ -382,7 +531,7 @@ export const createSandbox = async (
     if (sandbox) return { kind: "created", sandbox };
   }
   if (input.wait === false) {
-    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, query);
+    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
     if (!sandbox) throw new Error("sandbox row missing after provision enqueue");
     const metadata = {
       operationId: operation.id,
@@ -459,7 +608,7 @@ export const createSandbox = async (
       });
       return {
         kind: "sandbox_provision_failed",
-        sandbox: await getSandbox({ organizationId: input.organizationId, sandboxId: id }, query),
+        sandbox: await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider }),
         operation: failed ?? activeOperation,
         message
       };
@@ -492,7 +641,7 @@ export const createSandbox = async (
     );
     await dependencies.recordEvent(input.organizationId, id, "created", `created through ${provider.provider}`, metadata);
     await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.create", "sandbox", id, metadata);
-    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, query);
+    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
     if (!sandbox) throw new Error("sandbox row missing after provider create");
     return { kind: "created", sandbox };
   })();
@@ -500,7 +649,7 @@ export const createSandbox = async (
     void provisionPromise.catch(() => undefined);
     const waited = await waitFor(provisionPromise, input.waitTimeoutMs);
     if (waited === "timeout") {
-      const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, query);
+      const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
       if (!sandbox) throw new Error("sandbox row missing after provision timeout");
       return {
         kind: "pending",
@@ -522,7 +671,7 @@ export const updateSandboxSource = async (
     sandboxId: string;
     source: SandboxSourceProvenance | null;
   },
-  dependencies: { query?: Query; recordEvent: SandboxEventRecorder; recordAudit: Audit }
+  dependencies: { query?: Query; runtimeProvider?: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
 ) => {
   const query = dependencies.query ?? defaultQuery;
   const source = sanitizeSourceProvenance(input.source);
@@ -542,7 +691,7 @@ export const updateSandboxSource = async (
     metadata
   );
   await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.source.update", "sandbox", input.sandboxId, metadata);
-  return getSandbox({ organizationId: input.organizationId, sandboxId: input.sandboxId }, query);
+  return getSandbox({ organizationId: input.organizationId, sandboxId: input.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider });
 };
 
 export const deleteSandbox = async (

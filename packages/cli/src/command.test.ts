@@ -246,6 +246,156 @@ test("capabilities command prints runtime provider capability states", async () 
   }
 });
 
+test("status command prints lifecycle metadata and supports JSON", async () => {
+  const sandbox = {
+    id: "sbx_life",
+    opensandboxId: "osbx_life",
+    name: "lifecycle-test",
+    template: "python-3.12-data",
+    status: "running",
+    cpu: 4,
+    mem: 128,
+    started: "00h 01m",
+    owner: "cli@test.local",
+    cost: 0,
+    ttlSeconds: 600,
+    expiresAt: "2026-06-04T12:10:00.000Z",
+    publicUrl: null,
+    templateVersionId: "tplv_python",
+    templateImageDigest: "sha256:test",
+    egressPolicy: null,
+    source: null,
+    createdAt: "2026-06-04T12:00:00.000Z",
+    runtimeMetadata: {
+      workdir: "/workspace",
+      user: "root",
+      shell: "/bin/sh",
+      template: {
+        id: "python-3.12-data",
+        versionId: "tplv_python",
+        imageDigest: "sha256:test",
+        runtimeFamily: "python-data"
+      },
+      ports: {
+        default: [3000],
+        exposed: []
+      },
+      routes: {
+        mode: "opensandbox-gateway",
+        baseDomain: "sandbox.localhost",
+        publicScheme: "https",
+        defaultAccessMode: "public",
+        maxRoutesPerSandbox: 8,
+        maxRoutesPerOrg: 200
+      },
+      egress: {
+        mode: "open",
+        presets: [],
+        allow: [],
+        deny: [],
+        ruleCount: 0
+      },
+      limits: {
+        fileArtifactMaxBytes: 16777216,
+        commandTimeoutMs: 30000,
+        terminalAttachTicketTtlSeconds: 60
+      },
+      lifecycle: {
+        ttlSeconds: 600,
+        expiresAt: "2026-06-04T12:10:00.000Z",
+        createdAt: "2026-06-04T12:00:00.000Z"
+      },
+      provider: {
+        kind: "opensandbox",
+        sandboxId: "osbx_life",
+        capabilities: [
+          { name: "lifecycleRenew", state: "available", contract: "opensandbox_spec", source: "OpenSandbox renew API", required: true, reason: null },
+          { name: "lifecycleSnapshot", state: "unavailable", contract: "unsupported", source: "Current runtime provider contract", required: false, reason: "Snapshot is not exposed." }
+        ]
+      }
+    }
+  };
+  const api = await startMockApi((request) => {
+    assert.equal(request.method, "GET");
+    assert.equal(request.path, "/v1/sandboxes/sbx_life");
+    return { body: { sandbox } };
+  });
+  try {
+    const text = await runCli(["status", "sbx_life"], { api });
+    assert.equal(text.exitCode, 0, text.stderr);
+    assert.match(text.stdout, /created-at\t2026-06-04T12:00:00.000Z/);
+    assert.match(text.stdout, /expires-at\t2026-06-04T12:10:00.000Z/);
+    assert.match(text.stdout, /provider-sandbox\tosbx_life/);
+    assert.match(text.stdout, /capability.lifecycleRenew\tavailable\topensandbox_spec\t-/);
+    assert.match(text.stdout, /capability.lifecycleSnapshot\tunavailable\tunsupported\tSnapshot is not exposed\./);
+
+    const json = await runCli(["status", "sbx_life", "--json"], { api });
+    assert.equal(json.exitCode, 0, json.stderr);
+    assert.equal(JSON.parse(json.stdout).sandbox.runtimeMetadata.lifecycle.ttlSeconds, 600);
+  } finally {
+    await api.close();
+  }
+});
+
+test("tracked process commands can start, wait, tail, and print JSON", async () => {
+  const command = {
+    id: "cmd_cli",
+    sandboxId: "sbx_cli",
+    provider: "opensandbox",
+    providerCommandId: "provider_cmd",
+    command: "python -m http.server 3000 --bind 0.0.0.0",
+    status: "running",
+    cwd: "/workspace",
+    envKeys: [],
+    timeoutMs: null,
+    detached: true,
+    stdout: "",
+    stderr: "",
+    exitCode: null,
+    finishReason: null,
+    signal: null,
+    error: null,
+    startedAt: "2026-06-04T12:00:00.000Z",
+    finishedAt: null,
+    createdAt: "2026-06-04T12:00:00.000Z",
+    updatedAt: "2026-06-04T12:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_cli/commands") {
+      return { status: 201, body: { command } };
+    }
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_cli/commands/cmd_cli") {
+      return { body: { command } };
+    }
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_cli/commands/cmd_cli/logs?tail=5") {
+      return { body: { commandId: "cmd_cli", stdout: "ready\n", stderr: "", cursor: 2, tail: 5, stdoutTruncated: false, stderrTruncated: false } };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/sandboxes/sbx_cli/commands/cmd_cli") {
+      return { body: { command: { ...command, status: "killed", exitCode: 130, finishReason: "killed", signal: "SIGINT" } } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const started = await runCli(["process", "run", "sbx_cli", "--cmd", command.command, "--detached", "--json"], { api });
+    assert.equal(started.exitCode, 0, started.stderr);
+    assert.equal(JSON.parse(started.stdout).command.id, "cmd_cli");
+
+    const waited = await runCli(["command", "wait", "sbx_cli", "cmd_cli", "--status", "running"], { api });
+    assert.equal(waited.exitCode, 0, waited.stderr);
+    assert.match(waited.stdout, /cmd_cli\trunning\tdetached/);
+
+    const tailed = await runCli(["command", "tail", "sbx_cli", "cmd_cli", "--lines", "5"], { api });
+    assert.equal(tailed.exitCode, 0, tailed.stderr);
+    assert.match(tailed.stdout, /ready/);
+
+    const killed = await runCli(["command", "kill", "sbx_cli", "cmd_cli", "--json"], { api });
+    assert.equal(killed.exitCode, 0, killed.stderr);
+    assert.equal(JSON.parse(killed.stdout).command.finishReason, "killed");
+  } finally {
+    await api.close();
+  }
+});
+
 test("command session subcommands create, run, and delete persistent sessions", async () => {
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_cli/command-sessions") {
@@ -930,6 +1080,7 @@ test("template logs command prints retained build log rows", async () => {
 });
 
 test("route commands expose and list sandbox routes", async () => {
+  let apiUrl = "";
   const api = await startMockApi((request) => {
     if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_route/routes") {
       return {
@@ -939,24 +1090,27 @@ test("route commands expose and list sandbox routes", async () => {
             sandboxId: "sbx_route",
             port: 5173,
             protocol: "http",
-            accessMode: "public",
-            accessHeaderName: null,
-            tokenHint: null,
+            accessMode: request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token" ? "token" : "public",
+            accessHeaderName: request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token" ? "x-harakiri-route-token" : null,
+            tokenHint: request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token" ? "hrt_mock...oken" : null,
             labels: ["preview", "vite"],
             createdByUserId: "user_cli",
             createdByLabel: "cli@test.local",
             routeKey: "sbx-route-5173",
             host: "sbx-route-5173.sandbox.localhost",
-            url: "https://sbx-route-5173.sandbox.localhost",
+            url: request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token" ? `${apiUrl}/route-health` : "https://sbx-route-5173.sandbox.localhost",
             targetUrl: "http://sandbox:5173",
-            state: "active",
+            state: "ready",
             provider: "opensandbox",
             providerRouteId: null,
             createdAt: "2026-05-24T00:00:00.000Z",
             lastCheckedAt: null,
             lastUsedAt: null,
             terminatedAt: null
-          }
+          },
+          ...(request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token"
+            ? { accessToken: "hrt_mock_token", accessHeaderName: "x-harakiri-route-token" }
+            : {})
         }
       };
     }
@@ -969,9 +1123,9 @@ test("route commands expose and list sandbox routes", async () => {
               sandboxId: "sbx_route",
               port: 5173,
               protocol: "http",
-              accessMode: "public",
-              accessHeaderName: null,
-              tokenHint: null,
+            accessMode: "public",
+            accessHeaderName: null,
+              tokenHint: "hrt_abcd...wxyz",
               labels: ["preview", "vite"],
               createdByUserId: "user_cli",
               createdByLabel: "cli@test.local",
@@ -979,7 +1133,7 @@ test("route commands expose and list sandbox routes", async () => {
               host: "sbx-route-5173.sandbox.localhost",
               url: "https://sbx-route-5173.sandbox.localhost",
               targetUrl: "http://sandbox:5173",
-              state: "active",
+              state: "ready",
               provider: "opensandbox",
               providerRouteId: null,
               createdAt: "2026-05-24T00:00:00.000Z",
@@ -991,8 +1145,12 @@ test("route commands expose and list sandbox routes", async () => {
         }
       };
     }
+    if (request.method === "GET" && request.path === "/route-health") {
+      return { body: { ok: true } };
+    }
     return { status: 404, body: { error: "unexpected", path: request.path } };
   });
+  apiUrl = api.url;
   try {
     const exposed = await runCli(["expose", "sbx_route", "--port", "5173", "--label", "preview", "--label", "vite"], { api });
     assert.equal(exposed.exitCode, 0, exposed.stderr);
@@ -1001,7 +1159,15 @@ test("route commands expose and list sandbox routes", async () => {
 
     const listed = await runCli(["routes", "sbx_route"], { api });
     assert.equal(listed.exitCode, 0, listed.stderr);
-    assert.equal(listed.stdout, "5173\tactive\tpublic\topensandbox\tpreview,vite\thttps://sbx-route-5173.sandbox.localhost\n");
+    assert.equal(listed.stdout, "5173\tready\tpublic\thrt_abcd...wxyz\topensandbox\tpreview,vite\thttps://sbx-route-5173.sandbox.localhost\n");
+
+    const waited = await runCli(["expose", "sbx_route", "--port", "5173", "--access", "token", "--wait", "--wait-path", "/route-health", "--json"], { api });
+    assert.equal(waited.exitCode, 0, waited.stderr);
+    assert.equal(JSON.parse(waited.stdout).route.accessMode, "token");
+    assert.match(waited.stdout, /"accessMode": "token"/);
+    assert.match(waited.stdout, /"accessToken": "hrt_mock_token"/);
+    assert.match(waited.stderr, /exposing port 5173/);
+    assert(api.requests.some((request) => request.method === "GET" && request.path === "/route-health"));
   } finally {
     await api.close();
   }
@@ -1029,6 +1195,7 @@ test("files command supports explicit sandbox paths", async () => {
 });
 
 test("file operation commands call sandbox file endpoints", async () => {
+  const okSha256 = "sha256:2689367b205c16ce32ed4200942b8b8b1e262dfc70d9bc9fbc77c49699a4f1df";
   const api = await startMockApi((request) => {
     if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_files/files/read?path=%2Fworkspace%2Fagent.py&encoding=utf8") {
       return { body: { path: "/workspace/agent.py", encoding: "utf8", content: "print('ok')\n" } };
@@ -1041,7 +1208,8 @@ test("file operation commands call sandbox file endpoints", async () => {
         body: {
           file: { path: "/workspace/upload.bin", name: "upload.bin", type: "file", size: 2 },
           sizeBytes: 2,
-          sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec"
+          sha256: okSha256,
+          transfer: { mode: "json-base64", encoding: "base64", maxBytes: 16777216 }
         }
       };
     }
@@ -1051,7 +1219,8 @@ test("file operation commands call sandbox file endpoints", async () => {
           path: "/workspace/upload.bin",
           contentBase64: "b2s=",
           sizeBytes: 2,
-          sha256: "sha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec"
+          sha256: okSha256,
+          transfer: { mode: "json-base64", encoding: "base64", maxBytes: 16777216 }
         }
       };
     }
@@ -1076,11 +1245,19 @@ test("file operation commands call sandbox file endpoints", async () => {
 
     const upload = await runCli(["file-upload", "sbx_files", "--path", "/workspace/upload.bin", "--from", uploadSource, "--parents"], { api });
     assert.equal(upload.exitCode, 0, upload.stderr);
-    assert.equal(upload.stdout, "file\t2\tsha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec\t/workspace/upload.bin\n");
+    assert.equal(upload.stdout, `file\t2\t${okSha256}\t/workspace/upload.bin\n`);
+    const uploadRequest = api.requests.find((request) => request.method === "POST" && request.path === "/v1/sandboxes/sbx_files/files/upload");
+    assert.deepEqual(uploadRequest?.body, {
+      path: "/workspace/upload.bin",
+      contentBase64: "b2s=",
+      sizeBytes: 2,
+      sha256: okSha256,
+      createParents: true
+    });
 
     const download = await runCli(["file-download", "sbx_files", "--path", "/workspace/upload.bin", "--to", downloadTarget], { api });
     assert.equal(download.exitCode, 0, download.stderr);
-    assert.equal(download.stdout, "2\tsha256:2689367b205c16ce32c97f1cee2bf971dbcb6b934306b9cdd75829e61e8c04ec\t" + downloadTarget + "\n");
+    assert.equal(download.stdout, `2\t${okSha256}\t${downloadTarget}\n`);
     assert.equal(await readFile(downloadTarget, "utf8"), "ok");
 
     const removed = await runCli(["file-rm", "sbx_files", "--path", "/workspace/out.py"], { api });

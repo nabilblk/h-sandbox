@@ -168,6 +168,7 @@ test("sandbox file operations resolve provider refs and preserve typed file erro
   if (uploaded.kind === "ok") {
     assert.equal(uploaded.sizeBytes, 2);
     assert.match(uploaded.sha256, /^sha256:[a-f0-9]{64}$/);
+    assert.deepEqual(uploaded.transfer, { mode: "json-base64", encoding: "base64", maxBytes: 16 * 1024 * 1024 });
   }
   const downloaded = await downloadSandboxFileArtifact(
     { organizationId: "org_runtime", sandboxId: "sbx_runtime", path: "/workspace/agent.py" },
@@ -177,6 +178,7 @@ test("sandbox file operations resolve provider refs and preserve typed file erro
   if (downloaded.kind === "ok") {
     assert.equal(downloaded.contentBase64, Buffer.from("print('ok')\n").toString("base64"));
     assert.equal(downloaded.sizeBytes, 12);
+    assert.deepEqual(downloaded.transfer, { mode: "json-base64", encoding: "base64", maxBytes: 16 * 1024 * 1024 });
   }
   const invalidArtifact = await uploadSandboxFileArtifact(
     { organizationId: "org_runtime", sandboxId: "sbx_runtime", path: "/workspace/out.bin", contentBase64: artifact, sizeBytes: 99 },
@@ -237,6 +239,7 @@ test("sandbox artifact helpers preserve binary payloads and reject malformed art
   if (uploaded.kind === "ok") {
     assert.equal(uploaded.sizeBytes, binary.byteLength);
     assert.equal(uploaded.sha256, "sha256:be777f11c6e1535ae0ed3f3addf915f6709b7ab9586dc17e3d46c753cad6c29d");
+    assert.deepEqual(uploaded.transfer, { mode: "json-base64", encoding: "base64", maxBytes: 16 * 1024 * 1024 });
   }
 
   const downloaded = await downloadSandboxFileArtifact(
@@ -248,6 +251,7 @@ test("sandbox artifact helpers preserve binary payloads and reject malformed art
     assert.equal(downloaded.contentBase64, contentBase64);
     assert.equal(downloaded.sizeBytes, binary.byteLength);
     assert.equal(downloaded.sha256, "sha256:be777f11c6e1535ae0ed3f3addf915f6709b7ab9586dc17e3d46c753cad6c29d");
+    assert.deepEqual(downloaded.transfer, { mode: "json-base64", encoding: "base64", maxBytes: 16 * 1024 * 1024 });
   }
 
   const malformed = await uploadSandboxFileArtifact(
@@ -351,7 +355,11 @@ test("createSandboxCommand persists a tracked provider command and reads detache
   );
 
   assert.equal(created.kind, "ok");
-  if (created.kind === "ok") assert.equal(created.command.providerCommandId, "provider_cmd");
+  if (created.kind === "ok") {
+    assert.equal(created.command.providerCommandId, "provider_cmd");
+    assert.equal(created.command.finishReason, null);
+    assert.equal(created.command.signal, null);
+  }
   assert.equal(events[0].type, "command.started");
   assert.equal(events[0].metadata?.commandId, "cmd_runtime");
 
@@ -1110,7 +1118,9 @@ test("getSandboxRouteProxyTarget validates token route access", async () => {
       rowCount: 1,
       rows: [{
         routeKey: "provider-route",
+        host: "provider-route.example.test",
         targetUrl: "https://provider-route.example.test",
+        provider: "opensandbox-server-proxy",
         state: "ready",
         accessMode: "token",
         accessTokenHash: hashApiKey(token),
@@ -1118,7 +1128,14 @@ test("getSandboxRouteProxyTarget validates token route access", async () => {
       }] as never[]
     })
   );
-  assert.deepEqual(ok, { kind: "ok", targetUrl: "https://provider-route.example.test", headerName: "x-harakiri-route-token" });
+  assert.deepEqual(ok, {
+    kind: "ok",
+    targetUrl: "https://provider-route.example.test",
+    headerName: "x-harakiri-route-token",
+    provider: "opensandbox-server-proxy",
+    host: "provider-route.example.test",
+    routeKey: "provider-route"
+  });
 
   const unauthorized = await getSandboxRouteProxyTarget(
     { routeKey: "provider-route", token: "wrong" },
@@ -1126,7 +1143,9 @@ test("getSandboxRouteProxyTarget validates token route access", async () => {
       rowCount: 1,
       rows: [{
         routeKey: "provider-route",
+        host: "provider-route.example.test",
         targetUrl: "https://provider-route.example.test",
+        provider: "opensandbox-server-proxy",
         state: "ready",
         accessMode: "token",
         accessTokenHash: hashApiKey(token),

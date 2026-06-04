@@ -162,12 +162,26 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     assert.equal(capabilityBody.provider, "fake");
     assert.equal(capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "filesystemList")?.state, "available");
     const commandsCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "commands");
+    const detachedCommandsCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "detachedCommands");
+    const commandLogTailCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "commandLogTail");
+    const commandKillCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "commandKill");
     const routesCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "routes");
     const terminalAttachCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "terminalAttach");
     const tokenRoutesCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "tokenRoutes");
     const gitCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "git");
+    const lifecycleRenewCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "lifecycleRenew");
+    const lifecycleReconnectCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "lifecycleReconnect");
+    const lifecycleSnapshotCapability = capabilityBody.capabilities.find((capability: { name: string }) => capability.name === "lifecycleSnapshot");
+    assert.equal(lifecycleRenewCapability?.state, "available");
+    assert.equal(lifecycleRenewCapability?.contract, "opensandbox_spec");
+    assert.equal(lifecycleReconnectCapability?.contract, "harakiri_control_plane");
+    assert.equal(lifecycleSnapshotCapability?.state, "unavailable");
+    assert.equal(lifecycleSnapshotCapability?.contract, "unsupported");
     assert.equal(commandsCapability?.state, "unavailable");
     assert.equal(commandsCapability?.contract, "unavailable");
+    assert.equal(detachedCommandsCapability?.state, "unavailable");
+    assert.equal(commandLogTailCapability?.contract, "unavailable");
+    assert.equal(commandKillCapability?.contract, "unavailable");
     assert.equal(routesCapability?.contract, "opensandbox_provider");
     assert.equal(terminalAttachCapability?.contract, "unavailable");
     assert.equal(tokenRoutesCapability?.contract, "harakiri_control_plane");
@@ -225,6 +239,7 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     assert.equal(upload.statusCode, 200);
     assert.equal(JSON.parse(upload.body).sizeBytes, 2);
     assert.match(JSON.parse(upload.body).sha256, /^sha256:[a-f0-9]{64}$/);
+    assert.deepEqual(JSON.parse(upload.body).transfer, { mode: "json-base64", encoding: "base64", maxBytes: 16 * 1024 * 1024 });
 
     const download = await app.inject({
       method: "GET",
@@ -232,6 +247,7 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     });
     assert.equal(download.statusCode, 200);
     assert.equal(JSON.parse(download.body).contentBase64, Buffer.from("print('route')\n").toString("base64"));
+    assert.deepEqual(JSON.parse(download.body).transfer, { mode: "json-base64", encoding: "base64", maxBytes: 16 * 1024 * 1024 });
 
     const rename = await app.inject({
       method: "POST",
@@ -670,7 +686,9 @@ test("token route proxy validates access and forwards without application auth",
           rows: [{
             id: "sbr_proxy",
             routeKey: "provider-route",
+            host: "provider-route.example.test",
             targetUrl: "https://provider-route.example.test",
+            provider: "opensandbox-server-proxy",
             state: "ready",
             accessMode: "token",
             accessTokenHash: hashApiKey("route-secret"),
@@ -700,6 +718,68 @@ test("token route proxy validates access and forwards without application auth",
     assert.equal(upstreamUrl, "https://provider-route.example.test/app?next=1");
     assert.equal(upstreamHeader, "");
     assert.equal(lastUsedUpdated, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await app.close();
+  }
+});
+
+test("token route proxy reaches OpenSandbox gateway through internal gateway host routing", async () => {
+  const app = Fastify();
+  const originalFetch = globalThis.fetch;
+  let upstreamUrl = "";
+  let upstreamGatewayRouteHeader = "";
+  let upstreamRouteTokenHeader = "";
+  globalThis.fetch = (async (url, init) => {
+    const headers = init?.headers instanceof Headers ? init.headers : new Headers(init?.headers);
+    upstreamUrl = String(url);
+    upstreamGatewayRouteHeader = headers.get("OpenSandbox-Ingress-To") ?? "";
+    upstreamRouteTokenHeader = headers.get("x-harakiri-route-token") ?? "";
+    return new Response("gateway proxied", { status: 200, headers: { "content-type": "text/plain" } });
+  }) as typeof fetch;
+  await registerRoutes(app, {
+    requireAuth: async () => {
+      throw new Error("route proxy should not require application auth");
+    },
+    runtimeProvider: routeRuntimeProvider({}),
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async (text, params) => {
+      if (text.includes("FROM sandbox_routes") && text.includes("route_key = $1")) {
+        assert.deepEqual(params, ["provider-route"]);
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "sbr_gateway_proxy",
+            routeKey: "provider-route",
+            host: "provider-route.sandbox.localhost",
+            targetUrl: "https://provider-route.sandbox.localhost",
+            provider: "opensandbox-gateway",
+            state: "ready",
+            accessMode: "token",
+            accessTokenHash: hashApiKey("route-secret"),
+            accessHeaderName: "x-harakiri-route-token"
+          }] as never[]
+        };
+      }
+      if (text.includes("UPDATE sandbox_routes SET last_used_at")) {
+        assert.deepEqual(params, ["sbr_gateway_proxy"]);
+        return { rowCount: 1, rows: [] as never[] };
+      }
+      throw new Error(`unexpected query: ${text}`);
+    }
+  });
+
+  try {
+    const proxied = await app.inject({
+      method: "GET",
+      url: "/v1/route-proxy/provider-route/app?harakiri_route_token=route-secret&next=1"
+    });
+    assert.equal(proxied.statusCode, 200);
+    assert.equal(proxied.body, "gateway proxied");
+    assert.equal(upstreamUrl, "http://127.0.0.1:18085/app?next=1");
+    assert.equal(upstreamGatewayRouteHeader, "provider-route");
+    assert.equal(upstreamRouteTokenHeader, "");
   } finally {
     globalThis.fetch = originalFetch;
     await app.close();

@@ -15,9 +15,12 @@
 
 - [API reference](api.md)
 - [SDK guide](sdk.md)
+- [CLI reference](cli.md)
+- [Errors and troubleshooting](errors.md)
 - [NPM packages](integrations/npm-packages.md)
 - [Building with Harakiri](integrations/building-with-harakiri.md)
 - [Interactive terminals](integrations/interactive-terminal.md)
+- [Filesystem and artifacts](filesystem-artifacts.md)
 - [Provider adapter shape](integrations/provider-adapter.md)
 - [Migrating from direct OpenSandbox](integrations/migrating-from-direct-opensandbox.md)
 - [Capabilities and limits](integrations/capabilities-and-limits.md)

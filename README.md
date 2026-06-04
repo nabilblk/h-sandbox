@@ -133,6 +133,10 @@ Template docs:
 - [docs/template-builds.md](docs/template-builds.md)
 - [docs/template-security.md](docs/template-security.md)
 - [docs/template-runtime-contract.md](docs/template-runtime-contract.md)
+- [docs/lifecycle.md](docs/lifecycle.md)
+- [docs/processes.md](docs/processes.md)
+- [docs/filesystem-artifacts.md](docs/filesystem-artifacts.md)
+- [docs/routes.md](docs/routes.md)
 
 ## Routes
 
@@ -140,9 +144,14 @@ Expose a port after a process is listening on `0.0.0.0` inside the sandbox:
 
 ```bash
 harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"
-harakiri expose sbx_... --port 3000
+harakiri expose sbx_... --port 3000 --wait --wait-path /
 harakiri routes sbx_...
 ```
+
+Use `--access token` for protected previews. The route token is printed only
+when the route is created; later list calls show only a token hint. See
+[docs/routes.md](docs/routes.md) for SDK helpers, adapter cache guidance, and
+cleanup.
 
 The portable smoke path checks OpenSandbox gateway routing through local
 forwards. Public DNS and Cloudflare tunnel examples are intentionally isolated
@@ -170,6 +179,9 @@ Harakiri compiles developer-facing modes and presets to OpenSandbox
   and Kubernetes ownership rules
 - [docs/extensions.md](docs/extensions.md) - provider and extension interfaces
 - [docs/api.md](docs/api.md) - HTTP API reference
+- [docs/sdk.md](docs/sdk.md) - TypeScript SDK guide
+- [docs/cli.md](docs/cli.md) - CLI reference
+- [docs/errors.md](docs/errors.md) - error handling and troubleshooting
 - [CONTRIBUTING.md](CONTRIBUTING.md) - contribution workflow
 - [SECURITY.md](SECURITY.md) - security reporting and boundaries
 

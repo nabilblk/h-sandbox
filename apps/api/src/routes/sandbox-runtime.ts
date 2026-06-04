@@ -384,7 +384,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const { path } = filePathSchema.parse(request.query ?? {});
     const result = await downloadSandboxFileArtifact({ organizationId: request.auth.organizationId, sandboxId: id, path }, { query, runtimeProvider });
     if (result.kind !== "ok") return sendFileOperationError(reply, result);
-    return { path: result.path, contentBase64: result.contentBase64, sizeBytes: result.sizeBytes, sha256: result.sha256 } satisfies SandboxFileDownloadResponse;
+    return { path: result.path, contentBase64: result.contentBase64, sizeBytes: result.sizeBytes, sha256: result.sha256, transfer: result.transfer } satisfies SandboxFileDownloadResponse;
   });
 
   app.put("/v1/sandboxes/:id/files", async (request, reply) => {
@@ -400,7 +400,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const body = fileUploadSchema.parse(request.body ?? {});
     const result = await uploadSandboxFileArtifact({ organizationId: request.auth.organizationId, sandboxId: id, ...body }, { query, runtimeProvider });
     if (result.kind !== "ok") return sendFileOperationError(reply, result);
-    return { file: result.file, sizeBytes: result.sizeBytes, sha256: result.sha256 } satisfies SandboxFileUploadResponse;
+    return { file: result.file, sizeBytes: result.sizeBytes, sha256: result.sha256, transfer: result.transfer } satisfies SandboxFileUploadResponse;
   });
 
   app.post("/v1/sandboxes/:id/files/mkdir", async (request, reply) => {

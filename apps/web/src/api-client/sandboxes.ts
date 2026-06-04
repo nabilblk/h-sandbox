@@ -27,6 +27,7 @@ export const sandboxesApi = {
   sandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}`),
   createSandbox: (body: CreateSandboxBody) =>
     request<CreateSandboxResponse>("/v1/sandboxes", { method: "POST", body: JSON.stringify(body) }),
+  renewSandbox: (id: string) => request<OkResponse>(`/v1/sandboxes/${id}/renew`, { method: "POST" }),
   killSandbox: (id: string) => request<OkResponse>(`/v1/sandboxes/${id}`, { method: "DELETE" }),
   run: (id: string, body: RunSandboxBody) =>
     request<RunSandboxResponse>(`/v1/sandboxes/${id}/run`, {
@@ -46,6 +47,8 @@ export const sandboxesApi = {
   routes: (id: string) => request<SandboxRoutesResponse>(`/v1/sandboxes/${id}/routes`),
   exposeRoute: (id: string, body: ExposeSandboxRouteBody) =>
     request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),
+  deleteRoute: (id: string, port: number) =>
+    request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes/${encodeURIComponent(String(port))}`, { method: "DELETE" }),
   egress: (id: string) => request<SandboxEgressResponse>(`/v1/sandboxes/${id}/egress`),
   updateEgress: (id: string, body: PatchSandboxEgressBody) =>
     request<SandboxEgressResponse>(`/v1/sandboxes/${id}/egress`, { method: "PATCH", body: JSON.stringify(body) }),

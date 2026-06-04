@@ -112,12 +112,39 @@ test("listSandboxes builds stable filters and limit", async () => {
         limit: "5"
       }
     },
-    async (text, params) => {
-      calls.push({ text, params });
-      return {
-        rowCount: 1,
-        rows: [{ id: "sbx_1", name: "agent", status: "running", template: "python-3.12" }] as never[]
-      };
+    {
+      runtimeProvider: fakeRuntimeProvider(),
+      query: async (text, params) => {
+        calls.push({ text, params });
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "sbx_1",
+            opensandboxId: "osbx_1",
+            name: "agent",
+            status: "running",
+            template: "python-3.12",
+            ttlSeconds: 300,
+            expiresAt: "2026-05-24T00:05:00.000Z",
+            createdAt: "2026-05-24T00:00:00.000Z",
+            templateVersionId: "tplv_ready",
+            templateImageDigest: "sha256:abc",
+            egressPolicy: { mode: "restricted", presets: ["python-package-install"], allow: ["api.github.com"], deny: [] },
+            runtimeWorkdir: "/workspace",
+            runtimeDefaultPorts: [3000, 5173],
+            runtimeFamily: "python",
+            runtimeExposedPorts: [{
+              port: 3000,
+              protocol: "http",
+              accessMode: "token",
+              state: "ready",
+              host: "sbx-3000.example.test",
+              url: "https://sbx-3000.example.test",
+              labels: ["preview"]
+            }]
+          }] as never[]
+        };
+      }
     }
   );
 
@@ -128,6 +155,14 @@ test("listSandboxes builds stable filters and limit", async () => {
   assert.match(calls[0].text, /ILIKE \$5/);
   assert.deepEqual(calls[0].params, ["org_sbx", "running", "python-3.12", "tplv_ready", "%agent%", 5]);
   assert.equal(sandboxes[0].id, "sbx_1");
+  assert.equal(sandboxes[0].runtimeMetadata.workdir, "/workspace");
+  assert.equal(sandboxes[0].runtimeMetadata.template.versionId, "tplv_ready");
+  assert.deepEqual(sandboxes[0].runtimeMetadata.ports.default, [3000, 5173]);
+  assert.equal(sandboxes[0].runtimeMetadata.ports.exposed[0].url, "https://sbx-3000.example.test");
+  assert.equal(sandboxes[0].runtimeMetadata.egress.mode, "restricted");
+  assert.equal(sandboxes[0].runtimeMetadata.egress.ruleCount > 0, true);
+  assert.equal(sandboxes[0].runtimeMetadata.provider.kind, "fake");
+  assert.equal(sandboxes[0].runtimeMetadata.provider.capabilities.some((capability) => capability.name === "commands"), true);
 });
 
 test("createSandbox creates provider sandbox, persists schedule, and records metadata", async () => {

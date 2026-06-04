@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { HarakiriClient, HarakiriProviderUnavailableError } from "../../packages/sdk/dist/index.js";
+import { HarakiriClient, HarakiriProviderUnavailableError } from "@h-sandbox/sdk";
 
 const apiUrl = process.env.HARAKIRI_API_URL;
 const apiKey = process.env.HARAKIRI_API_KEY;
 const template = process.env.HARAKIRI_CONFORMANCE_TEMPLATE ?? "python-3.12-data";
 const routePort = Number(process.env.HARAKIRI_CONFORMANCE_ROUTE_PORT ?? "5173");
 const requireRouteFetch = process.env.HARAKIRI_CONFORMANCE_ROUTE_FETCH === "1";
+const routeFetchBaseUrl = process.env.HARAKIRI_CONFORMANCE_ROUTE_BASE_URL;
 const allowProviderUnavailable = process.env.HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE === "1";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,6 +28,17 @@ const fetchWithRetry = async (url, init = {}, attempts = 12) => {
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 };
+
+const routeFetchUrl = (url) => {
+  if (!routeFetchBaseUrl) return url;
+  const original = new URL(url);
+  const base = new URL(routeFetchBaseUrl);
+  original.protocol = base.protocol;
+  original.host = base.host;
+  return original.toString();
+};
+
+const isHarakiriRouteProxyUrl = (url) => new URL(routeFetchUrl(url)).pathname.startsWith("/v1/route-proxy/");
 
 test("public SDK runtime conformance", {
   skip: requireEnv ? false : "set HARAKIRI_API_URL and HARAKIRI_API_KEY to run SDK conformance",
@@ -74,14 +86,15 @@ test("public SDK runtime conformance", {
       toPath: "/tmp/harakiri-conformance/renamed.txt"
     });
     const artifactContent = Buffer.from("artifact conformance\n");
-    await harakiri.files.upload(sandboxId, {
+    await harakiri.artifacts.upload(sandboxId, {
       path: "/tmp/harakiri-conformance/artifact.bin",
       contentBase64: artifactContent.toString("base64"),
       sizeBytes: artifactContent.byteLength,
       createParents: true
     });
-    const artifact = await harakiri.files.download(sandboxId, "/tmp/harakiri-conformance/artifact.bin");
+    const artifact = await harakiri.artifacts.download(sandboxId, "/tmp/harakiri-conformance/artifact.bin");
     assert.equal(Buffer.from(artifact.contentBase64, "base64").toString("utf8"), "artifact conformance\n");
+    assert.equal(artifact.transfer.mode, "json-base64");
     const files = await harakiri.files.list(sandboxId, "/tmp/harakiri-conformance");
     assert(files.files.some((file) => file.path.endsWith("/renamed.txt")));
 
@@ -112,8 +125,8 @@ test("public SDK runtime conformance", {
     let listedRoutes = await harakiri.routes.list(sandboxId);
     assert(listedRoutes.routes.some((entry) => entry.port === routePort && entry.accessMode === "public"));
 
-    if (requireRouteFetch) {
-      const response = await fetchWithRetry(publicRoute.route.url);
+    if (requireRouteFetch && !routeFetchBaseUrl && !isHarakiriRouteProxyUrl(publicRoute.route.url)) {
+      const response = await fetchWithRetry(routeFetchUrl(publicRoute.route.url));
       assert.match(await response.text(), /renamed\.txt|Directory listing|hello conformance|artifact/);
     }
 
@@ -134,9 +147,9 @@ test("public SDK runtime conformance", {
     assert(listedRoutes.routes.some((entry) => entry.port === routePort));
 
     if (requireRouteFetch) {
-      const unauthorized = await fetch(route.route.url);
+      const unauthorized = await fetch(routeFetchUrl(route.route.url));
       assert([401, 403].includes(unauthorized.status));
-      const response = await fetchWithRetry(route.route.url, {
+      const response = await fetchWithRetry(routeFetchUrl(route.route.url), {
         headers: { [route.accessHeaderName]: route.accessToken }
       });
       assert.match(await response.text(), /renamed\.txt|Directory listing|hello conformance|artifact/);

@@ -4,6 +4,11 @@
 use Harakiri as an OSS sandbox provider. The SDK speaks to the Harakiri control
 plane only; callers should not depend on OpenSandbox or Kubernetes internals.
 
+The full integration guide is in [docs/sdk.md](../../docs/sdk.md), with
+capabilities in
+[docs/integrations/capabilities-and-limits.md](../../docs/integrations/capabilities-and-limits.md)
+and error handling in [docs/errors.md](../../docs/errors.md).
+
 ## Install
 
 ```bash
@@ -71,6 +76,12 @@ reattach to a known sandbox. `refresh()` and `wait()` update the cached summary;
 methods such as `run`, `files.*`, and `routes.*` delegate directly to the public
 Harakiri API and preserve the same typed errors as `HarakiriClient`.
 
+Lifecycle is explicit: `renew()` extends TTL, `reconnect()` refreshes the
+control-plane summary, and `kill()` terminates the runtime. Pause, resume, and
+snapshot are not supported by the current OpenSandbox-backed provider; the SDK
+throws `HarakiriUnsupportedLifecycleCapabilityError` from `pause()`,
+`resume()`, and `snapshot()` so callers can catch or hide unsupported actions.
+
 ## Core Workflow
 
 ```ts
@@ -123,11 +134,11 @@ await harakiri.killSandbox(sandbox.id);
 | Need | SDK surface |
 | --- | --- |
 | One-sandbox workflow | `harakiri.sandboxes.create`, `harakiri.sandboxes.connect`, `HarakiriSandbox` |
-| Create, wait, renew, kill | `createSandbox`, `waitForSandbox`, `renewSandbox`, `killSandbox` |
+| Create, wait, reconnect, renew, kill | `createSandbox`, `waitForSandbox`, `sandboxes.reconnect`, `renewSandbox`, `killSandbox`, `HarakiriSandbox.reconnect`, `HarakiriSandbox.renew`, `HarakiriSandbox.kill` |
 | Blocking commands | `runSandbox` |
-| Detached commands | `commands.start`, `commands.get`, `commands.wait`, `commands.logs`, `commands.kill` |
+| Detached commands | `processes.start`, `processes.get`, `processes.wait`, `processes.logs`, `processes.tail`, `processes.kill`; compatible `commands.*` helpers remain available |
 | Files | `files.list`, `files.stat`, `files.read`, `files.write`, `files.mkdir`, `files.remove`, `files.rename` |
-| Artifacts | `files.upload`, `files.download` |
+| Artifacts | `artifacts.upload`, `artifacts.download`; `files.upload` and `files.download` remain compatible aliases |
 | Routes | `routes.expose`, `routes.exposeAndWait`, `routes.list`, `routes.delete`, `routes.getHost`, `routes.getUrl`, `routes.headers`, `routes.fetch`, `routes.waitForHttp` |
 | Egress | `getOutboundAccess`, `setOutboundAccess`, `allowDomains`, `denyDomains`, `blockOutboundAccess`, `testOutboundAccess` |
 | Git | `git.clone`, `git.status`, `git.branches`, `git.checkout`, `git.createBranch`, `git.deleteBranch`, `git.add`, `git.commit`, `git.pull`, `git.push`, `git.remotes`, `git.configureUser` |
@@ -136,7 +147,31 @@ await harakiri.killSandbox(sandbox.id);
 | Templates | `createTemplate`, `createTemplateBuild`, `uploadTemplateBuildContext`, `promoteTemplateVersion` |
 
 Flat compatibility methods remain available, but new integrations should prefer
-the namespaced `commands.*`, `files.*`, and `routes.*` helpers where possible.
+the namespaced helpers. Use `processes.*` for detached servers/watchers,
+`commands.*` for low-level tracked commands, and `files.*` or `routes.*` for
+their respective runtime surfaces.
+
+## Detached Processes
+
+Use `processes.*` when the command is a server, watcher, or background agent.
+The helper defaults `detached` to `true`, stores a Harakiri command ID, and can
+reattach after the SDK process restarts.
+
+```ts
+const { command } = await sandbox.processes.start({
+  command: "python -m http.server 3000 --bind 0.0.0.0",
+  cwd: "/workspace"
+});
+
+await sandbox.processes.wait(command.id, { statuses: ["running"] });
+const logs = await sandbox.processes.tail(command.id, 100);
+await sandbox.processes.kill(command.id);
+```
+
+`wait` throws `HarakiriCommandEndedError` when a command reaches `failed` or
+`killed` before the requested success status. Use `HarakiriWaitTimeoutError`
+for polling timeouts and `HarakiriProviderUnavailableError` for runtime
+transport failures.
 Adapters generated from or organized around the OpenAPI operation IDs can use
 matching aliases such as `runSandboxCommand`, `createSandboxCommand`,
 `getSandboxEgress`, and `updateSandboxEgress`.
@@ -234,22 +269,25 @@ const note = await harakiri.files.read(sandbox.id, "/workspace/notes.txt");
 ```
 
 Use artifact helpers for binary data or generated outputs that should preserve
-size and checksum metadata:
+size and checksum metadata. `files.upload` and `files.download` remain
+compatible aliases, but `artifacts.*` is clearer in application integrations:
 
 ```ts
-await harakiri.files.upload(sandbox.id, {
+await harakiri.artifacts.upload(sandbox.id, {
   path: "/workspace/input.bin",
   contentBase64: "aGVsbG8=",
   sizeBytes: 5,
   createParents: true
 });
 
-const artifact = await harakiri.files.download(sandbox.id, "/workspace/input.bin");
+const artifact = await harakiri.artifacts.download(sandbox.id, "/workspace/input.bin");
+console.log(artifact.sha256, artifact.transfer.maxBytes);
 ```
 
 Artifact transfer is currently JSON/base64 and bounded by the API-configured
-artifact size limit. Use it for small and medium artifacts; large streaming or
-signed URL transfer is a planned scale-up path.
+artifact size limit. Responses include `transfer.mode`, `transfer.encoding`,
+and `transfer.maxBytes`. Use it for small and medium artifacts; large streaming
+or signed URL transfer is a planned scale-up path.
 
 ## Routes And Agent Servers
 
