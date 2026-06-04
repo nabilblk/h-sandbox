@@ -234,9 +234,12 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         stdin: body.stdin,
         cwd: body.cwd,
         env: body.env,
-        timeoutMs: body.timeoutMs
+        timeoutMs: body.timeoutMs,
+        metadata: body.metadata,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel
       },
-      { query, runtimeProvider, recordEvent }
+      { query, runtimeProvider, recordEvent, recordAudit }
     );
     if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
@@ -256,7 +259,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const body = commandSchema.parse(request.body ?? {});
     const result = await createSandboxCommand(
       { organizationId: request.auth.organizationId, sandboxId: id, body },
-      { query, runtimeProvider, recordEvent }
+      { query, runtimeProvider, recordEvent, recordAudit, actorUserId: request.auth.userId, actorLabel: request.auth.actorLabel }
     );
     if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));

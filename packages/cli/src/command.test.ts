@@ -631,13 +631,26 @@ test("create command bootstraps Git sources without sending secrets in command t
         credentialPersistence: "one-shot"
       }
     });
-    const runBody = api.requests.find((request) => request.path.endsWith("/run"))?.body as { command: string; env: Record<string, string> };
+    const runBody = api.requests.find((request) => request.path.endsWith("/run"))?.body as {
+      command: string;
+      env: Record<string, string>;
+      metadata: Record<string, unknown>;
+    };
     assert.equal(runBody.command.includes("$HARAKIRI_GIT_TOKEN"), true);
     assert.equal(runBody.command.includes("ghp_cli_secret"), false);
     assert.equal(runBody.command.includes("'https://github.com/acme/project.git'"), true);
     assert.deepEqual(runBody.env, {
       HARAKIRI_GIT_USERNAME: "x-access-token",
       HARAKIRI_GIT_TOKEN: "ghp_cli_secret"
+    });
+    assert.deepEqual(runBody.metadata, {
+      capability: "git",
+      operation: "clone",
+      repositoryUrl: "https://github.com/acme/project.git",
+      targetPath: "/workspace/project",
+      branch: "main",
+      credentialPersistence: "one-shot",
+      hasCredentials: true
     });
     const sourceUpdates = api.requests.filter((request) => request.path.endsWith("/source"));
     assert.equal(sourceUpdates.length, 2);

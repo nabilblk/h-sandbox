@@ -12,8 +12,10 @@ import {
   type RuntimeCapabilityContract,
   type RuntimeCapabilityName,
   type RuntimeCapabilityState,
+  type SandboxCommandMetadata,
   type SandboxFileEncoding,
   type SandboxFileUploadBody,
+  type SandboxGitOperationName,
   type CreateSandboxCommandBody,
   type CreateSandboxCommandSessionBody,
   type RunSandboxCommandSessionBody,
@@ -66,6 +68,97 @@ export type SandboxEventRecorder = (
   message: string,
   metadata?: Record<string, unknown>
 ) => Promise<unknown>;
+
+const gitAuditOperations = new Set<SandboxGitOperationName>([
+  "clone",
+  "checkout",
+  "create-branch",
+  "delete-branch",
+  "add",
+  "commit",
+  "pull",
+  "push",
+  "remote-add",
+  "config-set",
+  "configure-user"
+]);
+
+const stripUrlCredentials = (value: string) => {
+  try {
+    const url = new URL(value);
+    url.username = "";
+    url.password = "";
+    return url.toString();
+  } catch {
+    return redactText(value);
+  }
+};
+
+const definedRecord = <T extends Record<string, unknown>>(record: T) =>
+  Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined)) as Partial<T>;
+
+const sanitizeCommandMetadata = (metadata?: SandboxCommandMetadata): SandboxCommandMetadata | undefined => {
+  if (!metadata) return undefined;
+  if (metadata.capability !== "git") return undefined;
+  return definedRecord({
+    capability: "git",
+    operation: metadata.operation,
+    cwd: metadata.cwd ? redactText(metadata.cwd) : undefined,
+    targetPath: metadata.targetPath ? redactText(metadata.targetPath) : undefined,
+    repositoryUrl: metadata.repositoryUrl ? stripUrlCredentials(metadata.repositoryUrl) : undefined,
+    branch: metadata.branch ? redactText(metadata.branch) : undefined,
+    ref: metadata.ref ? redactText(metadata.ref) : undefined,
+    remote: metadata.remote ? redactText(metadata.remote) : undefined,
+    configKey: metadata.configKey ? redactText(metadata.configKey) : undefined,
+    credentialPersistence: metadata.credentialPersistence,
+    hasCredentials: metadata.hasCredentials
+  }) as SandboxCommandMetadata;
+};
+
+const gitEventType = (operation: SandboxGitOperationName) => `git.${operation.replace(/-/g, ".")}`;
+
+const recordGitCommandActivity = async (
+  input: {
+    organizationId: string;
+    sandboxId: string;
+    actorUserId?: string;
+    actorLabel?: string;
+    commandId?: string;
+    providerCommandId?: string | null;
+    command: string;
+    status: string;
+    exitCode?: number | null;
+    metadata?: SandboxCommandMetadata;
+  },
+  dependencies: { recordEvent: SandboxEventRecorder; recordAudit?: Audit }
+) => {
+  const metadata = sanitizeCommandMetadata(input.metadata);
+  if (!metadata) return;
+  const eventMetadata = {
+    commandId: input.commandId,
+    providerCommandId: input.providerCommandId,
+    status: input.status,
+    exitCode: input.exitCode ?? null,
+    git: metadata
+  };
+  await dependencies.recordEvent(
+    input.organizationId,
+    input.sandboxId,
+    gitEventType(metadata.operation),
+    `git ${metadata.operation}: ${input.command}`,
+    eventMetadata
+  );
+  if (!gitAuditOperations.has(metadata.operation) || !dependencies.recordAudit || !input.actorUserId || !input.actorLabel) return;
+  await dependencies.recordAudit(
+    input.organizationId,
+    input.actorUserId,
+    input.actorLabel,
+    `sandbox.git.${metadata.operation}`,
+    "sandbox",
+    input.sandboxId,
+    eventMetadata
+  );
+};
 
 export type SandboxRouteRow = {
   id?: string;
@@ -310,8 +403,11 @@ export const runSandboxCommand = async (
     cwd?: string;
     env?: Record<string, string>;
     timeoutMs?: number;
+    metadata?: SandboxCommandMetadata;
+    actorUserId?: string;
+    actorLabel?: string;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit?: Audit }
 ): Promise<
   | { kind: "ok"; result: RunResult }
   | { kind: "not_found" }
@@ -332,10 +428,11 @@ export const runSandboxCommand = async (
           cwd: input.cwd,
           env: input.env,
           timeoutMs: input.timeoutMs,
-          detached: false
+          detached: false,
+          metadata: input.metadata
         }
       },
-      dependencies
+      { ...dependencies, actorUserId: input.actorUserId, actorLabel: input.actorLabel }
     );
     if (tracked.kind === "not_found") return { kind: "not_found" };
     if (tracked.kind === "sandbox_not_running") return tracked;
@@ -366,8 +463,22 @@ export const runSandboxCommand = async (
     durationMs: redactedResult.durationMs,
     cwd: input.cwd,
     envKeys: Object.keys(input.env ?? {}),
-    timeoutMs: input.timeoutMs
+    timeoutMs: input.timeoutMs,
+    metadata: sanitizeCommandMetadata(input.metadata)
   });
+  await recordGitCommandActivity(
+    {
+      organizationId: input.organizationId,
+      sandboxId: input.sandboxId,
+      actorUserId: input.actorUserId,
+      actorLabel: input.actorLabel,
+      command: redactedCommand,
+      status: redactedResult.exitCode === 0 ? "succeeded" : "failed",
+      exitCode: redactedResult.exitCode,
+      metadata: input.metadata
+    },
+    dependencies
+  );
   return { kind: "ok", result: redactedResult };
 };
 
@@ -429,7 +540,7 @@ export const createSandboxCommand = async (
     sandboxId: string;
     body: CreateSandboxCommandBody;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; idFactory?: typeof makeId }
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit?: Audit; actorUserId?: string; actorLabel?: string; idFactory?: typeof makeId }
 ): Promise<
   | { kind: "ok"; command: SandboxCommandSummary }
   | { kind: "not_found" }
@@ -510,8 +621,24 @@ export const createSandboxCommand = async (
       providerCommandId: result.providerCommandId,
       detached: Boolean(input.body.detached),
       cwd: input.body.cwd,
-      envKeys: Object.keys(input.body.env ?? {})
+      envKeys: Object.keys(input.body.env ?? {}),
+      metadata: sanitizeCommandMetadata(input.body.metadata)
     });
+    await recordGitCommandActivity(
+      {
+        organizationId: input.organizationId,
+        sandboxId: input.sandboxId,
+        actorUserId: dependencies.actorUserId,
+        actorLabel: dependencies.actorLabel,
+        commandId,
+        providerCommandId: result.providerCommandId,
+        command: redactedCommand,
+        status: result.status,
+        exitCode: result.exitCode,
+        metadata: input.body.metadata
+      },
+      dependencies
+    );
     return { kind: "ok", command: mapCommandRow(updated.rows[0]) };
   } catch (error) {
     const message = redactText(error instanceof Error ? error.message : String(error));
@@ -522,8 +649,22 @@ export const createSandboxCommand = async (
          WHERE id = $1 AND organization_id = $3
          RETURNING *
        )
-       SELECT ${commandColumns("updated")} FROM updated`,
+      SELECT ${commandColumns("updated")} FROM updated`,
       [commandId, message, input.organizationId]
+    );
+    await recordGitCommandActivity(
+      {
+        organizationId: input.organizationId,
+        sandboxId: input.sandboxId,
+        actorUserId: dependencies.actorUserId,
+        actorLabel: dependencies.actorLabel,
+        commandId,
+        command: redactedCommand,
+        status: "failed",
+        exitCode: 1,
+        metadata: input.body.metadata
+      },
+      dependencies
     );
     return { kind: "ok", command: mapCommandRow(updated.rows[0]) };
   }

@@ -110,6 +110,11 @@ API. The CLI/SDK then patches the sandbox source status through `cloning`,
 `ready`, or `failed`, so the dashboard can show bootstrap state without storing
 repository credentials.
 
+Git commands attach constrained operation metadata to the command request.
+Mutating operations such as clone, commit, pull, push, remote changes, and
+config updates create `sandbox.git.*` audit entries with sanitized repository
+context.
+
 Git troubleshooting:
 
 | Symptom | What to check |

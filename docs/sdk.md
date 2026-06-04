@@ -195,6 +195,11 @@ target path, clone duration, and redacted failure reason. Use it for dashboards,
 audit views, and reconnect flows; keep credential handling inside the process
 that starts the clone.
 
+Git helpers attach constrained operation metadata to the normal command API.
+Mutating operations such as clone, commit, pull, push, remote changes, and
+config updates record `sandbox.git.*` audit entries with sanitized repository
+and ref context. Read-only Git helpers still record structured sandbox events.
+
 For private HTTPS repositories, pass a one-shot token. The tracked command text
 contains `$HARAKIRI_GIT_TOKEN` instead of the secret value, and the clone resets
 `origin` to the credential-free URL after checkout.

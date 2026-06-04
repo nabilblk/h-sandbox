@@ -19,6 +19,7 @@ import type {
   RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
   SandboxCommandLogsResponse,
+  SandboxCommandMetadata,
   SandboxCommandResponse,
   SandboxCommandSessionResponse,
   SandboxCommandStatus,
@@ -42,6 +43,8 @@ import type {
   SandboxResponse,
   SandboxSourceProvenance,
   SandboxSourceResponse,
+  SandboxGitOperationMetadata,
+  SandboxGitOperationName,
   SandboxRouteResponse,
   SandboxRouteSummary,
   SandboxRoutesResponse,
@@ -106,6 +109,7 @@ export type {
   RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
   SandboxCommandLogsResponse,
+  SandboxCommandMetadata,
   SandboxCommandResponse,
   SandboxCommandSessionResponse,
   SandboxCommandStatus,
@@ -129,6 +133,8 @@ export type {
   SandboxResponse,
   SandboxSourceProvenance,
   SandboxSourceResponse,
+  SandboxGitOperationMetadata,
+  SandboxGitOperationName,
   SandboxRouteResponse,
   SandboxRouteSummary,
   SandboxRoutesResponse,
@@ -564,6 +570,15 @@ const gitSourceProvenance = (
     ...details
   };
 };
+
+const gitCommandMetadata = (
+  operation: SandboxGitOperationName,
+  metadata: Omit<SandboxGitOperationMetadata, "capability" | "operation"> = {}
+): SandboxGitOperationMetadata => ({
+  capability: "git",
+  operation,
+  ...metadata
+});
 
 const buildTemporaryRemoteCommand = (
   cwd: string,
@@ -1259,9 +1274,10 @@ export class HarakiriClient {
     id: string,
     operation: string,
     input: RunSandboxInput,
-    secrets: string[] = []
+    secrets: string[] = [],
+    metadata?: SandboxCommandMetadata
   ): Promise<GitCommandRunResult> {
-    const response = await this.runSandbox(id, input);
+    const response = await this.runSandbox(id, metadata ? { ...input, metadata } : input);
     const result = runResultWithRedaction(response, secrets);
     if (result.exitCode !== 0) {
       if (missingGitBinary(result)) {
@@ -1283,7 +1299,14 @@ export class HarakiriClient {
       command: built.command,
       env: { ...(options.env ?? {}), ...built.env },
       timeoutMs: options.timeoutMs ?? 120_000
-    }, built.secrets).then((result) => ({
+    }, built.secrets, gitCommandMetadata("clone", {
+      repositoryUrl: sanitizeGitUrl(url),
+      targetPath: built.targetPath,
+      branch: options.branch,
+      ref: options.commit,
+      credentialPersistence: options.credentialPersistence ?? (options.credentials ? "one-shot" : undefined),
+      hasCredentials: Boolean(options.credentials)
+    })).then((result) => ({
       ...result,
       path: built.targetPath,
       url: sanitizeGitUrl(url)
@@ -1296,7 +1319,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} status --short --branch --porcelain=v1`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("status", { cwd }));
     return parseGitStatus(result);
   }
 
@@ -1306,7 +1329,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} branch --format='%(refname:short)'`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("branches", { cwd }));
     return {
       ...result,
       branches: result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
@@ -1319,7 +1342,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} checkout ${shellQuote(ref)}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("checkout", { cwd, ref }));
   }
 
   createGitBranch(id: string, name: string, options: GitCommandOptions = {}) {
@@ -1328,7 +1351,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} checkout -b ${shellQuote(name)}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("create-branch", { cwd, branch: name }));
   }
 
   deleteGitBranch(id: string, name: string, options: GitCommandOptions = {}) {
@@ -1337,7 +1360,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} branch -D ${shellQuote(name)}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("delete-branch", { cwd, branch: name }));
   }
 
   addGitPaths(id: string, paths: string[] = ["."], options: GitCommandOptions = {}) {
@@ -1347,7 +1370,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} add -- ${targets.map(shellQuote).join(" ")}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("add", { cwd }));
   }
 
   commitGitChanges(id: string, message: string, options: GitCommitOptions = {}) {
@@ -1367,7 +1390,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)}${config ? ` ${config}` : ""} ${args}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("commit", { cwd }));
   }
 
   pullGitRepository(id: string, options: GitPullOptions = {}) {
@@ -1394,7 +1417,14 @@ export class HarakiriClient {
       command,
       env: { ...(options.env ?? {}), ...gitCredentialEnv(options.credentials) },
       timeoutMs: options.timeoutMs
-    }, gitSecretValues(options.credentials));
+    }, gitSecretValues(options.credentials), gitCommandMetadata("pull", {
+      cwd,
+      remote,
+      branch: options.branch,
+      repositoryUrl: options.remoteUrl ? sanitizeGitUrl(options.remoteUrl) : undefined,
+      credentialPersistence: options.credentialPersistence ?? (options.credentials ? "one-shot" : undefined),
+      hasCredentials: Boolean(options.credentials)
+    }));
   }
 
   pushGitRepository(id: string, options: GitPushOptions = {}) {
@@ -1421,7 +1451,14 @@ export class HarakiriClient {
       command,
       env: { ...(options.env ?? {}), ...gitCredentialEnv(options.credentials) },
       timeoutMs: options.timeoutMs
-    }, gitSecretValues(options.credentials));
+    }, gitSecretValues(options.credentials), gitCommandMetadata("push", {
+      cwd,
+      remote,
+      branch: options.branch,
+      repositoryUrl: options.remoteUrl ? sanitizeGitUrl(options.remoteUrl) : undefined,
+      credentialPersistence: options.credentialPersistence ?? (options.credentials ? "one-shot" : undefined),
+      hasCredentials: Boolean(options.credentials)
+    }));
   }
 
   listGitRemotes(id: string, options: GitCommandOptions = {}) {
@@ -1430,7 +1467,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} remote -v`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("remotes", { cwd }));
   }
 
   addGitRemote(id: string, name: string, url: string, options: GitCommandOptions = {}) {
@@ -1439,7 +1476,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} remote add ${shellQuote(name)} ${shellQuote(sanitizeGitUrl(url))}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("remote-add", { cwd, remote: name, repositoryUrl: sanitizeGitUrl(url) }));
   }
 
   setGitConfig(id: string, key: string, value: string, options: GitCommandOptions = {}) {
@@ -1448,7 +1485,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} config ${shellQuote(key)} ${shellQuote(value)}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("config-set", { cwd, configKey: key }));
   }
 
   getGitConfig(id: string, key: string, options: GitCommandOptions = {}) {
@@ -1457,7 +1494,7 @@ export class HarakiriClient {
       command: `${gitPrefix(cwd)} config --get ${shellQuote(key)}`,
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("config-get", { cwd, configKey: key }));
   }
 
   configureGitUser(id: string, input: { name: string; email: string }, options: GitCommandOptions = {}) {
@@ -1470,7 +1507,7 @@ export class HarakiriClient {
       ].join("\n"),
       env: options.env,
       timeoutMs: options.timeoutMs
-    });
+    }, [], gitCommandMetadata("configure-user", { cwd, configKey: "user.name,user.email" }));
   }
 
   startCommand(id: string, input: CreateSandboxCommandInput) {

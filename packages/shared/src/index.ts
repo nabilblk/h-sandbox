@@ -859,12 +859,49 @@ export type RunResult = {
   durationMs: number;
 };
 
+export const sandboxGitOperationNames = [
+  "clone",
+  "status",
+  "branches",
+  "checkout",
+  "create-branch",
+  "delete-branch",
+  "add",
+  "commit",
+  "pull",
+  "push",
+  "remotes",
+  "remote-add",
+  "config-set",
+  "config-get",
+  "configure-user"
+] as const;
+
+export type SandboxGitOperationName = typeof sandboxGitOperationNames[number];
+
+export type SandboxGitOperationMetadata = {
+  capability: "git";
+  operation: SandboxGitOperationName;
+  cwd?: string;
+  targetPath?: string;
+  repositoryUrl?: string;
+  branch?: string;
+  ref?: string;
+  remote?: string;
+  configKey?: string;
+  credentialPersistence?: GitCredentialPersistence;
+  hasCredentials?: boolean;
+};
+
+export type SandboxCommandMetadata = SandboxGitOperationMetadata;
+
 export type RunSandboxBody = {
   command?: string;
   stdin?: string;
   cwd?: string;
   env?: Record<string, string>;
   timeoutMs?: number;
+  metadata?: SandboxCommandMetadata;
 };
 
 export type RunSandboxResponse = {
@@ -927,6 +964,7 @@ export type CreateSandboxCommandBody = {
   env?: Record<string, string>;
   timeoutMs?: number;
   detached?: boolean;
+  metadata?: SandboxCommandMetadata;
 };
 
 export type SandboxCommandResponse = {

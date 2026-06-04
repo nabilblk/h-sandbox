@@ -460,6 +460,98 @@ test("runSandboxCommand uses the tracked command resource when available", async
   assert.equal(events[0].type, "command.started");
 });
 
+test("runSandboxCommand records explicit Git operation audit metadata", async () => {
+  const events: Array<{ type: string; message: string; metadata?: Record<string, unknown> }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  const provider = fakeRuntimeProvider({
+    startCommand: async (input) => ({
+      providerCommandId: "provider_git_cmd",
+      status: "succeeded",
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+      startedAt: "2026-05-29T00:00:00.000Z",
+      finishedAt: "2026-05-29T00:00:00.018Z"
+    })
+  });
+  const query = async (text: string, params?: unknown[]) => {
+    if (text.includes("SELECT id, opensandbox_id, status FROM sandboxes")) {
+      return { rowCount: 1, rows: [{ id: "sbx_runtime", opensandbox_id: "provider_sbx", status: "running" }] as never[] };
+    }
+    if (text.includes("INSERT INTO sandbox_commands")) return { rowCount: 1, rows: [] as never[] };
+    if (text.includes("WITH updated AS") && text.includes("provider_command_id")) {
+      return {
+        rowCount: 1,
+        rows: [{
+          id: params?.[0],
+          sandboxId: "sbx_runtime",
+          provider: "fake",
+          providerCommandId: "provider_git_cmd",
+          command: "git -C /workspace/project push origin main",
+          status: "succeeded",
+          cwd: "/workspace/project",
+          envKeys: ["HARAKIRI_GIT_TOKEN"],
+          timeoutMs: 120_000,
+          detached: false,
+          stdout: "",
+          stderr: "",
+          exitCode: 0,
+          error: null,
+          startedAt: new Date("2026-05-29T00:00:00Z"),
+          finishedAt: new Date("2026-05-29T00:00:00.018Z"),
+          createdAt: new Date("2026-05-29T00:00:00Z"),
+          updatedAt: new Date("2026-05-29T00:00:00.018Z")
+        }] as never[]
+      };
+    }
+    if (text.includes("UPDATE sandboxes SET last_active_at")) return { rowCount: 1, rows: [] as never[] };
+    throw new Error(`unexpected query: ${text}`);
+  };
+
+  const result = await runSandboxCommand(
+    {
+      organizationId: "org_runtime",
+      sandboxId: "sbx_runtime",
+      command: "git -C /workspace/project push origin main",
+      cwd: "/workspace/project",
+      timeoutMs: 120_000,
+      actorUserId: "user_runtime",
+      actorLabel: "dev@test.local",
+      metadata: {
+        capability: "git",
+        operation: "push",
+        cwd: "/workspace/project",
+        repositoryUrl: "https://oauth2:ghp_secret@github.com/acme/private.git",
+        remote: "origin",
+        branch: "main",
+        credentialPersistence: "one-shot",
+        hasCredentials: true
+      }
+    },
+    {
+      runtimeProvider: provider,
+      query,
+      recordEvent: async (_organizationId, _sandboxId, type, message, metadata) => events.push({ type, message, metadata }),
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => audits.push({ action, metadata })
+    }
+  );
+
+  assert.equal(result.kind, "ok");
+  assert.equal(events.some((event) => event.type === "git.push"), true);
+  assert.equal(audits[0].action, "sandbox.git.push");
+  assert.equal(JSON.stringify(events).includes("ghp_secret"), false);
+  assert.deepEqual(audits[0].metadata?.git, {
+    capability: "git",
+    operation: "push",
+    cwd: "/workspace/project",
+    repositoryUrl: "https://github.com/acme/private.git",
+    remote: "origin",
+    branch: "main",
+    credentialPersistence: "one-shot",
+    hasCredentials: true
+  });
+});
+
 test("createSandboxCommand redacts credentialed Git URLs in stored command records and output", async () => {
   const rawCommand = "git clone https://oauth2:ghp_secret@github.com/acme/private.git /workspace/project";
   const redactedCommand = "git clone https://oauth2:[redacted]@github.com/acme/private.git /workspace/project";

@@ -1,14 +1,31 @@
 import { z } from "zod";
-import { egressModes, egressPresetIds, sandboxFileEncodings, sandboxRouteAccessModes } from "@harakiri/shared";
+import { egressModes, egressPresetIds, sandboxFileEncodings, sandboxGitOperationNames, sandboxRouteAccessModes } from "@harakiri/shared";
 
 const envKeySchema = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "must be a valid environment variable name");
+
+const gitCommandMetadataSchema = z.object({
+  capability: z.literal("git"),
+  operation: z.enum(sandboxGitOperationNames),
+  cwd: z.string().min(1).max(4096).optional(),
+  targetPath: z.string().min(1).max(4096).optional(),
+  repositoryUrl: z.string().min(1).max(2048).optional(),
+  branch: z.string().min(1).max(512).optional(),
+  ref: z.string().min(1).max(512).optional(),
+  remote: z.string().min(1).max(256).optional(),
+  configKey: z.string().min(1).max(512).optional(),
+  credentialPersistence: z.enum(["one-shot", "dangerously-store-in-remote"]).optional(),
+  hasCredentials: z.boolean().optional()
+}).strict();
+
+const commandMetadataSchema = gitCommandMetadataSchema;
 
 export const runSchema = z.object({
   command: z.string().optional(),
   stdin: z.string().optional(),
   cwd: z.string().min(1).max(4096).optional(),
   env: z.record(envKeySchema, z.string()).optional(),
-  timeoutMs: z.coerce.number().int().min(1_000).max(600_000).optional()
+  timeoutMs: z.coerce.number().int().min(1_000).max(600_000).optional(),
+  metadata: commandMetadataSchema.optional()
 });
 
 export const commandSchema = runSchema.extend({

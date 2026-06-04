@@ -203,6 +203,11 @@ path, status, clone duration, and redacted failure reason. Use it for UI state,
 auditing, and reconnect flows; keep credential handling inside the application
 process that starts the clone.
 
+Git helpers send constrained operation metadata with the command request.
+Mutating operations such as clone, commit, pull, push, remote changes, and
+config updates create `sandbox.git.*` audit entries with sanitized repository
+context. Read-only helpers still create structured sandbox events.
+
 Git troubleshooting:
 
 | Symptom | What to check |

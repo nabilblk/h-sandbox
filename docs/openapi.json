@@ -9523,6 +9523,76 @@
         ],
         "additionalProperties": false
       },
+      "SandboxGitOperationMetadata": {
+        "type": "object",
+        "properties": {
+          "capability": {
+            "type": "string",
+            "enum": [
+              "git"
+            ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "clone",
+              "status",
+              "branches",
+              "checkout",
+              "create-branch",
+              "delete-branch",
+              "add",
+              "commit",
+              "pull",
+              "push",
+              "remotes",
+              "remote-add",
+              "config-set",
+              "config-get",
+              "configure-user"
+            ]
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "targetPath": {
+            "type": "string"
+          },
+          "repositoryUrl": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string"
+          },
+          "remote": {
+            "type": "string"
+          },
+          "configKey": {
+            "type": "string"
+          },
+          "credentialPersistence": {
+            "type": "string",
+            "enum": [
+              "one-shot",
+              "dangerously-store-in-remote"
+            ]
+          },
+          "hasCredentials": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "capability",
+          "operation"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxCommandMetadata": {
+        "$ref": "#/components/schemas/SandboxGitOperationMetadata"
+      },
       "RunSandboxBody": {
         "type": "object",
         "properties": {
@@ -9543,6 +9613,9 @@
           },
           "timeoutMs": {
             "type": "integer"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/SandboxCommandMetadata"
           }
         },
         "required": [],
@@ -9817,6 +9890,9 @@
           },
           "detached": {
             "type": "boolean"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/SandboxCommandMetadata"
           }
         },
         "required": [

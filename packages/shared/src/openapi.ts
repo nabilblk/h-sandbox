@@ -334,12 +334,46 @@ const schemas: Record<string, JsonSchema> = {
   SandboxesResponse: objectSchema({ sandboxes: arrayOf(ref("SandboxSummary")) }),
   SandboxResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
   SandboxSourceResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
+  SandboxGitOperationMetadata: objectSchema({
+    capability: { type: "string", enum: ["git"] },
+    operation: {
+      type: "string",
+      enum: [
+        "clone",
+        "status",
+        "branches",
+        "checkout",
+        "create-branch",
+        "delete-branch",
+        "add",
+        "commit",
+        "pull",
+        "push",
+        "remotes",
+        "remote-add",
+        "config-set",
+        "config-get",
+        "configure-user"
+      ]
+    },
+    cwd: string,
+    targetPath: string,
+    repositoryUrl: string,
+    branch: string,
+    ref: string,
+    remote: string,
+    configKey: string,
+    credentialPersistence: { type: "string", enum: ["one-shot", "dangerously-store-in-remote"] },
+    hasCredentials: boolean
+  }, ["capability", "operation"]),
+  SandboxCommandMetadata: ref("SandboxGitOperationMetadata"),
   RunSandboxBody: objectSchema({
     command: string,
     stdin: string,
     cwd: string,
     env: { type: "object", additionalProperties: { type: "string" } },
-    timeoutMs: integer
+    timeoutMs: integer,
+    metadata: ref("SandboxCommandMetadata")
   }, []),
   RunResult: objectSchema({
     sandboxId: string,
@@ -393,7 +427,8 @@ const schemas: Record<string, JsonSchema> = {
     cwd: string,
     env: { type: "object", additionalProperties: { type: "string" } },
     timeoutMs: integer,
-    detached: boolean
+    detached: boolean,
+    metadata: ref("SandboxCommandMetadata")
   }, ["command"]),
   SandboxCommandResponse: objectSchema({ command: ref("SandboxCommandSummary") }),
   SandboxCommandsResponse: objectSchema({ commands: arrayOf(ref("SandboxCommandSummary")) }),

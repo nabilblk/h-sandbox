@@ -66,7 +66,7 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 - [x] Store sanitized Git provenance on sandbox records: repo URL without
       credentials, branch, commit, target path, status, duration, and failure
       reason.
-- [ ] Add explicit Git operation audit events for commit, push, pull, and config
+- [x] Add explicit Git operation audit events for commit, push, pull, and config
       changes.
 - [x] Add sanitized source provenance on create/queued audit metadata, plus
       source update audit/events for cloning, ready, failed, and cleared states.
@@ -136,8 +136,8 @@ Reference: https://e2b.dev/docs/sandbox/git-integration
 | 2026-06-04 | Use `GIT_ASKPASS` for default private repository credentials | Passing credentials in repository URLs can leak through provider stderr or stored command logs. Askpass keeps command text and Git remotes credential-free by default. | Credentialed URL expansion; persistent credential helpers; direct Kubernetes exec. |
 
 ## Tech Debt Incurred
-Current slice leaves explicit Git operation audit records, dashboard source
-provenance UI, and live k0s Git smoke tests for follow-up.
+Current slice leaves dashboard source provenance UI and live k0s Git smoke
+tests for follow-up.
 If shell-based Git command composition becomes too complex, track the follow-up
 to move to a small in-sandbox Git helper binary or provider-native Git API once
 OpenSandbox exposes one.
@@ -206,3 +206,15 @@ OpenSandbox exposes one.
 - Verified shared, SDK, CLI, and API tests; shared, SDK, CLI, API, and web
   typechecks; API, web, and CLI builds; OpenAPI write/check; and
   `git diff --check`.
+
+2026-06-04 Git audit metadata slice:
+- Added constrained `SandboxCommandMetadata` / `SandboxGitOperationMetadata`
+  to the public runtime command contract and OpenAPI document.
+- SDK Git helpers now send sanitized operation metadata for clone, status,
+  branch, commit, pull, push, remote, config, and configure-user operations.
+- API runtime command handling records structured `git.*` sandbox events for
+  Git helper calls and `sandbox.git.*` audit entries for mutating operations.
+- Metadata sanitization strips URL credentials and redacts sensitive strings
+  before events or audit records are persisted.
+- Verified SDK tests/typecheck, API tests/typecheck, shared tests,
+  OpenAPI write/check, and CLI tests for this slice.

@@ -247,6 +247,15 @@ test("HarakiriClient bootstraps Git sources through command APIs", async () => {
     HARAKIRI_GIT_USERNAME: "oauth2",
     HARAKIRI_GIT_TOKEN: "ghp_secret"
   });
+  assert.deepEqual(runBody.metadata, {
+    capability: "git",
+    operation: "clone",
+    repositoryUrl: "https://github.com/acme/project.git",
+    targetPath: "/workspace/project",
+    branch: "main",
+    credentialPersistence: "one-shot",
+    hasCredentials: true
+  });
   const sourceUpdates = calls.filter((call) => call.url.endsWith("/source")).map((call) => JSON.parse(call.body ?? "{}").source);
   assert.equal(sourceUpdates.length, 2);
   assert.equal(sourceUpdates[0].status, "cloning");
