@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@harakiri/shared": "workspace:*",
-    "@vitejs/plugin-react": "^5.1.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "keycloak-js": "^26.2.4",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
