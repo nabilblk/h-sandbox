@@ -1,0 +1,39 @@
+{{- if .Values.registry.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "harakiri.fullname" . }}-registry
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: registry
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "harakiri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: registry
+  template:
+    metadata:
+      labels:
+        {{- include "harakiri.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: registry
+    spec:
+      {{- if .Values.registry.hostNetwork }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      {{- end }}
+      containers:
+        - name: registry
+          image: {{ .Values.registry.image }}
+          imagePullPolicy: {{ .Values.registry.pullPolicy }}
+          ports:
+            - name: registry
+              containerPort: {{ .Values.registry.port }}
+          {{- with .Values.registry.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

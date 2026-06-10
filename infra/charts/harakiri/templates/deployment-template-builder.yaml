@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "harakiri.fullname" . }}-template-builder
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: template-builder
+spec:
+  replicas: {{ .Values.templateBuilder.replicas }}
+  selector:
+    matchLabels:
+      {{- include "harakiri.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: template-builder
+  template:
+    metadata:
+      labels:
+        {{- include "harakiri.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: template-builder
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.templateBuilder.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "harakiri.serviceAccountName" . }}
+      {{- with (include "harakiri.imagePullSecrets" .) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: template-builder
+          image: {{ include "harakiri.image.api" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            {{- toYaml .Values.templateBuilder.command | nindent 12 }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "harakiri.configMapName" . }}
+            - secretRef:
+                name: {{ include "harakiri.secretName" . }}
+          {{- with .Values.templateBuilder.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.templateBuilder.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.templateBuilder.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.templateBuilder.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
