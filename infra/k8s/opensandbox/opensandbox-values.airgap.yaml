@@ -1,0 +1,81 @@
+# Air-gapped OpenSandbox values: every image pulled from Harbor mirror instead
+# of the Aliyun registry. Use INSTEAD of opensandbox-values.yaml, e.g.:
+#
+#   helm upgrade --install opensandbox <chart> -n opensandbox-system \
+#     -f infra/k8s/opensandbox/opensandbox-values.airgap.yaml
+#
+# Prereq: the "Mirror images (Harbor)" workflow has mirrored opensandbox/{server,
+# execd,egress,controller,ingress}, and the Harbor 'harakiri' project is pullable
+# from the cluster (set public-read).
+#
+# Differences from opensandbox-values.yaml:
+#   - all images point at core.campus.clusterdiali.me/harakiri/mirror/opensandbox/*
+#   - the gateway uses the pinned upstream ingress:v1.0.2 (mirrored) instead of the
+#     source-built opensandbox-ingress:local — nothing is built on the cluster.
+
+opensandbox-controller:
+  controller:
+    logLevel: info
+    replicaCount: 1
+    image:
+      repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/controller
+      tag: "0.1.0"
+
+opensandbox-server:
+  configToml: |
+    [server]
+    host = "0.0.0.0"
+    port = 80
+    api_key = "dev-opensandbox-key"
+
+    [log]
+    level = "INFO"
+
+    [runtime]
+    type = "kubernetes"
+    execd_image = "core.campus.clusterdiali.me/harakiri/mirror/opensandbox/execd:v1.0.17"
+
+    [kubernetes]
+    kubeconfig_path = ""
+    namespace = "opensandbox"
+    informer_enabled = true
+    informer_resync_seconds = 300
+    informer_watch_timeout_seconds = 60
+    snapshot_create_timeout_seconds = 900
+    workload_provider = "batchsandbox"
+    batchsandbox_template_file = "/etc/opensandbox/example.batchsandbox-template.yaml"
+
+    [egress]
+    image = "core.campus.clusterdiali.me/harakiri/mirror/opensandbox/egress:v1.0.12"
+    mode = "dns+nft"
+
+  server:
+    image:
+      repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/server
+      tag: v0.1.14
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 512Mi
+    gateway:
+      enabled: true
+      host: sandbox.localhost
+      gatewayRouteMode: header
+      image:
+        repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/ingress
+        tag: v1.0.2
+      replicaCount: 1
+      dataplaneNamespace: opensandbox
+      providerType: batchsandbox
+      logLevel: info
+      resources:
+        limits:
+          cpu: "500m"
+          memory: 512Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi

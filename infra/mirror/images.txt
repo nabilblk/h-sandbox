@@ -27,8 +27,9 @@ gcr.io/kaniko-project/executor:v1.24.0         mirror/kaniko-executor:v1.24.0
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/server:v0.1.14   mirror/opensandbox/server:v0.1.14
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.17    mirror/opensandbox/execd:v1.0.17
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.12   mirror/opensandbox/egress:v1.0.12
-# opensandbox controller image is not pinned in infra/k8s/opensandbox/opensandbox-values.yaml
-# (it uses the chart default). To mirror it, find the ref and add a line:
-#   kubectl -n opensandbox-system get deploy opensandbox-controller-manager -o jsonpath='{..image}'
-# opensandbox-ingress-gateway is built from source (opensandbox-ingress:local) and has no
-# upstream tag — build & push it separately if you need it in Harbor.
+sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/controller:0.1.0  mirror/opensandbox/controller:0.1.0
+sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/ingress:v1.0.2    mirror/opensandbox/ingress:v1.0.2
+# NOTE: controller:0.1.0 is the OpenSandbox chart appVersion default; ingress:v1.0.2 is the chart's
+# default gateway image. Your opensandbox-values.yaml overrides the gateway to a source-built
+# opensandbox-ingress:local; the air-gap config uses the pinned upstream ingress:v1.0.2 mirrored
+# here, so nothing is built on the cluster.

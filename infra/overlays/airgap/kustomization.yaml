@@ -1,0 +1,53 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Air-gapped overlay: pull every image from Harbor instead of upstream registries.
+#
+# Prerequisites:
+#   1. Run the "Mirror images (Harbor)" workflow (infra/mirror/images.txt).
+#   2. Publish the control-plane images + chart (the release workflow).
+#   3. The Harbor 'harakiri' project must be pullable from the cluster
+#      (it is set public-read; otherwise add imagePullSecrets).
+#
+# Apply with:  kubectl apply -k infra/overlays/airgap
+# (OpenSandbox is installed separately — see infra/k8s/opensandbox/opensandbox-values.airgap.yaml)
+
+resources:
+  - ../../k8s
+
+# Pod container images -> Harbor.
+images:
+  # Harakiri control plane. One api image powers api + scheduler + template-builder.
+  - name: 127.0.0.1:5000/harakiri/system/api
+    newName: core.campus.clusterdiali.me/harakiri/harakiri-api
+    newTag: 0.1.0
+  - name: 127.0.0.1:5000/harakiri/system/web
+    newName: core.campus.clusterdiali.me/harakiri/harakiri-web
+    newTag: 0.1.0
+  # In-cluster template registry + control-plane dependencies.
+  - name: registry
+    newName: core.campus.clusterdiali.me/harakiri/mirror/registry
+    newTag: "2"
+  - name: postgres
+    newName: core.campus.clusterdiali.me/harakiri/mirror/postgres
+    newTag: 16-alpine
+  - name: quay.io/keycloak/keycloak
+    newName: core.campus.clusterdiali.me/harakiri/mirror/keycloak
+    newTag: "26.4"
+  - name: axllent/mailpit
+    newName: core.campus.clusterdiali.me/harakiri/mirror/mailpit
+    newTag: v1.27
+
+# Template-builder image refs live in the ConfigMap (not as pod images), so repoint them here.
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: harakiri-config
+        namespace: harakiri
+      data:
+        TEMPLATE_BUILDER_JOB_IMAGE: core.campus.clusterdiali.me/harakiri/harakiri-api:0.1.0
+        TEMPLATE_BUILDKIT_IMAGE: core.campus.clusterdiali.me/harakiri/mirror/buildkit:rootless
+        TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE: core.campus.clusterdiali.me/harakiri/mirror/kaniko-executor:v1.24.0
+        TEMPLATE_IMAGE_ALLOW_REGISTRIES: core.campus.clusterdiali.me,harakiri-registry.harakiri.svc.cluster.local:5000
