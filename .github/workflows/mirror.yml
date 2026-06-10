@@ -1,0 +1,73 @@
+name: Mirror images (Harbor)
+
+# Copies the pinned third-party/upstream images listed in infra/mirror/images.txt
+# into Harbor, preserving digests (incl. multi-arch). For air-gapped clusters that
+# cannot pull from Docker Hub / quay.io / gcr.io / the Aliyun OpenSandbox registry.
+#
+# Uses the same Harbor credentials as the release workflow:
+#   secrets HARBOR_USERNAME / HARBOR_PASSWORD (the project robot account)
+# Mirrored images land under <HARBOR_REGISTRY>/<HARBOR_PROJECT>/mirror/...
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - infra/mirror/images.txt
+      - .github/workflows/mirror.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY || 'core.campus.clusterdiali.me' }}
+  HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'harakiri' }}
+  CRANE_VERSION: v0.21.6
+
+jobs:
+  mirror:
+    name: Mirror pinned images
+    runs-on: ubuntu-latest
+    environment: harbor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install crane ${{ env.CRANE_VERSION }}
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz" -o /tmp/crane.tgz
+          sudo tar -xzf /tmp/crane.tgz -C /usr/local/bin crane
+          crane version
+
+      - name: Log in to Harbor
+        # creds via env (not ${{ }} in the script) so a robot username with '$' isn't shell-expanded
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        run: crane auth login "$HARBOR_REGISTRY" -u "$HARBOR_USERNAME" -p "$HARBOR_PASSWORD"
+
+      - name: Mirror pinned images
+        run: |
+          set -uo pipefail
+          fail=0
+          copied=0
+          while read -r src dst rest || [ -n "${src:-}" ]; do
+            case "${src:-}" in ''|\#*) continue ;; esac
+            if [ -z "${dst:-}" ]; then
+              echo "::error::no destination for source '${src}'"; fail=1; continue
+            fi
+            target="${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${dst}"
+            echo "::group::${src} -> ${target}"
+            if crane copy "${src}" "${target}"; then
+              copied=$((copied + 1)); echo "mirrored ${src}"
+            else
+              echo "::error::failed to mirror ${src}"; fail=1
+            fi
+            echo "::endgroup::"
+          done < infra/mirror/images.txt
+          echo "Mirrored ${copied} image(s)."
+          exit "${fail}"

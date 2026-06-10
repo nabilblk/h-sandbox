@@ -1,0 +1,34 @@
+# Pinned third-party / upstream images mirrored into Harbor for air-gapped or
+# fully self-hosted clusters. These are NOT built from this repo — they are
+# pulled from public/upstream registries, so the mirror workflow copies the
+# exact pinned tags (digests preserved) into your Harbor.
+#
+# Format (whitespace-separated):  <source-ref>   <dest-repo:tag>
+#   dest is created under  <HARBOR_REGISTRY>/<HARBOR_PROJECT>/<dest>
+#   e.g.  core.campus.clusterdiali.me/harakiri/mirror/postgres:16-alpine
+#
+# Run: Actions -> "Mirror images (Harbor)" -> Run workflow,
+#      or just edit this file on main (push triggers a mirror).
+# Lines starting with # and blank lines are ignored.
+
+# --- Control-plane dependencies ---
+docker.io/library/postgres:16-alpine          mirror/postgres:16-alpine
+docker.io/library/registry:2                   mirror/registry:2
+quay.io/keycloak/keycloak:26.4                 mirror/keycloak:26.4
+docker.io/axllent/mailpit:v1.27                mirror/mailpit:v1.27
+
+# --- Template build toolchain (pulled by template-builder Jobs at build time) ---
+# NOTE: buildkit:rootless is the one floating upstream tag; the mirror still
+# captures a fixed digest at copy time. Switch to a versioned tag for strict pinning.
+docker.io/moby/buildkit:rootless               mirror/buildkit:rootless
+gcr.io/kaniko-project/executor:v1.24.0         mirror/kaniko-executor:v1.24.0
+
+# --- OpenSandbox runtime (Aliyun registry; the high-value air-gap targets) ---
+sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/server:v0.1.14   mirror/opensandbox/server:v0.1.14
+sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.17    mirror/opensandbox/execd:v1.0.17
+sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.12   mirror/opensandbox/egress:v1.0.12
+# opensandbox controller image is not pinned in infra/k8s/opensandbox/opensandbox-values.yaml
+# (it uses the chart default). To mirror it, find the ref and add a line:
+#   kubectl -n opensandbox-system get deploy opensandbox-controller-manager -o jsonpath='{..image}'
+# opensandbox-ingress-gateway is built from source (opensandbox-ingress:local) and has no
+# upstream tag — build & push it separately if you need it in Harbor.
