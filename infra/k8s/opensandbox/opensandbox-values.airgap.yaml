@@ -18,8 +18,10 @@ opensandbox-controller:
     logLevel: info
     replicaCount: 1
     image:
+      # Registry tags the controller v0.1.0 (available: v0.1.0, v0.2.0). Verify against your
+      # running controller: kubectl -n opensandbox-system get deploy opensandbox-controller-manager -o jsonpath='{..image}'
       repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/controller
-      tag: "0.1.0"
+      tag: "v0.1.0"
 
 opensandbox-server:
   configToml: |

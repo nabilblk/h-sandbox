@@ -27,9 +27,13 @@ gcr.io/kaniko-project/executor:v1.24.0         mirror/kaniko-executor:v1.24.0
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/server:v0.1.14   mirror/opensandbox/server:v0.1.14
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.17    mirror/opensandbox/execd:v1.0.17
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.12   mirror/opensandbox/egress:v1.0.12
-sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/controller:0.1.0  mirror/opensandbox/controller:0.1.0
+sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/controller:v0.1.0  mirror/opensandbox/controller:v0.1.0
 sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/ingress:v1.0.2    mirror/opensandbox/ingress:v1.0.2
-# NOTE: controller:0.1.0 is the OpenSandbox chart appVersion default; ingress:v1.0.2 is the chart's
-# default gateway image. Your opensandbox-values.yaml overrides the gateway to a source-built
+# NOTE: the registry tags the controller v0.1.0 (chart appVersion is 0.1.0; registry uses a v-prefix
+# like the other components; available tags: v0.1.0, v0.2.0). ingress:v1.0.2 is the chart's default
+# gateway image. Your opensandbox-values.yaml overrides the gateway to a source-built
 # opensandbox-ingress:local; the air-gap config uses the pinned upstream ingress:v1.0.2 mirrored
 # here, so nothing is built on the cluster.
+# Verify your running controller tag with:
+#   kubectl -n opensandbox-system get deploy opensandbox-controller-manager -o jsonpath='{..image}'
+# and switch to v0.2.0 here + in opensandbox-values.airgap.yaml if that's what you run.
