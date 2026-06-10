@@ -13,7 +13,9 @@ name: Release (Harbor)
 #     HARBOR_PROJECT  (default harakiri)
 #     WEB_PUBLIC_API_URL / WEB_PUBLIC_KEYCLOAK_URL / WEB_PUBLIC_KEYCLOAK_REALM /
 #     WEB_PUBLIC_KEYCLOAK_CLIENT_ID / WEB_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO
-#       -> baked into the web image at build time (Vite). Set these to your env.
+#       -> OPTIONAL build-time fallback baked into the web bundle. The web image
+#          is runtime-configured by the chart (config.PUBLIC_* -> /config.js at
+#          startup), so these are only used when a runtime value is empty.
 
 on:
   push:

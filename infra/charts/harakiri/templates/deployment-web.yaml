@@ -17,10 +17,11 @@ spec:
       labels:
         {{- include "harakiri.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
-      {{- with .Values.web.podAnnotations }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.web.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "harakiri.serviceAccountName" . }}
       {{- with (include "harakiri.imagePullSecrets" .) }}
@@ -41,6 +42,10 @@ spec:
           ports:
             - name: http
               containerPort: 80
+          # PUBLIC_* drive /config.js (runtime web config) via the entrypoint.
+          envFrom:
+            - configMapRef:
+                name: {{ include "harakiri.configMapName" . }}
           {{- with .Values.web.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}

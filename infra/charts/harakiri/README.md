@@ -95,6 +95,12 @@ harborPullSecret:
 
 Run `helm show values infra/charts/harakiri` for the full list.
 
+> [!NOTE]
+> The **web image is runtime-configured**. The chart injects `config.PUBLIC_*`
+> into the web container, and an entrypoint regenerates `/config.js` from those
+> at startup — so the same published image works in every environment and the
+> dashboard's API/Keycloak URLs come from your values, not a rebuild.
+
 ## Production hardening
 
 This chart adds resource limits, a dedicated ServiceAccount, and config/secret

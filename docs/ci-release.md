@@ -54,11 +54,12 @@ gh variable set WEB_PUBLIC_KEYCLOAK_REALM   --body 'harakiri'
 gh variable set WEB_PUBLIC_KEYCLOAK_CLIENT_ID --body 'harakiri-web'
 ```
 
-> [!IMPORTANT]
-> The **web image bakes its public URLs at build time** (Vite). If you don't set
-> the `WEB_PUBLIC_*` variables, the published web image points at `127.0.0.1`
-> and won't work in your cluster. A future improvement is runtime web config so
-> one image works everywhere.
+> [!NOTE]
+> The web image is **runtime-configured**: the chart sets `config.PUBLIC_*` and
+> the container regenerates `/config.js` from those env vars at startup, so one
+> published image works in any environment. The `WEB_PUBLIC_*` repo variables
+> below are only an optional build-time *fallback* baked into the bundle (used
+> if a runtime value is empty) — the chart path does not need them.
 
 ### 3. Harbor TLS / CA
 
