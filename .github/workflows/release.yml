@@ -160,10 +160,15 @@ jobs:
             --destination dist
 
       - name: Log in to Harbor (Helm OCI)
+        # Pass creds via env, not ${{ }} interpolation, so the shell doesn't
+        # re-expand a username containing '$' (e.g. robot$project+name).
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
         run: |
-          echo "${{ secrets.HARBOR_PASSWORD }}" | \
-            helm registry login "${HARBOR_REGISTRY}" \
-              --username "${{ secrets.HARBOR_USERNAME }}" \
+          printf '%s' "$HARBOR_PASSWORD" | \
+            helm registry login "$HARBOR_REGISTRY" \
+              --username "$HARBOR_USERNAME" \
               --password-stdin
 
       - name: Push chart
