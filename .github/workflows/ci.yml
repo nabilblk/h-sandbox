@@ -45,3 +45,51 @@ jobs:
 
       - name: API typecheck
         run: pnpm --filter @harakiri/api typecheck
+
+  chart:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart
+        run: helm lint infra/charts/harakiri
+
+      - name: Render chart (default + ingress)
+        run: |
+          helm template harakiri infra/charts/harakiri -n harakiri \
+            --set secret.data.DATABASE_URL=postgres://ci > /dev/null
+          helm template harakiri infra/charts/harakiri -n harakiri \
+            --set secret.data.DATABASE_URL=postgres://ci \
+            --set ingress.enabled=true \
+            --set ingress.web.host=app.example.com \
+            --set ingress.api.host=api.example.com > /dev/null
+
+  images:
+    name: Build ${{ matrix.component }} image (no push)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            dockerfile: apps/api/Dockerfile
+          - component: web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (validate Dockerfile, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}

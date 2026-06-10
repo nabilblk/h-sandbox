@@ -1,0 +1,19 @@
+apiVersion: v2
+name: harakiri
+description: Harakiri Sandbox control plane (API, web, scheduler, template builder) on top of OpenSandbox.
+type: application
+# version  = the chart version (SemVer). Overridden by CI from the git tag.
+# appVersion = the Harakiri release the chart deploys (the image tag default).
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/nabilblk/h-sandbox
+sources:
+  - https://github.com/nabilblk/h-sandbox
+keywords:
+  - sandbox
+  - opensandbox
+  - agents
+  - control-plane
+maintainers:
+  - name: Harakiri Sandbox maintainers
+    url: https://github.com/nabilblk/h-sandbox

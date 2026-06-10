@@ -1,0 +1,176 @@
+name: Release (Harbor)
+
+# Publishes the control-plane container images and the Helm chart to Harbor.
+#
+# Triggers:
+#   - pushing a SemVer tag (v1.2.3)         -> versioned release
+#   - manual run (workflow_dispatch)        -> ad-hoc build, optional custom tag
+#
+# Required configuration (Settings -> Secrets and variables -> Actions):
+#   Secrets:   HARBOR_USERNAME, HARBOR_PASSWORD   (use a Harbor robot account, not admin)
+#   Variables (optional, have defaults):
+#     HARBOR_REGISTRY (default core.campus.clusterdiali.me)
+#     HARBOR_PROJECT  (default harakiri)
+#     WEB_PUBLIC_API_URL / WEB_PUBLIC_KEYCLOAK_URL / WEB_PUBLIC_KEYCLOAK_REALM /
+#     WEB_PUBLIC_KEYCLOAK_CLIENT_ID / WEB_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO
+#       -> OPTIONAL build-time fallback baked into the web bundle. The web image
+#          is runtime-configured by the chart (config.PUBLIC_* -> /config.js at
+#          startup), so these are only used when a runtime value is empty.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Extra image tag to publish (e.g. a branch build). Optional."
+        required: false
+        default: ""
+      chart_version:
+        description: "Chart version override (SemVer, no leading v). Optional."
+        required: false
+        default: ""
+      platforms:
+        description: "Image platforms"
+        required: false
+        default: "linux/amd64"
+
+# Least privilege: we push to Harbor with secrets, not to GHCR, so no write scopes.
+permissions:
+  contents: read
+
+# Never run two releases for the same ref at once; don't cancel an in-flight release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY || 'core.campus.clusterdiali.me' }}
+  HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'harakiri' }}
+
+jobs:
+  images:
+    name: Build & push ${{ matrix.component }} image
+    runs-on: ubuntu-latest
+    # Scope Harbor credentials to a protected environment for extra review/control.
+    environment: harbor
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: api
+            dockerfile: apps/api/Dockerfile
+          - component: web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/harakiri-${{ matrix.component }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+            type=raw,value=${{ inputs.image_tag }},enable=${{ inputs.image_tag != '' }}
+
+      - name: Compose web build args
+        id: bargs
+        run: |
+          if [ "${{ matrix.component }}" = "web" ]; then
+            {
+              echo 'args<<EOF'
+              echo "VITE_PUBLIC_API_URL=${{ vars.WEB_PUBLIC_API_URL || 'http://127.0.0.1:18082' }}"
+              echo "VITE_PUBLIC_KEYCLOAK_URL=${{ vars.WEB_PUBLIC_KEYCLOAK_URL || 'http://127.0.0.1:18084' }}"
+              echo "VITE_PUBLIC_KEYCLOAK_REALM=${{ vars.WEB_PUBLIC_KEYCLOAK_REALM || 'harakiri' }}"
+              echo "VITE_PUBLIC_KEYCLOAK_CLIENT_ID=${{ vars.WEB_PUBLIC_KEYCLOAK_CLIENT_ID || 'harakiri-web' }}"
+              echo "VITE_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO=${{ vars.WEB_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO || 'false' }}"
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "args=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ inputs.platforms || 'linux/amd64' }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ steps.bargs.outputs.args }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
+          # Harbor's default config rejects OCI referrer/attestation artifacts;
+          # keep these off unless your Harbor has OCI 1.1 referrers enabled.
+          provenance: false
+          sbom: false
+
+  chart:
+    name: Package & push Helm chart
+    runs-on: ubuntu-latest
+    environment: harbor
+    needs: images
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Resolve chart version
+        id: ver
+        run: |
+          if [ -n "${{ inputs.chart_version }}" ]; then
+            VER="${{ inputs.chart_version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="0.0.0-dev.$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Chart version: $VER"
+
+      - name: Lint chart
+        run: helm lint infra/charts/harakiri
+
+      - name: Package chart
+        run: |
+          helm package infra/charts/harakiri \
+            --version "${{ steps.ver.outputs.version }}" \
+            --app-version "${{ steps.ver.outputs.version }}" \
+            --destination dist
+
+      - name: Log in to Harbor (Helm OCI)
+        run: |
+          echo "${{ secrets.HARBOR_PASSWORD }}" | \
+            helm registry login "${HARBOR_REGISTRY}" \
+              --username "${{ secrets.HARBOR_USERNAME }}" \
+              --password-stdin
+
+      - name: Push chart
+        run: |
+          helm push "dist/harakiri-${{ steps.ver.outputs.version }}.tgz" \
+            "oci://${HARBOR_REGISTRY}/${HARBOR_PROJECT}/charts"
+
+      - name: Logout
+        if: always()
+        run: helm registry logout "${HARBOR_REGISTRY}" || true

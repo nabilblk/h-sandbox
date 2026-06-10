@@ -1,0 +1,239 @@
+# Default values for the Harakiri Sandbox control-plane chart.
+# Every value here can be overridden with -f myvalues.yaml or --set.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Container images. By default these resolve to:
+#    {registry}/{repository}/{name}:{tag||Chart.appVersion}
+#    e.g. core.campus.clusterdiali.me/harakiri/harakiri-api:0.1.0
+# The CI release workflow publishes exactly these refs.
+image:
+  registry: core.campus.clusterdiali.me
+  repository: harakiri            # Harbor project name
+  pullPolicy: IfNotPresent
+  api:
+    name: harakiri-api
+    tag: ""                       # "" => Chart.appVersion
+  web:
+    name: harakiri-web
+    tag: ""                       # "" => Chart.appVersion
+
+# -- Pre-existing imagePullSecrets to attach to every pod.
+imagePullSecrets: []
+# - name: my-harbor-cred
+
+# -- Optionally render a Harbor pull Secret from credentials.
+# Prefer creating the Secret out-of-band (kubectl create secret docker-registry)
+# and referencing it via imagePullSecrets, so credentials never live in values.
+harborPullSecret:
+  create: false
+  name: harakiri-harbor
+  registry: core.campus.clusterdiali.me
+  username: ""
+  password: ""
+  email: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  # Role: manage template-builder Jobs + read their pods/logs in this namespace.
+  create: true
+  # ClusterRole: read nodes for hot-template image pre-pull (cluster-scoped).
+  prepullClusterRole: true
+
+# ---------------------------------------------------------------------------
+# Components. The api, scheduler and template-builder all run the SAME api
+# image; scheduler/template-builder override the container command.
+# ---------------------------------------------------------------------------
+api:
+  replicas: 1
+  command: []                     # [] => image default (node apps/api/dist/server.js)
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  readinessProbe:
+    httpGet: { path: /health, port: 8080 }
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  livenessProbe:
+    httpGet: { path: /health, port: 8080 }
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  service:
+    type: ClusterIP
+    port: 8080
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+scheduler:
+  replicas: 1                     # keep at 1 — no leader election yet
+  command: ["node", "apps/api/dist/scheduler.js"]
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+templateBuilder:
+  replicas: 1
+  command: ["node", "apps/api/dist/template-builder.js"]
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+web:
+  replicas: 1
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+  readinessProbe:
+    httpGet: { path: /, port: 80 }
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  service:
+    type: ClusterIP
+    port: 80
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# In-cluster registry that the template builder pushes built images to.
+# Disable if you point TEMPLATE_REGISTRY_PUSH_HOST at Harbor or another registry.
+registry:
+  enabled: true
+  image: registry:2
+  pullPolicy: IfNotPresent
+  hostNetwork: true               # matches the current infra/k8s manifest
+  port: 5000
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+# Pod- and container-level security context applied to the api/web/scheduler/
+# template-builder workloads. Empty by default to preserve current behaviour;
+# tighten in production (see infra/charts/harakiri/README.md).
+podSecurityContext: {}
+securityContext: {}
+
+# ---------------------------------------------------------------------------
+# Non-secret configuration -> ConfigMap `*-config` (mounted via envFrom).
+# Defaults mirror infra/k8s/harakiri/harakiri.yaml. Override the PUBLIC_* and
+# *_URL values for your environment.
+# ---------------------------------------------------------------------------
+config:
+  API_PORT: "8080"
+  PUBLIC_API_URL: "http://127.0.0.1:18082"
+  PUBLIC_WEB_URL: "http://127.0.0.1:15173"
+  PUBLIC_KEYCLOAK_URL: "http://127.0.0.1:18084"
+  PUBLIC_KEYCLOAK_REALM: "harakiri"
+  PUBLIC_KEYCLOAK_CLIENT_ID: "harakiri-web"
+  PUBLIC_KEYCLOAK_SILENT_CHECK_SSO: "false"
+  PUBLIC_OPEN_SANDBOX_URL: "http://127.0.0.1:18083"
+  SANDBOX_ROUTE_MODE: "opensandbox-gateway"
+  SANDBOX_ROUTE_BASE_DOMAIN: "sandbox.localhost"
+  SANDBOX_ROUTE_PUBLIC_SCHEME: "https"
+  SANDBOX_ROUTE_LOCAL_FALLBACK_URL: "http://127.0.0.1:18083"
+  SANDBOX_MAX_ROUTES_PER_SANDBOX: "8"
+  SANDBOX_MAX_ROUTES_PER_ORG: "200"
+  SANDBOX_FILE_ARTIFACT_MAX_BYTES: "16777216"
+  TEMPLATE_MAX_CPU_COUNT: "8"
+  TEMPLATE_MAX_MEMORY_MB: "32768"
+  TEMPLATE_MAX_DEFAULT_PORTS: "16"
+  TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG: "3"
+  TEMPLATE_IMAGE_ALLOW_REGISTRIES: "docker.io,registry-1.docker.io,mcr.microsoft.com,gcr.io,ghcr.io,harakiri-registry.harakiri.svc.cluster.local:5000"
+  TEMPLATE_IMAGE_DENY_REGISTRIES: ""
+  TEMPLATE_IMAGE_ALLOW_PREFIXES: ""
+  TEMPLATE_IMAGE_DENY_PREFIXES: ""
+  TEMPLATE_BUILD_CONTEXT_MAX_BYTES: "26214400"
+  TEMPLATE_BUILDER_NAMESPACE: "harakiri"
+  # TEMPLATE_BUILDER_JOB_IMAGE: "" => defaults to the deployed api image.
+  TEMPLATE_BUILDER_JOB_IMAGE: ""
+  TEMPLATE_DOCKERFILE_BUILDER: "buildkit"
+  TEMPLATE_BUILDKIT_IMAGE: "moby/buildkit:rootless"
+  TEMPLATE_BUILDKITD_FLAGS: "--oci-worker-no-process-sandbox"
+  TEMPLATE_BUILDKIT_REGISTRY_INSECURE: "1"
+  TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE: "gcr.io/kaniko-project/executor:v1.24.0"
+  TEMPLATE_BUILDER_JOB_TIMEOUT_MS: "900000"
+  # "" => when registry.enabled, defaults to the chart's in-cluster registry Service DNS.
+  TEMPLATE_REGISTRY_PUSH_HOST: ""
+  TEMPLATE_REGISTRY_RUNTIME_HOST: "127.0.0.1:5000"
+  TEMPLATE_REGISTRY_REPOSITORY_PREFIX: "harakiri/templates"
+  TEMPLATE_REGISTRY_CREDENTIAL_KEY: "harakiri-local-registry-credential-key"
+  TEMPLATE_SCANNER_WEBHOOK_URL: ""
+  TEMPLATE_SCANNER_TIMEOUT_MS: "10000"
+  TEMPLATE_SCANNER_FAIL_ON_ERROR: "0"
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED: "1"
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE: "opensandbox"
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS: "120000"
+  TEMPLATE_IMAGE_PREPULL_ENABLED: "1"
+  TEMPLATE_IMAGE_PREPULL_NAMESPACE: "opensandbox"
+  TEMPLATE_IMAGE_PREPULL_TIMEOUT_MS: "120000"
+  TEMPLATE_IMAGE_PREPULL_HOT_TAGS: "hot,prepull,warm"
+  TEMPLATE_IMAGE_PREPULL_FAIL_ON_ERROR: "0"
+  TEMPLATE_RETENTION_ENABLED: "1"
+  TEMPLATE_RETENTION_INTERVAL_MS: "3600000"
+  TEMPLATE_BUILD_RETENTION_DAYS: "30"
+  TEMPLATE_BUILD_LOG_RETENTION_DAYS: "14"
+  TEMPLATE_BUILD_CONTEXT_RETENTION_DAYS: "7"
+  TEMPLATE_VERSION_RETENTION_DAYS: "90"
+  TEMPLATE_BUILDER_JOB_RETENTION_DAYS: "1"
+  TEMPLATE_RETENTION_DELETE_BUILDER_JOBS: "1"
+  TEMPLATE_BUILDER_POLL_MS: "5000"
+  KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
+  KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
+  KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
+  KEYCLOAK_INVITATION_REDIRECT_URI: "http://127.0.0.1:15173/#dashboard/sandboxes"
+  OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
+  OPEN_SANDBOX_GATEWAY_URL: "http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80"
+  OPEN_SANDBOX_ALLOW_FALLBACK: "0"
+  AUTH_DEV_ALLOW: "0"
+  AUTO_MIGRATE: "1"
+  SEED_ON_BOOT: "0"
+
+# -- Extra/override entries merged into the ConfigMap (takes precedence over .config).
+extraConfig: {}
+
+# ---------------------------------------------------------------------------
+# Secrets -> Secret `*-api` (mounted via envFrom). DO NOT commit real values
+# here. Either:
+#   (a) set secret.existingSecret to a Secret you created out-of-band, or
+#   (b) supply secret.data via a private values file / --set / CI secrets.
+# ---------------------------------------------------------------------------
+secret:
+  create: true
+  existingSecret: ""
+  data:
+    DATABASE_URL: ""
+    OPEN_SANDBOX_API_KEY: ""
+    KEYCLOAK_ADMIN_USERNAME: ""
+    KEYCLOAK_ADMIN_PASSWORD: ""
+
+# Optional ingress for the dashboard (web) and API.
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  web:
+    host: ""                      # e.g. app.campus.clusterdiali.me
+    path: /
+    pathType: Prefix
+  api:
+    host: ""                      # e.g. api.campus.clusterdiali.me
+    path: /
+    pathType: Prefix
+  tls: []
+  # - hosts: [app.campus.clusterdiali.me]
+  #   secretName: harakiri-web-tls

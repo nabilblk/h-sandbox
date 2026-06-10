@@ -1,7 +1,6 @@
 import { formatApiErrorResponse } from "@harakiri/shared";
 import { auth, AuthSessionExpiredError, type AuthSession } from "../auth";
-
-const env = import.meta.env ?? ({} as ImportMetaEnv);
+import { env } from "../runtime-config";
 
 const defaultApiUrl = () => "http://127.0.0.1:8080";
 

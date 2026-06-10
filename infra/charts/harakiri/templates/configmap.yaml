@@ -1,0 +1,20 @@
+{{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config -}}
+{{- /* Default the builder Job image to the deployed api image. */ -}}
+{{- if not (index $cfg "TEMPLATE_BUILDER_JOB_IMAGE") -}}
+{{- $_ := set $cfg "TEMPLATE_BUILDER_JOB_IMAGE" (include "harakiri.image.api" .) -}}
+{{- end -}}
+{{- /* Default the template push registry to the chart's in-cluster registry Service. */ -}}
+{{- if and .Values.registry.enabled (not (index $cfg "TEMPLATE_REGISTRY_PUSH_HOST")) -}}
+{{- $_ := set $cfg "TEMPLATE_REGISTRY_PUSH_HOST" (printf "%s-registry.%s.svc.cluster.local:%v" (include "harakiri.fullname" .) .Release.Namespace .Values.registry.port) -}}
+{{- end -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "harakiri.configMapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" . | nindent 4 }}
+data:
+{{- range $key, $value := $cfg }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}

@@ -1,6 +1,5 @@
 import Keycloak, { type KeycloakTokenParsed } from "keycloak-js";
-
-const env = import.meta.env ?? ({} as ImportMetaEnv);
+import { env } from "./runtime-config";
 
 const defaultKeycloakUrl = () => "http://127.0.0.1:8081";
 

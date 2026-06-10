@@ -1,0 +1,46 @@
+Harakiri Sandbox {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Images (from Harbor):
+  api: {{ include "harakiri.image.api" . }}
+  web: {{ include "harakiri.image.web" . }}
+
+Components:
+  - {{ include "harakiri.fullname" . }}-api               (control-plane API, :{{ .Values.api.service.port }})
+  - {{ include "harakiri.fullname" . }}-web               (dashboard, :{{ .Values.web.service.port }})
+  - {{ include "harakiri.fullname" . }}-scheduler         (TTL / retention worker)
+  - {{ include "harakiri.fullname" . }}-template-builder  (image build worker)
+{{- if .Values.registry.enabled }}
+  - {{ include "harakiri.fullname" . }}-registry          (in-cluster template registry, :{{ .Values.registry.port }})
+{{- end }}
+
+Check rollout:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "harakiri.fullname" . }}-api
+
+{{- if not .Values.ingress.enabled }}
+
+No ingress configured. Reach the dashboard / API with port-forward:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "harakiri.fullname" . }}-web 8080:{{ .Values.web.service.port }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "harakiri.fullname" . }}-api 8081:{{ .Values.api.service.port }}
+{{- else }}
+
+Ingress:
+{{- with .Values.ingress.web.host }}
+  Web: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ . }}
+{{- end }}
+{{- with .Values.ingress.api.host }}
+  API: http{{ if $.Values.ingress.tls }}s{{ end }}://{{ . }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.secret.create (not .Values.secret.existingSecret) }}
+{{- if not .Values.secret.data.DATABASE_URL }}
+
+WARNING: secret.data.DATABASE_URL is empty. The API/scheduler/template-builder
+will not start. Provide it via a private values file, --set, or set
+secret.existingSecret to a Secret you created out-of-band.
+{{- end }}
+{{- end }}
+
+Prerequisites (NOT deployed by this chart): PostgreSQL, Keycloak, and OpenSandbox.
+Point config.DATABASE_URL / KEYCLOAK_* / OPEN_SANDBOX_* at your instances.
+See infra/charts/harakiri/README.md.

@@ -22,4 +22,7 @@ RUN pnpm --filter @harakiri/shared build && pnpm --filter @harakiri/web build
 FROM nginx:1.29-alpine
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+# Regenerates /config.js from env at container start (runtime config) before nginx serves.
+COPY apps/web/docker-entrypoint.d/40-harakiri-runtime-config.sh /docker-entrypoint.d/40-harakiri-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-harakiri-runtime-config.sh
 EXPOSE 80

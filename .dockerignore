@@ -1,0 +1,35 @@
+# Keep the Docker build context small. The Dockerfiles run `pnpm install` and
+# build from source inside the image, so installed deps and build outputs are
+# regenerated and must not be shipped in the context.
+
+# VCS & CI
+.git
+.github
+
+# Dependencies (reinstalled in-image)
+**/node_modules
+
+# Build outputs (rebuilt in-image)
+**/dist
+apps/*/dist
+packages/*/dist
+dist-packages
+
+# Packaging artifacts
+*.tgz
+
+# Not needed to build the api/web images
+sandbox_mockups
+test-results
+tests
+docs
+examples
+infra
+playwright.config.ts
+
+# Local/editor junk
+**/.DS_Store
+*.log
+.env
+.env.*
+!.env.example
