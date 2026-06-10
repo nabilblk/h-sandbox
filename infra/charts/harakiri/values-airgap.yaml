@@ -1,0 +1,24 @@
+# Air-gap overlay for the Harakiri Helm chart: pull everything from Harbor.
+#
+#   helm install harakiri oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
+#     --version 0.1.0 -n harakiri \
+#     -f infra/charts/harakiri/values-airgap.yaml \
+#     --set secret.existingSecret=harakiri-api
+#
+# The api/web images already resolve to core.campus.clusterdiali.me/harakiri via
+# image.registry/repository, so only the bundled registry and the template-build
+# toolchain need repointing here.
+#
+# Pull access: the Harbor 'harakiri' project is set public-read so every pod
+# (incl. dynamically-created template-builder Jobs) can pull without a secret.
+# To keep it private instead, set harborPullSecret.create=true with a pull robot
+# and ensure the builder Jobs' ServiceAccount carries the pull secret.
+
+registry:
+  image: core.campus.clusterdiali.me/harakiri/mirror/registry:2
+
+config:
+  TEMPLATE_BUILDKIT_IMAGE: "core.campus.clusterdiali.me/harakiri/mirror/buildkit:rootless"
+  TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE: "core.campus.clusterdiali.me/harakiri/mirror/kaniko-executor:v1.24.0"
+  # Restrict template base images to Harbor + the in-cluster registry (no public registries).
+  TEMPLATE_IMAGE_ALLOW_REGISTRIES: "core.campus.clusterdiali.me,harakiri-registry.harakiri.svc.cluster.local:5000"
