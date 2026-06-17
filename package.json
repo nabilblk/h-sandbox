@@ -68,7 +68,7 @@
   "devDependencies": {
     "@opencode-ai/sdk": "1.15.13",
     "@playwright/test": "^1.60.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.9.3",
     "typescript": "^5.9.3"
   }
 }
