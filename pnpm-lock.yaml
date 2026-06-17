@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@opencode-ai/sdk':
-        specifier: 1.15.13
-        version: 1.15.13
+        specifier: 1.17.7
+        version: 1.17.7
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -575,8 +575,8 @@ packages:
   '@kubernetes/client-node@1.4.0':
     resolution: {integrity: sha512-Zge3YvF7DJi264dU1b3wb/GmzR99JhUpqTvp+VGHfwZT+g7EOOYNScDJNZwXy9cszyIGPIs0VHr+kk8e95qqrA==}
 
-  '@opencode-ai/sdk@1.15.13':
-    resolution: {integrity: sha512-4TwojIoQ8EG6/mVBuUVYZXiFcwNmiiytEnjnvyuvSJjGwFIlw2YIBFxtSVC3FbwwbwHT63teh1RHiQUUC4U5xw==}
+  '@opencode-ai/sdk@1.17.7':
+    resolution: {integrity: sha512-7q7StGM+N0OwUgRsmDc8Gyz3hMIH1XGig+qZ4lzWUpmSgFEjLx8U7R14GXY7KiMJVdbVf6FeaYloRz2Rcsma4A==}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -1857,7 +1857,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@opencode-ai/sdk@1.15.13':
+  '@opencode-ai/sdk@1.17.7':
     dependencies:
       cross-spawn: 7.0.6
 
