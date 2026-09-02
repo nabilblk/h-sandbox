@@ -115,7 +115,29 @@ test("InMemoryRuntimeProvider supports lifecycle, files, logs, metrics, run, and
     command: "echo hello"
   });
   assert.equal(run.exitCode, 0);
-  assert.match(run.stdout, /harakiri dev runtime/);
+  assert.equal(run.stdout, "hello\n");
+
+  const pythonRun = await provider.run({
+    ...ref,
+    controlPlaneSandboxId: "sbx_dev",
+    command: "python - <<'PY'\nprint('cli-conformance-ok')\nPY"
+  });
+  assert.equal(pythonRun.stdout, "cli-conformance-ok\n");
+
+  const envRun = await provider.run({
+    ...ref,
+    controlPlaneSandboxId: "sbx_dev",
+    command: "python - <<'PY'\nimport os\nprint('conformance:' + os.environ.get('HARAKIRI_CONFORMANCE', 'missing'))\nPY",
+    env: { HARAKIRI_CONFORMANCE: "ok" }
+  });
+  assert.equal(envRun.stdout, "conformance:ok\n");
+
+  const fallbackRun = await provider.run({
+    ...ref,
+    controlPlaneSandboxId: "sbx_dev",
+    command: "unknown-command"
+  });
+  assert.match(fallbackRun.stdout, /harakiri dev runtime/);
 
   const files = await provider.files({ ...ref, defaultCwd: "/workspace" });
   assert.equal(files.ok, true);

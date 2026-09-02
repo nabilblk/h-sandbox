@@ -1,0 +1,68 @@
+{{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config -}}
+{{- $webCfg := dict
+  "PUBLIC_API_URL" (get $cfg "PUBLIC_API_URL" | default "")
+  "PUBLIC_WEB_URL" (get $cfg "PUBLIC_WEB_URL" | default "")
+  "PUBLIC_KEYCLOAK_URL" (get $cfg "PUBLIC_KEYCLOAK_URL" | default "")
+  "PUBLIC_KEYCLOAK_REALM" (get $cfg "PUBLIC_KEYCLOAK_REALM" | default "")
+  "PUBLIC_KEYCLOAK_CLIENT_ID" (get $cfg "PUBLIC_KEYCLOAK_CLIENT_ID" | default "")
+  "PUBLIC_KEYCLOAK_SILENT_CHECK_SSO" (get $cfg "PUBLIC_KEYCLOAK_SILENT_CHECK_SSO" | default "")
+-}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "harakiri.fullname" . }}-web-runtime
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+data:
+  config.js: |
+    window.__HARAKIRI_CONFIG__ = {{ $webCfg | toJson }};
+  nginx.conf: |
+    pid /tmp/nginx.pid;
+
+    events {
+      use epoll;
+      worker_connections 1024;
+    }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      access_log /dev/stdout;
+      error_log /dev/stderr warn;
+
+      sendfile on;
+      keepalive_timeout 65;
+
+      client_body_temp_path /tmp/nginx/client_body;
+      proxy_temp_path /tmp/nginx/proxy;
+      fastcgi_temp_path /tmp/nginx/fastcgi;
+      uwsgi_temp_path /tmp/nginx/uwsgi;
+      scgi_temp_path /tmp/nginx/scgi;
+
+      server {
+        listen {{ .Values.web.containerPort }};
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location = /index.html {
+          add_header Cache-Control "no-store" always;
+        }
+
+        location = /config.js {
+          add_header Cache-Control "no-store" always;
+        }
+
+        location /assets/ {
+          add_header Cache-Control "public, max-age=31536000, immutable" always;
+        }
+
+        location / {
+          add_header Cache-Control "no-store" always;
+          try_files $uri $uri/ /index.html;
+        }
+      }
+    }

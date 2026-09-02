@@ -1,0 +1,75 @@
+image:
+  registry: ${HARBOR}
+  repository: ${HARBOR_PROJECT}
+  pullPolicy: Always
+
+imagePullSecrets:
+  - name: registry-pull
+
+harborPullSecret:
+  create: false
+
+registry:
+  enabled: false
+
+ingress:
+  enabled: false
+
+rbac:
+  create: true
+  prepullClusterRole: false
+
+secret:
+  create: false
+  existingSecret: harakiri-api
+
+config:
+  AUTH_DEV_ALLOW: "0"
+  AUTO_MIGRATE: "1"
+  SEED_ON_BOOT: "${HARAKIRI_SEED_ON_BOOT}"
+
+  PUBLIC_WEB_URL: "https://${WEB_HOST}"
+  PUBLIC_API_URL: "https://${API_HOST}"
+  PUBLIC_KEYCLOAK_URL: "https://${AUTH_HOST}"
+  PUBLIC_KEYCLOAK_REALM: "harakiri"
+  PUBLIC_KEYCLOAK_CLIENT_ID: "harakiri-web"
+  PUBLIC_KEYCLOAK_SILENT_CHECK_SSO: "true"
+
+  KEYCLOAK_ISSUER: "https://${AUTH_HOST}/realms/harakiri"
+  KEYCLOAK_ISSUER_ALLOWLIST: "https://${AUTH_HOST}/realms/harakiri"
+  # Keep issuer validation on the public route, but fetch signing keys through
+  # the in-cluster service so OpenShift/CRC route certificates do not break JWT
+  # verification inside the API pod.
+  KEYCLOAK_JWKS_URL: "http://keycloak.${NAMESPACE}.svc:8080/realms/harakiri/protocol/openid-connect/certs"
+  KEYCLOAK_ADMIN_BASE_URL: "http://keycloak.${NAMESPACE}.svc:8080"
+  KEYCLOAK_ADMIN_REALM: "harakiri"
+  KEYCLOAK_ADMIN_TOKEN_REALM: "master"
+  KEYCLOAK_ADMIN_CLIENT_ID: "admin-cli"
+  KEYCLOAK_INVITATION_REDIRECT_URI: "https://${WEB_HOST}/#dashboard/sandboxes"
+
+  OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.${NAMESPACE}.svc:80"
+  OPEN_SANDBOX_GATEWAY_URL: "http://opensandbox-ingress-gateway.${NAMESPACE}.svc:80"
+  OPEN_SANDBOX_ALLOW_FALLBACK: "0"
+  # Restricted OpenShift installs avoid the no-op allow-all networkPolicy so
+  # open-network sandboxes do not request the OpenSandbox NET_ADMIN egress
+  # sidecar. Restricted/custom/blocked egress still requires a client-approved
+  # OpenShift profile or an OpenSandbox egress mode that works under restricted-v2.
+  OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "0"
+  PUBLIC_OPEN_SANDBOX_URL: "https://${SBX_DOMAIN}"
+
+  SANDBOX_ROUTE_MODE: "opensandbox-gateway"
+  SANDBOX_ROUTE_BASE_DOMAIN: "${SBX_DOMAIN}"
+  SANDBOX_ROUTE_PUBLIC_SCHEME: "https"
+  SANDBOX_ROUTE_DEFAULT_ACCESS_MODE: "public"
+  SANDBOX_MAX_ROUTES_PER_SANDBOX: "8"
+  SANDBOX_MAX_ROUTES_PER_ORG: "200"
+
+  TEMPLATE_REGISTRY_PUSH_HOST: "${TEMPLATE_REGISTRY_HOST}"
+  TEMPLATE_REGISTRY_RUNTIME_HOST: "${TEMPLATE_REGISTRY_HOST}"
+  TEMPLATE_REGISTRY_REPOSITORY_PREFIX: "harakiri/templates"
+  TEMPLATE_IMAGE_ALLOW_REGISTRIES: "${HARBOR},docker.io,registry-1.docker.io,mcr.microsoft.com,ghcr.io"
+  TEMPLATE_BUILDKIT_REGISTRY_INSECURE: "0"
+  TEMPLATE_DOCKERFILE_BUILDER: "disabled"
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED: "0"
+  TEMPLATE_IMAGE_PREPULL_ENABLED: "0"
+  TEMPLATE_RETENTION_DELETE_BUILDER_JOBS: "0"

@@ -55,6 +55,7 @@
     "smoke:route": "bash infra/scripts/route-smoke.sh",
     "smoke:route-ingress": "bash infra/scripts/route-ingress-smoke.sh",
     "conformance": "pnpm conformance:sdk && pnpm conformance:cli",
+    "conformance:dev": "bash tests/conformance/dev-runtime-smoke.sh",
     "conformance:sdk": "bash tests/conformance/sdk-runtime-smoke.sh",
     "conformance:cli": "bash tests/conformance/cli-runtime-smoke.sh",
     "examples:check": "find examples -path '*/index.mjs' -print | sort | xargs -n1 node --check && pnpm --filter @h-sandbox/sdk build && tsc -p examples/tsconfig.json",

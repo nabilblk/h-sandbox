@@ -50,7 +50,7 @@ limactl shell "${VM_NAME}" -- bash -lc '
 '
 
 limactl shell "${VM_NAME}" -- sudo k0s kubeconfig admin > "${KUBECONFIG_PATH}"
-perl -0pi -e 's#server: https://.*?:6443#server: https://127.0.0.1:6443#' "${KUBECONFIG_PATH}"
+perl -0pi -e 's#server: https://.*?:6443#server: https://127.0.0.1:6444#' "${KUBECONFIG_PATH}"
 
 export KUBECONFIG="${KUBECONFIG_PATH}"
 kubectl wait --for=condition=Ready node --all --timeout=180s

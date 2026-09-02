@@ -2,7 +2,7 @@ name: Mirror images (Harbor)
 
 # Copies the pinned third-party/upstream images listed in infra/mirror/images.txt
 # into Harbor, preserving digests (incl. multi-arch). For air-gapped clusters that
-# cannot pull from Docker Hub / quay.io / gcr.io / the Aliyun OpenSandbox registry.
+# cannot pull from public upstream registries such as Docker Hub, quay.io, or gcr.io.
 #
 # Uses the same Harbor credentials as the release workflow:
 #   secrets HARBOR_USERNAME / HARBOR_PASSWORD (the project robot account)

@@ -1,7 +1,7 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-06-04
+Last updated: 2026-09-02
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -18,6 +18,155 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- OSS 0.4.0 artifact/install documentation checkpoint on 2026-09-02:
+  release artifact ownership is now documented in `docs/release-artifacts.md`,
+  including Harakiri images/chart, public npm packages, mirrored OpenSandbox
+  images, the mirrored OpenSandbox chart, template images, and optional
+  BackgroundAgent integration artifacts. The OpenShift docs were cleaned around
+  the canonical one-namespace package `OCP-install/harakiri-security/`; the
+  older root installer now delegates to that package and the stale root
+  manifests were removed. Restricted OpenShift behavior is explicit:
+  `OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY=0` omits the no-op allow-all
+  OpenSandbox `networkPolicy` so open-network sandboxes can run without the
+  egress sidecar, while restricted/custom/blocked egress remains dependent on a
+  client-approved NET_ADMIN-capable runtime profile or a future OpenSandbox
+  restricted-v2-compatible egress mode. Validation passed:
+  `pnpm --filter @harakiri/api test` (172 tests),
+  `pnpm --filter @harakiri/api typecheck`,
+  `pnpm openapi:check`,
+  `pnpm templates:check`,
+  `pnpm examples:check`,
+  `pnpm publish:local-check`,
+  `helm lint infra/charts/harakiri`,
+  `helm template harakiri infra/charts/harakiri -n harakiri --set
+  secret.data.DATABASE_URL=postgres://ci`,
+  `helm template opensandbox
+  https://github.com/opensandbox-group/OpenSandbox/releases/download/helm/opensandbox/0.2.2/opensandbox-0.2.2.tgz
+  -n opensandbox-system -f infra/k8s/opensandbox/opensandbox-values.yaml`,
+  rendered OpenShift Harakiri and OpenSandbox values under
+  `OCP-install/harakiri-security/`, `bash -n` for the OCP installer scripts, and
+  `git diff --check`. Render checks confirmed OpenSandbox `server:v0.2.3`,
+  `controller:v0.2.0`, `execd:v1.1.0`, `egress:v1.1.7`, `ingress:v1.0.10`,
+  image-committer `v0.1.1`, OpenSandbox server port `8080`, chart-mounted web
+  `config.js`, nginx listening on `8080`, and
+  `OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY="0"` in the restricted OpenShift
+  Harakiri ConfigMap.
+- OSS 0.4.0 Phase 1 runtime checkpoint on 2026-09-02:
+  OpenSandbox was upgraded in k0s from the old `0.1.x` line to Helm chart
+  `0.2.2` with running control deployments
+  `opensandbox/server:v0.2.3`, `opensandbox/controller:v0.2.0`, and
+  `opensandbox/ingress:v1.0.10`. Runtime pods created by the upgraded server
+  use `opensandbox/execd:v1.1.0` and `opensandbox/egress:v1.1.7` from the
+  OpenSandbox release configuration. Docker Hub is now the default upstream
+  image source and Harbor remains the documented mirror path for air-gapped
+  installs. The Harakiri k0s deployments were running
+  `127.0.0.1:5000/harakiri/system/api:dev` for API, scheduler, and template
+  builder, and `127.0.0.1:5000/harakiri/system/web:dev` for web.
+  `GET https://sb.harakiri.io/` returned HTTP 200,
+  `GET https://sb-api.harakiri.io/health` returned `{"status":"ok"}`, public
+  Keycloak discovery returned HTTP 200 with issuer
+  `https://sb-auth.harakiri.io/realms/harakiri`, and
+  `GET http://127.0.0.1:15173/config.js` returned public runtime URLs for
+  `https://sb-api.harakiri.io`, `https://sb.harakiri.io`, and
+  `https://sb-auth.harakiri.io`.
+  Strict runtime validation passed with no
+  `HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE` waiver:
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke`,
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:route`,
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:filesystem`,
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:process`,
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:renew`, and
+  `OPEN_SANDBOX_ALLOW_FALLBACK=0 pnpm smoke:lifecycle` passed earlier in the
+  same upgrade pass. Egress was diagnosed as an OpenSandbox creation-time
+  sidecar issue: sandboxes created without any `networkPolicy` do not receive
+  the mutable egress sidecar, so later open-to-restricted mutation can fail.
+  Harakiri now sends a no-op open `networkPolicy` whenever a sandbox has an
+  egress policy, including open mode. A live initially-open sandbox
+  `sbx_NGUioiP8eh` had both `sandbox` and `egress` containers, `GET
+  /v1/sandboxes/:id/egress` reported provider `available=true`, and `PATCH
+  /v1/sandboxes/:id/egress` to restricted returned provider mode `enforcing`
+  with enforcement mode `dns+nft`.
+  A token-route readiness regression was also fixed: packaged CLI route wait
+  had been resolving `/` against the API origin root instead of preserving the
+  route-proxy path, causing a final 401 on
+  `harakiri expose --access token --wait`. The SDK route URL helper now
+  resolves relative paths against the full route URL, and the CLI test harness
+  asserts that `--wait` probes `/v1/route-proxy/.../route-health` with
+  `x-harakiri-route-token`. Live packaged-CLI verification created temporary
+  sandbox `sbx_3kUYF6cknt`, served port `5173`, exposed a token route at
+  `https://sb-api.harakiri.io/v1/route-proxy/...-5173/`, waited on `/`, and
+  reached `ready` through `opensandbox-gateway`.
+  Additional checks passed:
+  `pnpm --filter @harakiri/api test` (171 tests),
+  `pnpm --filter @h-sandbox/sdk test` (34 tests),
+  `pnpm --filter @h-sandbox/cli test` (36 tests),
+  `pnpm --filter @h-sandbox/sdk build`,
+  `pnpm --filter @h-sandbox/cli build`,
+  `pnpm test`,
+  `pnpm typecheck`,
+  `pnpm openapi:check`,
+  `pnpm publish:local-check`,
+  `git diff --check`,
+  `HARAKIRI_CONFORMANCE_ROUTE_FETCH=1 pnpm conformance:sdk`, and
+  `HARAKIRI_CONFORMANCE_ROUTE_FETCH=1 pnpm conformance:cli`. The conformance
+  run installed packed tarballs into temporary consumer projects, exercised
+  create/run/files/artifacts/detached commands/token routes/route fetch,
+  metrics, logs, egress, renew, and kill, created CLI sandbox
+  `sbx_I5XkZrzFHl`, and cleaned up
+  its temporary API key. Hosted OIDC browser regression passed with
+  `HARAKIRI_WEB_URL=https://sb.harakiri.io pnpm exec playwright test
+  tests/e2e/oidc-session.spec.ts`; the spec covers provider login, dashboard
+  redirect, onboarding redirect for a completed user, provider logout, memory
+  only tokens, and fails if a hosted browser request hits `localhost`,
+  `127.0.0.1`, or `*.localhost`. Remaining 0.4.0 release gaps are live
+  OpenShift one-namespace install revalidation and release notes.
+- September wake-up validation on 2026-09-01:
+  Phase 0 baseline validation passed for the main product surface with one
+  provider-runtime exception. Local checks passed:
+  `pnpm install --frozen-lockfile`, `pnpm openapi:check`,
+  `pnpm templates:check`, `pnpm examples:check`, `pnpm test`,
+  `pnpm typecheck`, `pnpm build`, `pnpm package:assert`,
+  `pnpm publish:local-check`, `pnpm publish:postcheck`,
+  `helm lint infra/charts/harakiri`, Helm render with and without ingress, and
+  `git diff --check`. npm registry checks confirmed `@h-sandbox/sdk@0.3.1` and
+  `@h-sandbox/cli@0.3.1` as the latest published packages; both package
+  install smoke tests passed from the public registry.
+  k0s is running on `lima-harakiri-k0s` with Kubernetes `v1.36.3+k0s`.
+  `pnpm ports:status` reported API, web, Keycloak, Mailpit, OpenSandbox,
+  gateway, and ingress HTTPS forwards up. Public `GET
+  https://sb-api.harakiri.io/health` returned `{"status":"ok"}`, public
+  Keycloak discovery reported issuer `https://sb-auth.harakiri.io/realms/harakiri`,
+  and `https://sb.harakiri.io/` returned HTTP 200. The Cloudflare tunnel
+  `harakiri-dev` is connected through tunnel
+  `cc00f00a-b780-4a82-a2f3-6436c8b412b9`; `cloudflared` is active but old
+  (`2026.3.0`, recommended update `2026.8.3`).
+  Runtime smoke passed with `pnpm smoke`. Live SDK and CLI conformance passed
+  with `HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE=1
+  HARAKIRI_CONFORMANCE_ROUTE_FETCH=1
+  HARAKIRI_CONFORMANCE_ROUTE_BASE_URL=http://127.0.0.1:18082 pnpm conformance`.
+  The SDK/CLI flows covered create, wait, run, files, artifacts, detached
+  commands, token routes, route fetch, metrics, logs, renew, and cleanup. A
+  dedicated CLI attach smoke created sandbox `sbx_r20aLsWuo0`, attached through
+  the CLI PTY path, printed `phase0-attach-ok`, and exited cleanly.
+  Strict egress mutation was not healthy in the local k0s runtime at that time:
+  creating a sandbox with restricted egress stores the policy and `GET
+  /v1/sandboxes/:id/egress` reports `restricted` with rules, but `PATCH
+  /v1/sandboxes/:id/egress` returns `egress_provider_unavailable`. Kubernetes
+  showed the OpenSandbox egress sidecar image
+  `sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.12`
+  stuck pulling, leaving diagnostic pods at `0/2 PodInitializing`. The test
+  pods were force-deleted after their BatchSandbox CRs were gone. This is a
+  runtime dependency issue, not a regression in commands/files/routes/logs.
+  Browser smoke with `agent-browser` verified hosted landing, public Keycloak
+  login, dashboard redirect without onboarding loop, Templates navigation, Docs
+  `Vision and architecture`, and logout back to `#landing`. Browser resource
+  inspection found no `localhost` or `127.0.0.1` API/Auth calls. Screenshot:
+  `/tmp/harakiri-phase0-public.png`. OpenShift/CRC was not live-validated:
+  `crc status` reported the VM and OpenShift stopped, and `oc` was unavailable
+  on the current PATH. At that time, one deployment-model risk remained: the
+  k0s deployment was still the older kustomize-shaped runtime, not the current
+  Helm web-runtime ConfigMap shape; `/config.js` was blank even though the
+  deployed bundle was built with public API/Auth URLs.
 - Integration conformance checkpoint on 2026-06-04:
   Added SDK and CLI conformance smokes that install packed package tarballs and
   use only public package surfaces. The SDK smoke imports `@h-sandbox/sdk` from
@@ -1239,3 +1388,189 @@ Current deployed pod image IDs:
   `sha256:d9e0324f336004e2ebd6df6d3a51c3967e0aeac0c871f02772f926fc3280658f`
 - Web:
   `sha256:7dda0abaf677c081efa9d8a63219862c4b0164f99b6e6820842e96d4bb94a351`
+
+## 2026-09-02 OSS 0.4.0 CI And Helm Convergence Checkpoint
+
+The provider-free conformance lane now starts the API with
+`HARAKIRI_RUNTIME_PROVIDER=dev`, migrates and seeds PostgreSQL, installs packed
+`@h-sandbox/sdk` and `@h-sandbox/cli` tarballs into temporary consumer
+locations, and runs the same public SDK/CLI conformance scripts used against
+k0s and public deployments.
+
+Verification passed:
+
+```bash
+docker compose up -d postgres
+pnpm conformance:dev
+pnpm --filter @harakiri/api test
+pnpm --filter @harakiri/api typecheck
+pnpm openapi:check
+pnpm examples:check
+pnpm templates:check
+pnpm publish:dry-run
+TMP_CHART_DIR="$(mktemp -d)"
+helm package infra/charts/harakiri \
+  --version 0.0.0-ci.local \
+  --app-version 0.0.0-ci.local \
+  --destination "${TMP_CHART_DIR}"
+helm lint infra/charts/harakiri
+helm template harakiri infra/charts/harakiri -n harakiri \
+  --set secret.data.DATABASE_URL=postgres://ci
+kubectl kustomize infra/k8s
+bash -n infra/scripts/deploy-k0s.sh tests/conformance/dev-runtime-smoke.sh
+```
+
+Results:
+
+- `pnpm conformance:dev` passed SDK and CLI conformance with sandbox
+  `sbx_PNn5ybciax`.
+- API test suite passed 172/172 tests.
+- OpenAPI, examples, template smoke syntax, npm dry-run, Helm lint/template,
+  chart packaging, kustomize render, and shell syntax checks passed.
+- `actionlint` is not installed on this machine, so GitHub workflow linting was
+  not run locally.
+
+Deployment model change:
+
+- `infra/scripts/deploy-k0s.sh` now installs Harakiri through
+  `infra/charts/harakiri` instead of applying raw Harakiri kustomize resources
+  and patching the ConfigMap afterward.
+- `infra/k8s/kustomization.yaml` now contains only local dependencies and
+  OpenSandbox helper manifests. The legacy Harakiri manifest remains as a
+  reference while old local clusters are migrated.
+- CI now includes separate `dev-conformance` and `release-dry-run` jobs. The
+  release dry-run validates npm dry-run publishing, local package tarballs,
+  Helm chart packaging, and no-push image builds.
+
+## 2026-09-02 OSS 0.4.0 Release Candidate Validation
+
+Target cluster: `harakiri-k0s` through
+`infra/k0s/harakiri.kubeconfig`.
+
+Local validation passed:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm openapi:check
+pnpm templates:check
+pnpm examples:check
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm package:assert
+pnpm publish:local-check
+pnpm publish:dry-run
+pnpm publish:postcheck
+pnpm conformance:dev
+helm lint infra/charts/harakiri
+helm template harakiri infra/charts/harakiri -n harakiri \
+  --set secret.data.DATABASE_URL=postgres://ci
+kubectl kustomize infra/k8s
+bash -n infra/scripts/deploy-k0s.sh tests/conformance/dev-runtime-smoke.sh \
+  scripts/npm-package-smoke.sh scripts/npm-postpublish-smoke.sh
+```
+
+Results:
+
+- `pnpm test` passed all workspace tests: shared 11/11, SDK 34/34, web 24/24,
+  API 172/172, and CLI 36/36.
+- `pnpm conformance:dev` passed SDK and CLI conformance with dev-runtime sandbox
+  `sbx_qr6ZOcA2TM`.
+- `pnpm publish:dry-run` verified `@h-sandbox/sdk@0.3.1` and
+  `@h-sandbox/cli@0.3.1` without publishing.
+- `pnpm publish:postcheck` verified the currently published npm packages
+  install from npm.
+- Helm lint passed with only the non-blocking chart icon recommendation. Helm
+  render produced 631 lines and kustomize render produced 1185 lines.
+- `actionlint` is not installed on this machine, so GitHub workflow linting was
+  not run locally.
+
+k0s/public deploy passed:
+
+```bash
+pnpm env:harakiri:deploy-public
+pnpm ports:restart
+```
+
+Deployed Harakiri pods:
+
+- `harakiri-api-9bb4c8c6-gft6q`
+- `harakiri-web-6fcdfd898b-2q69j`
+- `harakiri-scheduler-698fb867df-bc2cs`
+- `harakiri-template-builder-66fd794bbd-hvmzm`
+- `harakiri-registry-6d8dc67678-hwmvt`
+- `harakiri-postgres-55b755bf48-np8bm`
+
+OpenSandbox pods:
+
+- `opensandbox-server-5686cb469b-sg2pm`
+- `opensandbox-controller-manager-65ccd97cc4-4vw2q`
+- `opensandbox-ingress-gateway-7d5b64f59d-q2lp6`
+
+Public endpoint checks passed:
+
+- `https://sb-api.harakiri.io/health` returned `{"status":"ok"}`.
+- Keycloak issuer is
+  `https://sb-auth.harakiri.io/realms/harakiri`.
+- `https://sb.harakiri.io/config.js` returned only public
+  `sb.harakiri.io`, `sb-api.harakiri.io`, and `sb-auth.harakiri.io` values.
+- The hosted web HTML plus `config.js` had zero matches for `localhost`,
+  `127.0.0.1`, `http://`, or local `1808x` ports.
+
+Hosted browser OIDC validation passed:
+
+```bash
+HARAKIRI_WEB_URL=https://sb.harakiri.io \
+  KEYCLOAK_USER=lyra@k.ai \
+  KEYCLOAK_PASSWORD=harakiri-dev \
+  pnpm exec playwright test tests/e2e/oidc-session.spec.ts
+```
+
+Result: 2/2 tests passed. The browser flow covered login, memory-only tokens,
+provider logout, onboarding redirect to dashboard, and no loopback auth/API
+requests.
+
+Strict SDK/CLI conformance against k0s passed:
+
+```bash
+export HARAKIRI_API_URL=http://127.0.0.1:18082
+export HARAKIRI_CONFORMANCE_ROUTE_FETCH=1
+export HARAKIRI_CONFORMANCE_ROUTE_BASE_URL=http://127.0.0.1:18082
+pnpm conformance
+```
+
+Result:
+
+- SDK conformance passed.
+- CLI conformance passed with sandbox `sbx_25FY2yOjti` and route provider
+  `opensandbox-gateway`.
+
+Deployed runtime smokes passed:
+
+- `pnpm smoke` created, ran, and killed `sbx_CmBLDfWOKO`.
+- `pnpm smoke:filesystem` passed against `sbx_tdF2r0cfgv`.
+- `pnpm smoke:process` passed against `sbx_1tshzt_QvH`, tracked command
+  `cmd_Tvmh2B0_XqsA`, and exposed port `3002`.
+- `pnpm smoke:route` passed for
+  `https://66ba9e03-bbf1-47f5-aa5b-c2021fcb3818-3000.harakiri.io`.
+- `pnpm smoke:templates` passed platform templates `python-3.12`,
+  `python-3.12-data`, and `node-20` with sandboxes `sbx_ZPYgA6yfIR`,
+  `sbx_uRK0oQ7Q6D`, and `sbx_MZ1tHzCHaU`.
+
+CLI terminal attach validation passed against the real OpenSandbox PTY:
+
+```bash
+printf 'echo attach-ok\r\nexit\r\n' | \
+  node packages/cli/dist/index.js attach sbx_a1JVR0r5AU --no-raw --cols 80 --rows 24
+```
+
+Output included `attach-ok` and the command exited cleanly. This verifies the
+provider-open readiness fix for piped CLI attach input.
+
+Known release-candidate gaps:
+
+- OpenShift one-namespace docs are patch-free but still need a clean
+  customer-style live verification pass.
+- Template image publishing is documented, but template images are not yet
+  produced by the same first-class release workflow as the API, web, chart, SDK,
+  and CLI.

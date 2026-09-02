@@ -1,0 +1,57 @@
+image:
+  repository: ${BACKGROUND_AGENT_IMAGE}
+  tag: "${BACKGROUND_AGENT_IMAGE_TAG}"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: registry-pull
+
+app:
+  publicUrl: https://${BACKGROUND_AGENT_HOST}
+
+auth:
+  keycloak:
+    issuerUrl: https://${AUTH_HOST}/realms/background-agent
+    internalIssuerUrl: http://keycloak.${NAMESPACE}.svc:8080/realms/background-agent
+    clientId: open-agents-web
+  secureCookies: "true"
+  postLogoutRedirectUri: https://${BACKGROUND_AGENT_HOST}/
+  allowedEmails: "${BACKGROUND_AGENT_ALLOWED_EMAILS}"
+  allowedEmailDomains: "${BACKGROUND_AGENT_ALLOWED_EMAIL_DOMAINS}"
+  adminEmails: "${BACKGROUND_AGENT_ADMIN_EMAILS}"
+
+github:
+  appSlug: "${BACKGROUND_AGENT_GITHUB_APP_SLUG}"
+  botLogins: "${BACKGROUND_AGENT_GITHUB_BOT_LOGINS}"
+
+models:
+  openrouterBaseUrl: "${BACKGROUND_AGENT_OPENROUTER_BASE_URL}"
+  openrouterAppName: "${BACKGROUND_AGENT_OPENROUTER_APP_NAME}"
+  openrouterAppUrl: "${BACKGROUND_AGENT_OPENROUTER_APP_URL}"
+  utilityModel: "${BACKGROUND_AGENT_UTILITY_MODEL}"
+
+sandbox:
+  enabledProviders: harakiri
+  defaultProvider: harakiri
+  harakiriApiUrl: https://${API_HOST}
+  harakiriTemplate: ${BACKGROUND_AGENT_HARAKIRI_TEMPLATE}
+
+postgres:
+  mode: external
+
+keycloak:
+  mode: external
+
+secrets:
+  existingSecret: background-agent-secrets
+
+ingress:
+  enabled: false
+
+route:
+  enabled: true
+  host: ${BACKGROUND_AGENT_HOST}
+  tls:
+    enabled: true
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

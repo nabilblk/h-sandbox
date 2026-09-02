@@ -2,7 +2,7 @@
 
 **Created**: 2026-05-26
 **Author**: Codex
-**Status**: V1 implemented, deployed, and smoke-tested
+**Status**: Completed
 **Priority**: P0
 **Estimated effort**: 4-7 engineering days
 
@@ -24,16 +24,17 @@ OpenSandbox currently provides:
 
 Primary OpenSandbox references:
 
-- OpenSandbox egress component: https://github.com/alibaba/OpenSandbox/blob/main/components/egress/README.md
-- OpenSandbox egress API spec: https://github.com/alibaba/OpenSandbox/blob/main/specs/egress-api.yaml
-- OpenSandbox lifecycle API `networkPolicy`: https://github.com/alibaba/OpenSandbox/blob/main/specs/sandbox-lifecycle.yml
-- OpenSandbox FQDN egress proposal: https://github.com/alibaba/OpenSandbox/blob/main/oseps/0001-fqdn-based-egress-control.md
-- OpenSandbox JS SDK egress facade: https://github.com/alibaba/OpenSandbox/blob/main/sdks/sandbox/javascript/src/services/egress.ts
+- OpenSandbox egress component: https://github.com/opensandbox-group/OpenSandbox/blob/main/components/egress/README.md
+- OpenSandbox egress API spec: https://github.com/opensandbox-group/OpenSandbox/blob/main/specs/egress-api.yaml
+- OpenSandbox lifecycle API `networkPolicy`: https://github.com/opensandbox-group/OpenSandbox/blob/main/specs/sandbox-lifecycle.yml
+- OpenSandbox FQDN egress proposal: https://github.com/opensandbox-group/OpenSandbox/blob/main/oseps/0001-fqdn-based-egress-control.md
+- OpenSandbox JS SDK egress facade: https://github.com/opensandbox-group/OpenSandbox/blob/main/sdks/sandbox/javascript/src/services/egress.ts
 - Current Harakiri/OpenSandbox boundary doc: `docs/opensandbox-boundaries.md`
 
 Current Harakiri state:
 
-- `infra/k8s/opensandbox/opensandbox-values.yaml` already configures OpenSandbox egress image `v1.0.12` and mode `dns+nft`.
+- `infra/k8s/opensandbox/opensandbox-values.yaml` configures OpenSandbox egress
+  image `v1.1.7` and mode `dns+nft` for the 0.4.0 release line.
 - `apps/api/src/providers/runtime/opensandbox-transport.ts` creates sandboxes through OpenSandbox but does not pass `networkPolicy`.
 - `apps/api/src/providers/runtime/provider.ts` has provider capabilities for terminal/files/logs/metrics/routes, but no egress policy methods.
 - The dashboard has a Network tab focused on inbound route exposure only.
@@ -355,3 +356,15 @@ Verification run:
 - Deployed k0s smoke: restricted sandbox allows `api.github.com`, blocks `example.com`, runtime patch allows `example.com`, block mode blocks again, and terminated sandbox egress patch returns `409`.
 - Deployed k0s smoke: workspace guardrails reject custom domains with `403 egress_custom_domains_disabled` when disabled, and team template egress defaults are inherited by new sandboxes.
 - Public dashboard smoke: login, open sandbox detail, Network tab renders inbound/outbound sections, recent policy events render, `dns+nft` provider status is visible, `api.github.com` rule is visible, `Test access` returns Reachable, Settings egress guardrails render, Template egress default editor renders, no relevant console errors, and no horizontal overflow.
+
+Post-upgrade validation on 2026-09-02:
+
+- Phase 0's provider-unavailable egress regression was traced to OpenSandbox
+  sidecar injection behavior: no egress sidecar is created unless a sandbox is
+  created with `networkPolicy`.
+- Harakiri now sends a no-op open `networkPolicy` whenever an effective egress
+  policy exists, so open sandboxes can later be changed to restricted or
+  blocked at runtime.
+- Strict SDK and CLI conformance passed against k0s without
+  `HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE=1`, including create-time
+  egress, runtime `GET`/`PATCH`, and `egress test`.

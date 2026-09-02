@@ -4,7 +4,6 @@ resources:
   - base/namespace.yaml
   - postgres/postgres.yaml
   - keycloak/keycloak.yaml
-  - harakiri/harakiri.yaml
   - opensandbox/harakiri-exec-rbac.yaml
   - opensandbox/opensandbox-server-diagnostics-rbac.yaml
   - opensandbox/sandbox-gateway-rbac.yaml

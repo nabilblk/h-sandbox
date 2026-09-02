@@ -38,6 +38,11 @@ const printRouteProgress = (line: string, json: boolean) => {
   else printProgress(line);
 };
 
+const routeWaitDisplayUrl = (routeUrl: string, path: string) => {
+  if (/^https?:\/\//i.test(path)) return path;
+  return new URL(path.replace(/^\/+/, ""), `${routeUrl.replace(/\/+$/, "")}/`).toString();
+};
+
 export const registerRouteCommands = (program: Command) => {
   program
     .command("expose")
@@ -62,7 +67,7 @@ export const registerRouteCommands = (program: Command) => {
       const labels = (options.label as string[]).map((label) => label.trim()).filter(Boolean);
       const result = await client.exposePort(id, { port: options.port, protocol: options.protocol, accessMode, labels: labels.length ? labels : undefined });
       if (options.wait) {
-        printRouteProgress(`waiting for ${result.route.url}${options.waitPath}`, Boolean(options.json));
+        printRouteProgress(`waiting for ${routeWaitDisplayUrl(result.route.url, options.waitPath)}`, Boolean(options.json));
         await client.routes.waitForHttp(result, {
           path: options.waitPath,
           timeoutMs: options.waitTimeoutMs,

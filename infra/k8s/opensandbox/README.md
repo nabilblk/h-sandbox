@@ -8,11 +8,21 @@ Harakiri API is configured with:
 - `OPEN_SANDBOX_GATEWAY_URL=http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80`
 - `OPEN_SANDBOX_ALLOW_FALLBACK=0`
 
-The values file keeps the published `opensandbox-0.1.0` chart but overrides the
-OpenSandbox component images to the current upstream component tags:
-`server:v0.1.14`, `execd:v1.0.17`, and `egress:v1.0.12`. The local k0s deploy
-script can also rebuild the official ingress gateway from a checked-out
-OpenSandbox source tree as `opensandbox-ingress:local` for the node architecture.
+The k0s deploy script installs the OpenSandbox `0.2.2` Helm chart from the
+current `opensandbox-group/OpenSandbox` release. The values file overrides the
+runtime images to the latest verified OpenSandbox component tags checked on
+2026-09-02:
+
+- `opensandbox/server:v0.2.3`
+- `opensandbox/execd:v1.1.0`
+- `opensandbox/egress:v1.1.7`
+- `opensandbox/controller:v0.2.0`
+- `opensandbox/ingress:v1.0.10`
+- `opensandbox/image-committer:v0.1.1`
+
+The default path uses upstream multi-arch Docker Hub images. Set
+`HARAKIRI_BUILD_OPEN_SANDBOX_INGRESS=1` only when you need to build the official
+gateway image locally from a checked-out OpenSandbox source tree.
 
 Sandbox lifecycle uses the OpenSandbox server. Terminal, filesystem, and
 metrics use OpenSandbox endpoint-resolved `execd`; in gateway/header mode,

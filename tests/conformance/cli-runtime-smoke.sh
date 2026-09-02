@@ -7,6 +7,7 @@ API_KEY="${HARAKIRI_API_KEY:-}"
 TEMPLATE="${HARAKIRI_CONFORMANCE_TEMPLATE:-python-3.12-data}"
 ROUTE_PORT="${HARAKIRI_CONFORMANCE_ROUTE_PORT:-5173}"
 ROUTE_FETCH_BASE_URL="${HARAKIRI_CONFORMANCE_ROUTE_BASE_URL:-}"
+ALLOW_PROVIDER_UNAVAILABLE="${HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE:-0}"
 
 if [[ -z "${API_URL}" || -z "${API_KEY}" ]]; then
   echo "skipped: set HARAKIRI_API_URL and HARAKIRI_API_KEY to run CLI conformance"
@@ -117,8 +118,16 @@ fi
 
 "${CLI[@]}" metrics "${SBX_ID}" | grep -q "^cpu"
 "${CLI[@]}" logs "${SBX_ID}" >/dev/null
-"${CLI[@]}" egress set "${SBX_ID}" --mode restricted --preset python-package-install --allow api.github.com >/dev/null
-"${CLI[@]}" egress test "${SBX_ID}" https://api.github.com >/dev/null || true
+if ! EGRESS_SET_OUT="$("${CLI[@]}" egress set "${SBX_ID}" --mode restricted --preset python-package-install --allow api.github.com 2>&1)"; then
+  if [[ "${ALLOW_PROVIDER_UNAVAILABLE}" == "1" && "${EGRESS_SET_OUT}" == *"egress_provider_unavailable"* ]]; then
+    echo "egress provider unavailable; continuing because HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE=1"
+  else
+    echo "${EGRESS_SET_OUT}" >&2
+    exit 1
+  fi
+else
+  "${CLI[@]}" egress test "${SBX_ID}" https://api.github.com >/dev/null || true
+fi
 "${CLI[@]}" renew "${SBX_ID}" >/dev/null
 "${CLI[@]}" file-rm "${SBX_ID}" --path /tmp/harakiri-cli --recursive >/dev/null
 "${CLI[@]}" kill "${SBX_ID}" >/dev/null

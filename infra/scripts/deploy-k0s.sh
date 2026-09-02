@@ -7,6 +7,7 @@ export KUBECONFIG="${KUBECONFIG:-${ROOT}/infra/k0s/harakiri.kubeconfig}"
 SYSTEM_API_IMAGE="127.0.0.1:5000/harakiri/system/api:dev"
 SYSTEM_WEB_IMAGE="127.0.0.1:5000/harakiri/system/web:dev"
 TMP_DIR="$(mktemp -d)"
+OPEN_SANDBOX_CHART_URL="${HARAKIRI_OPEN_SANDBOX_CHART_URL:-https://github.com/opensandbox-group/OpenSandbox/releases/download/helm/opensandbox/0.2.2/opensandbox-0.2.2.tgz}"
 
 cluster_config_value() {
   local key="$1"
@@ -19,6 +20,7 @@ EXISTING_PUBLIC_KEYCLOAK_URL="$(cluster_config_value PUBLIC_KEYCLOAK_URL)"
 EXISTING_PUBLIC_KEYCLOAK_REALM="$(cluster_config_value PUBLIC_KEYCLOAK_REALM)"
 EXISTING_PUBLIC_KEYCLOAK_CLIENT_ID="$(cluster_config_value PUBLIC_KEYCLOAK_CLIENT_ID)"
 EXISTING_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO="$(cluster_config_value PUBLIC_KEYCLOAK_SILENT_CHECK_SSO)"
+EXISTING_PUBLIC_OPEN_SANDBOX_URL="$(cluster_config_value PUBLIC_OPEN_SANDBOX_URL)"
 EXISTING_SANDBOX_ROUTE_DOMAIN="$(cluster_config_value SANDBOX_ROUTE_BASE_DOMAIN)"
 EXISTING_SANDBOX_ROUTE_SCHEME="$(cluster_config_value SANDBOX_ROUTE_PUBLIC_SCHEME)"
 EXISTING_KEYCLOAK_ISSUER_ALLOWLIST="$(cluster_config_value KEYCLOAK_ISSUER_ALLOWLIST)"
@@ -29,6 +31,9 @@ HARAKIRI_PUBLIC_KEYCLOAK_URL="${HARAKIRI_PUBLIC_KEYCLOAK_URL:-${EXISTING_PUBLIC_
 HARAKIRI_PUBLIC_KEYCLOAK_REALM="${HARAKIRI_PUBLIC_KEYCLOAK_REALM:-${EXISTING_PUBLIC_KEYCLOAK_REALM:-harakiri}}"
 HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID="${HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID:-${EXISTING_PUBLIC_KEYCLOAK_CLIENT_ID:-harakiri-web}}"
 HARAKIRI_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO="${HARAKIRI_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO:-${EXISTING_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO:-false}}"
+if [[ -z "${HARAKIRI_PUBLIC_OPEN_SANDBOX_URL+x}" ]]; then
+  HARAKIRI_PUBLIC_OPEN_SANDBOX_URL="${EXISTING_PUBLIC_OPEN_SANDBOX_URL:-http://127.0.0.1:18083}"
+fi
 HARAKIRI_SANDBOX_ROUTE_DOMAIN="${HARAKIRI_SANDBOX_ROUTE_DOMAIN:-${EXISTING_SANDBOX_ROUTE_DOMAIN:-sandbox.localhost}}"
 HARAKIRI_SANDBOX_ROUTE_SCHEME="${HARAKIRI_SANDBOX_ROUTE_SCHEME:-${EXISTING_SANDBOX_ROUTE_SCHEME:-https}}"
 HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST="${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST:-${EXISTING_KEYCLOAK_ISSUER_ALLOWLIST:-http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,${HARAKIRI_PUBLIC_KEYCLOAK_URL}/realms/harakiri}}"
@@ -74,11 +79,11 @@ docker build \
 docker save harakiri-api:dev | limactl shell "${VM_NAME}" -- sudo k0s ctr images import -
 docker save harakiri-web:dev | limactl shell "${VM_NAME}" -- sudo k0s ctr images import -
 
-if [[ "${HARAKIRI_BUILD_OPEN_SANDBOX_INGRESS:-1}" == "1" ]]; then
+if [[ "${HARAKIRI_BUILD_OPEN_SANDBOX_INGRESS:-0}" == "1" ]]; then
   OSBX_SRC="${HARAKIRI_OPEN_SANDBOX_SRC:-}"
   if [[ -z "${OSBX_SRC}" ]]; then
     OSBX_SRC="$(mktemp -d)/OpenSandbox"
-    git clone --depth 1 https://github.com/alibaba/OpenSandbox.git "${OSBX_SRC}"
+    git clone --depth 1 https://github.com/opensandbox-group/OpenSandbox.git "${OSBX_SRC}"
   fi
   docker build -t opensandbox-ingress:local -f "${OSBX_SRC}/components/ingress/Dockerfile" "${OSBX_SRC}"
   docker save opensandbox-ingress:local | limactl shell "${VM_NAME}" -- sudo k0s ctr images import -
@@ -111,7 +116,7 @@ opensandbox-server:
 EOF
 
 helm upgrade --install opensandbox \
-  https://github.com/alibaba/OpenSandbox/releases/download/helm%2Fopensandbox%2F0.1.0/opensandbox-0.1.0.tgz \
+  "${OPEN_SANDBOX_CHART_URL}" \
   --namespace opensandbox-system \
   --create-namespace \
   -f "${ROOT}/infra/k8s/opensandbox/opensandbox-values.yaml" \
@@ -119,11 +124,128 @@ helm upgrade --install opensandbox \
     echo "OpenSandbox chart install failed; continuing with the currently installed release." >&2
   }
 
-kubectl apply -k "${ROOT}/infra/k8s"
-kubectl -n harakiri patch configmap harakiri-config --type=merge -p "$(cat <<EOF
-{"data":{"PUBLIC_API_URL":"${HARAKIRI_PUBLIC_API_URL}","PUBLIC_WEB_URL":"${HARAKIRI_PUBLIC_WEB_URL}","PUBLIC_KEYCLOAK_URL":"${HARAKIRI_PUBLIC_KEYCLOAK_URL}","PUBLIC_KEYCLOAK_REALM":"${HARAKIRI_PUBLIC_KEYCLOAK_REALM}","PUBLIC_KEYCLOAK_CLIENT_ID":"${HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID}","PUBLIC_KEYCLOAK_SILENT_CHECK_SSO":"${HARAKIRI_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO}","KEYCLOAK_INVITATION_REDIRECT_URI":"${HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI}","SANDBOX_ROUTE_BASE_DOMAIN":"${HARAKIRI_SANDBOX_ROUTE_DOMAIN}","SANDBOX_ROUTE_PUBLIC_SCHEME":"${HARAKIRI_SANDBOX_ROUTE_SCHEME}","KEYCLOAK_ISSUER_ALLOWLIST":"${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST}"}}
+kubectl apply -f "${ROOT}/infra/k8s/base/namespace.yaml"
+kubectl apply -f "${ROOT}/infra/k8s/postgres/postgres.yaml"
+kubectl apply -f "${ROOT}/infra/k8s/keycloak/keycloak.yaml"
+kubectl apply -f "${ROOT}/infra/k8s/opensandbox/harakiri-exec-rbac.yaml"
+kubectl apply -f "${ROOT}/infra/k8s/opensandbox/opensandbox-server-diagnostics-rbac.yaml"
+kubectl apply -f "${ROOT}/infra/k8s/opensandbox/sandbox-gateway-rbac.yaml"
+kubectl apply -f "${ROOT}/infra/k8s/opensandbox/sandbox-wildcard-ingress.yaml"
+
+if ! helm status harakiri -n harakiri >/dev/null 2>&1; then
+  kubectl -n harakiri delete \
+    deploy/harakiri-api \
+    deploy/harakiri-scheduler \
+    deploy/harakiri-template-builder \
+    deploy/harakiri-web \
+    deploy/harakiri-registry \
+    svc/harakiri-api \
+    svc/harakiri-web \
+    svc/harakiri-registry \
+    configmap/harakiri-config \
+    secret/harakiri-api \
+    role/harakiri-template-builder \
+    rolebinding/harakiri-template-builder \
+    serviceaccount/harakiri \
+    --ignore-not-found
+  kubectl delete \
+    clusterrole/harakiri-template-prepull \
+    clusterrolebinding/harakiri-template-prepull \
+    --ignore-not-found
+fi
+
+HARAKIRI_VALUES_OVERRIDE="${TMP_DIR}/harakiri-values.override.yaml"
+cat >"${HARAKIRI_VALUES_OVERRIDE}" <<EOF
+image:
+  registry: 127.0.0.1:5000
+  repository: harakiri/system
+  api:
+    name: api
+    tag: dev
+  web:
+    name: web
+    tag: dev
+secret:
+  data:
+    DATABASE_URL: postgres://harakiri:harakiri@harakiri-postgres.harakiri.svc.cluster.local:5432/harakiri
+    OPEN_SANDBOX_API_KEY: dev-opensandbox-key
+    KEYCLOAK_ADMIN_USERNAME: admin
+    KEYCLOAK_ADMIN_PASSWORD: admin
+config:
+  PUBLIC_API_URL: ${HARAKIRI_PUBLIC_API_URL}
+  PUBLIC_WEB_URL: ${HARAKIRI_PUBLIC_WEB_URL}
+  PUBLIC_KEYCLOAK_URL: ${HARAKIRI_PUBLIC_KEYCLOAK_URL}
+  PUBLIC_KEYCLOAK_REALM: ${HARAKIRI_PUBLIC_KEYCLOAK_REALM}
+  PUBLIC_KEYCLOAK_CLIENT_ID: ${HARAKIRI_PUBLIC_KEYCLOAK_CLIENT_ID}
+  PUBLIC_KEYCLOAK_SILENT_CHECK_SSO: "${HARAKIRI_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO}"
+  PUBLIC_OPEN_SANDBOX_URL: ${HARAKIRI_PUBLIC_OPEN_SANDBOX_URL}
+  SANDBOX_ROUTE_MODE: opensandbox-gateway
+  SANDBOX_ROUTE_BASE_DOMAIN: ${HARAKIRI_SANDBOX_ROUTE_DOMAIN}
+  SANDBOX_ROUTE_PUBLIC_SCHEME: ${HARAKIRI_SANDBOX_ROUTE_SCHEME}
+  SANDBOX_ROUTE_LOCAL_FALLBACK_URL: http://127.0.0.1:18083
+  SANDBOX_MAX_ROUTES_PER_SANDBOX: "8"
+  SANDBOX_MAX_ROUTES_PER_ORG: "200"
+  SANDBOX_FILE_ARTIFACT_MAX_BYTES: "16777216"
+  TEMPLATE_MAX_CPU_COUNT: "8"
+  TEMPLATE_MAX_MEMORY_MB: "32768"
+  TEMPLATE_MAX_DEFAULT_PORTS: "16"
+  TEMPLATE_BUILD_MAX_ACTIVE_PER_ORG: "3"
+  TEMPLATE_IMAGE_ALLOW_REGISTRIES: docker.io,registry-1.docker.io,mcr.microsoft.com,gcr.io,ghcr.io,127.0.0.1:5000,harakiri-registry.harakiri.svc.cluster.local:5000
+  TEMPLATE_IMAGE_DENY_REGISTRIES: ""
+  TEMPLATE_IMAGE_ALLOW_PREFIXES: ""
+  TEMPLATE_IMAGE_DENY_PREFIXES: ""
+  TEMPLATE_BUILD_CONTEXT_MAX_BYTES: "26214400"
+  TEMPLATE_BUILDER_NAMESPACE: harakiri
+  TEMPLATE_BUILDER_JOB_IMAGE: ${SYSTEM_API_IMAGE}
+  TEMPLATE_DOCKERFILE_BUILDER: buildkit
+  TEMPLATE_BUILDKIT_IMAGE: moby/buildkit:rootless
+  TEMPLATE_BUILDKITD_FLAGS: "--oci-worker-no-process-sandbox"
+  TEMPLATE_BUILDKIT_REGISTRY_INSECURE: "1"
+  TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE: gcr.io/kaniko-project/executor:v1.24.0
+  TEMPLATE_BUILDER_JOB_TIMEOUT_MS: "900000"
+  TEMPLATE_REGISTRY_PUSH_HOST: harakiri-registry.harakiri.svc.cluster.local:5000
+  TEMPLATE_REGISTRY_RUNTIME_HOST: 127.0.0.1:5000
+  TEMPLATE_REGISTRY_REPOSITORY_PREFIX: harakiri/templates
+  TEMPLATE_REGISTRY_CREDENTIAL_KEY: harakiri-local-registry-credential-key
+  TEMPLATE_SCANNER_WEBHOOK_URL: ""
+  TEMPLATE_SCANNER_TIMEOUT_MS: "10000"
+  TEMPLATE_SCANNER_FAIL_ON_ERROR: "0"
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED: "1"
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE: opensandbox
+  TEMPLATE_RUNTIME_PULL_PREFLIGHT_TIMEOUT_MS: "120000"
+  TEMPLATE_IMAGE_PREPULL_ENABLED: "1"
+  TEMPLATE_IMAGE_PREPULL_NAMESPACE: opensandbox
+  TEMPLATE_IMAGE_PREPULL_TIMEOUT_MS: "120000"
+  TEMPLATE_IMAGE_PREPULL_HOT_TAGS: hot,prepull,warm
+  TEMPLATE_IMAGE_PREPULL_FAIL_ON_ERROR: "0"
+  TEMPLATE_RETENTION_ENABLED: "1"
+  TEMPLATE_RETENTION_INTERVAL_MS: "3600000"
+  TEMPLATE_BUILD_RETENTION_DAYS: "30"
+  TEMPLATE_BUILD_LOG_RETENTION_DAYS: "14"
+  TEMPLATE_BUILD_CONTEXT_RETENTION_DAYS: "7"
+  TEMPLATE_VERSION_RETENTION_DAYS: "90"
+  TEMPLATE_BUILDER_JOB_RETENTION_DAYS: "1"
+  TEMPLATE_RETENTION_DELETE_BUILDER_JOBS: "1"
+  TEMPLATE_BUILDER_POLL_MS: "5000"
+  KEYCLOAK_ISSUER: http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri
+  KEYCLOAK_ISSUER_ALLOWLIST: ${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST}
+  KEYCLOAK_JWKS_URL: http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs
+  KEYCLOAK_INVITATION_REDIRECT_URI: ${HARAKIRI_KEYCLOAK_INVITATION_REDIRECT_URI}
+  OPEN_SANDBOX_BASE_URL: http://opensandbox-server.opensandbox-system.svc.cluster.local:80
+  OPEN_SANDBOX_GATEWAY_URL: http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80
+  OPEN_SANDBOX_ALLOW_FALLBACK: "0"
+  OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "1"
+  AUTH_DEV_ALLOW: "0"
+  AUTO_MIGRATE: "1"
+  SEED_ON_BOOT: "0"
 EOF
-)"
+
+helm upgrade --install harakiri \
+  "${ROOT}/infra/charts/harakiri" \
+  --namespace harakiri \
+  --create-namespace \
+  -f "${HARAKIRI_VALUES_OVERRIDE}"
+
 kubectl -n opensandbox-system patch ingress opensandbox-sandbox-routes --type=json -p "$(cat <<EOF
 [{"op":"replace","path":"/spec/tls/0/hosts/0","value":"*.${HARAKIRI_SANDBOX_ROUTE_DOMAIN}"},{"op":"replace","path":"/spec/rules/0/host","value":"*.${HARAKIRI_SANDBOX_ROUTE_DOMAIN}"}]
 EOF

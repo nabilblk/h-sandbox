@@ -55,6 +55,7 @@ pnpm --filter @harakiri/web test
 pnpm --filter @h-sandbox/cli test
 pnpm --filter @h-sandbox/sdk test
 pnpm openapi:check
+pnpm conformance:dev
 ```
 
 Read [docs/development.md](docs/development.md) for the complete local
@@ -78,8 +79,9 @@ pnpm smoke:route
 pnpm e2e
 ```
 
-See [docs/runbook.md](docs/runbook.md) for the local cluster workflow and
-[docs/test-report.md](docs/test-report.md) for the latest verification
+See [docs/runbook.md](docs/runbook.md) for the local cluster workflow,
+[docs/release-artifacts.md](docs/release-artifacts.md) for published artifacts,
+and [docs/test-report.md](docs/test-report.md) for the latest verification
 evidence.
 
 ## CLI
@@ -88,7 +90,7 @@ Build and install the CLI as a real executable:
 
 ```bash
 pnpm cli:pack
-npm install -g ./dist-packages/h-sandbox-cli-0.1.0.tgz
+npm install -g ./dist-packages/h-sandbox-cli-*.tgz
 harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_...
 harakiri create --template python-3.12-data --name first-agent
 harakiri run sbx_... --cmd "python --version"

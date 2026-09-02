@@ -406,13 +406,6 @@ const redactStartedCommand = <T extends { stdout: string; stderr: string; error:
   error: command.error ? redactText(command.error) : command.error
 });
 
-const websocketOpen = 1;
-
-const sendTerminalControlFrame = (client: WebSocket, payload: Record<string, unknown>) => {
-  if (client.readyState !== websocketOpen) return;
-  client.send(JSON.stringify(payload));
-};
-
 export const runSandboxCommand = async (
   input: {
     organizationId: string;
@@ -1130,13 +1123,6 @@ export const attachSandboxTerminal = async (
       actorUserId: input.actorUserId,
       actorLabel: input.actorLabel
     });
-    sendTerminalControlFrame(input.client, {
-      type: "connected",
-      session_id: providerSessionId,
-      mode: "pty",
-      cwd
-    });
-
     await runtimeProvider.attachPtySession({
       ...ref,
       providerSessionId,

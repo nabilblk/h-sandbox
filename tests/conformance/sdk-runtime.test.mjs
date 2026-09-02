@@ -9,6 +9,7 @@ const routePort = Number(process.env.HARAKIRI_CONFORMANCE_ROUTE_PORT ?? "5173");
 const requireRouteFetch = process.env.HARAKIRI_CONFORMANCE_ROUTE_FETCH === "1";
 const routeFetchBaseUrl = process.env.HARAKIRI_CONFORMANCE_ROUTE_BASE_URL;
 const allowProviderUnavailable = process.env.HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE === "1";
+const createWait = process.env.HARAKIRI_CONFORMANCE_CREATE_WAIT === "1";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -55,7 +56,7 @@ test("public SDK runtime conformance", {
       template,
       name: `sdk-conformance-${Date.now()}`,
       ttlSeconds: 300,
-      wait: false,
+      wait: createWait,
       idempotencyKey: `sdk-conformance-${Date.now()}`
     });
     sandboxId = created.sandbox.id;

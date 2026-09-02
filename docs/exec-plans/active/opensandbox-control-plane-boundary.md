@@ -29,7 +29,7 @@ Sources checked on 2026-06-02:
 - OpenSandbox architecture documents `execd` as the in-sandbox execution API,
   including command execution, background command logs, persistent bash
   sessions, file/directory operations, metrics, and interactive PTY sessions:
-  https://github.com/alibaba/OpenSandbox/blob/main/docs/architecture.md
+  https://github.com/opensandbox-group/OpenSandbox/blob/main/docs/architecture.md
 - The architecture flow for command/file/code execution is:
   resolve the `execd` endpoint from sandbox metadata or server proxy, call
   `execd` with `X-EXECD-ACCESS-TOKEN` when required, then let `execd` run the
@@ -45,7 +45,7 @@ Sources checked on 2026-06-02:
   `GetEndpoint` headers on later `execd`/egress requests, not only the primary
   auth header. Harakiri should keep the same behavior because routing hints and
   sticky-session headers can be provider-owned:
-  https://github.com/alibaba/OpenSandbox/releases
+  https://github.com/opensandbox-group/OpenSandbox/releases
 - OpenSandbox `specs/execd-api.yaml` formally covers command execution,
   background command status/logs, filesystem APIs, metrics, and `/session`.
   `/pty` is documented in architecture and component docs, but is not currently
@@ -53,28 +53,28 @@ Sources checked on 2026-06-02:
   feature-detected provider capability.
 
 ## Success Criteria
-- [ ] Normal Harakiri runtime code has no direct Kubernetes `pods/exec`,
+- [x] Normal Harakiri runtime code has no direct Kubernetes `pods/exec`,
       `kubectl exec`, direct pod log attach, or pod filesystem access.
-- [ ] All sandbox lifecycle, command, terminal, filesystem, logs, metrics,
+- [x] All sandbox lifecycle, command, terminal, filesystem, logs, metrics,
       routes, and egress features are routed through OpenSandbox lifecycle,
       endpoint resolution, `execd`, diagnostics, ingress, or egress APIs.
-- [ ] Provider credentials and OpenSandbox endpoint headers stay server-side;
+- [x] Provider credentials and OpenSandbox endpoint headers stay server-side;
       users authenticate to Harakiri through OIDC or Harakiri API keys.
-- [ ] The runtime provider interface makes OpenSandbox-owned capabilities
+- [x] The runtime provider interface makes OpenSandbox-owned capabilities
       explicit: command execution, detached commands, sessions, PTY attach,
       filesystem, logs, metrics, routes, and egress.
-- [ ] Browser terminal attach uses a short-lived Harakiri attach ticket or an
+- [x] Browser terminal attach uses a short-lived Harakiri attach ticket or an
       equivalent first-party Harakiri auth pattern; it does not expose raw
       OpenSandbox headers or API keys in frontend code.
-- [ ] If OpenSandbox does not expose a stable primitive, Harakiri returns an
+- [x] If OpenSandbox does not expose a stable primitive, Harakiri returns an
       explicit capability/provider error or uses a documented OpenSandbox-owned
       fallback. It never falls back to Kubernetes exec.
-- [ ] CI has a source-level boundary test that fails when production runtime
+- [x] CI has a source-level boundary test that fails when production runtime
       API code introduces forbidden Kubernetes runtime paths.
-- [ ] k0s smoke tests cover create, run, detached command logs, persistent
+- [x] k0s smoke tests cover create, run, detached command logs, persistent
       session, terminal attach, files, metrics, logs, routes, egress, renew, and
       kill with `OPEN_SANDBOX_ALLOW_FALLBACK=0`.
-- [ ] Public OSS documentation explains the boundary clearly enough that
+- [x] Public OSS documentation explains the boundary clearly enough that
       contributors know where to add runtime features and what is forbidden.
 
 ## Phases
@@ -101,14 +101,14 @@ Sources checked on 2026-06-02:
 - [x] Add `apps/api/src/runtime-boundary.test.ts` to fail forbidden runtime
       Kubernetes patterns in production API code.
 - [x] Allow `readNamespacedPodLog` only for template builder/admin paths.
-- [ ] Extend the boundary test with allowlisted path categories so future
+- [x] Extend the boundary test with allowlisted path categories so future
       builder/preflight/deploy Kubernetes usage remains intentional and
       readable.
 - [ ] Audit `infra/k8s/harakiri/harakiri.yaml` and split runtime API RBAC from
       builder/preflight RBAC where practical.
 - [ ] Add a documentation check or maintainer checklist that calls out the
       boundary before accepting runtime-provider PRs.
-- [ ] Keep OpenSandbox provider RBAC documented separately from Harakiri API
+- [x] Keep OpenSandbox provider RBAC documented separately from Harakiri API
       RBAC; OpenSandbox may need Kubernetes permissions to implement its own
       APIs, but Harakiri must not inherit them for runtime shortcuts.
 
@@ -121,10 +121,10 @@ Sources checked on 2026-06-02:
       egress.
 - [x] Map provider failures to stable Harakiri API errors instead of surfacing
       raw OpenSandbox or Kubernetes details.
-- [ ] Add capability health metadata that distinguishes:
+- [x] Add capability health metadata that distinguishes:
       formal OpenSandbox spec support, OpenSandbox implementation-only support,
       provider unavailable, and provider unsupported.
-- [ ] Make `OPEN_SANDBOX_ALLOW_FALLBACK=0` disable all non-native
+- [x] Make `OPEN_SANDBOX_ALLOW_FALLBACK=0` disable all non-native
       OpenSandbox-owned fallbacks and verify every dashboard panel still shows
       honest capability errors.
 - [ ] Move any remaining generic runtime helper code out of routes and into
@@ -145,9 +145,9 @@ Sources checked on 2026-06-02:
 - [x] Routes use OpenSandbox endpoint resolution/gateway behavior.
 - [x] Egress uses OpenSandbox sandbox creation network policy and
       endpoint-resolved egress sidecar policy APIs.
-- [ ] Dashboard Terminal tab must use the same Harakiri WebSocket attach
+- [x] Dashboard Terminal tab must use the same Harakiri WebSocket attach
       endpoint as CLI/SDK, with browser-safe short-lived attach tickets.
-- [ ] Runtime logs must prefer OpenSandbox diagnostics when available and show
+- [x] Runtime logs must prefer OpenSandbox diagnostics when available and show
       honest control-plane-only events when diagnostics are unavailable.
 - [ ] Remove or rename any code/docs that imply Harakiri owns sandbox data-plane
       execution rather than wrapping OpenSandbox.
@@ -158,35 +158,35 @@ Sources checked on 2026-06-02:
       Harakiri API-key headers.
 - [x] CLI attach authenticates through Harakiri and keeps OpenSandbox endpoint
       headers server-side.
-- [ ] Browser dashboard attach must mint a short-lived, single-use Harakiri
+- [x] Browser dashboard attach must mint a short-lived, single-use Harakiri
       attach ticket because browser WebSockets cannot set `Authorization` or
       `x-api-key` headers reliably.
-- [ ] Attach tickets must be scoped to one sandbox, one organization, one user,
+- [x] Attach tickets must be scoped to one sandbox, one organization, one user,
       a short TTL, and one successful WebSocket upgrade.
-- [ ] Attach audit events should record lifecycle metadata only: actor,
+- [x] Attach audit events should record lifecycle metadata only: actor,
       organization, sandbox, options, duration, and close reason. Do not store
       raw terminal input/output by default.
-- [ ] Public docs should tell SDK users when to use `run`, detached commands,
+- [x] Public docs should tell SDK users when to use `run`, detached commands,
       command sessions, terminal attach, files, routes, and egress.
 
 ### Phase 6: Verification And Deployment
-**Status**: Not Started
-- [ ] Run contract checks:
+**Status**: In Progress
+- [x] Run contract checks:
       `pnpm --filter @harakiri/shared test`,
       `pnpm --filter @harakiri/api test`,
       `pnpm --filter @h-sandbox/sdk test`,
       `pnpm --filter @h-sandbox/cli test`, and `pnpm openapi:check`.
-- [ ] Run type/build checks:
+- [x] Run type/build checks:
       `pnpm --filter @harakiri/shared typecheck`,
       `pnpm --filter @harakiri/api typecheck`,
       `pnpm --filter @harakiri/web typecheck`,
       `pnpm --filter @h-sandbox/sdk typecheck`,
       `pnpm --filter @h-sandbox/cli typecheck`, and
       `pnpm --filter @h-sandbox/cli build`.
-- [ ] Run the boundary scan:
+- [x] Run the boundary scan:
       `rg -n "pods/exec|kubectl exec|readNamespacedPodExec|readNamespacedPodLog|runInSandboxPod|kubernetes\\.exec" apps/api/src`
       and verify matches are only the guard test or builder/admin paths.
-- [ ] Deploy to k0s and run the deployed OpenSandbox smoke suite with
+- [x] Deploy to k0s and run the deployed OpenSandbox smoke suite with
       `OPEN_SANDBOX_ALLOW_FALLBACK=0`.
 - [ ] Browser-test the dashboard sandbox detail tabs through the deployed URL:
       Terminal, Filesystem, Logs, Metrics, Network.

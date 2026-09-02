@@ -158,6 +158,13 @@ missing, OpenSandbox may degrade DNS/IP enforcement. Harakiri reports provider
 availability and enforcement mode from the sidecar when it can resolve the
 egress endpoint.
 
+By default Harakiri sends a no-op allow-all OpenSandbox `networkPolicy` when it
+creates open-network sandboxes so those sandboxes can later be changed to
+restricted mode. Restricted OpenShift profiles that cannot run the egress
+sidecar should set `OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY=0`; open-network
+sandboxes will start without the sidecar, while restricted/custom/blocked egress
+remains unavailable until the runtime is granted an approved egress profile.
+
 Harakiri does not implement Kubernetes NetworkPolicy generation, custom packet
 filtering, or HTTPS MITM in the MVP. Route exposure is inbound; outbound access
 is egress policy. Treat them as separate controls.

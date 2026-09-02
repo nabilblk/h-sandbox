@@ -29,6 +29,25 @@ import { HarakiriClient } from "@h-sandbox/sdk";
 The CLI smoke packs `@h-sandbox/sdk` and `@h-sandbox/cli`, installs both
 tarballs into a temporary npm prefix, and calls the installed `harakiri` binary.
 
+## Run Without OpenSandbox
+
+For normal CI and contributor validation, run the same public SDK and CLI smokes
+against the explicit development runtime provider:
+
+```bash
+docker compose up -d postgres
+pnpm conformance:dev
+```
+
+This script starts the API on `127.0.0.1:19082` with
+`HARAKIRI_RUNTIME_PROVIDER=dev`, migrates and seeds PostgreSQL, installs packed
+SDK/CLI tarballs into temporary consumer locations, and runs the public
+conformance scripts.
+
+This lane validates the package/API contract without Kubernetes or OpenSandbox.
+It does not claim OpenSandbox dataplane compatibility; run the k0s or public API
+conformance before claiming runtime-provider compatibility.
+
 ## Run Against k0s
 
 ```bash
@@ -64,6 +83,7 @@ Optional settings:
 export HARAKIRI_CONFORMANCE_TEMPLATE=python-3.12-data
 export HARAKIRI_CONFORMANCE_ROUTE_PORT=5173
 export HARAKIRI_CONFORMANCE_ROUTE_BASE_URL=http://127.0.0.1:18082
+export HARAKIRI_CONFORMANCE_CREATE_WAIT=1
 ```
 
 Set `HARAKIRI_CONFORMANCE_ROUTE_FETCH=1` to require an actual HTTP fetch through
@@ -77,6 +97,10 @@ provider public routes are fetched only when no route-base override is set.
 
 Set `HARAKIRI_CONFORMANCE_ALLOW_PROVIDER_UNAVAILABLE=1` only when validating an
 environment that is expected to expose the API but not mutable provider egress.
+
+Set `HARAKIRI_CONFORMANCE_CREATE_WAIT=1` only for provider-free/dev-runtime
+runs where asynchronous provisioning would require a separate worker process
+sharing in-memory runtime state.
 
 ## Expected Output
 

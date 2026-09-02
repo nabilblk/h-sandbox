@@ -51,6 +51,23 @@ const labelSafeValue = (value: string) => {
 const labelSafeMetadata = (metadata: Record<string, string>) =>
   Object.fromEntries(Object.entries(metadata).map(([key, value]) => [key, labelSafeValue(value)]));
 
+const isNoOpOpenNetworkPolicy = (policy: EgressNetworkPolicy) =>
+  policy.defaultAction === "allow" && policy.egress.length === 0;
+
+const shouldSendNetworkPolicy = (
+  policy?: EgressNetworkPolicy | null,
+  options: { sendOpenNetworkPolicy: boolean } = { sendOpenNetworkPolicy: config.openSandboxSendOpenNetworkPolicy }
+) => {
+  // OpenSandbox injects the egress sidecar when networkPolicy is present.
+  // Harakiri exposes mutable running-sandbox egress, so even allow-all
+  // sandboxes need the native sidecar available for later policy updates.
+  // Restricted OpenShift installs may opt out of the no-op policy so open
+  // sandboxes can run without the sidecar's NET_ADMIN requirement.
+  if (!policy) return false;
+  if (!options.sendOpenNetworkPolicy && isNoOpOpenNetworkPolicy(policy)) return false;
+  return true;
+};
+
 export const openSandboxCreateBody = (input: {
   template: RuntimeTemplate;
   ttlSeconds: number;
@@ -59,6 +76,7 @@ export const openSandboxCreateBody = (input: {
   env?: Record<string, string>;
   imageAuth?: RegistryImageAuth | null;
   egressPolicy?: EgressNetworkPolicy | null;
+  sendOpenNetworkPolicy?: boolean;
 }) => {
   const template = input.template;
   const env = input.env && Object.keys(input.env).length ? input.env : undefined;
@@ -80,7 +98,9 @@ export const openSandboxCreateBody = (input: {
       ...(input.metadata ?? {})
     }),
     ...(env ? { env } : {}),
-    ...(input.egressPolicy ? { networkPolicy: input.egressPolicy } : {})
+    ...(shouldSendNetworkPolicy(input.egressPolicy, { sendOpenNetworkPolicy: input.sendOpenNetworkPolicy ?? config.openSandboxSendOpenNetworkPolicy })
+      ? { networkPolicy: input.egressPolicy }
+      : {})
   };
 };
 

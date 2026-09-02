@@ -2,7 +2,7 @@
 
 **Created**: 2026-06-02
 **Author**: Codex
-**Status**: Complete
+**Status**: Completed
 **Priority**: P1
 **Estimated effort**: 1-2 days for the first template, 1-2 weeks for the broader agent-template catalog pattern
 

@@ -9,6 +9,10 @@ scheduler, template-build worker, and the in-cluster template registry.
 > `docs/`). Point `config.DATABASE_URL`/`KEYCLOAK_*`/`OPEN_SANDBOX_*` and the
 > Secret values at your instances.
 
+See [`docs/release-artifacts.md`](../../../docs/release-artifacts.md) for the
+image, chart, npm, OpenSandbox, and template artifact map used by release
+handoffs.
+
 ## Install
 
 ```bash
@@ -89,6 +93,7 @@ harborPullSecret:
 | `secret.existingSecret` | `""` | reference a Secret instead of rendering one |
 | `secret.data.*` | empty | only used when `existingSecret` is unset |
 | `config.*` | mirrors `infra/k8s` | non-secret env (ConfigMap) |
+| `config.OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY` | `1` | send no-op allow-all OpenSandbox `networkPolicy` at create time so k0s can mutate egress later; set `0` only for restricted OpenShift profiles that cannot run the egress sidecar |
 | `registry.enabled` | `true` | in-cluster template registry; disable to use an external one |
 | `ingress.enabled` | `false` | dashboard/API ingress |
 | `{api,scheduler,templateBuilder,web}.resources` | set | resource requests/limits |
@@ -96,10 +101,10 @@ harborPullSecret:
 Run `helm show values infra/charts/harakiri` for the full list.
 
 > [!NOTE]
-> The **web image is runtime-configured**. The chart injects `config.PUBLIC_*`
-> into the web container, and an entrypoint regenerates `/config.js` from those
-> at startup — so the same published image works in every environment and the
-> dashboard's API/Keycloak URLs come from your values, not a rebuild.
+> The **web runtime is chart-configured**. The chart renders `config.PUBLIC_*`
+> into a `config.js` ConfigMap and mounts it into the nginx document root. It
+> also mounts an nginx config that listens on an unprivileged port, so the web
+> pod works under restricted OpenShift without mutating `/usr/share/nginx/html`.
 
 ## Production hardening
 

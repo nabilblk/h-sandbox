@@ -35,17 +35,30 @@ spec:
         - name: web
           image: {{ include "harakiri.image.web" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.web.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.web.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
             - name: http
-              containerPort: 80
-          # PUBLIC_* drive /config.js (runtime web config) via the entrypoint.
-          envFrom:
-            - configMapRef:
-                name: {{ include "harakiri.configMapName" . }}
+              containerPort: {{ .Values.web.containerPort }}
+          volumeMounts:
+            - name: web-runtime
+              mountPath: /usr/share/nginx/html/config.js
+              subPath: config.js
+              readOnly: true
+            - name: web-runtime
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
           {{- with .Values.web.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
@@ -54,6 +67,10 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      volumes:
+        - name: web-runtime
+          configMap:
+            name: {{ include "harakiri.fullname" . }}-web-runtime
       {{- with .Values.web.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

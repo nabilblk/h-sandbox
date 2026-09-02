@@ -95,6 +95,24 @@ const devFileEntry = (path: string, type: RuntimeFileEntry["type"], size = 0, mo
   modifiedAt: nowIso()
 });
 
+const singleQuotedPythonPrint = /print\('([^']*)'\)/g;
+const doubleQuotedPythonPrint = /print\("([^"]*)"\)/g;
+
+const devCommandStdout = (input: RuntimeRunInput) => {
+  if (input.stdin) return `${input.stdin}\n`;
+  const command = input.command.trim();
+  if (/^echo\s+/.test(command)) {
+    return `${command.replace(/^echo\s+/, "").replace(/^(['"])(.*)\1$/, "$2")}\n`;
+  }
+  if (command.includes("HARAKIRI_CONFORMANCE") && command.includes("os.environ.get")) {
+    return `conformance:${input.env?.HARAKIRI_CONFORMANCE ?? "missing"}\n`;
+  }
+  const printed = [...command.matchAll(singleQuotedPythonPrint), ...command.matchAll(doubleQuotedPythonPrint)].map((match) => match[1]);
+  if (printed.length) return `${printed.join("\n")}\n`;
+  if (command.includes("HARAKIRI_EGRESS_TEST_TARGET=")) return "harakiri dev runtime: egress probe reachable\n";
+  return `harakiri dev runtime: ${command}\n`;
+};
+
 export class InMemoryRuntimeProvider implements RuntimeProvider {
   readonly kind = "dev";
   readonly capabilities = {
@@ -168,7 +186,7 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     return {
       sandboxId: input.controlPlaneSandboxId,
       command,
-      stdout: input.stdin ? `${input.stdin}\n` : `harakiri dev runtime: ${command}\n`,
+      stdout: devCommandStdout(input),
       stderr: "",
       exitCode: 0,
       durationMs: 1
@@ -180,7 +198,7 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     const command = input.command.trim() || "ls";
     const providerCommandId = `cmd_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
     const startedAt = nowIso();
-    const stdout = input.stdin ? `${input.stdin}\n` : `harakiri dev runtime: ${command}\n`;
+    const stdout = devCommandStdout(input);
     const running = Boolean(input.detached);
     sandbox?.commands.set(providerCommandId, {
       command,

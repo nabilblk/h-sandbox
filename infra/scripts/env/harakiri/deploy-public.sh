@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 : "${HARAKIRI_PUBLIC_API_URL:=https://sb-api.harakiri.io}"
 : "${HARAKIRI_PUBLIC_WEB_URL:=https://sb.harakiri.io}"
 : "${HARAKIRI_PUBLIC_KEYCLOAK_URL:=https://sb-auth.harakiri.io}"
+: "${HARAKIRI_PUBLIC_OPEN_SANDBOX_URL:=}"
 : "${HARAKIRI_SANDBOX_ROUTE_DOMAIN:=harakiri.io}"
 : "${HARAKIRI_SANDBOX_ROUTE_SCHEME:=https}"
 : "${HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST:=http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri}"
@@ -33,6 +34,7 @@ fi
 export HARAKIRI_PUBLIC_API_URL
 export HARAKIRI_PUBLIC_WEB_URL
 export HARAKIRI_PUBLIC_KEYCLOAK_URL
+export HARAKIRI_PUBLIC_OPEN_SANDBOX_URL
 export HARAKIRI_SANDBOX_ROUTE_DOMAIN
 export HARAKIRI_SANDBOX_ROUTE_SCHEME
 export HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST

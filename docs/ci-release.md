@@ -55,11 +55,11 @@ gh variable set WEB_PUBLIC_KEYCLOAK_CLIENT_ID --body 'harakiri-web'
 ```
 
 > [!NOTE]
-> The web image is **runtime-configured**: the chart sets `config.PUBLIC_*` and
-> the container regenerates `/config.js` from those env vars at startup, so one
-> published image works in any environment. The `WEB_PUBLIC_*` repo variables
-> below are only an optional build-time *fallback* baked into the bundle (used
-> if a runtime value is empty) — the chart path does not need them.
+> The web image is **runtime-configured**: the chart renders `/config.js` from
+> `config.PUBLIC_*` values and mounts it as a ConfigMap, so one published image
+> works in any environment without mutating the nginx document root. The
+> `WEB_PUBLIC_*` repo variables above are only optional build-time fallbacks
+> baked into the bundle; the chart path should set runtime values explicitly.
 
 ### 3. Harbor TLS / CA
 

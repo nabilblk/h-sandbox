@@ -79,6 +79,7 @@ data:
   OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_GATEWAY_URL: "http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_ALLOW_FALLBACK: "0"
+  OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "1"
   AUTH_DEV_ALLOW: "0"
   AUTO_MIGRATE: "1"
   SEED_ON_BOOT: "0"
@@ -275,6 +276,9 @@ spec:
         - name: web
           image: 127.0.0.1:5000/harakiri/system/web:dev
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: harakiri-config
           ports:
             - containerPort: 80
           readinessProbe:

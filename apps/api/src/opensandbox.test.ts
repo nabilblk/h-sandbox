@@ -179,6 +179,82 @@ test("openSandboxCreateBody includes OpenSandbox networkPolicy when egress is re
   });
 });
 
+test("openSandboxCreateBody includes no-op open egress policy to enable later runtime egress updates", () => {
+  const template: RuntimeTemplate = {
+    id: "open-template",
+    name: "Open Template",
+    description: "Template with open outbound access",
+    image: "python:3.12-slim",
+    imageDigest: null,
+    icon: "py",
+    tags: [],
+    aliases: [],
+    bootMs: 100,
+    visibility: "public",
+    status: "ready",
+    defaultEntrypoint: ["sleep", "3600"],
+    cpuCount: 1,
+    memoryMb: 512,
+    workdir: "/",
+    defaultPorts: [],
+    runtimeFamily: "python",
+    latestVersionId: "tplv_open",
+    templateVersionId: "tplv_open"
+  };
+
+  const body = openSandboxCreateBody({
+    template,
+    ttlSeconds: 120,
+    name: "open-runner",
+    egressPolicy: {
+      defaultAction: "allow",
+      egress: []
+    }
+  });
+
+  assert.deepEqual(body.networkPolicy, {
+    defaultAction: "allow",
+    egress: []
+  });
+});
+
+test("openSandboxCreateBody can omit no-op open egress policy for restricted OpenShift installs", () => {
+  const template: RuntimeTemplate = {
+    id: "open-template",
+    name: "Open Template",
+    description: "Template with open outbound access",
+    image: "python:3.12-slim",
+    imageDigest: null,
+    icon: "py",
+    tags: [],
+    aliases: [],
+    bootMs: 100,
+    visibility: "public",
+    status: "ready",
+    defaultEntrypoint: ["sleep", "3600"],
+    cpuCount: 1,
+    memoryMb: 512,
+    workdir: "/",
+    defaultPorts: [],
+    runtimeFamily: "python",
+    latestVersionId: "tplv_open",
+    templateVersionId: "tplv_open"
+  };
+
+  const body = openSandboxCreateBody({
+    template,
+    ttlSeconds: 120,
+    name: "open-runner",
+    sendOpenNetworkPolicy: false,
+    egressPolicy: {
+      defaultAction: "allow",
+      egress: []
+    }
+  });
+
+  assert.equal("networkPolicy" in body, false);
+});
+
 test("openSandbox egress policy calls the OpenSandbox-resolved sidecar endpoint", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = async (input, init) => {

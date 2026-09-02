@@ -82,6 +82,7 @@ export const config = {
   publicOpenSandboxUrl: process.env.PUBLIC_OPEN_SANDBOX_URL ?? "http://127.0.0.1:18083",
   openSandboxApiKey: process.env.OPEN_SANDBOX_API_KEY ?? "dev-opensandbox-key",
   openSandboxAllowFallback: process.env.OPEN_SANDBOX_ALLOW_FALLBACK !== "0",
+  openSandboxSendOpenNetworkPolicy: process.env.OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY !== "0",
   runtimeProvider: process.env.HARAKIRI_RUNTIME_PROVIDER ?? process.env.RUNTIME_PROVIDER ?? "opensandbox",
   sandboxRouteMode: process.env.SANDBOX_ROUTE_MODE ?? "local-proxy",
   sandboxRouteBaseDomain: process.env.SANDBOX_ROUTE_BASE_DOMAIN ?? "sandbox.localhost",

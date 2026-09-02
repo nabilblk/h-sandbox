@@ -40,6 +40,15 @@ jobs:
       - name: CLI typecheck and tests
         run: pnpm --filter @h-sandbox/cli typecheck && pnpm --filter @h-sandbox/cli test
 
+      - name: API tests
+        run: pnpm --filter @harakiri/api test
+
+      - name: Web typecheck and tests
+        run: pnpm --filter @harakiri/web typecheck && pnpm --filter @harakiri/web test
+
+      - name: Workspace build
+        run: pnpm build
+
       - name: SDK and CLI package smoke
         run: pnpm publish:local-check
 
@@ -67,6 +76,93 @@ jobs:
             --set ingress.enabled=true \
             --set ingress.web.host=app.example.com \
             --set ingress.api.host=api.example.com > /dev/null
+
+      - name: Render OpenSandbox chart values
+        run: |
+          helm template opensandbox \
+            https://github.com/opensandbox-group/OpenSandbox/releases/download/helm/opensandbox/0.2.2/opensandbox-0.2.2.tgz \
+            -n opensandbox-system \
+            -f infra/k8s/opensandbox/opensandbox-values.yaml > /dev/null
+          helm template opensandbox \
+            https://github.com/opensandbox-group/OpenSandbox/releases/download/helm/opensandbox/0.2.2/opensandbox-0.2.2.tgz \
+            -n opensandbox-system \
+            -f infra/k8s/opensandbox/opensandbox-values.airgap.yaml > /dev/null
+
+      - name: Package chart dry run
+        run: |
+          mkdir -p dist-charts
+          helm package infra/charts/harakiri \
+            --version 0.0.0-ci.${{ github.run_number }} \
+            --app-version 0.0.0-ci.${{ github.run_number }} \
+            --destination dist-charts
+
+  dev-conformance:
+    name: SDK/CLI conformance (dev provider)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: harakiri
+          POSTGRES_USER: harakiri
+          POSTGRES_PASSWORD: harakiri
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U harakiri"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run public SDK and CLI smoke against dev provider
+        env:
+          DATABASE_URL: postgres://harakiri:harakiri@127.0.0.1:5432/harakiri
+        run: pnpm conformance:dev
+
+  release-dry-run:
+    name: Release dry run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Dry-run npm package publishing
+        run: pnpm publish:dry-run
+
+      - name: Build local npm tarballs
+        run: pnpm pack:sdk && pnpm pack:cli
+
+      - name: Package Helm chart
+        run: |
+          mkdir -p dist-charts
+          helm package infra/charts/harakiri \
+            --version 0.0.0-ci.${{ github.run_number }} \
+            --app-version 0.0.0-ci.${{ github.run_number }} \
+            --destination dist-charts
 
   images:
     name: Build ${{ matrix.component }} image (no push)

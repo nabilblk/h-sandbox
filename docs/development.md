@@ -53,6 +53,17 @@ This keeps sandbox lifecycle, terminal, filesystem, logs, metrics, and route
 surfaces available through in-memory fixtures. It is the fastest path for UI,
 contract, and command work.
 
+To run the public SDK and CLI conformance suite without k0s or OpenSandbox,
+start PostgreSQL and use the same dev-runtime gate that CI runs:
+
+```bash
+docker compose up -d postgres
+pnpm conformance:dev
+```
+
+This validates the package/API contract from packed npm tarballs. It does not
+claim OpenSandbox dataplane compatibility; use the k0s flow below for that.
+
 Useful local URLs:
 
 - Web: `http://127.0.0.1:5173`

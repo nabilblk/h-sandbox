@@ -95,11 +95,18 @@ templateBuilder:
 
 web:
   replicas: 1
+  containerPort: 8080
+  command: ["/bin/sh", "-c"]
+  args:
+    - >-
+      mkdir -p /tmp/nginx/client_body /tmp/nginx/proxy /tmp/nginx/fastcgi
+      /tmp/nginx/uwsgi /tmp/nginx/scgi
+      && nginx -g 'daemon off;'
   resources:
     requests: { cpu: 50m, memory: 64Mi }
     limits: { cpu: 200m, memory: 128Mi }
   readinessProbe:
-    httpGet: { path: /, port: 80 }
+    httpGet: { path: /, port: http }
     initialDelaySeconds: 5
     periodSeconds: 5
   service:
@@ -130,7 +137,8 @@ securityContext: {}
 
 # ---------------------------------------------------------------------------
 # Non-secret configuration -> ConfigMap `*-config` (mounted via envFrom).
-# Defaults mirror infra/k8s/harakiri/harakiri.yaml. Override the PUBLIC_* and
+# Defaults support local development. The Helm chart is the authoritative
+# deployment model for the Harakiri control plane; override the PUBLIC_* and
 # *_URL values for your environment.
 # ---------------------------------------------------------------------------
 config:
@@ -199,6 +207,7 @@ config:
   OPEN_SANDBOX_BASE_URL: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_GATEWAY_URL: "http://opensandbox-ingress-gateway.opensandbox-system.svc.cluster.local:80"
   OPEN_SANDBOX_ALLOW_FALLBACK: "0"
+  OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "1"
   AUTH_DEV_ALLOW: "0"
   AUTO_MIGRATE: "1"
   SEED_ON_BOOT: "0"

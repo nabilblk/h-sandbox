@@ -1,27 +1,27 @@
-# Air-gapped OpenSandbox values: every image pulled from Harbor mirror instead
-# of the Aliyun registry. Use INSTEAD of opensandbox-values.yaml, e.g.:
+# Air-gapped OpenSandbox values: every image pulled from the Harbor mirror.
+# Use INSTEAD of opensandbox-values.yaml, e.g.:
 #
 #   helm upgrade --install opensandbox <chart> -n opensandbox-system \
 #     -f infra/k8s/opensandbox/opensandbox-values.airgap.yaml
 #
-# Prereq: the "Mirror images (Harbor)" workflow has mirrored opensandbox/{server,
-# execd,egress,controller,ingress}, and the Harbor 'harakiri' project is pullable
-# from the cluster (set public-read).
+# Prereq: the "Mirror images (Harbor)" workflow has mirrored
+# opensandbox/{server,execd,egress,controller,ingress,image-committer}, and the
+# Harbor 'harakiri' project is pullable from the cluster (set public-read).
 #
 # Differences from opensandbox-values.yaml:
 #   - all images point at core.campus.clusterdiali.me/harakiri/mirror/opensandbox/*
-#   - the gateway uses the pinned upstream ingress:v1.0.2 (mirrored) instead of the
-#     source-built opensandbox-ingress:local — nothing is built on the cluster.
+#   - the gateway uses the pinned upstream ingress image instead of a
+#     source-built local image, so nothing is built on the cluster.
 
 opensandbox-controller:
   controller:
     logLevel: info
     replicaCount: 1
     image:
-      # Registry tags the controller v0.1.0 (available: v0.1.0, v0.2.0). Verify against your
-      # running controller: kubectl -n opensandbox-system get deploy opensandbox-controller-manager -o jsonpath='{..image}'
       repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/controller
-      tag: "v0.1.0"
+      tag: "v0.2.0"
+    snapshot:
+      imageCommitterImage: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/image-committer:v0.1.1
 
 opensandbox-server:
   configToml: |
@@ -35,7 +35,7 @@ opensandbox-server:
 
     [runtime]
     type = "kubernetes"
-    execd_image = "core.campus.clusterdiali.me/harakiri/mirror/opensandbox/execd:v1.0.17"
+    execd_image = "core.campus.clusterdiali.me/harakiri/mirror/opensandbox/execd:v1.1.0"
 
     [kubernetes]
     kubeconfig_path = ""
@@ -48,13 +48,13 @@ opensandbox-server:
     batchsandbox_template_file = "/etc/opensandbox/example.batchsandbox-template.yaml"
 
     [egress]
-    image = "core.campus.clusterdiali.me/harakiri/mirror/opensandbox/egress:v1.0.12"
+    image = "core.campus.clusterdiali.me/harakiri/mirror/opensandbox/egress:v1.1.7"
     mode = "dns+nft"
 
   server:
     image:
       repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/server
-      tag: v0.1.14
+      tag: v0.2.3
     replicaCount: 1
     resources:
       limits:
@@ -69,7 +69,7 @@ opensandbox-server:
       gatewayRouteMode: header
       image:
         repository: core.campus.clusterdiali.me/harakiri/mirror/opensandbox/ingress
-        tag: v1.0.2
+        tag: v1.0.10
       replicaCount: 1
       dataplaneNamespace: opensandbox
       providerType: batchsandbox

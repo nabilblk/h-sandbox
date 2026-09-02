@@ -1229,7 +1229,7 @@ test("createRouteFetch injects route auth headers and resolves relative paths", 
 
   await routeFetch("/global/health", { headers: { "x-request": "health" } });
 
-  assert.equal(calls[0].url, "https://opencode.example.test/global/health");
+  assert.equal(calls[0].url, "https://opencode.example.test/base/global/health");
   assert.equal(calls[0].headers["x-harakiri-route-token"], "hrt_secret");
   assert.equal(calls[0].headers.authorization, "Basic b3BlbmNvZGU6c2VjcmV0");
   assert.equal(calls[0].headers["x-client"], "example");

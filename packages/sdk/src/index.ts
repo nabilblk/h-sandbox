@@ -663,7 +663,7 @@ const routeRequestUrlFor = (route: RouteLike, input: string | URL | Request = "/
   if (input instanceof Request) return input.url;
   const value = String(input);
   if (/^https?:\/\//i.test(value)) return value;
-  return new URL(value.replace(/^\/?/, "/"), `${routeUrlFor(route)}/`).toString();
+  return new URL(value.replace(/^\/+/, ""), `${routeUrlFor(route)}/`).toString();
 };
 
 export const routeAccessHeaders = (route: RouteLike, options: RouteAccessHeadersOptions = {}) => {

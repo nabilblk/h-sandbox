@@ -422,6 +422,7 @@ export const attachExecdPtySession = async (input: {
       input.client.off("error", onClientError);
       input.client.off("pong", onClientPong);
       upstream.off("message", onUpstreamMessage);
+      upstream.off("open", onUpstreamOpen);
       upstream.off("close", onUpstreamClose);
       upstream.off("error", onUpstreamError);
       upstream.off("pong", onUpstreamPong);
@@ -433,6 +434,14 @@ export const attachExecdPtySession = async (input: {
     };
     const onUpstreamMessage = (data: WebSocket.RawData, isBinary: boolean) => {
       forward(upstream, input.client, data, isBinary);
+    };
+    const onUpstreamOpen = () => {
+      if (input.client.readyState !== WebSocket.OPEN) return;
+      input.client.send(JSON.stringify({
+        type: "connected",
+        session_id: input.providerSessionId,
+        mode: "pty"
+      }));
     };
     const onClientClose = () => {
       closeWebSocket(upstream, 1000, "client closed");
@@ -461,6 +470,7 @@ export const attachExecdPtySession = async (input: {
     input.client.on("close", onClientClose);
     input.client.on("error", onClientError);
     input.client.on("pong", onClientPong);
+    upstream.on("open", onUpstreamOpen);
     upstream.on("message", onUpstreamMessage);
     upstream.on("close", onUpstreamClose);
     upstream.on("error", onUpstreamError);

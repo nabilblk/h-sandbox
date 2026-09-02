@@ -1,0 +1,23 @@
+# Static OpenShift / air-gap chart values. The installer (install.sh) injects the
+# domain-dependent config (PUBLIC_*, KEYCLOAK_*, SANDBOX_ROUTE_*) and image.registry
+# via --set. If your Harbor host differs from core.campus.clusterdiali.me, edit the
+# TEMPLATE_* / mirror image refs below to match.
+
+registry:
+  enabled: false                 # no in-cluster hostNetwork registry on OpenShift
+
+ingress:
+  enabled: false                 # OpenShift Routes are created by install.sh
+
+# OpenShift assigns arbitrary non-root UIDs; leave securityContext empty (chart default).
+
+config:
+  AUTH_DEV_ALLOW: "0"
+  AUTO_MIGRATE: "1"
+  # Template builds push/pull from a Harbor project instead of the in-cluster registry.
+  TEMPLATE_REGISTRY_PUSH_HOST: "core.campus.clusterdiali.me/harakiri-templates"
+  TEMPLATE_REGISTRY_RUNTIME_HOST: "core.campus.clusterdiali.me/harakiri-templates"
+  TEMPLATE_BUILDKIT_REGISTRY_INSECURE: "0"
+  TEMPLATE_IMAGE_ALLOW_REGISTRIES: "core.campus.clusterdiali.me"
+  TEMPLATE_BUILDKIT_IMAGE: "core.campus.clusterdiali.me/harakiri/mirror/buildkit:rootless"
+  TEMPLATE_LEGACY_DOCKERFILE_BUILDER_IMAGE: "core.campus.clusterdiali.me/harakiri/mirror/kaniko-executor:v1.24.0"

@@ -1,0 +1,26 @@
+# SCC for the template-builder's rootless BuildKit Jobs, which set
+# runAsUser:1000 + seccompProfile:Unconfined (rejected by restricted-v2).
+# Granted to the `default` SA in the harakiri namespace (the build Jobs set no SA).
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: harakiri-buildkit
+allowPrivilegedContainer: false
+allowPrivilegeEscalation: true
+allowHostNetwork: false
+allowHostPorts: false
+allowHostPID: false
+allowHostIPC: false
+readOnlyRootFilesystem: false
+runAsUser:
+  type: RunAsAny          # the build pod pins uid 1000
+seLinuxContext:
+  type: MustRunAs
+seccompProfiles:
+  - '*'                   # allow the pod's Unconfined profile
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+allowedCapabilities: []
+volumes: [configMap, downwardAPI, emptyDir, projected, secret]

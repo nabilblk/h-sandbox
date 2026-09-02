@@ -25,10 +25,21 @@ const forbiddenRuntimePatterns = [
   "readNamespacedPodLog"
 ];
 
-const allowedAdminPaths = [
-  "builders/buildkit-kubernetes-builder.ts",
-  "builders/kaniko-builder.ts"
-];
+const allowedAdminKubernetesUsage: Record<string, { patterns: string[]; category: string; reason: string }> = {
+  "builders/buildkit-kubernetes-builder.ts": {
+    patterns: ["readNamespacedPodLog"],
+    category: "template-builder",
+    reason: "template build logs are platform/admin build-job logs, not sandbox runtime logs"
+  },
+  "builders/kaniko-builder.ts": {
+    patterns: ["readNamespacedPodLog"],
+    category: "legacy-template-builder",
+    reason: "legacy template build logs are platform/admin build-job logs, not sandbox runtime logs"
+  }
+};
+
+const allowedAdminPattern = (file: string, pattern: string) =>
+  allowedAdminKubernetesUsage[file]?.patterns.includes(pattern) ?? false;
 
 test("API production runtime source does not use Kubernetes pod exec or pod-log attach paths", async () => {
   const files = await productionSources(srcDir);
@@ -39,7 +50,7 @@ test("API production runtime source does not use Kubernetes pod exec or pod-log 
     const body = await readFile(file, "utf8");
     for (const pattern of forbiddenRuntimePatterns) {
       if (!body.includes(pattern)) continue;
-      if (pattern === "readNamespacedPodLog" && allowedAdminPaths.includes(rel)) continue;
+      if (allowedAdminPattern(rel, pattern)) continue;
       violations.push(`${rel}: ${pattern}`);
     }
   }

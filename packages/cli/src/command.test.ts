@@ -11,6 +11,7 @@ import { WebSocketServer } from "ws";
 type RecordedRequest = {
   method: string;
   path: string;
+  headers: IncomingMessage["headers"];
   body: unknown;
 };
 
@@ -37,6 +38,7 @@ const startMockApi = async (handler: (request: RecordedRequest) => { status?: nu
     const recorded = {
       method: request.method ?? "GET",
       path: request.url ?? "/",
+      headers: request.headers,
       body: await readBody(request)
     };
     requests.push(recorded);
@@ -1098,7 +1100,7 @@ test("route commands expose and list sandbox routes", async () => {
             createdByLabel: "cli@test.local",
             routeKey: "sbx-route-5173",
             host: "sbx-route-5173.sandbox.localhost",
-            url: request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token" ? `${apiUrl}/route-health` : "https://sbx-route-5173.sandbox.localhost",
+            url: request.body && typeof request.body === "object" && "accessMode" in request.body && request.body.accessMode === "token" ? `${apiUrl}/v1/route-proxy/sbx-route-5173/` : "https://sbx-route-5173.sandbox.localhost",
             targetUrl: "http://sandbox:5173",
             state: "ready",
             provider: "opensandbox",
@@ -1145,7 +1147,7 @@ test("route commands expose and list sandbox routes", async () => {
         }
       };
     }
-    if (request.method === "GET" && request.path === "/route-health") {
+    if (request.method === "GET" && request.path === "/v1/route-proxy/sbx-route-5173/route-health") {
       return { body: { ok: true } };
     }
     return { status: 404, body: { error: "unexpected", path: request.path } };
@@ -1167,7 +1169,8 @@ test("route commands expose and list sandbox routes", async () => {
     assert.match(waited.stdout, /"accessMode": "token"/);
     assert.match(waited.stdout, /"accessToken": "hrt_mock_token"/);
     assert.match(waited.stderr, /exposing port 5173/);
-    assert(api.requests.some((request) => request.method === "GET" && request.path === "/route-health"));
+    const waitProbe = api.requests.find((request) => request.method === "GET" && request.path === "/v1/route-proxy/sbx-route-5173/route-health");
+    assert.equal(waitProbe?.headers["x-harakiri-route-token"], "hrt_mock_token");
   } finally {
     await api.close();
   }

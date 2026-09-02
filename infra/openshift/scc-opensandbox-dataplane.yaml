@@ -1,0 +1,22 @@
+# SCC for OpenSandbox sandbox pods. The egress sidecar runs in dns+nft mode and
+# needs NET_ADMIN to program nftables. Granted to the SA the sandbox pods run as
+# (default in the opensandbox dataplane namespace unless OpenSandbox sets one).
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: opensandbox-dataplane
+allowPrivilegedContainer: false
+allowPrivilegeEscalation: true
+requiredDropCapabilities: []
+allowedCapabilities: [NET_ADMIN, NET_RAW]
+runAsUser:
+  type: MustRunAsRange
+seLinuxContext:
+  type: MustRunAs
+seccompProfiles:
+  - runtime/default
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+volumes: [configMap, downwardAPI, emptyDir, projected, secret, persistentVolumeClaim]

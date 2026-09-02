@@ -23,17 +23,14 @@ docker.io/axllent/mailpit:v1.27                mirror/mailpit:v1.27
 docker.io/moby/buildkit:rootless               mirror/buildkit:rootless
 gcr.io/kaniko-project/executor:v1.24.0         mirror/kaniko-executor:v1.24.0
 
-# --- OpenSandbox runtime (Aliyun registry; the high-value air-gap targets) ---
-sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/server:v0.1.14   mirror/opensandbox/server:v0.1.14
-sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.17    mirror/opensandbox/execd:v1.0.17
-sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.12   mirror/opensandbox/egress:v1.0.12
-sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/controller:v0.1.0  mirror/opensandbox/controller:v0.1.0
-sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/ingress:v1.0.2    mirror/opensandbox/ingress:v1.0.2
-# NOTE: the registry tags the controller v0.1.0 (chart appVersion is 0.1.0; registry uses a v-prefix
-# like the other components; available tags: v0.1.0, v0.2.0). ingress:v1.0.2 is the chart's default
-# gateway image. Your opensandbox-values.yaml overrides the gateway to a source-built
-# opensandbox-ingress:local; the air-gap config uses the pinned upstream ingress:v1.0.2 mirrored
-# here, so nothing is built on the cluster.
-# Verify your running controller tag with:
-#   kubectl -n opensandbox-system get deploy opensandbox-controller-manager -o jsonpath='{..image}'
-# and switch to v0.2.0 here + in opensandbox-values.airgap.yaml if that's what you run.
+# --- OpenSandbox runtime ---
+docker.io/opensandbox/server:v0.2.3           mirror/opensandbox/server:v0.2.3
+docker.io/opensandbox/execd:v1.1.0            mirror/opensandbox/execd:v1.1.0
+docker.io/opensandbox/egress:v1.1.7           mirror/opensandbox/egress:v1.1.7
+docker.io/opensandbox/controller:v0.2.0       mirror/opensandbox/controller:v0.2.0
+docker.io/opensandbox/ingress:v1.0.10         mirror/opensandbox/ingress:v1.0.10
+docker.io/opensandbox/image-committer:v0.1.1  mirror/opensandbox/image-committer:v0.1.1
+# These pins match the OpenSandbox 0.2.x runtime line checked on 2026-09-02.
+# If OpenSandbox publishes a newer chart/component set, update this file and
+# infra/k8s/opensandbox/opensandbox-values*.yaml together, then re-run the
+# mirror workflow before deploying air-gapped clusters.

@@ -37,6 +37,9 @@
 ## Operators
 
 - [Runbook](runbook.md)
+- [Release artifacts](release-artifacts.md)
+- [OpenShift install](install-openshift.md)
+- [Air-gapped deployment](airgap.md)
 - [Outbound access](egress-control.md)
 - [Template security](template-security.md)
 - [Latest verification report](test-report.md)

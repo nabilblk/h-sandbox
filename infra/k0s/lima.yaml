@@ -1,7 +1,7 @@
 arch: "aarch64"
-cpus: 4
-memory: "8GiB"
-disk: "80GiB"
+cpus: 8
+memory: "16GiB"
+disk: "160GiB"
 
 images:
   - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
@@ -9,7 +9,7 @@ images:
 
 portForwards:
   - guestPort: 6443
-    hostPort: 6443
+    hostPort: 6444
     hostIP: "127.0.0.1"
 
 provision:
