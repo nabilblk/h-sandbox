@@ -1,5 +1,13 @@
 import type { FastifyInstance } from "fastify";
-import type { CreateSandboxResponse, OkResponse, SandboxResponse, SandboxSourceResponse, SandboxesResponse } from "@harakiri/shared";
+import type {
+  CreateSandboxResponse,
+  OkResponse,
+  SandboxResponse,
+  SandboxSnapshotResponse,
+  SandboxSnapshotsResponse,
+  SandboxSourceResponse,
+  SandboxesResponse
+} from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
 import { query as defaultQuery } from "../db.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "../providers/runtime/index.js";
@@ -14,8 +22,16 @@ import {
   type Audit,
   type SandboxEventRecorder
 } from "../services/sandboxes.js";
+import {
+  createSandboxSnapshot,
+  deleteSandboxSnapshot,
+  getSandboxSnapshot,
+  listSandboxSnapshots,
+  pauseSandbox,
+  resumeSandbox
+} from "../services/sandbox-lifecycle.js";
 import type { Query } from "../services/query.js";
-import { createSandboxSchema, patchSandboxSourceSchema } from "./sandboxes.schema.js";
+import { createSandboxSchema, createSandboxSnapshotSchema, patchSandboxSourceSchema } from "./sandboxes.schema.js";
 
 export type SandboxRouteDependencies = {
   query?: Query;
@@ -70,6 +86,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         userId: request.auth.userId,
         actorLabel: request.auth.actorLabel,
         templateRef: body.template,
+        snapshotId: body.snapshotId,
         name: body.name,
         ttlSeconds: body.ttlSeconds,
         env: body.env,
@@ -95,6 +112,24 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
       return reply.code(409).send(apiErrorResponse("template_image_digest_unresolved", {
         template: result.template,
         message: result.message
+      }));
+    }
+    if (result.kind === "snapshot_not_found") {
+      return reply.code(404).send(apiErrorResponse("snapshot_not_found", { snapshotId: result.snapshotId }));
+    }
+    if (result.kind === "snapshot_not_ready") {
+      return reply.code(409).send(apiErrorResponse("snapshot_not_ready", {
+        snapshotId: result.snapshotId,
+        status: result.status,
+        message: "snapshot must be ready before it can create sandboxes"
+      }));
+    }
+    if (result.kind === "snapshot_provider_mismatch") {
+      return reply.code(409).send(apiErrorResponse("snapshot_provider_mismatch", {
+        snapshotId: result.snapshotId,
+        provider: result.provider,
+        runtimeProvider: result.runtimeProvider,
+        message: "snapshot belongs to a different runtime provider"
       }));
     }
     if (result.kind === "egress_policy_invalid") {
@@ -160,6 +195,172 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
     );
     if (!sandbox) return reply.code(404).send(apiErrorResponse("sandbox_not_found", { id }));
     return { sandbox } satisfies SandboxSourceResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/pause", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await pauseSandbox(
+      {
+        organizationId: request.auth.organizationId,
+        userId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        sandboxId: id,
+        idempotencyKey: idempotencyKey(request.headers)
+      },
+      { query, runtimeProvider, recordAudit, recordEvent }
+    );
+    if (result.kind === "sandbox_not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_invalid_state") {
+      return reply.code(409).send(apiErrorResponse("sandbox_invalid_state", {
+        state: result.state,
+        allowed: result.allowed,
+        message: `sandbox must be ${result.allowed.join(" or ")} before it can be paused`
+      }));
+    }
+    if (result.kind === "runtime_lifecycle_unsupported") {
+      return reply.code(501).send(apiErrorResponse("runtime_lifecycle_unsupported", {
+        capability: result.capability,
+        message: "runtime provider does not expose this lifecycle operation"
+      }));
+    }
+    if (result.kind === "runtime_provider_failed") {
+      return reply.code(502).send(apiErrorResponse("runtime_provider_failed", { message: result.message }));
+    }
+    return { sandbox: result.sandbox } satisfies SandboxResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/resume", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await resumeSandbox(
+      {
+        organizationId: request.auth.organizationId,
+        userId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        sandboxId: id,
+        idempotencyKey: idempotencyKey(request.headers)
+      },
+      { query, runtimeProvider, recordAudit, recordEvent }
+    );
+    if (result.kind === "sandbox_not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_invalid_state") {
+      return reply.code(409).send(apiErrorResponse("sandbox_invalid_state", {
+        state: result.state,
+        allowed: result.allowed,
+        message: `sandbox must be ${result.allowed.join(" or ")} before it can be resumed`
+      }));
+    }
+    if (result.kind === "runtime_lifecycle_unsupported") {
+      return reply.code(501).send(apiErrorResponse("runtime_lifecycle_unsupported", {
+        capability: result.capability,
+        message: "runtime provider does not expose this lifecycle operation"
+      }));
+    }
+    if (result.kind === "runtime_provider_failed") {
+      return reply.code(502).send(apiErrorResponse("runtime_provider_failed", { message: result.message }));
+    }
+    return { sandbox: result.sandbox } satisfies SandboxResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/snapshots", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = createSandboxSnapshotSchema.parse(request.body ?? {});
+    const result = await createSandboxSnapshot(
+      {
+        organizationId: request.auth.organizationId,
+        userId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        sandboxId: id,
+        name: body.name,
+        metadata: body.metadata,
+        expiresAt: body.expiresAt,
+        idempotencyKey: body.idempotencyKey ?? idempotencyKey(request.headers),
+        wait: body.wait,
+        waitTimeoutMs: body.waitTimeoutMs
+      },
+      { query, runtimeProvider, recordAudit, recordEvent }
+    );
+    if (result.kind === "sandbox_not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_invalid_state") {
+      return reply.code(409).send(apiErrorResponse("sandbox_invalid_state", {
+        state: result.state,
+        allowed: result.allowed,
+        message: `sandbox must be ${result.allowed.join(" or ")} before it can be snapshotted`
+      }));
+    }
+    if (result.kind === "runtime_lifecycle_unsupported") {
+      return reply.code(501).send(apiErrorResponse("runtime_lifecycle_unsupported", {
+        capability: result.capability,
+        message: "runtime provider does not expose this lifecycle operation"
+      }));
+    }
+    if (result.kind === "runtime_provider_failed") {
+      return reply.code(502).send(apiErrorResponse("runtime_provider_failed", {
+        snapshot: result.snapshot,
+        operation: { id: result.operation.id, state: result.operation.state },
+        message: result.message
+      }));
+    }
+    const response = {
+      snapshot: result.snapshot,
+      operation: summarizeSandboxOperation(result.operation),
+      status: result.kind === "pending" ? "pending" : "created",
+      message: result.kind === "pending" ? result.message : undefined
+    } satisfies SandboxSnapshotResponse;
+    return reply
+      .code(result.kind === "pending" ? 202 : 201)
+      .header("location", `/v1/snapshots/${encodeURIComponent(result.snapshot.id)}`)
+      .send(response);
+  });
+
+  app.get("/v1/snapshots", async (request) => {
+    const { status, sandboxId, limit, offset, includeDeleted } = request.query as {
+      status?: string;
+      sandboxId?: string;
+      limit?: string;
+      offset?: string;
+      includeDeleted?: string;
+    };
+    const result = await listSandboxSnapshots({
+      organizationId: request.auth.organizationId,
+      status,
+      sourceSandboxId: sandboxId,
+      limit,
+      offset,
+      includeDeleted: includeDeleted === "true"
+    }, query);
+    return result satisfies SandboxSnapshotsResponse;
+  });
+
+  app.get("/v1/snapshots/:snapshotId", async (request, reply) => {
+    const { snapshotId } = request.params as { snapshotId: string };
+    const snapshot = await getSandboxSnapshot({ organizationId: request.auth.organizationId, snapshotId }, query);
+    if (!snapshot) return reply.code(404).send(apiErrorResponse("snapshot_not_found"));
+    return { snapshot } satisfies SandboxSnapshotResponse;
+  });
+
+  app.delete("/v1/snapshots/:snapshotId", async (request, reply) => {
+    const { snapshotId } = request.params as { snapshotId: string };
+    const result = await deleteSandboxSnapshot(
+      {
+        organizationId: request.auth.organizationId,
+        userId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        snapshotId,
+        idempotencyKey: idempotencyKey(request.headers)
+      },
+      { query, runtimeProvider, recordAudit, recordEvent }
+    );
+    if (result.kind === "snapshot_not_found") return reply.code(404).send(apiErrorResponse("snapshot_not_found"));
+    if (result.kind === "runtime_lifecycle_unsupported") {
+      return reply.code(501).send(apiErrorResponse("runtime_lifecycle_unsupported", {
+        capability: result.capability,
+        message: "runtime provider does not expose this lifecycle operation"
+      }));
+    }
+    if (result.kind === "runtime_provider_failed") {
+      return reply.code(502).send(apiErrorResponse("runtime_provider_failed", { message: result.message }));
+    }
+    return { ok: true } satisfies OkResponse;
   });
 
   app.delete("/v1/sandboxes/:id", async (request, reply) => {

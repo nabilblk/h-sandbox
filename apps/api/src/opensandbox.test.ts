@@ -131,6 +131,7 @@ test("openSandboxCreateBody includes sandbox env and image auth when provided", 
     metadata: { "harakiri.runtime_registry_credential": "cred_private" }
   });
 
+  assert.ok("image" in body);
   assert.deepEqual(body.image, {
     uri: "registry.example.com/team/private@sha256:def456",
     auth: { username: "robot", password: "token" }
@@ -138,6 +139,43 @@ test("openSandboxCreateBody includes sandbox env and image auth when provided", 
   assert.equal(body.timeout, 60);
   assert.deepEqual(body.env, { HARAKIRI_ENV_SMOKE: "env-ok" });
   assert.equal(body.metadata["harakiri.runtime_registry_credential"], "cred_private");
+});
+
+test("openSandboxCreateBody restores from snapshot without image auth", () => {
+  const template: RuntimeTemplate = {
+    id: "python-3.12-data",
+    name: "Python",
+    description: "Template restored from a snapshot",
+    image: "python:3.12-slim",
+    imageDigest: "sha256:abc",
+    icon: "py",
+    tags: [],
+    aliases: [],
+    bootMs: 100,
+    visibility: "public",
+    status: "ready",
+    defaultEntrypoint: ["sleep", "3600"],
+    cpuCount: 2,
+    memoryMb: 2048,
+    workdir: "/workspace",
+    defaultPorts: [3000],
+    runtimeFamily: "python",
+    latestVersionId: "tplv_python",
+    templateVersionId: "tplv_python"
+  };
+
+  const body = openSandboxCreateBody({
+    template,
+    ttlSeconds: 300,
+    name: "restored",
+    providerSnapshotId: "snap_provider_1",
+    imageAuth: { username: "robot", password: "token" }
+  });
+
+  assert.ok(!("image" in body));
+  assert.ok(!("entrypoint" in body));
+  assert.equal(body.snapshotId, "snap_provider_1");
+  assert.equal(body.metadata["harakiri.snapshot_provider_id"], "snap_provider_1");
 });
 
 test("openSandboxCreateBody includes OpenSandbox networkPolicy when egress is restricted", () => {

@@ -8,6 +8,10 @@ SYSTEM_API_IMAGE="127.0.0.1:5000/harakiri/system/api:dev"
 SYSTEM_WEB_IMAGE="127.0.0.1:5000/harakiri/system/web:dev"
 TMP_DIR="$(mktemp -d)"
 OPEN_SANDBOX_CHART_URL="${HARAKIRI_OPEN_SANDBOX_CHART_URL:-https://github.com/opensandbox-group/OpenSandbox/releases/download/helm/opensandbox/0.2.2/opensandbox-0.2.2.tgz}"
+HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY="${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY:-}"
+HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY_INSECURE="${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY_INSECURE:-true}"
+HARAKIRI_OPEN_SANDBOX_CONTAINERD_SOCKET="${HARAKIRI_OPEN_SANDBOX_CONTAINERD_SOCKET:-/run/k0s/containerd.sock}"
+HARAKIRI_OPEN_SANDBOX_SOCKET_COMPAT="${HARAKIRI_OPEN_SANDBOX_SOCKET_COMPAT:-1}"
 
 cluster_config_value() {
   local key="$1"
@@ -63,6 +67,48 @@ push_system_image() {
   limactl shell "${VM_NAME}" -- sudo k0s ctr -n k8s.io images push --plain-http "${target_ref}"
 }
 
+default_snapshot_registry() {
+  local node_ip
+  node_ip="$(limactl shell "${VM_NAME}" -- sh -lc "ip -4 route get 1.1.1.1 | sed -n 's/.* src \\([0-9.]*\\).*/\\1/p' | head -1")"
+  if [[ -z "${node_ip}" ]]; then
+    echo "Could not determine the k0s node IP for the local snapshot registry." >&2
+    exit 1
+  fi
+  printf "%s:5000/harakiri/snapshots" "${node_ip}"
+}
+
+prepare_opensandbox_snapshot_runtime() {
+  local default_socket="/var/run/containerd/containerd.sock"
+  if [[ "${HARAKIRI_OPEN_SANDBOX_SOCKET_COMPAT}" != "1" ]]; then
+    return
+  fi
+  if [[ "${HARAKIRI_OPEN_SANDBOX_CONTAINERD_SOCKET}" == "${default_socket}" ]]; then
+    return
+  fi
+  limactl shell "${VM_NAME}" -- sudo sh -s -- "${HARAKIRI_OPEN_SANDBOX_CONTAINERD_SOCKET}" "${default_socket}" <<'EOF'
+set -eu
+source_socket="$1"
+default_socket="$2"
+if [ ! -S "${source_socket}" ]; then
+  echo "OpenSandbox snapshot socket ${source_socket} was not found on the k0s node." >&2
+  exit 1
+fi
+if [ -S "${default_socket}" ]; then
+  exit 0
+fi
+if [ -L "${default_socket}" ]; then
+  rm "${default_socket}"
+elif [ -d "${default_socket}" ]; then
+  rmdir "${default_socket}"
+elif [ -e "${default_socket}" ]; then
+  echo "Cannot replace non-socket ${default_socket}; remove it or set HARAKIRI_OPEN_SANDBOX_SOCKET_COMPAT=0." >&2
+  exit 1
+fi
+mkdir -p "$(dirname "${default_socket}")"
+ln -s "${source_socket}" "${default_socket}"
+EOF
+}
+
 docker build --provenance=false --sbom=false -t harakiri-api:dev -f "${ROOT}/apps/api/Dockerfile" "${ROOT}"
 docker build \
   --provenance=false \
@@ -107,8 +153,19 @@ if [[ "${HARAKIRI_INSTALL_CERT_MANAGER:-0}" == "1" ]]; then
   "${ROOT}/infra/scripts/cert-manager-install.sh"
 fi
 
+if [[ -z "${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY}" ]]; then
+  HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY="$(default_snapshot_registry)"
+fi
+
+prepare_opensandbox_snapshot_runtime
+
 OSBX_VALUES_OVERRIDE="${TMP_DIR}/opensandbox-values.override.yaml"
 cat >"${OSBX_VALUES_OVERRIDE}" <<EOF
+opensandbox-controller:
+  controller:
+    snapshot:
+      registry: ${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY}
+      registryInsecure: ${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY_INSECURE}
 opensandbox-server:
   server:
     gateway:

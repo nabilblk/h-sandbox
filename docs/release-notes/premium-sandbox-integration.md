@@ -1,9 +1,56 @@
 # Premium Sandbox Integration Release Notes
 
 Date: 2026-05-29
+Last updated: 2026-09-03
 
 This release expands Harakiri from a dashboard-first OpenSandbox control plane
 into a public sandbox integration surface for OSS applications.
+
+## 2026-09-03 Lifecycle Persistence Update
+
+Harakiri now exposes OpenSandbox-native pause, resume, snapshot, and restore
+through the same public integration surfaces as the rest of the runtime
+contract. Provider snapshot IDs stay internal; external integrations use stable
+Harakiri `snp_...` IDs.
+
+New API endpoints:
+
+- `POST /v1/sandboxes/{id}/pause`
+- `POST /v1/sandboxes/{id}/resume`
+- `POST /v1/sandboxes/{id}/snapshots`
+- `GET /v1/snapshots`
+- `GET /v1/snapshots/{snapshotId}`
+- `DELETE /v1/snapshots/{snapshotId}`
+- `POST /v1/sandboxes` with `snapshotId`
+
+SDK additions:
+
+- `sandbox.pause()`
+- `sandbox.resume()`
+- `sandbox.snapshot()`
+- `client.snapshots.list()`
+- `client.snapshots.get()`
+- `client.snapshots.delete()`
+- `client.snapshots.wait()`
+- `client.sandboxes.create({ snapshotId })`
+
+CLI additions:
+
+- `harakiri pause`
+- `harakiri resume`
+- `harakiri snapshot`
+- `harakiri snapshots list`
+- `harakiri snapshots inspect`
+- `harakiri snapshots delete`
+- `harakiri create --snapshot`
+
+Dashboard additions:
+
+- Pause/resume actions on sandbox detail.
+- A Snapshots tab with create, restore, delete, status, provenance, and
+  retention metadata.
+- Deep-linkable sandbox detail routes that survive hosted Keycloak OIDC
+  redirects.
 
 ## New Runtime APIs
 
@@ -59,8 +106,11 @@ into a public sandbox integration surface for OSS applications.
   Keep `/run` for short foreground commands.
 - Use Harakiri sandbox IDs and command IDs as public integration identifiers.
   Do not persist OpenSandbox IDs.
-- Harakiri v1 lifecycle is TTL, renew, and kill. Pause/resume and
-  running-sandbox snapshots are not v1 guarantees.
+- Lifecycle now includes capability-gated pause, resume, snapshot, snapshot
+  list/delete, and restore from Harakiri `snp_...` IDs. Gate these actions on
+  runtime capability state because provider/runtime modes can still differ.
+- Credential Vault entries are process-local to the OpenSandbox egress sidecar
+  and must be re-injected after Kubernetes-backed pause/resume.
 - Large artifact transfer is currently JSON/base64 with a configured size
   limit. Streaming or signed URL transfer remains a future scale-up path.
 
@@ -70,4 +120,8 @@ into a public sandbox integration surface for OSS applications.
 - `pnpm examples:check`
 - `pnpm conformance:sdk`
 - `pnpm conformance:cli`
+- `pnpm conformance:dev`
+- `pnpm smoke:lifecycle`
+- `pnpm smoke:lifecycle-persistence`
+- hosted browser smoke through `https://sb.harakiri.io`
 - Focused shared, API, SDK, and CLI tests documented in the execution plan.

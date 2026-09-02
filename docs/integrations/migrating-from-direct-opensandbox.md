@@ -88,8 +88,9 @@ export const createHarakiriSandboxProvider = (harakiri: HarakiriClient) => ({
 ## Behavioral Differences To Account For
 
 - Harakiri IDs are the public IDs. Do not store or parse provider IDs.
-- Sandbox lifecycle is TTL, renew, and kill. Pause/resume and running-sandbox
-  snapshots are not v1 guarantees.
+- Sandbox lifecycle is TTL, renew, kill, and capability-gated provider
+  persistence. Use Harakiri `snp_...` snapshot IDs for restore flows and do not
+  persist OpenSandbox snapshot IDs.
 - Token route secrets are returned only when the route is created. Store them in
   the consuming application if they must be reused.
 - File artifact transfer is bounded by Harakiri's configured JSON/base64 limit.

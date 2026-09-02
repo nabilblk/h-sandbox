@@ -269,6 +269,78 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
   assert.equal(audits[0].action, "sandbox.create");
 });
 
+test("createSandbox restores a ready snapshot through the provider snapshot ref", async () => {
+  const runtimeState: { createInput?: any } = {};
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      snapshotId: "snp_ready",
+      name: "restored-runner",
+      ttlSeconds: 300,
+      env: {}
+    },
+    {
+      runtimeProvider: fakeRuntimeProvider(runtimeState),
+      idFactory: () => "sbx_restored",
+      resolveTemplateFn: async (templateRef) => {
+        assert.equal(templateRef, "python-3.12");
+        return readyTemplate;
+      },
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("FROM sandbox_snapshots")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: "snp_ready",
+              provider: "fake",
+              providerSnapshotId: "provider_snp",
+              template: "python-3.12",
+              templateVersionId: "tplv_ready",
+              templateImageDigest: "sha256:abc",
+              status: "ready"
+            }] as never[]
+          };
+        }
+        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_restore", sandboxId: "sbx_restored" })] as never[] };
+        }
+        if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_restore", sandboxId: "sbx_restored" })] as never[] };
+        }
+        if (text.includes("UPDATE sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_restore", sandboxId: "sbx_restored", state: text.includes("succeeded") ? "succeeded" : "running" })] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: "sbx_restored", name: "restored-runner", template: "python-3.12", status: "running" }] as never[]
+          };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "created");
+  assert.deepEqual(runtimeState.createInput?.snapshot, { provider: "fake", providerSnapshotId: "provider_snp" });
+  assert.equal(runtimeState.createInput?.metadata["harakiri.restore_snapshot"], "snp_ready");
+  const operationInsert = calls.find((call) => call.text.includes("INSERT INTO sandbox_operations"));
+  assert.ok(operationInsert);
+  assert.equal(JSON.parse(String(operationInsert.params?.[5])).restoreSnapshotId, "snp_ready");
+  assert.equal(JSON.parse(String(operationInsert.params?.[5])).providerSnapshotId, "provider_snp");
+});
+
 test("createSandbox can enqueue async provision and return a pending sandbox", async () => {
   const runtimeState: { createInput?: any } = {};
   const events: Array<{ type: string; metadata?: Record<string, unknown> }> = [];

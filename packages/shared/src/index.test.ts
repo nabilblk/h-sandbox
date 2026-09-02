@@ -69,6 +69,12 @@ test("runtime capability vocabulary separates command and interactive terminal s
   assert.ok(runtimeCapabilityNames.includes("terminalResize"));
   assert.ok(runtimeCapabilityNames.includes("shellSessions"));
   assert.ok(runtimeCapabilityNames.includes("sessionCommands"));
+  assert.ok(runtimeCapabilityNames.includes("lifecyclePause"));
+  assert.ok(runtimeCapabilityNames.includes("lifecycleResume"));
+  assert.ok(runtimeCapabilityNames.includes("lifecycleSnapshot"));
+  assert.ok(runtimeCapabilityNames.includes("snapshotList"));
+  assert.ok(runtimeCapabilityNames.includes("snapshotDelete"));
+  assert.ok(runtimeCapabilityNames.includes("createFromSnapshot"));
   assert.ok(runtimeCapabilityNames.includes("git"));
   assert.ok(runtimeCapabilityContracts.includes("opensandbox_spec"));
   assert.ok(runtimeCapabilityContracts.includes("opensandbox_provider"));
@@ -88,6 +94,7 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "DELETE /v1/sandboxes/{id}/commands/{commandId}",
     "DELETE /v1/sandboxes/{id}/files",
     "DELETE /v1/sandboxes/{id}/routes/{port}",
+    "DELETE /v1/snapshots/{snapshotId}",
     "GET /health",
     "GET /openapi.json",
     "GET /v1/api-keys",
@@ -110,6 +117,8 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/sandboxes/{id}/logs",
     "GET /v1/sandboxes/{id}/metrics",
     "GET /v1/sandboxes/{id}/routes",
+    "GET /v1/snapshots",
+    "GET /v1/snapshots/{snapshotId}",
     "GET /v1/template-builds",
     "GET /v1/template-builds/{id}",
     "GET /v1/template-builds/{id}/logs",
@@ -136,9 +145,12 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "POST /v1/sandboxes/{id}/files/mkdir",
     "POST /v1/sandboxes/{id}/files/rename",
     "POST /v1/sandboxes/{id}/files/upload",
+    "POST /v1/sandboxes/{id}/pause",
     "POST /v1/sandboxes/{id}/renew",
+    "POST /v1/sandboxes/{id}/resume",
     "POST /v1/sandboxes/{id}/routes",
     "POST /v1/sandboxes/{id}/run",
+    "POST /v1/sandboxes/{id}/snapshots",
     "POST /v1/sandboxes/{id}/terminal/attach-ticket",
     "POST /v1/template-builds/{id}/cancel",
     "POST /v1/template-builds/{id}/context",

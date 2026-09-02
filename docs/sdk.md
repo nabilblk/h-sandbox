@@ -469,15 +469,33 @@ const probe = await harakiri.testOutboundAccess(sandbox.id, "https://api.github.
 
 ## Lifecycle
 
-Harakiri v1 uses TTL, renew, and kill semantics:
+Harakiri uses explicit TTL, renew, kill, and provider-backed persistence
+semantics:
 
 ```ts
 await harakiri.renewSandbox(sandbox.id);
+
+await sandbox.pause();
+await sandbox.resume();
+
+const { snapshot } = await sandbox.snapshot({
+  name: "before-upgrade",
+  wait: true
+});
+
+await harakiri.sandboxes.create({
+  snapshotId: snapshot.id,
+  name: "restored-runner",
+  wait: true
+});
+
 await harakiri.killSandbox(sandbox.id);
 ```
 
-Pause, resume, and running-sandbox snapshots are not guaranteed v1 behavior.
-Callers should renew active sandboxes and persist important state explicitly.
+Pause, resume, snapshot, snapshot list/delete, and create-from-snapshot are
+capability-gated. Read `getRuntimeCapabilities()` before presenting these
+actions in product UI, and handle explicit provider unavailable errors when an
+installation uses a runtime mode that does not support snapshots.
 
 ## Errors
 

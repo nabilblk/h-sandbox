@@ -1,4 +1,4 @@
-export const sandboxStatuses = ["pending", "running", "idle", "error", "terminated"] as const;
+export const sandboxStatuses = ["pending", "running", "idle", "pausing", "paused", "resuming", "error", "terminated"] as const;
 export type SandboxStatus = typeof sandboxStatuses[number];
 
 export {
@@ -19,17 +19,23 @@ export {
 
 export const sandboxStatusTransitions: Record<SandboxStatus, SandboxStatus[]> = {
   pending: ["running", "error", "terminated"],
-  running: ["idle", "error", "terminated"],
-  idle: ["running", "error", "terminated"],
-  error: ["pending", "terminated"],
+  running: ["idle", "pausing", "error", "terminated"],
+  idle: ["running", "pausing", "error", "terminated"],
+  pausing: ["paused", "running", "error", "terminated"],
+  paused: ["resuming", "error", "terminated"],
+  resuming: ["running", "idle", "error", "terminated"],
+  error: ["pending", "running", "terminated"],
   terminated: []
 };
 
 export const canTransitionSandboxStatus = (from: SandboxStatus, to: SandboxStatus) =>
   from === to || sandboxStatusTransitions[from]?.includes(to) === true;
 
-export const sandboxOperationKinds = ["provision", "delete", "renew", "route_expose"] as const;
+export const sandboxOperationKinds = ["provision", "delete", "renew", "pause", "resume", "snapshot", "snapshot_delete", "route_expose"] as const;
 export type SandboxOperationKind = typeof sandboxOperationKinds[number];
+
+export const sandboxSnapshotStatuses = ["creating", "ready", "failed", "deleting", "deleted", "expired"] as const;
+export type SandboxSnapshotStatus = typeof sandboxSnapshotStatuses[number];
 
 export const sandboxOperationStates = ["queued", "running", "succeeded", "failed", "canceled"] as const;
 export type SandboxOperationState = typeof sandboxOperationStates[number];
@@ -367,6 +373,7 @@ export type SandboxOperationSummary = {
 
 export type CreateSandboxBody = {
   template?: string;
+  snapshotId?: string;
   name?: string;
   ttlSeconds?: number;
   env?: Record<string, string>;
@@ -394,6 +401,47 @@ export type SandboxResponse = {
 
 export type SandboxSourceResponse = {
   sandbox: SandboxSummary;
+};
+
+export type SandboxSnapshotSummary = {
+  id: string;
+  sourceSandboxId: string | null;
+  name: string | null;
+  status: SandboxSnapshotStatus | string;
+  statusReason: string | null;
+  statusMessage: string | null;
+  template: string | null;
+  templateVersionId: string | null;
+  templateImageDigest: string | null;
+  createdByUserId: string | null;
+  createdByLabel: string | null;
+  metadata: Record<string, unknown>;
+  providerState: Record<string, unknown>;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};
+
+export type CreateSandboxSnapshotBody = {
+  name?: string;
+  metadata?: Record<string, string>;
+  expiresAt?: string | null;
+  idempotencyKey?: string;
+  wait?: boolean;
+  waitTimeoutMs?: number;
+};
+
+export type SandboxSnapshotResponse = {
+  snapshot: SandboxSnapshotSummary;
+  operation?: SandboxOperationSummary;
+  status?: "created" | "pending";
+  message?: string;
+};
+
+export type SandboxSnapshotsResponse = {
+  snapshots: SandboxSnapshotSummary[];
+  page?: PageSummary;
 };
 
 export const sandboxRouteStates = ["provisioning", "ready", "unhealthy", "terminated"] as const;
@@ -448,6 +496,9 @@ export const runtimeCapabilityNames = [
   "lifecyclePause",
   "lifecycleResume",
   "lifecycleSnapshot",
+  "snapshotList",
+  "snapshotDelete",
+  "createFromSnapshot",
   "commandRun",
   "commands",
   "detachedCommands",

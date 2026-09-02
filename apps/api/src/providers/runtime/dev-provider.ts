@@ -3,6 +3,7 @@ import type { EgressNetworkPolicy, EgressNetworkRule } from "@harakiri/shared";
 import type {
   RuntimeCreateSandboxInput,
   RuntimeCreateSandboxResult,
+  RuntimeCreateSnapshotInput,
   RuntimeExposeRouteInput,
   RuntimeFileEntry,
   RuntimeFileListResult,
@@ -18,6 +19,8 @@ import type {
   RuntimeRunInput,
   RuntimeSandboxRef,
   RuntimeSandboxSummary,
+  RuntimeSnapshotRef,
+  RuntimeSnapshotSummary,
   RuntimeStartCommandInput,
   RuntimeWriteFileInput
 } from "./provider.js";
@@ -32,6 +35,11 @@ type DevSandbox = RuntimeSandboxSummary & {
   egressPolicy: EgressNetworkPolicy;
   commands: Map<string, { command: string; stdout: string; stderr: string; exitCode: number | null; running: boolean; startedAt: string; finishedAt: string | null }>;
   commandSessions: Map<string, { cwd: string }>;
+};
+
+type DevSnapshot = RuntimeSnapshotSummary & {
+  files: RuntimeFileEntry[];
+  fileContents: Map<string, string>;
 };
 
 const nowIso = () => new Date().toISOString();
@@ -122,15 +130,21 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     logs: true,
     metrics: true,
     routes: true,
-    egress: true
+    egress: true,
+    pause: true,
+    resume: true,
+    snapshots: true
   };
 
   private readonly sandboxes = new Map<string, DevSandbox>();
+  private readonly snapshots = new Map<string, DevSnapshot>();
 
   async create(input: RuntimeCreateSandboxInput): Promise<RuntimeCreateSandboxResult> {
     const providerSandboxId = devId();
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000).toISOString();
     const defaultCwd = input.template.workdir || "/";
+    const sourceSnapshot = input.snapshot ? this.snapshots.get(input.snapshot.providerSnapshotId) : null;
+    const fallbackFiles = fallbackFileSet(defaultCwd);
     const sandbox: DevSandbox = {
       provider: this.kind,
       providerSandboxId,
@@ -139,9 +153,11 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
       metadata: input.metadata ?? {},
       name: input.name,
       defaultCwd,
-      files: fallbackFileSet(defaultCwd),
-      fileContents: new Map(fallbackFileSet(defaultCwd).filter((file) => file.type === "file").map((file) => [file.path, "print('hello from dev runtime')\n"])),
-      logs: [{ ts: nowIso(), lvl: "created", msg: "created through in-memory runtime provider", source: "sandbox" }],
+      files: sourceSnapshot ? sourceSnapshot.files.map((file) => ({ ...file })) : fallbackFiles,
+      fileContents: sourceSnapshot
+        ? new Map(sourceSnapshot.fileContents)
+        : new Map(fallbackFiles.filter((file) => file.type === "file").map((file) => [file.path, "print('hello from dev runtime')\n"])),
+      logs: [{ ts: nowIso(), lvl: "created", msg: input.snapshot ? "created from in-memory snapshot" : "created through in-memory runtime provider", source: "sandbox" }],
       egressPolicy: input.egressPolicy ?? { defaultAction: "allow", egress: [] },
       commands: new Map(),
       commandSessions: new Map()
@@ -174,6 +190,60 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     if (!sandbox) return;
     sandbox.expiresAt = input.expiresAt;
     sandbox.logs.push({ ts: nowIso(), lvl: "renewed", msg: "ttl reset", source: "sandbox" });
+  }
+
+  async pause(ref: RuntimeSandboxRef): Promise<RuntimeSandboxSummary> {
+    const sandbox = this.sandboxes.get(ref.providerSandboxId);
+    if (!sandbox) throw new Error(`sandbox ${ref.providerSandboxId} not found`);
+    sandbox.state = "paused";
+    sandbox.logs.push({ ts: nowIso(), lvl: "paused", msg: "sandbox paused", source: "sandbox" });
+    return sandbox;
+  }
+
+  async resume(ref: RuntimeSandboxRef): Promise<RuntimeSandboxSummary> {
+    const sandbox = this.sandboxes.get(ref.providerSandboxId);
+    if (!sandbox) throw new Error(`sandbox ${ref.providerSandboxId} not found`);
+    sandbox.state = "running";
+    sandbox.logs.push({ ts: nowIso(), lvl: "resumed", msg: "sandbox resumed", source: "sandbox" });
+    return sandbox;
+  }
+
+  async createSnapshot(input: RuntimeCreateSnapshotInput): Promise<RuntimeSnapshotSummary> {
+    const sandbox = this.sandboxes.get(input.providerSandboxId);
+    if (!sandbox) throw new Error(`sandbox ${input.providerSandboxId} not found`);
+    const providerSnapshotId = devId();
+    const snapshot: DevSnapshot = {
+      provider: this.kind,
+      providerSnapshotId,
+      sourceProviderSandboxId: sandbox.providerSandboxId,
+      name: input.name ?? null,
+      state: "ready",
+      reason: null,
+      message: null,
+      metadata: input.metadata ?? {},
+      providerState: { provider: this.kind, providerSnapshotId, sourceProviderSandboxId: sandbox.providerSandboxId },
+      createdAt: nowIso(),
+      files: sandbox.files.map((file) => ({ ...file })),
+      fileContents: new Map(sandbox.fileContents)
+    };
+    this.snapshots.set(providerSnapshotId, snapshot);
+    sandbox.logs.push({ ts: nowIso(), lvl: "snapshot", msg: `snapshot created ${providerSnapshotId}`, source: "sandbox" });
+    return snapshot;
+  }
+
+  async listSnapshots(): Promise<RuntimeSnapshotSummary[]> {
+    return [...this.snapshots.values()];
+  }
+
+  async getSnapshot(ref: RuntimeSnapshotRef): Promise<RuntimeSnapshotSummary | null> {
+    return this.snapshots.get(ref.providerSnapshotId) ?? null;
+  }
+
+  async deleteSnapshot(ref: RuntimeSnapshotRef): Promise<void> {
+    const snapshot = this.snapshots.get(ref.providerSnapshotId);
+    if (!snapshot) return;
+    snapshot.state = "deleted";
+    this.snapshots.delete(ref.providerSnapshotId);
   }
 
   async run(input: RuntimeRunInput): Promise<RunResult> {

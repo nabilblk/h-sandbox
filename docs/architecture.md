@@ -51,9 +51,12 @@ CLI, and documented template/runtime behavior.
    targets use OpenSandbox APIs. For the sandbox data plane, Harakiri resolves
    the OpenSandbox `execd` endpoint on port `44772` and calls that endpoint
    with the returned access headers.
-6. The scheduler reconciles provider state, TTL, idle schedules, and template
+6. Pause, resume, snapshot, and restore requests use provider lifecycle APIs
+   when available. Harakiri stores public snapshot records and keeps provider
+   snapshot IDs internal.
+7. The scheduler reconciles provider state, TTL, idle schedules, and template
    retention cleanup.
-7. The web app and CLI read the persisted control-plane state.
+8. The web app and CLI read the persisted control-plane state.
 
 ## Template Build Subsystem
 
@@ -131,6 +134,7 @@ The schema is in `db/migrations/001_control_plane.sql` and includes:
 - `sandboxes`
 - `sandbox_events`
 - `sandbox_routes`
+- `sandbox_snapshots`
 - `sandbox_schedules`
 - `sandbox_metrics`
 - `egress_rules`

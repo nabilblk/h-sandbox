@@ -1243,6 +1243,11 @@
   align-items: center;
   gap: 8px;
 }
+.detail-action-error {
+  margin: 10px 24px 0;
+  color: var(--err);
+  font-size: 12px;
+}
 .detail-tabs {
   display: flex; padding: 0 24px;
   border-bottom: 1px solid var(--border);
@@ -1529,6 +1534,88 @@
 }
 .metrics-chart {
   padding: 22px;
+}
+
+/* SNAPSHOTS */
+.snapshots-pane {
+  height: 100%;
+  overflow: auto;
+  padding: 18px 24px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.snapshot-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+}
+.snapshot-create {
+  display: grid;
+  grid-template-columns: minmax(180px, 280px) auto;
+  align-items: center;
+  gap: 10px;
+}
+.snapshot-table {
+  overflow: hidden;
+}
+.snapshot-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) 150px minmax(150px, 0.8fr) 150px 150px 140px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.snapshot-row:first-child {
+  border-top: 0;
+}
+.snapshot-head {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.snapshot-name {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.snapshot-name b,
+.snapshot-name small,
+.snapshot-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.snapshot-name small,
+.snapshot-note {
+  color: var(--muted);
+}
+.snapshot-note {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.snapshot-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.snapshot-message {
+  border: 1px solid color-mix(in srgb, var(--ok) 28%, var(--border));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--ok) 9%, var(--surface));
+  color: var(--ok);
+  padding: 10px 11px;
+  font-size: 12px;
 }
 
 /* NETWORK */
@@ -2843,8 +2930,30 @@
   }
 
   .files-pane,
-  .metrics-pane {
+  .metrics-pane,
+  .snapshots-pane {
     padding: 12px;
+  }
+
+  .snapshot-toolbar,
+  .snapshot-create {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .snapshot-row {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .snapshot-head {
+    display: none;
+  }
+
+  .snapshot-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .files-row {

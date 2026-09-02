@@ -11,35 +11,20 @@ import { LandingRoute } from "./routes/landing";
 import { OnboardingRoute } from "./routes/onboarding";
 import { SandboxDetailRoute } from "./routes/sandbox-detail";
 import type { Route } from "./routes/types";
+import {
+  hasOidcResponse,
+  isPublicRoute,
+  isRoute,
+  isSandboxDetailRoute,
+  routeFromHash,
+  sandboxDetailIdFromRoute,
+  selectInitialRoute
+} from "./routing";
 import "./styles.css";
 import "./styles-landing.css";
 import "./styles-app.css";
 
-const isRoute = (route: string): route is Route =>
-  route === "landing" ||
-  route === "onboarding" ||
-  route === "dashboard/sandboxes" ||
-  route === "dashboard/templates" ||
-  route === "dashboard/members" ||
-  route === "dashboard/metrics" ||
-  route === "dashboard/keys" ||
-  route === "dashboard/settings" ||
-  route === "detail" ||
-  route === "docs" ||
-  route === "changelog";
-
-const routeFromHash = () => {
-  const route = location.hash.slice(1);
-  return isRoute(route) ? route : "landing";
-};
-
-const isPublicRoute = (route: Route) => route === "landing" || route === "docs" || route === "changelog";
 const pendingPublicRouteKey = "harakiri_pending_public_route";
-
-const hasOidcResponse = () => {
-  const hash = location.hash.slice(1);
-  return hash.includes("state=") && (hash.includes("code=") || hash.includes("error="));
-};
 
 const rememberPublicDeepLink = (route: Route) => {
   if (route !== "landing" && isPublicRoute(route)) sessionStorage.setItem(pendingPublicRouteKey, route);
@@ -85,7 +70,7 @@ const LoadingGate = ({ title = "Checking session." }: { title?: string }) => (
 
 const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initialRoute: Route }) => {
   const [route, setRoute] = useState<Route>(initialRoute);
-  const [detailId, setDetailId] = useState("");
+  const [detailId, setDetailId] = useState(sandboxDetailIdFromRoute(initialRoute));
   const [authState, setAuthState] = useState<AuthSnapshot>(initialAuth);
   const [onboardingGate, setOnboardingGate] = useState<"checking" | "allowed">("checking");
   const authenticated = authState.status === "authenticated";
@@ -103,16 +88,16 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
   }, []);
 
   useEffect(() => {
-    if (!auth.isAuthenticated()) return;
-    const returnedRoute = auth.consumeReturnRoute();
-    if (!returnedRoute || !isRoute(returnedRoute)) return;
-    resolveRoute(returnedRoute).then(setRoute).catch(() => setRoute(returnedRoute));
-  }, []);
-
-  useEffect(() => { location.hash = route; }, [route]);
+    if (location.hash.slice(1) !== route) location.hash = route;
+  }, [route]);
 
   useEffect(() => {
-    const onHash = () => setRoute(routeFromHash());
+    const onHash = () => {
+      const nextRoute = routeFromHash(location.hash);
+      const nextDetailId = sandboxDetailIdFromRoute(nextRoute);
+      if (nextDetailId) setDetailId(nextDetailId);
+      setRoute(nextRoute);
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -133,7 +118,10 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
   }, [route, authState.status]);
 
   const go = (r: Route) => { setRoute(r); window.scrollTo(0, 0); };
-  const openSandbox = (id: string) => { setDetailId(id); go("detail"); };
+  const openSandbox = (id: string) => {
+    setDetailId(id);
+    go(`dashboard/sandboxes/${encodeURIComponent(id)}`);
+  };
   const signIn = () => void auth.signIn(route);
   const signOut = () => { void auth.signOut(); };
 
@@ -149,12 +137,13 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
     );
   }
   if (route === "onboarding" && authenticated && onboardingGate !== "allowed") return <LoadingGate title="Opening dashboard." />;
+  const routeDetailId = sandboxDetailIdFromRoute(route) || detailId;
   return route === "landing" ? (
     <LandingRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : route === "onboarding" ? (
     <OnboardingRoute go={go} profile={profile} />
-  ) : route === "detail" && detailId ? (
-    <SandboxDetailRoute id={detailId} go={go} />
+  ) : (route === "detail" || isSandboxDetailRoute(route)) && routeDetailId ? (
+    <SandboxDetailRoute id={routeDetailId} go={go} openSandbox={openSandbox} />
   ) : route === "docs" ? (
     <DocsRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : route === "changelog" ? (
@@ -165,23 +154,26 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
 };
 
 const boot = async () => {
-  const requestedRoute = routeFromHash();
-  const isOidcResponse = hasOidcResponse();
+  const requestedRoute = routeFromHash(location.hash);
+  const isOidcResponse = hasOidcResponse(location.hash);
   rememberPublicDeepLink(requestedRoute);
   const shouldInitializeAuth = !isPublicRoute(requestedRoute) || isOidcResponse;
-  const shouldUseStoredRoute = !isPublicRoute(requestedRoute) || isOidcResponse;
   if (!isPublicRoute(requestedRoute)) auth.rememberReturnRoute(requestedRoute);
   if (!shouldInitializeAuth) auth.clearLocalSession("anonymous", undefined, false);
   const initialAuth = shouldInitializeAuth ? await auth.init() : auth.snapshot();
   const pendingPublicRoute = consumePublicDeepLink();
   const restoredPublicRoute = !isOidcResponse && requestedRoute === "landing" ? pendingPublicRoute : null;
-  const returnedRoute =
-    shouldUseStoredRoute && initialAuth.status === "authenticated"
+  const returnedRoute = isOidcResponse
+    ? initialAuth.status === "authenticated"
       ? auth.consumeReturnRoute()
-      : shouldUseStoredRoute
-        ? auth.peekReturnRoute()
-        : null;
-  const initialRoute = returnedRoute && isRoute(returnedRoute) ? returnedRoute : restoredPublicRoute ?? requestedRoute;
+      : auth.peekReturnRoute()
+    : null;
+  const initialRoute = selectInitialRoute({
+    requestedRoute,
+    isOidcResponse,
+    returnedRoute,
+    pendingPublicRoute: restoredPublicRoute
+  });
   createRoot(document.getElementById("root")!).render(<App initialAuth={initialAuth} initialRoute={initialRoute} />);
 };
 

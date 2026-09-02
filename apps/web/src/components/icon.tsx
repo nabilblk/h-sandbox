@@ -29,7 +29,9 @@ export const Icon = ({ name, size = 14, style }: { name: string; size?: number; 
     bolt: <><path d="M9 1.5 3 9h4l-1 5.5L13 7H9l1-5.5h-1Z" /></>,
     globe: <><circle cx="8" cy="8" r="6.5" /><path d="M1.5 8h13M8 1.5c2 2 2 11 0 13M8 1.5c-2 2-2 11 0 13" /></>,
     stop: <><rect x="3.5" y="3.5" width="9" height="9" rx="1" /></>,
-    play: <><path d="M4 3v10l9-5-9-5Z" /></>
+    pause: <><path d="M5.5 3.5v9M10.5 3.5v9" /></>,
+    play: <><path d="M4 3v10l9-5-9-5Z" /></>,
+    snapshot: <><rect x="3" y="4" width="10" height="8" rx="1.5" /><path d="M5 2.5h6M5 13.5h6" /><circle cx="8" cy="8" r="1.5" /></>
   };
   return <svg {...common}>{paths[name] ?? <circle cx="8" cy="8" r="1.5" fill="currentColor" />}</svg>;
 };

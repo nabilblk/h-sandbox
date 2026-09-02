@@ -176,7 +176,7 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     assert.equal(lifecycleRenewCapability?.contract, "opensandbox_spec");
     assert.equal(lifecycleReconnectCapability?.contract, "harakiri_control_plane");
     assert.equal(lifecycleSnapshotCapability?.state, "unavailable");
-    assert.equal(lifecycleSnapshotCapability?.contract, "unsupported");
+    assert.equal(lifecycleSnapshotCapability?.contract, "unavailable");
     assert.equal(commandsCapability?.state, "unavailable");
     assert.equal(commandsCapability?.contract, "unavailable");
     assert.equal(detachedCommandsCapability?.state, "unavailable");

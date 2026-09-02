@@ -353,21 +353,23 @@ const sandbox = await harakiri.sandboxes.create({
     id: "sandbox-lifecycle",
     section: "Sandboxes",
     title: "Lifecycle",
-    lede: "Use explicit create, reconnect, renew, and kill semantics; pause, resume, and snapshot are not part of the current provider contract.",
-    toc: ["States", "Supported operations", "Unsupported operations", "SDK", "CLI", "Cleanup"],
+    lede: "Use explicit create, reconnect, renew, kill, and provider-backed persistence semantics without exposing provider IDs to users.",
+    toc: ["States", "Supported operations", "Snapshots", "Capability gating", "SDK", "CLI", "Cleanup"],
     body: (
       <>
         <h2>States</h2>
-        <p>Sandbox states are `pending`, `running`, `idle`, `error`, and `terminated`. OpenSandbox owns the runtime status. Harakiri stores the control-plane record, TTL, expiration, routes, commands, usage, and audit events around that runtime.</p>
+        <p>Sandbox states are `pending`, `running`, `idle`, `pausing`, `paused`, `resuming`, `error`, and `terminated`. OpenSandbox owns the runtime status. Harakiri stores the control-plane record, TTL, expiration, routes, commands, snapshots, usage, and audit events around that runtime.</p>
         <p>`terminated` is terminal. Reconnect can read the historical summary, but it does not resurrect a runtime.</p>
         <h2>Supported operations</h2>
-        <p>Create starts a runtime from a template. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates `expiresAt`. Kill terminates the runtime and removes active route records.</p>
-        <h2>Unsupported operations</h2>
-        <p>Pause, resume, snapshot, and restore are not exposed by OpenSandbox or the current Harakiri provider. Runtime capabilities report `lifecyclePause`, `lifecycleResume`, and `lifecycleSnapshot` as unavailable with contract `unsupported`.</p>
+        <p>Create starts a runtime from a template or a ready snapshot. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates `expiresAt`. Kill terminates the runtime and removes active route records. Pause and resume delegate to provider lifecycle operations when available.</p>
+        <h2>Snapshots</h2>
+        <p>Snapshot creation stores a public Harakiri `snp_...` ID and keeps the provider snapshot ID internal. Restores use `POST /v1/sandboxes` with `snapshotId`, so SDK and CLI users never need provider-specific snapshot identifiers.</p>
+        <h2>Capability gating</h2>
+        <p>Runtime capabilities report `lifecyclePause`, `lifecycleResume`, `lifecycleSnapshot`, `snapshotList`, `snapshotDelete`, and `createFromSnapshot`. Product UI should enable these actions only when the capability state is `available`.</p>
         <h2>SDK</h2>
-        <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nawait sandbox.renew();\nawait sandbox.reconnect();\nconsole.log(sandbox.lifecycle.expiresAt);\nawait sandbox.kill();\n\ntry {\n  sandbox.snapshot();\n} catch (error) {\n  // HarakiriUnsupportedLifecycleCapabilityError\n}`}</pre>
+        <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nawait sandbox.pause();\nawait sandbox.resume();\n\nconst { snapshot } = await sandbox.snapshot({\n  name: "before-upgrade",\n  wait: true\n});\n\nawait harakiri.sandboxes.create({\n  snapshotId: snapshot.id,\n  name: "restored-runner",\n  wait: true\n});\n\nawait sandbox.kill();`}</pre>
         <h2>CLI</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri status sbx_...\nharakiri status sbx_... --json\nharakiri renew sbx_...\nharakiri capabilities\nharakiri kill sbx_...`}</pre>
+        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri pause sbx_...\nharakiri resume sbx_...\nharakiri snapshot sbx_... --name before-upgrade --wait\nharakiri snapshots list\nharakiri create --snapshot snp_... --name restored-runner\nharakiri capabilities\nharakiri kill sbx_...`}</pre>
         <h2>Cleanup</h2>
         <p>Use `kill` when your application owns the sandbox lifecycle. Use short TTLs when a caller may crash or lose the sandbox ID. For route-heavy flows, delete preview routes when the server stops and kill the sandbox when runtime work is done.</p>
       </>

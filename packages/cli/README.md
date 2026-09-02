@@ -85,21 +85,28 @@ template version. The default OSS builder is rootless BuildKit.
 
 ## Lifecycle
 
-Harakiri supports create, reconnect/status, renew, and kill for the current
-OpenSandbox-backed lifecycle. It does not expose pause, resume, or snapshot as
-working operations.
+Harakiri supports create, reconnect/status, renew, kill, and provider-backed
+pause/resume/snapshot operations when the runtime exposes them.
 
 ```bash
+harakiri create --snapshot snp_... --name restored-runner
 harakiri status sbx_...
 harakiri status sbx_... --json
 harakiri renew sbx_...
+harakiri pause sbx_...
+harakiri resume sbx_...
+harakiri snapshot sbx_... --name before-upgrade --wait
+harakiri snapshots list
+harakiri snapshots inspect snp_...
+harakiri snapshots delete snp_...
 harakiri capabilities
 harakiri kill sbx_...
 ```
 
 `status` prints TTL, expiration, provider sandbox ID, and lifecycle capability
-states. `capabilities` reports `lifecyclePause`, `lifecycleResume`, and
-`lifecycleSnapshot` as unsupported so integrations can hide unavailable actions.
+states. `capabilities` reports `lifecyclePause`, `lifecycleResume`,
+`lifecycleSnapshot`, `snapshotList`, `snapshotDelete`, and `createFromSnapshot`
+so integrations can hide unavailable actions.
 
 ## Files And Artifacts
 

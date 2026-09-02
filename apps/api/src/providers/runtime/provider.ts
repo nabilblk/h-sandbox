@@ -14,7 +14,9 @@ export class RuntimeUnsupportedError extends Error {
   }
 }
 
-export type RuntimeSandboxState = "pending" | "running" | "idle" | "error" | "terminated" | string;
+export type RuntimeSandboxState = "pending" | "running" | "idle" | "pausing" | "paused" | "resuming" | "error" | "terminated" | string;
+
+export type RuntimeSnapshotState = "creating" | "ready" | "failed" | "deleting" | "deleted" | "expired" | string;
 
 export type RuntimeSandboxRef = {
   provider: RuntimeProviderKind;
@@ -27,11 +29,28 @@ export type RuntimeSandboxSummary = RuntimeSandboxRef & {
   metadata?: Record<string, string>;
 };
 
+export type RuntimeSnapshotRef = {
+  provider: RuntimeProviderKind;
+  providerSnapshotId: string;
+};
+
+export type RuntimeSnapshotSummary = RuntimeSnapshotRef & {
+  sourceProviderSandboxId: string | null;
+  name: string | null;
+  state: RuntimeSnapshotState;
+  reason?: string | null;
+  message?: string | null;
+  metadata?: Record<string, string>;
+  providerState?: Record<string, unknown>;
+  createdAt?: string | null;
+};
+
 export type RuntimeCreateSandboxInput = {
   template: RuntimeTemplate;
   ttlSeconds: number;
   name: string;
   organizationId?: string;
+  snapshot?: RuntimeSnapshotRef;
   metadata?: Record<string, string>;
   env?: Record<string, string>;
   imageAuth?: RegistryImageAuth | null;
@@ -260,6 +279,11 @@ export type RuntimeRenewInput = {
   expiresAt: string;
 };
 
+export type RuntimeCreateSnapshotInput = RuntimeSandboxRef & {
+  name?: string;
+  metadata?: Record<string, string>;
+};
+
 export type RuntimeProviderCapabilities = {
   terminal: boolean;
   terminalAttach?: boolean;
@@ -271,6 +295,9 @@ export type RuntimeProviderCapabilities = {
   metrics: boolean;
   routes: boolean;
   egress?: boolean;
+  pause?: boolean;
+  resume?: boolean;
+  snapshots?: boolean;
 };
 
 export interface RuntimeProvider {
@@ -282,6 +309,12 @@ export interface RuntimeProvider {
   get(ref: RuntimeSandboxRef): Promise<RuntimeSandboxSummary | null>;
   delete(ref: RuntimeSandboxRef): Promise<void>;
   renew(ref: RuntimeSandboxRef, input: RuntimeRenewInput): Promise<void>;
+  pause?(ref: RuntimeSandboxRef): Promise<RuntimeSandboxSummary>;
+  resume?(ref: RuntimeSandboxRef): Promise<RuntimeSandboxSummary>;
+  createSnapshot?(input: RuntimeCreateSnapshotInput): Promise<RuntimeSnapshotSummary>;
+  listSnapshots?(): Promise<RuntimeSnapshotSummary[]>;
+  getSnapshot?(ref: RuntimeSnapshotRef): Promise<RuntimeSnapshotSummary | null>;
+  deleteSnapshot?(ref: RuntimeSnapshotRef): Promise<void>;
   run(input: RuntimeRunInput): Promise<RunResult>;
   startCommand?(input: RuntimeStartCommandInput): Promise<RuntimeStartedCommand>;
   getCommand?(ref: RuntimeSandboxRef & { providerCommandId: string }): Promise<RuntimeCommandState>;

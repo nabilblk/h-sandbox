@@ -261,15 +261,6 @@ const capabilitySummary = (
   reason
 });
 
-const unsupportedCapabilitySummary = (name: RuntimeCapabilityName, reason: string) => ({
-  name,
-  state: "unavailable" as const,
-  contract: "unsupported" as const,
-  source: "Current runtime provider contract",
-  required: false,
-  reason
-});
-
 const methodState = (methods: Array<unknown>, reason: string): { state: RuntimeCapabilityState; reason: string | null } => {
   const available = methods.filter((method) => typeof method === "function").length;
   if (available === methods.length) return { state: "available", reason: null };
@@ -313,6 +304,12 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
   const egress = booleanState(Boolean(runtimeProvider.capabilities.egress && runtimeProvider.setEgressPolicy), "mutable egress policy is not exposed by this provider");
   const logs = booleanState(Boolean(runtimeProvider.capabilities.logs && runtimeProvider.logs), "sandbox logs are not exposed by this provider");
   const metrics = booleanState(Boolean(runtimeProvider.capabilities.metrics && runtimeProvider.metrics), "sandbox metrics are not exposed by this provider");
+  const pause = booleanState(Boolean(runtimeProvider.capabilities.pause && runtimeProvider.pause), "pause is not exposed by this provider");
+  const resume = booleanState(Boolean(runtimeProvider.capabilities.resume && runtimeProvider.resume), "resume is not exposed by this provider");
+  const snapshots = methodState(
+    [runtimeProvider.createSnapshot, runtimeProvider.listSnapshots, runtimeProvider.getSnapshot, runtimeProvider.deleteSnapshot],
+    "snapshot lifecycle requires create, list, get, and delete provider methods"
+  );
   return {
     provider: runtimeProvider.kind,
     generatedAt: new Date().toISOString(),
@@ -321,9 +318,12 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
       capabilitySummary("lifecycleRenew", "available", null, true, "opensandbox_spec", "OpenSandbox renew API"),
       capabilitySummary("lifecycleKill", "available", null, true, "opensandbox_spec", "OpenSandbox delete API"),
       capabilitySummary("lifecycleReconnect", "available", null, true, "harakiri_control_plane", "Harakiri persisted sandbox lookup and runtime attach APIs"),
-      unsupportedCapabilitySummary("lifecyclePause", "Pause is not exposed by OpenSandbox or the current Harakiri runtime provider."),
-      unsupportedCapabilitySummary("lifecycleResume", "Resume is not exposed because pause is not supported by OpenSandbox or the current Harakiri runtime provider."),
-      unsupportedCapabilitySummary("lifecycleSnapshot", "Snapshot and restore are not exposed by OpenSandbox or the current Harakiri runtime provider."),
+      capabilitySummary("lifecyclePause", pause.state, pause.reason, false, "opensandbox_spec", "OpenSandbox pause API persisted by Harakiri operations"),
+      capabilitySummary("lifecycleResume", resume.state, resume.reason, false, "opensandbox_spec", "OpenSandbox resume API persisted by Harakiri operations"),
+      capabilitySummary("lifecycleSnapshot", snapshots.state, snapshots.reason, false, "opensandbox_spec", "OpenSandbox snapshot API persisted by Harakiri snapshot IDs"),
+      capabilitySummary("snapshotList", snapshots.state, snapshots.reason, false, "harakiri_control_plane", "Harakiri snapshot registry backed by provider snapshots"),
+      capabilitySummary("snapshotDelete", snapshots.state, snapshots.reason, false, "opensandbox_spec", "OpenSandbox snapshot delete API persisted by Harakiri operations"),
+      capabilitySummary("createFromSnapshot", snapshots.state, snapshots.reason, false, "opensandbox_spec", "OpenSandbox sandbox creation from snapshotId"),
       capabilitySummary("commandRun", commandRun.state, commandRun.reason, true, "opensandbox_spec", "OpenSandbox execd command API"),
       capabilitySummary("commands", commandMethods.state, commandMethods.reason, true, "opensandbox_spec", "OpenSandbox execd tracked command API"),
       capabilitySummary("detachedCommands", commandMethods.state, commandMethods.reason, true, "opensandbox_spec", "OpenSandbox execd background command API persisted by Harakiri command IDs"),

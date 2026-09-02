@@ -10,6 +10,8 @@ what applications can rely on without knowing OpenSandbox internals.
 | Create sandbox | API, SDK, CLI | Supports templates, env, TTL, wait/async, idempotency keys. |
 | List/get/kill | API, SDK, CLI | Harakiri IDs are stable control-plane IDs. |
 | Renew TTL | API, SDK, CLI | Extends the running sandbox lease. |
+| Pause/resume | API, SDK, CLI | Capability-gated provider lifecycle operations. |
+| Snapshot/restore | API, SDK, CLI | Create/list/get/delete Harakiri `snp_...` snapshots and restore with `createSandbox({ snapshotId })`. |
 | Blocking command | API, SDK, CLI | Supports cwd, env, stdin, timeout, stdout/stderr. |
 | Detached process | API, SDK, CLI, dashboard | Supports command IDs, detached mode, wait, tail, status, finish reason, logs, and kill. |
 | Filesystem | API, SDK, CLI | List, stat, read, write, mkdir, remove, rename. |
@@ -34,8 +36,6 @@ what applications can rely on without knowing OpenSandbox internals.
 
 ## Not V1 Guarantees
 
-- Pause/resume.
-- Running sandbox snapshots.
 - Organization-authenticated preview routes.
 - Unlimited file streaming.
 - Direct Kubernetes pod access.

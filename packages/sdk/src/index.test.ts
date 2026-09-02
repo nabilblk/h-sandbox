@@ -15,7 +15,6 @@ import {
   HarakiriSandbox,
   HarakiriTimeoutApiError,
   HarakiriUnsupportedCapabilityError,
-  HarakiriUnsupportedLifecycleCapabilityError,
   HarakiriWaitTimeoutError,
   createRouteFetch,
   redactGitSecrets,
@@ -87,6 +86,26 @@ const sandboxSummary = (overrides: Partial<Pick<SandboxSummary, "id" | "name" | 
       capabilities: []
     }
   }
+});
+
+const snapshotSummary = (overrides: Partial<{ id: string; status: string; sourceSandboxId: string | null }> = {}) => ({
+  id: overrides.id ?? "snp_test",
+  sourceSandboxId: overrides.sourceSandboxId ?? "sbx_test",
+  name: "checkpoint",
+  status: overrides.status ?? "ready",
+  statusReason: null,
+  statusMessage: null,
+  template: "python-3.12-data",
+  templateVersionId: null,
+  templateImageDigest: null,
+  createdByUserId: "user_sdk",
+  createdByLabel: "sdk@test.local",
+  metadata: {},
+  providerState: {},
+  expiresAt: null,
+  createdAt: "2026-06-03T11:56:00.000Z",
+  updatedAt: "2026-06-03T11:56:00.000Z",
+  deletedAt: null
 });
 
 test("HarakiriClient normalizes the API URL and sends API key auth", async () => {
@@ -211,6 +230,27 @@ test("HarakiriClient forwards sandbox async create options", async () => {
     ttlSeconds: 300,
     wait: false,
     idempotencyKey: "idem_1"
+  });
+});
+
+test("HarakiriClient can create a sandbox from a snapshot without a template default", async () => {
+  const calls: Array<{ url: string; body: string | null }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ url: String(url), body: String(init?.body ?? "") });
+      return Response.json({ sandbox: sandboxSummary({ id: "sbx_restore", status: "running" }) });
+    }
+  });
+
+  const result = await client.createSandbox({ snapshotId: "snp_ready", name: "restored" });
+
+  assert.equal(result.sandbox.id, "sbx_restore");
+  assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    snapshotId: "snp_ready",
+    name: "restored",
+    ttlSeconds: 300
   });
 });
 
@@ -522,6 +562,9 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
         return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "pending" }) });
       }
       if (path.endsWith("/v1/sandboxes/sbx_obj") && init?.method === "DELETE") return Response.json({ ok: true });
+      if (path.endsWith("/v1/sandboxes/sbx_obj/pause")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "paused" }) });
+      if (path.endsWith("/v1/sandboxes/sbx_obj/resume")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "running" }) });
+      if (path.endsWith("/v1/sandboxes/sbx_obj/snapshots")) return Response.json({ snapshot: snapshotSummary({ id: "snp_obj", sourceSandboxId: "sbx_obj" }) }, { status: 201 });
       if (path.endsWith("/v1/sandboxes/sbx_obj")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "running" }) });
       if (path.endsWith("/renew")) return Response.json({ ok: true });
       if (path.endsWith("/run")) return Response.json({ result: { sandboxId: "sbx_obj", command: "pwd", stdout: "/workspace\n", stderr: "", exitCode: 0, durationMs: 5 } });
@@ -570,6 +613,12 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
   await sandbox.logs();
   await sandbox.metrics();
   await sandbox.renew();
+  await sandbox.pause();
+  assert.equal(sandbox.status, "paused");
+  await sandbox.resume();
+  assert.equal(sandbox.status, "running");
+  const snapshot = await sandbox.snapshot({ name: "checkpoint" });
+  assert.equal(snapshot.snapshot.id, "snp_obj");
   await sandbox.reconnect();
   assert.equal(sandbox.lifecycle.ttlSeconds, 300);
   assert.equal(sandbox.expiresAt, "2026-06-03T12:00:00.000Z");
@@ -581,35 +630,40 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/files" && call.method === "PUT"));
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/routes" && call.method === "POST"));
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/egress" && call.method === "PATCH"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/pause" && call.method === "POST"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/resume" && call.method === "POST"));
+  assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/snapshots" && call.method === "POST"));
 });
 
-test("HarakiriSandbox lifecycle unsupported methods fail fast with typed errors", async () => {
+test("HarakiriClient exposes snapshot collection helpers", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
   const client = new HarakiriClient({
     apiUrl: "http://harakiri.local",
     apiKey: "hk_live_test",
-    fetch: async () => {
-      throw new Error("unsupported lifecycle methods should not call the API");
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      const path = String(url);
+      if (path.endsWith("/v1/snapshots")) return Response.json({ snapshots: [snapshotSummary()], page: { total: 1, limit: 100, offset: 0 } });
+      if (path.endsWith("/v1/snapshots/snp_test") && init?.method === "DELETE") return Response.json({ ok: true });
+      if (path.endsWith("/v1/snapshots/snp_test")) return Response.json({ snapshot: snapshotSummary() });
+      return Response.json({ ok: true });
     }
   });
-  const sandbox = client.sandboxes.wrap(sandboxSummary({ id: "sbx_lifecycle" }));
 
-  assert.throws(() => sandbox.pause(), (error) => {
-    assert.ok(error instanceof HarakiriUnsupportedLifecycleCapabilityError);
-    assert.equal(error.capability, "lifecyclePause");
-    assert.equal(error.retryable, false);
-    return true;
-  });
-  assert.throws(() => sandbox.resume(), (error) => {
-    assert.ok(error instanceof HarakiriUnsupportedLifecycleCapabilityError);
-    assert.equal(error.capability, "lifecycleResume");
-    return true;
-  });
-  assert.throws(() => sandbox.snapshot(), (error) => {
-    assert.ok(error instanceof HarakiriUnsupportedLifecycleCapabilityError);
-    assert.equal(error.capability, "lifecycleSnapshot");
-    return true;
-  });
-  assert.throws(() => client.sandboxes.snapshot("sbx_lifecycle"), HarakiriUnsupportedLifecycleCapabilityError);
+  const listed = await client.snapshots.list();
+  const fetched = await client.snapshots.get("snp_test");
+  await client.snapshots.delete("snp_test");
+  const ready = await client.snapshots.wait("snp_test", { intervalMs: 0, timeoutMs: 10 });
+
+  assert.equal(listed.snapshots[0].id, "snp_test");
+  assert.equal(fetched.snapshot.status, "ready");
+  assert.equal(ready.snapshot.status, "ready");
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["GET", "http://harakiri.local/v1/snapshots"],
+    ["GET", "http://harakiri.local/v1/snapshots/snp_test"],
+    ["DELETE", "http://harakiri.local/v1/snapshots/snp_test"],
+    ["GET", "http://harakiri.local/v1/snapshots/snp_test"]
+  ]);
 });
 
 test("HarakiriSandbox preserves typed API errors from delegated calls", async () => {

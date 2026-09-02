@@ -77,10 +77,27 @@ methods such as `run`, `files.*`, and `routes.*` delegate directly to the public
 Harakiri API and preserve the same typed errors as `HarakiriClient`.
 
 Lifecycle is explicit: `renew()` extends TTL, `reconnect()` refreshes the
-control-plane summary, and `kill()` terminates the runtime. Pause, resume, and
-snapshot are not supported by the current OpenSandbox-backed provider; the SDK
-throws `HarakiriUnsupportedLifecycleCapabilityError` from `pause()`,
-`resume()`, and `snapshot()` so callers can catch or hide unsupported actions.
+control-plane summary, and `kill()` terminates the runtime. When the configured
+runtime provider exposes the native lifecycle API, `pause()`, `resume()`, and
+`snapshot()` call Harakiri API endpoints and keep Harakiri IDs stable while
+provider IDs remain internal. Read `getRuntimeCapabilities()` before showing
+optional lifecycle actions.
+
+```ts
+await sandbox.pause();
+await sandbox.resume();
+
+const { snapshot } = await sandbox.snapshot({
+  name: "before-upgrade",
+  wait: true
+});
+
+const restored = await harakiri.sandboxes.create({
+  snapshotId: snapshot.id,
+  name: "restored-runner",
+  wait: true
+});
+```
 
 ## Core Workflow
 

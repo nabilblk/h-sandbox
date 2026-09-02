@@ -47,7 +47,8 @@ const sandboxSourceProvenanceSchema = sandboxGitSourceSchema.omit({ applyEgressP
 }).strict();
 
 export const createSandboxSchema = z.object({
-  template: z.string().default("python-3.12-data"),
+  template: z.string().optional(),
+  snapshotId: z.string().min(1).max(160).optional(),
   name: z.string().optional(),
   ttlSeconds: z.number().int().min(10).max(86400).default(300),
   env: sandboxEnvSchema,
@@ -56,6 +57,17 @@ export const createSandboxSchema = z.object({
   idempotencyKey: z.string().min(1).max(160).optional(),
   wait: z.boolean().optional(),
   waitTimeoutMs: z.number().int().min(0).max(30000).optional()
+}).refine((value) => !(value.snapshotId && value.source), {
+  message: "source bootstrap cannot be combined with snapshot restore in the same request"
+});
+
+export const createSandboxSnapshotSchema = z.object({
+  name: z.string().min(1).max(160).optional(),
+  metadata: z.record(z.string().min(1).max(128), z.string().max(1024)).default({}),
+  expiresAt: z.string().datetime().nullable().optional(),
+  idempotencyKey: z.string().min(1).max(160).optional(),
+  wait: z.boolean().optional(),
+  waitTimeoutMs: z.number().int().min(0).max(120000).optional()
 });
 
 export const patchSandboxSourceSchema = z.object({

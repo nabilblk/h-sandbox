@@ -2,6 +2,7 @@ export type Route =
   | "landing"
   | "onboarding"
   | "dashboard/sandboxes"
+  | `dashboard/sandboxes/${string}`
   | "dashboard/templates"
   | "dashboard/members"
   | "dashboard/metrics"

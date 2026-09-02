@@ -48,9 +48,20 @@ Create accepts `--wait`, `--no-wait`, `--ttl`, repeated `--env KEY=value`, Git
 source flags, and egress flags. `status` prints runtime metadata, provider
 capability states, TTL, and source status when available.
 
-Pause, resume, and snapshot are intentionally not working CLI commands for the
-current OpenSandbox-backed provider. Use `harakiri capabilities` to inspect
-unsupported or degraded capabilities before showing advanced actions in tools.
+Provider-backed lifecycle commands are available when the runtime exposes them:
+
+```bash
+harakiri pause sbx_...
+harakiri resume sbx_...
+harakiri snapshot sbx_... --name before-upgrade --wait
+harakiri snapshots list
+harakiri snapshots inspect snp_...
+harakiri create --snapshot snp_... --name restored-runner
+harakiri snapshots delete snp_...
+```
+
+Use `harakiri capabilities` to inspect unsupported or degraded capabilities
+before showing advanced actions in tools.
 
 ## Commands And Processes
 

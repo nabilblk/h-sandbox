@@ -37,6 +37,7 @@ import {
   type SandboxOperation
 } from "./sandbox-operations.js";
 import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
+import { getSandboxSnapshotForRestore } from "./sandbox-snapshots.js";
 import { getRuntimeCapabilities, type Audit, type SandboxEventRecorder } from "./sandbox-runtime.js";
 import { redactText } from "../redaction.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
@@ -71,7 +72,8 @@ export type CreateSandboxInput = {
   organizationId: string;
   userId: string;
   actorLabel: string;
-  templateRef: string;
+  templateRef?: string;
+  snapshotId?: string;
   name?: string;
   ttlSeconds: number;
   env: Record<string, string>;
@@ -374,6 +376,9 @@ export type CreateSandboxResult =
   | { kind: "template_not_found"; template: string }
   | { kind: "template_not_ready"; template: string; status: string }
   | { kind: "template_image_digest_unresolved"; template: string; message: string }
+  | { kind: "snapshot_not_found"; snapshotId: string }
+  | { kind: "snapshot_not_ready"; snapshotId: string; status: string }
+  | { kind: "snapshot_provider_mismatch"; snapshotId: string; provider: string; runtimeProvider: string }
   | { kind: "egress_policy_invalid"; message: string }
   | { kind: "egress_preset_not_allowed"; preset: string }
   | { kind: "egress_custom_domains_disabled" }
@@ -425,17 +430,36 @@ export const createSandbox = async (
       if (sandbox) return { kind: "created", sandbox };
     }
   }
-  const unresolvedTemplate = await (dependencies.resolveTemplateFn ?? resolveTemplate)(input.templateRef, input.organizationId);
-  if (!unresolvedTemplate) return { kind: "template_not_found", template: input.templateRef };
+  const restoreSnapshot = input.snapshotId
+    ? await getSandboxSnapshotForRestore({ organizationId: input.organizationId, snapshotId: input.snapshotId }, query)
+    : null;
+  if (input.snapshotId && !restoreSnapshot) return { kind: "snapshot_not_found", snapshotId: input.snapshotId };
+  if (restoreSnapshot && restoreSnapshot.status !== "ready") {
+    return { kind: "snapshot_not_ready", snapshotId: restoreSnapshot.id, status: restoreSnapshot.status };
+  }
+  if (restoreSnapshot && restoreSnapshot.provider !== dependencies.runtimeProvider.kind) {
+    return {
+      kind: "snapshot_provider_mismatch",
+      snapshotId: restoreSnapshot.id,
+      provider: restoreSnapshot.provider,
+      runtimeProvider: dependencies.runtimeProvider.kind
+    };
+  }
+  if (restoreSnapshot && (!restoreSnapshot.providerSnapshotId || !restoreSnapshot.template)) {
+    return { kind: "snapshot_not_ready", snapshotId: restoreSnapshot.id, status: restoreSnapshot.status };
+  }
+  const templateRef = input.templateRef ?? restoreSnapshot?.template ?? "python-3.12-data";
+  const unresolvedTemplate = await (dependencies.resolveTemplateFn ?? resolveTemplate)(templateRef, input.organizationId);
+  if (!unresolvedTemplate) return { kind: "template_not_found", template: templateRef };
   if (!(dependencies.templateCanCreateSandboxFn ?? templateCanCreateSandbox)(unresolvedTemplate)) {
-    return { kind: "template_not_ready", template: input.templateRef, status: unresolvedTemplate.status };
+    return { kind: "template_not_ready", template: templateRef, status: unresolvedTemplate.status };
   }
   let template;
   try {
     template = await (dependencies.ensureTemplateImageDigestFn ?? ensureTemplateImageDigest)(unresolvedTemplate);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { kind: "template_image_digest_unresolved", template: input.templateRef, message };
+    return { kind: "template_image_digest_unresolved", template: templateRef, message };
   }
   const egressPolicyInput = input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput;
   const egressValidation = await validateEgressPolicyForOrganization(
@@ -455,6 +479,10 @@ export const createSandbox = async (
   const envKeys = Object.keys(input.env).sort();
   const source = sanitizeSourceProvenance(input.source);
   const sourceMetadata = source ? { source } : {};
+  const restoreMetadata = restoreSnapshot ? {
+    restoreSnapshotId: restoreSnapshot.id,
+    providerSnapshotId: restoreSnapshot.providerSnapshotId
+  } : {};
   const envReplayable = envKeys.length === 0 || hasSecretBoxKey();
   if (input.wait === false && !envReplayable) {
     return {
@@ -503,6 +531,7 @@ export const createSandbox = async (
         actorLabel: input.actorLabel,
         egressMode: egressSummary.mode,
         egressRuleCount: egressSummary.rules.length,
+        ...restoreMetadata,
         ...sourceMetadata
       }
     },
@@ -539,6 +568,7 @@ export const createSandbox = async (
       runtimeWorkdir: template.workdir,
       egressMode: egressSummary.mode,
       egressRuleCount: egressSummary.rules.length,
+      ...restoreMetadata,
       ...sourceMetadata,
       ...sandboxTemplateMetadata(template)
     };
@@ -561,13 +591,17 @@ export const createSandbox = async (
         ttlSeconds: input.ttlSeconds,
         name,
         organizationId: input.organizationId,
+        snapshot: restoreSnapshot?.providerSnapshotId
+          ? { provider: dependencies.runtimeProvider.kind, providerSnapshotId: restoreSnapshot.providerSnapshotId }
+          : undefined,
         env: input.env,
         egressPolicy: runtimeEgressPolicy,
         metadata: {
           "harakiri.id": id,
           "harakiri.sandbox": id,
           "harakiri.org": input.organizationId,
-          "harakiri.organization": input.organizationId
+          "harakiri.organization": input.organizationId,
+          ...(restoreSnapshot ? { "harakiri.restore_snapshot": restoreSnapshot.id } : {})
         }
       });
       await query(
@@ -623,6 +657,7 @@ export const createSandbox = async (
       runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
       egressMode: egressSummary.mode,
       egressRuleCount: egressSummary.rules.length,
+      ...restoreMetadata,
       ...sourceMetadata,
       ...sandboxTemplateMetadata(template)
     };
@@ -634,6 +669,7 @@ export const createSandbox = async (
           providerSandboxId: provider.providerSandboxId,
           runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
           runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
+          ...restoreMetadata,
           ...sourceMetadata
         }
       },

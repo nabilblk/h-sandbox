@@ -7,6 +7,7 @@ import type {
   CreateSandboxCommandBody,
   CreateSandboxBody,
   CreateSandboxResponse,
+  CreateSandboxSnapshotBody,
   ExposeSandboxRouteBody,
   OkResponse,
   PromoteTemplateBody,
@@ -44,6 +45,10 @@ import type {
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxResponse,
+  SandboxSnapshotResponse,
+  SandboxSnapshotsResponse,
+  SandboxSnapshotStatus,
+  SandboxSnapshotSummary,
   SandboxSourceProvenance,
   SandboxSourceResponse,
   SandboxGitOperationMetadata,
@@ -100,6 +105,7 @@ export type {
   CreateSandboxCommandBody,
   CreateSandboxBody,
   CreateSandboxResponse,
+  CreateSandboxSnapshotBody,
   ExposeSandboxRouteBody,
   OkResponse,
   PromoteTemplateBody,
@@ -138,6 +144,10 @@ export type {
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxResponse,
+  SandboxSnapshotResponse,
+  SandboxSnapshotsResponse,
+  SandboxSnapshotStatus,
+  SandboxSnapshotSummary,
   SandboxSourceProvenance,
   SandboxSourceResponse,
   SandboxGitOperationMetadata,
@@ -259,6 +269,12 @@ export type WaitForCommandOptions = {
   timeoutMs?: number;
   intervalMs?: number;
   statuses?: SandboxCommandStatus[];
+};
+
+export type WaitForSnapshotOptions = {
+  timeoutMs?: number;
+  intervalMs?: number;
+  statuses?: SandboxSnapshotStatus[];
 };
 
 export type GetCommandLogsOptions = {
@@ -720,6 +736,8 @@ export type UploadTemplateBuildContextInput = UploadTemplateBuildContextBody;
 
 export type UpsertRegistryCredentialInput = UpsertRegistryCredentialBody;
 
+export type CreateSandboxSnapshotInput = CreateSandboxSnapshotBody;
+
 export type HarakiriApiErrorCategory =
   | "authentication"
   | "authorization"
@@ -824,7 +842,7 @@ export class HarakiriServerError extends HarakiriApiError {
 export class HarakiriWaitTimeoutError extends Error {
   constructor(
     message: string,
-    public readonly target: "sandbox" | "command" | "route",
+    public readonly target: "sandbox" | "command" | "route" | "snapshot",
     public readonly id: string,
     public readonly lastStatus?: string
   ) {
@@ -859,28 +877,6 @@ export class HarakiriCommandEndedError extends Error {
     return this.command.finishReason;
   }
 }
-
-export class HarakiriUnsupportedLifecycleCapabilityError extends Error {
-  readonly category = "unsupported_capability";
-  readonly retryable = false;
-
-  constructor(
-    public readonly capability: Extract<RuntimeCapabilityName, "lifecyclePause" | "lifecycleResume" | "lifecycleSnapshot">,
-    message: string
-  ) {
-    super(message);
-    this.name = "HarakiriUnsupportedLifecycleCapabilityError";
-  }
-}
-
-const unsupportedLifecycleCapability = (
-  capability: Extract<RuntimeCapabilityName, "lifecyclePause" | "lifecycleResume" | "lifecycleSnapshot">,
-  action: string
-) =>
-  new HarakiriUnsupportedLifecycleCapabilityError(
-    capability,
-    `${action} is not supported by the current Harakiri/OpenSandbox lifecycle contract. Use TTL renew, reconnect/get, and kill cleanup instead.`
-  );
 
 const includesCode = (codes: readonly string[], code: string | undefined) => Boolean(code && codes.includes(code));
 const isTimeoutCode = (code: string | undefined) => includesCode(timeoutApiErrorCodes, code) || Boolean(code && /timeout|timed_out/.test(code));
@@ -990,16 +986,20 @@ export class HarakiriSandbox {
     return result;
   }
 
-  pause(): never {
-    throw unsupportedLifecycleCapability("lifecyclePause", "Sandbox pause");
+  async pause() {
+    const result = await this.client.pauseSandbox(this.id);
+    this.current = result.sandbox;
+    return this;
   }
 
-  resume(): never {
-    throw unsupportedLifecycleCapability("lifecycleResume", "Sandbox resume");
+  async resume() {
+    const result = await this.client.resumeSandbox(this.id);
+    this.current = result.sandbox;
+    return this;
   }
 
-  snapshot(): never {
-    throw unsupportedLifecycleCapability("lifecycleSnapshot", "Sandbox snapshot");
+  snapshot(input: CreateSandboxSnapshotInput = {}) {
+    return this.client.createSnapshot(this.id, input);
   }
 
   run(input: RunSandboxInput) {
@@ -1204,15 +1204,16 @@ export class HarakiriClient {
     wait: (id: string, options: WaitForSandboxOptions = {}) => this.waitForSandbox(id, options),
     renew: (id: string) => this.renewSandbox(id),
     kill: (id: string) => this.killSandbox(id),
-    pause: (_id: string) => {
-      throw unsupportedLifecycleCapability("lifecyclePause", "Sandbox pause");
-    },
-    resume: (_id: string) => {
-      throw unsupportedLifecycleCapability("lifecycleResume", "Sandbox resume");
-    },
-    snapshot: (_id: string) => {
-      throw unsupportedLifecycleCapability("lifecycleSnapshot", "Sandbox snapshot");
-    }
+    pause: (id: string) => this.pauseSandbox(id),
+    resume: (id: string) => this.resumeSandbox(id),
+    snapshot: (id: string, input: CreateSandboxSnapshotInput = {}) => this.createSnapshot(id, input)
+  };
+
+  readonly snapshots = {
+    list: (params = "") => this.listSnapshots(params),
+    get: (id: string) => this.getSnapshot(id),
+    delete: (id: string) => this.deleteSnapshot(id),
+    wait: (id: string, options: WaitForSnapshotOptions = {}) => this.waitForSnapshot(id, options)
   };
 
   private async request<T>(path: string, init: RequestInit = {}) {
@@ -1309,7 +1310,8 @@ export class HarakiriClient {
     const result = await this.request<CreateSandboxResponse>("/v1/sandboxes", {
       method: "POST",
       body: JSON.stringify({
-        template: createInput.template ?? "python-3.12-data",
+        template: createInput.template ?? (createInput.snapshotId ? undefined : "python-3.12-data"),
+        snapshotId: createInput.snapshotId,
         name: createInput.name,
         ttlSeconds: createInput.ttlSeconds ?? 300,
         env: createInput.env,
@@ -1401,6 +1403,63 @@ export class HarakiriClient {
 
   renewSandbox(id: string) {
     return this.request<OkResponse>(`/v1/sandboxes/${id}/renew`, { method: "POST" });
+  }
+
+  pauseSandbox(id: string) {
+    return this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/pause`, { method: "POST" });
+  }
+
+  resumeSandbox(id: string) {
+    return this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/resume`, { method: "POST" });
+  }
+
+  createSnapshot(id: string, input: CreateSandboxSnapshotInput = {}) {
+    return this.request<SandboxSnapshotResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/snapshots`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  createSandboxSnapshot(id: string, input: CreateSandboxSnapshotInput = {}) {
+    return this.createSnapshot(id, input);
+  }
+
+  listSnapshots(params = "") {
+    return this.request<SandboxSnapshotsResponse>(`/v1/snapshots${params}`);
+  }
+
+  getSnapshot(id: string) {
+    return this.request<SandboxSnapshotResponse>(`/v1/snapshots/${encodeURIComponent(id)}`);
+  }
+
+  getSandboxSnapshot(id: string) {
+    return this.getSnapshot(id);
+  }
+
+  deleteSnapshot(id: string) {
+    return this.request<OkResponse>(`/v1/snapshots/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  deleteSandboxSnapshot(id: string) {
+    return this.deleteSnapshot(id);
+  }
+
+  async waitForSnapshot(id: string, options: WaitForSnapshotOptions = {}) {
+    const timeoutMs = options.timeoutMs ?? 60_000;
+    const intervalMs = options.intervalMs ?? 1_000;
+    const targetStatuses = new Set<SandboxSnapshotStatus>(options.statuses ?? ["ready"]);
+    const started = Date.now();
+    let last: SandboxSnapshotResponse | null = null;
+    while (Date.now() - started <= timeoutMs) {
+      last = await this.getSnapshot(id);
+      if (targetStatuses.has(last.snapshot.status as SandboxSnapshotStatus)) return last;
+      if (!options.statuses && ["failed", "deleted", "expired"].includes(String(last.snapshot.status))) {
+        throw new Error(`Snapshot ${id} reached ${last.snapshot.status} before becoming ready`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+    const suffix = last ? `; last status ${last.snapshot.status}` : "";
+    throw new HarakiriWaitTimeoutError(`Timed out waiting for snapshot ${id}${suffix}`, "snapshot", id, String(last?.snapshot.status ?? ""));
   }
 
   getRuntimeCapabilities() {

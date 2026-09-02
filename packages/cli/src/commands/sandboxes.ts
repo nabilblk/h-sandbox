@@ -67,6 +67,22 @@ const commandStatusLine = (command: {
   command.command
 ].filter(Boolean).join("\t");
 
+const snapshotLine = (snapshot: {
+  id: string;
+  status: string;
+  sourceSandboxId?: string | null;
+  template?: string | null;
+  name?: string | null;
+  createdAt?: string;
+}) => [
+  snapshot.id,
+  snapshot.status,
+  snapshot.template ?? "-",
+  snapshot.sourceSandboxId ?? "-",
+  snapshot.name ?? "-",
+  snapshot.createdAt ?? "-"
+].join("\t");
+
 const attachToSandbox = async (
   id: string,
   options: { cwd?: string; shell?: string; env?: Record<string, string>; sessionName?: string; raw?: boolean; cols?: number; rows?: number; since?: number; pty?: boolean }
@@ -204,7 +220,8 @@ export const registerSandboxCommands = (program: Command) => {
   program
     .command("create")
     .description("Create a sandbox")
-    .requiredOption("--template <id>", "template id")
+    .option("--template <id>", "template id")
+    .option("--snapshot <id>", "restore sandbox from a snapshot")
     .option("--name <name>", "sandbox name")
     .option("--ttl <seconds>", "idle TTL", "300")
     .option("--env <key=value>", "environment variable; can be repeated", collectEnv, {})
@@ -225,10 +242,12 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--wait-timeout-ms <ms>", "maximum create wait before returning a pending sandbox", parsePositiveInt)
     .action(async (options) => {
       if (options.git && options.wait === false) throw new Error("--git requires waiting for sandbox readiness; omit --no-wait");
+      if (!options.template && !options.snapshot) throw new Error("--template is required unless --snapshot is provided");
       printProgress("provisioning microVM...");
       const started = Date.now();
       const body = {
         template: options.template,
+        snapshotId: options.snapshot,
         name: options.name,
         ttlSeconds: Number(options.ttl),
         env: options.env,
@@ -333,6 +352,107 @@ export const registerSandboxCommands = (program: Command) => {
       const client = await apiClient();
       await client.renewSandbox(id);
       printProgress("sandbox TTL renewed.");
+    });
+
+  program
+    .command("pause")
+    .argument("<id>", "sandbox id")
+    .description("Pause a sandbox through the runtime provider")
+    .option("--json", "print JSON")
+    .action(async (id, options: { json?: boolean }) => {
+      const client = await apiClient();
+      const result = await client.pauseSandbox(id);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log(`${result.sandbox.id}\t${result.sandbox.status}\t${result.sandbox.template}`);
+    });
+
+  program
+    .command("resume")
+    .argument("<id>", "sandbox id")
+    .description("Resume a paused sandbox through the runtime provider")
+    .option("--json", "print JSON")
+    .action(async (id, options: { json?: boolean }) => {
+      const client = await apiClient();
+      const result = await client.resumeSandbox(id);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log(`${result.sandbox.id}\t${result.sandbox.status}\t${result.sandbox.template}`);
+    });
+
+  program
+    .command("snapshot")
+    .argument("<id>", "sandbox id")
+    .description("Create a snapshot from a sandbox")
+    .option("--name <name>", "snapshot name")
+    .option("--wait", "wait until the snapshot is ready")
+    .option("--wait-timeout-ms <ms>", "maximum snapshot wait", parsePositiveInt)
+    .option("--json", "print JSON")
+    .action(async (id, options: { name?: string; wait?: boolean; waitTimeoutMs?: number; json?: boolean }) => {
+      const client = await apiClient();
+      const result = await client.createSnapshot(id, {
+        name: options.name,
+        wait: options.wait,
+        waitTimeoutMs: options.waitTimeoutMs
+      });
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log(snapshotLine(result.snapshot));
+      if (result.status === "pending") printProgress(result.message ?? "snapshot creation is still pending");
+    });
+
+  const snapshots = program.command("snapshots").description("Manage sandbox snapshots");
+
+  snapshots
+    .command("list")
+    .description("List snapshots")
+    .option("--status <status>", "filter by status")
+    .option("--sandbox <id>", "filter by source sandbox")
+    .option("--json", "print JSON")
+    .action(async (options: { status?: string; sandbox?: string; json?: boolean }) => {
+      const params = new URLSearchParams();
+      if (options.status) params.set("status", options.status);
+      if (options.sandbox) params.set("sandboxId", options.sandbox);
+      const client = await apiClient();
+      const result = await client.listSnapshots(params.size ? `?${params.toString()}` : "");
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log("id\tstatus\ttemplate\tsource-sandbox\tname\tcreated-at");
+      for (const snapshot of result.snapshots) console.log(snapshotLine(snapshot));
+    });
+
+  snapshots
+    .command("inspect")
+    .argument("<id>", "snapshot id")
+    .description("Inspect a snapshot")
+    .option("--json", "print JSON")
+    .action(async (id, options: { json?: boolean }) => {
+      const client = await apiClient();
+      const result = await client.getSnapshot(id);
+      if (options.json) {
+        printJson(result);
+        return;
+      }
+      console.log("id\tstatus\ttemplate\tsource-sandbox\tname\tcreated-at");
+      console.log(snapshotLine(result.snapshot));
+    });
+
+  snapshots
+    .command("delete")
+    .argument("<id>", "snapshot id")
+    .description("Delete a snapshot")
+    .action(async (id) => {
+      const client = await apiClient();
+      await client.deleteSnapshot(id);
+      printProgress("snapshot deleted.");
     });
 
   program

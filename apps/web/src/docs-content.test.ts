@@ -35,7 +35,7 @@ test("docs content exposes expected product pages and renderable body markup", (
   const lifecycle = docPages.find((page) => page.id === "sandbox-lifecycle");
   assert.ok(lifecycle);
   const lifecycleMarkup = renderToStaticMarkup(lifecycle.body);
-  assert.match(lifecycleMarkup, /HarakiriUnsupportedLifecycleCapabilityError/);
+  assert.match(lifecycleMarkup, /snapshotId/);
   assert.match(lifecycleMarkup, /lifecycleSnapshot/);
 
   const processes = docPages.find((page) => page.id === "sandbox-processes");

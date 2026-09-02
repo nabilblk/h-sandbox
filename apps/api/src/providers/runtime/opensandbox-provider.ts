@@ -9,6 +9,18 @@ import { RuntimeUnsupportedError } from "./provider.js";
 
 const providerErrorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+const normalizeProviderSandboxState = (state?: string) => {
+  const normalized = (state ?? "unknown").trim().replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
+  if (normalized === "stopping" || normalized === "deleting" || normalized === "deleted") return "terminated";
+  if (normalized === "failed") return "error";
+  return normalized;
+};
+
+const normalizeProviderSnapshotState = (state?: string) => {
+  const normalized = (state ?? "unknown").trim().replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
+  return normalized === "unknown" ? "creating" : normalized;
+};
+
 const fileError = (error: unknown) => {
   const maybeFileError = error as { code?: unknown; statusCode?: unknown };
   return {
@@ -30,9 +42,29 @@ const mapSandbox = (sandbox: {
 }): RuntimeSandboxSummary => ({
   provider: "opensandbox",
   providerSandboxId: sandbox.id,
-  state: sandbox.status?.state ?? "unknown",
+  state: normalizeProviderSandboxState(sandbox.status?.state),
   expiresAt: sandbox.expiresAt ?? null,
   metadata: sandbox.metadata
+});
+
+const mapSnapshot = (snapshot: {
+  id: string;
+  sandboxId?: string;
+  name?: string | null;
+  status?: { state?: string; reason?: string | null; message?: string | null };
+  metadata?: Record<string, string>;
+  createdAt?: string;
+}) => ({
+  provider: "opensandbox",
+  providerSnapshotId: snapshot.id,
+  sourceProviderSandboxId: snapshot.sandboxId ?? null,
+  name: snapshot.name ?? null,
+  state: normalizeProviderSnapshotState(snapshot.status?.state),
+  reason: snapshot.status?.reason ?? null,
+  message: snapshot.status?.message ?? null,
+  metadata: snapshot.metadata,
+  providerState: snapshot as unknown as Record<string, unknown>,
+  createdAt: snapshot.createdAt ?? null
 });
 
 export const runtimeRef = (providerSandboxId: string | null | undefined): RuntimeSandboxRef => ({
@@ -52,7 +84,10 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
     logs: true,
     metrics: true,
     routes: true,
-    egress: true
+    egress: true,
+    pause: true,
+    resume: true,
+    snapshots: true
   },
 
   async create(input) {
@@ -85,6 +120,39 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
   async renew(ref, input) {
     if (!ref.providerSandboxId) return;
     await openSandbox.renew(ref.providerSandboxId, input);
+  },
+
+  async pause(ref) {
+    if (!ref.providerSandboxId) throw new RuntimeUnsupportedError("OpenSandbox sandbox id is required for pause.");
+    return mapSandbox(await openSandbox.pause(ref.providerSandboxId));
+  },
+
+  async resume(ref) {
+    if (!ref.providerSandboxId) throw new RuntimeUnsupportedError("OpenSandbox sandbox id is required for resume.");
+    return mapSandbox(await openSandbox.resume(ref.providerSandboxId));
+  },
+
+  async createSnapshot(input) {
+    if (!input.providerSandboxId) throw new RuntimeUnsupportedError("OpenSandbox sandbox id is required for snapshot.");
+    return mapSnapshot(await openSandbox.createSnapshot(input.providerSandboxId, {
+      name: input.name,
+      metadata: input.metadata
+    }));
+  },
+
+  async listSnapshots() {
+    return (await openSandbox.listSnapshots()).map(mapSnapshot);
+  },
+
+  async getSnapshot(ref) {
+    if (!ref.providerSnapshotId) return null;
+    const snapshot = await openSandbox.getSnapshot(ref.providerSnapshotId);
+    return snapshot ? mapSnapshot(snapshot) : null;
+  },
+
+  async deleteSnapshot(ref) {
+    if (!ref.providerSnapshotId) return;
+    await openSandbox.deleteSnapshot(ref.providerSnapshotId);
   },
 
   run(input) {

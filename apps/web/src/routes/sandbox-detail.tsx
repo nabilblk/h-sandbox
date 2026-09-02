@@ -6,8 +6,10 @@ import {
   type SandboxCommandSummary,
   type SandboxEgressResponse,
   type SandboxFileEntry,
+  type RuntimeCapabilityName,
   type SandboxRouteAccessMode,
   type SandboxRouteSummary,
+  type SandboxSnapshotSummary,
   type SandboxSummary,
   type TestSandboxEgressResponse
 } from "@harakiri/shared";
@@ -19,13 +21,37 @@ import { Chart, KPI } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
 import type { GoToRoute } from "./types";
 
-export const SandboxDetailRoute = ({ id, go }: { id: string; go: GoToRoute }) => {
+const capabilityState = (sandbox: SandboxSummary, name: RuntimeCapabilityName) =>
+  sandbox.runtimeMetadata?.provider.capabilities.find((capability) => capability.name === name)?.state;
+
+const hasCapability = (sandbox: SandboxSummary, name: RuntimeCapabilityName) =>
+  capabilityState(sandbox, name) === "available";
+
+const lifecycleActionError = (error: unknown) =>
+  error instanceof Error ? error.message : "Lifecycle action failed.";
+
+export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: GoToRoute; openSandbox?: (id: string) => void }) => {
   const [sandbox, setSandbox] = useState<SandboxSummary | null>(null);
   const [tab, setTab] = useState("terminal");
+  const [actionBusy, setActionBusy] = useState<"pause" | "resume" | "renew" | "kill" | null>(null);
+  const [actionError, setActionError] = useState("");
   useEffect(() => { api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, [id]);
   if (!sandbox) return <div className="dash-page">Loading...</div>;
   const refreshSandbox = () => api.sandbox(id).then((r) => setSandbox(r.sandbox));
+  const runLifecycleAction = async (kind: "pause" | "resume" | "renew" | "kill", action: () => Promise<void>) => {
+    setActionBusy(kind);
+    setActionError("");
+    try {
+      await action();
+    } catch (error) {
+      setActionError(lifecycleActionError(error));
+    } finally {
+      setActionBusy(null);
+    }
+  };
   const isActive = sandbox.status === "running" || sandbox.status === "idle" || sandbox.status === "pending";
+  const canPause = hasCapability(sandbox, "lifecyclePause") && (sandbox.status === "running" || sandbox.status === "idle");
+  const canResume = hasCapability(sandbox, "lifecycleResume") && sandbox.status === "paused";
   return (
     <div className="detail">
       <aside className="dash-side" style={{ padding: "16px 0" }}>
@@ -52,16 +78,26 @@ export const SandboxDetailRoute = ({ id, go }: { id: string; go: GoToRoute }) =>
             </div>
           </div>
           <div className="detail-actions">
-            <button className="btn btn-sm" disabled={!isActive} onClick={() => api.renewSandbox(sandbox.id).then(refreshSandbox)}>
-              <Icon name="refresh" size={12} /> Renew
+            {sandbox.status === "paused" ? (
+              <button className="btn btn-sm" disabled={!canResume || actionBusy !== null} onClick={() => void runLifecycleAction("resume", async () => { const result = await api.resumeSandbox(sandbox.id); setSandbox(result.sandbox); })}>
+                <Icon name="play" size={12} /> {actionBusy === "resume" ? "Resuming" : "Resume"}
+              </button>
+            ) : (
+              <button className="btn btn-sm" disabled={!canPause || actionBusy !== null} title={canPause ? "Pause sandbox" : "Pause is unavailable for this runtime state or provider"} onClick={() => void runLifecycleAction("pause", async () => { const result = await api.pauseSandbox(sandbox.id); setSandbox(result.sandbox); })}>
+                <Icon name="pause" size={12} /> {actionBusy === "pause" ? "Pausing" : "Pause"}
+              </button>
+            )}
+            <button className="btn btn-sm" disabled={!isActive || actionBusy !== null} onClick={() => void runLifecycleAction("renew", async () => { await api.renewSandbox(sandbox.id); await refreshSandbox(); })}>
+              <Icon name="refresh" size={12} /> {actionBusy === "renew" ? "Renewing" : "Renew"}
             </button>
-            <button className="btn btn-sm" style={{ color: "var(--err)" }} disabled={sandbox.status === "terminated"} onClick={() => api.killSandbox(sandbox.id).then(refreshSandbox)}>
-              <Icon name="stop" size={11} /> Kill
+            <button className="btn btn-sm" style={{ color: "var(--err)" }} disabled={sandbox.status === "terminated" || actionBusy !== null} onClick={() => void runLifecycleAction("kill", async () => { await api.killSandbox(sandbox.id); await refreshSandbox(); })}>
+              <Icon name="stop" size={11} /> {actionBusy === "kill" ? "Killing" : "Kill"}
             </button>
           </div>
         </div>
+        {actionError ? <div className="detail-action-error">{actionError}</div> : null}
         <div className="detail-tabs">
-          {[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"]].map(([k, label, icon]) => (
+          {[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
             <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
               <Icon name={icon} size={12} /> {label}
             </button>
@@ -73,6 +109,7 @@ export const SandboxDetailRoute = ({ id, go }: { id: string; go: GoToRoute }) =>
           {tab === "logs" ? <LogsPane id={sandbox.id} /> : null}
           {tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}
           {tab === "network" ? <NetworkPane sandbox={sandbox} /> : null}
+          {tab === "snapshots" ? <SnapshotsPane sandbox={sandbox} go={go} openSandbox={openSandbox} /> : null}
         </div>
       </main>
     </div>
@@ -354,6 +391,126 @@ const MetricsPane = ({ id }: { id: string }) => {
       {error ? <div className="network-warning">Metrics snapshot is unavailable.<span>{error}</span></div> : null}
       <div className="metrics-kpis"><KPI label="CPU" v={`${metrics?.current?.cpu ?? 0}%`} delta={`${metrics?.current?.cpuCount ?? 1} vCPU visible`} /><KPI label="Memory" v={`${metrics?.current?.mem ?? 0} MB`} delta={metrics?.current?.memTotal ? `of ${metrics.current.memTotal} MB node memory` : "live snapshot"} /><KPI label="Disk I/O" v={`${metrics?.current?.diskIo ?? 0} KB/s`} delta="provider snapshot pending" /><KPI label="Network out" v={`${metrics?.current?.networkOut ?? 0} KB/s`} delta="provider snapshot pending" /></div>
       <div className="card metrics-chart"><div className="card-h">CPU snapshot</div><Chart data={(metrics?.series ?? []).map((m) => m.cpu)} /></div>
+    </div>
+  );
+};
+
+const snapshotIsReady = (snapshot: SandboxSnapshotSummary) => snapshot.status === "ready";
+
+const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; go: GoToRoute; openSandbox?: (id: string) => void }) => {
+  const [snapshots, setSnapshots] = useState<SandboxSnapshotSummary[]>([]);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState<"load" | "create" | "restore" | "delete" | null>("load");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const canSnapshot = hasCapability(sandbox, "lifecycleSnapshot") && ["running", "idle", "paused"].includes(sandbox.status);
+  const canRestore = hasCapability(sandbox, "createFromSnapshot");
+  const canDelete = hasCapability(sandbox, "snapshotDelete");
+  const load = () => {
+    setBusy("load");
+    return api.snapshots(`?sandboxId=${encodeURIComponent(sandbox.id)}`)
+      .then((response) => {
+        setSnapshots(response.snapshots);
+        setError("");
+      })
+      .catch((cause) => {
+        setSnapshots([]);
+        setError(cause instanceof Error ? cause.message : "Snapshots are unavailable for this sandbox.");
+      })
+      .finally(() => setBusy(null));
+  };
+  useEffect(() => { void load(); }, [sandbox.id]);
+  const createSnapshot = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSnapshot) return;
+    setBusy("create");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.createSnapshot(sandbox.id, {
+        name: name.trim() || undefined,
+        wait: true,
+        waitTimeoutMs: 60_000
+      });
+      setName("");
+      setMessage(result.status === "pending" ? "Snapshot creation is still pending." : `Snapshot ${result.snapshot.id} is ready.`);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Snapshot creation failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+  const restoreSnapshot = async (snapshot: SandboxSnapshotSummary) => {
+    if (!snapshotIsReady(snapshot) || !canRestore) return;
+    setBusy("restore");
+    setMessage("");
+    setError("");
+    try {
+      const result = await api.createSandbox({
+        snapshotId: snapshot.id,
+        name: `${snapshot.name || sandbox.name}-restore`,
+        ttlSeconds: sandbox.ttlSeconds,
+        wait: true
+      });
+      setMessage(`Restored as ${result.sandbox.id}.`);
+      if (openSandbox) openSandbox(result.sandbox.id);
+      else go("dashboard/sandboxes");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Snapshot restore failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+  const deleteSnapshot = async (snapshot: SandboxSnapshotSummary) => {
+    if (!canDelete) return;
+    setBusy("delete");
+    setMessage("");
+    setError("");
+    try {
+      await api.deleteSnapshot(snapshot.id);
+      setMessage(`Deleted ${snapshot.id}.`);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Snapshot delete failed.");
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="snapshots-pane">
+      <section className="snapshot-toolbar card">
+        <div>
+          <div className="card-h">Snapshots</div>
+          <div className="network-sub">Persist a checkpoint and restore it as a new sandbox.</div>
+        </div>
+        <form className="snapshot-create" onSubmit={createSnapshot}>
+          <input className="input" value={name} onChange={(event) => setName(event.target.value)} placeholder="checkpoint name" disabled={!canSnapshot || busy !== null} />
+          <button className="btn btn-primary btn-sm" disabled={!canSnapshot || busy !== null}>
+            <Icon name="snapshot" size={12} /> {busy === "create" ? "Creating" : "Create snapshot"}
+          </button>
+        </form>
+      </section>
+      {!canSnapshot ? <div className="network-warning">Snapshot creation is unavailable for this runtime state or provider.</div> : null}
+      {error ? <div className="network-error">{error}</div> : null}
+      {message ? <div className="snapshot-message">{message}</div> : null}
+      <div className="snapshot-table card">
+        <div className="snapshot-row snapshot-head"><span>Name</span><span>Status</span><span>Template</span><span>Created</span><span>Expires</span><span /></div>
+        {snapshots.map((snapshot) => (
+          <div key={snapshot.id} className="snapshot-row">
+            <span className="snapshot-name"><b>{snapshot.name || "unnamed snapshot"}</b><small className="num">{snapshot.id}</small></span>
+            <span><span className={`pill snapshot-status ${snapshot.status === "ready" ? "live" : snapshot.status === "failed" ? "err" : "idle"}`}><span className="dot" /> {snapshot.status}</span>{snapshot.statusMessage ? <small className="snapshot-note">{snapshot.statusMessage}</small> : null}</span>
+            <span><span className="tag">{snapshot.template ?? sandbox.template}</span></span>
+            <span className="num muted">{formatDateTime(snapshot.createdAt)}</span>
+            <span className="num muted">{snapshot.expiresAt ? formatDateTime(snapshot.expiresAt) : "-"}</span>
+            <span className="snapshot-actions">
+              <button className="btn btn-ghost btn-sm" disabled={!snapshotIsReady(snapshot) || !canRestore || busy !== null} onClick={() => void restoreSnapshot(snapshot)}>Restore</button>
+              <button className="btn btn-ghost btn-sm route-delete" disabled={!canDelete || busy !== null} onClick={() => void deleteSnapshot(snapshot)} title="Delete snapshot"><Icon name="x" size={12} /></button>
+            </span>
+          </div>
+        ))}
+        {snapshots.length ? null : <div className="empty-state">{busy === "load" ? "Loading snapshots..." : "No snapshots recorded for this sandbox."}</div>}
+      </div>
     </div>
   );
 };

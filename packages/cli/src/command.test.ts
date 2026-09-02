@@ -312,7 +312,7 @@ test("status command prints lifecycle metadata and supports JSON", async () => {
         sandboxId: "osbx_life",
         capabilities: [
           { name: "lifecycleRenew", state: "available", contract: "opensandbox_spec", source: "OpenSandbox renew API", required: true, reason: null },
-          { name: "lifecycleSnapshot", state: "unavailable", contract: "unsupported", source: "Current runtime provider contract", required: false, reason: "Snapshot is not exposed." }
+          { name: "lifecycleSnapshot", state: "available", contract: "opensandbox_spec", source: "OpenSandbox snapshot API persisted by Harakiri snapshot IDs", required: false, reason: null }
         ]
       }
     }
@@ -329,11 +329,95 @@ test("status command prints lifecycle metadata and supports JSON", async () => {
     assert.match(text.stdout, /expires-at\t2026-06-04T12:10:00.000Z/);
     assert.match(text.stdout, /provider-sandbox\tosbx_life/);
     assert.match(text.stdout, /capability.lifecycleRenew\tavailable\topensandbox_spec\t-/);
-    assert.match(text.stdout, /capability.lifecycleSnapshot\tunavailable\tunsupported\tSnapshot is not exposed\./);
+    assert.match(text.stdout, /capability.lifecycleSnapshot\tavailable\topensandbox_spec\t-/);
 
     const json = await runCli(["status", "sbx_life", "--json"], { api });
     assert.equal(json.exitCode, 0, json.stderr);
     assert.equal(JSON.parse(json.stdout).sandbox.runtimeMetadata.lifecycle.ttlSeconds, 600);
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command can restore from a snapshot", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_restore",
+            name: "restored",
+            template: "python-3.12-data",
+            status: "running"
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli(["create", "--snapshot", "snp_ready", "--name", "restored"], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_restore/);
+    assert.deepEqual(api.requests[0]?.body, {
+      snapshotId: "snp_ready",
+      name: "restored",
+      ttlSeconds: 300,
+      env: {}
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("snapshot commands create, list, inspect, and delete snapshots", async () => {
+  const snapshot = {
+    id: "snp_cli",
+    sourceSandboxId: "sbx_cli",
+    name: "checkpoint",
+    status: "ready",
+    statusReason: null,
+    statusMessage: null,
+    template: "python-3.12-data",
+    templateVersionId: null,
+    templateImageDigest: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    metadata: {},
+    providerState: {},
+    expiresAt: null,
+    createdAt: "2026-09-02T00:00:00.000Z",
+    updatedAt: "2026-09-02T00:00:00.000Z",
+    deletedAt: null
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_cli/snapshots") {
+      return { status: 201, body: { snapshot, status: "created" } };
+    }
+    if (request.method === "GET" && request.path === "/v1/snapshots?status=ready&sandboxId=sbx_cli") {
+      return { body: { snapshots: [snapshot], page: { total: 1, limit: 100, offset: 0 } } };
+    }
+    if (request.method === "GET" && request.path === "/v1/snapshots/snp_cli") return { body: { snapshot } };
+    if (request.method === "DELETE" && request.path === "/v1/snapshots/snp_cli") return { body: { ok: true } };
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const created = await runCli(["snapshot", "sbx_cli", "--name", "checkpoint"], { api });
+    assert.equal(created.exitCode, 0, created.stderr);
+    assert.match(created.stdout, /snp_cli\tready\tpython-3\.12-data\tsbx_cli\tcheckpoint/);
+
+    const listed = await runCli(["snapshots", "list", "--status", "ready", "--sandbox", "sbx_cli"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.match(listed.stdout, /id\tstatus\ttemplate\tsource-sandbox\tname\tcreated-at/);
+
+    const inspected = await runCli(["snapshots", "inspect", "snp_cli", "--json"], { api });
+    assert.equal(inspected.exitCode, 0, inspected.stderr);
+    assert.equal(JSON.parse(inspected.stdout).snapshot.id, "snp_cli");
+
+    const deleted = await runCli(["snapshots", "delete", "snp_cli"], { api });
+    assert.equal(deleted.exitCode, 0, deleted.stderr);
+    assert.match(deleted.stdout, /snapshot deleted/);
   } finally {
     await api.close();
   }

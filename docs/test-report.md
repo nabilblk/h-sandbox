@@ -18,6 +18,62 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 ## Commands Verified
 
+- OpenSandbox-native lifecycle persistence checkpoint on 2026-09-02:
+  implemented Phase 2 lifecycle persistence through OpenSandbox-native APIs
+  only. Harakiri now exposes pause, resume, snapshot create/list/get/delete,
+  and create-from-snapshot through `/v1`, SDK methods, CLI commands, dashboard
+  actions, and website/docs content. Public snapshot IDs use Harakiri
+  `snp_...` identifiers while provider snapshot IDs stay internal. Runtime
+  capabilities now include `lifecyclePause`, `lifecycleResume`,
+  `lifecycleSnapshot`, `snapshotList`, `snapshotDelete`, and
+  `createFromSnapshot`. PostgreSQL migration `024_sandbox_snapshots.sql` stores
+  snapshot provenance, provider refs, retention metadata, and restore source
+  state. The k0s deployment uses OpenSandbox Helm chart `0.2.2` with
+  `opensandbox/server:v0.2.3`, `opensandbox/controller:v0.2.0`,
+  `opensandbox/execd:v1.1.0`, `opensandbox/egress:v1.1.7`,
+  `opensandbox/ingress:v1.0.10`, and image-committer `v0.1.1`.
+  Snapshot persistence required a node-reachable local registry
+  (`192.168.5.15:5000/harakiri/snapshots` in the validated Lima/k0s run) and a
+  guarded containerd socket compatibility link for the pinned OpenSandbox
+  controller image. Validation passed:
+  `pnpm --filter @harakiri/web test`,
+  `pnpm --filter @harakiri/web typecheck`,
+  `pnpm --filter @harakiri/web build`,
+  `pnpm -w typecheck`,
+  `pnpm -w test` (shared 11 tests, SDK 35, web 29, API 178, CLI 38),
+  `pnpm -w build`,
+  `pnpm openapi:check`,
+  `pnpm examples:check`,
+  `pnpm templates:check`,
+  `pnpm package:assert`,
+  `pnpm publish:local-check`,
+  `pnpm conformance:dev`,
+  `pnpm smoke:lifecycle`,
+  `pnpm smoke:lifecycle-persistence`,
+  `pnpm ports:status`, public endpoint checks for
+  `https://sb.harakiri.io`, `https://sb-api.harakiri.io/health`, and
+  `https://sb-auth.harakiri.io/realms/harakiri/.well-known/openid-configuration`,
+  a source-boundary scan for Kubernetes runtime shortcuts, and
+  `git diff --check`. A final cleanup pass split the lifecycle service into
+  smaller responsibility-focused helpers and kept the provider path strictly on
+  OpenSandbox APIs. The current source was redeployed to k0s as Harakiri Helm
+  revision 12 with API image ID
+  `sha256:19e616a13cd8de66115f4bc3bac30bbf52e4cc28013097acdcc73dc4e3237ad3`
+  and web image ID
+  `sha256:f2a7c6fa7646dd868e48fa69fa2dcdb497b3f94cbc49fba6495b1365025cd63c`.
+  Post-deploy `pnpm smoke:lifecycle` created, reconnected, renewed, exposed a
+  route for, and killed sandbox `sbx_Ljt6rd-yxx`. The final real persistence
+  smoke created source sandbox `sbx_NFsT1T6F9B`, paused and resumed it, created
+  snapshot `snp_qZJc_A_2FQ`, restored sandbox `sbx_-YRnUUKJOv`, verified the
+  marker file after resume and restore, then deleted the snapshot and both
+  sandboxes. Browser smoke with `agent-browser` loaded direct detail URL
+  `#dashboard/sandboxes/sbx_HHIJscLJ8b` through hosted Keycloak OIDC, verified
+  the terminal attach ticket, opened the Snapshots tab, created ready snapshot
+  `snp_q4evtQhliK`, confirmed browser API calls used
+  `https://sb-api.harakiri.io`, and cleaned up the snapshot, sandbox, and
+  temporary API key. A direct-link routing bug was fixed so normal authenticated
+  URL navigation wins over stale session-storage return routes; stored return
+  routes are now consumed only for actual OIDC callbacks.
 - OSS 0.4.0 artifact/install documentation checkpoint on 2026-09-02:
   release artifact ownership is now documented in `docs/release-artifacts.md`,
   including Harakiri images/chart, public npm packages, mirrored OpenSandbox

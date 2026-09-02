@@ -11,6 +11,26 @@ export type ProviderList = {
   data?: ProviderSandbox[];
 };
 
+export type ProviderSnapshot = {
+  id: string;
+  sandboxId?: string;
+  name?: string | null;
+  status?: {
+    state?: string;
+    reason?: string | null;
+    message?: string | null;
+    lastTransitionAt?: string | null;
+  };
+  metadata?: Record<string, string>;
+  createdAt?: string;
+};
+
+export type ProviderSnapshotList = {
+  items?: ProviderSnapshot[];
+  snapshots?: ProviderSnapshot[];
+  data?: ProviderSnapshot[];
+};
+
 export type ProviderEndpoint = {
   endpoint?: string;
   url?: string;

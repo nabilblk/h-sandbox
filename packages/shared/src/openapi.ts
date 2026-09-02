@@ -81,6 +81,7 @@ const pathId = parameter("id", "path", string);
 const commandIdPath = parameter("commandId", "path", string);
 const sessionIdPath = parameter("sessionId", "path", string);
 const portPath = parameter("port", "path", integer);
+const snapshotIdPath = parameter("snapshotId", "path", string);
 const templateIdPath = parameter("id", "path", string);
 const buildIdPath = parameter("id", "path", string);
 const credentialIdPath = parameter("id", "path", string);
@@ -343,7 +344,7 @@ const schemas: Record<string, JsonSchema> = {
     opensandboxId: nullableString,
     name: string,
     template: string,
-    status: { type: "string", enum: ["pending", "running", "idle", "error", "terminated"] },
+    status: { type: "string", enum: ["pending", "running", "idle", "pausing", "paused", "resuming", "error", "terminated"] },
     cpu: number,
     mem: number,
     started: string,
@@ -362,7 +363,7 @@ const schemas: Record<string, JsonSchema> = {
   SandboxOperationSummary: objectSchema({
     id: string,
     sandboxId: nullableString,
-    kind: { type: "string", enum: ["provision", "delete", "renew", "route_expose"] },
+    kind: { type: "string", enum: ["provision", "delete", "renew", "pause", "resume", "snapshot", "snapshot_delete", "route_expose"] },
     state: { type: "string", enum: ["queued", "running", "succeeded", "failed", "canceled"] },
     error: nullableString,
     attempts: integer,
@@ -371,6 +372,7 @@ const schemas: Record<string, JsonSchema> = {
   }),
   CreateSandboxBody: objectSchema({
     template: string,
+    snapshotId: string,
     name: string,
     ttlSeconds: integer,
     env: { type: "object", additionalProperties: { type: "string" } },
@@ -389,6 +391,43 @@ const schemas: Record<string, JsonSchema> = {
   SandboxesResponse: objectSchema({ sandboxes: arrayOf(ref("SandboxSummary")) }),
   SandboxResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
   SandboxSourceResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
+  SandboxSnapshotSummary: objectSchema({
+    id: string,
+    sourceSandboxId: nullableString,
+    name: nullableString,
+    status: { type: "string", enum: ["creating", "ready", "failed", "deleting", "deleted", "expired"] },
+    statusReason: nullableString,
+    statusMessage: nullableString,
+    template: nullableString,
+    templateVersionId: nullableString,
+    templateImageDigest: nullableString,
+    createdByUserId: nullableString,
+    createdByLabel: nullableString,
+    metadata: freeObject,
+    providerState: freeObject,
+    expiresAt: { type: ["string", "null"], format: "date-time" },
+    createdAt: dateTime,
+    updatedAt: dateTime,
+    deletedAt: { type: ["string", "null"], format: "date-time" }
+  }),
+  CreateSandboxSnapshotBody: objectSchema({
+    name: string,
+    metadata: { type: "object", additionalProperties: { type: "string" } },
+    expiresAt: { type: ["string", "null"], format: "date-time" },
+    idempotencyKey: string,
+    wait: boolean,
+    waitTimeoutMs: integer
+  }, []),
+  SandboxSnapshotResponse: objectSchema({
+    snapshot: ref("SandboxSnapshotSummary"),
+    operation: ref("SandboxOperationSummary"),
+    status: { type: "string", enum: ["created", "pending"] },
+    message: string
+  }, ["snapshot"]),
+  SandboxSnapshotsResponse: objectSchema({
+    snapshots: arrayOf(ref("SandboxSnapshotSummary")),
+    page: ref("PageSummary")
+  }, ["snapshots"]),
   SandboxGitOperationMetadata: objectSchema({
     capability: { type: "string", enum: ["git"] },
     operation: {
@@ -620,9 +659,21 @@ const schemas: Record<string, JsonSchema> = {
       type: "string",
       enum: [
         "lifecycle",
+        "lifecycleRenew",
+        "lifecycleKill",
+        "lifecycleReconnect",
+        "lifecyclePause",
+        "lifecycleResume",
+        "lifecycleSnapshot",
+        "snapshotList",
+        "snapshotDelete",
+        "createFromSnapshot",
         "commandRun",
         "commands",
+        "detachedCommands",
         "commandLogs",
+        "commandLogTail",
+        "commandKill",
         "terminalAttach",
         "terminalResize",
         "shellSessions",
@@ -1000,8 +1051,36 @@ export const openApiDocument = {
     "/v1/sandboxes/{id}/source": {
       patch: secured({ tags: ["Sandboxes"], summary: "Update sandbox source provenance", operationId: "updateSandboxSource", parameters: [pathId], requestBody: jsonBody(ref("PatchSandboxSourceBody")), responses: { ...ok("Sandbox source", ref("SandboxSourceResponse")), ...authErrorResponses } })
     },
+    "/v1/sandboxes/{id}/pause": {
+      post: secured({ tags: ["Sandboxes"], summary: "Pause a running sandbox", operationId: "pauseSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Paused sandbox", ref("SandboxResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/resume": {
+      post: secured({ tags: ["Sandboxes"], summary: "Resume a paused sandbox", operationId: "resumeSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Resumed sandbox", ref("SandboxResponse")), ...authErrorResponses } })
+    },
     "/v1/sandboxes/{id}/renew": {
       post: secured({ tags: ["Sandboxes"], summary: "Renew a sandbox TTL", operationId: "renewSandbox", parameters: [pathId], responses: { ...ok("Renewed sandbox", ref("OkResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/snapshots": {
+      post: secured({ tags: ["Sandboxes"], summary: "Create a sandbox snapshot", operationId: "createSandboxSnapshot", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], requestBody: jsonBody(ref("CreateSandboxSnapshotBody")), responses: { ...created("Created snapshot", ref("SandboxSnapshotResponse")), ...accepted("Queued snapshot", ref("SandboxSnapshotResponse")), ...authErrorResponses } })
+    },
+    "/v1/snapshots": {
+      get: secured({
+        tags: ["Sandboxes"],
+        summary: "List sandbox snapshots",
+        operationId: "listSandboxSnapshots",
+        parameters: [
+          parameter("status", "query", string, false),
+          parameter("sandboxId", "query", string, false),
+          parameter("includeDeleted", "query", boolean, false),
+          parameter("limit", "query", integer, false),
+          parameter("offset", "query", integer, false)
+        ],
+        responses: { ...ok("Sandbox snapshots", ref("SandboxSnapshotsResponse")), ...authErrorResponses }
+      })
+    },
+    "/v1/snapshots/{snapshotId}": {
+      get: secured({ tags: ["Sandboxes"], summary: "Get a sandbox snapshot", operationId: "getSandboxSnapshot", parameters: [snapshotIdPath], responses: { ...ok("Sandbox snapshot", ref("SandboxSnapshotResponse")), ...authErrorResponses } }),
+      delete: secured({ tags: ["Sandboxes"], summary: "Delete a sandbox snapshot", operationId: "deleteSandboxSnapshot", parameters: [snapshotIdPath, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Deleted snapshot", ref("OkResponse")), ...authErrorResponses } })
     },
     "/v1/runtime/capabilities": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read runtime provider capabilities", operationId: "getRuntimeCapabilities", responses: { ...ok("Runtime capabilities", ref("RuntimeCapabilitiesResponse")), ...authErrorResponses } })

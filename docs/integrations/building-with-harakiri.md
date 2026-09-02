@@ -96,6 +96,8 @@ stable Harakiri contract:
 | Expose web preview | `routes.expose` |
 | Restrict egress | `setOutboundAccess`, `allowDomains`, `denyDomains` |
 | Extend runtime | `renewSandbox` |
+| Pause or resume runtime | `sandbox.pause`, `sandbox.resume` |
+| Persist and restore runtime state | `sandbox.snapshot`, `snapshots.list`, `createSandbox({ snapshotId })` |
 | Cleanup | `routes.delete`, `killSandbox` |
 
 Planned but not stable yet:
@@ -103,7 +105,6 @@ Planned but not stable yet:
 - streaming or signed URL artifact transfer above the JSON artifact size limit
 - organization-authenticated route access mode
 - SDK PTY/interactive terminal streams
-- pause/resume and running-sandbox snapshots
 
 ## Provider Boundaries
 

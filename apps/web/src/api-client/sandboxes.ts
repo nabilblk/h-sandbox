@@ -1,5 +1,6 @@
 import type {
   CreateSandboxBody,
+  CreateSandboxSnapshotBody,
   CreateSandboxResponse,
   ExposeSandboxRouteBody,
   OkResponse,
@@ -15,6 +16,8 @@ import type {
   SandboxResponse,
   SandboxRouteResponse,
   SandboxRoutesResponse,
+  SandboxSnapshotResponse,
+  SandboxSnapshotsResponse,
   SandboxTerminalAttachTicketResponse,
   SandboxesResponse,
   TestSandboxEgressBody,
@@ -27,8 +30,15 @@ export const sandboxesApi = {
   sandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}`),
   createSandbox: (body: CreateSandboxBody) =>
     request<CreateSandboxResponse>("/v1/sandboxes", { method: "POST", body: JSON.stringify(body) }),
+  pauseSandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}/pause`, { method: "POST" }),
+  resumeSandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}/resume`, { method: "POST" }),
   renewSandbox: (id: string) => request<OkResponse>(`/v1/sandboxes/${id}/renew`, { method: "POST" }),
   killSandbox: (id: string) => request<OkResponse>(`/v1/sandboxes/${id}`, { method: "DELETE" }),
+  createSnapshot: (id: string, body: CreateSandboxSnapshotBody) =>
+    request<SandboxSnapshotResponse>(`/v1/sandboxes/${id}/snapshots`, { method: "POST", body: JSON.stringify(body) }),
+  snapshots: (params = "") => request<SandboxSnapshotsResponse>(`/v1/snapshots${params}`),
+  snapshot: (id: string) => request<SandboxSnapshotResponse>(`/v1/snapshots/${encodeURIComponent(id)}`),
+  deleteSnapshot: (id: string) => request<OkResponse>(`/v1/snapshots/${encodeURIComponent(id)}`, { method: "DELETE" }),
   run: (id: string, body: RunSandboxBody) =>
     request<RunSandboxResponse>(`/v1/sandboxes/${id}/run`, {
       method: "POST",

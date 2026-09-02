@@ -30,7 +30,7 @@ import { sandboxLogs } from "./opensandbox-logs.js";
 import { sandboxMetrics } from "./opensandbox-metrics.js";
 import { ensureSandboxRoute, routePolicyMetadata } from "./opensandbox-routes.js";
 import { getSandboxEgressPolicy, patchSandboxEgressRules, setSandboxEgressPolicy } from "./opensandbox-egress.js";
-import type { ProviderList, ProviderSandbox, SandboxRouteTarget } from "./opensandbox-types.js";
+import type { ProviderList, ProviderSandbox, ProviderSnapshot, ProviderSnapshotList, SandboxRouteTarget } from "./opensandbox-types.js";
 
 export type {
   SandboxFileEntry,
@@ -72,6 +72,7 @@ export const openSandboxCreateBody = (input: {
   template: RuntimeTemplate;
   ttlSeconds: number;
   name: string;
+  providerSnapshotId?: string;
   metadata?: Record<string, string>;
   env?: Record<string, string>;
   imageAuth?: RegistryImageAuth | null;
@@ -81,17 +82,22 @@ export const openSandboxCreateBody = (input: {
   const template = input.template;
   const env = input.env && Object.keys(input.env).length ? input.env : undefined;
   return {
-    image: {
-      uri: template.image,
-      ...(input.imageAuth ? { auth: input.imageAuth } : {})
-    },
-    entrypoint: template.defaultEntrypoint,
+    ...(input.providerSnapshotId
+      ? { snapshotId: input.providerSnapshotId }
+      : {
+          image: {
+            uri: template.image,
+            ...(input.imageAuth ? { auth: input.imageAuth } : {})
+          },
+          entrypoint: template.defaultEntrypoint
+        }),
     timeout: Math.max(input.ttlSeconds, 60),
     resourceLimits: { cpu: `${Math.max(template.cpuCount, 1) * 1000}m`, memory: `${Math.max(template.memoryMb, 128)}Mi` },
     metadata: labelSafeMetadata({
       "harakiri.template": template.id,
       ...(template.templateVersionId ? { "harakiri.template_version": template.templateVersionId } : {}),
       ...(template.imageDigest ? { "harakiri.image_digest": template.imageDigest } : {}),
+      ...(input.providerSnapshotId ? { "harakiri.snapshot_provider_id": input.providerSnapshotId } : {}),
       "harakiri.name": input.name,
       "harakiri.workdir": template.workdir,
       ...routePolicyMetadata(),
@@ -118,15 +124,17 @@ export const openSandbox = {
     metadata?: Record<string, string>;
     env?: Record<string, string>;
     egressPolicy?: EgressNetworkPolicy | null;
+    snapshot?: { providerSnapshotId: string };
   }) {
     const template = input.template;
-    const registryAuth = input.organizationId ? await registryImageAuthForImage(input.organizationId, template.image, "pull") : null;
+    const registryAuth = input.snapshot ? null : input.organizationId ? await registryImageAuthForImage(input.organizationId, template.image, "pull") : null;
     const result = await callOpenSandbox<ProviderSandbox>("/v1/sandboxes", {
       method: "POST",
       body: JSON.stringify(openSandboxCreateBody({
         template,
         ttlSeconds: input.ttlSeconds,
         name: input.name,
+        providerSnapshotId: input.snapshot?.providerSnapshotId,
         env: input.env,
         egressPolicy: input.egressPolicy,
         imageAuth: registryAuth?.auth ?? null,
@@ -184,6 +192,63 @@ export const openSandbox = {
         body: JSON.stringify({ expiresAt: input.expiresAt })
       });
     } catch (error) {
+      if (!config.openSandboxAllowFallback) throw error;
+    }
+  },
+
+  async pause(opensandboxId: string) {
+    try {
+      const result = await callOpenSandbox<ProviderSandbox | undefined>(`/v1/sandboxes/${opensandboxId}/pause`, { method: "POST" });
+      if (result?.id) return result;
+      return { id: opensandboxId, status: { state: "Pausing" } };
+    } catch (error) {
+      if (!config.openSandboxAllowFallback) throw error;
+      return { id: opensandboxId, status: { state: "Pausing" } };
+    }
+  },
+
+  async resume(opensandboxId: string) {
+    try {
+      const result = await callOpenSandbox<ProviderSandbox | undefined>(`/v1/sandboxes/${opensandboxId}/resume`, { method: "POST" });
+      if (result?.id) return result;
+      return { id: opensandboxId, status: { state: "Resuming" } };
+    } catch (error) {
+      if (!config.openSandboxAllowFallback) throw error;
+      return { id: opensandboxId, status: { state: "Resuming" } };
+    }
+  },
+
+  async createSnapshot(opensandboxId: string, input: { name?: string; metadata?: Record<string, string> } = {}) {
+    return callOpenSandbox<ProviderSnapshot>(`/v1/sandboxes/${opensandboxId}/snapshots`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...(input.name ? { name: input.name } : {}),
+        ...(input.metadata && Object.keys(input.metadata).length ? { metadata: labelSafeMetadata(input.metadata) } : {})
+      })
+    });
+  },
+
+  async listSnapshots() {
+    const result = await callOpenSandbox<ProviderSnapshotList | ProviderSnapshot[]>("/v1/snapshots");
+    if (Array.isArray(result)) return result;
+    return result.items ?? result.snapshots ?? result.data ?? [];
+  },
+
+  async getSnapshot(providerSnapshotId: string) {
+    try {
+      return await callOpenSandbox<ProviderSnapshot>(`/v1/snapshots/${providerSnapshotId}`);
+    } catch (error) {
+      if (error instanceof OpenSandboxHttpError && error.status === 404) return null;
+      if (!config.openSandboxAllowFallback) throw error;
+      return null;
+    }
+  },
+
+  async deleteSnapshot(providerSnapshotId: string) {
+    try {
+      await callOpenSandbox(`/v1/snapshots/${providerSnapshotId}`, { method: "DELETE" });
+    } catch (error) {
+      if (error instanceof OpenSandboxHttpError && error.status === 404) return;
       if (!config.openSandboxAllowFallback) throw error;
     }
   },

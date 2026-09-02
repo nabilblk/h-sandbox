@@ -36,6 +36,7 @@
     "smoke:members": "bash infra/scripts/member-invitation-smoke.sh",
     "smoke:ttl": "bash infra/scripts/ttl-smoke.sh",
     "smoke:lifecycle": "bash infra/scripts/lifecycle-smoke.sh",
+    "smoke:lifecycle-persistence": "bash infra/scripts/lifecycle-persistence-smoke.sh",
     "smoke:filesystem": "bash infra/scripts/filesystem-smoke.sh",
     "smoke:process": "bash infra/scripts/process-smoke.sh",
     "smoke:renew": "bash infra/scripts/renew-smoke.sh",

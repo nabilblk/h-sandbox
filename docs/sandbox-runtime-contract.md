@@ -66,23 +66,31 @@ runtime state. It also includes a `contract` field:
 | Outbound access policy | available | Open, restricted, blocked, custom modes, presets, allow/deny, diagnostics. |
 | Templates/images | available | OCI image backed templates, builds, versions, aliases, promotion. |
 | Template init/build UX | partial | Existing CLI/API/dashboard; needs polished examples and docs. |
-| Pause/resume sandbox | out of scope | Harakiri v1 uses TTL, renew, and kill semantics. |
-| Snapshot running sandbox | planned decision | Not guaranteed until provider support and persistence model are explicit. |
+| Pause/resume sandbox | capability-gated | Delegates to provider lifecycle APIs when available and persists Harakiri status transitions. |
+| Snapshot and restore | capability-gated | Stores Harakiri `snp_...` records, keeps provider snapshot IDs internal, and restores through `POST /v1/sandboxes` with `snapshotId`. |
 
 ## Public Primitives
 
 ### Sandbox Lifecycle
 
-The lifecycle contract is TTL based:
+The lifecycle contract is TTL based with optional provider persistence:
 
 - `createSandbox` provisions a sandbox from a template.
+- `createSandbox({ snapshotId })` restores from a ready Harakiri snapshot when
+  `createFromSnapshot` is available.
 - `getSandbox` returns the current Harakiri lifecycle state.
 - `listSandboxes` lists sandbox records within the organization.
 - `renewSandbox` extends the active TTL.
+- `pauseSandbox` and `resumeSandbox` delegate to provider lifecycle when
+  `lifecyclePause` and `lifecycleResume` are available.
+- `createSandboxSnapshot`, `listSnapshots`, `getSnapshot`, and
+  `deleteSnapshot` manage provider-backed runtime snapshots through stable
+  Harakiri snapshot IDs.
 - `killSandbox` terminates the runtime and closes active routes.
 
-Pause/resume is not implied by any current UI label or API. If a sandbox needs
-longer availability, the caller should renew it.
+If a provider does not expose a lifecycle operation, Harakiri returns explicit
+capability or provider-unavailable errors. It does not fall back to direct
+Kubernetes pod operations.
 
 ### Commands
 
