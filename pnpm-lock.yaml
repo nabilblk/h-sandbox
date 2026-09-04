@@ -58,8 +58,8 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
       tsx:
-        specifier: ^4.21.0
-        version: 4.22.3
+        specifier: ^4.22.4
+        version: 4.22.4
 
   apps/web:
     dependencies:
@@ -68,7 +68,7 @@ importers:
         version: link:../../packages/shared
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.2.0(vite@7.3.3(@types/node@24.12.4)(tsx@4.22.3))
+        version: 5.2.0(vite@7.3.3(@types/node@24.12.4)(tsx@4.22.4))
       keycloak-js:
         specifier: ^26.2.4
         version: 26.2.4
@@ -80,7 +80,7 @@ importers:
         version: 19.2.6(react@19.2.6)
       vite:
         specifier: ^7.2.6
-        version: 7.3.3(@types/node@24.12.4)(tsx@4.22.3)
+        version: 7.3.3(@types/node@24.12.4)(tsx@4.22.4)
     devDependencies:
       '@types/react':
         specifier: ^19.2.7
@@ -89,8 +89,8 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.15)
       tsx:
-        specifier: ^4.21.0
-        version: 4.22.3
+        specifier: ^4.22.4
+        version: 4.22.4
 
   packages/cli:
     dependencies:
@@ -111,20 +111,20 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
       tsx:
-        specifier: ^4.21.0
-        version: 4.22.3
+        specifier: ^4.22.4
+        version: 4.22.4
 
   packages/sdk:
     devDependencies:
       tsx:
-        specifier: ^4.21.0
-        version: 4.22.3
+        specifier: ^4.22.4
+        version: 4.22.4
 
   packages/shared:
     devDependencies:
       tsx:
-        specifier: ^4.21.0
-        version: 4.22.3
+        specifier: ^4.22.4
+        version: 4.22.4
 
 packages:
 
@@ -1405,8 +1405,8 @@ packages:
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
 
-  tsx@4.22.3:
-    resolution: {integrity: sha512-mdoNxBC/cSQObGGVQ5Bpn5i+yv7j68gk3Nfm3wFjcJg3Z0Mix9jzAFfP12prmm5eVGmDKtp0yyArrs0Q+8gZHg==}
+  tsx@4.22.4:
+    resolution: {integrity: sha512-X8EX+XV4QR5xCsrgxaED954zTDfY8KqlDtskKEL0cHhyS/P8b4IFOvGDQpsC9Q1XnLq915wEfwwY/zzskCtmhg==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -2007,7 +2007,7 @@ snapshots:
     dependencies:
       '@types/node': 24.12.4
 
-  '@vitejs/plugin-react@5.2.0(vite@7.3.3(@types/node@24.12.4)(tsx@4.22.3))':
+  '@vitejs/plugin-react@5.2.0(vite@7.3.3(@types/node@24.12.4)(tsx@4.22.4))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -2015,7 +2015,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.3
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.3(@types/node@24.12.4)(tsx@4.22.3)
+      vite: 7.3.3(@types/node@24.12.4)(tsx@4.22.4)
     transitivePeerDependencies:
       - supports-color
 
@@ -2679,7 +2679,7 @@ snapshots:
 
   tr46@0.0.3: {}
 
-  tsx@4.22.3:
+  tsx@4.22.4:
     dependencies:
       esbuild: 0.28.0
     optionalDependencies:
@@ -2697,7 +2697,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite@7.3.3(@types/node@24.12.4)(tsx@4.22.3):
+  vite@7.3.3(@types/node@24.12.4)(tsx@4.22.4):
     dependencies:
       esbuild: 0.27.7
       fdir: 6.5.0(picomatch@4.0.4)
@@ -2708,7 +2708,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.12.4
       fsevents: 2.3.3
-      tsx: 4.22.3
+      tsx: 4.22.4
 
   webidl-conversions@3.0.1: {}
 
