@@ -5,6 +5,7 @@ import { sandboxesApi } from "./api-client/sandboxes";
 import { settingsApi } from "./api-client/settings";
 import { templatesApi } from "./api-client/templates";
 import { usageApi } from "./api-client/usage";
+import { vaultApi } from "./api-client/vault";
 
 export const api = {
   ...accountApi,
@@ -13,5 +14,6 @@ export const api = {
   ...apiKeysApi,
   ...membersApi,
   ...usageApi,
+  ...vaultApi,
   ...settingsApi
 };

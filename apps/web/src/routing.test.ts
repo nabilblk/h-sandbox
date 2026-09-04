@@ -14,6 +14,10 @@ test("routeFromHash accepts dashboard sandbox detail deep links", () => {
   assert.equal(sandboxDetailIdFromRoute(route), "sbx_1vwJ_6FiQo");
 });
 
+test("routeFromHash accepts dashboard vault route", () => {
+  assert.equal(routeFromHash("#dashboard/vault"), "dashboard/vault");
+});
+
 test("routeFromHash decodes detail ids when read for the detail view", () => {
   const route = routeFromHash("#dashboard/sandboxes/sbx_with%2Fslash");
 

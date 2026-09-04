@@ -85,6 +85,10 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
     metrics: true,
     routes: true,
     egress: true,
+    credentialVault: true,
+    credentialVaultPatch: true,
+    credentialVaultSanitizedRead: true,
+    credentialVaultRequiresRehydration: true,
     pause: true,
     resume: true,
     snapshots: true
@@ -342,6 +346,18 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
 
   patchEgressRules(ref, rules) {
     return openSandbox.patchEgressRules(ref.providerSandboxId, rules);
+  },
+
+  getCredentialVault(ref) {
+    return openSandbox.getCredentialVault(ref.providerSandboxId);
+  },
+
+  applyCredentialVault(input) {
+    return openSandbox.applyCredentialVault(input);
+  },
+
+  deleteCredentialVaultEntries(input) {
+    return openSandbox.deleteCredentialVaultEntries(input);
   }
 };
 

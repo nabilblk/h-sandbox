@@ -1,4 +1,10 @@
-import { defaultEgressPolicyInput, TEMPLATES, type EgressPolicyInput, type Template } from "@harakiri/shared";
+import {
+  defaultEgressPolicyInput,
+  TEMPLATES,
+  type EgressPolicyInput,
+  type Template,
+  type TemplateCredentialSlot
+} from "@harakiri/shared";
 import { query } from "./db.js";
 import { parseImageReference, resolveImageDigest, type ResolvedImageDigest } from "./registry.js";
 
@@ -152,6 +158,7 @@ type TemplateRow = {
   defaultPorts: number[];
   runtimeFamily: string;
   egressPolicy: EgressPolicyInput | null;
+  credentialSlots: TemplateCredentialSlot[] | null;
   latestVersionId: string | null;
   latestBuildId?: string | null;
   latestBuildStatus?: string | null;
@@ -179,6 +186,7 @@ const templateFields = `
   COALESCE(v.workdir, t.workdir) AS workdir,
   COALESCE(v.default_ports, t.default_ports) AS "defaultPorts",
   COALESCE(v.egress_policy, t.egress_policy, $json$${JSON.stringify(defaultEgressPolicyInput)}$json$::jsonb) AS "egressPolicy",
+  COALESCE(v.credential_slots, t.credential_slots, '[]'::jsonb) AS "credentialSlots",
   t.runtime_family AS "runtimeFamily",
   v.id AS "latestVersionId",
   t.created_at AS "createdAt",
@@ -205,6 +213,7 @@ const mapTemplate = (row: TemplateRow): RuntimeTemplate => ({
   defaultPorts: (row.defaultPorts ?? []).map(Number).filter(Number.isInteger),
   runtimeFamily: row.runtimeFamily || "linux",
   egressPolicy: row.egressPolicy ?? defaultEgressPolicyInput,
+  credentialSlots: Array.isArray(row.credentialSlots) ? row.credentialSlots : [],
   latestVersionId: row.latestVersionId,
   templateVersionId: row.latestVersionId,
   latestBuildId: row.latestBuildId ?? null,
@@ -225,7 +234,8 @@ const fallbackTemplate = (templateRef: string): RuntimeTemplate | null => {
     latestVersionId: template.latestVersionId ?? null,
     templateVersionId: template.latestVersionId ?? null,
     ownerScope: template.ownerScope ?? "platform",
-    egressPolicy: template.egressPolicy ?? defaultEgressPolicyInput
+    egressPolicy: template.egressPolicy ?? defaultEgressPolicyInput,
+    credentialSlots: template.credentialSlots ?? []
   };
 };
 

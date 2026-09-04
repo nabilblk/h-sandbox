@@ -13,7 +13,6 @@ const API_URL = process.env.HARAKIRI_API_URL ?? "http://127.0.0.1:18082";
 const CLI_BIN = process.env.HARAKIRI_CLI_BIN ?? "harakiri";
 const KEYCLOAK_USER = process.env.KEYCLOAK_USER ?? "lyra@k.ai";
 const KEYCLOAK_PASSWORD = process.env.KEYCLOAK_PASSWORD ?? "harakiri-dev";
-const SEEDED_API_KEY = process.env.HARAKIRI_API_KEY ?? "hk_live_demo_lyra_labs_0000000000000000000000000000000000";
 
 const routePattern = (route: string) => new RegExp(`#${route.replace("/", "\\/")}$`);
 const keyHeaders = (apiKey: string) => ({ "x-api-key": apiKey });
@@ -148,6 +147,8 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
     await page.screenshot({ path: "/tmp/harakiri-auth-template-tabs.png", fullPage: true });
 
     await page.goto(`${WEB_URL}/#docs`);
+    await expect(page.locator(".docs-body h1")).toContainText("Vision and architecture");
+    await page.locator(".docs-link", { hasText: "Quickstart" }).click();
     await expect(page.locator(".docs-body h1")).toContainText("Quickstart");
     await page.locator(".docs-link", { hasText: "Template builds" }).click();
     await expect(page.locator(".docs-body h1")).toContainText("Template builds");
@@ -224,19 +225,18 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
   }
 });
 
-test("completed users do not return to onboarding after login", async ({ page, request }) => {
+test("completed users do not return to onboarding after login", async ({ page }) => {
   await signIn(page);
-  const complete = await request.post(`${API_URL}/v1/me/onboarding/complete`, { headers: keyHeaders(SEEDED_API_KEY) });
-  expect(complete.ok()).toBeTruthy();
+  await expect(page.getByRole("heading", { name: "Sandboxes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome to Harakiri." })).toHaveCount(0);
   await page.locator(".account-trigger").click();
   await page.getByText("Sign out of Harakiri and Keycloak").click();
   await page.waitForURL(/#landing$/, { timeout: 45_000 });
 
   await page.goto(`${WEB_URL}/#landing`);
   await page.getByRole("button", { name: /Get started/i }).first().click();
-  if (await page.getByRole("heading", { name: "Sign in with Keycloak." }).isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await page.getByRole("button", { name: /Sign in/i }).click();
-  }
+  await expect(page.getByRole("heading", { name: "Sign in with Keycloak." })).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("button", { name: /Sign in/i }).click();
   if (await page.locator('input[name="username"]').isVisible({ timeout: 5_000 }).catch(() => false)) {
     await fillKeycloak(page);
   }

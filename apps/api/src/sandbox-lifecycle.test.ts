@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { SandboxCredentialAttachmentSummary } from "@harakiri/shared";
 import type { RuntimeProvider } from "./providers/runtime/provider.js";
 import { createSandboxSnapshot, deleteSandboxSnapshot, pauseSandbox, resumeSandbox } from "./services/sandbox-lifecycle.js";
 import type { SandboxOperation } from "./services/sandbox-operations.js";
@@ -78,6 +79,7 @@ const lifecycleProvider = (state: {
   resumedRef?: unknown;
   snapshotInput?: unknown;
   deletedSnapshotRef?: unknown;
+  credentialVaultInput?: unknown;
 } = {}): RuntimeProvider => ({
   kind: "fake",
   capabilities: {
@@ -86,6 +88,8 @@ const lifecycleProvider = (state: {
     logs: true,
     metrics: true,
     routes: true,
+    credentialVault: true,
+    credentialVaultPatch: true,
     pause: true,
     resume: true,
     snapshots: true
@@ -135,6 +139,14 @@ const lifecycleProvider = (state: {
   metrics: async () => null,
   exposeRoute: async () => {
     throw new Error("not used");
+  },
+  applyCredentialVault: async (input) => {
+    state.credentialVaultInput = input;
+    return {
+      revision: 7,
+      credentials: input.credentials.map((credential) => ({ name: credential.name, sourceType: "runtime", revision: 7 })),
+      bindings: input.bindings.map((binding) => ({ name: binding.name, revision: 7, auth: { type: binding.auth.type } }))
+    };
   }
 });
 
@@ -204,6 +216,164 @@ test("resumeSandbox is idempotent when a sandbox is already running", async () =
   assert.equal(result.kind, "ok");
   if (result.kind === "ok") assert.equal(result.sandbox.status, "running");
   assert.equal(runtimeState.resumedRef, undefined);
+});
+
+test("resumeSandbox marks credentials stale and rehydrates stored attachments", async () => {
+  const runtimeState: { resumedRef?: unknown; credentialVaultInput?: unknown } = {};
+  let persistedStatus = "paused";
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const events: Array<{ type: string; metadata: Record<string, unknown> }> = [];
+  const audits: Array<{ action: string; metadata: Record<string, unknown> }> = [];
+  const staleAttachments: SandboxCredentialAttachmentSummary[] = [{
+    id: "sca_stored",
+    sandboxId: "sbx_lifecycle",
+    displayName: "OpenAI production",
+    sourceType: "harakiri_encrypted",
+    sourceRef: "vlt_openai",
+    credentialName: "openai-vlt_openai",
+    bindingName: "openai-api-vlt_openai",
+    match: { schemes: ["https"], hosts: ["api.openai.com"], methods: ["GET", "POST"] },
+    auth: { type: "bearer", credential: "openai-vlt_openai" },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    status: "requires_reinjection",
+    provider: "fake",
+    providerRevision: 1,
+    providerMetadata: {},
+    sourceMetadata: {},
+    expiresAt: null,
+    refreshState: "not_applicable",
+    refreshAttemptedAt: null,
+    refreshedAt: null,
+    providerState: "present",
+    providerCheckedAt: "2026-09-02T00:00:00.000Z",
+    lastError: "runtime vault state was reset",
+    injectedAt: "2026-09-02T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_sbx",
+    createdByLabel: "user@test.local",
+    createdAt: "2026-09-02T00:00:00.000Z",
+    updatedAt: "2026-09-02T00:00:00.000Z"
+  }, {
+    id: "sca_inline",
+    sandboxId: "sbx_lifecycle",
+    displayName: "Ephemeral API",
+    sourceType: "inline_ephemeral",
+    sourceRef: null,
+    credentialName: "inline-api",
+    bindingName: "inline-api",
+    match: { schemes: ["https"], hosts: ["api.example.com"] },
+    auth: { type: "apiKey", name: "x-api-key", credential: "inline-api" },
+    fakeEnv: { API_KEY: "fake-key" },
+    status: "requires_reinjection",
+    provider: "fake",
+    providerRevision: 1,
+    providerMetadata: {},
+    sourceMetadata: {},
+    expiresAt: null,
+    refreshState: "not_applicable",
+    refreshAttemptedAt: null,
+    refreshedAt: null,
+    providerState: "present",
+    providerCheckedAt: "2026-09-02T00:00:00.000Z",
+    lastError: "runtime vault state was reset",
+    injectedAt: "2026-09-02T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_sbx",
+    createdByLabel: "user@test.local",
+    createdAt: "2026-09-02T00:00:00.000Z",
+    updatedAt: "2026-09-02T00:00:00.000Z"
+  }];
+  const result = await resumeSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      sandboxId: "sbx_lifecycle"
+    },
+    {
+      runtimeProvider: lifecycleProvider(runtimeState),
+      decryptSecret: () => "stored-real-secret",
+      recordEvent: async (_orgId, _sandboxId, type, _message, metadata) => {
+        events.push({ type, metadata: metadata ?? {} });
+      },
+      recordAudit: async (_orgId, _userId, _actorLabel, action, _resourceType, _resourceId, metadata) => {
+        audits.push({ action, metadata: metadata ?? {} });
+      },
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("FROM sandboxes s")) return { rowCount: 1, rows: [sandboxSummaryRow(persistedStatus)] as never[] };
+        if (text.includes("FROM sandboxes") && text.includes("opensandbox_id AS")) {
+          return { rowCount: 1, rows: [{ id: "sbx_lifecycle", opensandboxId: "provider_sbx", status: persistedStatus, template: "python-3.12-data", templateVersionId: "tplv_python", templateImageDigest: "sha256:abc" }] as never[] };
+        }
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow("resume")] as never[] };
+        if (text.includes("UPDATE sandbox_operations") && text.includes("state = 'running'")) return { rowCount: 1, rows: [operationRow("resume", { state: "running" })] as never[] };
+        if (text.includes("UPDATE sandbox_operations") && text.includes("state = 'succeeded'")) return { rowCount: 1, rows: [operationRow("resume", { state: "succeeded" })] as never[] };
+        if (text.includes("FROM workspace_credential_secrets")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: "vlt_openai",
+              name: "OpenAI production",
+              providerPresetId: "openai",
+              sourceType: "harakiri_encrypted",
+              version: 1,
+              fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+              binding: { name: "openai-api", match: { schemes: ["https"], hosts: ["api.openai.com"] }, auth: { type: "bearer" } },
+              egressDomains: ["api.openai.com"],
+              hasEncryptedSecret: true,
+              metadata: {},
+              createdByUserId: "user_sbx",
+              createdByLabel: "user@test.local",
+              rotatedAt: null,
+              disabledAt: null,
+              deletedAt: null,
+              createdAt: "2026-09-02T00:00:00.000Z",
+              updatedAt: "2026-09-02T00:00:00.000Z",
+              secretCiphertext: "cipher",
+              secretIv: "iv",
+              secretTag: "tag"
+            }] as never[]
+          };
+        }
+        if (text.includes("UPDATE sandbox_credential_attachments") && text.includes("AND status = 'injected'")) {
+          return { rowCount: 2, rows: [{ id: "sca_inline" }, { id: "sca_stored" }] as never[] };
+        }
+        if (text.includes("FROM sandbox_credential_attachments") && text.includes("status = 'requires_reinjection'")) {
+          return { rowCount: staleAttachments.length, rows: staleAttachments as never[] };
+        }
+        if (text.includes("UPDATE sandbox_credential_attachments") && text.includes("status = 'injected'")) {
+          staleAttachments[0] = { ...staleAttachments[0], status: "injected", lastError: null, providerRevision: 7 };
+          return { rowCount: 1, rows: [staleAttachments[0]] as never[] };
+        }
+        if (text.includes("UPDATE sandbox_credential_attachments") && text.includes("status = 'requires_reinjection'")) {
+          staleAttachments[1] = { ...staleAttachments[1], lastError: params?.[3] as string };
+          return { rowCount: 1, rows: [staleAttachments[1]] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes SET status =")) {
+          if (params && params.length > 2) persistedStatus = String(params[2]);
+          return { rowCount: 1, rows: [] as never[] };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "ok");
+  if (result.kind === "ok") assert.equal(result.sandbox.status, "running");
+  assert.deepEqual(runtimeState.resumedRef, { provider: "fake", providerSandboxId: "provider_sbx" });
+  assert.deepEqual((runtimeState.credentialVaultInput as { credentials: unknown[] } | undefined)?.credentials, [
+    { name: "openai-vlt_openai", value: "stored-real-secret" }
+  ]);
+  assert(calls.some((call) =>
+    call.text.includes("UPDATE sandbox_credential_attachments") &&
+    call.text.includes("status = 'requires_reinjection'")
+  ));
+  const lifecycleEvent = events.find((event) => event.type === "resumed");
+  const lifecycleAudit = audits.find((audit) => audit.action === "sandbox.resume");
+  assert.equal(lifecycleEvent?.metadata.credentialsNeedingReinjection, 2);
+  assert.equal(lifecycleEvent?.metadata.credentialsRehydrated, 1);
+  assert.equal(lifecycleEvent?.metadata.credentialsRehydrateSkipped, 1);
+  assert.equal(lifecycleAudit?.metadata.credentialsRehydrated, 1);
 });
 
 test("createSandboxSnapshot persists Harakiri and provider snapshot ids", async () => {

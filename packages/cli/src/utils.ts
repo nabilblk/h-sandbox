@@ -40,6 +40,12 @@ export const parsePositiveInt = (value: string) => {
   return parsed;
 };
 
+export const parseNonNegativeInt = (value: string) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error("expected a non-negative integer");
+  return parsed;
+};
+
 export const parsePort = (value: string) => {
   const port = Number(value);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be an integer from 1 to 65535");

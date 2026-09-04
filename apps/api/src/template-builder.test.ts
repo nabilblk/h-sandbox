@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { createServer, type IncomingMessage } from "node:http";
 import test from "node:test";
+import { templateCredentialSlotFromInput } from "@harakiri/shared";
 import {
   preflightTemplateImagePull,
   prepullTemplateImage,
   runtimePullPreflightState,
   scanTemplateImage,
+  snapshotTemplateCredentialSlots,
   templateShouldPrepull
 } from "./template-builder.js";
 
@@ -45,6 +47,18 @@ const scanInput = {
   imageDigest: "sha256:abc",
   provenance: { builder: "buildkit" }
 };
+
+test("template versions snapshot credential slots without copying unexpected value fields", () => {
+  const source = templateCredentialSlotFromInput({ providerPresetId: "openai" }) as ReturnType<typeof templateCredentialSlotFromInput> & { value?: string };
+  source.value = "must-not-enter-template-version";
+
+  const snapshot = snapshotTemplateCredentialSlots([source]);
+  source.binding.match.hosts[0] = "mutated.example.com";
+
+  assert.equal(snapshot[0]?.binding.match.hosts[0], "api.openai.com");
+  assert.equal("value" in (snapshot[0] ?? {}), false);
+  assert.equal(JSON.stringify(snapshot).includes("must-not-enter-template-version"), false);
+});
 
 test("scanTemplateImage returns not_scanned when no scanner webhook is configured", async () => {
   const result = await scanTemplateImage(scanInput, { webhookUrl: "" });

@@ -16,6 +16,8 @@ import {
   HarakiriTimeoutApiError,
   HarakiriUnsupportedCapabilityError,
   HarakiriWaitTimeoutError,
+  credentialProviderPresetCatalog,
+  credentialFromPreset,
   createRouteFetch,
   redactGitSecrets,
   routeAccessHeaders,
@@ -161,11 +163,13 @@ test("HarakiriClient classifies API errors for integrators", async () => {
   const responses = [
     { status: 401, body: { error: "api_key_invalid" }, expected: HarakiriAuthenticationError, retryable: false },
     { status: 409, body: { error: "sandbox_not_running" }, expected: HarakiriConflictError, retryable: false },
+    { status: 409, body: { error: "credential_vault_egress_conflict" }, expected: HarakiriConflictError, retryable: false },
     { status: 429, body: { error: "sandbox_route_limit_exceeded" }, expected: HarakiriRateLimitError, retryable: true },
     { status: 501, body: { error: "runtime_command_unsupported" }, expected: HarakiriUnsupportedCapabilityError, retryable: false },
     { status: 501, body: { error: "runtime_file_operation_unsupported" }, expected: HarakiriUnsupportedCapabilityError, retryable: false },
     { status: 408, body: { error: "sandbox_command_timeout" }, expected: HarakiriTimeoutApiError, retryable: true },
-    { status: 502, body: { error: "egress_provider_unavailable" }, expected: HarakiriProviderUnavailableError, retryable: true }
+    { status: 502, body: { error: "egress_provider_unavailable" }, expected: HarakiriProviderUnavailableError, retryable: true },
+    { status: 502, body: { error: "dynamic_credential_issuer_unavailable" }, expected: HarakiriProviderUnavailableError, retryable: true }
   ];
   for (const response of responses) {
     const client = new HarakiriClient({
@@ -231,6 +235,248 @@ test("HarakiriClient forwards sandbox async create options", async () => {
     wait: false,
     idempotencyKey: "idem_1"
   });
+});
+
+test("HarakiriClient sends create-time sandbox credentials", async () => {
+  const calls: Array<{ url: string; body: string | null }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ url: String(url), body: String(init?.body ?? "") });
+      return Response.json({
+        sandbox: sandboxSummary({ id: "sbx_vault", status: "running" }),
+        credentialAttachments: [{
+          id: "sca_1",
+          sandboxId: "sbx_vault",
+          displayName: "OpenAI",
+          sourceType: "inline_ephemeral",
+          sourceRef: null,
+          credentialName: "cred_openai",
+          bindingName: "openai-api",
+          match: { hosts: ["api.openai.com"] },
+          auth: { type: "bearer" },
+          fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+          status: "injected",
+          provider: "opensandbox",
+          providerRevision: 1,
+          providerMetadata: {},
+          lastError: null,
+          injectedAt: "2026-09-03T12:00:00.000Z",
+          detachedAt: null,
+          createdByUserId: "user_test",
+          createdByLabel: "test@example.com",
+          createdAt: "2026-09-03T12:00:00.000Z",
+          updatedAt: "2026-09-03T12:00:00.000Z"
+        }]
+      });
+    }
+  });
+
+  const result = await client.createSandbox({
+    template: "python-3.12-data",
+    credentials: [{
+      displayName: "OpenAI",
+      credentialName: "cred_openai",
+      value: "real-secret",
+      fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+      binding: {
+        name: "openai-api",
+        match: { hosts: ["api.openai.com"], methods: ["GET", "POST"], paths: ["/v1/*"] },
+        auth: { type: "bearer" }
+      }
+    }]
+  });
+
+  assert.equal(result.credentialAttachments?.[0]?.status, "injected");
+  assert.equal(JSON.stringify(result).includes("real-secret"), false);
+  assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    template: "python-3.12-data",
+    ttlSeconds: 300,
+    credentials: [{
+      displayName: "OpenAI",
+      credentialName: "cred_openai",
+      value: "real-secret",
+      fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+      binding: {
+        name: "openai-api",
+        match: { hosts: ["api.openai.com"], methods: ["GET", "POST"], paths: ["/v1/*"] },
+        auth: { type: "bearer" }
+      }
+    }]
+  });
+});
+
+test("HarakiriClient sends create-time stored credential references", async () => {
+  const calls: Array<{ url: string; body: string | null }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ url: String(url), body: String(init?.body ?? "") });
+      return Response.json({
+        sandbox: sandboxSummary({ id: "sbx_stored_vault", status: "running" }),
+        credentialAttachments: [{
+          id: "sca_1",
+          sandboxId: "sbx_stored_vault",
+          displayName: "OpenAI production",
+          sourceType: "harakiri_encrypted",
+          sourceRef: "vlt_openai",
+          credentialName: "openai-vlt_openai",
+          bindingName: "openai-api-vlt_openai",
+          match: { hosts: ["api.openai.com"] },
+          auth: { type: "bearer" },
+          fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+          status: "injected",
+          provider: "opensandbox",
+          providerRevision: 1,
+          providerMetadata: {},
+          lastError: null,
+          injectedAt: "2026-09-03T12:00:00.000Z",
+          detachedAt: null,
+          createdByUserId: "user_test",
+          createdByLabel: "test@example.com",
+          createdAt: "2026-09-03T12:00:00.000Z",
+          updatedAt: "2026-09-03T12:00:00.000Z"
+        }]
+      });
+    }
+  });
+
+  const result = await client.createSandbox({
+    template: "open-agents-dev",
+    credentials: [{
+      sourceType: "harakiri_encrypted",
+      secretId: "vlt_openai",
+      displayName: "OpenAI production"
+    }]
+  });
+
+  assert.equal(result.credentialAttachments?.[0]?.sourceType, "harakiri_encrypted");
+  assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    template: "open-agents-dev",
+    ttlSeconds: 300,
+    credentials: [{
+      sourceType: "harakiri_encrypted",
+      secretId: "vlt_openai",
+      displayName: "OpenAI production"
+    }]
+  });
+});
+
+test("HarakiriClient sends template slot credential mappings", async () => {
+  const calls: Array<{ url: string; body: string | null }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ url: String(url), body: String(init?.body ?? "") });
+      return Response.json({
+        sandbox: sandboxSummary({ id: "sbx_slot_vault", status: "running" }),
+        credentialAttachments: []
+      });
+    }
+  });
+
+  await client.createSandbox({
+    template: "open-agents-dev",
+    credentialMappings: [{
+      slotId: "llm",
+      source: {
+        sourceType: "harakiri_encrypted",
+        secretId: "vlt_openai",
+        displayName: "OpenAI production"
+      }
+    }]
+  });
+
+  assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    template: "open-agents-dev",
+    ttlSeconds: 300,
+    credentialMappings: [{
+      slotId: "llm",
+      source: {
+        sourceType: "harakiri_encrypted",
+        secretId: "vlt_openai",
+        displayName: "OpenAI production"
+      }
+    }]
+  });
+});
+
+test("HarakiriClient rejects async create-time credentials before request", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async () => {
+      throw new Error("fetch should not be called");
+    }
+  });
+
+  await assert.rejects(
+    () => client.createSandbox({
+      template: "python-3.12-data",
+      wait: false,
+      credentials: [{
+        value: "real-secret",
+        binding: {
+          match: { hosts: ["api.openai.com"] },
+          auth: { type: "bearer" }
+        }
+      }]
+    }),
+    /Create-time credentials require sandbox readiness/
+  );
+});
+
+test("HarakiriClient rejects async create-time credential mappings before request", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async () => {
+      throw new Error("fetch should not be called");
+    }
+  });
+
+  await assert.rejects(
+    () => client.createSandbox({
+      template: "open-agents-dev",
+      wait: false,
+      credentialMappings: [{
+        providerPresetId: "openai",
+        source: {
+          sourceType: "harakiri_encrypted",
+          secretId: "vlt_openai"
+        }
+      }]
+    }),
+    /Create-time credentials require sandbox readiness/
+  );
+});
+
+test("HarakiriClient rejects timed create-time credentials before request", async () => {
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async () => {
+      throw new Error("fetch should not be called");
+    }
+  });
+
+  await assert.rejects(
+    () => client.createSandbox({
+      template: "python-3.12-data",
+      waitTimeoutMs: 1_000,
+      credentials: [{
+        value: "real-secret",
+        binding: {
+          match: { hosts: ["api.openai.com"] },
+          auth: { type: "bearer" }
+        }
+      }]
+    }),
+    /cannot use waitTimeoutMs/
+  );
 });
 
 test("HarakiriClient can create a sandbox from a snapshot without a template default", async () => {
@@ -1500,6 +1746,495 @@ test("HarakiriClient exposes developer-facing outbound access aliases", async ()
   ]);
   assert.deepEqual(JSON.parse(calls[2].body ?? "{}"), { allow: ["api.github.com"] });
   assert.deepEqual(JSON.parse(calls[5].body ?? "{}"), { target: "https://api.github.com" });
+});
+
+test("HarakiriClient exposes Credential Vault helpers", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const attachment = {
+    id: "sca_1",
+    sandboxId: "sbx_test",
+    displayName: "openai",
+    sourceType: "inline_ephemeral",
+    sourceRef: null,
+    credentialName: "cred_openai",
+    bindingName: "bind_openai",
+    match: { schemes: ["https"], hosts: ["api.openai.com"], methods: ["GET", "POST"] },
+    auth: { type: "apiKey", name: "authorization" },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 1,
+    providerState: "present",
+    providerCheckedAt: "2026-09-03T00:00:00.000Z",
+    providerMetadata: {},
+    sourceMetadata: {},
+    expiresAt: null,
+    refreshState: "not_applicable",
+    refreshAttemptedAt: null,
+    refreshedAt: null,
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      const path = String(url);
+      if (path.endsWith("/credentials/sca_1/test")) {
+        return Response.json({
+          attachmentId: "sca_1",
+          target: "https://api.openai.com/v1/models",
+          normalizedTarget: "api.openai.com",
+          url: "https://api.openai.com/v1/models",
+          method: "GET",
+          ok: true,
+          status: "reachable",
+          httpStatus: 200,
+          stdout: "http_status=200\n",
+          stderr: "",
+          durationMs: 24,
+          checkedAt: "2026-09-03T00:00:00.000Z"
+        });
+      }
+      if (path.endsWith("/credentials/rehydrate")) {
+        return Response.json({ attachments: [attachment], vault: null, rehydrated: 0, skipped: 1, failed: 0 });
+      }
+      if (path.endsWith("/credentials/inspect")) {
+        return Response.json({ attachments: [attachment], vault: { revision: 1, credentials: [], bindings: [] } });
+      }
+      if (init?.method === "POST") return Response.json({ attachment, vault: { revision: 1, credentials: [], bindings: [] } });
+      if (init?.method === "DELETE") return Response.json({ attachment: { ...attachment, status: "detached" }, vault: null });
+      return Response.json({ attachments: [attachment] });
+    }
+  });
+
+  await client.listCredentials("sbx_test");
+  await client.credentials.inspect("sbx_test");
+  await client.credentials.attach("sbx_test", {
+    displayName: "openai",
+    value: "sk_real",
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: {
+      name: "bind_openai",
+      match: { schemes: ["https"], hosts: ["api.openai.com"], methods: ["GET", "POST"] },
+      auth: { type: "apiKey", name: "authorization" }
+    }
+  });
+  await client.credentials.attachSecret("sbx_test", "vlt_openai", { bindingName: "openai-prod" });
+  await client.credentials.attachReference("sbx_test", "xsr_openai", { bindingName: "openai-cluster" });
+  await client.credentials.rehydrate("sbx_test");
+  await client.detachSandboxCredential("sbx_test", "sca_1");
+  const sandbox = client.sandboxes.wrap(sandboxSummary({ id: "sbx_test" }));
+  await sandbox.credentials.list();
+  await sandbox.credentials.inspect();
+  await sandbox.credentials.attachSecret("vlt_openai");
+  await sandbox.credentials.attachReference("xsr_openai");
+  await sandbox.credentials.rehydrate();
+  const testResult = await sandbox.credentials.test("sca_1", { target: "https://api.openai.com/v1/models" });
+  await sandbox.credentials.testAccess("sca_1");
+
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/inspect"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/rehydrate"],
+    ["DELETE", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/sca_1"],
+    ["GET", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/inspect"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/rehydrate"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/sca_1/test"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/sca_1/test"]
+  ]);
+  assert.equal(JSON.parse(calls[2].body ?? "{}").value, "sk_real");
+  assert.deepEqual(JSON.parse(calls[2].body ?? "{}").binding.auth, { type: "apiKey", name: "authorization" });
+  assert.deepEqual(JSON.parse(calls[3].body ?? "{}"), {
+    sourceType: "harakiri_encrypted",
+    secretId: "vlt_openai",
+    bindingName: "openai-prod"
+  });
+  assert.deepEqual(JSON.parse(calls[4].body ?? "{}"), {
+    sourceType: "external_ref",
+    referenceId: "xsr_openai",
+    bindingName: "openai-cluster"
+  });
+  assert.deepEqual(JSON.parse(calls[9].body ?? "{}"), {
+    sourceType: "harakiri_encrypted",
+    secretId: "vlt_openai"
+  });
+  assert.deepEqual(JSON.parse(calls[10].body ?? "{}"), {
+    sourceType: "external_ref",
+    referenceId: "xsr_openai"
+  });
+  assert.deepEqual(JSON.parse(calls[12].body ?? "{}"), { target: "https://api.openai.com/v1/models" });
+  assert.deepEqual(JSON.parse(calls[13].body ?? "{}"), {});
+  assert.equal(testResult.status, "reachable");
+});
+
+test("HarakiriClient exposes credential provider preset helpers", async () => {
+  const calls: Array<{ method: string; url: string }> = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url) });
+      const path = String(url);
+      if (path.endsWith("/v1/credential-presets/openai")) return Response.json({ preset: credentialProviderPresetCatalog.openai });
+      return Response.json({ presets: [credentialProviderPresetCatalog.openai] });
+    }
+  });
+
+  const presets = await client.credentialPresets.list();
+  const openai = await client.getCredentialPreset("openai");
+
+  assert.equal(presets.presets[0].id, "openai");
+  assert.equal(openai.preset.binding.auth.type, "bearer");
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["GET", "http://harakiri.local/v1/credential-presets"],
+    ["GET", "http://harakiri.local/v1/credential-presets/openai"]
+  ]);
+});
+
+test("credentialFromPreset builds a write-only attachment without mutating catalog data", () => {
+  const originalName = credentialProviderPresetCatalog.anthropic.binding.name;
+  const credential = credentialFromPreset("anthropic", "sk-ant-test", {
+    displayName: "Anthropic staging",
+    bindingName: "anthropic-staging"
+  });
+
+  assert.deepEqual(credential, {
+    sourceType: "inline_ephemeral",
+    displayName: "Anthropic staging",
+    credentialName: "anthropic",
+    value: "sk-ant-test",
+    fakeEnv: { ANTHROPIC_API_KEY: "fake-anthropic-key" },
+    binding: {
+      ...credentialProviderPresetCatalog.anthropic.binding,
+      name: "anthropic-staging"
+    }
+  });
+  credential.binding.name = "changed";
+  assert.equal(credentialProviderPresetCatalog.anthropic.binding.name, originalName);
+  assert.throws(() => credentialFromPreset("github", ""), /credential value is required/);
+});
+
+test("HarakiriClient exposes workspace credential secret helpers", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const secret = {
+    id: "vlt_openai",
+    name: "openai-prod",
+    providerPresetId: "openai",
+    sourceType: "harakiri_encrypted",
+    status: "active",
+    version: 1,
+    usePolicy: "admins_only",
+    usage: {
+      activeSandboxCount: 0,
+      attachmentCount: 0,
+      lastAttachedAt: null
+    },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    hasEncryptedSecret: true,
+    metadata: {},
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    rotatedAt: null,
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      if (String(url).endsWith("/credential-secrets?includeDeleted=1")) return Response.json({ secrets: [secret] });
+      if (init?.method === "PATCH") {
+        return Response.json({ secret: { ...secret, usePolicy: "organization_members" } });
+      }
+      if (String(url).endsWith("/rotate")) return Response.json({ secret: { ...secret, version: 2 } });
+      if (String(url).endsWith("/disable")) return Response.json({ secret: { ...secret, status: "disabled" } });
+      if (String(url).endsWith("/enable")) return Response.json({ secret });
+      if (init?.method === "DELETE") return Response.json({ secret: { ...secret, status: "deleted", hasEncryptedSecret: false } });
+      return Response.json({ secret });
+    }
+  });
+
+  const listed = await client.credentialSecrets.list({ includeDeleted: true });
+  const created = await client.credentialSecrets.create({ name: "openai-prod", providerPresetId: "openai", value: "real-secret" });
+  await client.getCredentialSecret("vlt_openai");
+  const shared = await client.credentialSecrets.update("vlt_openai", { usePolicy: "organization_members" });
+  const rotated = await client.rotateCredentialSecret("vlt_openai", { value: "new-secret" });
+  await client.credentialSecrets.disable("vlt_openai");
+  await client.credentialSecrets.enable("vlt_openai");
+  await client.credentialSecrets.delete("vlt_openai");
+
+  assert.equal(listed.secrets[0]?.id, "vlt_openai");
+  assert.equal(created.secret.hasEncryptedSecret, true);
+  assert.equal(shared.secret.usePolicy, "organization_members");
+  assert.equal(rotated.secret.version, 2);
+  assert.equal(JSON.stringify(created).includes("real-secret"), false);
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["GET", "http://harakiri.local/v1/credential-secrets?includeDeleted=1"],
+    ["POST", "http://harakiri.local/v1/credential-secrets"],
+    ["GET", "http://harakiri.local/v1/credential-secrets/vlt_openai"],
+    ["PATCH", "http://harakiri.local/v1/credential-secrets/vlt_openai"],
+    ["POST", "http://harakiri.local/v1/credential-secrets/vlt_openai/rotate"],
+    ["POST", "http://harakiri.local/v1/credential-secrets/vlt_openai/disable"],
+    ["POST", "http://harakiri.local/v1/credential-secrets/vlt_openai/enable"],
+    ["DELETE", "http://harakiri.local/v1/credential-secrets/vlt_openai"]
+  ]);
+  assert.equal(JSON.parse(calls[1].body ?? "{}").value, "real-secret");
+  assert.deepEqual(JSON.parse(calls[3].body ?? "{}"), { usePolicy: "organization_members" });
+  assert.equal(JSON.parse(calls[4].body ?? "{}").value, "new-secret");
+});
+
+test("HarakiriClient exposes external secret reference helpers", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const reference = {
+    id: "xsr_openai",
+    name: "OpenAI from cluster",
+    providerPresetId: "openai",
+    sourceType: "external_ref",
+    resolverType: "kubernetes_secret",
+    reference: { namespace: "harakiri", name: "agent-credentials", key: "OPENAI_API_KEY" },
+    status: "active",
+    usePolicy: "admins_only",
+    version: 1,
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    metadata: {},
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    validation: { state: "unvalidated", message: null, versionRef: null, checkedAt: null },
+    usage: { activeSandboxCount: 0, attachmentCount: 0, lastAttachedAt: null },
+    capabilities: {
+      reusable: true,
+      rehydratable: true,
+      rotatable: false,
+      externallyOwned: true,
+      shortLived: false,
+      launchOnly: false
+    }
+  };
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      if (String(url).endsWith("?includeDeleted=1")) return Response.json({ references: [reference] });
+      return Response.json({ reference });
+    }
+  });
+
+  await client.externalSecretReferences.list({ includeDeleted: true });
+  await client.externalSecretReferences.get(reference.id);
+  await client.externalSecretReferences.create({
+    name: reference.name,
+    providerPresetId: "openai",
+    resolverType: "kubernetes_secret",
+    reference: reference.reference
+  });
+  await client.externalSecretReferences.update(reference.id, { usePolicy: "organization_members" });
+  await client.externalSecretReferences.validate(reference.id);
+  await client.externalSecretReferences.disable(reference.id);
+  await client.externalSecretReferences.enable(reference.id);
+  const deleted = await client.externalSecretReferences.delete(reference.id);
+
+  assert.equal(deleted.reference.id, reference.id);
+  assert.equal(JSON.stringify(deleted).includes("real-secret"), false);
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["GET", "http://harakiri.local/v1/external-secret-references?includeDeleted=1"],
+    ["GET", "http://harakiri.local/v1/external-secret-references/xsr_openai"],
+    ["POST", "http://harakiri.local/v1/external-secret-references"],
+    ["PATCH", "http://harakiri.local/v1/external-secret-references/xsr_openai"],
+    ["POST", "http://harakiri.local/v1/external-secret-references/xsr_openai/validate"],
+    ["POST", "http://harakiri.local/v1/external-secret-references/xsr_openai/disable"],
+    ["POST", "http://harakiri.local/v1/external-secret-references/xsr_openai/enable"],
+    ["DELETE", "http://harakiri.local/v1/external-secret-references/xsr_openai"]
+  ]);
+  assert.equal(JSON.parse(calls[2].body ?? "{}").reference.name, "agent-credentials");
+  assert.deepEqual(JSON.parse(calls[3].body ?? "{}"), { usePolicy: "organization_members" });
+});
+
+test("HarakiriClient exposes dynamic credential issuer and attachment helpers", async () => {
+  const calls: Array<{ method: string; url: string; body: string | null }> = [];
+  const issuer = {
+    id: "dci_github",
+    name: "Agent repositories",
+    providerPresetId: "github",
+    sourceType: "dynamic",
+    issuerType: "github_app_installation",
+    scope: {
+      installationId: "321",
+      repositories: ["agent-runtime"],
+      permissions: { contents: "write", metadata: "read" }
+    },
+    status: "active",
+    usePolicy: "organization_members",
+    version: 1,
+    fakeEnv: { GITHUB_TOKEN: "fake-github-token" },
+    binding: credentialProviderPresetCatalog.github.binding,
+    egressDomains: credentialProviderPresetCatalog.github.egressDomains,
+    metadata: {},
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    lastIssuedAt: null,
+    validation: { state: "unvalidated", message: null, checkedAt: null },
+    usage: { activeSandboxCount: 0, attachmentCount: 0, lastAttachedAt: null },
+    capabilities: {
+      reusable: true,
+      rehydratable: true,
+      rotatable: false,
+      externallyOwned: true,
+      shortLived: true,
+      launchOnly: false
+    }
+  };
+  const attachment = {
+    id: "sca_dynamic",
+    sandboxId: "sbx_test",
+    displayName: issuer.name,
+    sourceType: "dynamic",
+    sourceRef: issuer.id,
+    credentialName: "github",
+    bindingName: "github-api",
+    match: credentialProviderPresetCatalog.github.binding.match,
+    auth: credentialProviderPresetCatalog.github.binding.auth,
+    fakeEnv: issuer.fakeEnv,
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 2,
+    providerMetadata: {},
+    sourceMetadata: { installationId: "321", repositories: ["agent-runtime"] },
+    expiresAt: "2026-09-03T13:00:00.000Z",
+    refreshState: "current",
+    refreshAttemptedAt: "2026-09-03T12:00:00.000Z",
+    refreshedAt: "2026-09-03T12:00:00.000Z",
+    lastError: null,
+    injectedAt: "2026-09-03T12:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_sdk",
+    createdByLabel: "sdk@test.local",
+    createdAt: "2026-09-03T12:00:00.000Z",
+    updatedAt: "2026-09-03T12:00:00.000Z"
+  };
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url, init) => {
+      calls.push({ method: init?.method ?? "GET", url: String(url), body: String(init?.body ?? "") });
+      if (String(url).includes("/sandboxes/")) {
+        return Response.json({ attachment, vault: { revision: 2, credentials: [], bindings: [] } });
+      }
+      if (String(url).endsWith("?includeDeleted=1")) return Response.json({ issuers: [issuer] });
+      return Response.json({ issuer });
+    }
+  });
+
+  await client.dynamicCredentialIssuers.list({ includeDeleted: true });
+  await client.dynamicCredentialIssuers.get(issuer.id);
+  await client.dynamicCredentialIssuers.create({
+    name: issuer.name,
+    issuerType: "github_app_installation",
+    scope: issuer.scope
+  });
+  await client.dynamicCredentialIssuers.update(issuer.id, { usePolicy: "admins_only" });
+  await client.dynamicCredentialIssuers.validate(issuer.id);
+  await client.dynamicCredentialIssuers.disable(issuer.id);
+  await client.dynamicCredentialIssuers.enable(issuer.id);
+  await client.dynamicCredentialIssuers.delete(issuer.id);
+  await client.credentials.attachIssuer("sbx_test", issuer.id, { displayName: "GitHub JIT" });
+  await client.credentials.refresh("sbx_test", attachment.id);
+  const sandbox = client.sandboxes.wrap(sandboxSummary({ id: "sbx_test" }));
+  const attached = await sandbox.credentials.attachIssuer(issuer.id);
+  await sandbox.credentials.refresh(attachment.id);
+
+  assert.equal(attached.attachment.expiresAt, "2026-09-03T13:00:00.000Z");
+  assert.equal(JSON.stringify(attached).includes("ghs_"), false);
+  assert.deepEqual(calls.map((call) => [call.method, call.url]), [
+    ["GET", "http://harakiri.local/v1/dynamic-credential-issuers?includeDeleted=1"],
+    ["GET", "http://harakiri.local/v1/dynamic-credential-issuers/dci_github"],
+    ["POST", "http://harakiri.local/v1/dynamic-credential-issuers"],
+    ["PATCH", "http://harakiri.local/v1/dynamic-credential-issuers/dci_github"],
+    ["POST", "http://harakiri.local/v1/dynamic-credential-issuers/dci_github/validate"],
+    ["POST", "http://harakiri.local/v1/dynamic-credential-issuers/dci_github/disable"],
+    ["POST", "http://harakiri.local/v1/dynamic-credential-issuers/dci_github/enable"],
+    ["DELETE", "http://harakiri.local/v1/dynamic-credential-issuers/dci_github"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/sca_dynamic/refresh"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials"],
+    ["POST", "http://harakiri.local/v1/sandboxes/sbx_test/credentials/sca_dynamic/refresh"]
+  ]);
+  assert.deepEqual(JSON.parse(calls[8].body ?? "{}"), {
+    displayName: "GitHub JIT",
+    sourceType: "dynamic",
+    issuerId: "dci_github"
+  });
+  assert.equal(calls[9].body, "");
+  assert.deepEqual(JSON.parse(calls[10].body ?? "{}"), {
+    sourceType: "dynamic",
+    issuerId: "dci_github"
+  });
+  assert.equal(calls[11].body, "");
+});
+
+test("HarakiriClient exposes filtered audit event helpers", async () => {
+  const calls: string[] = [];
+  const client = new HarakiriClient({
+    apiUrl: "http://harakiri.local",
+    apiKey: "hk_live_test",
+    fetch: async (url) => {
+      calls.push(String(url));
+      return Response.json({
+        events: [{
+          id: "audit_1",
+          actorUserId: "user_sdk",
+          actorLabel: "sdk@test.local",
+          action: "sandbox_credential.attached",
+          targetType: "sandbox",
+          targetId: "sbx_test",
+          metadata: { sourceType: "dynamic" },
+          createdAt: "2026-09-04T10:00:00.000Z"
+        }],
+        page: { total: 1, limit: 20, offset: 0 }
+      });
+    }
+  });
+
+  const result = await client.auditEvents.list({
+    targetType: "sandbox",
+    targetId: "sbx_test",
+    actionPrefix: "sandbox_credential.",
+    limit: 20,
+    offset: 0
+  });
+
+  assert.equal(result.events[0]?.id, "audit_1");
+  assert.deepEqual(calls, [
+    "http://harakiri.local/v1/audit-events?targetType=sandbox&targetId=sbx_test&actionPrefix=sandbox_credential.&limit=20&offset=0"
+  ]);
 });
 
 test("HarakiriClient exposes registry credential helpers", async () => {

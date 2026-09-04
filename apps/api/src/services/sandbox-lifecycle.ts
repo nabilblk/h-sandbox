@@ -15,6 +15,8 @@ import type {
   RuntimeSandboxSummary,
   RuntimeSnapshotSummary
 } from "../providers/runtime/provider.js";
+import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
+import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
 import { getSandbox } from "./sandboxes.js";
 import {
   claimSandboxOperationById,
@@ -31,8 +33,14 @@ import {
   sandboxSnapshotSelect,
   type SandboxSnapshotRow
 } from "./sandbox-snapshots.js";
+import {
+  markSandboxCredentialsRequireReinjection,
+  rehydrateSandboxCredentials,
+  type RehydrateSandboxCredentialsResult
+} from "./credential-vault.js";
 import type { Query } from "./query.js";
 import type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
+import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-secrets.js";
 
 type LifecycleDependencies = {
   query?: Query;
@@ -40,6 +48,9 @@ type LifecycleDependencies = {
   recordEvent: SandboxEventRecorder;
   recordAudit: Audit;
   idFactory?: typeof makeId;
+  decryptSecret?: DecryptWorkspaceCredentialSecret;
+  externalSecretResolvers?: ExternalSecretResolverRegistry;
+  dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
 };
 
 type SnapshotDependencies = LifecycleDependencies;
@@ -280,10 +291,49 @@ const completeLifecycleChange = async (
     "UPDATE sandboxes SET status = $3, last_active_at = now(), updated_at = now() WHERE id = $1 AND organization_id = $2",
     [input.sandboxId, input.organizationId, status]
   );
+  const credentialsNeedingReinjection = spec.kind === "resume"
+    ? await markSandboxCredentialsRequireReinjection(input, query)
+    : 0;
+  const credentialRehydration = credentialsNeedingReinjection
+    ? await rehydrateSandboxCredentials(
+      {
+        organizationId: input.organizationId,
+        sandboxId: input.sandboxId,
+        actorUserId: input.userId,
+        actorLabel: input.actorLabel
+      },
+      {
+        query,
+        runtimeProvider: dependencies.runtimeProvider,
+        recordEvent: dependencies.recordEvent,
+        recordAudit: dependencies.recordAudit,
+        decryptSecret: dependencies.decryptSecret,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
+    )
+    : null;
   const completed = await completeSandboxLifecycleOperation(operation, query, provider);
-  await recordLifecycleChange(input, dependencies, spec, status, provider, operation);
+  await recordLifecycleChange(input, dependencies, spec, status, provider, operation, credentialMetadata(credentialsNeedingReinjection, credentialRehydration));
   const sandbox = await getSandbox(input, { query, runtimeProvider: dependencies.runtimeProvider });
   return sandbox ? { kind: "ok", sandbox, operation: completed } : { kind: "sandbox_not_found" };
+};
+
+const credentialMetadata = (
+  marked: number,
+  rehydration: RehydrateSandboxCredentialsResult | null
+): Record<string, unknown> => {
+  if (!marked) return {};
+  if (!rehydration) return { credentialsNeedingReinjection: marked };
+  if (rehydration.kind !== "ok") {
+    return { credentialsNeedingReinjection: marked, credentialRehydrationStatus: rehydration.kind };
+  }
+  return {
+    credentialsNeedingReinjection: marked,
+    credentialsRehydrated: rehydration.rehydrated,
+    credentialsRehydrateSkipped: rehydration.skipped,
+    credentialsRehydrateFailed: rehydration.failed
+  };
 };
 
 const recordLifecycleChange = async (
@@ -292,15 +342,19 @@ const recordLifecycleChange = async (
   spec: LifecycleSpec,
   status: SandboxStatus,
   provider: RuntimeSandboxSummary,
-  operation: SandboxOperation
+  operation: SandboxOperation,
+  credentialState: Record<string, unknown>
 ) => {
-  await dependencies.recordEvent(input.organizationId, input.sandboxId, spec.eventType(status), `sandbox ${status}`, {
+  const metadata = {
     operationId: operation.id,
     provider: provider.provider,
-    providerSandboxId: provider.providerSandboxId
-  });
+    providerSandboxId: provider.providerSandboxId,
+    ...credentialState
+  };
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, spec.eventType(status), `sandbox ${status}`, metadata);
   await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, spec.auditAction, "sandbox", input.sandboxId, {
-    operationId: operation.id
+    operationId: operation.id,
+    ...credentialState
   });
 };
 

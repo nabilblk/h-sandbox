@@ -118,6 +118,26 @@ const ArchitectureDiagram = () => (
   </svg>
 );
 
+const TutorialScenario = ({ number, title, meta, children }: { number: string; title: string; meta: string; children: React.ReactNode }) => (
+  <section className="tutorial-scenario">
+    <div className="tutorial-scenario-head">
+      <span className="tutorial-number">{number}</span>
+      <div>
+        <h2>{title}</h2>
+        <span className="tutorial-meta">{meta}</span>
+      </div>
+    </div>
+    {children}
+  </section>
+);
+
+const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
+  <div className="tutorial-check">
+    <b>Verification</b>
+    <p>{children}</p>
+  </div>
+);
+
 export const docPages: DocPage[] = [
   {
     id: "vision-architecture",
@@ -224,6 +244,218 @@ const sandbox = await harakiri.sandboxes.create({
     )
   },
   {
+    id: "hands-on-tutorials",
+    section: "Tutorials",
+    title: "Hands-on tutorials",
+    lede: "Run complete sandbox workflows with observable checks: execute a data job, publish a private preview, constrain egress, work with Git, restore a snapshot, and integrate the SDK.",
+    toc: ["Before you start", "Data job", "Private preview", "Restricted egress", "Git workspace", "Snapshot restore", "SDK worker", "Troubleshooting"],
+    body: (
+      <div className="tutorial-doc">
+        <div className="tutorial-map" aria-label="Tutorial scenarios">
+          <div><span>01</span><b>Data job</b><small>files + commands</small></div>
+          <div><span>02</span><b>Private preview</b><small>process + route</small></div>
+          <div><span>03</span><b>Restricted egress</b><small>policy + diagnostics</small></div>
+          <div><span>04</span><b>Git workspace</b><small>clone + commit</small></div>
+          <div><span>05</span><b>Snapshot restore</b><small>pause + persistence</small></div>
+          <div><span>06</span><b>SDK worker</b><small>application integration</small></div>
+        </div>
+
+        <h2>Before you start</h2>
+        <p>Install the public CLI, create an API key in the dashboard, and point the CLI at your deployment. The examples use <code>jq</code> where a generated route or snapshot ID must be read from JSON.</p>
+        <pre>{`npm install -g @h-sandbox/cli
+
+export HARAKIRI_API_URL=https://sb-api.harakiri.io
+export HARAKIRI_API_KEY=hk_live_...
+
+harakiri login \\
+  --api-url "$HARAKIRI_API_URL" \\
+  --api-key "$HARAKIRI_API_KEY"
+harakiri capabilities`}</pre>
+        <div className="tutorial-note"><b>Cleanup contract</b><p>Every tutorial installs a shell trap immediately after creation. TTL is the platform safety net, not a replacement for application cleanup.</p></div>
+
+        <TutorialScenario number="01" title="Run a data job and retrieve its artifact" meta="10 minutes - python-3.12-data - command and file APIs">
+          <p>Create a disposable workspace, upload input and code, execute the job, then make the result checkable outside the sandbox.</p>
+          <pre>{`WORK_DIR="$(mktemp -d)"
+printf 'item,amount\napi,21\nworker,34\npreview,13\n' >"$WORK_DIR/orders.csv"
+cat >"$WORK_DIR/job.py" <<'PY'
+import csv
+rows = list(csv.DictReader(open("orders.csv")))
+total = sum(int(row["amount"]) for row in rows)
+open("summary.txt", "w").write(f"orders={len(rows)} total={total}\\n")
+print(f"processed {len(rows)} orders")
+PY
+
+SBX_ID="$(harakiri create --template python-3.12-data --name tutorial-data-job --ttl 600 | sed -n '/^sbx_/p')"
+cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; rm -rf "$WORK_DIR"; }
+trap cleanup EXIT
+
+harakiri file-upload "$SBX_ID" --from "$WORK_DIR/orders.csv" --path /workspace/orders.csv --parents
+harakiri file-upload "$SBX_ID" --from "$WORK_DIR/job.py" --path /workspace/job.py --parents
+harakiri run "$SBX_ID" --cwd /workspace --cmd "python job.py"
+harakiri file-download "$SBX_ID" --path /workspace/summary.txt --to "$WORK_DIR/summary.txt"
+grep -qx "orders=3 total=68" "$WORK_DIR/summary.txt"`}</pre>
+          <TutorialCheck>The run prints <code>processed 3 orders</code>. The download verifies its checksum and the final <code>grep</code> exits successfully.</TutorialCheck>
+        </TutorialScenario>
+
+        <TutorialScenario number="02" title="Publish a token-protected preview" meta="10 minutes - python-3.12 - detached process and route auth">
+          <p>Start a service that remains alive after the command returns. Expose it through a token route and prove both the denied and authenticated paths.</p>
+          <pre>{`SBX_ID="$(harakiri create --template python-3.12 --name tutorial-private-preview --ttl 600 | sed -n '/^sbx_/p')"
+cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+harakiri file-write "$SBX_ID" \\
+  --path /workspace/index.html \\
+  --content '<h1>Harakiri preview is ready</h1>' \\
+  --parents
+
+COMMAND_JSON="$(harakiri command run "$SBX_ID" \\
+  --cmd "python -m http.server 5173 --bind 0.0.0.0" \\
+  --cwd /workspace --detached --json)"
+COMMAND_ID="$(jq -r '.command.id' <<<"$COMMAND_JSON")"
+harakiri command wait "$SBX_ID" "$COMMAND_ID" --status running --timeout-ms 30000
+
+ROUTE_JSON="$(harakiri expose "$SBX_ID" --port 5173 --access token \\
+  --label tutorial-preview --wait --wait-path / --json)"
+ROUTE_URL="$(jq -r '.route.url' <<<"$ROUTE_JSON")"
+HEADER_NAME="$(jq -r '.accessHeaderName' <<<"$ROUTE_JSON")"
+ROUTE_TOKEN="$(jq -r '.accessToken' <<<"$ROUTE_JSON")"
+
+test "$(curl -sS -o /dev/null -w '%{http_code}' "$ROUTE_URL")" = "401"
+curl -fsS -H "$HEADER_NAME: $ROUTE_TOKEN" "$ROUTE_URL" | \\
+  grep -q "Harakiri preview is ready"`}</pre>
+          <TutorialCheck>The anonymous request returns <code>401</code>; the request carrying the one-time route header returns the preview body.</TutorialCheck>
+        </TutorialScenario>
+
+        <TutorialScenario number="03" title="Restrict outbound network access" meta="10 minutes - python-3.12-data - egress policy">
+          <p>Use a preset for package infrastructure, keep unrelated destinations denied, and add one explicit hostname at runtime.</p>
+          <pre>{`SBX_ID="$(harakiri create --template python-3.12-data \\
+  --name tutorial-restricted-egress --ttl 600 \\
+  --egress restricted --egress-preset python-package-install | sed -n '/^sbx_/p')"
+cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+PYPI="$(harakiri egress test "$SBX_ID" https://pypi.org/simple 2>/dev/null | cut -f1)"
+GOOGLE="$(harakiri egress test "$SBX_ID" https://www.google.com 2>/dev/null | cut -f1)"
+test "$PYPI" = "ok"
+test "$GOOGLE" = "blocked"
+
+harakiri egress allow "$SBX_ID" api.github.com
+GITHUB="$(harakiri egress test "$SBX_ID" https://api.github.com 2>/dev/null | cut -f1)"
+test "$GITHUB" = "ok"
+harakiri egress "$SBX_ID"`}</pre>
+          <TutorialCheck>PyPI and the newly added GitHub API hostname report <code>ok</code>. Google remains <code>blocked</code>.</TutorialCheck>
+        </TutorialScenario>
+
+        <TutorialScenario number="04" title="Create a Git workspace" meta="10 minutes - ubuntu-24.04 - public clone and local commit">
+          <p>Prepare a portable Ubuntu workspace, clone a repository, edit through the file API, then use Harakiri Git operations without granting any push credential.</p>
+          <pre>{`SBX_ID="$(harakiri create --template ubuntu-24.04 \\
+  --name tutorial-git-workspace --ttl 900 | sed -n '/^sbx_/p')"
+cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+harakiri run "$SBX_ID" \\
+  --cmd 'apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates git && if [ -n "\${SSL_CERT_FILE:-}" ]; then git config --global http.sslCAInfo "$SSL_CERT_FILE"; fi'
+harakiri git clone "$SBX_ID" https://github.com/octocat/Hello-World.git \\
+  --path /workspace/project --depth 1
+harakiri git branch "$SBX_ID" tutorial/change --cwd /workspace/project
+harakiri file-write "$SBX_ID" --path /workspace/project/harakiri.txt \\
+  --content "created in a disposable workspace" --parents
+harakiri git add "$SBX_ID" harakiri.txt --cwd /workspace/project
+harakiri git commit "$SBX_ID" --cwd /workspace/project \\
+  --message "Add Harakiri workspace marker" \\
+  --author-name "Harakiri Tutorial" --author-email "tutorial@example.com"
+harakiri git status "$SBX_ID" --cwd /workspace/project | grep -q clean`}</pre>
+          <TutorialCheck>The repository starts clean, the local commit succeeds, and the final status returns <code>clean</code>.</TutorialCheck>
+          <p>For real workloads, bake Git into a custom template such as <code>open-agents-dev</code>. The bootstrap also makes Git honor a runtime-provided <code>SSL_CERT_FILE</code> when egress uses a trusted interception certificate. Installing tools at runtime adds latency and weakens reproducibility.</p>
+        </TutorialScenario>
+
+        <TutorialScenario number="05" title="Pause, snapshot, and restore state" meta="15 minutes - python-3.12 - provider persistence">
+          <p>Preflight persistence capabilities, preserve state across pause/resume, then restore the same state into a second sandbox.</p>
+          <pre>{`harakiri capabilities | grep -E \\
+  'lifecyclePause|lifecycleResume|lifecycleSnapshot|createFromSnapshot'
+
+SOURCE_ID=""; RESTORED_ID=""; SNAPSHOT_ID=""
+cleanup() {
+  test -z "$RESTORED_ID" || harakiri kill "$RESTORED_ID" >/dev/null 2>&1 || true
+  test -z "$SOURCE_ID" || harakiri kill "$SOURCE_ID" >/dev/null 2>&1 || true
+  test -z "$SNAPSHOT_ID" || harakiri snapshots delete "$SNAPSHOT_ID" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+SOURCE_ID="$(harakiri create --template python-3.12 --name tutorial-snapshot-source --ttl 900 | sed -n '/^sbx_/p')"
+harakiri file-write "$SOURCE_ID" --path /workspace/checkpoint.txt \\
+  --content "checkpoint-ready" --parents
+harakiri pause "$SOURCE_ID"
+harakiri resume "$SOURCE_ID"
+test "$(harakiri file-read "$SOURCE_ID" --path /workspace/checkpoint.txt)" = "checkpoint-ready"
+
+SNAPSHOT_JSON="$(harakiri snapshot "$SOURCE_ID" --name tutorial-checkpoint \\
+  --wait --wait-timeout-ms 120000 --json)"
+SNAPSHOT_ID="$(jq -r '.snapshot.id' <<<"$SNAPSHOT_JSON")"
+RESTORED_ID="$(harakiri create --snapshot "$SNAPSHOT_ID" \\
+  --name tutorial-snapshot-restored --ttl 600 | sed -n '/^sbx_/p')"
+test "$(harakiri file-read "$RESTORED_ID" --path /workspace/checkpoint.txt)" = "checkpoint-ready"`}</pre>
+          <TutorialCheck>The marker survives both resume and creation from the immutable snapshot.</TutorialCheck>
+        </TutorialScenario>
+
+        <TutorialScenario number="06" title="Integrate Harakiri into a worker" meta="10 minutes - @h-sandbox/sdk - idempotent application flow">
+          <p>Use the public SDK with a bounded wait, an idempotency key, explicit result validation, and cleanup in <code>finally</code>.</p>
+          <pre>{`npm install @h-sandbox/sdk`}</pre>
+          <pre>{`import { randomUUID } from "node:crypto";
+import { HarakiriApiError, HarakiriClient } from "@h-sandbox/sdk";
+
+const client = new HarakiriClient({
+  apiUrl: process.env.HARAKIRI_API_URL,
+  apiKey: process.env.HARAKIRI_API_KEY
+});
+
+let sandboxId;
+const jobId = process.env.JOB_ID ?? randomUUID();
+try {
+  const created = await client.createSandbox({
+    template: "python-3.12-data",
+    name: "tutorial-sdk-worker",
+    ttlSeconds: 600,
+    wait: false,
+    idempotencyKey: \`tutorial-job-\${jobId}\`
+  });
+  sandboxId = created.sandbox.id;
+  await client.waitForSandbox(sandboxId, { timeoutMs: 90_000 });
+  await client.writeSandboxFile(sandboxId, {
+    path: "/workspace/task.py",
+    content: "print('sdk-worker-ready')\\n",
+    createParents: true
+  });
+  const run = await client.runSandbox(sandboxId, { command: "python /workspace/task.py" });
+  if (run.result.exitCode !== 0 || !run.result.stdout.includes("sdk-worker-ready")) {
+    throw new Error(run.result.stderr || "unexpected sandbox result");
+  }
+  console.log(\`PASS: \${sandboxId} completed the worker task\`);
+} catch (error) {
+  if (error instanceof HarakiriApiError) {
+    console.error({ code: error.code, retryable: error.retryable });
+  }
+  throw error;
+} finally {
+  if (sandboxId) await client.killSandbox(sandboxId).catch(() => undefined);
+}`}</pre>
+          <pre>{`JOB_ID="$(date +%s)" node worker.mjs`}</pre>
+          <TutorialCheck>The worker prints a <code>PASS</code> line and the sandbox is terminated even when task validation throws.</TutorialCheck>
+        </TutorialScenario>
+
+        <h2>Troubleshooting</h2>
+        <ul>
+          <li><code>401 Unauthorized</code>: verify the API URL and rotate or reconfigure the API key.</li>
+          <li>Pending sandbox: inspect <code>harakiri status &lt;id&gt; --json</code> for the operation error.</li>
+          <li>Route timeout: bind the service to <code>0.0.0.0</code> and expose the same port.</li>
+          <li>Egress unavailable: inspect runtime capabilities and ask the operator whether enforcement is enabled.</li>
+          <li>Snapshot unsupported: stop at the capability check; do not emulate persistence with Kubernetes access.</li>
+        </ul>
+        <p>Continue with CLI reference, SDK and CLI, Lifecycle, Routes, Outbound access, or Credential Vault for the complete contracts behind each scenario.</p>
+      </div>
+    )
+  },
+  {
     id: "sdk-cli",
     section: "Getting started",
     title: "SDK and CLI",
@@ -288,7 +520,7 @@ const sandbox = await harakiri.sandboxes.create({
     section: "Getting started",
     title: "CLI reference",
     lede: "Install the harakiri executable, configure an API key, and automate sandbox workflows from a terminal.",
-    toc: ["Install", "Configure", "Lifecycle", "Processes", "Files", "Routes", "Templates"],
+    toc: ["Install", "Configure", "Lifecycle", "Processes", "Files", "Routes", "Vault", "Templates"],
     body: (
       <>
         <h2>Install</h2>
@@ -304,6 +536,9 @@ const sandbox = await harakiri.sandboxes.create({
         <pre>{`harakiri files sbx_... --path /workspace\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</pre>
         <h2>Routes</h2>
         <pre>{`harakiri expose sbx_... --port 5173 --access token --label preview --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri unexpose sbx_... --port 5173`}</pre>
+        <h2>Vault</h2>
+        <pre>{`export OPENAI_API_KEY=placeholder\nharakiri create --template open-agents-dev --credential 'name=openai,host=api.openai.com,auth=bearer,from-env=OPENAI_API_KEY,fake-env=OPENAI_API_KEY=fake-openai-key'\nharakiri vault attach sbx_... --name openai --host api.openai.com --auth bearer --from-env OPENAI_API_KEY --fake-env OPENAI_API_KEY=fake-openai-key\nharakiri vault attach sbx_... --preset openai --prompt\nharakiri vault list sbx_...\nharakiri vault test sbx_... sca_... --target https://api.openai.com/v1/models\nharakiri vault detach sbx_... sca_...`}</pre>
+        <p>Use `--from-env`, `--from-stdin`, or `--prompt` for real values. The sandbox sees only fake env values; the provider injects credentials only for matching outbound requests. Create-time credentials require synchronous sandbox creation.</p>
         <h2>Templates</h2>
         <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile\nharakiri template build --name open-agents-dev .\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner`}</pre>
       </>
@@ -475,6 +710,107 @@ const sandbox = await harakiri.sandboxes.create({
     )
   },
   {
+    id: "credential-vault",
+    section: "Sandboxes",
+    title: "Credential Vault",
+    lede: "Attach credentials to selected outbound requests without putting the real value inside the sandbox process.",
+    toc: ["Why", "Source types", "Provider presets", "Template slots", "CLI", "SDK", "API", "Lifecycle", "Security", "Troubleshooting"],
+    body: (
+      <>
+        <h2>Why</h2>
+        <p>Agent sandboxes often need model APIs, private Git hosts, package registries, or internal services. Credential Vault lets a sandbox call those services while Harakiri stores only sanitized metadata and the runtime provider injects auth only when the outbound request matches a binding.</p>
+        <h2>Source types</h2>
+        <p>Use `inline_ephemeral` when the caller already has a one-time value, `harakiri_encrypted` for reusable envelope-encrypted workspace custody, `external_ref` for an operator-approved Kubernetes Secret locator, and `dynamic` for a short-lived GitHub App installation token. All four use the same synchronous launch, template mapping, runtime attachment, inspection, test, and sanitized metadata contract. Harakiri forgets ephemeral values, never returns encrypted values, stores only external locators, and never persists issued dynamic tokens.</p>
+        <p>Admins manage reusable sources and organization audit history in Vault. Members can use only active sources explicitly shared for organization-member use. The new-sandbox flow lists only sources available to the current caller.</p>
+        <h2>Provider presets</h2>
+        <p>Presets provide fake env names, auth shape, binding hosts, egress domains, and a default test target for common services. Built-ins cover OpenAI, Anthropic, OpenRouter, GitHub, GitLab, npm, and PyPI publish. Private APIs, self-hosted Git, and private package indexes should use explicit custom bindings.</p>
+        <h2>Template slots</h2>
+        <p>Templates can declare required and optional provider credentials without storing values. `credential_slots = ["openai"]` and `optional_credential_slots = ["github"]` become sanitized slot metadata on each immutable version. Structured `[[credential_slot]]` entries support a private API with one exact HTTPS host, bearer or API-key auth, and optional method/path restrictions. The dashboard uses the same schema and shows a binding preview.</p>
+        <h2>CLI</h2>
+        <pre>{`export OPENAI_API_KEY=placeholder\n\nharakiri vault presets\nharakiri vault preset openai\n\nharakiri template init \\\n  --name open-agents-dev \\\n  --dockerfile Dockerfile \\\n  --credential-slot openai\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name agent-with-vault \\\n  --credential 'preset=openai,from-env=OPENAI_API_KEY'\n\nharakiri vault secrets create \\\n  --name openai-prod \\\n  --preset openai \\\n  --from-env OPENAI_API_KEY\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name stored-vault-agent \\\n  --credential 'secret-id=vlt_...,name=openai-prod'\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name slotted-vault-agent \\\n  --credential 'slot=llm,secret-id=vlt_...,name=openai-prod'\n\nharakiri vault attach sbx_... \\\n  --preset openai \\\n  --from-env OPENAI_API_KEY\n\nharakiri vault attach sbx_... \\\n  --preset openai \\\n  --prompt\n\nharakiri vault list sbx_...\nharakiri vault test sbx_... sca_... --target https://api.openai.com/v1/models\nharakiri vault rehydrate sbx_...\nharakiri vault detach sbx_... sca_...\n\nharakiri vault attach-secret sbx_... vlt_... \\\n  --name openai-prod\n\nharakiri vault secrets list\nharakiri vault secrets rotate vlt_... --prompt\nharakiri vault secrets delete vlt_...`}</pre>
+        <p>Use `--from-env`, `--from-stdin`, or `--prompt` so real values do not appear in shell history. `--credential` can select a preset, custom host, encrypted secret, external reference, or dynamic issuer, optionally mapped to a template slot. Creation is synchronous. `--member-use`, `share`, and `restrict` control reusable-source use without granting value readback. `vault inspect` and `vault rehydrate` diagnose and repair provider state.</p>
+        <pre>{`harakiri vault references create \\
+  --name "OpenAI from cluster" \\
+  --preset openai \\
+  --namespace harakiri \\
+  --secret-name harakiri-vault-agents \\
+  --key OPENAI_API_KEY \\
+  --member-use
+
+harakiri vault references validate xsr_...
+harakiri vault attach-reference sbx_... xsr_...`}</pre>
+        <p>External-reference commands manage locators and never accept a raw value. Use `--credential 'reference-id=xsr_...'` for a direct synchronous launch, optionally with `slot=...` for a template mapping.</p>
+        <pre>{`harakiri vault issuers create \
+  --name agent-repositories \
+  --installation-id 123456 \
+  --repository agent-runtime \
+  --permission contents=read \
+  --permission metadata=read
+harakiri vault issuers validate dci_...
+harakiri vault attach-issuer sbx_... dci_...
+harakiri vault inspect sbx_...
+harakiri vault audit --action-prefix credential_ --json`}</pre>
+        <p>Dynamic issuer commands manage GitHub App installation scope, never the platform private key or issued token. `inspect` compares desired attachments with sanitized provider state. Organization audit is admin-only.</p>
+        <h2>SDK</h2>
+        <pre>{`import { credentialFromPreset } from "@h-sandbox/sdk";
+
+await harakiri.createSandbox({
+  template: "open-agents-dev",
+  credentials: [credentialFromPreset("anthropic", process.env.ANTHROPIC_API_KEY!)]
+});`}</pre>
+        <pre>{`const external = await harakiri.externalSecretReferences.create({
+  name: "OpenAI from cluster",
+  providerPresetId: "openai",
+  resolverType: "kubernetes_secret",
+  reference: {
+    namespace: "harakiri",
+    name: "harakiri-vault-agents",
+    key: "OPENAI_API_KEY"
+  }
+});
+
+await harakiri.externalSecretReferences.validate(external.reference.id);
+await sandbox.credentials.attachReference(external.reference.id);`}</pre>
+        <pre>{`const { preset } = await harakiri.credentialPresets.get("openai");\n\nconst created = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  credentials: [{\n    displayName: preset.label,\n    credentialName: preset.credentialName,\n    value: process.env.OPENAI_API_KEY!,\n    fakeEnv: preset.fakeEnv,\n    binding: preset.binding\n  }]\n});\n\nconsole.log(created.credentialAttachments?.[0]?.status);\n\nconst attachment = await sandbox.credentials.attach({\n  displayName: preset.label,\n  credentialName: preset.credentialName,\n  value: process.env.OPENAI_API_KEY!,\n  fakeEnv: preset.fakeEnv,\n  binding: preset.binding\n});\n\nconst test = await sandbox.credentials.test(attachment.attachment.id, {\n  target: preset.test.target,\n  timeoutMs: 10_000\n});\n\nawait sandbox.credentials.detach(attachment.attachment.id);\n\nconst secret = await harakiri.credentialSecrets.create({\n  name: "openai-prod",\n  providerPresetId: "openai",\n  value: process.env.OPENAI_API_KEY!,\n  fakeEnv: preset.fakeEnv\n});\n\nawait harakiri.createSandbox({\n  template: "open-agents-dev",\n  credentials: [{\n    sourceType: "harakiri_encrypted",\n    secretId: secret.secret.id,\n    displayName: "OpenAI production"\n  }]\n});\n\nawait harakiri.createSandbox({\n  template: "open-agents-dev",\n  credentialMappings: [{\n    slotId: "llm",\n    source: {\n      sourceType: "harakiri_encrypted",\n      secretId: secret.secret.id,\n      displayName: "OpenAI production"\n    }\n  }]\n});\n\nawait sandbox.credentials.attachSecret(secret.secret.id, {\n  displayName: "OpenAI production"\n});\n\nawait sandbox.credentials.rehydrate();\n\nawait harakiri.credentialSecrets.rotate(secret.secret.id, {\n  value: process.env.OPENAI_API_KEY_NEXT!\n});`}</pre>
+        <h2>API</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-presets</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-presets/:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-secrets</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets</code></span>
+        <span className="api-endpoint"><span className="api-method post">PATCH</span><code>/v1/credential-secrets/:id</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets/:id/rotate</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets/:id/disable</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets/:id/enable</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/credential-secrets/:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/external-secret-references</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/external-secret-references</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/external-secret-references/:id/validate</code></span>
+        <span className="api-endpoint"><span className="api-method patch">PATCH</span><code>/v1/external-secret-references/:id</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/external-secret-references/:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/dynamic-credential-issuers</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/dynamic-credential-issuers</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/dynamic-credential-issuers/:id/validate</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/audit-events</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code><span>with credentialSlots</span></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code><span>with credentials or credentialMappings</span></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes/:id/credentials</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/inspect</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/rehydrate</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/:attachmentId/refresh</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/sandboxes/:id/credentials/:attachmentId</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/:attachmentId/test</code></span>
+        <p>Create-time credentials accept one-time values, encrypted workspace sources, Kubernetes external references, GitHub App dynamic issuers, or template mappings to any of them. Slot mappings use the template's binding, fake env, and egress hosts. Required slots must be mapped explicitly. Creation is synchronous and rolls back if safe egress or any attachment fails. Responses never return a real credential value.</p>
+        <h2>Lifecycle</h2>
+        <p>Provider vault state is observed, not assumed. Resume and background inspection rehydrate active encrypted, external, and dynamic sources. Ephemeral sources become `requires_reinjection`. Snapshot restore requires explicit source mappings and never inherits provider vault state.</p>
+        <h2>Security</h2>
+        <p>Credential-bearing sandboxes use restricted outbound access with binding destinations. OpenSandbox injection requires Credential Proxy, `dns+nft`, and a positive runtime readiness attestation. Harakiri does not fall back to Kubernetes exec, mounted Secrets, sidecar URLs, open egress, or real sandbox env vars.</p>
+        <h2>Troubleshooting</h2>
+        <p>`credential_vault_egress_conflict` means the runtime cannot attest safe `dns+nft` enforcement. `credential_vault_unsupported` means the provider lacks the capability; `credential_vault_provider_unavailable` means its sidecar cannot be reached. `binding_mismatch` is a caller error. `requires_reinjection` means desired metadata exists but provider state is absent. Run `vault inspect` and `vault rehydrate`; supply a fresh value for an ephemeral source.</p>
+      </>
+    )
+  },
+  {
     id: "custom-templates",
     section: "Templates",
     title: "Create a custom template",
@@ -483,8 +819,8 @@ const sandbox = await harakiri.sandboxes.create({
     body: (
       <>
         <h2>Config</h2>
-        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot`}</pre>
-        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\negress_mode = "restricted"\negress_presets = ["python-package-install", "git-hosting"]\nstart_command = "sleep 3600"\nready_command = "true"`}</pre>
+        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot --credential-slot openai`}</pre>
+        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\negress_mode = "restricted"\negress_presets = ["python-package-install", "git-hosting"]\nstart_command = "sleep 3600"\nready_command = "true"\ncredential_slots = ["openai"]`}</pre>
         <h2>Dashboard</h2>
         <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Set Outbound access during creation when the runtime should start restricted by default. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>
@@ -675,7 +1011,7 @@ const sandbox = await harakiri.sandboxes.create({
     section: "Reference",
     title: "API reference",
     lede: "The Harakiri API is the shared contract behind the dashboard, CLI, and SDK.",
-    toc: ["OpenAPI", "Templates", "Builds", "Sandboxes", "Promotion", "Archive"],
+    toc: ["OpenAPI", "Templates", "Builds", "Sandboxes", "Credential Vault", "Promotion", "Archive"],
     body: (
       <>
         <h2>OpenAPI</h2>
@@ -695,6 +1031,21 @@ const sandbox = await harakiri.sandboxes.create({
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?template=:id</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?templateVersionId=:id</code></span>
         <p>The template detail Runs tab uses these filters to show recent sandboxes for a template or an immutable version.</p>
+        <h2>Credential Vault</h2>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-presets</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-presets/:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-secrets</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets</code></span>
+        <span className="api-endpoint"><span className="api-method post">PATCH</span><code>/v1/credential-secrets/:id</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets/:id/rotate</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets/:id/disable</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/credential-secrets/:id/enable</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/credential-secrets/:id</code></span>
+        <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes/:id/credentials</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials</code></span>
+        <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/sandboxes/:id/credentials/:attachmentId</code></span>
+        <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/:attachmentId/test</code></span>
+        <p>The current vault API supports running-sandbox `inline_ephemeral` attachments, admin-managed encrypted workspace secret custody, explicit organization-member use policy, attachment-derived usage, and attaching permitted active stored secrets to running sandboxes. Responses are sanitized and never include raw credential values.</p>
         <h2>Promotion</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
         <h2>Archive</h2>

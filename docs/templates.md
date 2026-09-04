@@ -9,12 +9,12 @@ workflow.
 
 - Template definition: mutable catalog row with name, aliases, visibility,
   image fallback, CPU, memory, workdir, default entrypoint, default ports, tags,
-  and runtime family.
+  runtime family, egress default, and credential-slot requirements.
 - Template version: immutable runtime selection. A version stores the image URI,
   optional digest, resources, ports, workdir, entrypoint, aliases, build ID, and
   promoted timestamp. Versions also carry SBOM/provenance fields and scan
-  status so runtime images can be audited independently from mutable template
-  definitions.
+  status. Credential slots are snapshotted into versions so runtime images can
+  be audited independently from mutable template definitions.
 - Build record: a control-plane request to build or import an image. Build
   records keep status, source type, Dockerfile path, context hash, build args,
   image destination, digest, error, metadata, and logs.
@@ -54,21 +54,46 @@ workdir = "/workspace"
 ports = [3000, 5173, 4321, 8000]
 start_command = "sleep 3600"
 ready_command = "true"
+credential_slots = ["openai"]
+optional_credential_slots = ["github"]
+
+[[credential_slot]]
+id = "private-model"
+provider = "custom"
+required = false
+label = "Private model API"
+host = "api.internal.example"
+auth = "api-key"
+header = "x-api-key"
+methods = ["GET", "POST"]
+paths = ["/v1/*"]
+env_name = "PRIVATE_MODEL_KEY"
+test_path = "/v1/health"
 ```
 
 Current CLI support reads command flags first, then `harakiri.toml`. The
 config supports `id`, `name`, `description`, `dockerfile`, `image`,
 `visibility`, CPU, memory, workdir, ports, aliases, tags, runtime family,
-`start_command`, and
-`ready_command`. For Dockerfile builds, the CLI archives the local context as
-tar+gzip, uploads it to the API, and stores a verified `sha256:` context hash
-on the build record.
+`start_command`, `ready_command`, required `credential_slots`, and
+`optional_credential_slots`, and structured `[[credential_slot]]` tables.
+Simple entries are built-in Credential Vault preset IDs such as `openai`,
+`github`, or `npm`. Structured entries can describe an exact-host private API
+with bearer or API-key auth and optional method/path limits. Both forms declare
+requirements only and never contain secret values. For Dockerfile builds, the
+CLI archives the local context as tar+gzip, uploads it to the API, and stores a
+verified `sha256:` context hash on the build record.
+
+The dashboard uses the same schema and shows a binding preview. Required slots
+must be mapped at launch. Built-in slots accept a source with the same preset;
+custom slots accept a source with the same normalized custom host and auth
+profile. Builds copy the expanded value-free slot metadata into the immutable
+template version.
 
 ## CLI Workflow
 
 ```bash
 harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...
-harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot
+harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot --credential-slot openai
 harakiri template build --name open-agents-dev .
 harakiri template build --name open-agents-dev examples/templates/open-agents-dev
 harakiri template build --name ubuntu-import --source image --image ubuntu:24.04

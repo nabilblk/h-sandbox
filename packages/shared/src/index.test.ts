@@ -4,10 +4,13 @@ import {
   TEMPLATES,
   apiPath,
   canTransitionSandboxStatus,
+  credentialProviderPresetCatalog,
+  credentialProviderPresetIds,
   formatApiErrorResponse,
   isKnownSandboxRuntimeApiErrorCode,
   openApiDocument,
   openApiPathMethodPairs,
+  normalizeCustomCredentialProfile,
   parseApiErrorResponse,
   providerUnavailableApiErrorCodes,
   runtimeCapabilityContracts,
@@ -15,6 +18,7 @@ import {
   runtimePolicyApiErrorCodes,
   sandboxConflictApiErrorCodes,
   sandboxRuntimeApiErrorCodes,
+  templateCredentialSlotsFromInputs,
   timeoutApiErrorCodes,
   unsupportedCapabilityApiErrorCodes
 } from "./index.js";
@@ -63,6 +67,101 @@ test("sandbox runtime error vocabulary is stable and categorized", () => {
   assert.ok(timeoutApiErrorCodes.includes("sandbox_command_timeout"));
 });
 
+test("credential provider presets are concrete and sanitized", () => {
+  assert.equal(new Set(credentialProviderPresetIds).size, credentialProviderPresetIds.length);
+  for (const id of credentialProviderPresetIds) {
+    const preset = credentialProviderPresetCatalog[id];
+    assert.equal(preset.id, id);
+    assert.ok(preset.defaultEnvName.length > 0);
+    assert.ok(Object.keys(preset.fakeEnv).includes(preset.defaultEnvName));
+    assert.ok(preset.binding.name.length > 0);
+    assert.ok(preset.binding.match.hosts.length > 0);
+    assert.ok(preset.egressDomains.length >= preset.binding.match.hosts.length);
+    for (const host of preset.binding.match.hosts) assert.ok(preset.egressDomains.includes(host));
+    assert.equal(JSON.stringify(preset).includes("sk_"), false);
+  }
+});
+
+test("template credential slots expand provider presets without secret values", () => {
+  const slots = templateCredentialSlotsFromInputs([
+    { providerPresetId: "openai" },
+    { providerPresetId: "github", required: false, envName: "GH_TOKEN" }
+  ]);
+
+  assert.deepEqual(slots.map((slot) => [slot.id, slot.providerPresetId, slot.required]), [
+    ["openai", "openai", true],
+    ["github", "github", false]
+  ]);
+  assert.equal(slots[0].envName, "OPENAI_API_KEY");
+  assert.deepEqual(slots[1].fakeEnv, { GH_TOKEN: "fake-github-token" });
+  assert.equal(JSON.stringify(slots).includes("sk_"), false);
+});
+
+test("template credential slots reject ambiguous template contracts", () => {
+  assert.throws(
+    () => templateCredentialSlotsFromInputs([
+      { providerPresetId: "openai" },
+      { providerPresetId: "openai" }
+    ]),
+    /duplicate template credential slot id/
+  );
+  assert.throws(
+    () => templateCredentialSlotsFromInputs([
+      { id: "first", providerPresetId: "openai", envName: "MODEL_TOKEN" },
+      { id: "second", providerPresetId: "anthropic", envName: "MODEL_TOKEN" }
+    ]),
+    /duplicate template credential slot envName/
+  );
+});
+
+test("custom credential profiles compile one exact HTTPS API scope", () => {
+  const profile = normalizeCustomCredentialProfile({
+    host: "API.Internal.Example.com.",
+    authType: "apiKey",
+    headerName: "X-Internal-Key",
+    methods: ["get", "POST", "GET"],
+    paths: ["/v1/*"],
+    envName: "INTERNAL_API_KEY",
+    testPath: "/v1/health"
+  });
+  const [slot] = templateCredentialSlotsFromInputs([{
+    id: "internal-api",
+    providerPresetId: "custom",
+    customProfile: { ...profile, headerName: profile.headerName ?? undefined }
+  }]);
+
+  assert.equal(profile.host, "api.internal.example.com");
+  assert.deepEqual(profile.methods, ["GET", "POST"]);
+  assert.deepEqual(slot.binding.match, {
+    schemes: ["https"],
+    hosts: ["api.internal.example.com"],
+    methods: ["GET", "POST"],
+    paths: ["/v1/*"]
+  });
+  assert.deepEqual(slot.binding.auth, { type: "apiKey", name: "X-Internal-Key" });
+  assert.deepEqual(slot.fakeEnv, { INTERNAL_API_KEY: "fake-private-api-key" });
+  assert.equal(slot.test.target, "https://api.internal.example.com/v1/health");
+});
+
+test("custom credential profiles reject unsafe or ambiguous scopes", () => {
+  assert.throws(
+    () => normalizeCustomCredentialProfile({ host: "*.example.com", authType: "bearer" }),
+    /host must be exact/
+  );
+  assert.throws(
+    () => normalizeCustomCredentialProfile({ host: "127.0.0.1", authType: "bearer" }),
+    /IP addresses are not supported/
+  );
+  assert.throws(
+    () => normalizeCustomCredentialProfile({ host: "api.example.com", authType: "apiKey" }),
+    /require a valid headerName/
+  );
+  assert.throws(
+    () => normalizeCustomCredentialProfile({ host: "api.example.com", authType: "bearer", headerName: "Authorization" }),
+    /do not accept headerName/
+  );
+});
+
 test("runtime capability vocabulary separates command and interactive terminal support", () => {
   assert.ok(runtimeCapabilityNames.includes("commandRun"));
   assert.ok(runtimeCapabilityNames.includes("terminalAttach"));
@@ -76,6 +175,9 @@ test("runtime capability vocabulary separates command and interactive terminal s
   assert.ok(runtimeCapabilityNames.includes("snapshotDelete"));
   assert.ok(runtimeCapabilityNames.includes("createFromSnapshot"));
   assert.ok(runtimeCapabilityNames.includes("git"));
+  assert.ok(runtimeCapabilityNames.includes("credentialVault"));
+  assert.ok(runtimeCapabilityNames.includes("credentialVaultPatch"));
+  assert.ok(runtimeCapabilityNames.includes("credentialVaultSanitizedRead"));
   assert.ok(runtimeCapabilityContracts.includes("opensandbox_spec"));
   assert.ok(runtimeCapabilityContracts.includes("opensandbox_provider"));
   assert.ok(runtimeCapabilityContracts.includes("harakiri_control_plane"));
@@ -87,18 +189,31 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
   assert.equal(openApiDocument.openapi, "3.1.0");
   assert.deepEqual([...openApiPathMethodPairs].sort(), [
     "DELETE /v1/api-keys/{id}",
+    "DELETE /v1/credential-secrets/{id}",
+    "DELETE /v1/dynamic-credential-issuers/{id}",
+    "DELETE /v1/external-secret-references/{id}",
     "DELETE /v1/org/members/{id}",
     "DELETE /v1/registry-credentials/{id}",
     "DELETE /v1/sandboxes/{id}",
     "DELETE /v1/sandboxes/{id}/command-sessions/{sessionId}",
     "DELETE /v1/sandboxes/{id}/commands/{commandId}",
+    "DELETE /v1/sandboxes/{id}/credentials/{attachmentId}",
     "DELETE /v1/sandboxes/{id}/files",
     "DELETE /v1/sandboxes/{id}/routes/{port}",
     "DELETE /v1/snapshots/{snapshotId}",
     "GET /health",
     "GET /openapi.json",
     "GET /v1/api-keys",
+    "GET /v1/audit-events",
     "GET /v1/bootstrap",
+    "GET /v1/credential-presets",
+    "GET /v1/credential-presets/{id}",
+    "GET /v1/credential-secrets",
+    "GET /v1/credential-secrets/{id}",
+    "GET /v1/dynamic-credential-issuers",
+    "GET /v1/dynamic-credential-issuers/{id}",
+    "GET /v1/external-secret-references",
+    "GET /v1/external-secret-references/{id}",
     "GET /v1/me",
     "GET /v1/org/members",
     "GET /v1/org/settings",
@@ -109,6 +224,7 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/sandboxes/{id}/commands",
     "GET /v1/sandboxes/{id}/commands/{commandId}",
     "GET /v1/sandboxes/{id}/commands/{commandId}/logs",
+    "GET /v1/sandboxes/{id}/credentials",
     "GET /v1/sandboxes/{id}/egress",
     "GET /v1/sandboxes/{id}/files",
     "GET /v1/sandboxes/{id}/files/download",
@@ -126,11 +242,26 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/templates/{id}",
     "GET /v1/templates/{id}/versions",
     "GET /v1/usage",
+    "PATCH /v1/credential-secrets/{id}",
+    "PATCH /v1/dynamic-credential-issuers/{id}",
+    "PATCH /v1/external-secret-references/{id}",
     "PATCH /v1/org/settings",
     "PATCH /v1/sandboxes/{id}/egress",
     "PATCH /v1/sandboxes/{id}/source",
     "PATCH /v1/templates/{id}/egress",
     "POST /v1/api-keys",
+    "POST /v1/credential-secrets",
+    "POST /v1/credential-secrets/{id}/disable",
+    "POST /v1/credential-secrets/{id}/enable",
+    "POST /v1/credential-secrets/{id}/rotate",
+    "POST /v1/dynamic-credential-issuers",
+    "POST /v1/dynamic-credential-issuers/{id}/disable",
+    "POST /v1/dynamic-credential-issuers/{id}/enable",
+    "POST /v1/dynamic-credential-issuers/{id}/validate",
+    "POST /v1/external-secret-references",
+    "POST /v1/external-secret-references/{id}/disable",
+    "POST /v1/external-secret-references/{id}/enable",
+    "POST /v1/external-secret-references/{id}/validate",
     "POST /v1/me/onboarding/complete",
     "POST /v1/org/invitations",
     "POST /v1/org/invitations/{id}/cancel",
@@ -141,6 +272,11 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "POST /v1/sandboxes/{id}/command-sessions",
     "POST /v1/sandboxes/{id}/command-sessions/{sessionId}/run",
     "POST /v1/sandboxes/{id}/commands",
+    "POST /v1/sandboxes/{id}/credentials",
+    "POST /v1/sandboxes/{id}/credentials/inspect",
+    "POST /v1/sandboxes/{id}/credentials/rehydrate",
+    "POST /v1/sandboxes/{id}/credentials/{attachmentId}/refresh",
+    "POST /v1/sandboxes/{id}/credentials/{attachmentId}/test",
     "POST /v1/sandboxes/{id}/egress/test",
     "POST /v1/sandboxes/{id}/files/mkdir",
     "POST /v1/sandboxes/{id}/files/rename",

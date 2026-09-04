@@ -7,6 +7,7 @@ test("docs content exposes expected product pages and renderable body markup", (
   assert.ok(docPages.length >= 8);
   assert.ok(docPages.some((page) => page.id === "vision-architecture" && page.section === "Getting started"));
   assert.ok(docPages.some((page) => page.id === "quickstart" && page.section === "Getting started"));
+  assert.ok(docPages.some((page) => page.id === "hands-on-tutorials" && page.section === "Tutorials"));
   assert.ok(docPages.some((page) => page.id === "sdk-cli" && page.section === "Getting started"));
   assert.ok(docPages.some((page) => page.id === "team-members" && page.section === "Workspace"));
   assert.ok(docPages.some((page) => page.id === "sandbox-lifecycle" && page.section === "Sandboxes"));
@@ -18,6 +19,18 @@ test("docs content exposes expected product pages and renderable body markup", (
   const markup = renderToStaticMarkup(quickstart.body);
   assert.match(markup, /harakiri create --template python-3\.12-data/);
   assert.match(markup, /harakiri expose sbx_\.\.\. --port 3000/);
+
+  const tutorials = docPages.find((page) => page.id === "hands-on-tutorials");
+  assert.ok(tutorials);
+  const tutorialsMarkup = renderToStaticMarkup(tutorials.body);
+  assert.match(tutorialsMarkup, /tutorial-data-job/);
+  assert.match(tutorialsMarkup, /anonymous request returns/);
+  assert.match(tutorialsMarkup, /python-package-install/);
+  assert.match(tutorialsMarkup, /octocat\/Hello-World\.git/);
+  assert.match(tutorialsMarkup, /createFromSnapshot/);
+  assert.match(tutorialsMarkup, /idempotencyKey/);
+  assert.match(tutorialsMarkup, /trap cleanup EXIT/);
+  assert.match(tutorialsMarkup, /Verification/);
 
   const vision = docPages.find((page) => page.id === "vision-architecture");
   assert.ok(vision);
@@ -37,6 +50,18 @@ test("docs content exposes expected product pages and renderable body markup", (
   const lifecycleMarkup = renderToStaticMarkup(lifecycle.body);
   assert.match(lifecycleMarkup, /snapshotId/);
   assert.match(lifecycleMarkup, /lifecycleSnapshot/);
+
+  const vault = docPages.find((page) => page.id === "credential-vault");
+  assert.ok(vault);
+  const vaultMarkup = renderToStaticMarkup(vault.body);
+  assert.match(vaultMarkup, /Admins manage reusable sources and organization audit history in Vault/);
+  assert.match(vaultMarkup, /new-sandbox flow lists only sources available to the current caller/);
+  assert.match(vaultMarkup, /Kubernetes Secret locator/);
+  assert.match(vaultMarkup, /externalSecretReferences\.create/);
+  assert.match(vaultMarkup, /organization-member use/);
+  assert.match(vaultMarkup, /Provider vault state is observed, not assumed/);
+  assert.match(vaultMarkup, /PATCH/);
+  assert.match(vaultMarkup, /harakiri vault rehydrate/);
 
   const processes = docPages.find((page) => page.id === "sandbox-processes");
   assert.ok(processes);

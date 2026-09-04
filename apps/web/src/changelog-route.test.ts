@@ -13,6 +13,11 @@ test("changelog route renders release entries and active public navigation", () 
   }));
 
   assert.match(markup, /Changelog/);
-  assert.match(markup, /Developer integration surface/);
+  assert.match(markup, /Credential Vault and executable tutorials/);
+  assert.match(markup, /OpenSandbox-native lifecycle persistence/);
+  assert.match(markup, /Watching the World Cup/);
+  assert.match(markup, /Summer vacation/);
+  assert.match(markup, /SDK\/CLI v0\.3\.1/);
+  assert.doesNotMatch(markup, /v0\.4[01]\.[0-9]/);
   assert.match(markup, /class="active"/);
 });

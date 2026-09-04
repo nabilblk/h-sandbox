@@ -25,6 +25,12 @@ jobs:
       - name: Check OpenAPI document
         run: pnpm openapi:check
 
+      - name: Check Credential Vault security boundary
+        run: pnpm credential-vault:check
+
+      - name: Check documentation links
+        run: pnpm docs:check
+
       - name: Check examples
         run: pnpm examples:check
 
@@ -65,7 +71,9 @@ jobs:
         uses: azure/setup-helm@v4
 
       - name: Lint chart
-        run: helm lint infra/charts/harakiri
+        run: |
+          helm lint infra/charts/harakiri
+          helm lint infra/charts/harakiri -f infra/openshift/values-openshift.yaml
 
       - name: Render chart (default + ingress)
         run: |
@@ -76,6 +84,27 @@ jobs:
             --set ingress.enabled=true \
             --set ingress.web.host=app.example.com \
             --set ingress.api.host=api.example.com > /dev/null
+          helm template harakiri infra/charts/harakiri -n harakiri \
+            --set secret.data.DATABASE_URL=postgres://ci \
+            --set credentialVault.externalSecrets.kubernetes.enabled=true \
+            --set 'credentialVault.externalSecrets.kubernetes.allowedNamespaces[0]=harakiri' \
+            --set 'credentialVault.externalSecrets.kubernetes.allowedNames[0]=harakiri-vault-ci' \
+            --set-json 'credentialVault.externalSecrets.kubernetes.allowedNamePrefixes=[]' > /dev/null
+          helm template harakiri infra/charts/harakiri -n harakiri \
+            --set secret.data.DATABASE_URL=postgres://ci \
+            --set credentialVault.encryption.keyringSecret.name=harakiri-vault-keyring > /dev/null
+
+      - name: Render restricted OpenShift profile
+        run: |
+          rendered="$(mktemp)"
+          helm template harakiri infra/charts/harakiri -n harakiri-security \
+            -f infra/openshift/values-openshift.yaml \
+            --set secret.data.DATABASE_URL=postgres://ci > "${rendered}"
+          grep -q 'OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "0"' "${rendered}"
+          if grep -q 'kind: SecurityContextConstraints' "${rendered}"; then
+            echo "restricted profile must not create or modify an SCC" >&2
+            exit 1
+          fi
 
       - name: Render OpenSandbox chart values
         run: |

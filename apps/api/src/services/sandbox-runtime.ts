@@ -54,7 +54,7 @@ import { redactText } from "../redaction.js";
 
 export type Audit = (
   organizationId: string,
-  actorUserId: string,
+  actorUserId: string | null,
   actorLabel: string,
   action: string,
   targetType: string,
@@ -302,6 +302,18 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
   const filesystemList = booleanState(Boolean(runtimeProvider.capabilities.filesystem && runtimeProvider.files), "filesystem listing is not exposed by this provider");
   const routes = booleanState(Boolean(runtimeProvider.capabilities.routes && runtimeProvider.exposeRoute), "route exposure is not exposed by this provider");
   const egress = booleanState(Boolean(runtimeProvider.capabilities.egress && runtimeProvider.setEgressPolicy), "mutable egress policy is not exposed by this provider");
+  const credentialVault = booleanState(
+    Boolean(runtimeProvider.capabilities.credentialVault && runtimeProvider.applyCredentialVault),
+    "Credential Vault injection is not exposed by this provider"
+  );
+  const credentialVaultPatch = booleanState(
+    Boolean(runtimeProvider.capabilities.credentialVaultPatch && runtimeProvider.deleteCredentialVaultEntries),
+    "Credential Vault mutation is not exposed by this provider"
+  );
+  const credentialVaultSanitizedRead = booleanState(
+    Boolean(runtimeProvider.capabilities.credentialVaultSanitizedRead && runtimeProvider.getCredentialVault),
+    "Credential Vault sanitized read is not exposed by this provider"
+  );
   const logs = booleanState(Boolean(runtimeProvider.capabilities.logs && runtimeProvider.logs), "sandbox logs are not exposed by this provider");
   const metrics = booleanState(Boolean(runtimeProvider.capabilities.metrics && runtimeProvider.metrics), "sandbox metrics are not exposed by this provider");
   const pause = booleanState(Boolean(runtimeProvider.capabilities.pause && runtimeProvider.pause), "pause is not exposed by this provider");
@@ -350,6 +362,9 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
         "Harakiri SDK/CLI Git helpers over sandbox command execution"
       ),
       capabilitySummary("egressPolicy", egress.state, egress.reason, true, "opensandbox_provider", "OpenSandbox egress policy endpoint"),
+      capabilitySummary("credentialVault", credentialVault.state, credentialVault.reason, false, "opensandbox_provider", "OpenSandbox Credential Vault sidecar API mediated by Harakiri"),
+      capabilitySummary("credentialVaultPatch", credentialVaultPatch.state, credentialVaultPatch.reason, false, "opensandbox_provider", "OpenSandbox Credential Vault mutation API mediated by Harakiri"),
+      capabilitySummary("credentialVaultSanitizedRead", credentialVaultSanitizedRead.state, credentialVaultSanitizedRead.reason, false, "opensandbox_provider", "OpenSandbox Credential Vault sanitized metadata API"),
       capabilitySummary("logs", logs.state, logs.reason, true, "opensandbox_provider", "OpenSandbox diagnostics logs endpoint"),
       capabilitySummary("metrics", metrics.state, metrics.reason, true, "opensandbox_spec", "OpenSandbox execd metrics API")
     ]

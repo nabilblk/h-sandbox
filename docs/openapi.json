@@ -3,7 +3,7 @@
   "info": {
     "title": "Harakiri Sandbox API",
     "version": "0.1.0",
-    "description": "Control-plane API for sandbox lifecycle, templates, routes, registry credentials, and account settings."
+    "description": "Control-plane API for sandbox lifecycle, templates, Credential Vault, routes, registry credentials, and account settings."
   },
   "servers": [
     {
@@ -32,6 +32,9 @@
     },
     {
       "name": "Routes"
+    },
+    {
+      "name": "Credential Vault"
     },
     {
       "name": "API Keys"
@@ -6479,6 +6482,4138 @@
         }
       }
     },
+    "/v1/sandboxes/{id}/credentials": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "List sandbox credential attachments",
+        "operationId": "listSandboxCredentials",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sandbox credential attachments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxCredentialsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Attach a credential to a running sandbox",
+        "operationId": "attachSandboxCredential",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachSandboxCredentialBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Attached credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachSandboxCredentialResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/credentials/rehydrate": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Rehydrate stored sandbox credential attachments",
+        "operationId": "rehydrateSandboxCredentials",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rehydrated credential attachments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RehydrateSandboxCredentialsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/credentials/inspect": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Compare attachments with sanitized runtime vault state",
+        "operationId": "inspectSandboxCredentials",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inspected credential attachments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InspectSandboxCredentialsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/credentials/{attachmentId}": {
+      "delete": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Detach a sandbox credential attachment",
+        "operationId": "detachSandboxCredential",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detached credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetachSandboxCredentialResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/credentials/{attachmentId}/refresh": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Refresh a dynamic sandbox credential",
+        "operationId": "refreshSandboxCredential",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refreshed credential",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshSandboxCredentialResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/sandboxes/{id}/credentials/{attachmentId}/test": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Test a sandbox credential binding",
+        "operationId": "testSandboxCredential",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attachmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestSandboxCredentialBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credential binding test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestSandboxCredentialResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/audit-events": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "List sanitized organization audit events",
+        "operationId": "listAuditEvents",
+        "parameters": [
+          {
+            "name": "targetType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actionPrefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization audit events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-presets": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "List built-in credential provider presets",
+        "operationId": "listCredentialProviderPresets",
+        "responses": {
+          "200": {
+            "description": "Credential provider presets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialProviderPresetsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-presets/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Get a credential provider preset",
+        "operationId": "getCredentialProviderPreset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential provider preset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialProviderPresetResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-secrets": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "List encrypted workspace credential secrets",
+        "operationId": "listCredentialSecrets",
+        "parameters": [
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential secrets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Create an encrypted workspace credential secret",
+        "operationId": "createCredentialSecret",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCredentialSecretBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-secrets/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Get sanitized credential secret metadata",
+        "operationId": "getCredentialSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Update workspace credential secret use policy",
+        "operationId": "updateCredentialSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCredentialSecretBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Delete encrypted credential secret value custody",
+        "operationId": "deleteCredentialSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-secrets/{id}/rotate": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Rotate an encrypted workspace credential secret",
+        "operationId": "rotateCredentialSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateCredentialSecretBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rotated credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-secrets/{id}/disable": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Disable a workspace credential secret",
+        "operationId": "disableCredentialSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disabled credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/credential-secrets/{id}/enable": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Enable a workspace credential secret",
+        "operationId": "enableCredentialSecret",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Enabled credential secret",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialSecretResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/external-secret-references": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "List external secret references",
+        "operationId": "listExternalSecretReferences",
+        "parameters": [
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "External secret references",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferencesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Create an external secret reference",
+        "operationId": "createExternalSecretReference",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExternalSecretReferenceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "External secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/external-secret-references/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Get sanitized external secret reference metadata",
+        "operationId": "getExternalSecretReference",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "External secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Update an external secret reference",
+        "operationId": "updateExternalSecretReference",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExternalSecretReferenceBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated external secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Delete an external secret reference",
+        "operationId": "deleteExternalSecretReference",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted external secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/external-secret-references/{id}/validate": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Validate an external secret reference",
+        "operationId": "validateExternalSecretReference",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated external secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/external-secret-references/{id}/disable": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Disable an external secret reference",
+        "operationId": "disableExternalSecretReference",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disabled external secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/external-secret-references/{id}/enable": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Enable an external secret reference",
+        "operationId": "enableExternalSecretReference",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Enabled external secret reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalSecretReferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dynamic-credential-issuers": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "List dynamic credential issuers",
+        "operationId": "listDynamicCredentialIssuers",
+        "parameters": [
+          {
+            "name": "includeDeleted",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dynamic credential issuers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuersResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Create a dynamic credential issuer",
+        "operationId": "createDynamicCredentialIssuer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDynamicCredentialIssuerBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dynamic-credential-issuers/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Get sanitized dynamic credential issuer metadata",
+        "operationId": "getDynamicCredentialIssuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Update a dynamic credential issuer",
+        "operationId": "updateDynamicCredentialIssuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDynamicCredentialIssuerBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Delete a dynamic credential issuer",
+        "operationId": "deleteDynamicCredentialIssuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dynamic-credential-issuers/{id}/validate": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Validate a dynamic credential issuer",
+        "operationId": "validateDynamicCredentialIssuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dynamic-credential-issuers/{id}/disable": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Disable a dynamic credential issuer",
+        "operationId": "disableDynamicCredentialIssuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Disabled dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/dynamic-credential-issuers/{id}/enable": {
+      "post": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Credential Vault"
+        ],
+        "summary": "Enable a dynamic credential issuer",
+        "operationId": "enableDynamicCredentialIssuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Enabled dynamic credential issuer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicCredentialIssuerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or concurrency limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/sandboxes/{id}/egress": {
       "get": {
         "security": [
@@ -9058,6 +13193,44 @@
           "egress_custom_domains_disabled",
           "egress_rule_limit_exceeded",
           "egress_provider_unavailable",
+          "credential_vault_unsupported",
+          "credential_vault_provider_unavailable",
+          "credential_vault_create_requires_sync",
+          "credential_vault_invalid_binding",
+          "credential_vault_required_slot_missing",
+          "credential_vault_secret_required",
+          "credential_vault_attachment_not_found",
+          "credential_vault_reinjection_required",
+          "credential_vault_refresh_not_supported",
+          "credential_vault_egress_conflict",
+          "credential_preset_not_found",
+          "credential_secret_not_found",
+          "credential_secret_duplicate",
+          "credential_secret_forbidden",
+          "credential_secret_invalid",
+          "credential_secret_encryption_unavailable",
+          "credential_secret_decryption_unavailable",
+          "credential_secret_disabled",
+          "credential_secret_value_required",
+          "external_secret_reference_not_found",
+          "external_secret_reference_duplicate",
+          "external_secret_reference_forbidden",
+          "external_secret_reference_invalid",
+          "external_secret_reference_disabled",
+          "external_secret_resolution_not_found",
+          "external_secret_resolution_forbidden",
+          "external_secret_resolution_invalid",
+          "external_secret_resolver_unavailable",
+          "dynamic_credential_issuer_not_found",
+          "dynamic_credential_issuer_duplicate",
+          "dynamic_credential_issuer_forbidden",
+          "dynamic_credential_issuer_invalid",
+          "dynamic_credential_issuer_disabled",
+          "dynamic_credential_issue_not_found",
+          "dynamic_credential_issue_forbidden",
+          "dynamic_credential_issue_invalid",
+          "dynamic_credential_issuer_unavailable",
+          "audit_event_forbidden",
           "route_not_found",
           "route_not_ready",
           "route_proxy_requires_token_route",
@@ -9147,6 +13320,73 @@
           "total",
           "limit",
           "offset"
+        ],
+        "additionalProperties": false
+      },
+      "AuditEventSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actorLabel": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "actorUserId",
+          "actorLabel",
+          "action",
+          "targetType",
+          "targetId",
+          "metadata",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "AuditEventsResponse": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventSummary"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageSummary"
+          }
+        },
+        "required": [
+          "events",
+          "page"
         ],
         "additionalProperties": false
       },
@@ -9240,6 +13480,12 @@
           },
           "egressPolicy": {
             "$ref": "#/components/schemas/EgressPolicyInput"
+          },
+          "credentialSlots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateCredentialSlot"
+            }
           },
           "latestVersionId": {
             "type": [
@@ -9395,6 +13641,12 @@
           },
           "egressPolicy": {
             "$ref": "#/components/schemas/EgressPolicyInput"
+          },
+          "credentialSlots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateCredentialSlotInput"
+            }
           }
         },
         "required": [
@@ -9489,6 +13741,12 @@
           "egressPolicy": {
             "$ref": "#/components/schemas/EgressPolicyInput"
           },
+          "credentialSlots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateCredentialSlot"
+            }
+          },
           "envSchema": {
             "type": "object",
             "additionalProperties": true
@@ -9541,6 +13799,7 @@
           "workdir",
           "defaultPorts",
           "egressPolicy",
+          "credentialSlots",
           "envSchema",
           "metadata",
           "sbomRef",
@@ -9564,6 +13823,125 @@
         },
         "required": [
           "versions"
+        ],
+        "additionalProperties": false
+      },
+      "TemplateCredentialSlotInput": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "$ref": "#/components/schemas/CustomCredentialProfileInput"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "envName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerPresetId"
+        ],
+        "additionalProperties": false
+      },
+      "TemplateCredentialSlot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomCredentialProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "envName": {
+            "type": "string"
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CredentialVaultBinding"
+          },
+          "egressDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "test": {
+            "$ref": "#/components/schemas/CredentialProviderPresetTest"
+          }
+        },
+        "required": [
+          "id",
+          "providerPresetId",
+          "customProfile",
+          "credentialName",
+          "required",
+          "label",
+          "description",
+          "envName",
+          "fakeEnv",
+          "binding",
+          "egressDomains",
+          "test"
         ],
         "additionalProperties": false
       },
@@ -10545,6 +14923,18 @@
           "source": {
             "$ref": "#/components/schemas/SandboxSourceInput"
           },
+          "credentials": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachSandboxCredentialBody"
+            }
+          },
+          "credentialMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TemplateCredentialSlotMappingBody"
+            }
+          },
           "idempotencyKey": {
             "type": "string"
           },
@@ -10563,6 +14953,12 @@
         "properties": {
           "sandbox": {
             "$ref": "#/components/schemas/SandboxSummary"
+          },
+          "credentialAttachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+            }
           },
           "operation": {
             "$ref": "#/components/schemas/SandboxOperationSummary"
@@ -11897,6 +16293,2158 @@
         ],
         "additionalProperties": false
       },
+      "CredentialVaultSubstitution": {
+        "type": "object",
+        "properties": {
+          "credential": {
+            "type": "string"
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "in": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "path",
+                "query",
+                "header",
+                "body"
+              ]
+            }
+          }
+        },
+        "required": [
+          "placeholder",
+          "in"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultMatch": {
+        "type": "object",
+        "properties": {
+          "schemes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "https",
+                "http"
+              ]
+            }
+          },
+          "hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "hosts"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultBearerAuth": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "bearer"
+            ]
+          },
+          "credential": {
+            "type": "string"
+          },
+          "substitutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialVaultSubstitution"
+            }
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultBasicAuth": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "basic"
+            ]
+          },
+          "credential": {
+            "type": "string"
+          },
+          "substitutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialVaultSubstitution"
+            }
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultApiKeyAuth": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "apiKey"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "credential": {
+            "type": "string"
+          },
+          "substitutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialVaultSubstitution"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultCustomHeader": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "credential": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultCustomHeadersAuth": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "customHeaders"
+            ]
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialVaultCustomHeader"
+            }
+          },
+          "substitutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialVaultSubstitution"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "headers"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultPassthroughAuth": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "passthrough"
+            ]
+          },
+          "substitutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialVaultSubstitution"
+            }
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultAuth": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CredentialVaultBearerAuth"
+          },
+          {
+            "$ref": "#/components/schemas/CredentialVaultBasicAuth"
+          },
+          {
+            "$ref": "#/components/schemas/CredentialVaultApiKeyAuth"
+          },
+          {
+            "$ref": "#/components/schemas/CredentialVaultCustomHeadersAuth"
+          },
+          {
+            "$ref": "#/components/schemas/CredentialVaultPassthroughAuth"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "CredentialProviderPresetTest": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialProviderPreset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "model-api",
+              "git-hosting",
+              "package-registry"
+            ]
+          },
+          "defaultEnvName": {
+            "type": "string"
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CredentialVaultBinding"
+          },
+          "egressDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "test": {
+            "$ref": "#/components/schemas/CredentialProviderPresetTest"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description",
+          "category",
+          "defaultEnvName",
+          "credentialName",
+          "fakeEnv",
+          "binding",
+          "egressDomains",
+          "test"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialProviderPresetsResponse": {
+        "type": "object",
+        "properties": {
+          "presets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialProviderPreset"
+            }
+          }
+        },
+        "required": [
+          "presets"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialProviderPresetResponse": {
+        "type": "object",
+        "properties": {
+          "preset": {
+            "$ref": "#/components/schemas/CredentialProviderPreset"
+          }
+        },
+        "required": [
+          "preset"
+        ],
+        "additionalProperties": false
+      },
+      "CustomCredentialProfileInput": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "authType": {
+            "type": "string",
+            "enum": [
+              "bearer",
+              "apiKey"
+            ]
+          },
+          "headerName": {
+            "type": "string"
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "envName": {
+            "type": "string"
+          },
+          "testPath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "authType"
+        ],
+        "additionalProperties": false
+      },
+      "CustomCredentialProfile": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "authType": {
+            "type": "string",
+            "enum": [
+              "bearer",
+              "apiKey"
+            ]
+          },
+          "headerName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "methods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "envName": {
+            "type": "string"
+          },
+          "testPath": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "host",
+          "authType",
+          "headerName",
+          "methods",
+          "paths",
+          "envName",
+          "testPath"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialSecretUsageSummary": {
+        "type": "object",
+        "properties": {
+          "activeSandboxCount": {
+            "type": "integer"
+          },
+          "attachmentCount": {
+            "type": "integer"
+          },
+          "lastAttachedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "activeSandboxCount",
+          "attachmentCount",
+          "lastAttachedAt"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialSourceCapabilities": {
+        "type": "object",
+        "properties": {
+          "reusable": {
+            "type": "boolean"
+          },
+          "rehydratable": {
+            "type": "boolean"
+          },
+          "rotatable": {
+            "type": "boolean"
+          },
+          "externallyOwned": {
+            "type": "boolean"
+          },
+          "shortLived": {
+            "type": "boolean"
+          },
+          "launchOnly": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reusable",
+          "rehydratable",
+          "rotatable",
+          "externallyOwned",
+          "shortLived",
+          "launchOnly"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialSecretSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomCredentialProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "harakiri_encrypted"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "deleted"
+            ]
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CredentialVaultBinding"
+          },
+          "egressDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasEncryptedSecret": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rotatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "disabledAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CredentialSecretUsageSummary"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CredentialSourceCapabilities"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "providerPresetId",
+          "customProfile",
+          "sourceType",
+          "status",
+          "usePolicy",
+          "version",
+          "fakeEnv",
+          "binding",
+          "egressDomains",
+          "hasEncryptedSecret",
+          "metadata",
+          "createdByUserId",
+          "createdByLabel",
+          "rotatedAt",
+          "disabledAt",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "usage",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      },
+      "CreateCredentialSecretBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "$ref": "#/components/schemas/CustomCredentialProfileInput"
+          },
+          "value": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name",
+          "providerPresetId",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "RotateCredentialSecretBody": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateCredentialSecretBody": {
+        "type": "object",
+        "properties": {
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          }
+        },
+        "required": [
+          "usePolicy"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialSecretsResponse": {
+        "type": "object",
+        "properties": {
+          "secrets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialSecretSummary"
+            }
+          }
+        },
+        "required": [
+          "secrets"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialSecretResponse": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "$ref": "#/components/schemas/CredentialSecretSummary"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "additionalProperties": false
+      },
+      "KubernetesSecretReference": {
+        "type": "object",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "name",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "KubernetesSecretReferenceInput": {
+        "type": "object",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "ExternalSecretValidationSummary": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "unvalidated",
+              "valid",
+              "not_found",
+              "forbidden",
+              "invalid",
+              "unavailable"
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "versionRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "checkedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "state",
+          "message",
+          "versionRef",
+          "checkedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ExternalSecretReferenceSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomCredentialProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "external_ref"
+            ]
+          },
+          "resolverType": {
+            "type": "string",
+            "enum": [
+              "kubernetes_secret"
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/KubernetesSecretReference"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "deleted"
+            ]
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CredentialVaultBinding"
+          },
+          "egressDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disabledAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ExternalSecretValidationSummary"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CredentialSecretUsageSummary"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CredentialSourceCapabilities"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "providerPresetId",
+          "customProfile",
+          "sourceType",
+          "resolverType",
+          "reference",
+          "status",
+          "usePolicy",
+          "version",
+          "fakeEnv",
+          "binding",
+          "egressDomains",
+          "metadata",
+          "createdByUserId",
+          "createdByLabel",
+          "disabledAt",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "validation",
+          "usage",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      },
+      "CreateExternalSecretReferenceBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "$ref": "#/components/schemas/CustomCredentialProfileInput"
+          },
+          "resolverType": {
+            "type": "string",
+            "enum": [
+              "kubernetes_secret"
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/KubernetesSecretReferenceInput"
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name",
+          "providerPresetId",
+          "resolverType",
+          "reference"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateExternalSecretReferenceBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "customProfile": {
+            "$ref": "#/components/schemas/CustomCredentialProfileInput"
+          },
+          "reference": {
+            "$ref": "#/components/schemas/KubernetesSecretReferenceInput"
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "ExternalSecretReferencesResponse": {
+        "type": "object",
+        "properties": {
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalSecretReferenceSummary"
+            }
+          }
+        },
+        "required": [
+          "references"
+        ],
+        "additionalProperties": false
+      },
+      "ExternalSecretReferenceResponse": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "$ref": "#/components/schemas/ExternalSecretReferenceSummary"
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "additionalProperties": false
+      },
+      "GitHubAppInstallationScope": {
+        "type": "object",
+        "properties": {
+          "installationId": {
+            "type": "string"
+          },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "permissions": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "admin"
+              ]
+            }
+          }
+        },
+        "required": [
+          "installationId",
+          "repositories",
+          "permissions"
+        ],
+        "additionalProperties": false
+      },
+      "DynamicCredentialValidationSummary": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "unvalidated",
+              "valid",
+              "not_found",
+              "forbidden",
+              "invalid",
+              "unavailable"
+            ]
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "checkedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "state",
+          "message",
+          "checkedAt"
+        ],
+        "additionalProperties": false
+      },
+      "DynamicCredentialIssuerSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "github"
+            ]
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "dynamic"
+            ]
+          },
+          "issuerType": {
+            "type": "string",
+            "enum": [
+              "github_app_installation"
+            ]
+          },
+          "scope": {
+            "$ref": "#/components/schemas/GitHubAppInstallationScope"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "deleted"
+            ]
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CredentialVaultBinding"
+          },
+          "egressDomains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "disabledAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastIssuedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/DynamicCredentialValidationSummary"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CredentialSecretUsageSummary"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CredentialSourceCapabilities"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "providerPresetId",
+          "sourceType",
+          "issuerType",
+          "scope",
+          "status",
+          "usePolicy",
+          "version",
+          "fakeEnv",
+          "binding",
+          "egressDomains",
+          "metadata",
+          "createdByUserId",
+          "createdByLabel",
+          "disabledAt",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "lastIssuedAt",
+          "validation",
+          "usage",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      },
+      "CreateDynamicCredentialIssuerBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "issuerType": {
+            "type": "string",
+            "enum": [
+              "github_app_installation"
+            ]
+          },
+          "scope": {
+            "$ref": "#/components/schemas/GitHubAppInstallationScope"
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name",
+          "issuerType",
+          "scope"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateDynamicCredentialIssuerBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/GitHubAppInstallationScope"
+          },
+          "usePolicy": {
+            "type": "string",
+            "enum": [
+              "admins_only",
+              "organization_members"
+            ]
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [],
+        "additionalProperties": false,
+        "minProperties": 1
+      },
+      "DynamicCredentialIssuersResponse": {
+        "type": "object",
+        "properties": {
+          "issuers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicCredentialIssuerSummary"
+            }
+          }
+        },
+        "required": [
+          "issuers"
+        ],
+        "additionalProperties": false
+      },
+      "DynamicCredentialIssuerResponse": {
+        "type": "object",
+        "properties": {
+          "issuer": {
+            "$ref": "#/components/schemas/DynamicCredentialIssuerSummary"
+          }
+        },
+        "required": [
+          "issuer"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultBinding": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "match": {
+            "$ref": "#/components/schemas/CredentialVaultMatch"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/CredentialVaultAuth"
+          }
+        },
+        "required": [
+          "name",
+          "match",
+          "auth"
+        ],
+        "additionalProperties": false
+      },
+      "InlineEphemeralSandboxCredentialBody": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "inline_ephemeral"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "binding": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "match": {
+                "$ref": "#/components/schemas/CredentialVaultMatch"
+              },
+              "auth": {
+                "$ref": "#/components/schemas/CredentialVaultAuth"
+              }
+            },
+            "required": [
+              "match",
+              "auth"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "value",
+          "binding"
+        ],
+        "additionalProperties": false
+      },
+      "HarakiriEncryptedSandboxCredentialBody": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "harakiri_encrypted"
+            ]
+          },
+          "secretId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "bindingName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceType",
+          "secretId"
+        ],
+        "additionalProperties": false
+      },
+      "ExternalReferenceSandboxCredentialBody": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "external_ref"
+            ]
+          },
+          "referenceId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "bindingName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceType",
+          "referenceId"
+        ],
+        "additionalProperties": false
+      },
+      "DynamicSandboxCredentialBody": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "dynamic"
+            ]
+          },
+          "issuerId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "bindingName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceType",
+          "issuerId"
+        ],
+        "additionalProperties": false
+      },
+      "AttachSandboxCredentialBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/InlineEphemeralSandboxCredentialBody"
+          },
+          {
+            "$ref": "#/components/schemas/HarakiriEncryptedSandboxCredentialBody"
+          },
+          {
+            "$ref": "#/components/schemas/ExternalReferenceSandboxCredentialBody"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicSandboxCredentialBody"
+          }
+        ]
+      },
+      "InlineEphemeralTemplateCredentialSourceBody": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "inline_ephemeral"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "bindingName": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "writeOnly": true
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "TemplateCredentialSlotSourceBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/InlineEphemeralTemplateCredentialSourceBody"
+          },
+          {
+            "$ref": "#/components/schemas/HarakiriEncryptedSandboxCredentialBody"
+          },
+          {
+            "$ref": "#/components/schemas/ExternalReferenceSandboxCredentialBody"
+          },
+          {
+            "$ref": "#/components/schemas/DynamicSandboxCredentialBody"
+          }
+        ]
+      },
+      "TemplateCredentialSlotMappingBody": {
+        "type": "object",
+        "properties": {
+          "slotId": {
+            "type": "string"
+          },
+          "providerPresetId": {
+            "type": "string",
+            "enum": [
+              "openai",
+              "anthropic",
+              "openrouter",
+              "github",
+              "gitlab",
+              "npm",
+              "pypi-publish",
+              "custom"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/TemplateCredentialSlotSourceBody"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "CredentialVaultProviderState": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer"
+          },
+          "credentials": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "sourceType": {
+                  "type": "string"
+                },
+                "revision": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "sourceType",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "bindings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "revision": {
+                  "type": "integer"
+                },
+                "match": {
+                  "$ref": "#/components/schemas/CredentialVaultMatch"
+                },
+                "auth": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "name",
+                "revision"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "revision",
+          "credentials",
+          "bindings"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxCredentialAttachmentSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sandboxId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "inline_ephemeral",
+              "harakiri_encrypted",
+              "external_ref",
+              "dynamic"
+            ]
+          },
+          "sourceRef": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credentialName": {
+            "type": "string"
+          },
+          "bindingName": {
+            "type": "string"
+          },
+          "match": {
+            "$ref": "#/components/schemas/CredentialVaultMatch"
+          },
+          "auth": {
+            "$ref": "#/components/schemas/CredentialVaultAuth"
+          },
+          "fakeEnv": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "injected",
+              "requires_reinjection",
+              "detached",
+              "failed"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "providerRevision": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "providerState": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "present",
+              "missing",
+              "unavailable"
+            ]
+          },
+          "providerCheckedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "providerMetadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "sourceMetadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "refreshState": {
+            "type": "string",
+            "enum": [
+              "not_applicable",
+              "current",
+              "expiring",
+              "expired",
+              "refresh_failed"
+            ]
+          },
+          "refreshAttemptedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "refreshedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "injectedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "detachedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdByLabel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "sandboxId",
+          "displayName",
+          "sourceType",
+          "sourceRef",
+          "credentialName",
+          "bindingName",
+          "match",
+          "auth",
+          "fakeEnv",
+          "status",
+          "provider",
+          "providerRevision",
+          "providerState",
+          "providerCheckedAt",
+          "providerMetadata",
+          "sourceMetadata",
+          "expiresAt",
+          "refreshState",
+          "refreshAttemptedAt",
+          "refreshedAt",
+          "lastError",
+          "injectedAt",
+          "detachedAt",
+          "createdByUserId",
+          "createdByLabel",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxCredentialsResponse": {
+        "type": "object",
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+            }
+          }
+        },
+        "required": [
+          "attachments"
+        ],
+        "additionalProperties": false
+      },
+      "InspectSandboxCredentialsResponse": {
+        "type": "object",
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+            }
+          },
+          "vault": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CredentialVaultProviderState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "attachments",
+          "vault"
+        ],
+        "additionalProperties": false
+      },
+      "AttachSandboxCredentialResponse": {
+        "type": "object",
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+          },
+          "vault": {
+            "$ref": "#/components/schemas/CredentialVaultProviderState"
+          }
+        },
+        "required": [
+          "attachment",
+          "vault"
+        ],
+        "additionalProperties": false
+      },
+      "RefreshSandboxCredentialResponse": {
+        "type": "object",
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+          },
+          "vault": {
+            "$ref": "#/components/schemas/CredentialVaultProviderState"
+          }
+        },
+        "required": [
+          "attachment",
+          "vault"
+        ],
+        "additionalProperties": false
+      },
+      "DetachSandboxCredentialResponse": {
+        "type": "object",
+        "properties": {
+          "attachment": {
+            "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+          },
+          "vault": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CredentialVaultProviderState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "attachment",
+          "vault"
+        ],
+        "additionalProperties": false
+      },
+      "RehydrateSandboxCredentialsResponse": {
+        "type": "object",
+        "properties": {
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SandboxCredentialAttachmentSummary"
+            }
+          },
+          "vault": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CredentialVaultProviderState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rehydrated": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attachments",
+          "vault",
+          "rehydrated",
+          "skipped",
+          "failed"
+        ],
+        "additionalProperties": false
+      },
+      "TestSandboxCredentialBody": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "timeoutMs": {
+            "type": "integer"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "TestSandboxCredentialResponse": {
+        "type": "object",
+        "properties": {
+          "attachmentId": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "normalizedTarget": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reachable",
+              "blocked_or_unreachable",
+              "binding_mismatch",
+              "not_injected",
+              "sandbox_not_running",
+              "provider_unavailable"
+            ]
+          },
+          "httpStatus": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "number"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "attachmentId",
+          "target",
+          "normalizedTarget",
+          "url",
+          "method",
+          "ok",
+          "status",
+          "httpStatus",
+          "stdout",
+          "stderr",
+          "durationMs",
+          "checkedAt"
+        ],
+        "additionalProperties": false
+      },
       "RuntimeCapabilitySummary": {
         "type": "object",
         "properties": {
@@ -11930,6 +18478,9 @@
               "tokenRoutes",
               "git",
               "egressPolicy",
+              "credentialVault",
+              "credentialVaultPatch",
+              "credentialVaultSanitizedRead",
               "logs",
               "metrics"
             ]
@@ -12789,10 +19340,14 @@
         "properties": {
           "canManageMembers": {
             "type": "boolean"
+          },
+          "canManageCredentialSecrets": {
+            "type": "boolean"
           }
         },
         "required": [
-          "canManageMembers"
+          "canManageMembers",
+          "canManageCredentialSecrets"
         ],
         "additionalProperties": false
       },

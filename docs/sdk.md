@@ -254,6 +254,277 @@ Git troubleshooting:
 | Commit fails with missing identity | Run `sandbox.git.configureUser({ name, email }, { cwd })` before committing. |
 | Push is rejected | Pull/rebase first, verify the token has write scope, and use explicit one-shot credentials for the push operation. |
 
+## Credential Vault
+
+Use Credential Vault when sandbox code needs to call an external API but should
+not receive the real credential value. The SDK exposes one attachment contract
+for `inline_ephemeral`, `harakiri_encrypted`, `external_ref`, and `dynamic`
+sources, plus template slot mapping, provider inspection, refresh,
+rehydration, and metadata-only audit.
+
+```ts
+import { HarakiriClient, credentialFromPreset } from "@h-sandbox/sdk";
+
+const created = await harakiri.createSandbox({
+  template: "python-3.12-data",
+  credentials: [credentialFromPreset("openai", process.env.OPENAI_API_KEY!)]
+});
+
+console.log(created.credentialAttachments?.[0]?.status);
+
+const attachment = await sandbox.credentials.attach({
+  ...credentialFromPreset("openai", process.env.OPENAI_API_KEY!)
+});
+
+const result = await sandbox.credentials.test(attachment.attachment.id, {
+  target: "https://api.openai.com/v1/models",
+  timeoutMs: 10_000
+});
+
+console.log(result.ok, result.status, result.httpStatus);
+await sandbox.credentials.detach(attachment.attachment.id);
+```
+
+Flat helpers are available for adapter-style code:
+
+```ts
+await harakiri.attachSandboxCredential(sandbox.id, {
+  value: process.env.PRIVATE_API_TOKEN!,
+  binding: {
+    match: { hosts: ["api.internal.example"], schemes: ["https"] },
+    auth: { type: "apiKey", name: "x-api-key" }
+  }
+});
+
+await harakiri.listSandboxCredentials(sandbox.id);
+await harakiri.testSandboxCredential(sandbox.id, "sca_...", {
+  target: "https://api.internal.example/health"
+});
+```
+
+Use `harakiri.credentialPresets.list()` to discover built-in presets for
+OpenAI, Anthropic, OpenRouter, GitHub, GitLab, npm, and PyPI publish. Use an
+explicit binding for private APIs, self-hosted Git, or private package indexes
+that need custom hosts.
+
+`credentialFromPreset` validates non-empty material and clones preset binding
+and fake-env data so caller overrides cannot mutate the shared catalog. Use a
+direct body for an exact-host custom profile. Checked examples live in
+`examples/sdk-credential-vault` and `examples/sdk-private-api-vault`.
+
+Workspace secret custody is available through `credentialSecrets`. These
+helpers are for admin-managed encrypted `harakiri_encrypted` records. The raw
+value is write-only and is accepted only on create and rotate:
+
+```ts
+const createdSecret = await harakiri.credentialSecrets.create({
+  name: "openai-prod",
+  providerPresetId: "openai",
+  usePolicy: "admins_only",
+  value: process.env.OPENAI_API_KEY!,
+  fakeEnv: { OPENAI_API_KEY: "fake-openai-key" }
+});
+
+const secrets = await harakiri.credentialSecrets.list();
+console.log(secrets.secrets.map((secret) => ({
+  id: secret.id,
+  status: secret.status,
+  version: secret.version,
+  usePolicy: secret.usePolicy,
+  activeSandboxes: secret.usage.activeSandboxCount,
+  hasEncryptedSecret: secret.hasEncryptedSecret
+})));
+
+await harakiri.credentialSecrets.update(createdSecret.secret.id, {
+  usePolicy: "organization_members"
+});
+
+await harakiri.credentialSecrets.rotate(createdSecret.secret.id, {
+  value: process.env.OPENAI_API_KEY_NEXT!
+});
+
+const storedAttachment = await sandbox.credentials.attachSecret(
+  createdSecret.secret.id,
+  { displayName: "OpenAI production" }
+);
+console.log(storedAttachment.attachment.sourceType);
+
+const storedLaunch = await harakiri.createSandbox({
+  template: "open-agents-dev",
+  credentials: [{
+    sourceType: "harakiri_encrypted",
+    secretId: createdSecret.secret.id,
+    displayName: "OpenAI production"
+  }]
+});
+console.log(storedLaunch.credentialAttachments?.[0]?.sourceRef);
+
+const slottedLaunch = await harakiri.createSandbox({
+  template: "open-agents-dev",
+  credentialMappings: [{
+    slotId: "llm",
+    source: {
+      sourceType: "harakiri_encrypted",
+      secretId: createdSecret.secret.id,
+      displayName: "OpenAI production"
+    }
+  }]
+});
+console.log(slottedLaunch.credentialAttachments?.[0]?.binding.name);
+
+await harakiri.createSandbox({
+  template: "open-agents-dev",
+  credentialMappings: [{
+    providerPresetId: "openai",
+    source: {
+      sourceType: "inline_ephemeral",
+      value: process.env.OPENAI_API_KEY!
+    }
+  }]
+});
+
+await harakiri.credentialSecrets.disable(createdSecret.secret.id);
+await harakiri.credentialSecrets.enable(createdSecret.secret.id);
+await harakiri.credentialSecrets.delete(createdSecret.secret.id);
+```
+
+Workspace secret management remains admin-only. A secret defaults to
+`admins_only`; setting `organization_members` lets members discover and attach
+it without granting read or management access. `credentialSecrets` does not
+return the raw value. Use a
+`harakiri_encrypted` credential body in `createSandbox` for synchronous launch
+injection, or `sandbox.credentials.attachSecret(secretId)` and
+`harakiri.credentials.attachSecret(sandboxId, secretId)` for an already-running
+sandbox. Use `credentialMappings` when the template declares the binding as a
+slot and the launch request should only provide the credential source. Required
+template slots must be mapped explicitly; direct low-level credentials do not
+satisfy named template slots. The SDK rejects create-time credentials and
+mappings with `wait:false` or `waitTimeoutMs` because async replay is not
+implemented yet. Encrypted workspace secret attachments are rehydrated
+automatically after resume when the source is active and decryptable. Use
+`sandbox.credentials.rehydrate()` or
+`harakiri.credentials.rehydrate(sandboxId)` to retry stored-source
+rehydration manually.
+
+Manage and use an external reference through `externalSecretReferences`:
+
+```ts
+const external = await harakiri.externalSecretReferences.create({
+  name: "OpenAI from cluster",
+  providerPresetId: "openai",
+  resolverType: "kubernetes_secret",
+  reference: {
+    namespace: "harakiri",
+    name: "harakiri-vault-agents",
+    key: "OPENAI_API_KEY"
+  },
+  usePolicy: "organization_members"
+});
+
+const checked = await harakiri.externalSecretReferences.validate(
+  external.reference.id
+);
+console.log(checked.reference.validation.state);
+
+await sandbox.credentials.attachReference(external.reference.id);
+
+await harakiri.createSandbox({
+  template: "open-agents-dev",
+  credentialMappings: [{
+    slotId: "llm",
+    source: {
+      sourceType: "external_ref",
+      referenceId: external.reference.id
+    }
+  }]
+});
+```
+
+The SDK never accepts a raw value for an external reference and never returns
+the resolved value. Admins manage references; organization members can list and
+attach only references explicitly shared with them. The Kubernetes resolver is
+an operator-enabled capability; see
+[External Secret References](external-secret-references.md).
+
+Configure a GitHub App installation issuer and attach a short-lived token:
+
+```ts
+const issuer = await harakiri.dynamicCredentialIssuers.create({
+  name: "agent repositories",
+  issuerType: "github_app_installation",
+  scope: {
+    installationId: "123456",
+    repositories: ["agent-runtime"],
+    permissions: { contents: "read", metadata: "read" }
+  },
+  usePolicy: "organization_members"
+});
+
+await harakiri.dynamicCredentialIssuers.validate(issuer.issuer.id);
+const attached = await sandbox.credentials.attachIssuer(issuer.issuer.id);
+await sandbox.credentials.refresh(attached.attachment.id);
+```
+
+The SDK never exposes an issued token or the platform GitHub App private key.
+Dynamic sources can also be supplied in `credentials` or
+`credentialMappings` as `{ sourceType: "dynamic", issuerId }`.
+
+Inspect observed provider state and query admin-only organization history:
+
+```ts
+const state = await sandbox.credentials.inspect();
+const history = await harakiri.auditEvents.list({
+  targetId: sandbox.id,
+  actionPrefix: "sandbox.credential.",
+  limit: 50
+});
+```
+
+Template definitions can also declare built-in or exact-host custom credential
+slots. Slots are
+metadata only and are copied to each immutable template version:
+
+```ts
+await harakiri.createTemplate({
+  id: "agent-with-models",
+  name: "Agent with models",
+  image: "ubuntu:24.04",
+  credentialSlots: [
+    { providerPresetId: "openai" },
+    { providerPresetId: "github", required: false },
+    {
+      id: "private-model",
+      providerPresetId: "custom",
+      required: false,
+      customProfile: {
+        host: "api.internal.example",
+        authType: "apiKey",
+        headerName: "x-api-key",
+        methods: ["GET", "POST"],
+        paths: ["/v1/*"],
+        envName: "PRIVATE_MODEL_KEY",
+        testPath: "/v1/health"
+      }
+    }
+  ]
+});
+
+const template = await harakiri.getTemplate("agent-with-models");
+console.log(template.template.credentialSlots?.map((slot) => slot.providerPresetId));
+```
+
+Do not hard-code secret values in source files or send them through command
+strings. Use process environment variables, a CI secret store, or write-only
+workspace secret custody. After resume, active injected attachments are marked
+`requires_reinjection` because provider-side vault state is reset. Harakiri
+then rehydrates active encrypted workspace, external-reference, and dynamic
+attachments. Because
+`inline_ephemeral` values are not stored, callers must reattach them with a
+fresh value.
+
+See the [Credential Vault cookbook](credential-vault-cookbook.md) for complete
+model, private API, GitHub, package, registry, and OpenCode workflows.
+
 ## Files
 
 Filesystem helpers support ordinary agent workflows:
@@ -530,11 +801,15 @@ Stable sandbox runtime codes are exported from `@h-sandbox/sdk` as
 | --- | --- | --- |
 | Missing resource | `sandbox_not_found`, `sandbox_command_not_found`, `route_not_found`, `file_not_found` | Drop stale IDs, recreate the resource, or show a not-found state. |
 | Sandbox state conflict | `sandbox_not_running`, `sandbox_terminated` | Refresh sandbox state; do not retry blindly against the same runtime. |
-| Unsupported provider capability | `runtime_command_unsupported`, `runtime_file_operation_unsupported` | Hide or disable the feature; check `getRuntimeCapabilities()` before retrying. |
-| Provider unavailable | `sandbox_provision_failed`, `runtime_files_unavailable`, `egress_provider_unavailable`, `route_proxy_upstream_unreachable` | Retry idempotent operations with backoff and show degraded runtime state. |
+| Unsupported provider capability | `runtime_command_unsupported`, `runtime_file_operation_unsupported`, `credential_vault_unsupported` | Hide or disable the feature; check `getRuntimeCapabilities()` before retrying. |
+| Provider unavailable | `sandbox_provision_failed`, `runtime_files_unavailable`, `egress_provider_unavailable`, `credential_vault_provider_unavailable`, `route_proxy_upstream_unreachable` | Retry idempotent operations with backoff and show degraded runtime state. |
 | Command timeout | `sandbox_command_timeout` | Increase timeout, split the command, or switch to detached command resources. |
 | File policy or path failure | `file_permission_denied`, `invalid_file_path`, artifact validation codes | Correct the path, permissions, or artifact metadata before retrying. |
 | Route or egress policy failure | `route_token_required`, `route_access_mode_conflict`, `egress_policy_invalid`, egress limit codes | Ask the user to adjust access mode or outbound policy. |
+| Credential Vault input or policy failure | `credential_vault_create_requires_sync`, `credential_vault_invalid_binding`, `credential_vault_egress_conflict`, `credential_vault_required_slot_missing`, `credential_vault_secret_required`, `credential_secret_invalid`, `credential_secret_value_required` | Correct the source, slot mapping, binding, fake env, sync-create mode, or runtime egress profile before retrying. |
+| Credential Vault resource or permission failure | `credential_vault_attachment_not_found`, `credential_preset_not_found`, `credential_secret_not_found`, `credential_secret_duplicate`, `credential_secret_forbidden`, `credential_secret_disabled`, `credential_secret_encryption_unavailable`, `credential_secret_decryption_unavailable` | Refresh IDs, use an admin key for workspace secrets, enable disabled secrets, or fix server encryption configuration. |
+| External or dynamic source failure | `external_secret_*`, `dynamic_credential_issuer_*`, `dynamic_credential_issue_*` | Correct operator configuration, locator or issuer scope, source status, and member-use policy; never fall back to an unrelated source. |
+| Audit permission failure | `audit_event_forbidden` | Show organization Vault history only to admins and still handle server-side denial. |
 
 ```ts
 import { HarakiriApiError, HarakiriProviderUnavailableError } from "@h-sandbox/sdk";

@@ -583,6 +583,23 @@ Verify template visibility and mutation scope:
 pnpm smoke:template-visibility
 ```
 
+## Credential Vault Day-Two Checks
+
+Credential Vault requires OpenSandbox `dns+nft`, Credential Proxy, and a
+positive `credentialVaultReady` provider attestation. Check desired and
+observed state without querying raw values:
+
+```bash
+harakiri vault inspect sbx_... --json
+harakiri vault audit --target-id sbx_... --json
+kubectl -n harakiri logs deploy/harakiri-scheduler --since=30m
+```
+
+Back up PostgreSQL and every referenced wrapping key together. Validate
+external references and GitHub App issuers after cluster, RBAC, or credential
+rotation changes. See [Credential Vault Operations](credential-vault-operations.md)
+for enablement, restore drills, OpenShift constraints, and incident response.
+
 ## Teardown
 
 ```bash

@@ -6,6 +6,11 @@
 - [Architecture](architecture.md)
 - [Extension interfaces](extensions.md)
 - [OpenSandbox boundaries](opensandbox-boundaries.md)
+- [Credential Vault internals](credential-vault-internals.md)
+- [Credential Vault engineering guide](internal/credential-vault-engineering.md)
+- [Credential Vault documentation inventory](internal/credential-vault-documentation-inventory.md)
+- [Credential Vault compatibility and support](credential-vault-support.md)
+- [Credential Vault threat model](security/credential-vault-threat-model.md)
 - [Sandbox runtime contract](sandbox-runtime-contract.md)
 - [Storage interfaces](storage.md)
 - [Builder providers](builders.md)
@@ -13,6 +18,7 @@
 
 ## Users
 
+- [Hands-on tutorials](tutorials.md)
 - [API reference](api.md)
 - [SDK guide](sdk.md)
 - [CLI reference](cli.md)
@@ -21,6 +27,11 @@
 - [Building with Harakiri](integrations/building-with-harakiri.md)
 - [Interactive terminals](integrations/interactive-terminal.md)
 - [Filesystem and artifacts](filesystem-artifacts.md)
+- [Credential Vault](credential-vault.md)
+- [Credential Vault cookbook](credential-vault-cookbook.md)
+- [Credential Vault integration guide](integrations/credential-vault.md)
+- [External secret references](external-secret-references.md)
+- [Credential Vault compatibility and support](credential-vault-support.md)
 - [Provider adapter shape](integrations/provider-adapter.md)
 - [Migrating from direct OpenSandbox](integrations/migrating-from-direct-opensandbox.md)
 - [Capabilities and limits](integrations/capabilities-and-limits.md)
@@ -41,8 +52,13 @@
 - [OpenShift install](install-openshift.md)
 - [Air-gapped deployment](airgap.md)
 - [Outbound access](egress-control.md)
+- [Credential Vault](credential-vault.md)
+- [Credential Vault operations](credential-vault-operations.md)
+- [Credential Vault compatibility and support](credential-vault-support.md)
+- [Credential Vault threat model](security/credential-vault-threat-model.md)
 - [Template security](template-security.md)
 - [Latest verification report](test-report.md)
+- [Credential Vault release notes](release-notes/credential-vault.md)
 
 ## Example Environments
 

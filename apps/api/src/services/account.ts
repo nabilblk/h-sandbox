@@ -98,7 +98,8 @@ const mapUser = (user: UserSnapshot) => ({
 });
 
 const capabilitiesForRole = (role: string) => ({
-  canManageMembers: role === "admin"
+  canManageMembers: role === "admin",
+  canManageCredentialSecrets: role === "admin"
 });
 
 const mapMember = (member: MemberSnapshot, options: { actorUserId?: string; adminCount?: number } = {}): OrganizationMemberSummary => ({

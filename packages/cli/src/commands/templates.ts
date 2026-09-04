@@ -38,6 +38,8 @@ type TemplateInitOptions = {
   runtimeFamily: string;
   startCommand: string;
   readyCommand: string;
+  credentialSlots: string[];
+  optionalCredentialSlots: string[];
 };
 
 const templateConfig = (options: TemplateInitOptions) => {
@@ -45,6 +47,11 @@ const templateConfig = (options: TemplateInitOptions) => {
   const source = options.image
     ? `image = ${tomlString(options.image)}`
     : `dockerfile = ${tomlString(options.dockerfile ?? "Dockerfile")}`;
+  const credentialSlotLines = [
+    options.credentialSlots.length ? `credential_slots = ${tomlArray(options.credentialSlots)}` : null,
+    options.optionalCredentialSlots.length ? `optional_credential_slots = ${tomlArray(options.optionalCredentialSlots)}` : null
+  ].filter((line): line is string => Boolean(line));
+
   return `# Harakiri sandbox template.
 # Build this directory as an OpenSandbox-compatible OCI image:
 #   harakiri template build --name ${id} .
@@ -69,6 +76,7 @@ workdir = ${tomlString(options.workdir)}
 ports = ${tomlArray(options.ports)}
 start_command = ${tomlString(options.startCommand)}
 ready_command = ${tomlString(options.readyCommand)}
+${credentialSlotLines.length ? `${credentialSlotLines.join("\n")}\n` : ""}
 `;
 };
 
@@ -175,6 +183,8 @@ Examples:
     .option("--runtime-family <family>", "runtime family label", "custom")
     .option("--start-command <command>", "default command to keep the sandbox alive", "sleep 3600")
     .option("--ready-command <command>", "readiness command stored in config", "true")
+    .option("--credential-slot <preset>", "required Credential Vault provider preset; can be repeated", collectString, [])
+    .option("--optional-credential-slot <preset>", "optional Credential Vault provider preset; can be repeated", collectString, [])
     .option("--force", "overwrite an existing harakiri.toml")
     .addHelpText("after", `
 Examples:
@@ -188,7 +198,7 @@ Examples:
       if (existsSync(path) && !options.force) throw new Error(`${path} already exists. Use --force to overwrite.`);
       const tags = uniqueStrings(options.tag.length ? options.tag : ["custom"]);
       const aliases = uniqueStrings(options.alias.length ? options.alias : [templateIdFor(options.id ?? options.name)]);
-      await writeFile(path, templateConfig({
+      const contents = templateConfig({
         name: options.name,
         description: options.description ?? `Sandbox runtime for ${options.name}.`,
         id: options.id,
@@ -203,8 +213,12 @@ Examples:
         aliases,
         runtimeFamily: options.runtimeFamily,
         startCommand: options.startCommand,
-        readyCommand: options.readyCommand
-      }));
+        readyCommand: options.readyCommand,
+        credentialSlots: uniqueStrings(options.credentialSlot),
+        optionalCredentialSlots: uniqueStrings(options.optionalCredentialSlot)
+      });
+      parseHarakiriTemplateConfig(contents);
+      await writeFile(path, contents);
       const id = templateIdFor(options.id ?? options.name);
       printProgress(`wrote ${path}`);
       printProgress(`next: harakiri template build --name ${id} .`);
@@ -345,7 +359,9 @@ Examples:
           defaultPorts: ports,
           workdir: options.workdir ?? templateFile.workdir ?? "/workspace",
           runtimeFamily: templateFile.runtimeFamily ?? "custom",
-          tags: templateFile.tags
+          tags: templateFile.tags,
+          egressPolicy: templateFile.egressPolicy,
+          credentialSlots: templateFile.credentialSlots
         });
         printProgress(`created template ${id}`);
       } catch (error) {

@@ -1,4 +1,5 @@
 import type { V1Node, V1Pod } from "@kubernetes/client-node";
+import type { TemplateCredentialSlot } from "@harakiri/shared";
 import { recordAuditEvent } from "./audit.js";
 import { config, logDeprecatedConfigWarnings } from "./config.js";
 import { makeId } from "./crypto.js";
@@ -27,6 +28,7 @@ type BuildRow = {
   template_workdir: string;
   template_default_ports: number[];
   template_egress_policy: Record<string, unknown>;
+  template_credential_slots: TemplateCredentialSlot[];
   template_tags: string[];
   context_sha256?: string;
   context_size_bytes?: number;
@@ -116,6 +118,22 @@ type RuntimeImagePrepullResult = {
   reason?: string | null;
   durationMs?: number;
 };
+
+export const snapshotTemplateCredentialSlots = (slots: TemplateCredentialSlot[]): TemplateCredentialSlot[] =>
+  slots.map((slot) => structuredClone({
+    id: slot.id,
+    providerPresetId: slot.providerPresetId,
+    customProfile: slot.customProfile,
+    credentialName: slot.credentialName,
+    required: slot.required,
+    label: slot.label,
+    description: slot.description,
+    envName: slot.envName,
+    fakeEnv: slot.fakeEnv,
+    binding: slot.binding,
+    egressDomains: slot.egressDomains,
+    test: slot.test
+  }));
 
 const provenanceFor = (build: BuildRow, ready: ReadyImage) => {
   const builderKind = ready.metadata.builder ?? (build.source_type === "dockerfile" ? config.templateDockerfileBuilder : "image-import");
@@ -458,6 +476,7 @@ const claimBuild = async (sourceType: "image" | "dockerfile") =>
                 t.workdir AS template_workdir,
                 t.default_ports AS template_default_ports,
                 t.egress_policy AS template_egress_policy,
+                t.credential_slots AS template_credential_slots,
                 t.tags AS template_tags,
                 c.sha256 AS context_sha256,
                 c.size_bytes AS context_size_bytes,
@@ -566,8 +585,9 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
         `INSERT INTO template_versions
          (id, template_id, organization_id, build_id, version_number, aliases,
           image_uri, image_digest, status, default_entrypoint, cpu_count, memory_mb,
-          workdir, default_ports, egress_policy, metadata, provenance, scan_status, scan_summary, promoted_at)
-         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13::jsonb, $14, $15, $16, $17, now())`,
+          workdir, default_ports, egress_policy, credential_slots, metadata, provenance,
+          scan_status, scan_summary, promoted_at)
+         VALUES ($1, $2, $3, $4, $5, ARRAY['latest'], $6, $7, 'ready', $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb, $15, $16, $17, $18, now())`,
         [
           versionId,
           build.template_id,
@@ -582,6 +602,7 @@ const completeBuild = async (build: BuildRow, ready: ReadyImage) => {
           build.template_workdir,
           build.template_default_ports,
           JSON.stringify(build.template_egress_policy ?? { mode: "open", presets: [], allow: [], deny: [] }),
+          JSON.stringify(snapshotTemplateCredentialSlots(build.template_credential_slots ?? [])),
           redactRecord({ ...build.metadata, ...readyWithPreflight.metadata }),
           provenance,
           scan.status,

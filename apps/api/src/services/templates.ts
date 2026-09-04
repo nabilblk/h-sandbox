@@ -1,6 +1,13 @@
 import { makeId } from "../crypto.js";
 import { query as defaultQuery } from "../db.js";
-import { defaultEgressPolicyInput, type EgressPolicyInput, type TemplateVersionSummary } from "@harakiri/shared";
+import {
+  defaultEgressPolicyInput,
+  templateCredentialSlotsFromInputs,
+  type EgressPolicyInput,
+  type TemplateCredentialSlot,
+  type TemplateCredentialSlotInput,
+  type TemplateVersionSummary
+} from "@harakiri/shared";
 import { activeTemplateBuildStatuses } from "../template-policy.js";
 import {
   archiveTemplate,
@@ -42,6 +49,7 @@ export type TemplateCreateInput = {
   defaultPorts: number[];
   runtimeFamily: string;
   egressPolicy?: EgressPolicyInput | null;
+  credentialSlots?: TemplateCredentialSlotInput[];
 };
 
 export type TemplateVersionRow = {
@@ -59,6 +67,7 @@ export type TemplateVersionRow = {
   workdir: string;
   defaultPorts: number[];
   egressPolicy: EgressPolicyInput | null;
+  credentialSlots: TemplateCredentialSlot[];
   envSchema: Record<string, unknown>;
   metadata: Record<string, unknown>;
   sbomRef: string | null;
@@ -91,6 +100,7 @@ const mapTemplateVersion = (row: TemplateVersionRow): TemplateVersionSummary => 
   workdir: row.workdir,
   defaultPorts: row.defaultPorts,
   egressPolicy: row.egressPolicy ?? defaultEgressPolicyInput,
+  credentialSlots: Array.isArray(row.credentialSlots) ? row.credentialSlots : [],
   envSchema: row.envSchema,
   metadata: row.metadata,
   sbomRef: row.sbomRef,
@@ -107,7 +117,7 @@ export const templateVersionSelect = `
          image_digest AS "imageDigest", status, default_entrypoint AS "defaultEntrypoint",
          cpu_count AS "cpuCount", memory_mb AS "memoryMb", workdir,
          default_ports AS "defaultPorts", egress_policy AS "egressPolicy",
-         env_schema AS "envSchema", metadata,
+         credential_slots AS "credentialSlots", env_schema AS "envSchema", metadata,
          sbom_ref AS "sbomRef", provenance, scan_status AS "scanStatus",
          scan_summary AS "scanSummary",
          created_at AS "createdAt", promoted_at AS "promotedAt"
@@ -169,6 +179,7 @@ export const createTemplate = async (
   if (egressValidation.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: egressValidation.preset };
   if (egressValidation.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
   if (egressValidation.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: egressValidation.limit };
+  const credentialSlots = templateCredentialSlotsFromInputs(body.credentialSlots ?? []);
 
   const id = body.id ?? slugFor(body.name, dependencies.idFactory);
   const exists = await query("SELECT id FROM templates WHERE id = $1", [id]);
@@ -178,9 +189,9 @@ export const createTemplate = async (
     `INSERT INTO templates
      (id, organization_id, name, description, image, icon, tags, aliases, boot_ms,
       visibility, default_entrypoint, cpu_count, memory_mb, workdir, default_ports,
-      egress_policy,
+      egress_policy, credential_slots,
       runtime_family, status, source_kind)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, 'building', 'custom')`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 220, $9, $10, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, 'building', 'custom')`,
     [
       id,
       input.organizationId,
@@ -197,12 +208,14 @@ export const createTemplate = async (
       body.workdir,
       body.defaultPorts,
       JSON.stringify(policyInputFromSummary(egressValidation.summary)),
+      JSON.stringify(credentialSlots),
       body.runtimeFamily
     ]
   );
   await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "template.create", "template", id, {
     imageUri: body.image,
-    status: "building"
+    status: "building",
+    credentialSlotCount: credentialSlots.length
   });
   const template = await (dependencies.resolveTemplateFn ?? resolveTemplate)(id, input.organizationId);
   return { kind: "created", template };

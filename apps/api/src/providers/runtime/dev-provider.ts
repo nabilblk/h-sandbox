@@ -1,9 +1,15 @@
-import type { RunResult } from "@harakiri/shared";
-import type { EgressNetworkPolicy, EgressNetworkRule } from "@harakiri/shared";
+import type {
+  CredentialVaultProviderState,
+  EgressNetworkPolicy,
+  EgressNetworkRule,
+  RunResult
+} from "@harakiri/shared";
 import type {
   RuntimeCreateSandboxInput,
   RuntimeCreateSandboxResult,
   RuntimeCreateSnapshotInput,
+  RuntimeCredentialVaultApplyInput,
+  RuntimeCredentialVaultDeleteInput,
   RuntimeExposeRouteInput,
   RuntimeFileEntry,
   RuntimeFileListResult,
@@ -33,6 +39,7 @@ type DevSandbox = RuntimeSandboxSummary & {
   fileContents: Map<string, string>;
   logs: RuntimeLogEntry[];
   egressPolicy: EgressNetworkPolicy;
+  credentialVault: CredentialVaultProviderState | null;
   commands: Map<string, { command: string; stdout: string; stderr: string; exitCode: number | null; running: boolean; startedAt: string; finishedAt: string | null }>;
   commandSessions: Map<string, { cwd: string }>;
 };
@@ -131,6 +138,10 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     metrics: true,
     routes: true,
     egress: true,
+    credentialVault: true,
+    credentialVaultPatch: true,
+    credentialVaultSanitizedRead: true,
+    credentialVaultRequiresRehydration: true,
     pause: true,
     resume: true,
     snapshots: true
@@ -159,6 +170,7 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
         : new Map(fallbackFiles.filter((file) => file.type === "file").map((file) => [file.path, "print('hello from dev runtime')\n"])),
       logs: [{ ts: nowIso(), lvl: "created", msg: input.snapshot ? "created from in-memory snapshot" : "created through in-memory runtime provider", source: "sandbox" }],
       egressPolicy: input.egressPolicy ?? { defaultAction: "allow", egress: [] },
+      credentialVault: null,
       commands: new Map(),
       commandSessions: new Map()
     };
@@ -461,6 +473,7 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
       status: sandbox ? "ok" : "missing",
       mode: sandbox?.egressPolicy.defaultAction === "deny" ? "deny_all" : "allow_all",
       enforcementMode: "dev",
+      credentialVaultReady: true,
       policy: sandbox?.egressPolicy ?? null
     };
   }
@@ -486,6 +499,56 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
       sandbox.egressPolicy = { ...sandbox.egressPolicy, egress: merged };
     }
     return this.getEgressPolicy(ref);
+  }
+
+  async getCredentialVault(ref: RuntimeSandboxRef) {
+    return this.sandboxes.get(ref.providerSandboxId)?.credentialVault ?? null;
+  }
+
+  async applyCredentialVault(input: RuntimeCredentialVaultApplyInput) {
+    const sandbox = this.sandboxes.get(input.providerSandboxId);
+    if (!sandbox) throw new Error(`sandbox ${input.providerSandboxId} not found`);
+    const revision = (sandbox.credentialVault?.revision ?? 0) + 1;
+    const credentialNames = new Set(sandbox.credentialVault?.credentials.map((credential) => credential.name) ?? []);
+    const bindingNames = new Set(sandbox.credentialVault?.bindings.map((binding) => binding.name) ?? []);
+    const credentials = [
+      ...(sandbox.credentialVault?.credentials ?? []),
+      ...input.credentials
+        .filter((credential) => !credentialNames.has(credential.name))
+        .map((credential) => ({ name: credential.name, sourceType: "inline", revision }))
+    ];
+    const bindings = [
+      ...(sandbox.credentialVault?.bindings ?? []),
+      ...input.bindings
+        .filter((binding) => !bindingNames.has(binding.name))
+        .map((binding) => ({
+          name: binding.name,
+          revision,
+          match: binding.match,
+          auth: {
+            type: binding.auth.type,
+            ...("name" in binding.auth ? { name: binding.auth.name } : {})
+          }
+        }))
+    ];
+    sandbox.credentialVault = { revision, credentials, bindings };
+    sandbox.logs.push({ ts: nowIso(), lvl: "credential-vault", msg: `credential vault revision ${revision}`, source: "sandbox" });
+    return sandbox.credentialVault;
+  }
+
+  async deleteCredentialVaultEntries(input: RuntimeCredentialVaultDeleteInput) {
+    const sandbox = this.sandboxes.get(input.providerSandboxId);
+    if (!sandbox?.credentialVault) return null;
+    const credentialNames = new Set(input.credentialNames);
+    const bindingNames = new Set(input.bindingNames);
+    const revision = sandbox.credentialVault.revision + 1;
+    sandbox.credentialVault = {
+      revision,
+      credentials: sandbox.credentialVault.credentials.filter((credential) => !credentialNames.has(credential.name)),
+      bindings: sandbox.credentialVault.bindings.filter((binding) => !bindingNames.has(binding.name))
+    };
+    sandbox.logs.push({ ts: nowIso(), lvl: "credential-vault", msg: `credential vault revision ${revision}`, source: "sandbox" });
+    return sandbox.credentialVault;
   }
 }
 

@@ -163,3 +163,42 @@ test("InMemoryRuntimeProvider supports lifecycle, files, logs, metrics, run, and
   assert.equal((await provider.get(ref))?.state, "terminated");
   assert.ok((await provider.logs(ref)).some((log) => log.lvl === "terminated"));
 });
+
+test("InMemoryRuntimeProvider conforms to the sanitized Credential Vault contract", async () => {
+  const provider = new InMemoryRuntimeProvider();
+  const created = await provider.create({ template, ttlSeconds: 300, name: "vault-conformance" });
+  const ref = { provider: created.provider, providerSandboxId: created.providerSandboxId };
+
+  const first = await provider.applyCredentialVault({
+    ...ref,
+    credentials: [{ name: "model", value: "provider-secret-value" }],
+    bindings: [{
+      name: "model-api",
+      match: { schemes: ["https"], hosts: ["api.example.com"] },
+      auth: { type: "bearer", credential: "model" }
+    }]
+  });
+  assert.equal(first.revision, 1);
+  assert.equal(JSON.stringify(first).includes("provider-secret-value"), false);
+
+  const second = await provider.applyCredentialVault({
+    ...ref,
+    credentials: [{ name: "git", value: "second-secret-value" }],
+    bindings: [{
+      name: "git-api",
+      match: { schemes: ["https"], hosts: ["git.example.com"] },
+      auth: { type: "apiKey", name: "x-api-key", credential: "git" }
+    }]
+  });
+  assert.equal(second.revision, 2);
+  assert.deepEqual(second.credentials.map((credential) => credential.name), ["model", "git"]);
+
+  const detached = await provider.deleteCredentialVaultEntries({
+    ...ref,
+    credentialNames: ["model"],
+    bindingNames: ["model-api"]
+  });
+  assert.equal(detached?.revision, 3);
+  assert.deepEqual(detached?.credentials.map((credential) => credential.name), ["git"]);
+  assert.deepEqual((await provider.getCredentialVault(ref))?.bindings.map((binding) => binding.name), ["git-api"]);
+});

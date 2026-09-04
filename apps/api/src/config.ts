@@ -35,6 +35,8 @@ const defaultInsecureRegistry = (host: string) =>
   /(^localhost(?::|$)|^127\.|\.svc(?:\.|:|$)|\.cluster\.local(?::|$)|:5000$)/.test(host);
 
 const templateRegistryPushHost = process.env.TEMPLATE_REGISTRY_PUSH_HOST ?? "harakiri-registry.harakiri.svc.cluster.local:5000";
+const controlPlaneSecretKey =
+  process.env.CONTROL_PLANE_SECRET_KEY ?? process.env.HARAKIRI_SECRET_KEY ?? process.env.TEMPLATE_REGISTRY_CREDENTIAL_KEY ?? "";
 
 export const deprecatedConfigWarnings = () => {
   const warnings: string[] = [];
@@ -99,8 +101,21 @@ export const config = {
   sandboxOperationWorkerLimit: Number(process.env.SANDBOX_OPERATION_WORKER_LIMIT ?? 10),
   sandboxOperationMaxAttempts: Number(process.env.SANDBOX_OPERATION_MAX_ATTEMPTS ?? 3),
   sandboxOperationLeaseMs: Number(process.env.SANDBOX_OPERATION_LEASE_MS ?? 5 * 60 * 1000),
-  controlPlaneSecretKey:
-    process.env.CONTROL_PLANE_SECRET_KEY ?? process.env.HARAKIRI_SECRET_KEY ?? process.env.TEMPLATE_REGISTRY_CREDENTIAL_KEY ?? "",
+  controlPlaneSecretKey,
+  credentialVaultKeyId: process.env.CREDENTIAL_VAULT_KEY_ID ?? "local-v1",
+  credentialVaultKey: process.env.CREDENTIAL_VAULT_KEY ?? controlPlaneSecretKey,
+  credentialVaultKeyringFile: process.env.CREDENTIAL_VAULT_KEYRING_FILE ?? "",
+  externalSecretKubernetesEnabled: bool(process.env.EXTERNAL_SECRET_KUBERNETES_ENABLED, false),
+  externalSecretKubernetesDefaultNamespace: process.env.EXTERNAL_SECRET_KUBERNETES_DEFAULT_NAMESPACE ?? "default",
+  externalSecretKubernetesAllowedNamespaces: csv(process.env.EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAMESPACES, "default"),
+  externalSecretKubernetesAllowedNames: csv(process.env.EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAMES),
+  externalSecretKubernetesAllowedNamePrefixes: csv(process.env.EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAME_PREFIXES),
+  dynamicGitHubAppEnabled: bool(process.env.DYNAMIC_GITHUB_APP_ENABLED, false),
+  dynamicGitHubAppClientId: process.env.DYNAMIC_GITHUB_APP_CLIENT_ID ?? "",
+  dynamicGitHubAppPrivateKey: process.env.DYNAMIC_GITHUB_APP_PRIVATE_KEY ?? "",
+  dynamicGitHubApiBaseUrl: process.env.DYNAMIC_GITHUB_API_BASE_URL ?? "https://api.github.com",
+  dynamicGitHubApiVersion: process.env.DYNAMIC_GITHUB_API_VERSION ?? "2026-03-10",
+  dynamicGitHubRequestTimeoutMs: Number(process.env.DYNAMIC_GITHUB_REQUEST_TIMEOUT_MS ?? 10_000),
   templateMaxCpuCount: Number(process.env.TEMPLATE_MAX_CPU_COUNT ?? 8),
   templateMaxMemoryMb: Number(process.env.TEMPLATE_MAX_MEMORY_MB ?? 32768),
   templateMaxDefaultPorts: Number(process.env.TEMPLATE_MAX_DEFAULT_PORTS ?? 16),

@@ -126,6 +126,13 @@ current `dns+nft` mode. On customer clusters that only allow restricted-v2:
   runtime profile or an OpenSandbox egress implementation that works under
   restricted-v2.
 
+Credential Vault is therefore **operator-action-required** under the default
+restricted profile. It must stay unavailable unless OpenSandbox reports
+`credentialVaultReady: true` with `dns+nft`; Harakiri does not fall back to
+environment injection or Kubernetes exec. Review
+[Credential Vault Operations](credential-vault-operations.md) before enabling
+the feature. The chart never creates or edits a default SCC.
+
 Dockerfile template builds are also disabled in the restricted profile. Build
 template images externally, push them to Harbor, and import them as image-backed
 Harakiri templates.

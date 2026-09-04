@@ -5,6 +5,7 @@ import WebSocket, { type RawData } from "ws";
 import { apiClient, loadConfig, saveConfig } from "../config.js";
 import { runtimeLine } from "../format.js";
 import { collectEnv, collectString, parsePositiveInt, printProgress } from "../utils.js";
+import { createCredentialInputsFromSpecs } from "./credential-options.js";
 import { gitCredentialsFromOptions } from "./git.js";
 
 const stdinFramePrefix = 0x00;
@@ -229,6 +230,7 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--egress-preset <preset>", "outbound access preset; can be repeated", collectString, [])
     .option("--allow <domain>", "allow outbound domain; can be repeated", collectString, [])
     .option("--deny <domain>", "deny outbound domain; can be repeated", collectString, [])
+    .option("--credential <spec>", "create-time credential spec using preset=, host=, secret-id=, or slot=; can be repeated", collectString, [])
     .option("--git <url>", "clone a Git repository after sandbox creation")
     .option("--git-branch <branch>", "branch or tag to clone")
     .option("--git-commit <sha>", "commit to checkout after clone")
@@ -242,7 +244,10 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--wait-timeout-ms <ms>", "maximum create wait before returning a pending sandbox", parsePositiveInt)
     .action(async (options) => {
       if (options.git && options.wait === false) throw new Error("--git requires waiting for sandbox readiness; omit --no-wait");
+      if (options.credential.length && options.wait === false) throw new Error("--credential requires waiting for sandbox readiness; omit --no-wait");
+      if (options.credential.length && options.waitTimeoutMs !== undefined) throw new Error("--credential cannot be combined with --wait-timeout-ms");
       if (!options.template && !options.snapshot) throw new Error("--template is required unless --snapshot is provided");
+      const { credentials, credentialMappings } = await createCredentialInputsFromSpecs(options.credential);
       printProgress("provisioning microVM...");
       const started = Date.now();
       const body = {
@@ -251,6 +256,8 @@ export const registerSandboxCommands = (program: Command) => {
         name: options.name,
         ttlSeconds: Number(options.ttl),
         env: options.env,
+        ...(credentials.length ? { credentials } : {}),
+        ...(credentialMappings.length ? { credentialMappings } : {}),
         ...(
           options.egress || options.egressPreset.length || options.allow.length || options.deny.length
             ? {
@@ -293,6 +300,9 @@ export const registerSandboxCommands = (program: Command) => {
       }
       printProgress(`sealed. id=${result.sandbox.id}`);
       console.log(result.sandbox.id);
+      if (result.credentialAttachments?.length) {
+        printProgress(`credentials injected. count=${result.credentialAttachments.length}`);
+      }
       printProgress(`provisioned in ${Date.now() - started}ms`);
     });
 

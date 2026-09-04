@@ -30,6 +30,11 @@ import { sandboxLogs } from "./opensandbox-logs.js";
 import { sandboxMetrics } from "./opensandbox-metrics.js";
 import { ensureSandboxRoute, routePolicyMetadata } from "./opensandbox-routes.js";
 import { getSandboxEgressPolicy, patchSandboxEgressRules, setSandboxEgressPolicy } from "./opensandbox-egress.js";
+import {
+  applySandboxCredentialVault,
+  deleteSandboxCredentialVaultEntries,
+  getSandboxCredentialVault
+} from "./opensandbox-credential-vault.js";
 import type { ProviderList, ProviderSandbox, ProviderSnapshot, ProviderSnapshotList, SandboxRouteTarget } from "./opensandbox-types.js";
 
 export type {
@@ -81,6 +86,9 @@ export const openSandboxCreateBody = (input: {
 }) => {
   const template = input.template;
   const env = input.env && Object.keys(input.env).length ? input.env : undefined;
+  const sendNetworkPolicy = shouldSendNetworkPolicy(input.egressPolicy, {
+    sendOpenNetworkPolicy: input.sendOpenNetworkPolicy ?? config.openSandboxSendOpenNetworkPolicy
+  });
   return {
     ...(input.providerSnapshotId
       ? { snapshotId: input.providerSnapshotId }
@@ -104,8 +112,8 @@ export const openSandboxCreateBody = (input: {
       ...(input.metadata ?? {})
     }),
     ...(env ? { env } : {}),
-    ...(shouldSendNetworkPolicy(input.egressPolicy, { sendOpenNetworkPolicy: input.sendOpenNetworkPolicy ?? config.openSandboxSendOpenNetworkPolicy })
-      ? { networkPolicy: input.egressPolicy }
+    ...(sendNetworkPolicy
+      ? { networkPolicy: input.egressPolicy, credentialProxy: { enabled: true } }
       : {})
   };
 };
@@ -425,5 +433,23 @@ export const openSandbox = {
 
   async patchEgressRules(opensandboxId: string | null | undefined, rules: EgressNetworkPolicy["egress"]) {
     return patchSandboxEgressRules(requireOpenSandboxId(opensandboxId), rules);
+  },
+
+  async getCredentialVault(opensandboxId: string | null | undefined) {
+    return getSandboxCredentialVault(requireOpenSandboxId(opensandboxId));
+  },
+
+  async applyCredentialVault(input: Parameters<typeof applySandboxCredentialVault>[0]) {
+    return applySandboxCredentialVault({
+      ...input,
+      providerSandboxId: requireOpenSandboxId(input.providerSandboxId)
+    });
+  },
+
+  async deleteCredentialVaultEntries(input: Parameters<typeof deleteSandboxCredentialVaultEntries>[0]) {
+    return deleteSandboxCredentialVaultEntries({
+      ...input,
+      providerSandboxId: requireOpenSandboxId(input.providerSandboxId)
+    });
   }
 };

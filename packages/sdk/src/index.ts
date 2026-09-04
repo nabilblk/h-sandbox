@@ -1,6 +1,68 @@
 import type {
   ApiErrorResponse,
   ApiKeysResponse,
+  AuditEventSummary,
+  AuditEventsResponse,
+  AttachSandboxCredentialBody,
+  AttachSandboxCredentialResponse,
+  CredentialProviderPreset,
+  CredentialProviderPresetCategory,
+  CredentialProviderPresetId,
+  CredentialProviderProfileId,
+  CredentialProviderPresetResponse,
+  CredentialProviderPresetsResponse,
+  CredentialProviderPresetTest,
+  CredentialSecretResponse,
+  CredentialSecretsResponse,
+  CredentialSecretSourceType,
+  CredentialSourceCapabilities,
+  CredentialSecretStatus,
+  CredentialSecretSummary,
+  CredentialSecretUsageSummary,
+  CredentialSecretUsePolicy,
+  CredentialVaultAttachmentStatus,
+  CredentialVaultAuth,
+  CredentialVaultAuthType,
+  CredentialVaultBinding,
+  CredentialVaultBindingMetadata,
+  CredentialVaultCredentialMetadata,
+  CredentialVaultMatch,
+  CredentialVaultProviderState,
+  CredentialVaultSubstitution,
+  CredentialVaultSubstitutionLocation,
+  CustomCredentialAuthType,
+  CustomCredentialProfile,
+  CustomCredentialProfileInput,
+  CreateExternalSecretReferenceBody,
+  CreateDynamicCredentialIssuerBody,
+  DynamicCredentialIssuerResponse,
+  DynamicCredentialIssuersResponse,
+  DynamicCredentialIssuerStatus,
+  DynamicCredentialIssuerSummary,
+  DynamicCredentialIssuerType,
+  DynamicCredentialValidationState,
+  DynamicCredentialValidationSummary,
+  DynamicSandboxCredentialBody,
+  EgressMode,
+  EgressPolicyInput,
+  EgressPresetId,
+  ExternalReferenceSandboxCredentialBody,
+  ExternalSecretReferenceResponse,
+  ExternalSecretReferencesResponse,
+  ExternalSecretReferenceStatus,
+  ExternalSecretReferenceSummary,
+  ExternalSecretResolverType,
+  ExternalSecretValidationState,
+  ExternalSecretValidationSummary,
+  HarakiriEncryptedSandboxCredentialBody,
+  GitHubAppInstallationScope,
+  InlineEphemeralTemplateCredentialSourceBody,
+  InlineEphemeralSandboxCredentialBody,
+  InspectSandboxCredentialsResponse,
+  KubernetesSecretReference,
+  TemplateCredentialSlotMappingBody,
+  TemplateCredentialSlotSourceBody,
+  CreateCredentialSecretBody,
   CreateTemplateBody,
   CreateTemplateBuildBody,
   CreateSandboxCommandSessionBody,
@@ -8,9 +70,16 @@ import type {
   CreateSandboxBody,
   CreateSandboxResponse,
   CreateSandboxSnapshotBody,
+  DetachSandboxCredentialResponse,
   ExposeSandboxRouteBody,
   OkResponse,
   PromoteTemplateBody,
+  RefreshSandboxCredentialResponse,
+  RehydrateSandboxCredentialsResponse,
+  RotateCredentialSecretBody,
+  UpdateCredentialSecretBody,
+  UpdateDynamicCredentialIssuerBody,
+  UpdateExternalSecretReferenceBody,
   PatchSandboxSourceBody,
   RegistryCredentialResponse,
   RegistryCredentialsResponse,
@@ -20,6 +89,8 @@ import type {
   RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
   RuntimeCapabilityName,
+  SandboxCredentialAttachmentSummary,
+  SandboxCredentialsResponse,
   SandboxCommandLogsResponse,
   SandboxCommandMetadata,
   SandboxCommandResponse,
@@ -63,10 +134,14 @@ import type {
   SandboxTerminalAttachTicketResponse,
   PatchSandboxEgressBody,
   SandboxesResponse,
+  TestSandboxCredentialBody,
+  TestSandboxCredentialResponse,
   TemplateBuildContextResponse,
   TemplateBuildLogsResponse,
   TemplateBuildResponse,
   TemplateBuildsResponse,
+  TemplateCredentialSlot,
+  TemplateCredentialSlotInput,
   TemplateResponse,
   TemplatesResponse,
   TemplateVersionsResponse,
@@ -77,6 +152,7 @@ import type {
   UsageSummary
 } from "./protocol.js";
 import {
+  credentialProviderPresetCatalog,
   formatApiErrorResponse,
   parseApiErrorResponse,
   providerUnavailableApiErrorCodes,
@@ -85,8 +161,22 @@ import {
 } from "./protocol.js";
 
 export {
+  credentialSourceCapabilities,
+  credentialSecretStatuses,
+  credentialSecretUsePolicies,
+  credentialProviderPresetCatalog,
+  credentialProviderPresetIds,
+  credentialProviderProfileIds,
+  customCredentialAuthTypes,
+  dynamicCredentialIssuerStatuses,
+  dynamicCredentialIssuerTypes,
+  dynamicCredentialValidationStates,
+  egressModes,
   egressPresetCatalog,
   egressPresetIds,
+  externalSecretReferenceStatuses,
+  externalSecretResolverTypes,
+  externalSecretValidationStates,
   providerUnavailableApiErrorCodes,
   runtimeCapabilityNames,
   sandboxCommandStatuses,
@@ -99,6 +189,68 @@ export {
 export type {
   ApiErrorResponse,
   ApiKeysResponse,
+  AuditEventSummary,
+  AuditEventsResponse,
+  AttachSandboxCredentialBody,
+  AttachSandboxCredentialResponse,
+  CredentialProviderPreset,
+  CredentialProviderPresetCategory,
+  CredentialProviderPresetId,
+  CredentialProviderProfileId,
+  CredentialProviderPresetResponse,
+  CredentialProviderPresetsResponse,
+  CredentialProviderPresetTest,
+  CredentialSecretResponse,
+  CredentialSecretsResponse,
+  CredentialSecretSourceType,
+  CredentialSourceCapabilities,
+  CredentialSecretStatus,
+  CredentialSecretSummary,
+  CredentialSecretUsageSummary,
+  CredentialSecretUsePolicy,
+  CredentialVaultAttachmentStatus,
+  CredentialVaultAuth,
+  CredentialVaultAuthType,
+  CredentialVaultBinding,
+  CredentialVaultBindingMetadata,
+  CredentialVaultCredentialMetadata,
+  CredentialVaultMatch,
+  CredentialVaultProviderState,
+  CredentialVaultSubstitution,
+  CredentialVaultSubstitutionLocation,
+  CustomCredentialAuthType,
+  CustomCredentialProfile,
+  CustomCredentialProfileInput,
+  CreateExternalSecretReferenceBody,
+  CreateDynamicCredentialIssuerBody,
+  DynamicCredentialIssuerResponse,
+  DynamicCredentialIssuersResponse,
+  DynamicCredentialIssuerStatus,
+  DynamicCredentialIssuerSummary,
+  DynamicCredentialIssuerType,
+  DynamicCredentialValidationState,
+  DynamicCredentialValidationSummary,
+  DynamicSandboxCredentialBody,
+  EgressMode,
+  EgressPolicyInput,
+  EgressPresetId,
+  ExternalReferenceSandboxCredentialBody,
+  ExternalSecretReferenceResponse,
+  ExternalSecretReferencesResponse,
+  ExternalSecretReferenceStatus,
+  ExternalSecretReferenceSummary,
+  ExternalSecretResolverType,
+  ExternalSecretValidationState,
+  ExternalSecretValidationSummary,
+  HarakiriEncryptedSandboxCredentialBody,
+  GitHubAppInstallationScope,
+  InlineEphemeralTemplateCredentialSourceBody,
+  InlineEphemeralSandboxCredentialBody,
+  InspectSandboxCredentialsResponse,
+  KubernetesSecretReference,
+  TemplateCredentialSlotMappingBody,
+  TemplateCredentialSlotSourceBody,
+  CreateCredentialSecretBody,
   CreateTemplateBody,
   CreateTemplateBuildBody,
   CreateSandboxCommandSessionBody,
@@ -109,6 +261,12 @@ export type {
   ExposeSandboxRouteBody,
   OkResponse,
   PromoteTemplateBody,
+  RefreshSandboxCredentialResponse,
+  RehydrateSandboxCredentialsResponse,
+  RotateCredentialSecretBody,
+  UpdateCredentialSecretBody,
+  UpdateDynamicCredentialIssuerBody,
+  UpdateExternalSecretReferenceBody,
   PatchSandboxSourceBody,
   RegistryCredentialPurpose,
   RegistryCredentialResponse,
@@ -119,6 +277,8 @@ export type {
   RunSandboxCommandSessionResponse,
   RuntimeCapabilitiesResponse,
   RuntimeCapabilityName,
+  SandboxCredentialAttachmentSummary,
+  SandboxCredentialsResponse,
   SandboxCommandLogsResponse,
   SandboxCommandMetadata,
   SandboxCommandResponse,
@@ -160,13 +320,18 @@ export type {
   SandboxSummary,
   SandboxTerminalAttachOptions,
   SandboxTerminalAttachTicketResponse,
+  DetachSandboxCredentialResponse,
   PatchSandboxEgressBody,
   SandboxesResponse,
+  TestSandboxCredentialBody,
+  TestSandboxCredentialResponse,
   TemplateBuildContextResponse,
   TemplateBuildLogsResponse,
   TemplateBuildResponse,
   TemplateBuildsResponse,
   TemplateBuildSummary,
+  TemplateCredentialSlot,
+  TemplateCredentialSlotInput,
   TemplateResponse,
   TemplatesResponse,
   TemplateVersionsResponse,
@@ -736,6 +901,72 @@ export type UploadTemplateBuildContextInput = UploadTemplateBuildContextBody;
 
 export type UpsertRegistryCredentialInput = UpsertRegistryCredentialBody;
 
+export type CreateCredentialSecretInput = CreateCredentialSecretBody;
+export type RotateCredentialSecretInput = RotateCredentialSecretBody;
+export type UpdateCredentialSecretInput = UpdateCredentialSecretBody;
+export type CreateExternalSecretReferenceInput = CreateExternalSecretReferenceBody;
+export type UpdateExternalSecretReferenceInput = UpdateExternalSecretReferenceBody;
+export type CreateDynamicCredentialIssuerInput = CreateDynamicCredentialIssuerBody;
+export type UpdateDynamicCredentialIssuerInput = UpdateDynamicCredentialIssuerBody;
+
+export type ListAuditEventsInput = {
+  targetType?: string;
+  targetId?: string;
+  actionPrefix?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type AttachSandboxCredentialInput = AttachSandboxCredentialBody;
+
+export type CredentialFromPresetOptions = {
+  displayName?: string;
+  credentialName?: string;
+  bindingName?: string;
+  fakeEnv?: Record<string, string>;
+};
+
+export const credentialFromPreset = (
+  presetId: CredentialProviderPresetId,
+  value: string,
+  options: CredentialFromPresetOptions = {}
+): InlineEphemeralSandboxCredentialBody => {
+  if (!value) throw new Error("credential value is required");
+  const preset = credentialProviderPresetCatalog[presetId];
+  return {
+    sourceType: "inline_ephemeral",
+    displayName: options.displayName ?? preset.label,
+    credentialName: options.credentialName ?? preset.credentialName,
+    value,
+    fakeEnv: options.fakeEnv ?? { ...preset.fakeEnv },
+    binding: {
+      ...preset.binding,
+      name: options.bindingName ?? preset.binding.name,
+      match: {
+        ...preset.binding.match,
+        hosts: [...preset.binding.match.hosts],
+        ...(preset.binding.match.schemes ? { schemes: [...preset.binding.match.schemes] } : {}),
+        ...(preset.binding.match.methods ? { methods: [...preset.binding.match.methods] } : {}),
+        ...(preset.binding.match.paths ? { paths: [...preset.binding.match.paths] } : {})
+      },
+      auth: { ...preset.binding.auth }
+    }
+  };
+};
+export type AttachWorkspaceCredentialSecretInput = Omit<
+  HarakiriEncryptedSandboxCredentialBody,
+  "sourceType" | "secretId"
+>;
+export type AttachExternalSecretReferenceInput = Omit<
+  ExternalReferenceSandboxCredentialBody,
+  "sourceType" | "referenceId"
+>;
+export type AttachDynamicCredentialIssuerInput = Omit<
+  DynamicSandboxCredentialBody,
+  "sourceType" | "issuerId"
+>;
+export type TestSandboxCredentialInput = TestSandboxCredentialBody;
+
 export type CreateSandboxSnapshotInput = CreateSandboxSnapshotBody;
 
 export type HarakiriApiErrorCategory =
@@ -1084,6 +1315,23 @@ export class HarakiriSandbox {
     test: (target: string | TestSandboxEgressBody) => this.client.testOutboundAccess(this.id, target)
   };
 
+  readonly credentials = {
+    list: () => this.client.credentials.list(this.id),
+    inspect: () => this.client.credentials.inspect(this.id),
+    attach: (input: AttachSandboxCredentialInput) => this.client.credentials.attach(this.id, input),
+    attachSecret: (secretId: string, input: AttachWorkspaceCredentialSecretInput = {}) =>
+      this.client.credentials.attachSecret(this.id, secretId, input),
+    attachReference: (referenceId: string, input: AttachExternalSecretReferenceInput = {}) =>
+      this.client.credentials.attachReference(this.id, referenceId, input),
+    attachIssuer: (issuerId: string, input: AttachDynamicCredentialIssuerInput = {}) =>
+      this.client.credentials.attachIssuer(this.id, issuerId, input),
+    refresh: (attachmentId: string) => this.client.credentials.refresh(this.id, attachmentId),
+    rehydrate: () => this.client.credentials.rehydrate(this.id),
+    detach: (attachmentId: string) => this.client.credentials.detach(this.id, attachmentId),
+    test: (attachmentId: string, input: TestSandboxCredentialInput = {}) => this.client.credentials.test(this.id, attachmentId, input),
+    testAccess: (attachmentId: string, input: TestSandboxCredentialInput = {}) => this.client.credentials.testAccess(this.id, attachmentId, input)
+  };
+
   readonly git = {
     clone: (url: string, options: GitCloneOptions = {}) => this.client.git.clone(this.id, url, options),
     status: (options: GitCommandOptions = {}) => this.client.git.status(this.id, options),
@@ -1174,6 +1422,65 @@ export class HarakiriClient {
     headers: (route: RouteLike, options: RouteAccessHeadersOptions = {}) => routeAccessHeaders(route, options),
     fetch: (route: RouteLike, options: CreateRouteFetchOptions = {}) => createRouteFetch(route, options),
     waitForHttp: (route: RouteLike, options: WaitForRouteHttpOptions = {}) => waitForRouteHttp(route, options)
+  };
+
+  readonly credentials = {
+    list: (id: string) => this.listCredentials(id),
+    inspect: (id: string) => this.inspectCredentials(id),
+    attach: (id: string, input: AttachSandboxCredentialInput) => this.attachCredential(id, input),
+    attachSecret: (id: string, secretId: string, input: AttachWorkspaceCredentialSecretInput = {}) =>
+      this.attachWorkspaceCredentialSecret(id, secretId, input),
+    attachReference: (id: string, referenceId: string, input: AttachExternalSecretReferenceInput = {}) =>
+      this.attachExternalSecretReference(id, referenceId, input),
+    attachIssuer: (id: string, issuerId: string, input: AttachDynamicCredentialIssuerInput = {}) =>
+      this.attachDynamicCredentialIssuer(id, issuerId, input),
+    refresh: (id: string, attachmentId: string) => this.refreshCredential(id, attachmentId),
+    rehydrate: (id: string) => this.rehydrateCredentials(id),
+    detach: (id: string, attachmentId: string) => this.detachCredential(id, attachmentId),
+    test: (id: string, attachmentId: string, input: TestSandboxCredentialInput = {}) => this.testCredential(id, attachmentId, input),
+    testAccess: (id: string, attachmentId: string, input: TestSandboxCredentialInput = {}) => this.testCredential(id, attachmentId, input)
+  };
+
+  readonly credentialPresets = {
+    list: () => this.listCredentialPresets(),
+    get: (id: string) => this.getCredentialPreset(id)
+  };
+
+  readonly credentialSecrets = {
+    list: (options: { includeDeleted?: boolean } = {}) => this.listCredentialSecrets(options),
+    get: (id: string) => this.getCredentialSecret(id),
+    create: (input: CreateCredentialSecretInput) => this.createCredentialSecret(input),
+    update: (id: string, input: UpdateCredentialSecretInput) => this.updateCredentialSecret(id, input),
+    rotate: (id: string, input: RotateCredentialSecretInput) => this.rotateCredentialSecret(id, input),
+    disable: (id: string) => this.disableCredentialSecret(id),
+    enable: (id: string) => this.enableCredentialSecret(id),
+    delete: (id: string) => this.deleteCredentialSecret(id)
+  };
+
+  readonly externalSecretReferences = {
+    list: (options: { includeDeleted?: boolean } = {}) => this.listExternalSecretReferences(options),
+    get: (id: string) => this.getExternalSecretReference(id),
+    create: (input: CreateExternalSecretReferenceInput) => this.createExternalSecretReference(input),
+    update: (id: string, input: UpdateExternalSecretReferenceInput) => this.updateExternalSecretReference(id, input),
+    validate: (id: string) => this.validateExternalSecretReference(id),
+    disable: (id: string) => this.disableExternalSecretReference(id),
+    enable: (id: string) => this.enableExternalSecretReference(id),
+    delete: (id: string) => this.deleteExternalSecretReference(id)
+  };
+
+  readonly dynamicCredentialIssuers = {
+    list: (options: { includeDeleted?: boolean } = {}) => this.listDynamicCredentialIssuers(options),
+    get: (id: string) => this.getDynamicCredentialIssuer(id),
+    create: (input: CreateDynamicCredentialIssuerInput) => this.createDynamicCredentialIssuer(input),
+    update: (id: string, input: UpdateDynamicCredentialIssuerInput) => this.updateDynamicCredentialIssuer(id, input),
+    validate: (id: string) => this.validateDynamicCredentialIssuer(id),
+    disable: (id: string) => this.disableDynamicCredentialIssuer(id),
+    enable: (id: string) => this.enableDynamicCredentialIssuer(id),
+    delete: (id: string) => this.deleteDynamicCredentialIssuer(id)
+  };
+
+  readonly auditEvents = {
+    list: (input: ListAuditEventsInput = {}) => this.listAuditEvents(input)
   };
 
   readonly git = {
@@ -1301,8 +1608,15 @@ export class HarakiriClient {
 
   async createSandbox(input: CreateSandboxInput = {}) {
     const { source, cleanupOnSourceError, ...createInput } = input;
+    const createCredentialCount = (createInput.credentials?.length ?? 0) + (createInput.credentialMappings?.length ?? 0);
     if (source && createInput.wait === false) {
       throw new Error("Git source bootstrap requires sandbox readiness. Omit wait:false, or create first and call sandbox.git.clone later.");
+    }
+    if (createCredentialCount && createInput.wait === false) {
+      throw new Error("Create-time credentials require sandbox readiness. Omit wait:false, or attach credentials after the sandbox is running.");
+    }
+    if (createCredentialCount && createInput.waitTimeoutMs !== undefined) {
+      throw new Error("Create-time credentials cannot use waitTimeoutMs because credential attachments are not replayed asynchronously.");
     }
     const egress = source?.type === "git" && source.applyEgressPreset !== false
       ? this.egressWithGitPreset(createInput.egress)
@@ -1317,6 +1631,8 @@ export class HarakiriClient {
         env: createInput.env,
         egress,
         source: source?.type === "git" ? gitSourceForApi(source) : undefined,
+        credentials: createInput.credentials,
+        credentialMappings: createInput.credentialMappings,
         idempotencyKey: createInput.idempotencyKey,
         wait: createInput.wait,
         waitTimeoutMs: createInput.waitTimeoutMs
@@ -2000,6 +2316,261 @@ export class HarakiriClient {
 
   testOutboundAccess(id: string, target: string | TestSandboxEgressBody) {
     return this.testEgress(id, target);
+  }
+
+  listCredentials(id: string) {
+    return this.request<SandboxCredentialsResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/credentials`);
+  }
+
+  listSandboxCredentials(id: string) {
+    return this.listCredentials(id);
+  }
+
+  inspectCredentials(id: string) {
+    return this.request<InspectSandboxCredentialsResponse>(
+      `/v1/sandboxes/${encodeURIComponent(id)}/credentials/inspect`,
+      { method: "POST" }
+    );
+  }
+
+  inspectSandboxCredentials(id: string) {
+    return this.inspectCredentials(id);
+  }
+
+  attachCredential(id: string, input: AttachSandboxCredentialInput) {
+    return this.request<AttachSandboxCredentialResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/credentials`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  attachSandboxCredential(id: string, input: AttachSandboxCredentialInput) {
+    return this.attachCredential(id, input);
+  }
+
+  attachWorkspaceCredentialSecret(id: string, secretId: string, input: AttachWorkspaceCredentialSecretInput = {}) {
+    return this.attachCredential(id, {
+      ...input,
+      sourceType: "harakiri_encrypted",
+      secretId
+    });
+  }
+
+  attachExternalSecretReference(id: string, referenceId: string, input: AttachExternalSecretReferenceInput = {}) {
+    return this.attachCredential(id, {
+      ...input,
+      sourceType: "external_ref",
+      referenceId
+    });
+  }
+
+  attachDynamicCredentialIssuer(id: string, issuerId: string, input: AttachDynamicCredentialIssuerInput = {}) {
+    return this.attachCredential(id, {
+      ...input,
+      sourceType: "dynamic",
+      issuerId
+    });
+  }
+
+  rehydrateCredentials(id: string) {
+    return this.request<RehydrateSandboxCredentialsResponse>(
+      `/v1/sandboxes/${encodeURIComponent(id)}/credentials/rehydrate`,
+      { method: "POST" }
+    );
+  }
+
+  refreshCredential(id: string, attachmentId: string) {
+    return this.request<RefreshSandboxCredentialResponse>(
+      `/v1/sandboxes/${encodeURIComponent(id)}/credentials/${encodeURIComponent(attachmentId)}/refresh`,
+      { method: "POST" }
+    );
+  }
+
+  refreshSandboxCredential(id: string, attachmentId: string) {
+    return this.refreshCredential(id, attachmentId);
+  }
+
+  rehydrateSandboxCredentials(id: string) {
+    return this.rehydrateCredentials(id);
+  }
+
+  detachCredential(id: string, attachmentId: string) {
+    return this.request<DetachSandboxCredentialResponse>(
+      `/v1/sandboxes/${encodeURIComponent(id)}/credentials/${encodeURIComponent(attachmentId)}`,
+      { method: "DELETE" }
+    );
+  }
+
+  detachSandboxCredential(id: string, attachmentId: string) {
+    return this.detachCredential(id, attachmentId);
+  }
+
+  testCredential(id: string, attachmentId: string, input: TestSandboxCredentialInput = {}) {
+    return this.request<TestSandboxCredentialResponse>(
+      `/v1/sandboxes/${encodeURIComponent(id)}/credentials/${encodeURIComponent(attachmentId)}/test`,
+      {
+        method: "POST",
+        body: JSON.stringify(input)
+      }
+    );
+  }
+
+  testSandboxCredential(id: string, attachmentId: string, input: TestSandboxCredentialInput = {}) {
+    return this.testCredential(id, attachmentId, input);
+  }
+
+  listCredentialPresets() {
+    return this.request<CredentialProviderPresetsResponse>("/v1/credential-presets");
+  }
+
+  getCredentialPreset(id: string) {
+    return this.request<CredentialProviderPresetResponse>(`/v1/credential-presets/${encodeURIComponent(id)}`);
+  }
+
+  listCredentialSecrets(options: { includeDeleted?: boolean } = {}) {
+    return this.request<CredentialSecretsResponse>(`/v1/credential-secrets${options.includeDeleted ? "?includeDeleted=1" : ""}`);
+  }
+
+  getCredentialSecret(id: string) {
+    return this.request<CredentialSecretResponse>(`/v1/credential-secrets/${encodeURIComponent(id)}`);
+  }
+
+  createCredentialSecret(input: CreateCredentialSecretInput) {
+    return this.request<CredentialSecretResponse>("/v1/credential-secrets", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  updateCredentialSecret(id: string, input: UpdateCredentialSecretInput) {
+    return this.request<CredentialSecretResponse>(`/v1/credential-secrets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
+  }
+
+  rotateCredentialSecret(id: string, input: RotateCredentialSecretInput) {
+    return this.request<CredentialSecretResponse>(`/v1/credential-secrets/${encodeURIComponent(id)}/rotate`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  disableCredentialSecret(id: string) {
+    return this.request<CredentialSecretResponse>(`/v1/credential-secrets/${encodeURIComponent(id)}/disable`, { method: "POST" });
+  }
+
+  enableCredentialSecret(id: string) {
+    return this.request<CredentialSecretResponse>(`/v1/credential-secrets/${encodeURIComponent(id)}/enable`, { method: "POST" });
+  }
+
+  deleteCredentialSecret(id: string) {
+    return this.request<CredentialSecretResponse>(`/v1/credential-secrets/${encodeURIComponent(id)}`, { method: "DELETE" });
+  }
+
+  listExternalSecretReferences(options: { includeDeleted?: boolean } = {}) {
+    const query = options.includeDeleted ? "?includeDeleted=1" : "";
+    return this.request<ExternalSecretReferencesResponse>(`/v1/external-secret-references${query}`);
+  }
+
+  getExternalSecretReference(id: string) {
+    return this.request<ExternalSecretReferenceResponse>(`/v1/external-secret-references/${encodeURIComponent(id)}`);
+  }
+
+  createExternalSecretReference(input: CreateExternalSecretReferenceInput) {
+    return this.request<ExternalSecretReferenceResponse>("/v1/external-secret-references", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  updateExternalSecretReference(id: string, input: UpdateExternalSecretReferenceInput) {
+    return this.request<ExternalSecretReferenceResponse>(`/v1/external-secret-references/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
+  }
+
+  validateExternalSecretReference(id: string) {
+    return this.request<ExternalSecretReferenceResponse>(`/v1/external-secret-references/${encodeURIComponent(id)}/validate`, {
+      method: "POST"
+    });
+  }
+
+  disableExternalSecretReference(id: string) {
+    return this.request<ExternalSecretReferenceResponse>(`/v1/external-secret-references/${encodeURIComponent(id)}/disable`, {
+      method: "POST"
+    });
+  }
+
+  enableExternalSecretReference(id: string) {
+    return this.request<ExternalSecretReferenceResponse>(`/v1/external-secret-references/${encodeURIComponent(id)}/enable`, {
+      method: "POST"
+    });
+  }
+
+  deleteExternalSecretReference(id: string) {
+    return this.request<ExternalSecretReferenceResponse>(`/v1/external-secret-references/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+  }
+
+  listDynamicCredentialIssuers(options: { includeDeleted?: boolean } = {}) {
+    const query = options.includeDeleted ? "?includeDeleted=1" : "";
+    return this.request<DynamicCredentialIssuersResponse>(`/v1/dynamic-credential-issuers${query}`);
+  }
+
+  getDynamicCredentialIssuer(id: string) {
+    return this.request<DynamicCredentialIssuerResponse>(`/v1/dynamic-credential-issuers/${encodeURIComponent(id)}`);
+  }
+
+  createDynamicCredentialIssuer(input: CreateDynamicCredentialIssuerInput) {
+    return this.request<DynamicCredentialIssuerResponse>("/v1/dynamic-credential-issuers", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+  }
+
+  updateDynamicCredentialIssuer(id: string, input: UpdateDynamicCredentialIssuerInput) {
+    return this.request<DynamicCredentialIssuerResponse>(`/v1/dynamic-credential-issuers/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(input)
+    });
+  }
+
+  validateDynamicCredentialIssuer(id: string) {
+    return this.request<DynamicCredentialIssuerResponse>(`/v1/dynamic-credential-issuers/${encodeURIComponent(id)}/validate`, {
+      method: "POST"
+    });
+  }
+
+  disableDynamicCredentialIssuer(id: string) {
+    return this.request<DynamicCredentialIssuerResponse>(`/v1/dynamic-credential-issuers/${encodeURIComponent(id)}/disable`, {
+      method: "POST"
+    });
+  }
+
+  enableDynamicCredentialIssuer(id: string) {
+    return this.request<DynamicCredentialIssuerResponse>(`/v1/dynamic-credential-issuers/${encodeURIComponent(id)}/enable`, {
+      method: "POST"
+    });
+  }
+
+  deleteDynamicCredentialIssuer(id: string) {
+    return this.request<DynamicCredentialIssuerResponse>(`/v1/dynamic-credential-issuers/${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+  }
+
+  listAuditEvents(input: ListAuditEventsInput = {}) {
+    const query = new URLSearchParams();
+    if (input.targetType) query.set("targetType", input.targetType);
+    if (input.targetId) query.set("targetId", input.targetId);
+    if (input.actionPrefix) query.set("actionPrefix", input.actionPrefix);
+    if (input.limit !== undefined) query.set("limit", String(input.limit));
+    if (input.offset !== undefined) query.set("offset", String(input.offset));
+    const suffix = query.size ? `?${query.toString()}` : "";
+    return this.request<AuditEventsResponse>(`/v1/audit-events${suffix}`);
   }
 
   exposePort(id: string, input: ExposePortInput) {

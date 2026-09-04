@@ -2,11 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import Fastify from "fastify";
 import type { FastifyRequest } from "fastify";
-import { openApiDocument } from "@harakiri/shared";
+import {
+  credentialProviderPresetCatalog,
+  credentialProviderPresetIds,
+  openApiDocument,
+  type CredentialVaultProviderState
+} from "@harakiri/shared";
 import WebSocket, { type RawData } from "ws";
 import { registerRoutes } from "./routes.js";
 import { hashApiKey } from "./crypto.js";
-import type { RuntimeListFilesInput, RuntimeProvider, RuntimeRunInput } from "./providers/runtime/provider.js";
+import type {
+  RuntimeCredentialVaultApplyInput,
+  RuntimeListFilesInput,
+  RuntimeProvider,
+  RuntimeRunInput
+} from "./providers/runtime/provider.js";
 
 const fakeAuth = async (request: FastifyRequest): Promise<undefined> => {
   request.auth = {
@@ -18,14 +28,25 @@ const fakeAuth = async (request: FastifyRequest): Promise<undefined> => {
   return undefined;
 };
 
-const routeRuntimeProvider = (state: { runInput?: RuntimeRunInput; filesInput?: RuntimeListFilesInput; filesUnavailable?: boolean }): RuntimeProvider => ({
+const routeRuntimeProvider = (state: {
+  runInput?: RuntimeRunInput;
+  runStdout?: string;
+  runExitCode?: number;
+  filesInput?: RuntimeListFilesInput;
+  filesUnavailable?: boolean;
+  credentialVaultInput?: RuntimeCredentialVaultApplyInput;
+  credentialVaultState?: CredentialVaultProviderState | null;
+}): RuntimeProvider => ({
   kind: "fake",
   capabilities: {
     terminal: true,
     filesystem: true,
     logs: true,
     metrics: true,
-    routes: true
+    routes: true,
+    credentialVault: true,
+    credentialVaultPatch: true,
+    credentialVaultSanitizedRead: true
   },
   create: async () => {
     throw new Error("not used");
@@ -39,9 +60,9 @@ const routeRuntimeProvider = (state: { runInput?: RuntimeRunInput; filesInput?: 
     return {
       sandboxId: input.controlPlaneSandboxId,
       command: input.command,
-      stdout: "route runtime ok\n",
+      stdout: state.runStdout ?? "route runtime ok\n",
       stderr: "",
-      exitCode: 0,
+      exitCode: state.runExitCode ?? 0,
       durationMs: 7
     };
   },
@@ -98,7 +119,16 @@ const routeRuntimeProvider = (state: { runInput?: RuntimeRunInput; filesInput?: 
   metrics: async () => null,
   exposeRoute: async () => {
     throw new Error("not used");
-  }
+  },
+  applyCredentialVault: async (input) => {
+    state.credentialVaultInput = input;
+    return {
+      revision: 9,
+      credentials: input.credentials.map((credential) => ({ name: credential.name, sourceType: "runtime", revision: 9 })),
+      bindings: input.bindings.map((binding) => ({ name: binding.name, revision: 9, auth: { type: binding.auth.type } }))
+    };
+  },
+  getCredentialVault: async () => state.credentialVaultState ?? null
 });
 
 const rawDataToBuffer = (data: RawData): Buffer => {
@@ -125,6 +155,133 @@ test("OpenAPI contract is served without authentication", async () => {
     const response = await app.inject({ method: "GET", url: "/openapi.json" });
     assert.equal(response.statusCode, 200);
     assert.deepEqual(JSON.parse(response.body), openApiDocument);
+  } finally {
+    await app.close();
+  }
+});
+
+test("credential preset routes expose sanitized built-in catalog entries", async () => {
+  const app = Fastify();
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: routeRuntimeProvider({}),
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async () => {
+      throw new Error("credential preset routes should not query");
+    }
+  });
+
+  try {
+    const list = await app.inject({ method: "GET", url: "/v1/credential-presets" });
+    assert.equal(list.statusCode, 200);
+    const listBody = JSON.parse(list.body);
+    assert.deepEqual(listBody.presets.map((preset: { id: string }) => preset.id), [...credentialProviderPresetIds]);
+    assert.equal(JSON.stringify(listBody).includes("sk_"), false);
+
+    const openai = await app.inject({ method: "GET", url: "/v1/credential-presets/openai" });
+    assert.equal(openai.statusCode, 200);
+    assert.deepEqual(JSON.parse(openai.body).preset, credentialProviderPresetCatalog.openai);
+
+    const missing = await app.inject({ method: "GET", url: "/v1/credential-presets/not-real" });
+    assert.equal(missing.statusCode, 404);
+    assert.equal(JSON.parse(missing.body).error, "credential_preset_not_found");
+  } finally {
+    await app.close();
+  }
+});
+
+test("credential secret routes separate member use from admin management", async () => {
+  const row = {
+    id: "vlt_openai",
+    name: "openai-prod",
+    providerPresetId: "openai",
+    sourceType: "harakiri_encrypted",
+    memberUseAllowed: false,
+    version: 1,
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    hasEncryptedSecret: true,
+    metadata: { token: "[redacted]" },
+    createdByUserId: "user_route",
+    createdByLabel: "route@test.local",
+    rotatedAt: null,
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const app = Fastify();
+  let role = "member";
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: routeRuntimeProvider({}),
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async (text, params) => {
+      if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role }] as never[] };
+      if (text.includes("SET member_use_allowed = $3")) {
+        row.memberUseAllowed = Boolean(params?.[2]);
+        return { rowCount: 1, rows: [{ id: row.id }] as never[] };
+      }
+      if (text.includes("FROM workspace_credential_secrets")) {
+        const visible = !text.includes("member_use_allowed = true") || row.memberUseAllowed;
+        return { rowCount: visible ? 1 : 0, rows: visible ? [row] as never[] : [] };
+      }
+      throw new Error(`unexpected query: ${text}`);
+    }
+  });
+
+  try {
+    const memberList = await app.inject({ method: "GET", url: "/v1/credential-secrets" });
+    assert.equal(memberList.statusCode, 200);
+    assert.deepEqual(JSON.parse(memberList.body).secrets, []);
+
+    const forbiddenUpdate = await app.inject({
+      method: "PATCH",
+      url: "/v1/credential-secrets/vlt_openai",
+      payload: { usePolicy: "organization_members" }
+    });
+    assert.equal(forbiddenUpdate.statusCode, 403);
+    assert.equal(JSON.parse(forbiddenUpdate.body).error, "credential_secret_forbidden");
+
+    role = "admin";
+    const allowed = await app.inject({ method: "GET", url: "/v1/credential-secrets" });
+    assert.equal(allowed.statusCode, 200);
+    const body = JSON.parse(allowed.body);
+    assert.equal(body.secrets[0].id, "vlt_openai");
+    assert.equal(body.secrets[0].status, "active");
+    assert.equal(body.secrets[0].usePolicy, "admins_only");
+    assert.equal(JSON.stringify(body).includes("real-secret"), false);
+
+    const shared = await app.inject({
+      method: "PATCH",
+      url: "/v1/credential-secrets/vlt_openai",
+      payload: { usePolicy: "organization_members" }
+    });
+    assert.equal(shared.statusCode, 200);
+    assert.equal(JSON.parse(shared.body).secret.usePolicy, "organization_members");
+
+    role = "member";
+    const sharedMemberList = await app.inject({ method: "GET", url: "/v1/credential-secrets" });
+    assert.equal(sharedMemberList.statusCode, 200);
+    assert.equal(JSON.parse(sharedMemberList.body).secrets[0].id, "vlt_openai");
+
+    role = "admin";
+
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/v1/credential-secrets",
+      payload: {
+        name: "bad-secret",
+        providerPresetId: "openai",
+        value: "real-secret",
+        fakeEnv: { OPENAI_API_KEY: "real-secret" }
+      }
+    });
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(JSON.parse(invalid.body).error, "credential_secret_invalid");
   } finally {
     await app.close();
   }
@@ -256,6 +413,346 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     });
     assert.equal(rename.statusCode, 200);
     assert.equal(JSON.parse(rename.body).file.path, "/workspace/done.txt");
+  } finally {
+    await app.close();
+  }
+});
+
+test("sandbox credential test route returns sanitized binding diagnostics", async () => {
+  const app = Fastify();
+  const runtimeState: { runInput?: RuntimeRunInput; runStdout?: string } = { runStdout: "http_status=200\n" };
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: routeRuntimeProvider(runtimeState),
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async (text, params) => {
+      if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+        return { rowCount: 1, rows: [{ id: "sbx_route", opensandboxId: "fake_provider", status: "running" }] as never[] };
+      }
+      if (text.includes("FROM sandbox_credential_attachments")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "sca_route",
+            sandboxId: "sbx_route",
+            displayName: "Private API",
+            sourceType: "inline_ephemeral",
+            sourceRef: null,
+            credentialName: "cred_api",
+            bindingName: "api-header",
+            match: { schemes: ["https"], hosts: ["api.example.com"], methods: ["GET"], paths: ["/v1/*"] },
+            auth: { type: "bearer" },
+            fakeEnv: { PRIVATE_API_KEY: "fake-key" },
+            status: "injected",
+            provider: "fake",
+            providerRevision: 1,
+            providerMetadata: {},
+            lastError: null,
+            injectedAt: "2026-09-03T00:00:00.000Z",
+            detachedAt: null,
+            createdByUserId: "user_route",
+            createdByLabel: "route@test.local",
+            createdAt: "2026-09-03T00:00:00.000Z",
+            updatedAt: "2026-09-03T00:00:00.000Z"
+          }] as never[]
+        };
+      }
+      throw new Error(`unexpected query: ${text} ${JSON.stringify(params)}`);
+    }
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/sandboxes/sbx_route/credentials/sca_route/test",
+      payload: { target: "https://api.example.com/v1/health" }
+    });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.ok, true);
+    assert.equal(body.status, "reachable");
+    assert.equal(body.httpStatus, 200);
+    assert.equal(runtimeState.runInput?.providerSandboxId, "fake_provider");
+    assert.equal(runtimeState.runInput?.command.includes("PRIVATE_API_KEY"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("sandbox credential inspect route reports sanitized provider presence", async () => {
+  const app = Fastify();
+  const attachment = {
+    id: "sca_route",
+    sandboxId: "sbx_route",
+    displayName: "Private API",
+    sourceType: "inline_ephemeral",
+    sourceRef: null,
+    credentialName: "cred_api",
+    bindingName: "api-header",
+    match: { schemes: ["https"], hosts: ["api.example.com"] },
+    auth: { type: "bearer" },
+    fakeEnv: { PRIVATE_API_KEY: "fake-key" },
+    status: "injected",
+    provider: "fake",
+    providerRevision: 1,
+    providerState: "unknown",
+    providerCheckedAt: null as string | null,
+    providerMetadata: {},
+    sourceMetadata: {},
+    expiresAt: null,
+    refreshAttemptedAt: null,
+    refreshedAt: null,
+    lastError: null as string | null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_route",
+    createdByLabel: "route@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const runtimeState = {
+    credentialVaultState: {
+      revision: 7,
+      credentials: [{ name: "cred_api", sourceType: "runtime", revision: 7 }],
+      bindings: [{ name: "api-header", revision: 7, auth: { type: "bearer" } }]
+    }
+  };
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: routeRuntimeProvider(runtimeState),
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async (text, params) => {
+      if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+        return { rowCount: 1, rows: [{ id: "sbx_route", opensandboxId: "fake_provider", status: "running" }] as never[] };
+      }
+      if (text.includes("SET provider_state = $4")) {
+        attachment.providerState = params?.[3] as string;
+        attachment.providerCheckedAt = "2026-09-03T00:00:01.000Z";
+        attachment.providerRevision = params?.[4] as number;
+        return { rowCount: 1, rows: [] };
+      }
+      if (text.includes("FROM sandbox_credential_attachments")) {
+        return { rowCount: 1, rows: [attachment] as never[] };
+      }
+      throw new Error(`unexpected query: ${text} ${JSON.stringify(params)}`);
+    }
+  });
+
+  try {
+    const response = await app.inject({ method: "POST", url: "/v1/sandboxes/sbx_route/credentials/inspect" });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.attachments[0].providerState, "present");
+    assert.equal(body.attachments[0].providerRevision, 7);
+    assert.equal(body.vault.revision, 7);
+    assert.equal(JSON.stringify(body).includes("fake-key"), true);
+    assert.equal(JSON.stringify(body).includes("real-secret"), false);
+  } finally {
+    await app.close();
+  }
+});
+
+test("sandbox credential rehydrate route returns sanitized attachment summary", async () => {
+  const app = Fastify();
+  const runtimeState: { credentialVaultInput?: RuntimeCredentialVaultApplyInput } = {};
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: routeRuntimeProvider(runtimeState),
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async (text, params) => {
+      if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+        return { rowCount: 1, rows: [{ id: "sbx_route", opensandboxId: "fake_provider", status: "running" }] as never[] };
+      }
+      if (text.includes("FROM sandbox_credential_attachments") && text.includes("status = 'requires_reinjection'")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: "sca_route",
+            sandboxId: "sbx_route",
+            displayName: "Ephemeral API",
+            sourceType: "inline_ephemeral",
+            sourceRef: null,
+            credentialName: "cred_api",
+            bindingName: "api-header",
+            match: { schemes: ["https"], hosts: ["api.example.com"] },
+            auth: { type: "bearer" },
+            fakeEnv: { PRIVATE_API_KEY: "fake-key" },
+            status: "requires_reinjection",
+            provider: "fake",
+            providerRevision: 1,
+            providerMetadata: {},
+            lastError: "runtime vault state was reset",
+            injectedAt: "2026-09-03T00:00:00.000Z",
+            detachedAt: null,
+            createdByUserId: "user_route",
+            createdByLabel: "route@test.local",
+            createdAt: "2026-09-03T00:00:00.000Z",
+            updatedAt: "2026-09-03T00:00:00.000Z"
+          }] as never[]
+        };
+      }
+      if (text.includes("UPDATE sandbox_credential_attachments") && text.includes("status = 'requires_reinjection'")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: params?.[0],
+            sandboxId: "sbx_route",
+            displayName: "Ephemeral API",
+            sourceType: "inline_ephemeral",
+            sourceRef: null,
+            credentialName: "cred_api",
+            bindingName: "api-header",
+            match: { schemes: ["https"], hosts: ["api.example.com"] },
+            auth: { type: "bearer" },
+            fakeEnv: { PRIVATE_API_KEY: "fake-key" },
+            status: "requires_reinjection",
+            provider: "fake",
+            providerRevision: 1,
+            providerMetadata: {},
+            lastError: params?.[3],
+            injectedAt: "2026-09-03T00:00:00.000Z",
+            detachedAt: null,
+            createdByUserId: "user_route",
+            createdByLabel: "route@test.local",
+            createdAt: "2026-09-03T00:00:00.000Z",
+            updatedAt: "2026-09-03T00:00:00.000Z"
+          }] as never[]
+        };
+      }
+      throw new Error(`unexpected query: ${text} ${JSON.stringify(params)}`);
+    }
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/sandboxes/sbx_route/credentials/rehydrate"
+    });
+    assert.equal(response.statusCode, 200);
+    const body = JSON.parse(response.body);
+    assert.equal(body.rehydrated, 0);
+    assert.equal(body.skipped, 1);
+    assert.equal(body.attachments[0].status, "requires_reinjection");
+    assert.equal(JSON.stringify(body).includes("real-secret"), false);
+    assert.equal(runtimeState.credentialVaultInput, undefined);
+  } finally {
+    await app.close();
+  }
+});
+
+test("sandbox credential refresh route renews dynamic material without returning it", async () => {
+  const app = Fastify();
+  const runtimeState: { credentialVaultInput?: RuntimeCredentialVaultApplyInput } = {};
+  const attachment = {
+    id: "sca_dynamic",
+    sandboxId: "sbx_route",
+    displayName: "Agent repositories",
+    sourceType: "dynamic",
+    sourceRef: "dci_github",
+    credentialName: "github",
+    bindingName: "github-api",
+    match: credentialProviderPresetCatalog.github.binding.match,
+    auth: credentialProviderPresetCatalog.github.binding.auth,
+    fakeEnv: credentialProviderPresetCatalog.github.fakeEnv,
+    status: "injected",
+    provider: "fake",
+    providerRevision: 2,
+    providerMetadata: {},
+    sourceMetadata: { installationId: "321", repositories: ["agent-runtime"] },
+    expiresAt: "2099-01-01T00:00:00.000Z",
+    refreshAttemptedAt: null,
+    refreshedAt: null,
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_route",
+    createdByLabel: "route@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const issuer = {
+    id: "dci_github",
+    name: "Agent repositories",
+    issuerType: "github_app_installation",
+    scope: { installationId: "321", repositories: ["agent-runtime"], permissions: { contents: "write", metadata: "read" } },
+    memberUseAllowed: true,
+    version: 1,
+    fakeEnv: credentialProviderPresetCatalog.github.fakeEnv,
+    binding: credentialProviderPresetCatalog.github.binding,
+    egressDomains: credentialProviderPresetCatalog.github.egressDomains,
+    metadata: {},
+    validationState: "valid",
+    validationMessage: null,
+    validatedAt: "2026-09-03T00:00:00.000Z",
+    lastIssuedAt: "2026-09-03T00:00:00.000Z",
+    createdByUserId: "user_route",
+    createdByLabel: "route@test.local",
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    activeSandboxCount: 1,
+    attachmentCount: 1,
+    lastAttachedAt: "2026-09-03T00:00:00.000Z"
+  };
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: routeRuntimeProvider(runtimeState),
+    dynamicCredentialIssuers: {
+      github_app_installation: {
+        type: "github_app_installation",
+        validate: async () => ({ kind: "ok" }),
+        issue: async () => ({
+          kind: "ok",
+          value: "ghs_route_transient",
+          expiresAt: "2099-01-01T01:00:00.000Z",
+          metadata: { installationId: "321", repositories: ["agent-runtime"] }
+        })
+      }
+    },
+    recordSandboxEvent: async () => undefined,
+    recordAudit: async () => undefined,
+    query: async (text, params) => {
+      if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+        return { rowCount: 1, rows: [{ id: "sbx_route", opensandboxId: "fake_provider", status: "running" }] as never[] };
+      }
+      if (text.includes("FROM dynamic_credential_issuers dynamic_issuer")) {
+        return { rowCount: 1, rows: [issuer] as never[] };
+      }
+      if (text.includes("UPDATE dynamic_credential_issuers")) return { rowCount: 1, rows: [] };
+      if (text.includes("UPDATE sandbox_credential_attachments") && text.includes("refreshed_at = now()")) {
+        return {
+          rowCount: 1,
+          rows: [{
+            ...attachment,
+            providerRevision: params?.[3],
+            providerMetadata: JSON.parse(String(params?.[4])),
+            sourceMetadata: JSON.parse(String(params?.[5])),
+            expiresAt: params?.[6],
+            refreshAttemptedAt: "2026-09-03T00:01:00.000Z",
+            refreshedAt: "2026-09-03T00:01:00.000Z"
+          }] as never[]
+        };
+      }
+      if (text.includes("FROM sandbox_credential_attachments") && text.includes("id = $3")) {
+        return { rowCount: 1, rows: [attachment] as never[] };
+      }
+      throw new Error(`unexpected query: ${text} ${JSON.stringify(params)}`);
+    }
+  });
+
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/sandboxes/sbx_route/credentials/sca_dynamic/refresh"
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.deepEqual(runtimeState.credentialVaultInput?.credentials, [{ name: "github", value: "ghs_route_transient" }]);
+    assert.equal(JSON.stringify(JSON.parse(response.body)).includes("ghs_route_transient"), false);
+    assert.equal(JSON.parse(response.body).attachment.expiresAt, "2099-01-01T01:00:00.000Z");
   } finally {
     await app.close();
   }

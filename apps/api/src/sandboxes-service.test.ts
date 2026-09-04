@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { credentialProviderPresetCatalog, templateCredentialSlotFromInput } from "@harakiri/shared";
 import type { RuntimeProvider } from "./providers/runtime/provider.js";
 import { createSandbox, deleteSandbox, listSandboxes, renewSandbox, updateSandboxSource } from "./services/sandboxes.js";
 import type { RuntimeTemplate } from "./templates.js";
@@ -27,8 +28,28 @@ const readyTemplate: RuntimeTemplate = {
   templateVersionId: "tplv_ready"
 };
 
+const openAiSlot = templateCredentialSlotFromInput({
+  id: "llm",
+  providerPresetId: "openai",
+  envName: "AGENT_OPENAI_API_KEY"
+});
+
+const readyTemplateWithOpenAiSlot: RuntimeTemplate = {
+  ...readyTemplate,
+  id: "open-agents-dev",
+  name: "Open Agents Dev",
+  credentialSlots: [openAiSlot]
+};
+
 const fakeRuntimeProvider = (
-  state: { createInput?: unknown; deletedRef?: unknown; renewedRef?: unknown; renewedInput?: unknown; createError?: Error } = {}
+  state: {
+    createInput?: unknown;
+    deletedRef?: unknown;
+    renewedRef?: unknown;
+    renewedInput?: unknown;
+    egressInput?: unknown;
+    createError?: Error;
+  } = {}
 ): RuntimeProvider => ({
   kind: "fake",
   capabilities: {
@@ -67,6 +88,15 @@ const fakeRuntimeProvider = (
   },
   logs: async () => [],
   metrics: async () => null,
+  setEgressPolicy: async (_ref, policy) => {
+    state.egressInput = policy;
+    return {
+      status: "ready",
+      enforcementMode: "dns+nft",
+      credentialVaultReady: true,
+      policy
+    };
+  },
   exposeRoute: async () => {
     throw new Error("not used");
   }
@@ -267,6 +297,910 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
     status: "requested"
   });
   assert.equal(audits[0].action, "sandbox.create");
+});
+
+test("createSandbox attaches create-time credentials without persisting plaintext", async () => {
+  const runtimeState: { createInput?: any } = {};
+  const vaultCalls: Array<{ credentials: Array<{ name: string; value: string }>; bindings: unknown[] }> = [];
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const now = new Date("2026-09-03T12:00:00.000Z");
+  const attachment: Record<string, unknown> = {};
+  const provider: RuntimeProvider = {
+    ...fakeRuntimeProvider(runtimeState),
+    capabilities: {
+      ...fakeRuntimeProvider().capabilities,
+      credentialVault: true,
+      credentialVaultPatch: true,
+      credentialVaultSanitizedRead: true
+    },
+    applyCredentialVault: async (input) => {
+      vaultCalls.push({ credentials: input.credentials, bindings: input.bindings });
+      return {
+        revision: 2,
+        credentials: [{ name: "cred_openai", sourceType: "inline", revision: 2 }],
+        bindings: [{ name: "openai-api", revision: 2, auth: { type: "bearer" } }]
+      };
+    }
+  };
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "agent-runner",
+      ttlSeconds: 300,
+      env: { SAFE_ENV: "ok" },
+      credentials: [{
+        displayName: "OpenAI",
+        credentialName: "cred_openai",
+        value: "real-secret",
+        fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+        binding: {
+          name: "openai-api",
+          match: { hosts: ["api.openai.com"], methods: ["GET", "POST"], paths: ["/v1/*"] },
+          auth: { type: "bearer" }
+        }
+      }]
+    },
+    {
+      runtimeProvider: provider,
+      idFactory: (prefix) => prefix === "sbx" ? "sbx_vault_create" : `${prefix}_vault`,
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_vault", sandboxId: "sbx_vault_create" })] as never[] };
+        }
+        if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_vault", sandboxId: "sbx_vault_create" })] as never[] };
+        }
+        if (text.includes("UPDATE sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_vault", sandboxId: "sbx_vault_create", state: text.includes("succeeded") ? "succeeded" : "running" })] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+          return { rowCount: 1, rows: [{ id: "sbx_vault_create", opensandboxId: "provider_sbx", status: "running" }] as never[] };
+        }
+        if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: "sbx_vault_create", name: "agent-runner", template: "python-3.12", status: "running" }] as never[]
+          };
+        }
+        if (text.includes("FROM sandbox_credential_attachments") && text.includes("LIMIT 1")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_credential_attachments")) {
+          Object.assign(attachment, {
+            id: params?.[0],
+            sandboxId: params?.[2],
+            sourceType: params?.[4],
+            sourceRef: params?.[5] ?? null,
+            provider: params?.[3],
+            credentialName: params?.[6],
+            displayName: params?.[7],
+            bindingName: params?.[8],
+            match: JSON.parse(String(params?.[9])),
+            auth: JSON.parse(String(params?.[10])),
+            fakeEnv: JSON.parse(String(params?.[11])),
+            status: "pending",
+            providerRevision: null,
+            providerMetadata: {},
+            lastError: null,
+            injectedAt: null,
+            detachedAt: null,
+            createdByUserId: params?.[10],
+            createdByLabel: params?.[11],
+            createdAt: now,
+            updatedAt: now
+          });
+          return { rowCount: 1, rows: [] as never[] };
+        }
+        if (text.includes("SET status = 'injected'")) {
+          assert.match(text, /RETURNING[\s\S]+"updatedAt"[\s\S]+SELECT \* FROM updated/);
+          Object.assign(attachment, {
+            status: "injected",
+            providerRevision: params?.[1],
+            providerMetadata: JSON.parse(String(params?.[2])),
+            injectedAt: now,
+            updatedAt: now
+          });
+          return { rowCount: 1, rows: [attachment] as never[] };
+        }
+        if (text.includes("sandbox_operation_secrets")) return { rowCount: 1, rows: [] as never[] };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "created");
+  if (result.kind !== "created") return;
+  assert.equal(result.credentialAttachments?.length, 1);
+  assert.equal(result.credentialAttachments?.[0]?.status, "injected");
+  assert.equal(JSON.stringify(result.credentialAttachments).includes("real-secret"), false);
+  assert.deepEqual(vaultCalls[0]?.credentials, [{ name: "cred_openai", value: "real-secret" }]);
+  assert.deepEqual(runtimeState.createInput?.env, { SAFE_ENV: "ok", OPENAI_API_KEY: "fake-openai-key" });
+  assert.deepEqual(runtimeState.createInput?.egressPolicy, {
+    defaultAction: "deny",
+    egress: [{ action: "allow", target: "api.openai.com" }]
+  });
+  assert.equal(JSON.stringify(calls.map((call) => call.params)).includes("real-secret"), false);
+});
+
+test("createSandbox rolls back when runtime egress is unsafe for credentials", async () => {
+  const runtimeState: { createInput?: unknown; deletedRef?: unknown } = {};
+  const databaseCalls: Array<{ text: string; params?: unknown[] }> = [];
+  const events: Array<{ type: string; metadata?: Record<string, unknown> }> = [];
+  const audits: Array<{ action: string; metadata?: Record<string, unknown> }> = [];
+  let applyCalls = 0;
+  let sandboxStatus = "running";
+  const provider: RuntimeProvider = {
+    ...fakeRuntimeProvider(runtimeState),
+    applyCredentialVault: async () => {
+      applyCalls += 1;
+      throw new Error("credential injection must not run");
+    },
+    setEgressPolicy: async (_ref, policy) => ({
+      status: "ready",
+      enforcementMode: "dns",
+      credentialVaultReady: false,
+      policy
+    })
+  };
+
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        value: "never-store-this-secret",
+        binding: {
+          match: { hosts: ["api.example.com"] },
+          auth: { type: "bearer" }
+        }
+      }]
+    },
+    {
+      runtimeProvider: provider,
+      idFactory: (prefix) => prefix === "sbx" ? "sbx_unsafe" : `${prefix}_unsafe`,
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async (_organizationId, _sandboxId, type, _message, metadata) => {
+        events.push({ type, metadata });
+      },
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => {
+        audits.push({ action, metadata });
+      },
+      query: async (text, params) => {
+        databaseCalls.push({ text, params });
+        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_unsafe", sandboxId: "sbx_unsafe" })] as never[] };
+        }
+        if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_unsafe", sandboxId: "sbx_unsafe", state: "running" })] as never[] };
+        }
+        if (text.includes("UPDATE sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_unsafe", sandboxId: "sbx_unsafe", state: "failed" })] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes") && text.includes("status = 'error'")) {
+          sandboxStatus = "error";
+          return { rowCount: 1, rows: [] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("UPDATE sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("UPDATE sandbox_credential_attachments")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: "sbx_unsafe", opensandboxId: "provider_sbx", status: sandboxStatus, egressPolicy: { mode: "restricted", allow: ["api.example.com"] } }] as never[]
+          };
+        }
+        if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: "sbx_unsafe", name: "python-3.12-runner", template: "python-3.12", status: sandboxStatus }] as never[]
+          };
+        }
+        if (text.includes("FROM sandbox_credential_attachments") && text.includes("LIMIT 1")) {
+          return { rowCount: 0, rows: [] as never[] };
+        }
+        if (text.includes("sandbox_operation_secrets")) return { rowCount: 1, rows: [] as never[] };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_invalid_binding");
+  assert.equal(applyCalls, 0);
+  assert.deepEqual(runtimeState.deletedRef, { provider: "fake", providerSandboxId: "provider_sbx" });
+  assert.equal(sandboxStatus, "error");
+  assert(databaseCalls.some((call) => call.text.includes("SET state = 'failed'")));
+  assert(events.some((event) => event.type === "error"));
+  assert(audits.some((audit) => audit.action === "sandbox.create.credential_failed"));
+  assert.equal(JSON.stringify(databaseCalls).includes("never-store-this-secret"), false);
+  assert.equal(JSON.stringify(events).includes("never-store-this-secret"), false);
+  assert.equal(JSON.stringify(audits).includes("never-store-this-secret"), false);
+});
+
+test("createSandbox attaches stored workspace secrets at create time", async () => {
+  const runtimeState: { createInput?: any } = {};
+  const vaultCalls: Array<{ credentials: Array<{ name: string; value: string }>; bindings: unknown[] }> = [];
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const now = new Date("2026-09-03T12:00:00.000Z");
+  const attachment: Record<string, unknown> = {};
+  const storedSecret = {
+    id: "vlt_openai",
+    name: "OpenAI production",
+    providerPresetId: "openai",
+    sourceType: "harakiri_encrypted",
+    version: 1,
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    hasEncryptedSecret: true,
+    metadata: {},
+    createdByUserId: "user_sbx",
+    createdByLabel: "user@test.local",
+    rotatedAt: null,
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    secretCiphertext: "ciphertext",
+    secretIv: "iv",
+    secretTag: "tag"
+  };
+  const provider: RuntimeProvider = {
+    ...fakeRuntimeProvider(runtimeState),
+    capabilities: {
+      ...fakeRuntimeProvider().capabilities,
+      credentialVault: true,
+      credentialVaultPatch: true,
+      credentialVaultSanitizedRead: true
+    },
+    applyCredentialVault: async (input) => {
+      vaultCalls.push({ credentials: input.credentials, bindings: input.bindings });
+      return {
+        revision: 2,
+        credentials: [{ name: "openai-vlt_openai", sourceType: "inline", revision: 2 }],
+        bindings: [{ name: "openai-api-vlt_openai", revision: 2, auth: { type: "bearer" } }]
+      };
+    }
+  };
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "stored-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        sourceType: "harakiri_encrypted",
+        secretId: "vlt_openai"
+      }]
+    },
+    {
+      runtimeProvider: provider,
+      idFactory: (prefix) => prefix === "sbx" ? "sbx_stored_create" : `${prefix}_stored`,
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      decryptSecret: () => "stored-real-secret",
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
+        if (text.includes("FROM workspace_credential_secrets")) return { rowCount: 1, rows: [storedSecret] as never[] };
+        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_stored", sandboxId: "sbx_stored_create" })] as never[] };
+        }
+        if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_stored", sandboxId: "sbx_stored_create" })] as never[] };
+        }
+        if (text.includes("UPDATE sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_stored", sandboxId: "sbx_stored_create", state: text.includes("succeeded") ? "succeeded" : "running" })] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+          return { rowCount: 1, rows: [{ id: "sbx_stored_create", opensandboxId: "provider_sbx", status: "running" }] as never[] };
+        }
+        if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: "sbx_stored_create", name: "stored-runner", template: "python-3.12", status: "running" }] as never[]
+          };
+        }
+        if (text.includes("FROM sandbox_credential_attachments") && text.includes("LIMIT 1")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_credential_attachments")) {
+          Object.assign(attachment, {
+            id: params?.[0],
+            sandboxId: params?.[2],
+            sourceType: params?.[4],
+            sourceRef: params?.[5] ?? null,
+            provider: params?.[3],
+            credentialName: params?.[6],
+            displayName: params?.[7],
+            bindingName: params?.[8],
+            match: JSON.parse(String(params?.[9])),
+            auth: JSON.parse(String(params?.[10])),
+            fakeEnv: JSON.parse(String(params?.[11])),
+            status: "pending",
+            providerRevision: null,
+            providerMetadata: {},
+            lastError: null,
+            injectedAt: null,
+            detachedAt: null,
+            createdByUserId: params?.[12],
+            createdByLabel: params?.[13],
+            createdAt: now,
+            updatedAt: now
+          });
+          return { rowCount: 1, rows: [] as never[] };
+        }
+        if (text.includes("SET status = 'injected'")) {
+          Object.assign(attachment, {
+            status: "injected",
+            providerRevision: params?.[1],
+            providerMetadata: JSON.parse(String(params?.[2])),
+            injectedAt: now,
+            updatedAt: now
+          });
+          return { rowCount: 1, rows: [attachment] as never[] };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "created");
+  if (result.kind !== "created") return;
+  assert.equal(result.credentialAttachments?.[0]?.sourceType, "harakiri_encrypted");
+  assert.equal(result.credentialAttachments?.[0]?.sourceRef, "vlt_openai");
+  assert.deepEqual(vaultCalls[0]?.credentials, [{ name: "openai-vlt_openai", value: "stored-real-secret" }]);
+  assert.deepEqual(runtimeState.createInput?.env, { OPENAI_API_KEY: "fake-openai-key" });
+  assert.deepEqual(runtimeState.createInput?.egressPolicy, {
+    defaultAction: "deny",
+    egress: [{ action: "allow", target: "api.openai.com" }]
+  });
+  const secretLookupIndex = calls.findIndex((call) => call.text.includes("FROM workspace_credential_secrets"));
+  const sandboxInsertIndex = calls.findIndex((call) => call.text.includes("INSERT INTO sandboxes"));
+  assert.notEqual(secretLookupIndex, -1);
+  assert.notEqual(sandboxInsertIndex, -1);
+  assert(secretLookupIndex < sandboxInsertIndex);
+  assert.equal(JSON.stringify(calls.map((call) => call.params)).includes("stored-real-secret"), false);
+});
+
+test("createSandbox restores a snapshot with an explicit stored template-slot mapping", async () => {
+  const runtimeState: { createInput?: any } = {};
+  const vaultCalls: Array<{ credentials: Array<{ name: string; value: string }>; bindings: Array<{ name: string }> }> = [];
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const now = new Date("2026-09-03T12:00:00.000Z");
+  const attachment: Record<string, unknown> = {};
+  const storedSecret = {
+    id: "vlt_openai",
+    name: "OpenAI production",
+    providerPresetId: "openai",
+    sourceType: "harakiri_encrypted",
+    version: 1,
+    fakeEnv: { OPENAI_API_KEY: "stored-fake-value" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    hasEncryptedSecret: true,
+    metadata: {},
+    createdByUserId: "user_sbx",
+    createdByLabel: "user@test.local",
+    rotatedAt: null,
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    secretCiphertext: "ciphertext",
+    secretIv: "iv",
+    secretTag: "tag"
+  };
+  const provider: RuntimeProvider = {
+    ...fakeRuntimeProvider(runtimeState),
+    capabilities: {
+      ...fakeRuntimeProvider().capabilities,
+      credentialVault: true,
+      credentialVaultPatch: true,
+      credentialVaultSanitizedRead: true
+    },
+    applyCredentialVault: async (input) => {
+      vaultCalls.push({ credentials: input.credentials, bindings: input.bindings });
+      return {
+        revision: 2,
+        credentials: [{ name: "openai", sourceType: "inline", revision: 2 }],
+        bindings: [{ name: "openai-api", revision: 2, auth: { type: "bearer" } }]
+      };
+    }
+  };
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      snapshotId: "snp_ready",
+      templateRef: "open-agents-dev",
+      name: "slot-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentialMappings: [{
+        slotId: "llm",
+        source: {
+          sourceType: "harakiri_encrypted",
+          secretId: "vlt_openai"
+        }
+      }]
+    },
+    {
+      runtimeProvider: provider,
+      idFactory: (prefix) => prefix === "sbx" ? "sbx_slot_create" : `${prefix}_slot`,
+      resolveTemplateFn: async () => readyTemplateWithOpenAiSlot,
+      ensureTemplateImageDigestFn: async (template) => template,
+      decryptSecret: () => "stored-real-secret",
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("FROM sandbox_snapshots")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: "snp_ready",
+              provider: "fake",
+              providerSnapshotId: "provider_snp",
+              template: "open-agents-dev",
+              templateVersionId: "tplv_ready",
+              templateImageDigest: "sha256:abc",
+              status: "ready"
+            }] as never[]
+          };
+        }
+        if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
+        if (text.includes("FROM workspace_credential_secrets")) return { rowCount: 1, rows: [storedSecret] as never[] };
+        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_slot", sandboxId: "sbx_slot_create" })] as never[] };
+        }
+        if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_slot", sandboxId: "sbx_slot_create" })] as never[] };
+        }
+        if (text.includes("UPDATE sandbox_operations")) {
+          return { rowCount: 1, rows: [operationRow({ id: "op_slot", sandboxId: "sbx_slot_create", state: text.includes("succeeded") ? "succeeded" : "running" })] as never[] };
+        }
+        if (text.includes("UPDATE sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_schedules")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
+          return { rowCount: 1, rows: [{ id: "sbx_slot_create", opensandboxId: "provider_sbx", status: "running" }] as never[] };
+        }
+        if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: "sbx_slot_create", name: "slot-runner", template: "open-agents-dev", status: "running" }] as never[]
+          };
+        }
+        if (text.includes("FROM sandbox_credential_attachments") && text.includes("LIMIT 1")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandbox_credential_attachments")) {
+          Object.assign(attachment, {
+            id: params?.[0],
+            sandboxId: params?.[2],
+            sourceType: params?.[4],
+            sourceRef: params?.[5] ?? null,
+            provider: params?.[3],
+            credentialName: params?.[6],
+            displayName: params?.[7],
+            bindingName: params?.[8],
+            match: JSON.parse(String(params?.[9])),
+            auth: JSON.parse(String(params?.[10])),
+            fakeEnv: JSON.parse(String(params?.[11])),
+            status: "pending",
+            providerRevision: null,
+            providerMetadata: {},
+            lastError: null,
+            injectedAt: null,
+            detachedAt: null,
+            createdByUserId: params?.[12],
+            createdByLabel: params?.[13],
+            createdAt: now,
+            updatedAt: now
+          });
+          return { rowCount: 1, rows: [] as never[] };
+        }
+        if (text.includes("SET status = 'injected'")) {
+          Object.assign(attachment, {
+            status: "injected",
+            providerRevision: params?.[1],
+            providerMetadata: JSON.parse(String(params?.[2])),
+            injectedAt: now,
+            updatedAt: now
+          });
+          return { rowCount: 1, rows: [attachment] as never[] };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "created");
+  if (result.kind !== "created") return;
+  assert.equal(result.credentialAttachments?.[0]?.sourceRef, "vlt_openai");
+  assert.equal(result.credentialAttachments?.[0]?.credentialName, "openai");
+  assert.equal(result.credentialAttachments?.[0]?.bindingName, "openai-api");
+  assert.deepEqual(vaultCalls[0]?.credentials, [{ name: "openai", value: "stored-real-secret" }]);
+  assert.deepEqual(runtimeState.createInput?.snapshot, { provider: "fake", providerSnapshotId: "provider_snp" });
+  assert.deepEqual(runtimeState.createInput?.env, { AGENT_OPENAI_API_KEY: "fake-openai-key" });
+  assert.deepEqual(runtimeState.createInput?.egressPolicy, {
+    defaultAction: "deny",
+    egress: [{ action: "allow", target: "api.openai.com" }]
+  });
+  assert.equal(JSON.stringify(calls.map((call) => call.params)).includes("stored-real-secret"), false);
+});
+
+test("createSandbox rejects mapped stored secrets with the wrong provider preset", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "open-agents-dev",
+      name: "slot-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentialMappings: [{
+        slotId: "llm",
+        source: {
+          sourceType: "harakiri_encrypted",
+          secretId: "vlt_github"
+        }
+      }]
+    },
+    {
+      runtimeProvider: {
+        ...fakeRuntimeProvider(),
+        applyCredentialVault: async () => {
+          throw new Error("provider should not be called");
+        }
+      },
+      resolveTemplateFn: async () => readyTemplateWithOpenAiSlot,
+      ensureTemplateImageDigestFn: async (template) => template,
+      decryptSecret: () => "github-secret",
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
+        if (text.includes("FROM workspace_credential_secrets")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: "vlt_github",
+              name: "GitHub",
+              providerPresetId: "github",
+              sourceType: "harakiri_encrypted",
+              version: 1,
+              fakeEnv: { GITHUB_TOKEN: "fake-github-token" },
+              binding: credentialProviderPresetCatalog.github.binding,
+              egressDomains: ["github.com"],
+              hasEncryptedSecret: true,
+              metadata: {},
+              createdByUserId: "user_sbx",
+              createdByLabel: "user@test.local",
+              rotatedAt: null,
+              disabledAt: null,
+              deletedAt: null,
+              createdAt: new Date("2026-09-03T12:00:00.000Z"),
+              updatedAt: new Date("2026-09-03T12:00:00.000Z"),
+              secretCiphertext: "ciphertext",
+              secretIv: "iv",
+              secretTag: "tag"
+            }] as never[]
+          };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_invalid_binding");
+  assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /cannot satisfy template slot/);
+  assert.equal(calls.some((call) => call.text.includes("INSERT INTO sandboxes")), false);
+});
+
+test("createSandbox rejects unsatisfied required template credential slots before DB writes", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const runtimeState: { createInput?: unknown } = {};
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "open-agents-dev",
+      name: "slot-runner",
+      ttlSeconds: 300,
+      env: {}
+    },
+    {
+      runtimeProvider: fakeRuntimeProvider(runtimeState),
+      resolveTemplateFn: async () => readyTemplateWithOpenAiSlot,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_required_slot_missing");
+  assert.match(result.kind === "credential_vault_required_slot_missing" ? result.message : "", /requires credential slot: llm/);
+  assert.deepEqual(result.kind === "credential_vault_required_slot_missing" ? result.missingSlots : [], ["llm"]);
+  assert.equal(calls.length, 0);
+  assert.equal(runtimeState.createInput, undefined);
+});
+
+test("createSandbox rejects missing mapped template slots before DB writes", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "slot-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentialMappings: [{
+        slotId: "llm",
+        source: {
+          sourceType: "harakiri_encrypted",
+          secretId: "vlt_openai"
+        }
+      }]
+    },
+    {
+      runtimeProvider: {
+        ...fakeRuntimeProvider(),
+        applyCredentialVault: async () => {
+          throw new Error("provider should not be called");
+        }
+      },
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_invalid_binding");
+  assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /was not found/);
+  assert.equal(calls.length, 0);
+});
+
+test("createSandbox rejects disabled stored credentials before DB writes", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "stored-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        sourceType: "harakiri_encrypted",
+        secretId: "vlt_disabled"
+      }]
+    },
+    {
+      runtimeProvider: {
+        ...fakeRuntimeProvider(),
+        applyCredentialVault: async () => {
+          throw new Error("provider should not be called");
+        }
+      },
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
+        if (text.includes("FROM workspace_credential_secrets")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: "vlt_disabled",
+              name: "OpenAI disabled",
+              providerPresetId: "openai",
+              sourceType: "harakiri_encrypted",
+              version: 1,
+              fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+              binding: credentialProviderPresetCatalog.openai.binding,
+              egressDomains: ["api.openai.com"],
+              hasEncryptedSecret: true,
+              metadata: {},
+              createdByUserId: "user_sbx",
+              createdByLabel: "user@test.local",
+              rotatedAt: null,
+              disabledAt: new Date("2026-09-03T12:00:00.000Z"),
+              deletedAt: null,
+              createdAt: new Date("2026-09-03T12:00:00.000Z"),
+              updatedAt: new Date("2026-09-03T12:00:00.000Z"),
+              secretCiphertext: "ciphertext",
+              secretIv: "iv",
+              secretTag: "tag"
+            }] as never[]
+          };
+        }
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_secret_disabled");
+  assert.equal(calls.some((call) => call.text.includes("INSERT INTO sandboxes")), false);
+});
+
+test("createSandbox rejects create-time credentials on async create before DB writes", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "agent-runner",
+      ttlSeconds: 300,
+      env: {},
+      wait: false,
+      credentials: [{
+        value: "real-secret",
+        binding: {
+          match: { hosts: ["api.openai.com"] },
+          auth: { type: "bearer" }
+        }
+      }]
+    },
+    {
+      runtimeProvider: fakeRuntimeProvider(),
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        return { rowCount: 0, rows: [] as never[] };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_create_requires_sync");
+  assert.equal(calls.length, 0);
+});
+
+test("createSandbox rejects create-time fake env conflicts before DB writes", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "agent-runner",
+      ttlSeconds: 300,
+      env: { OPENAI_API_KEY: "already-set" },
+      credentials: [{
+        value: "real-secret",
+        fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+        binding: {
+          match: { hosts: ["api.openai.com"] },
+          auth: { type: "bearer" }
+        }
+      }]
+    },
+    {
+      runtimeProvider: {
+        ...fakeRuntimeProvider(),
+        applyCredentialVault: async () => {
+          throw new Error("provider should not be called");
+        }
+      },
+      idFactory: (prefix) => `${prefix}_fixed`,
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        return { rowCount: 0, rows: [] as never[] };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_invalid_binding");
+  assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /conflicts/);
+  assert.equal(calls.length, 0);
+});
+
+test("createSandbox rejects duplicate create-time credential names before DB writes", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const result = await createSandbox(
+    {
+      organizationId: "org_sbx",
+      userId: "user_sbx",
+      actorLabel: "user@test.local",
+      templateRef: "python-3.12",
+      name: "agent-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [
+        {
+          credentialName: "dup",
+          binding: {
+            name: "one",
+            match: { hosts: ["api-one.example.com"] },
+            auth: { type: "bearer" }
+          },
+          value: "real-secret-one"
+        },
+        {
+          credentialName: "dup",
+          binding: {
+            name: "two",
+            match: { hosts: ["api-two.example.com"] },
+            auth: { type: "bearer" }
+          },
+          value: "real-secret-two"
+        }
+      ]
+    },
+    {
+      runtimeProvider: {
+        ...fakeRuntimeProvider(),
+        applyCredentialVault: async () => {
+          throw new Error("provider should not be called");
+        }
+      },
+      resolveTemplateFn: async () => readyTemplate,
+      ensureTemplateImageDigestFn: async (template) => template,
+      recordEvent: async () => undefined,
+      recordAudit: async () => undefined,
+      query: async (text, params) => {
+        calls.push({ text, params });
+        return { rowCount: 0, rows: [] as never[] };
+      }
+    }
+  );
+
+  assert.equal(result.kind, "credential_vault_invalid_binding");
+  assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /credential dup is already declared/);
+  assert.equal(calls.length, 0);
 });
 
 test("createSandbox restores a ready snapshot through the provider snapshot ref", async () => {

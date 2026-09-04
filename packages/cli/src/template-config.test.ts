@@ -17,6 +17,8 @@ aliases = ["open-agents-dev", "agents/open-agents-dev"]
 tags = ["custom", "hot"]
 start_command = "sleep 3600"
 ready_command = "true"
+credential_slots = ["openai", "github"]
+optional_credential_slots = ["npm"]
 `);
 
   assert.deepEqual(config, {
@@ -32,7 +34,12 @@ ready_command = "true"
     aliases: ["open-agents-dev", "agents/open-agents-dev"],
     tags: ["custom", "hot"],
     startCommand: "sleep 3600",
-    readyCommand: "true"
+    readyCommand: "true",
+    credentialSlots: [
+      { providerPresetId: "openai", required: true },
+      { providerPresetId: "github", required: true },
+      { providerPresetId: "npm", required: false }
+    ]
   });
 });
 
@@ -50,6 +57,77 @@ tags = ["custom#tag", "hot"]
   assert.equal(config.image, "ghcr.io/acme/open-agents:dev#sha-note");
   assert.deepEqual(config.ports, [3000, 5173]);
   assert.deepEqual(config.tags, ["custom#tag", "hot"]);
+});
+
+test("parseHarakiriTemplateConfig rejects unknown credential slot presets", () => {
+  assert.throws(
+    () => parseHarakiriTemplateConfig('credential_slots = ["unknown-provider"]'),
+    /unknown credential provider preset/
+  );
+});
+
+test("parseHarakiriTemplateConfig maps custom credential slots and egress policy", () => {
+  const config = parseHarakiriTemplateConfig(`
+name = "private-api-runner"
+egress_mode = "restricted"
+egress_presets = ["git-hosting"]
+egress_allow = ["api.internal.example"]
+
+[[credential_slot]]
+id = "internal-api"
+provider = "custom"
+required = true
+label = "Internal API"
+host = "api.internal.example"
+auth = "api-key"
+header = "x-service-key"
+methods = ["GET", "POST"]
+paths = ["/v1/*"]
+env_name = "INTERNAL_API_KEY"
+test_path = "/health"
+`);
+
+  assert.deepEqual(config.egressPolicy, {
+    mode: "restricted",
+    presets: ["git-hosting"],
+    allow: ["api.internal.example"],
+    deny: undefined,
+    defaultAction: undefined
+  });
+  assert.deepEqual(config.credentialSlots, [{
+    id: "internal-api",
+    providerPresetId: "custom",
+    required: true,
+    label: "Internal API",
+    description: undefined,
+    envName: "INTERNAL_API_KEY",
+    customProfile: {
+      host: "api.internal.example",
+      authType: "apiKey",
+      headerName: "x-service-key",
+      methods: ["GET", "POST"],
+      paths: ["/v1/*"],
+      envName: "INTERNAL_API_KEY",
+      testPath: "/health"
+    }
+  }]);
+});
+
+test("parseHarakiriTemplateConfig rejects malformed and incomplete custom slots", () => {
+  assert.throws(
+    () => parseHarakiriTemplateConfig('name = "unterminated'),
+    /invalid harakiri\.toml/
+  );
+  assert.throws(
+    () => parseHarakiriTemplateConfig(`
+[[credential_slot]]
+id = "internal-api"
+provider = "custom"
+host = "api.internal.example"
+auth = "api-key"
+`),
+    /header is required/
+  );
 });
 
 test("commandToEntrypoint splits simple quoted shell commands", () => {

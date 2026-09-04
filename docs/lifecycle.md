@@ -41,11 +41,25 @@ cleanup.
 runtime provider exposes those methods. Harakiri persists intermediate states
 and returns explicit `runtime_lifecycle_unsupported` or
 `runtime_provider_failed` errors when the provider cannot satisfy the request.
+After a successful resume, active injected Credential Vault attachments are
+marked `requires_reinjection` because provider-side vault state is reset.
+Harakiri immediately rehydrates attachments backed by active encrypted
+workspace secrets, external references, and dynamic issuers. Ephemeral values
+must be reattached by the caller because Harakiri never stored them.
+Attachments whose source is disabled, deleted, missing, expired, unresolved, or
+undecryptable stay `requires_reinjection` with a redacted reason. The scheduler
+also inspects active provider vaults and repairs sidecar state lost outside an
+explicit resume.
 
 `snapshot` creates a Harakiri snapshot record, asks the provider to create the
 runtime snapshot, stores the internal provider snapshot ID, and exposes the
 public `snp_...` ID to callers. Snapshot restores call `POST /v1/sandboxes`
 with `snapshotId` instead of a template.
+
+Snapshots contain runtime filesystem/process state, not Credential Vault source
+selections or provider-side values. A credential-bearing restore must provide
+new `credentialMappings` for the restored template slots. The normal
+create-time safety and rollback path then injects those selected sources.
 
 ## Snapshots
 

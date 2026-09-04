@@ -94,6 +94,26 @@ pnpm openapi:check
 - `GET /v1/sandboxes/:id/routes`
 - `POST /v1/sandboxes/:id/routes`
 - `DELETE /v1/sandboxes/:id/routes/:port`
+- `GET /v1/sandboxes/:id/credentials`
+- `POST /v1/sandboxes/:id/credentials`
+- `POST /v1/sandboxes/:id/credentials/inspect`
+- `POST /v1/sandboxes/:id/credentials/rehydrate`
+- `DELETE /v1/sandboxes/:id/credentials/:attachmentId`
+- `POST /v1/sandboxes/:id/credentials/:attachmentId/refresh`
+- `POST /v1/sandboxes/:id/credentials/:attachmentId/test`
+- `GET /v1/credential-presets`
+- `GET /v1/credential-presets/:id`
+- `GET /v1/credential-secrets`
+- `POST /v1/credential-secrets`
+- `GET /v1/external-secret-references`
+- `POST /v1/external-secret-references`
+- `GET /v1/dynamic-credential-issuers`
+- `POST /v1/dynamic-credential-issuers`
+- `GET /v1/audit-events`
+- `POST /v1/templates` with `credentialSlots`
+- `GET /v1/templates/:id` returning expanded `credentialSlots`
+- `GET /v1/templates/:id/versions` returning snapshotted
+  `credentialSlots`
 - `GET /v1/api-keys`
 - `POST /v1/api-keys`
 - `DELETE /v1/api-keys/:id`
@@ -567,6 +587,392 @@ OpenSandbox provider behavior, Harakiri's control-plane overlay, or is
 unavailable/unsupported. Treat unavailable required capabilities as integration
 blockers and degraded capabilities as features that should show a quieter
 fallback path.
+
+## Credential Vault
+
+Credential Vault attaches outbound credentials to sandbox requests without
+putting the real value in sandbox environment variables, files, command
+arguments, or logs. The current public API supports `inline_ephemeral`
+attachments at sandbox creation and on already-running sandboxes: Harakiri sends
+the value to the provider-side vault and then forgets it. It also supports
+envelope-encrypted workspace custody, Kubernetes-backed external references,
+GitHub App dynamic credentials, built-in and custom template slots, provider
+inspection, refresh, rehydration, and metadata-only organization audit.
+
+Runtime endpoints:
+
+- `POST /v1/sandboxes` with `credentials`
+- `POST /v1/sandboxes` with `credentialMappings`
+- `GET /v1/sandboxes/:id/credentials`
+- `POST /v1/sandboxes/:id/credentials`
+- `POST /v1/sandboxes/:id/credentials/inspect`
+- `POST /v1/sandboxes/:id/credentials/rehydrate`
+- `DELETE /v1/sandboxes/:id/credentials/:attachmentId`
+- `POST /v1/sandboxes/:id/credentials/:attachmentId/refresh`
+- `POST /v1/sandboxes/:id/credentials/:attachmentId/test`
+- `GET /v1/credential-presets`
+- `GET /v1/credential-presets/:id`
+- `GET /v1/credential-secrets`
+- `GET /v1/credential-secrets/:id`
+- `POST /v1/credential-secrets`
+- `PATCH /v1/credential-secrets/:id`
+- `POST /v1/credential-secrets/:id/rotate`
+- `POST /v1/credential-secrets/:id/disable`
+- `POST /v1/credential-secrets/:id/enable`
+- `DELETE /v1/credential-secrets/:id`
+- `GET /v1/external-secret-references`
+- `GET /v1/external-secret-references/:id`
+- `POST /v1/external-secret-references`
+- `PATCH /v1/external-secret-references/:id`
+- `POST /v1/external-secret-references/:id/validate`
+- `POST /v1/external-secret-references/:id/disable`
+- `POST /v1/external-secret-references/:id/enable`
+- `DELETE /v1/external-secret-references/:id`
+- `GET /v1/dynamic-credential-issuers`
+- `GET /v1/dynamic-credential-issuers/:id`
+- `POST /v1/dynamic-credential-issuers`
+- `PATCH /v1/dynamic-credential-issuers/:id`
+- `POST /v1/dynamic-credential-issuers/:id/validate`
+- `POST /v1/dynamic-credential-issuers/:id/disable`
+- `POST /v1/dynamic-credential-issuers/:id/enable`
+- `DELETE /v1/dynamic-credential-issuers/:id`
+- `GET /v1/audit-events`
+
+Provider presets expose reusable binding defaults for common services. They
+return fake env names, auth shape, binding hosts, egress domains, and a default
+test target, but never real credential values.
+
+Credential Vault errors use the same structured envelope as the rest of the
+runtime API. Common codes are `credential_vault_unsupported`,
+`credential_vault_provider_unavailable`, `credential_vault_invalid_binding`,
+`credential_vault_required_slot_missing`, `credential_vault_secret_required`,
+`credential_secret_forbidden`, `credential_secret_invalid`,
+`credential_secret_disabled`, `credential_secret_decryption_unavailable`, and
+`credential_secret_value_required`. External resolver failures use
+`external_secret_resolution_not_found`,
+`external_secret_resolution_forbidden`,
+`external_secret_resolution_invalid`, or
+`external_secret_resolver_unavailable`.
+Dynamic failures use `dynamic_credential_issuer_*` for source lifecycle and
+`dynamic_credential_issue_*` for issuance. Unsafe DNS-only or unavailable
+credential egress returns `credential_vault_egress_conflict` before injection.
+
+```bash
+curl "$HARAKIRI_API_URL/v1/credential-presets" \
+  -H "x-api-key: $HK_KEY"
+
+curl "$HARAKIRI_API_URL/v1/credential-presets/openai" \
+  -H "x-api-key: $HK_KEY"
+```
+
+Declare preset-backed credential slots on a template:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/templates" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "id": "agent-with-models",
+    "name": "Agent with models",
+    "image": "ubuntu:24.04",
+    "credentialSlots": [
+      { "providerPresetId": "openai" },
+      { "providerPresetId": "github", "required": false }
+    ]
+  }'
+```
+
+The response expands each slot with label, fake env, binding metadata, egress
+domains, and a default test target. Template builds copy that metadata to the
+immutable template version. No API accepts or returns real credential values in
+template slot fields.
+
+Manage encrypted workspace secrets:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/credential-secrets" \
+  -H "x-api-key: $HK_KEY"
+
+curl "$HARAKIRI_API_URL/v1/credential-secrets" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "name": "openai-prod",
+    "providerPresetId": "openai",
+    "value": "replace-with-real-value",
+    "usePolicy": "admins_only",
+    "fakeEnv": { "OPENAI_API_KEY": "fake-openai-key" }
+  }'
+
+curl -X PATCH "$HARAKIRI_API_URL/v1/credential-secrets/vlt_..." \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"usePolicy":"organization_members"}'
+
+curl "$HARAKIRI_API_URL/v1/credential-secrets/vlt_.../rotate" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"value":"replace-with-new-real-value"}'
+
+curl -X POST "$HARAKIRI_API_URL/v1/credential-secrets/vlt_.../disable" \
+  -H "x-api-key: $HK_KEY"
+
+curl -X POST "$HARAKIRI_API_URL/v1/credential-secrets/vlt_.../enable" \
+  -H "x-api-key: $HK_KEY"
+
+curl -X DELETE "$HARAKIRI_API_URL/v1/credential-secrets/vlt_..." \
+  -H "x-api-key: $HK_KEY"
+```
+
+Workspace secret mutations require organization admin role. Admins can list all
+records; members can list and attach only secrets explicitly shared through
+`usePolicy: "organization_members"`. Responses return sanitized metadata such
+as name, preset, status, version, use policy, attachment-derived usage totals,
+fake env keys, binding metadata, egress domains, timestamps, and
+`hasEncryptedSecret`. The raw value is accepted only on create and rotate, and
+is never returned. Delete removes encrypted value custody and preserves a
+metadata-only audit record.
+
+Manage an external reference without sending a secret value:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/external-secret-references" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "name": "OpenAI from cluster",
+    "providerPresetId": "openai",
+    "resolverType": "kubernetes_secret",
+    "reference": {
+      "namespace": "harakiri",
+      "name": "harakiri-vault-agents",
+      "key": "OPENAI_API_KEY"
+    },
+    "usePolicy": "organization_members"
+  }'
+
+curl -X POST \
+  "$HARAKIRI_API_URL/v1/external-secret-references/xsr_.../validate" \
+  -H "x-api-key: $HK_KEY"
+```
+
+Validation returns `valid`, `not_found`, `forbidden`, `invalid`, or
+`unavailable` plus sanitized diagnostics. It never returns the resolved value.
+See [External Secret References](external-secret-references.md) for operator
+configuration.
+
+Configure a short-lived GitHub App source:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/dynamic-credential-issuers" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "name": "agent repositories",
+    "issuerType": "github_app_installation",
+    "scope": {
+      "installationId": "123456",
+      "repositories": ["agent-runtime"],
+      "permissions": { "contents": "read", "metadata": "read" }
+    },
+    "usePolicy": "organization_members"
+  }'
+
+curl -X POST \
+  "$HARAKIRI_API_URL/v1/dynamic-credential-issuers/dci_.../validate" \
+  -H "x-api-key: $HK_KEY"
+```
+
+The operator-owned GitHub App mints installation tokens. Responses expose
+scope, validation, version, usage, issue/expiry timestamps, and sanitized
+errors, never the App private key or issued token. Create and attachment source
+bodies use `{ "sourceType": "dynamic", "issuerId": "dci_..." }`.
+`POST /v1/sandboxes/:id/credentials/:attachmentId/refresh` explicitly renews a
+dynamic attachment; other source types return a typed conflict.
+
+Compare desired attachments to sanitized provider state:
+
+```bash
+curl -X POST "$HARAKIRI_API_URL/v1/sandboxes/$SANDBOX_ID/credentials/inspect" \
+  -H "x-api-key: $HK_KEY"
+```
+
+The response contains provider revision and `present`, `missing`, or `unknown`
+state, not provider values. Organization admins can query metadata-only history:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/audit-events?actionPrefix=credential_&limit=50&offset=0" \
+  -H "x-api-key: $HK_KEY"
+```
+
+Audit filters are `targetType`, `targetId`, `actionPrefix`, `limit` (1 to 200),
+and zero-based `offset`. The response includes `{ events, page: { limit,
+offset, total } }`. Members receive `audit_event_forbidden` because the stream
+contains organization-wide actor and custody activity.
+
+Create a sandbox with an ephemeral credential:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "template": "python-3.12-data",
+    "credentials": [{
+      "displayName": "OpenAI API",
+      "credentialName": "openai-runtime",
+      "value": "replace-with-real-value",
+      "fakeEnv": { "OPENAI_API_KEY": "fake-openai-key" },
+      "binding": {
+        "name": "openai-api",
+        "match": {
+          "hosts": ["api.openai.com"],
+          "schemes": ["https"],
+          "methods": ["GET", "POST"],
+          "paths": ["/v1/*"]
+        },
+        "auth": { "type": "bearer" }
+      }
+    }]
+  }'
+```
+
+Create a sandbox with an encrypted workspace secret:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "template": "open-agents-dev",
+    "credentials": [{
+      "sourceType": "harakiri_encrypted",
+      "secretId": "vlt_...",
+      "displayName": "OpenAI production"
+    }]
+  }'
+```
+
+Create a sandbox by mapping a template credential slot to an encrypted
+workspace secret:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "template": "open-agents-dev",
+    "credentialMappings": [{
+      "slotId": "llm",
+      "source": {
+        "sourceType": "harakiri_encrypted",
+        "secretId": "vlt_...",
+        "displayName": "OpenAI production"
+      }
+    }]
+  }'
+```
+
+For inline one-time values, the template slot supplies the binding and fake env
+defaults:
+
+```json
+{
+  "credentialMappings": [{
+    "providerPresetId": "openai",
+    "source": {
+      "sourceType": "inline_ephemeral",
+      "value": "replace-with-real-value"
+    }
+  }]
+}
+```
+
+Attach an encrypted workspace secret to a running sandbox:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes/$SANDBOX_ID/credentials" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "sourceType": "harakiri_encrypted",
+    "secretId": "vlt_...",
+    "displayName": "OpenAI production"
+  }'
+```
+
+Create-time `credentials` accepts an `inline_ephemeral` body,
+`sourceType: "harakiri_encrypted"` with a workspace secret ID, or
+`sourceType: "external_ref"` with an external reference ID, or
+`sourceType: "dynamic"` with a dynamic issuer ID. Create-time
+`credentialMappings` maps a template slot by `slotId` or `providerPresetId` to
+any of those sources. For
+mapped sources, the template slot owns the binding, fake env defaults, and
+egress hosts. Required template slots must be satisfied through
+`credentialMappings`; direct low-level `credentials` do not satisfy a named
+template requirement. Running-sandbox attachment accepts the direct source
+shapes. Stored-secret attachment requires either an organization admin or a
+secret shared for organization-member use and returns sanitized metadata only.
+
+Rehydrate stored credential attachments after resume or provider-side vault
+state loss:
+
+```bash
+curl -X POST "$HARAKIRI_API_URL/v1/sandboxes/$SANDBOX_ID/credentials/rehydrate" \
+  -H "x-api-key: $HK_KEY"
+```
+
+The response returns sanitized attachments plus `rehydrated`, `skipped`, and
+`failed` counts. Active encrypted workspace secrets, external references, and
+dynamic issuers are resolved and reapplied through the runtime provider.
+`inline_ephemeral`
+attachments stay `requires_reinjection` because Harakiri intentionally never
+stored their real values.
+
+Create-time credentials require synchronous creation. Requests with
+`wait:false`, `Prefer: respond-async`, or `waitTimeoutMs` return
+`credential_vault_create_requires_sync` because async replay of credential
+attachments is not implemented yet.
+
+Attach an API key to selected outbound requests:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes/$SANDBOX_ID/credentials" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{
+    "displayName": "OpenAI API",
+    "credentialName": "openai-runtime",
+    "value": "replace-with-real-value",
+    "fakeEnv": { "OPENAI_API_KEY": "fake-openai-key" },
+    "binding": {
+      "match": {
+        "hosts": ["api.openai.com"],
+        "schemes": ["https"],
+        "methods": ["GET", "POST"],
+        "paths": ["/v1/*"]
+      },
+      "auth": { "type": "bearer" }
+    }
+  }'
+```
+
+Responses include sanitized attachment metadata, provider revision, fake env
+keys, binding hosts, auth type, status, and timestamps. They never include the
+real credential value.
+
+Test a binding from inside the sandbox:
+
+```bash
+curl "$HARAKIRI_API_URL/v1/sandboxes/$SANDBOX_ID/credentials/$ATTACHMENT_ID/test" \
+  -H "x-api-key: $HK_KEY" \
+  -H "content-type: application/json" \
+  -d '{"target":"https://api.openai.com/v1/models","timeoutMs":10000}'
+```
+
+The test response is diagnostic, not a secret readback. Status values include
+`reachable`, `blocked_or_unreachable`, `binding_mismatch`, `not_injected`,
+`sandbox_not_running`, and `provider_unavailable`.
 
 ## Run Command
 

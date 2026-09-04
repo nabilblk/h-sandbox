@@ -12,6 +12,8 @@
     "sdk-typescript-quickstart/index.ts",
     "sdk-sandbox-object/index.ts",
     "sdk-git-workflow/index.ts",
+    "sdk-credential-vault/index.ts",
+    "sdk-private-api-vault/index.ts",
     "sdk-opencode-headless/index.ts",
     "sdk-opencode-server/index.ts"
   ]

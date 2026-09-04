@@ -7,7 +7,9 @@ import {
   sandboxRouteAccessModes,
   sandboxRouteStates,
   sandboxStatuses,
+  type AttachSandboxCredentialBody,
   type EgressPolicyInput,
+  type SandboxCredentialAttachmentSummary,
   type SandboxRouteAccessMode,
   type SandboxRouteState,
   type SandboxRuntimeMetadata,
@@ -16,9 +18,13 @@ import {
   type SandboxSourceInput,
   type SandboxSourceProvenance,
   type SandboxStatus,
+  type TemplateCredentialSlot,
+  type TemplateCredentialSlotMappingBody,
   type SandboxSummary as SharedSandboxSummary
 } from "@harakiri/shared";
 import type { RuntimeProvider, RuntimeSandboxRef } from "../providers/runtime/provider.js";
+import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
+import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
 import { hasSecretBoxKey } from "../secret-box.js";
 import {
   ensureTemplateImageDigest,
@@ -39,6 +45,13 @@ import {
 import { policyInputFromSummary, runtimeEgressPolicyFromSummary, validateEgressPolicyForOrganization } from "./egress-policy.js";
 import { getSandboxSnapshotForRestore } from "./sandbox-snapshots.js";
 import { getRuntimeCapabilities, type Audit, type SandboxEventRecorder } from "./sandbox-runtime.js";
+import {
+  attachPreparedSandboxCredential,
+  prepareSandboxCredentialSourceAttachment,
+  prepareTemplateCredentialSlotAttachment,
+  type PreparedSandboxCredentialAttachment
+} from "./credential-vault.js";
+import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-secrets.js";
 import { redactText } from "../redaction.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
@@ -82,6 +95,8 @@ export type CreateSandboxInput = {
   waitTimeoutMs?: number;
   egress?: EgressPolicyInput | null;
   source?: SandboxSourceInput | null;
+  credentials?: AttachSandboxCredentialBody[];
+  credentialMappings?: TemplateCredentialSlotMappingBody[];
 };
 
 export const sandboxSelect = `
@@ -317,6 +332,209 @@ const waitFor = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T | "
     new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), timeoutMs))
   ]);
 
+const uniqueValues = (values: string[]) => [...new Set(values)];
+
+const duplicateValue = (values: string[]) => {
+  const seen = new Set<string>();
+  return values.find((value) => {
+    if (seen.has(value)) return true;
+    seen.add(value);
+    return false;
+  });
+};
+
+const createCredentialSyncError = (input: CreateSandboxInput) => {
+  const count = (input.credentials?.length ?? 0) + (input.credentialMappings?.length ?? 0);
+  if (!count) return null;
+  if (input.wait === false) return "create-time credentials require synchronous sandbox creation; omit wait:false";
+  if (input.waitTimeoutMs !== undefined) {
+    return "create-time credentials cannot use waitTimeoutMs because credential attachments are not replayed asynchronously";
+  }
+  return null;
+};
+
+const selectMappedCredentialSlot = (template: RuntimeTemplate, mapping: TemplateCredentialSlotMappingBody) => {
+  const slots = template.credentialSlots ?? [];
+  const idMatch = mapping.slotId ? slots.find((slot) => slot.id === mapping.slotId) : null;
+  const presetMatches = mapping.providerPresetId
+    ? slots.filter((slot) => slot.providerPresetId === mapping.providerPresetId)
+    : [];
+
+  if (mapping.slotId && !idMatch) {
+    return { kind: "error" as const, message: `template credential slot ${mapping.slotId} was not found on template ${template.id}` };
+  }
+  if (idMatch && mapping.providerPresetId && idMatch.providerPresetId !== mapping.providerPresetId) {
+    return { kind: "error" as const, message: `template credential slot ${idMatch.id} uses ${idMatch.providerPresetId}, not ${mapping.providerPresetId}` };
+  }
+  if (idMatch) return { kind: "ok" as const, slot: idMatch };
+  if (!mapping.providerPresetId) return { kind: "error" as const, message: "credential mapping requires slotId or providerPresetId" };
+  if (!presetMatches.length) {
+    return { kind: "error" as const, message: `template ${template.id} has no credential slot for ${mapping.providerPresetId}` };
+  }
+  if (presetMatches.length > 1) {
+    return { kind: "error" as const, message: `template ${template.id} has multiple ${mapping.providerPresetId} slots; use slotId` };
+  }
+  return { kind: "ok" as const, slot: presetMatches[0] };
+};
+
+const validateMappedCredentialSlots = (template: RuntimeTemplate, mappings: TemplateCredentialSlotMappingBody[]) => {
+  const seen = new Set<string>();
+  const slots: TemplateCredentialSlot[] = [];
+  for (const mapping of mappings) {
+    const resolved = selectMappedCredentialSlot(template, mapping);
+    if (resolved.kind !== "ok") return resolved;
+    if (seen.has(resolved.slot.id)) {
+      return { kind: "error" as const, message: `template credential slot ${resolved.slot.id} is mapped more than once` };
+    }
+    seen.add(resolved.slot.id);
+    slots.push(resolved.slot);
+  }
+  return { kind: "ok" as const, slots };
+};
+
+const missingRequiredCredentialSlots = (template: RuntimeTemplate, mappedSlots: TemplateCredentialSlot[]) => {
+  const mappedSlotIds = new Set(mappedSlots.map((slot) => slot.id));
+  return (template.credentialSlots ?? [])
+    .filter((slot) => slot.required && !mappedSlotIds.has(slot.id))
+    .map((slot) => slot.id);
+};
+
+const prepareCreateCredentials = async (
+  input: {
+    organizationId: string;
+    userId: string;
+    template: RuntimeTemplate;
+    credentials: AttachSandboxCredentialBody[];
+    credentialMappings: TemplateCredentialSlotMappingBody[];
+  },
+  dependencies: {
+    query: Query;
+    idFactory: typeof makeId;
+    decryptSecret?: DecryptWorkspaceCredentialSecret;
+    externalSecretResolvers?: ExternalSecretResolverRegistry;
+    dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
+  }
+) => {
+  const attachments: PreparedSandboxCredentialAttachment[] = [];
+  for (const credential of input.credentials) {
+    const prepared = await prepareSandboxCredentialSourceAttachment(
+      { organizationId: input.organizationId, actorUserId: input.userId, body: credential },
+      {
+        query: dependencies.query,
+        idFactory: dependencies.idFactory,
+        decryptSecret: dependencies.decryptSecret,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
+    );
+    if (prepared.kind !== "ok") return prepared;
+    attachments.push(prepared.attachment);
+  }
+  const mappedSlots = validateMappedCredentialSlots(input.template, input.credentialMappings);
+  if (mappedSlots.kind !== "ok") return { kind: "invalid_binding" as const, message: mappedSlots.message };
+  const missingSlots = missingRequiredCredentialSlots(input.template, mappedSlots.slots);
+  if (missingSlots.length) {
+    return {
+      kind: "required_slot_missing" as const,
+      missingSlots,
+      message: `template ${input.template.id} requires credential slot${missingSlots.length === 1 ? "" : "s"}: ${missingSlots.join(", ")}`
+    };
+  }
+  for (const [index, mapping] of input.credentialMappings.entries()) {
+    const prepared = await prepareTemplateCredentialSlotAttachment(
+      { organizationId: input.organizationId, actorUserId: input.userId, slot: mappedSlots.slots[index], body: mapping },
+      {
+        query: dependencies.query,
+        idFactory: dependencies.idFactory,
+        decryptSecret: dependencies.decryptSecret,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
+    );
+    if (prepared.kind !== "ok") return prepared;
+    attachments.push(prepared.attachment);
+  }
+  const duplicateBinding = duplicateValue(attachments.map((credential) => credential.bindingName));
+  if (duplicateBinding) return { kind: "invalid_binding" as const, message: `binding ${duplicateBinding} is already declared for this sandbox` };
+  const duplicateCredential = duplicateValue(attachments.map((credential) => credential.credentialName));
+  if (duplicateCredential) return { kind: "invalid_binding" as const, message: `credential ${duplicateCredential} is already declared for this sandbox` };
+  return { kind: "ok" as const, attachments };
+};
+
+const mergeCredentialFakeEnv = (
+  env: Record<string, string>,
+  credentials: PreparedSandboxCredentialAttachment[]
+) => {
+  const merged = { ...env };
+  for (const credential of credentials) {
+    for (const [key, value] of Object.entries(credential.fakeEnv)) {
+      if (merged[key] !== undefined && merged[key] !== value) throw new Error(`credential fake env ${key} conflicts with sandbox env`);
+      merged[key] = value;
+    }
+  }
+  return merged;
+};
+
+const credentialAwareEgressInput = (
+  policy: EgressPolicyInput,
+  credentials: PreparedSandboxCredentialAttachment[]
+) => {
+  if (!credentials.length) return policy;
+  if (policy.mode === "blocked") throw new Error("create-time credentials cannot be used with blocked outbound access");
+  const allow = uniqueValues([...(policy.allow ?? []), ...credentials.flatMap((credential) => credential.binding.match.hosts)]);
+  return {
+    ...policy,
+    mode: policy.mode === "custom" ? "custom" as const : "restricted" as const,
+    allow
+  };
+};
+
+const mapCreateCredentialPreparationFailure = (
+  result: Exclude<Awaited<ReturnType<typeof prepareCreateCredentials>>, { kind: "ok" }>
+) => {
+  if (result.kind === "secret_required") return { kind: "credential_vault_secret_required" as const, message: result.message };
+  if (result.kind === "invalid_binding") return { kind: "credential_vault_invalid_binding" as const, message: result.message };
+  if (result.kind === "required_slot_missing") {
+    return { kind: "credential_vault_required_slot_missing" as const, message: result.message, missingSlots: result.missingSlots };
+  }
+  if (result.kind === "secret_forbidden") return { kind: "credential_secret_forbidden" as const };
+  if (result.kind === "secret_not_found") return { kind: "credential_secret_not_found" as const };
+  if (result.kind === "secret_disabled") return { kind: "credential_secret_disabled" as const };
+  if (result.kind === "secret_decryption_unavailable") {
+    return { kind: "credential_secret_decryption_unavailable" as const, message: result.message };
+  }
+  if (result.kind === "external_reference_forbidden") return { kind: "external_secret_reference_forbidden" as const };
+  if (result.kind === "external_reference_not_found") return { kind: "external_secret_reference_not_found" as const };
+  if (result.kind === "external_reference_disabled") return { kind: "external_secret_reference_disabled" as const };
+  if (result.kind === "external_resolution_not_found") return { kind: "external_secret_resolution_not_found" as const, message: result.message };
+  if (result.kind === "external_resolution_forbidden") return { kind: "external_secret_resolution_forbidden" as const, message: result.message };
+  if (result.kind === "external_resolution_invalid") return { kind: "external_secret_resolution_invalid" as const, message: result.message };
+  if (result.kind === "external_resolver_unavailable") return { kind: "external_secret_resolver_unavailable" as const, message: result.message };
+  if (result.kind === "dynamic_issuer_forbidden") return { kind: "dynamic_credential_issuer_forbidden" as const };
+  if (result.kind === "dynamic_issuer_not_found") return { kind: "dynamic_credential_issuer_not_found" as const };
+  if (result.kind === "dynamic_issuer_disabled") return { kind: "dynamic_credential_issuer_disabled" as const };
+  if (result.kind === "dynamic_issue_not_found") return { kind: "dynamic_credential_issue_not_found" as const, message: result.message };
+  if (result.kind === "dynamic_issue_forbidden") return { kind: "dynamic_credential_issue_forbidden" as const, message: result.message };
+  if (result.kind === "dynamic_issue_invalid") return { kind: "dynamic_credential_issue_invalid" as const, message: result.message };
+  return { kind: "dynamic_credential_issuer_unavailable" as const, message: result.message };
+};
+
+const mapCreateCredentialAttachFailure = (
+  result: Exclude<Awaited<ReturnType<typeof attachPreparedSandboxCredential>>, { kind: "ok" }>
+) => {
+  if (result.kind === "provider_unavailable") {
+    return { kind: "credential_vault_provider_unavailable" as const, message: result.message, attachment: result.attachment };
+  }
+  if (result.kind === "unsupported") return { kind: "credential_vault_unsupported" as const, message: result.message };
+  if (result.kind === "secret_required") return { kind: "credential_vault_secret_required" as const, message: result.message };
+  if (result.kind === "invalid_binding") return { kind: "credential_vault_invalid_binding" as const, message: result.message };
+  if (result.kind === "egress_conflict") return { kind: "credential_vault_invalid_binding" as const, message: result.message };
+  if (result.kind === "sandbox_not_running") {
+    return { kind: "credential_vault_invalid_binding" as const, message: `cannot attach credential to sandbox in state ${result.status}` };
+  }
+  return { kind: "credential_vault_invalid_binding" as const, message: "sandbox disappeared before credential attach" };
+};
+
 export const summarizeSandboxOperation = (operation: SandboxOperation): SandboxOperationSummary => ({
   id: operation.id,
   sandboxId: operation.sandboxId,
@@ -358,6 +576,123 @@ export const listSandboxes = async (
   return result.rows.map((row) => mapSandboxRow(row, runtimeProvider));
 };
 
+const attachCreateCredentials = async (
+  input: {
+    organizationId: string;
+    userId: string;
+    actorLabel: string;
+    sandbox: SandboxSummary;
+    credentials: PreparedSandboxCredentialAttachment[];
+  },
+  dependencies: { query: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit; idFactory: typeof makeId; decryptSecret?: DecryptWorkspaceCredentialSecret }
+) => {
+  const attachments: SandboxCredentialAttachmentSummary[] = [];
+  for (const credential of input.credentials) {
+    const result = await attachPreparedSandboxCredential(
+      {
+        organizationId: input.organizationId,
+        sandboxId: input.sandbox.id,
+        actorUserId: input.userId,
+        actorLabel: input.actorLabel,
+        prepared: credential
+      },
+      dependencies
+    );
+    if (result.kind === "ok") {
+      attachments.push(result.attachment);
+      continue;
+    }
+    return mapCreateCredentialAttachFailure(result);
+  }
+  return { kind: "ok" as const, attachments };
+};
+
+const rollbackCredentialCreate = async (
+  input: {
+    organizationId: string;
+    userId: string;
+    actorLabel: string;
+    sandboxId: string;
+    providerSandboxId: string;
+    operationId: string;
+    failureKind: string;
+    failureMessage: string;
+  },
+  dependencies: {
+    query: Query;
+    runtimeProvider: RuntimeProvider;
+    recordEvent: SandboxEventRecorder;
+    recordAudit: Audit;
+  }
+) => {
+  const failureMessage = redactText(input.failureMessage);
+  let cleanupError: string | null = null;
+  try {
+    await dependencies.runtimeProvider.delete(runtimeRef(dependencies.runtimeProvider, input.providerSandboxId));
+  } catch (error) {
+    cleanupError = redactText(error instanceof Error ? error.message : String(error));
+  }
+
+  await dependencies.query(
+    `UPDATE sandboxes
+     SET status = 'error', updated_at = now()
+     WHERE id = $1 AND organization_id = $2`,
+    [input.sandboxId, input.organizationId]
+  );
+  await dependencies.query(
+    `UPDATE sandbox_schedules
+     SET completed_at = COALESCE(completed_at, now())
+     WHERE sandbox_id = $1 AND organization_id = $2`,
+    [input.sandboxId, input.organizationId]
+  );
+  await dependencies.query(
+    `UPDATE sandbox_credential_attachments
+     SET status = 'detached',
+         provider_state = 'missing',
+         last_error = $3,
+         detached_at = COALESCE(detached_at, now()),
+         updated_at = now()
+     WHERE sandbox_id = $1 AND organization_id = $2 AND detached_at IS NULL`,
+    [input.sandboxId, input.organizationId, "sandbox creation rolled back after credential attachment failed"]
+  );
+  await failSandboxOperation(
+    {
+      operationId: input.operationId,
+      error: failureMessage,
+      result: {
+        provider: dependencies.runtimeProvider.kind,
+        providerSandboxId: input.providerSandboxId,
+        credentialFailure: input.failureKind,
+        cleanup: cleanupError ? "failed" : "completed",
+        ...(cleanupError ? { cleanupError } : {})
+      }
+    },
+    dependencies.query
+  );
+
+  const metadata = {
+    operationId: input.operationId,
+    failure: input.failureKind,
+    cleanup: cleanupError ? "failed" : "completed"
+  };
+  await dependencies.recordEvent(
+    input.organizationId,
+    input.sandboxId,
+    "error",
+    "sandbox creation rolled back because credential attachment failed",
+    metadata
+  );
+  await dependencies.recordAudit(
+    input.organizationId,
+    input.userId,
+    input.actorLabel,
+    "sandbox.create.credential_failed",
+    "sandbox",
+    input.sandboxId,
+    metadata
+  );
+};
+
 export const getSandbox = async (
   input: { organizationId: string; sandboxId: string },
   dependencies?: SandboxReadDependencies
@@ -371,7 +706,7 @@ export const getSandbox = async (
 };
 
 export type CreateSandboxResult =
-  | { kind: "created"; sandbox: SandboxSummary }
+  | { kind: "created"; sandbox: SandboxSummary; credentialAttachments?: SandboxCredentialAttachmentSummary[] }
   | { kind: "pending"; sandbox: SandboxSummary; operation: SandboxOperation; message: string }
   | { kind: "template_not_found"; template: string }
   | { kind: "template_not_ready"; template: string; status: string }
@@ -384,6 +719,30 @@ export type CreateSandboxResult =
   | { kind: "egress_custom_domains_disabled" }
   | { kind: "egress_rule_limit_exceeded"; limit: number }
   | { kind: "sandbox_env_not_replayable"; message: string }
+  | { kind: "credential_vault_create_requires_sync"; message: string }
+  | { kind: "credential_vault_unsupported"; message: string }
+  | { kind: "credential_vault_secret_required"; message: string }
+  | { kind: "credential_vault_invalid_binding"; message: string }
+  | { kind: "credential_vault_required_slot_missing"; message: string; missingSlots: string[] }
+  | { kind: "credential_secret_forbidden" }
+  | { kind: "credential_secret_not_found" }
+  | { kind: "credential_secret_disabled" }
+  | { kind: "credential_secret_decryption_unavailable"; message: string }
+  | { kind: "external_secret_reference_forbidden" }
+  | { kind: "external_secret_reference_not_found" }
+  | { kind: "external_secret_reference_disabled" }
+  | { kind: "external_secret_resolution_not_found"; message: string }
+  | { kind: "external_secret_resolution_forbidden"; message: string }
+  | { kind: "external_secret_resolution_invalid"; message: string }
+  | { kind: "external_secret_resolver_unavailable"; message: string }
+  | { kind: "dynamic_credential_issuer_forbidden" }
+  | { kind: "dynamic_credential_issuer_not_found" }
+  | { kind: "dynamic_credential_issuer_disabled" }
+  | { kind: "dynamic_credential_issue_not_found"; message: string }
+  | { kind: "dynamic_credential_issue_forbidden"; message: string }
+  | { kind: "dynamic_credential_issue_invalid"; message: string }
+  | { kind: "dynamic_credential_issuer_unavailable"; message: string }
+  | { kind: "credential_vault_provider_unavailable"; message: string; sandbox: SandboxSummary; attachment: SandboxCredentialAttachmentSummary }
   | { kind: "sandbox_provision_failed"; sandbox: SandboxSummary | null; operation: SandboxOperation; message: string };
 
 export const createSandbox = async (
@@ -397,9 +756,21 @@ export const createSandbox = async (
     resolveTemplateFn?: typeof resolveTemplate;
     templateCanCreateSandboxFn?: typeof templateCanCreateSandbox;
     ensureTemplateImageDigestFn?: typeof ensureTemplateImageDigest;
+    decryptSecret?: DecryptWorkspaceCredentialSecret;
+    externalSecretResolvers?: ExternalSecretResolverRegistry;
+    dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
   }
 ): Promise<CreateSandboxResult> => {
   const query = dependencies.query ?? defaultQuery;
+  const idFactory = dependencies.idFactory ?? makeId;
+  const createCredentials = input.credentials ?? [];
+  const credentialMappings = input.credentialMappings ?? [];
+  const createCredentialCount = createCredentials.length + credentialMappings.length;
+  const syncError = createCredentialSyncError(input);
+  if (syncError) return { kind: "credential_vault_create_requires_sync", message: syncError };
+  if (createCredentialCount && !dependencies.runtimeProvider.applyCredentialVault) {
+    return { kind: "credential_vault_unsupported", message: "runtime provider does not expose Credential Vault injection" };
+  }
   if (input.idempotencyKey) {
     const existing = await query<SandboxOperation>(
       `${sandboxOperationSelect}
@@ -461,7 +832,25 @@ export const createSandbox = async (
     const message = error instanceof Error ? error.message : String(error);
     return { kind: "template_image_digest_unresolved", template: templateRef, message };
   }
-  const egressPolicyInput = input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput;
+  const preparedCredentials = await prepareCreateCredentials(
+    { organizationId: input.organizationId, userId: input.userId, template, credentials: createCredentials, credentialMappings },
+    {
+      query,
+      idFactory,
+      decryptSecret: dependencies.decryptSecret,
+      externalSecretResolvers: dependencies.externalSecretResolvers,
+      dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+    }
+  );
+  if (preparedCredentials.kind !== "ok") return mapCreateCredentialPreparationFailure(preparedCredentials);
+  let sandboxEnv;
+  let egressPolicyInput;
+  try {
+    sandboxEnv = mergeCredentialFakeEnv(input.env, preparedCredentials.attachments);
+    egressPolicyInput = credentialAwareEgressInput(input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput, preparedCredentials.attachments);
+  } catch (error) {
+    return { kind: "credential_vault_invalid_binding", message: error instanceof Error ? error.message : String(error) };
+  }
   const egressValidation = await validateEgressPolicyForOrganization(
     { organizationId: input.organizationId, policy: egressPolicyInput },
     query
@@ -473,10 +862,10 @@ export const createSandbox = async (
   const egressSummary = egressValidation.summary;
   const runtimeEgressPolicy = runtimeEgressPolicyFromSummary(egressSummary);
 
-  const id = (dependencies.idFactory ?? makeId)("sbx", 10);
+  const id = idFactory("sbx", 10);
   const name = input.name?.trim() || `${template.id}-runner`;
   const publicUrl = `${id}.sandbox.harakiri.local`;
-  const envKeys = Object.keys(input.env).sort();
+  const envKeys = Object.keys(sandboxEnv).sort();
   const source = sanitizeSourceProvenance(input.source);
   const sourceMetadata = source ? { source } : {};
   const restoreMetadata = restoreSnapshot ? {
@@ -542,7 +931,7 @@ export const createSandbox = async (
       {
         operationId: operation.id,
         name: "provision_env",
-        value: JSON.stringify(input.env)
+        value: JSON.stringify(sandboxEnv)
       },
       { query }
     );
@@ -594,7 +983,7 @@ export const createSandbox = async (
         snapshot: restoreSnapshot?.providerSnapshotId
           ? { provider: dependencies.runtimeProvider.kind, providerSnapshotId: restoreSnapshot.providerSnapshotId }
           : undefined,
-        env: input.env,
+        env: sandboxEnv,
         egressPolicy: runtimeEgressPolicy,
         metadata: {
           "harakiri.id": id,
@@ -651,7 +1040,7 @@ export const createSandbox = async (
       opensandboxId: provider.providerSandboxId,
       provider: provider.provider,
       operationId: activeOperation.id,
-      envKeys: Object.keys(input.env).sort(),
+      envKeys: Object.keys(sandboxEnv).sort(),
       runtimeWorkdir: template.workdir,
       runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
       runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
@@ -661,6 +1050,52 @@ export const createSandbox = async (
       ...sourceMetadata,
       ...sandboxTemplateMetadata(template)
     };
+    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
+    if (!sandbox) throw new Error("sandbox row missing after provider create");
+
+    let credentialAttachments: SandboxCredentialAttachmentSummary[] = [];
+    if (preparedCredentials.attachments.length) {
+      const attached = await attachCreateCredentials(
+        {
+          organizationId: input.organizationId,
+          userId: input.userId,
+          actorLabel: input.actorLabel,
+          sandbox,
+          credentials: preparedCredentials.attachments
+        },
+        { query, runtimeProvider: dependencies.runtimeProvider, recordEvent: dependencies.recordEvent, recordAudit: dependencies.recordAudit, idFactory, decryptSecret: dependencies.decryptSecret }
+      );
+      if (attached.kind !== "ok") {
+        await rollbackCredentialCreate(
+          {
+            organizationId: input.organizationId,
+            userId: input.userId,
+            actorLabel: input.actorLabel,
+            sandboxId: id,
+            providerSandboxId: provider.providerSandboxId,
+            operationId: activeOperation.id,
+            failureKind: attached.kind,
+            failureMessage: attached.message
+          },
+          {
+            query,
+            runtimeProvider: dependencies.runtimeProvider,
+            recordEvent: dependencies.recordEvent,
+            recordAudit: dependencies.recordAudit
+          }
+        );
+        if (attached.kind === "credential_vault_provider_unavailable") {
+          const failedSandbox = await getSandbox(
+            { organizationId: input.organizationId, sandboxId: id },
+            { query, runtimeProvider: dependencies.runtimeProvider }
+          );
+          return { ...attached, sandbox: failedSandbox ?? sandbox };
+        }
+        return attached;
+      }
+      credentialAttachments = attached.attachments;
+    }
+
     await completeSandboxOperation(
       {
         operationId: activeOperation.id,
@@ -669,6 +1104,7 @@ export const createSandbox = async (
           providerSandboxId: provider.providerSandboxId,
           runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
           runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
+          credentialAttachmentIds: credentialAttachments.map((attachment) => attachment.id),
           ...restoreMetadata,
           ...sourceMetadata
         }
@@ -677,9 +1113,11 @@ export const createSandbox = async (
     );
     await dependencies.recordEvent(input.organizationId, id, "created", `created through ${provider.provider}`, metadata);
     await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.create", "sandbox", id, metadata);
-    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
-    if (!sandbox) throw new Error("sandbox row missing after provider create");
-    return { kind: "created", sandbox };
+    return {
+      kind: "created",
+      sandbox,
+      ...(credentialAttachments.length ? { credentialAttachments } : {})
+    };
   })();
   if (input.waitTimeoutMs !== undefined) {
     void provisionPromise.catch(() => undefined);

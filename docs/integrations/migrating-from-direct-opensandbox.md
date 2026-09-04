@@ -24,6 +24,9 @@ internal provider implementation.
 | Public/private preview decision | Route `accessMode` |
 | Manual DNS/ingress awareness | Harakiri route URL |
 | Network restrictions | `setOutboundAccess` and presets |
+| Direct Credential Vault sidecar call | `credentials.*` and Harakiri secret sources |
+| Credential env or mounted Secret | Template slot mapped to inline, encrypted, external, or dynamic source |
+| Sidecar revision/state | `credentials.inspect()` and `credentials.rehydrate()` |
 | Runtime image tag | Template ID, alias, or immutable `tplv_...` |
 | Runtime cleanup | `routes.delete`, `commands.kill`, `killSandbox` |
 
@@ -37,8 +40,11 @@ internal provider implementation.
 6. Replace preview endpoint handling with `routes.expose`.
 7. Add restricted egress policy if the workflow has known package/API domains.
 8. Move runtime image selection to Harakiri templates and promote stable aliases.
-9. Add cleanup handlers that kill commands, delete routes, and kill sandboxes.
-10. Run the SDK conformance test against the target Harakiri deployment.
+9. Replace direct sidecar credential calls with template slots and Harakiri
+   source IDs; never expose provider payloads through the adapter.
+10. Add reconnect handling that inspects and rehydrates credential state.
+11. Add cleanup handlers that kill commands, delete routes, and kill sandboxes.
+12. Run the SDK conformance test against the target Harakiri deployment.
 
 ## Adapter Skeleton
 
@@ -98,6 +104,12 @@ export const createHarakiriSandboxProvider = (harakiri: HarakiriClient) => ({
   domains through `testOutboundAccess`.
 - Template tags are resolved to immutable template versions before sandbox
   creation. Use `tplv_...` IDs for reproducibility.
+- Credential-bearing creation is synchronous and fails closed. A partial
+  provider sandbox is deleted if egress attestation or attachment fails.
+- OpenSandbox vault contents are in-memory. Use Harakiri observed state and
+  rehydration instead of caching a sidecar revision.
+- Snapshot restore requires explicit template-slot source mappings. Harakiri
+  does not copy old source selections or provider vault state into snapshots.
 
 ## Readiness Checklist
 
@@ -108,4 +120,7 @@ export const createHarakiriSandboxProvider = (harakiri: HarakiriClient) => ({
 - [ ] Logs include sandbox ID, command ID, and route URL.
 - [ ] Cleanup runs on success, failure, cancellation, and timeout.
 - [ ] Template selection uses a promoted alias or immutable version ID.
+- [ ] Credential requirements are value-free template slots.
+- [ ] Real values use process env/write-only source APIs and are never logged.
+- [ ] Reconnect handles `requires_reinjection` and typed Vault errors.
 - [ ] `pnpm conformance:sdk` passes against the target deployment.

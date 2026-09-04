@@ -86,7 +86,66 @@ test("createTemplate validates, inserts, resolves, and audits a custom template"
   assert.ok(insert);
   assert.deepEqual(insert.params?.slice(0, 5), ["open-agents-dev", "org_tpl", "Open Agents Dev", "Agent runtime", "ubuntu:24.04"]);
   assert.equal(audits[0].action, "template.create");
-  assert.deepEqual(audits[0].metadata, { imageUri: "ubuntu:24.04", status: "building" });
+  assert.deepEqual(audits[0].metadata, { imageUri: "ubuntu:24.04", status: "building", credentialSlotCount: 0 });
+});
+
+test("createTemplate expands credential slots from provider presets", async () => {
+  const calls: Array<{ text: string; params?: unknown[] }> = [];
+  const audits: Array<{ metadata?: Record<string, unknown> }> = [];
+  const result = await createTemplate(
+    {
+      organizationId: "org_tpl",
+      userId: "user_tpl",
+      actorLabel: "user@test.local",
+      template: {
+        name: "Agent With Credentials",
+        description: "Agent runtime",
+        image: "ubuntu:24.04",
+        icon: "file",
+        tags: ["agents"],
+        aliases: ["agent-with-credentials"],
+        visibility: "private",
+        defaultEntrypoint: ["sleep", "3600"],
+        cpuCount: 2,
+        memoryMb: 2048,
+        workdir: "/workspace",
+        defaultPorts: [3000],
+        runtimeFamily: "python",
+        credentialSlots: [
+          { providerPresetId: "openai" },
+          { providerPresetId: "github", required: false, envName: "GH_TOKEN" }
+        ]
+      }
+    },
+    {
+      idFactory: () => "agent-with-credentials",
+      resolveTemplateFn: async () => ({
+        ...teamTemplate,
+        id: "agent-with-credentials",
+        credentialSlots: []
+      }),
+      recordAudit: async (_organizationId, _userId, _actorLabel, _action, _targetType, _targetId, metadata) => {
+        audits.push({ metadata });
+      },
+      query: async (text, params) => {
+        calls.push({ text, params });
+        if (text.includes("SELECT id FROM templates")) return { rowCount: 0, rows: [] as never[] };
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO templates")) return { rowCount: 1, rows: [] as never[] };
+        throw new Error(`unexpected query: ${text}`);
+      }
+    }
+  );
+
+  assert.equal(result.kind, "created");
+  const insert = calls.find((call) => call.text.includes("INSERT INTO templates"));
+  const slots = JSON.parse(insert?.params?.[15] as string);
+  assert.deepEqual(slots.map((slot: any) => [slot.id, slot.providerPresetId, slot.required, slot.envName]), [
+    ["openai", "openai", true, "OPENAI_API_KEY"],
+    ["github", "github", false, "GH_TOKEN"]
+  ]);
+  assert.equal(JSON.stringify(slots).includes("sk_"), false);
+  assert.equal(audits[0].metadata?.credentialSlotCount, 2);
 });
 
 test("listTemplateVersions resolves the requested template before querying versions", async () => {
@@ -99,7 +158,14 @@ test("listTemplateVersions resolves the requested template before querying versi
         calls.push({ text, params });
         return {
           rowCount: 1,
-          rows: [{ id: "tplv_ready", templateId: "open-agents-dev", status: "ready" }] as never[]
+          rows: [
+            {
+              id: "tplv_ready",
+              templateId: "open-agents-dev",
+              status: "ready",
+              credentialSlots: [{ id: "openai", providerPresetId: "openai", required: true }]
+            }
+          ] as never[]
         };
       }
     }
@@ -108,6 +174,7 @@ test("listTemplateVersions resolves the requested template before querying versi
   assert.equal(result.kind, "found");
   assert.deepEqual(calls[0].params, ["open-agents-dev", "org_tpl"]);
   if (result.kind === "found") assert.equal(result.versions[0].id, "tplv_ready");
+  if (result.kind === "found") assert.deepEqual(result.versions[0].credentialSlots?.map((slot) => slot.providerPresetId), ["openai"]);
 });
 
 test("updateTemplateEgress validates workspace guardrails and records template audit", async () => {

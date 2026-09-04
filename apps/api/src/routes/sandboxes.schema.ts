@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { egressModes, egressPresetIds } from "@harakiri/shared";
+import { createTimeCredentialAttachSchema, templateCredentialSlotMappingSchema } from "./sandbox-runtime.schema.js";
 
 const sandboxEnvKeySchema = z.string().min(1).max(128).regex(/^[A-Za-z_][A-Za-z0-9_]*$/, {
   message: "environment variable names must match [A-Za-z_][A-Za-z0-9_]*"
@@ -54,11 +55,19 @@ export const createSandboxSchema = z.object({
   env: sandboxEnvSchema,
   egress: egressPolicySchema.nullable().optional(),
   source: sandboxSourceSchema.optional(),
+  credentials: z.array(createTimeCredentialAttachSchema).max(16).optional(),
+  credentialMappings: z.array(templateCredentialSlotMappingSchema).max(16).optional(),
   idempotencyKey: z.string().min(1).max(160).optional(),
   wait: z.boolean().optional(),
   waitTimeoutMs: z.number().int().min(0).max(30000).optional()
 }).refine((value) => !(value.snapshotId && value.source), {
   message: "source bootstrap cannot be combined with snapshot restore in the same request"
+}).refine((value) => {
+  const directCount = value.credentials?.length ?? 0;
+  const mappingCount = value.credentialMappings?.length ?? 0;
+  return directCount + mappingCount <= 16;
+}, {
+  message: "at most 16 create-time credentials can be passed to a sandbox"
 });
 
 export const createSandboxSnapshotSchema = z.object({

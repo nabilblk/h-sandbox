@@ -12,10 +12,30 @@ HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY="${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGIST
 HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY_INSECURE="${HARAKIRI_OPEN_SANDBOX_SNAPSHOT_REGISTRY_INSECURE:-true}"
 HARAKIRI_OPEN_SANDBOX_CONTAINERD_SOCKET="${HARAKIRI_OPEN_SANDBOX_CONTAINERD_SOCKET:-/run/k0s/containerd.sock}"
 HARAKIRI_OPEN_SANDBOX_SOCKET_COMPAT="${HARAKIRI_OPEN_SANDBOX_SOCKET_COMPAT:-1}"
+HARAKIRI_CREDENTIAL_VAULT_KEY_ID="${HARAKIRI_CREDENTIAL_VAULT_KEY_ID:-local-v1}"
 
 cluster_config_value() {
   local key="$1"
   kubectl -n harakiri get configmap harakiri-config -o "jsonpath={.data.${key}}" 2>/dev/null || true
+}
+
+existing_secret_value() {
+  local key="$1"
+  local encoded
+  encoded="$(kubectl -n harakiri get secret harakiri-api -o "jsonpath={.data.${key}}" 2>/dev/null || true)"
+  if [[ -n "${encoded}" ]]; then
+    node -e 'process.stdout.write(Buffer.from(process.argv[1], "base64").toString("utf8"))' "${encoded}"
+  fi
+}
+
+credential_vault_key() {
+  local existing
+  existing="$(existing_secret_value CREDENTIAL_VAULT_KEY)"
+  if [[ -n "${existing}" ]]; then
+    printf '%s' "${existing}"
+    return
+  fi
+  node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64"))'
 }
 
 EXISTING_PUBLIC_API_URL="$(cluster_config_value PUBLIC_API_URL)"
@@ -53,6 +73,7 @@ HARAKIRI_KEYCLOAK_SMTP_USER="${HARAKIRI_KEYCLOAK_SMTP_USER:-}"
 HARAKIRI_KEYCLOAK_SMTP_PASSWORD="${HARAKIRI_KEYCLOAK_SMTP_PASSWORD:-}"
 HARAKIRI_KEYCLOAK_SMTP_STARTTLS="${HARAKIRI_KEYCLOAK_SMTP_STARTTLS:-false}"
 HARAKIRI_KEYCLOAK_SMTP_SSL="${HARAKIRI_KEYCLOAK_SMTP_SSL:-false}"
+HARAKIRI_CREDENTIAL_VAULT_KEY="${HARAKIRI_CREDENTIAL_VAULT_KEY:-$(credential_vault_key)}"
 export HARAKIRI_ROUTE_DOMAIN="${HARAKIRI_ROUTE_DOMAIN:-${HARAKIRI_SANDBOX_ROUTE_DOMAIN}}"
 
 cleanup() {
@@ -228,6 +249,18 @@ secret:
     OPEN_SANDBOX_API_KEY: dev-opensandbox-key
     KEYCLOAK_ADMIN_USERNAME: admin
     KEYCLOAK_ADMIN_PASSWORD: admin
+    CREDENTIAL_VAULT_KEY: ${HARAKIRI_CREDENTIAL_VAULT_KEY}
+credentialVault:
+  encryption:
+    keyId: ${HARAKIRI_CREDENTIAL_VAULT_KEY_ID}
+  externalSecrets:
+    kubernetes:
+      enabled: true
+      defaultNamespace: harakiri
+      allowedNamespaces:
+        - harakiri
+      allowedNamePrefixes:
+        - harakiri-vault-
 config:
   PUBLIC_API_URL: ${HARAKIRI_PUBLIC_API_URL}
   PUBLIC_WEB_URL: ${HARAKIRI_PUBLIC_WEB_URL}

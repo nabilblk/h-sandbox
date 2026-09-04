@@ -64,9 +64,10 @@ runtime state. It also includes a `contract` field:
 | Delete route | available | Terminate a route by sandbox and port. |
 | Route access policy | partial | Public previews and token-protected Harakiri proxy previews are available. Organization-authenticated previews remain planned. |
 | Outbound access policy | available | Open, restricted, blocked, custom modes, presets, allow/deny, diagnostics. |
+| Credential Vault | profile-dependent | Create-time and running attachment supports one-time, encrypted workspace, Kubernetes external, and GitHub App dynamic sources. Built-in/custom template slots, inspect/test/refresh/detach, explicit restore mappings, and background reconciliation are available across API/SDK/CLI/dashboard. OpenSandbox `dns+nft`, Credential Proxy, and a positive readiness attestation are mandatory; restricted OpenShift remains operator-action-required. |
 | Templates/images | available | OCI image backed templates, builds, versions, aliases, promotion. |
 | Template init/build UX | partial | Existing CLI/API/dashboard; needs polished examples and docs. |
-| Pause/resume sandbox | capability-gated | Delegates to provider lifecycle APIs when available and persists Harakiri status transitions. |
+| Pause/resume sandbox | capability-gated | Delegates to provider lifecycle APIs when available, persists Harakiri status transitions, marks active injected vault attachments `requires_reinjection` after resume, and rehydrates active encrypted workspace secret attachments. |
 | Snapshot and restore | capability-gated | Stores Harakiri `snp_...` records, keeps provider snapshot IDs internal, and restores through `POST /v1/sandboxes` with `snapshotId`. |
 
 ## Public Primitives
@@ -180,6 +181,32 @@ Current behavior:
 
 The dashboard, CLI, SDK, and API should use this developer vocabulary rather
 than exposing low-level network policy details.
+
+### Credential Vault
+
+Credential Vault lets a running sandbox use selected outbound credentials
+without receiving the real value as an environment variable, command argument,
+file, log line, or public API response.
+
+Current behavior:
+
+- `listSandboxCredentials` returns sanitized attachment metadata and
+  provider-vault state for a sandbox.
+- `attachSandboxCredential` applies one `inline_ephemeral` value to the
+  provider-side vault and stores only metadata.
+- `detachSandboxCredential` removes an attachment from Harakiri metadata and
+  asks the provider to remove matching vault entries.
+- `testSandboxCredential` runs a sandbox-originated HTTP probe through
+  Harakiri's command API and returns redacted diagnostics.
+
+The OpenSandbox provider applies credentials through the OpenSandbox Credential
+Vault egress sidecar. Harakiri does not expose sidecar URLs or Kubernetes pod
+details to clients. Resume resets provider-side vault state, so Harakiri marks
+active injected attachments as `requires_reinjection` and immediately
+rehydrates attachments backed by active encrypted workspace secrets. Because
+`inline_ephemeral` values are intentionally not stored, callers must reattach
+those values. Restore rehydration and background stale-state reconciliation
+remain planned.
 
 ### Templates
 

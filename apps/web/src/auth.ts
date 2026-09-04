@@ -194,9 +194,9 @@ export const createAuthSession = (clientFactory: KeycloakClientFactory = default
       client.onAuthSuccess = () => setSnapshot({ status: "authenticated", profile: parsedProfile() });
       client.onAuthRefreshSuccess = () => setSnapshot({ status: "authenticated", profile: parsedProfile() });
       client.onAuthRefreshError = () => clearLocalSession("expired", new AuthSessionExpiredError());
-    client.onAuthLogout = () => {
-      if (!clearing) clearLocalSession("anonymous", undefined, false);
-    };
+      client.onAuthLogout = () => {
+        if (!clearing) clearLocalSession("anonymous", undefined, false);
+      };
       client.onTokenExpired = () => {
         void getAccessToken(30).catch(() => undefined);
       };
@@ -204,7 +204,7 @@ export const createAuthSession = (clientFactory: KeycloakClientFactory = default
     return client;
   };
 
-  const init = async () => {
+  const initialize = async (onLoad: "check-sso" | "login-required") => {
     if (!isBrowser()) {
       setSnapshot({ status: "anonymous", profile: null });
       return snapshot;
@@ -216,7 +216,7 @@ export const createAuthSession = (clientFactory: KeycloakClientFactory = default
     const keycloak = ensureClient();
     initPromise = keycloak
       .init({
-        onLoad: "check-sso",
+        onLoad,
         flow: "standard",
         pkceMethod: "S256",
         useNonce: true,
@@ -241,12 +241,15 @@ export const createAuthSession = (clientFactory: KeycloakClientFactory = default
     return initPromise;
   };
 
+  const init = async () => initialize("check-sso");
+
   const signIn = async (returnTo?: string) => {
     if (!isBrowser()) return;
     const nextRoute = sanitizeRoute(returnTo ?? window.location.hash.slice(1));
     const existingRoute = peekReturnRoute();
     rememberReturnRoute(existingRoute && existingRoute !== "landing" && nextRoute === "landing" ? existingRoute : nextRoute);
-    await init();
+    const alreadyInitialized = Boolean(initPromise);
+    await initialize(alreadyInitialized ? "check-sso" : "login-required");
     if (snapshot.status === "authenticated") return;
     await ensureClient().login({ redirectUri: loginRedirectUri(), scope: "openid email profile" });
   };

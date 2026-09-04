@@ -71,7 +71,7 @@ test("capture deployed UI screenshots for visual review", async ({ page }) => {
   await capture(page, "01-landing-desktop");
 
   await page.goto(`${WEB_URL}/#docs`);
-  await expect(page.getByRole("heading", { name: "Quickstart" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Vision and architecture" })).toBeVisible();
   await capture(page, "02-docs-desktop");
 
   await page.goto(`${WEB_URL}/#dashboard/sandboxes`);

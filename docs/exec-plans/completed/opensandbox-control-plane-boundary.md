@@ -2,7 +2,7 @@
 
 **Created**: 2026-06-02
 **Author**: Codex
-**Status**: In Progress
+**Status**: Abandoned
 **Priority**: P0
 **Estimated effort**: 3-5 engineering days
 
@@ -214,4 +214,30 @@ Sources checked on 2026-06-02:
   represented in `execd-api.yaml`.
 
 ## Completion Notes
-Fill this section after implementation and deployed verification are complete.
+Archived on 2026-09-03 after a relevance audit. This plan was created on
+2026-06-02 and is no longer the right execution artifact for current Phase 2
+work.
+
+Most of the material boundary work has already landed through later, more
+specific plans:
+
+- `use-opensandbox-execd-transport.md` removed the original Kubernetes exec
+  runtime shortcut.
+- `cli-interactive-attach.md` added the Harakiri-authenticated PTY bridge.
+- `egress-control-developer-experience.md` moved outbound policy through the
+  OpenSandbox egress sidecar contract.
+- `oss-release-0-4-0.md` hardened the provider boundary, docs, release
+  artifacts, and conformance gates.
+- `opensandbox-native-lifecycle-persistence.md` added pause/resume/snapshot
+  through OpenSandbox lifecycle APIs instead of Kubernetes-level workarounds.
+
+The current repository also has durable boundary artifacts:
+
+- `docs/opensandbox-boundaries.md`
+- `docs/extensions.md`
+- `apps/api/src/runtime-boundary.test.ts`
+
+Remaining unchecked items in this old plan should not be executed from this
+file. Future work should use fresh, narrower Phase 2 plans for specific
+OpenSandbox-native capabilities such as Credential Vault, volumes, prewarmed
+pools, secure access, metrics/watch, and SSE streaming.

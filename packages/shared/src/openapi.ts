@@ -28,6 +28,14 @@ const integer = { type: "integer" };
 const number = { type: "number" };
 const boolean = { type: "boolean" };
 const dateTime = { type: "string", format: "date-time" };
+const credentialProviderPresetId = {
+  type: "string",
+  enum: ["openai", "anthropic", "openrouter", "github", "gitlab", "npm", "pypi-publish"]
+};
+const credentialProviderProfileId = {
+  type: "string",
+  enum: [...credentialProviderPresetId.enum, "custom"]
+};
 
 const arrayOf = (items: JsonSchema) => ({ type: "array", items });
 
@@ -85,6 +93,7 @@ const snapshotIdPath = parameter("snapshotId", "path", string);
 const templateIdPath = parameter("id", "path", string);
 const buildIdPath = parameter("id", "path", string);
 const credentialIdPath = parameter("id", "path", string);
+const attachmentIdPath = parameter("attachmentId", "path", string);
 
 const schemas: Record<string, JsonSchema> = {
   ApiErrorResponse: objectSchema({
@@ -114,6 +123,20 @@ const schemas: Record<string, JsonSchema> = {
     limit: integer,
     offset: integer
   }),
+  AuditEventSummary: objectSchema({
+    id: string,
+    actorUserId: nullableString,
+    actorLabel: string,
+    action: string,
+    targetType: string,
+    targetId: nullableString,
+    metadata: freeObject,
+    createdAt: dateTime
+  }),
+  AuditEventsResponse: objectSchema({
+    events: arrayOf(ref("AuditEventSummary")),
+    page: ref("PageSummary")
+  }),
   Template: objectSchema({
     id: string,
     name: string,
@@ -134,6 +157,7 @@ const schemas: Record<string, JsonSchema> = {
     defaultPorts: arrayOf(integer),
     runtimeFamily: string,
     egressPolicy: ref("EgressPolicyInput"),
+    credentialSlots: arrayOf(ref("TemplateCredentialSlot")),
     latestVersionId: nullableString,
     latestBuildId: nullableString,
     latestBuildStatus: nullableString,
@@ -161,7 +185,8 @@ const schemas: Record<string, JsonSchema> = {
     workdir: string,
     defaultPorts: arrayOf(integer),
     runtimeFamily: string,
-    egressPolicy: ref("EgressPolicyInput")
+    egressPolicy: ref("EgressPolicyInput"),
+    credentialSlots: arrayOf(ref("TemplateCredentialSlotInput"))
   }, ["name"]),
   UpdateTemplateEgressBody: objectSchema({
     egressPolicy: ref("EgressPolicyInput")
@@ -185,6 +210,7 @@ const schemas: Record<string, JsonSchema> = {
     workdir: string,
     defaultPorts: arrayOf(integer),
     egressPolicy: ref("EgressPolicyInput"),
+    credentialSlots: arrayOf(ref("TemplateCredentialSlot")),
     envSchema: freeObject,
     metadata: freeObject,
     sbomRef: nullableString,
@@ -195,6 +221,29 @@ const schemas: Record<string, JsonSchema> = {
     promotedAt: { type: ["string", "null"], format: "date-time" }
   }),
   TemplateVersionsResponse: objectSchema({ versions: arrayOf(ref("TemplateVersionSummary")) }),
+  TemplateCredentialSlotInput: objectSchema({
+    id: string,
+    providerPresetId: credentialProviderProfileId,
+    customProfile: ref("CustomCredentialProfileInput"),
+    required: boolean,
+    label: string,
+    description: string,
+    envName: string
+  }, ["providerPresetId"]),
+  TemplateCredentialSlot: objectSchema({
+    id: string,
+    providerPresetId: credentialProviderProfileId,
+    customProfile: { anyOf: [ref("CustomCredentialProfile"), { type: "null" }] },
+    credentialName: string,
+    required: boolean,
+    label: string,
+    description: string,
+    envName: string,
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    binding: ref("CredentialVaultBinding"),
+    egressDomains: arrayOf(string),
+    test: ref("CredentialProviderPresetTest")
+  }),
   TemplateBuildSummary: objectSchema({
     id: string,
     organizationId: string,
@@ -378,12 +427,15 @@ const schemas: Record<string, JsonSchema> = {
     env: { type: "object", additionalProperties: { type: "string" } },
     egress: ref("EgressPolicyInput"),
     source: ref("SandboxSourceInput"),
+    credentials: arrayOf(ref("AttachSandboxCredentialBody")),
+    credentialMappings: arrayOf(ref("TemplateCredentialSlotMappingBody")),
     idempotencyKey: string,
     wait: boolean,
     waitTimeoutMs: integer
   }, []),
   CreateSandboxResponse: objectSchema({
     sandbox: ref("SandboxSummary"),
+    credentialAttachments: arrayOf(ref("SandboxCredentialAttachmentSummary")),
     operation: ref("SandboxOperationSummary"),
     status: { type: "string", enum: ["created", "pending"] },
     message: string
@@ -654,6 +706,451 @@ const schemas: Record<string, JsonSchema> = {
   }),
   SandboxRouteResponse: objectSchema({ route: ref("SandboxRouteSummary"), accessToken: string, accessHeaderName: string }, ["route"]),
   SandboxRoutesResponse: objectSchema({ routes: arrayOf(ref("SandboxRouteSummary")) }),
+  CredentialVaultSubstitution: objectSchema({
+    credential: string,
+    placeholder: string,
+    in: arrayOf({ type: "string", enum: ["path", "query", "header", "body"] })
+  }, ["placeholder", "in"]),
+  CredentialVaultMatch: objectSchema({
+    schemes: arrayOf({ type: "string", enum: ["https", "http"] }),
+    hosts: arrayOf(string),
+    methods: arrayOf(string),
+    paths: arrayOf(string)
+  }, ["hosts"]),
+  CredentialVaultBearerAuth: objectSchema({
+    type: { type: "string", enum: ["bearer"] },
+    credential: string,
+    substitutions: arrayOf(ref("CredentialVaultSubstitution"))
+  }, ["type"]),
+  CredentialVaultBasicAuth: objectSchema({
+    type: { type: "string", enum: ["basic"] },
+    credential: string,
+    substitutions: arrayOf(ref("CredentialVaultSubstitution"))
+  }, ["type"]),
+  CredentialVaultApiKeyAuth: objectSchema({
+    type: { type: "string", enum: ["apiKey"] },
+    name: string,
+    credential: string,
+    substitutions: arrayOf(ref("CredentialVaultSubstitution"))
+  }, ["type", "name"]),
+  CredentialVaultCustomHeader: objectSchema({
+    name: string,
+    credential: string
+  }, ["name"]),
+  CredentialVaultCustomHeadersAuth: objectSchema({
+    type: { type: "string", enum: ["customHeaders"] },
+    headers: arrayOf(ref("CredentialVaultCustomHeader")),
+    substitutions: arrayOf(ref("CredentialVaultSubstitution"))
+  }, ["type", "headers"]),
+  CredentialVaultPassthroughAuth: objectSchema({
+    type: { type: "string", enum: ["passthrough"] },
+    substitutions: arrayOf(ref("CredentialVaultSubstitution"))
+  }, ["type"]),
+  CredentialVaultAuth: {
+    oneOf: [
+      ref("CredentialVaultBearerAuth"),
+      ref("CredentialVaultBasicAuth"),
+      ref("CredentialVaultApiKeyAuth"),
+      ref("CredentialVaultCustomHeadersAuth"),
+      ref("CredentialVaultPassthroughAuth")
+    ],
+    discriminator: { propertyName: "type" }
+  },
+  CredentialProviderPresetTest: objectSchema({
+    target: string,
+    method: string
+  }, ["target"]),
+  CredentialProviderPreset: objectSchema({
+    id: credentialProviderPresetId,
+    label: string,
+    description: string,
+    category: { type: "string", enum: ["model-api", "git-hosting", "package-registry"] },
+    defaultEnvName: string,
+    credentialName: string,
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    binding: ref("CredentialVaultBinding"),
+    egressDomains: arrayOf(string),
+    test: ref("CredentialProviderPresetTest")
+  }),
+  CredentialProviderPresetsResponse: objectSchema({
+    presets: arrayOf(ref("CredentialProviderPreset"))
+  }),
+  CredentialProviderPresetResponse: objectSchema({
+    preset: ref("CredentialProviderPreset")
+  }),
+  CustomCredentialProfileInput: objectSchema({
+    host: string,
+    authType: { type: "string", enum: ["bearer", "apiKey"] },
+    headerName: string,
+    methods: arrayOf(string),
+    paths: arrayOf(string),
+    envName: string,
+    testPath: string
+  }, ["host", "authType"]),
+  CustomCredentialProfile: objectSchema({
+    host: string,
+    authType: { type: "string", enum: ["bearer", "apiKey"] },
+    headerName: nullableString,
+    methods: arrayOf(string),
+    paths: arrayOf(string),
+    envName: string,
+    testPath: string
+  }),
+  CredentialSecretUsageSummary: objectSchema({
+    activeSandboxCount: integer,
+    attachmentCount: integer,
+    lastAttachedAt: { type: ["string", "null"], format: "date-time" }
+  }),
+  CredentialSourceCapabilities: objectSchema({
+    reusable: boolean,
+    rehydratable: boolean,
+    rotatable: boolean,
+    externallyOwned: boolean,
+    shortLived: boolean,
+    launchOnly: boolean
+  }),
+  CredentialSecretSummary: objectSchema({
+    id: string,
+    name: string,
+    providerPresetId: credentialProviderProfileId,
+    customProfile: { anyOf: [ref("CustomCredentialProfile"), { type: "null" }] },
+    sourceType: { type: "string", enum: ["harakiri_encrypted"] },
+    status: { type: "string", enum: ["active", "disabled", "deleted"] },
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+    version: integer,
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    binding: ref("CredentialVaultBinding"),
+    egressDomains: arrayOf(string),
+    hasEncryptedSecret: boolean,
+    metadata: freeObject,
+    createdByUserId: nullableString,
+    createdByLabel: nullableString,
+    rotatedAt: { type: ["string", "null"], format: "date-time" },
+    disabledAt: { type: ["string", "null"], format: "date-time" },
+    deletedAt: { type: ["string", "null"], format: "date-time" },
+    createdAt: dateTime,
+    updatedAt: dateTime,
+    usage: ref("CredentialSecretUsageSummary"),
+    capabilities: ref("CredentialSourceCapabilities")
+  }),
+  CreateCredentialSecretBody: objectSchema({
+    name: string,
+    providerPresetId: credentialProviderProfileId,
+    customProfile: ref("CustomCredentialProfileInput"),
+    value: { ...string, writeOnly: true },
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    metadata: freeObject
+  }, ["name", "providerPresetId", "value"]),
+  RotateCredentialSecretBody: objectSchema({
+    value: { ...string, writeOnly: true }
+  }),
+  UpdateCredentialSecretBody: objectSchema({
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] }
+  }),
+  CredentialSecretsResponse: objectSchema({
+    secrets: arrayOf(ref("CredentialSecretSummary"))
+  }),
+  CredentialSecretResponse: objectSchema({
+    secret: ref("CredentialSecretSummary")
+  }),
+  KubernetesSecretReference: objectSchema({
+    namespace: string,
+    name: string,
+    key: string
+  }),
+  KubernetesSecretReferenceInput: objectSchema({
+    namespace: string,
+    name: string,
+    key: string
+  }, ["name", "key"]),
+  ExternalSecretValidationSummary: objectSchema({
+    state: {
+      type: "string",
+      enum: ["unvalidated", "valid", "not_found", "forbidden", "invalid", "unavailable"]
+    },
+    message: nullableString,
+    versionRef: nullableString,
+    checkedAt: { type: ["string", "null"], format: "date-time" }
+  }),
+  ExternalSecretReferenceSummary: objectSchema({
+    id: string,
+    name: string,
+    providerPresetId: credentialProviderProfileId,
+    customProfile: { anyOf: [ref("CustomCredentialProfile"), { type: "null" }] },
+    sourceType: { type: "string", enum: ["external_ref"] },
+    resolverType: { type: "string", enum: ["kubernetes_secret"] },
+    reference: ref("KubernetesSecretReference"),
+    status: { type: "string", enum: ["active", "disabled", "deleted"] },
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+    version: integer,
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    binding: ref("CredentialVaultBinding"),
+    egressDomains: arrayOf(string),
+    metadata: freeObject,
+    createdByUserId: nullableString,
+    createdByLabel: nullableString,
+    disabledAt: { type: ["string", "null"], format: "date-time" },
+    deletedAt: { type: ["string", "null"], format: "date-time" },
+    createdAt: dateTime,
+    updatedAt: dateTime,
+    validation: ref("ExternalSecretValidationSummary"),
+    usage: ref("CredentialSecretUsageSummary"),
+    capabilities: ref("CredentialSourceCapabilities")
+  }),
+  CreateExternalSecretReferenceBody: objectSchema({
+    name: string,
+    providerPresetId: credentialProviderProfileId,
+    customProfile: ref("CustomCredentialProfileInput"),
+    resolverType: { type: "string", enum: ["kubernetes_secret"] },
+    reference: ref("KubernetesSecretReferenceInput"),
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    metadata: freeObject
+  }, ["name", "providerPresetId", "resolverType", "reference"]),
+  UpdateExternalSecretReferenceBody: {
+    ...objectSchema({
+      name: string,
+      providerPresetId: credentialProviderProfileId,
+      customProfile: ref("CustomCredentialProfileInput"),
+      reference: ref("KubernetesSecretReferenceInput"),
+      usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+      fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+      metadata: freeObject
+    }, []),
+    minProperties: 1
+  },
+  ExternalSecretReferencesResponse: objectSchema({
+    references: arrayOf(ref("ExternalSecretReferenceSummary"))
+  }),
+  ExternalSecretReferenceResponse: objectSchema({
+    reference: ref("ExternalSecretReferenceSummary")
+  }),
+  GitHubAppInstallationScope: objectSchema({
+    installationId: string,
+    repositories: arrayOf(string),
+    permissions: {
+      type: "object",
+      minProperties: 1,
+      additionalProperties: { type: "string", enum: ["read", "write", "admin"] }
+    }
+  }),
+  DynamicCredentialValidationSummary: objectSchema({
+    state: {
+      type: "string",
+      enum: ["unvalidated", "valid", "not_found", "forbidden", "invalid", "unavailable"]
+    },
+    message: nullableString,
+    checkedAt: { type: ["string", "null"], format: "date-time" }
+  }),
+  DynamicCredentialIssuerSummary: objectSchema({
+    id: string,
+    name: string,
+    providerPresetId: { type: "string", enum: ["github"] },
+    sourceType: { type: "string", enum: ["dynamic"] },
+    issuerType: { type: "string", enum: ["github_app_installation"] },
+    scope: ref("GitHubAppInstallationScope"),
+    status: { type: "string", enum: ["active", "disabled", "deleted"] },
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+    version: integer,
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    binding: ref("CredentialVaultBinding"),
+    egressDomains: arrayOf(string),
+    metadata: freeObject,
+    createdByUserId: nullableString,
+    createdByLabel: nullableString,
+    disabledAt: { type: ["string", "null"], format: "date-time" },
+    deletedAt: { type: ["string", "null"], format: "date-time" },
+    createdAt: dateTime,
+    updatedAt: dateTime,
+    lastIssuedAt: { type: ["string", "null"], format: "date-time" },
+    validation: ref("DynamicCredentialValidationSummary"),
+    usage: ref("CredentialSecretUsageSummary"),
+    capabilities: ref("CredentialSourceCapabilities")
+  }),
+  CreateDynamicCredentialIssuerBody: objectSchema({
+    name: string,
+    issuerType: { type: "string", enum: ["github_app_installation"] },
+    scope: ref("GitHubAppInstallationScope"),
+    usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    metadata: freeObject
+  }, ["name", "issuerType", "scope"]),
+  UpdateDynamicCredentialIssuerBody: {
+    ...objectSchema({
+      name: string,
+      scope: ref("GitHubAppInstallationScope"),
+      usePolicy: { type: "string", enum: ["admins_only", "organization_members"] },
+      fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+      metadata: freeObject
+    }, []),
+    minProperties: 1
+  },
+  DynamicCredentialIssuersResponse: objectSchema({
+    issuers: arrayOf(ref("DynamicCredentialIssuerSummary"))
+  }),
+  DynamicCredentialIssuerResponse: objectSchema({
+    issuer: ref("DynamicCredentialIssuerSummary")
+  }),
+  CredentialVaultBinding: objectSchema({
+    name: string,
+    match: ref("CredentialVaultMatch"),
+    auth: ref("CredentialVaultAuth")
+  }),
+  InlineEphemeralSandboxCredentialBody: objectSchema({
+    sourceType: { type: "string", enum: ["inline_ephemeral"] },
+    displayName: string,
+    credentialName: string,
+    value: { ...string, writeOnly: true },
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    binding: objectSchema({
+      name: string,
+      match: ref("CredentialVaultMatch"),
+      auth: ref("CredentialVaultAuth")
+    }, ["match", "auth"])
+  }, ["value", "binding"]),
+  HarakiriEncryptedSandboxCredentialBody: objectSchema({
+    sourceType: { type: "string", enum: ["harakiri_encrypted"] },
+    secretId: string,
+    displayName: string,
+    credentialName: string,
+    bindingName: string
+  }, ["sourceType", "secretId"]),
+  ExternalReferenceSandboxCredentialBody: objectSchema({
+    sourceType: { type: "string", enum: ["external_ref"] },
+    referenceId: string,
+    displayName: string,
+    credentialName: string,
+    bindingName: string
+  }, ["sourceType", "referenceId"]),
+  DynamicSandboxCredentialBody: objectSchema({
+    sourceType: { type: "string", enum: ["dynamic"] },
+    issuerId: string,
+    displayName: string,
+    credentialName: string,
+    bindingName: string
+  }, ["sourceType", "issuerId"]),
+  AttachSandboxCredentialBody: {
+    oneOf: [
+      ref("InlineEphemeralSandboxCredentialBody"),
+      ref("HarakiriEncryptedSandboxCredentialBody"),
+      ref("ExternalReferenceSandboxCredentialBody"),
+      ref("DynamicSandboxCredentialBody")
+    ]
+  },
+  InlineEphemeralTemplateCredentialSourceBody: objectSchema({
+    sourceType: { type: "string", enum: ["inline_ephemeral"] },
+    displayName: string,
+    credentialName: string,
+    bindingName: string,
+    value: { ...string, writeOnly: true },
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } }
+  }, ["value"]),
+  TemplateCredentialSlotSourceBody: {
+    oneOf: [
+      ref("InlineEphemeralTemplateCredentialSourceBody"),
+      ref("HarakiriEncryptedSandboxCredentialBody"),
+      ref("ExternalReferenceSandboxCredentialBody"),
+      ref("DynamicSandboxCredentialBody")
+    ]
+  },
+  TemplateCredentialSlotMappingBody: objectSchema({
+    slotId: string,
+    providerPresetId: credentialProviderProfileId,
+    source: ref("TemplateCredentialSlotSourceBody")
+  }, ["source"]),
+  CredentialVaultProviderState: objectSchema({
+    revision: integer,
+    credentials: arrayOf(objectSchema({
+      name: string,
+      sourceType: string,
+      revision: integer
+    })),
+    bindings: arrayOf(objectSchema({
+      name: string,
+      revision: integer,
+      match: ref("CredentialVaultMatch"),
+      auth: objectSchema({
+        type: string,
+        name: string
+      }, ["type"])
+    }, ["name", "revision"]))
+  }),
+  SandboxCredentialAttachmentSummary: objectSchema({
+    id: string,
+    sandboxId: string,
+    displayName: string,
+    sourceType: { type: "string", enum: ["inline_ephemeral", "harakiri_encrypted", "external_ref", "dynamic"] },
+    sourceRef: nullableString,
+    credentialName: string,
+    bindingName: string,
+    match: ref("CredentialVaultMatch"),
+    auth: ref("CredentialVaultAuth"),
+    fakeEnv: { type: "object", additionalProperties: { type: "string" } },
+    status: { type: "string", enum: ["pending", "injected", "requires_reinjection", "detached", "failed"] },
+    provider: string,
+    providerRevision: { type: ["integer", "null"] },
+    providerState: { type: "string", enum: ["unknown", "present", "missing", "unavailable"] },
+    providerCheckedAt: { type: ["string", "null"], format: "date-time" },
+    providerMetadata: freeObject,
+    sourceMetadata: freeObject,
+    expiresAt: { type: ["string", "null"], format: "date-time" },
+    refreshState: { type: "string", enum: ["not_applicable", "current", "expiring", "expired", "refresh_failed"] },
+    refreshAttemptedAt: { type: ["string", "null"], format: "date-time" },
+    refreshedAt: { type: ["string", "null"], format: "date-time" },
+    lastError: nullableString,
+    injectedAt: { type: ["string", "null"], format: "date-time" },
+    detachedAt: { type: ["string", "null"], format: "date-time" },
+    createdByUserId: nullableString,
+    createdByLabel: nullableString,
+    createdAt: dateTime,
+    updatedAt: dateTime
+  }),
+  SandboxCredentialsResponse: objectSchema({
+    attachments: arrayOf(ref("SandboxCredentialAttachmentSummary"))
+  }),
+  InspectSandboxCredentialsResponse: objectSchema({
+    attachments: arrayOf(ref("SandboxCredentialAttachmentSummary")),
+    vault: { oneOf: [ref("CredentialVaultProviderState"), { type: "null" }] }
+  }, ["attachments", "vault"]),
+  AttachSandboxCredentialResponse: objectSchema({
+    attachment: ref("SandboxCredentialAttachmentSummary"),
+    vault: ref("CredentialVaultProviderState")
+  }),
+  RefreshSandboxCredentialResponse: objectSchema({
+    attachment: ref("SandboxCredentialAttachmentSummary"),
+    vault: ref("CredentialVaultProviderState")
+  }),
+  DetachSandboxCredentialResponse: objectSchema({
+    attachment: ref("SandboxCredentialAttachmentSummary"),
+    vault: { oneOf: [ref("CredentialVaultProviderState"), { type: "null" }] }
+  }),
+  RehydrateSandboxCredentialsResponse: objectSchema({
+    attachments: arrayOf(ref("SandboxCredentialAttachmentSummary")),
+    vault: { oneOf: [ref("CredentialVaultProviderState"), { type: "null" }] },
+    rehydrated: integer,
+    skipped: integer,
+    failed: integer
+  }, ["attachments", "vault", "rehydrated", "skipped", "failed"]),
+  TestSandboxCredentialBody: objectSchema({
+    target: string,
+    method: string,
+    timeoutMs: integer
+  }, []),
+  TestSandboxCredentialResponse: objectSchema({
+    attachmentId: string,
+    target: string,
+    normalizedTarget: string,
+    url: string,
+    method: string,
+    ok: boolean,
+    status: { type: "string", enum: ["reachable", "blocked_or_unreachable", "binding_mismatch", "not_injected", "sandbox_not_running", "provider_unavailable"] },
+    httpStatus: { type: ["integer", "null"] },
+    stdout: string,
+    stderr: string,
+    durationMs: number,
+    checkedAt: dateTime
+  }),
   RuntimeCapabilitySummary: objectSchema({
     name: {
       type: "string",
@@ -685,6 +1182,9 @@ const schemas: Record<string, JsonSchema> = {
         "tokenRoutes",
         "git",
         "egressPolicy",
+        "credentialVault",
+        "credentialVaultPatch",
+        "credentialVaultSanitizedRead",
         "logs",
         "metrics"
       ]
@@ -849,7 +1349,8 @@ const schemas: Record<string, JsonSchema> = {
   }, ["name", "slug", "idleTtlSeconds", "maxConcurrency", "defaultTemplateId", "defaultEgressPolicy", "egressAllowedPresets", "egressCustomDomainsEnabled", "egressMaxRules", "egressRedactDomains"]),
   OrganizationSettingsResponse: objectSchema({ organization: ref("OrganizationSettings") }),
   AccountCapabilities: objectSchema({
-    canManageMembers: boolean
+    canManageMembers: boolean,
+    canManageCredentialSecrets: boolean
   }),
   OrganizationMemberSummary: objectSchema({
     id: string,
@@ -912,7 +1413,7 @@ export const openApiDocument = {
   info: {
     title: "Harakiri Sandbox API",
     version: "0.1.0",
-    description: "Control-plane API for sandbox lifecycle, templates, routes, registry credentials, and account settings."
+    description: "Control-plane API for sandbox lifecycle, templates, Credential Vault, routes, registry credentials, and account settings."
   },
   servers: [
     {
@@ -928,6 +1429,7 @@ export const openApiDocument = {
     { name: "Sandboxes" },
     { name: "Sandbox Runtime" },
     { name: "Routes" },
+    { name: "Credential Vault" },
     { name: "API Keys" },
     { name: "Registry Credentials" },
     { name: "Usage" },
@@ -1139,6 +1641,100 @@ export const openApiDocument = {
     },
     "/v1/sandboxes/{id}/metrics": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox metrics", operationId: "getSandboxMetrics", parameters: [pathId], responses: { ...ok("Sandbox metrics", ref("SandboxMetricsResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/credentials": {
+      get: secured({ tags: ["Credential Vault"], summary: "List sandbox credential attachments", operationId: "listSandboxCredentials", parameters: [pathId], responses: { ...ok("Sandbox credential attachments", ref("SandboxCredentialsResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Credential Vault"], summary: "Attach a credential to a running sandbox", operationId: "attachSandboxCredential", parameters: [pathId], requestBody: jsonBody(ref("AttachSandboxCredentialBody")), responses: { ...created("Attached credential", ref("AttachSandboxCredentialResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/credentials/rehydrate": {
+      post: secured({ tags: ["Credential Vault"], summary: "Rehydrate stored sandbox credential attachments", operationId: "rehydrateSandboxCredentials", parameters: [pathId], responses: { ...ok("Rehydrated credential attachments", ref("RehydrateSandboxCredentialsResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/credentials/inspect": {
+      post: secured({ tags: ["Credential Vault"], summary: "Compare attachments with sanitized runtime vault state", operationId: "inspectSandboxCredentials", parameters: [pathId], responses: { ...ok("Inspected credential attachments", ref("InspectSandboxCredentialsResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/credentials/{attachmentId}": {
+      delete: secured({ tags: ["Credential Vault"], summary: "Detach a sandbox credential attachment", operationId: "detachSandboxCredential", parameters: [pathId, attachmentIdPath], responses: { ...ok("Detached credential", ref("DetachSandboxCredentialResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/credentials/{attachmentId}/refresh": {
+      post: secured({ tags: ["Credential Vault"], summary: "Refresh a dynamic sandbox credential", operationId: "refreshSandboxCredential", parameters: [pathId, attachmentIdPath], responses: { ...ok("Refreshed credential", ref("RefreshSandboxCredentialResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/credentials/{attachmentId}/test": {
+      post: secured({ tags: ["Credential Vault"], summary: "Test a sandbox credential binding", operationId: "testSandboxCredential", parameters: [pathId, attachmentIdPath], requestBody: jsonBody(ref("TestSandboxCredentialBody")), responses: { ...ok("Credential binding test result", ref("TestSandboxCredentialResponse")), ...authErrorResponses } })
+    },
+    "/v1/audit-events": {
+      get: secured({
+        tags: ["Credential Vault"],
+        summary: "List sanitized organization audit events",
+        operationId: "listAuditEvents",
+        parameters: [
+          parameter("targetType", "query", string, false),
+          parameter("targetId", "query", string, false),
+          parameter("actionPrefix", "query", string, false),
+          parameter("limit", "query", integer, false),
+          parameter("offset", "query", integer, false)
+        ],
+        responses: { ...ok("Organization audit events", ref("AuditEventsResponse")), ...authErrorResponses }
+      })
+    },
+    "/v1/credential-presets": {
+      get: secured({ tags: ["Credential Vault"], summary: "List built-in credential provider presets", operationId: "listCredentialProviderPresets", responses: { ...ok("Credential provider presets", ref("CredentialProviderPresetsResponse")), ...authErrorResponses } })
+    },
+    "/v1/credential-presets/{id}": {
+      get: secured({ tags: ["Credential Vault"], summary: "Get a credential provider preset", operationId: "getCredentialProviderPreset", parameters: [credentialIdPath], responses: { ...ok("Credential provider preset", ref("CredentialProviderPresetResponse")), ...authErrorResponses } })
+    },
+    "/v1/credential-secrets": {
+      get: secured({ tags: ["Credential Vault"], summary: "List encrypted workspace credential secrets", operationId: "listCredentialSecrets", parameters: [parameter("includeDeleted", "query", boolean, false)], responses: { ...ok("Credential secrets", ref("CredentialSecretsResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Credential Vault"], summary: "Create an encrypted workspace credential secret", operationId: "createCredentialSecret", requestBody: jsonBody(ref("CreateCredentialSecretBody")), responses: { ...created("Credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } })
+    },
+    "/v1/credential-secrets/{id}": {
+      get: secured({ tags: ["Credential Vault"], summary: "Get sanitized credential secret metadata", operationId: "getCredentialSecret", parameters: [credentialIdPath], responses: { ...ok("Credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } }),
+      patch: secured({ tags: ["Credential Vault"], summary: "Update workspace credential secret use policy", operationId: "updateCredentialSecret", parameters: [credentialIdPath], requestBody: jsonBody(ref("UpdateCredentialSecretBody")), responses: { ...ok("Updated credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } }),
+      delete: secured({ tags: ["Credential Vault"], summary: "Delete encrypted credential secret value custody", operationId: "deleteCredentialSecret", parameters: [credentialIdPath], responses: { ...ok("Deleted credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } })
+    },
+    "/v1/credential-secrets/{id}/rotate": {
+      post: secured({ tags: ["Credential Vault"], summary: "Rotate an encrypted workspace credential secret", operationId: "rotateCredentialSecret", parameters: [credentialIdPath], requestBody: jsonBody(ref("RotateCredentialSecretBody")), responses: { ...ok("Rotated credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } })
+    },
+    "/v1/credential-secrets/{id}/disable": {
+      post: secured({ tags: ["Credential Vault"], summary: "Disable a workspace credential secret", operationId: "disableCredentialSecret", parameters: [credentialIdPath], responses: { ...ok("Disabled credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } })
+    },
+    "/v1/credential-secrets/{id}/enable": {
+      post: secured({ tags: ["Credential Vault"], summary: "Enable a workspace credential secret", operationId: "enableCredentialSecret", parameters: [credentialIdPath], responses: { ...ok("Enabled credential secret", ref("CredentialSecretResponse")), ...authErrorResponses } })
+    },
+    "/v1/external-secret-references": {
+      get: secured({ tags: ["Credential Vault"], summary: "List external secret references", operationId: "listExternalSecretReferences", parameters: [parameter("includeDeleted", "query", boolean, false)], responses: { ...ok("External secret references", ref("ExternalSecretReferencesResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Credential Vault"], summary: "Create an external secret reference", operationId: "createExternalSecretReference", requestBody: jsonBody(ref("CreateExternalSecretReferenceBody")), responses: { ...created("External secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } })
+    },
+    "/v1/external-secret-references/{id}": {
+      get: secured({ tags: ["Credential Vault"], summary: "Get sanitized external secret reference metadata", operationId: "getExternalSecretReference", parameters: [credentialIdPath], responses: { ...ok("External secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } }),
+      patch: secured({ tags: ["Credential Vault"], summary: "Update an external secret reference", operationId: "updateExternalSecretReference", parameters: [credentialIdPath], requestBody: jsonBody(ref("UpdateExternalSecretReferenceBody")), responses: { ...ok("Updated external secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } }),
+      delete: secured({ tags: ["Credential Vault"], summary: "Delete an external secret reference", operationId: "deleteExternalSecretReference", parameters: [credentialIdPath], responses: { ...ok("Deleted external secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } })
+    },
+    "/v1/external-secret-references/{id}/validate": {
+      post: secured({ tags: ["Credential Vault"], summary: "Validate an external secret reference", operationId: "validateExternalSecretReference", parameters: [credentialIdPath], responses: { ...ok("Validated external secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } })
+    },
+    "/v1/external-secret-references/{id}/disable": {
+      post: secured({ tags: ["Credential Vault"], summary: "Disable an external secret reference", operationId: "disableExternalSecretReference", parameters: [credentialIdPath], responses: { ...ok("Disabled external secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } })
+    },
+    "/v1/external-secret-references/{id}/enable": {
+      post: secured({ tags: ["Credential Vault"], summary: "Enable an external secret reference", operationId: "enableExternalSecretReference", parameters: [credentialIdPath], responses: { ...ok("Enabled external secret reference", ref("ExternalSecretReferenceResponse")), ...authErrorResponses } })
+    },
+    "/v1/dynamic-credential-issuers": {
+      get: secured({ tags: ["Credential Vault"], summary: "List dynamic credential issuers", operationId: "listDynamicCredentialIssuers", parameters: [parameter("includeDeleted", "query", boolean, false)], responses: { ...ok("Dynamic credential issuers", ref("DynamicCredentialIssuersResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Credential Vault"], summary: "Create a dynamic credential issuer", operationId: "createDynamicCredentialIssuer", requestBody: jsonBody(ref("CreateDynamicCredentialIssuerBody")), responses: { ...created("Dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } })
+    },
+    "/v1/dynamic-credential-issuers/{id}": {
+      get: secured({ tags: ["Credential Vault"], summary: "Get sanitized dynamic credential issuer metadata", operationId: "getDynamicCredentialIssuer", parameters: [credentialIdPath], responses: { ...ok("Dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } }),
+      patch: secured({ tags: ["Credential Vault"], summary: "Update a dynamic credential issuer", operationId: "updateDynamicCredentialIssuer", parameters: [credentialIdPath], requestBody: jsonBody(ref("UpdateDynamicCredentialIssuerBody")), responses: { ...ok("Updated dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } }),
+      delete: secured({ tags: ["Credential Vault"], summary: "Delete a dynamic credential issuer", operationId: "deleteDynamicCredentialIssuer", parameters: [credentialIdPath], responses: { ...ok("Deleted dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } })
+    },
+    "/v1/dynamic-credential-issuers/{id}/validate": {
+      post: secured({ tags: ["Credential Vault"], summary: "Validate a dynamic credential issuer", operationId: "validateDynamicCredentialIssuer", parameters: [credentialIdPath], responses: { ...ok("Validated dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } })
+    },
+    "/v1/dynamic-credential-issuers/{id}/disable": {
+      post: secured({ tags: ["Credential Vault"], summary: "Disable a dynamic credential issuer", operationId: "disableDynamicCredentialIssuer", parameters: [credentialIdPath], responses: { ...ok("Disabled dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } })
+    },
+    "/v1/dynamic-credential-issuers/{id}/enable": {
+      post: secured({ tags: ["Credential Vault"], summary: "Enable a dynamic credential issuer", operationId: "enableDynamicCredentialIssuer", parameters: [credentialIdPath], responses: { ...ok("Enabled dynamic credential issuer", ref("DynamicCredentialIssuerResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/egress": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox outbound access", operationId: "getSandboxEgress", parameters: [pathId], responses: { ...ok("Sandbox egress policy", ref("SandboxEgressResponse")), ...authErrorResponses } }),

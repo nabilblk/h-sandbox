@@ -45,6 +45,40 @@ rbac:
   # ClusterRole: read nodes for hot-template image pre-pull (cluster-scoped).
   prepullClusterRole: true
 
+credentialVault:
+  encryption:
+    # New workspace credentials use envelope encryption with this wrapping-key
+    # identifier. Keep old keys available while records still reference them.
+    keyId: "local-v1"
+    keyringSecret:
+      # Optional JSON keyring Secret for rotation. When set, its selected key
+      # must contain: {"activeKeyId":"...","keys":{"...":"base64-key"}}.
+      name: ""
+      key: "keyring.json"
+  dynamicCredentials:
+    githubApp:
+      # Uses one operator-owned GitHub App identity to mint short-lived,
+      # repository-scoped installation tokens. The private key belongs in the
+      # API Secret, never in this non-secret section.
+      enabled: false
+      clientId: ""
+      apiBaseUrl: "https://api.github.com"
+      apiVersion: "2026-03-10"
+      requestTimeoutMs: 10000
+  externalSecrets:
+    kubernetes:
+      # Disabled by default because enabling it grants the API service account
+      # read access to selected Kubernetes Secrets.
+      enabled: false
+      # Empty values default to the Helm release namespace.
+      defaultNamespace: ""
+      allowedNamespaces: []
+      # Exact names allow Kubernetes RBAC to use resourceNames. Prefix rules
+      # are enforced by Harakiri because Kubernetes RBAC has no prefix matcher.
+      allowedNames: []
+      allowedNamePrefixes:
+        - harakiri-vault-
+
 # ---------------------------------------------------------------------------
 # Components. The api, scheduler and template-builder all run the SAME api
 # image; scheduler/template-builder override the container command.
@@ -229,6 +263,8 @@ secret:
     OPEN_SANDBOX_API_KEY: ""
     KEYCLOAK_ADMIN_USERNAME: ""
     KEYCLOAK_ADMIN_PASSWORD: ""
+    CREDENTIAL_VAULT_KEY: ""
+    DYNAMIC_GITHUB_APP_PRIVATE_KEY: ""
 
 # Optional ingress for the dashboard (web) and API.
 ingress:

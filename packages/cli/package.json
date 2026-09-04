@@ -51,6 +51,7 @@
   "dependencies": {
     "@h-sandbox/sdk": "workspace:*",
     "commander": "^14.0.2",
+    "smol-toml": "^1.8.0",
     "ws": "^8.21.0"
   },
   "devDependencies": {

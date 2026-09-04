@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { egressModes, egressPresetIds, sandboxFileEncodings, sandboxGitOperationNames, sandboxRouteAccessModes } from "@harakiri/shared";
+import {
+  credentialProviderProfileIds,
+  egressModes,
+  egressPresetIds,
+  sandboxFileEncodings,
+  sandboxGitOperationNames,
+  sandboxRouteAccessModes
+} from "@harakiri/shared";
 
 const envKeySchema = z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, "must be a valid environment variable name");
 
@@ -102,6 +109,123 @@ export const egressPatchSchema = z.object({
 export const egressTestSchema = z.object({
   target: z.string().min(1).max(2048)
 });
+
+const credentialNameSchema = z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9_.:-]+$/);
+const credentialHeaderNameSchema = z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/);
+const credentialSubstitutionSchema = z.object({
+  credential: credentialNameSchema.optional(),
+  placeholder: z.string().min(1).max(512),
+  in: z.array(z.enum(["path", "query", "header", "body"])).min(1).max(4)
+}).strict();
+
+const credentialAuthBaseSchema = z.object({
+  substitutions: z.array(credentialSubstitutionSchema).max(16).optional()
+});
+
+const credentialAuthSchema = z.discriminatedUnion("type", [
+  credentialAuthBaseSchema.extend({
+    type: z.literal("bearer"),
+    credential: credentialNameSchema.optional()
+  }).strict(),
+  credentialAuthBaseSchema.extend({
+    type: z.literal("basic"),
+    credential: credentialNameSchema.optional()
+  }).strict(),
+  credentialAuthBaseSchema.extend({
+    type: z.literal("apiKey"),
+    name: credentialHeaderNameSchema,
+    credential: credentialNameSchema.optional()
+  }).strict(),
+  credentialAuthBaseSchema.extend({
+    type: z.literal("customHeaders"),
+    headers: z.array(z.object({
+      name: credentialHeaderNameSchema,
+      credential: credentialNameSchema.optional()
+    }).strict()).min(1).max(16)
+  }).strict(),
+  credentialAuthBaseSchema.extend({
+    type: z.literal("passthrough")
+  }).strict()
+]);
+
+const inlineCredentialAttachSchema = z.object({
+  sourceType: z.literal("inline_ephemeral").optional(),
+  displayName: z.string().trim().min(1).max(120).optional(),
+  credentialName: credentialNameSchema.optional(),
+  value: z.string().min(1).max(64 * 1024),
+  fakeEnv: z.record(envKeySchema, z.string().max(4096)).optional(),
+  binding: z.object({
+    name: credentialNameSchema.optional(),
+    match: z.object({
+      schemes: z.array(z.enum(["https", "http"])).min(1).max(2).optional(),
+      hosts: z.array(z.string().trim().min(1).max(253)).min(1).max(64),
+      methods: z.array(z.string().trim().min(1).max(32)).min(1).max(16).optional(),
+      paths: z.array(z.string().min(1).max(2048)).min(1).max(64).optional()
+    }).strict(),
+    auth: credentialAuthSchema
+  }).strict()
+}).strict();
+
+const storedCredentialAttachSchema = z.object({
+  sourceType: z.literal("harakiri_encrypted"),
+  secretId: z.string().trim().min(1).max(160),
+  displayName: z.string().trim().min(1).max(120).optional(),
+  credentialName: credentialNameSchema.optional(),
+  bindingName: credentialNameSchema.optional()
+}).strict();
+
+const externalCredentialAttachSchema = z.object({
+  sourceType: z.literal("external_ref"),
+  referenceId: z.string().trim().min(1).max(160),
+  displayName: z.string().trim().min(1).max(120).optional(),
+  credentialName: credentialNameSchema.optional(),
+  bindingName: credentialNameSchema.optional()
+}).strict();
+
+const dynamicCredentialAttachSchema = z.object({
+  sourceType: z.literal("dynamic"),
+  issuerId: z.string().trim().min(1).max(160),
+  displayName: z.string().trim().min(1).max(120).optional(),
+  credentialName: credentialNameSchema.optional(),
+  bindingName: credentialNameSchema.optional()
+}).strict();
+
+const inlineTemplateCredentialSourceSchema = z.object({
+  sourceType: z.literal("inline_ephemeral").optional(),
+  displayName: z.string().trim().min(1).max(120).optional(),
+  credentialName: credentialNameSchema.optional(),
+  bindingName: credentialNameSchema.optional(),
+  value: z.string().min(1).max(64 * 1024),
+  fakeEnv: z.record(envKeySchema, z.string().max(4096)).optional()
+}).strict();
+
+export const credentialAttachSchema = z.union([
+  inlineCredentialAttachSchema,
+  storedCredentialAttachSchema,
+  externalCredentialAttachSchema,
+  dynamicCredentialAttachSchema
+]);
+
+export const createTimeCredentialAttachSchema = credentialAttachSchema;
+
+export const templateCredentialSlotMappingSchema = z.object({
+  slotId: z.string().trim().min(1).max(80).optional(),
+  providerPresetId: z.enum(credentialProviderProfileIds).optional(),
+  source: z.union([
+    inlineTemplateCredentialSourceSchema,
+    storedCredentialAttachSchema,
+    externalCredentialAttachSchema,
+    dynamicCredentialAttachSchema
+  ])
+}).strict().refine((value) => Boolean(value.slotId || value.providerPresetId), {
+  message: "credential mapping requires slotId or providerPresetId"
+});
+
+export const credentialTestSchema = z.object({
+  target: z.string().trim().min(1).max(2048).optional(),
+  method: z.string().trim().min(1).max(32).optional(),
+  timeoutMs: z.coerce.number().int().min(1_000).max(60_000).optional()
+}).strict();
 
 const booleanQuerySchema = z.union([z.boolean(), z.enum(["0", "1", "true", "false"])]).transform((value) => {
   if (typeof value === "boolean") return value;

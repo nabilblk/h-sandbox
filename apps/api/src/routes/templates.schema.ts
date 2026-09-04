@@ -1,8 +1,15 @@
 import { z } from "zod";
 import { egressModes, egressPresetIds } from "@harakiri/shared";
+import {
+  credentialProviderProfileIdSchema,
+  customCredentialProfileSchema,
+  validateCredentialProfile
+} from "./credential-profile.schema.js";
 
 const templateVisibilitySchema = z.enum(["public", "private", "internal"]);
 const templateIconSchema = z.enum(["py", "node", "globe", "box", "file"]);
+const credentialSlotIdSchema = z.string().min(1).max(80).regex(/^[a-z0-9][a-z0-9._-]*$/);
+const envNameSchema = z.string().min(1).max(120).regex(/^[A-Za-z_][A-Za-z0-9_]*$/);
 export const egressPolicySchema = z.object({
   mode: z.enum(egressModes).default("open"),
   presets: z.array(z.enum(egressPresetIds)).default([]),
@@ -10,6 +17,16 @@ export const egressPolicySchema = z.object({
   deny: z.array(z.string().min(1).max(253)).default([]),
   defaultAction: z.enum(["allow", "deny"]).optional()
 });
+
+export const templateCredentialSlotInputSchema = z.object({
+  id: credentialSlotIdSchema.optional(),
+  providerPresetId: credentialProviderProfileIdSchema,
+  customProfile: customCredentialProfileSchema.optional(),
+  required: z.boolean().default(true),
+  label: z.string().min(1).max(120).optional(),
+  description: z.string().min(1).max(500).optional(),
+  envName: envNameSchema.optional()
+}).strict().superRefine(validateCredentialProfile);
 
 export const templateCreateSchema = z.object({
   id: z.string().min(2).max(100).regex(/^[a-z0-9][a-z0-9._-]*$/).optional(),
@@ -26,7 +43,8 @@ export const templateCreateSchema = z.object({
   workdir: z.string().min(1).default("/workspace"),
   defaultPorts: z.array(z.number().int().min(1).max(65535)).default([]),
   runtimeFamily: z.string().min(1).max(80).default("custom"),
-  egressPolicy: egressPolicySchema.optional()
+  egressPolicy: egressPolicySchema.optional(),
+  credentialSlots: z.array(templateCredentialSlotInputSchema).max(32).default([])
 });
 
 export const templatePromoteSchema = z.object({

@@ -11,6 +11,8 @@ import type {
 import { apiErrorResponse } from "@harakiri/shared";
 import { query as defaultQuery } from "../db.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "../providers/runtime/index.js";
+import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
+import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
 import {
   createSandbox,
   deleteSandbox,
@@ -38,6 +40,8 @@ export type SandboxRouteDependencies = {
   runtimeProvider?: RuntimeProvider;
   recordAudit: Audit;
   recordSandboxEvent: SandboxEventRecorder;
+  externalSecretResolvers?: ExternalSecretResolverRegistry;
+  dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
 };
 
 export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: SandboxRouteDependencies) => {
@@ -92,11 +96,20 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         env: body.env,
         egress: body.egress,
         source: body.source,
+        credentials: body.credentials,
+        credentialMappings: body.credentialMappings,
         idempotencyKey: body.idempotencyKey ?? idempotencyKey(request.headers),
         wait: body.wait ?? !preferRespondAsync(request.headers),
         waitTimeoutMs: body.waitTimeoutMs
       },
-      { query, runtimeProvider, recordAudit, recordEvent }
+      {
+        query,
+        runtimeProvider,
+        recordAudit,
+        recordEvent,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
     );
     if (result.kind === "template_not_found") {
       return reply.code(404).send(apiErrorResponse("template_not_found", { template: result.template }));
@@ -149,6 +162,85 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         message: result.message
       }));
     }
+    if (result.kind === "credential_vault_create_requires_sync") {
+      return reply.code(400).send(apiErrorResponse("credential_vault_create_requires_sync", { message: result.message }));
+    }
+    if (result.kind === "credential_vault_unsupported") {
+      return reply.code(501).send(apiErrorResponse("credential_vault_unsupported", { message: result.message }));
+    }
+    if (result.kind === "credential_vault_secret_required") {
+      return reply.code(400).send(apiErrorResponse("credential_vault_secret_required", { message: result.message }));
+    }
+    if (result.kind === "credential_secret_forbidden") {
+      return reply.code(403).send(apiErrorResponse("credential_secret_forbidden"));
+    }
+    if (result.kind === "credential_secret_not_found") {
+      return reply.code(404).send(apiErrorResponse("credential_secret_not_found"));
+    }
+    if (result.kind === "credential_secret_disabled") {
+      return reply.code(409).send(apiErrorResponse("credential_secret_disabled"));
+    }
+    if (result.kind === "credential_secret_decryption_unavailable") {
+      return reply.code(500).send(apiErrorResponse("credential_secret_decryption_unavailable", { message: result.message }));
+    }
+    if (result.kind === "external_secret_reference_forbidden") {
+      return reply.code(403).send(apiErrorResponse("external_secret_reference_forbidden"));
+    }
+    if (result.kind === "external_secret_reference_not_found") {
+      return reply.code(404).send(apiErrorResponse("external_secret_reference_not_found"));
+    }
+    if (result.kind === "external_secret_reference_disabled") {
+      return reply.code(409).send(apiErrorResponse("external_secret_reference_disabled"));
+    }
+    if (result.kind === "external_secret_resolution_not_found") {
+      return reply.code(424).send(apiErrorResponse("external_secret_resolution_not_found", { message: result.message }));
+    }
+    if (result.kind === "external_secret_resolution_forbidden") {
+      return reply.code(403).send(apiErrorResponse("external_secret_resolution_forbidden", { message: result.message }));
+    }
+    if (result.kind === "external_secret_resolution_invalid") {
+      return reply.code(422).send(apiErrorResponse("external_secret_resolution_invalid", { message: result.message }));
+    }
+    if (result.kind === "external_secret_resolver_unavailable") {
+      return reply.code(503).send(apiErrorResponse("external_secret_resolver_unavailable", { message: result.message }));
+    }
+    if (result.kind === "dynamic_credential_issuer_forbidden") {
+      return reply.code(403).send(apiErrorResponse("dynamic_credential_issuer_forbidden"));
+    }
+    if (result.kind === "dynamic_credential_issuer_not_found") {
+      return reply.code(404).send(apiErrorResponse("dynamic_credential_issuer_not_found"));
+    }
+    if (result.kind === "dynamic_credential_issuer_disabled") {
+      return reply.code(409).send(apiErrorResponse("dynamic_credential_issuer_disabled"));
+    }
+    if (result.kind === "dynamic_credential_issue_not_found") {
+      return reply.code(424).send(apiErrorResponse("dynamic_credential_issue_not_found", { message: result.message }));
+    }
+    if (result.kind === "dynamic_credential_issue_forbidden") {
+      return reply.code(403).send(apiErrorResponse("dynamic_credential_issue_forbidden", { message: result.message }));
+    }
+    if (result.kind === "dynamic_credential_issue_invalid") {
+      return reply.code(422).send(apiErrorResponse("dynamic_credential_issue_invalid", { message: result.message }));
+    }
+    if (result.kind === "dynamic_credential_issuer_unavailable") {
+      return reply.code(503).send(apiErrorResponse("dynamic_credential_issuer_unavailable", { message: result.message }));
+    }
+    if (result.kind === "credential_vault_invalid_binding") {
+      return reply.code(400).send(apiErrorResponse("credential_vault_invalid_binding", { message: result.message }));
+    }
+    if (result.kind === "credential_vault_required_slot_missing") {
+      return reply.code(400).send(apiErrorResponse("credential_vault_required_slot_missing", {
+        message: result.message,
+        missingSlots: result.missingSlots
+      }));
+    }
+    if (result.kind === "credential_vault_provider_unavailable") {
+      return reply.code(502).send(apiErrorResponse("credential_vault_provider_unavailable", {
+        message: result.message,
+        sandbox: result.sandbox,
+        attachment: result.attachment
+      }));
+    }
     if (result.kind === "sandbox_provision_failed") {
       return reply.code(502).send(apiErrorResponse("sandbox_provision_failed", {
         sandbox: result.sandbox,
@@ -169,7 +261,10 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         .header("retry-after", "1")
         .send(response);
     }
-    const response = { sandbox: result.sandbox } satisfies CreateSandboxResponse;
+    const response = {
+      sandbox: result.sandbox,
+      credentialAttachments: result.credentialAttachments
+    } satisfies CreateSandboxResponse;
     return reply.code(201).send(response);
   });
 
@@ -239,7 +334,14 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         sandboxId: id,
         idempotencyKey: idempotencyKey(request.headers)
       },
-      { query, runtimeProvider, recordAudit, recordEvent }
+      {
+        query,
+        runtimeProvider,
+        recordAudit,
+        recordEvent,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
     );
     if (result.kind === "sandbox_not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_invalid_state") {

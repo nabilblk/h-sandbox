@@ -1,7 +1,7 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-09-02
+Last updated: 2026-09-04
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -15,6 +15,126 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Keycloak: `http://127.0.0.1:18084`
 - OpenSandbox proxy: `http://127.0.0.1:18083`
 - OpenSandbox gateway: `http://127.0.0.1:18085`
+
+## 2026-09-04 Hands-on Tutorial Acceptance
+
+The six workflows in `docs/tutorials.md` were executed against the public
+Harakiri API and the current k0s-backed OpenSandbox runtime. Each workflow used
+only the public CLI or the published `@h-sandbox/sdk@0.3.1` package, asserted an
+observable result, and removed its sandboxes and temporary API key.
+
+| Scenario | Acceptance result |
+| --- | --- |
+| Data job | Uploaded CSV and Python files, executed the job, downloaded the result, and matched `orders=3 total=68`. |
+| Private preview | Started a detached HTTP server; the public route returned `401` anonymously and `200` with its route token. |
+| Restricted egress | The Python package preset allowed PyPI, denied Google, and allowed GitHub after an explicit hostname rule. |
+| Git workspace | Installed Git in portable Ubuntu, cloned a public repository, created a branch, wrote and committed a file, and ended clean. |
+| Snapshot restore | Preserved a marker across pause/resume, created a ready snapshot, restored a second sandbox, and found the same marker. |
+| SDK worker | Installed the published SDK in a clean npm consumer, created an idempotent job, waited, wrote and ran code, validated output, and terminated it in `finally`. |
+
+The acceptance pass corrected three easy-to-miss integration details. CLI
+creation prints progress before the ID, so scripts extract the line beginning
+with `sbx_`. Git is configured to honor a provider-supplied `SSL_CERT_FILE`
+when outbound interception is enabled. The SDK tutorial uses methods present in
+the currently published package instead of relying on an unreleased facade.
+
+Cleanup verification reported zero active tutorial API keys and zero active
+tutorial sandboxes after the run.
+
+The public tutorial page was deployed to k0s in web image manifest
+`sha256:db34e8270158ea7e5ac4be1c774305ab53b500ecf8ccf51032d274714dda4d7a`
+with container image ID
+`sha256:b240171b165afafff33e8348128c8f9775f63527307316551f8d55d3ae83f310`.
+Agent-browser verified all six scenarios and all six result checks at viewport
+widths 1440, 1280, 1200, 1024, 768, 760, and 390 pixels. No tested viewport had
+page-level horizontal overflow. The final endpoint check returned HTTP `200`
+for public web, API health, and Keycloak discovery, and all Harakiri namespace
+pods were Ready.
+
+## 2026-09-04 Credential Vault Release Candidate
+
+Credential Vault was validated against the deployed k0s stack after the final
+API refactor. Harakiri Helm revision `16` runs OpenSandbox Helm chart `0.2.2`
+with `opensandbox/server:v0.2.3`, `opensandbox/controller:v0.2.0`,
+`opensandbox/ingress:v1.0.10`, and runtime egress image
+`opensandbox/egress:v1.1.7` in `dns+nft` mode.
+
+The deployed Harakiri API, scheduler, and template-builder use image manifest
+`sha256:a760e6a1af23c58aedc590b5b3c3054b8fc88887f83ff0472d14623ba7ecb9f2`
+and container image ID
+`sha256:d55660a5e3423e2d491b6b0c6908ff7cd043d635c8eaf4af5b65de44e144f2c2`.
+The final web image uses manifest
+`sha256:e5602879361a8e819a5fcfa7124505878b7d7430f30450bf3bbe262abb675c35`
+and container image ID
+`sha256:e351c58fb7064d6d7dc0ea4f59f775a1d001c2e40991390e141041551510ddce`.
+All Harakiri and OpenSandbox workloads were Ready after rollout.
+
+Local and provider-free validation passed:
+
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+pnpm conformance:dev
+pnpm openapi:check
+pnpm docs:check
+pnpm credential-vault:check
+pnpm examples:check
+pnpm templates:check
+pnpm package:assert
+git diff --check
+```
+
+Workspace tests passed with `16` shared, `48` SDK, `40` web, `288` API,
+and `70` CLI tests. Provider-free conformance applied migrations `025` through
+`034` to a clean database and passed packed SDK and CLI consumers with dev
+sandbox `sbx_D5iLnIlnxI`.
+
+The real OpenSandbox lifecycle smoke passed with sandbox
+`sbx_wJOXVNiQAO`. It proved write-only encrypted custody, fake env values,
+runtime-only header injection, live rotation convergence, duplicate and
+ambiguous binding rejection, destination denial, pause/resume rehydration,
+source-disable revocation, Kubernetes external-reference resolution and
+deletion revocation, ephemeral reinjection state, terminated-sandbox failure,
+and raw-value absence from API, logs, audit records, and runtime metadata.
+
+The public CLI smoke passed with sandbox `sbx_WFdSKylaId`. It used an isolated
+home directory and temporary API key to create a workspace source, launch and
+inspect a credential-bearing sandbox, rotate the live source, attach and detach
+an ephemeral value, revoke the source, query scoped audit events, and scan all
+captured CLI output for raw generated values.
+
+Browser acceptance covered admin desktop/mobile Vault views and a temporary
+member account. The member navigation omitted Vault and Members, the launch
+dialog listed only an explicitly shared workspace source, and sandbox
+`sbx_CEhAIV_LY3` reported its OpenAI attachment as `injected` and present in the
+runtime. The desktop and mobile views had no horizontal overflow or value-copy
+surface. This is live agent-browser acceptance; durable web component tests
+cover navigation capability checks and source mapping, while a standalone
+member Playwright fixture remains future test-harness work.
+
+The final deployment-backed Playwright suite passed `2/2` in `36.2s`. The
+first scenario exercised real dashboard, API, packed CLI, and SDK sandbox
+creation plus terminal, filesystem, logs, metrics, templates, docs, and
+cleanup. The second exercised Keycloak provider logout, explicit re-login,
+completed-user onboarding bypass, and authenticated Get started routing. That
+gate found and fixed a first-click OIDC defect: explicit sign-in from a public
+page had initialized Keycloak with passive `check-sso`, which returned
+`login_required` before an interactive login could start. First-time explicit
+sign-in now initializes with `login-required`; passive boot checks continue to
+use `check-sso`.
+
+Restricted OpenShift chart lint and render passed with the dedicated profile.
+The rendered Harakiri configuration sets
+`OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "0"` and contains no
+`SecurityContextConstraints`. Credential-bearing restricted/custom runtime
+policies remain operator-action-required because current OpenSandbox
+`dns+nft` needs `NET_ADMIN`; Harakiri does not create or modify an SCC.
+
+Cleanup removed every temporary sandbox, source, external reference, member,
+Keycloak user, and API key created by these checks. The only remaining
+non-terminal sandbox was the pre-existing paused
+`python-3.12-data-runner` (`sbx_E0kDpE1cxI`), which was not modified.
 
 ## Commands Verified
 

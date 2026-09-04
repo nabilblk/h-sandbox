@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   TEMPLATES,
+  credentialProviderPresetCatalog,
+  credentialProviderPresetIds,
   egressModes,
   egressPresetCatalog,
   type EgressMode,
@@ -11,6 +13,7 @@ import {
   type TemplateBuildLogEntry,
   type TemplateBuildSummary,
   type TemplateVersionSummary,
+  type TemplateCredentialSlotInput,
   type UsageSummary
 } from "@harakiri/shared";
 import { api } from "../api";
@@ -18,6 +21,13 @@ import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
 import { setDocsPageSelection } from "./docs";
+import {
+  CredentialProfileFields,
+  credentialProfileComplete,
+  customCredentialProfileDraft,
+  customCredentialProfileInput,
+  emptyCustomCredentialProfile
+} from "./credential-profile-fields";
 
 const openDocsPage = (pageId: string) => {
   setDocsPageSelection(pageId);
@@ -142,6 +152,119 @@ const EgressPolicyControls = ({
   );
 };
 
+const CredentialSlotEditor = ({
+  slots,
+  onChange,
+  disabled = false
+}: {
+  slots: TemplateCredentialSlotInput[];
+  onChange: (slots: TemplateCredentialSlotInput[]) => void;
+  disabled?: boolean;
+}) => {
+  const selected = new Map(slots.filter((slot) => slot.providerPresetId !== "custom").map((slot) => [slot.providerPresetId, slot]));
+  const customSlots = slots.filter((slot) => slot.providerPresetId === "custom");
+  const toggle = (providerPresetId: TemplateCredentialSlotInput["providerPresetId"]) => {
+    if (selected.has(providerPresetId)) {
+      onChange(slots.filter((slot) => slot.providerPresetId !== providerPresetId));
+      return;
+    }
+    onChange([...slots, { providerPresetId, required: true }]);
+  };
+  const setRequired = (providerPresetId: TemplateCredentialSlotInput["providerPresetId"], required: boolean) =>
+    onChange(slots.map((slot) => slot.providerPresetId === providerPresetId ? { ...slot, required } : slot));
+  const addCustomSlot = () => {
+    let suffix = customSlots.length + 1;
+    let id = suffix === 1 ? "private-api" : `private-api-${suffix}`;
+    while (slots.some((slot) => slot.id === id)) {
+      suffix += 1;
+      id = `private-api-${suffix}`;
+    }
+    onChange([...slots, {
+      id,
+      providerPresetId: "custom",
+      required: true,
+      customProfile: customCredentialProfileInput(emptyCustomCredentialProfile())
+    }]);
+  };
+  const updateCustomSlot = (target: TemplateCredentialSlotInput, update: Partial<TemplateCredentialSlotInput>) =>
+    onChange(slots.map((slot) => slot === target ? { ...slot, ...update } : slot));
+  const removeCustomSlot = (target: TemplateCredentialSlotInput) =>
+    onChange(slots.filter((slot) => slot !== target));
+
+  return (
+    <div className="template-credential-slots">
+      {credentialProviderPresetIds.map((providerPresetId) => {
+        const preset = credentialProviderPresetCatalog[providerPresetId];
+        const slot = selected.get(providerPresetId);
+        return (
+          <div className={`template-credential-slot ${slot ? "selected" : ""}`} key={providerPresetId}>
+            <label>
+              <input type="checkbox" checked={Boolean(slot)} disabled={disabled} onChange={() => toggle(providerPresetId)} />
+              <span><b>{preset.label}</b><small className="mono">{preset.defaultEnvName}</small></span>
+            </label>
+            {slot ? (
+              <select className="input" value={slot.required === false ? "optional" : "required"} disabled={disabled} onChange={(event) => setRequired(providerPresetId, event.target.value === "required")}>
+                <option value="required">Required</option>
+                <option value="optional">Optional</option>
+              </select>
+            ) : null}
+          </div>
+        );
+      })}
+      <div className="template-custom-slot-list">
+        <div className="template-custom-slot-title">
+          <span><b>Private APIs</b><small>Exact HTTPS scopes</small></span>
+          <button type="button" className="btn btn-sm" disabled={disabled} onClick={addCustomSlot}><Icon name="plus" size={12} /> Add API</button>
+        </div>
+        {customSlots.map((slot, index) => {
+          const custom = customCredentialProfileDraft(slot.customProfile);
+          return (
+            <div className="template-custom-slot" key={`${slot.id ?? "private-api"}-${index}`}>
+              <div className="template-custom-slot-head">
+                <b>{slot.label?.trim() || slot.customProfile?.host || `Private API ${index + 1}`}</b>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  title="Remove private API slot"
+                  aria-label="Remove private API slot"
+                  disabled={disabled}
+                  onClick={() => removeCustomSlot(slot)}
+                ><Icon name="x" size={12} /></button>
+              </div>
+              <div className="vault-form-grid">
+                <Field label="Slot ID">
+                  <input className="input mono" value={slot.id ?? ""} disabled={disabled} onChange={(event) => updateCustomSlot(slot, { id: event.target.value })} />
+                </Field>
+                <Field label="Requirement">
+                  <select className="input" value={slot.required === false ? "optional" : "required"} disabled={disabled} onChange={(event) => updateCustomSlot(slot, { required: event.target.value === "required" })}>
+                    <option value="required">Required</option>
+                    <option value="optional">Optional</option>
+                  </select>
+                </Field>
+              </div>
+              <CredentialProfileFields
+                profileId="custom"
+                custom={custom}
+                presets={[]}
+                showSelector={false}
+                onCustomChange={(next) => updateCustomSlot(slot, {
+                  customProfile: customCredentialProfileInput(next),
+                  envName: next.envName.trim() || undefined
+                })}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const credentialSlotsComplete = (slots: TemplateCredentialSlotInput[]) => slots.every((slot) =>
+  slot.providerPresetId !== "custom"
+  || Boolean(slot.id?.trim() && credentialProfileComplete("custom", customCredentialProfileDraft(slot.customProfile)))
+);
+
 type TemplateDraft = {
   id: string;
   name: string;
@@ -154,29 +277,58 @@ type TemplateDraft = {
   entrypoint: string[];
   runtimeFamily: string;
   egressPolicy: EgressPolicyInput;
+  credentialSlots: TemplateCredentialSlotInput[];
   source: "dockerfile" | "image" | "clone";
   dockerfilePath: string;
   image: string;
   cloneSource?: string;
 };
 
-const generatedTemplateConfig = (draft: TemplateDraft) => [
-  `name = ${tomlString(draft.name)}`,
-  `id = ${tomlString(draft.id)}`,
-  `visibility = ${tomlString(draft.visibility)}`,
-  `runtime_family = ${tomlString(draft.runtimeFamily)}`,
-  `cpu_count = ${draft.cpuCount}`,
-  `memory_mb = ${draft.memoryMb}`,
-  `workdir = ${tomlString(draft.workdir)}`,
-  `ports = [${draft.ports.join(", ")}]`,
-  draft.tags.length ? `tags = [${draft.tags.map(tomlString).join(", ")}]` : "",
-  `egress_mode = ${tomlString(draft.egressPolicy.mode ?? "open")}`,
-  (draft.egressPolicy.presets?.length ?? 0) > 0 ? `egress_presets = [${(draft.egressPolicy.presets ?? []).map(tomlString).join(", ")}]` : "",
-  (draft.egressPolicy.allow?.length ?? 0) > 0 ? `egress_allow = [${(draft.egressPolicy.allow ?? []).map(tomlString).join(", ")}]` : "",
-  `start_command = ${tomlString(draft.entrypoint.join(" ") || "sleep 3600")}`,
-  draft.source === "dockerfile" ? `dockerfile = ${tomlString(draft.dockerfilePath)}` : `image = ${tomlString(draft.image)}`,
-  draft.cloneSource ? `clone_source = ${tomlString(draft.cloneSource)}` : ""
-].filter(Boolean).join("\n");
+const customCredentialSlotConfig = (slot: TemplateCredentialSlotInput) => {
+  if (slot.providerPresetId !== "custom" || !slot.customProfile) return "";
+  return [
+    "[[credential_slot]]",
+    `id = ${tomlString(slot.id ?? "private-api")}`,
+    `provider = ${tomlString("custom")}`,
+    `required = ${slot.required !== false}`,
+    slot.label ? `label = ${tomlString(slot.label)}` : "",
+    slot.description ? `description = ${tomlString(slot.description)}` : "",
+    `host = ${tomlString(slot.customProfile.host)}`,
+    `auth = ${tomlString(slot.customProfile.authType === "apiKey" ? "api-key" : "bearer")}`,
+    slot.customProfile.headerName ? `header = ${tomlString(slot.customProfile.headerName)}` : "",
+    slot.customProfile.methods?.length ? `methods = [${slot.customProfile.methods.map(tomlString).join(", ")}]` : "",
+    slot.customProfile.paths?.length ? `paths = [${slot.customProfile.paths.map(tomlString).join(", ")}]` : "",
+    slot.envName ? `env_name = ${tomlString(slot.envName)}` : "",
+    slot.customProfile.testPath ? `test_path = ${tomlString(slot.customProfile.testPath)}` : ""
+  ].filter(Boolean).join("\n");
+};
+
+const generatedTemplateConfig = (draft: TemplateDraft) => {
+  const builtInSlots = draft.credentialSlots.filter((slot) => slot.providerPresetId !== "custom");
+  const customSlots = draft.credentialSlots
+    .filter((slot) => slot.providerPresetId === "custom")
+    .map(customCredentialSlotConfig);
+  return [
+    `name = ${tomlString(draft.name)}`,
+    `id = ${tomlString(draft.id)}`,
+    `visibility = ${tomlString(draft.visibility)}`,
+    `runtime_family = ${tomlString(draft.runtimeFamily)}`,
+    `cpu_count = ${draft.cpuCount}`,
+    `memory_mb = ${draft.memoryMb}`,
+    `workdir = ${tomlString(draft.workdir)}`,
+    `ports = [${draft.ports.join(", ")}]`,
+    draft.tags.length ? `tags = [${draft.tags.map(tomlString).join(", ")}]` : "",
+    `egress_mode = ${tomlString(draft.egressPolicy.mode ?? "open")}`,
+    (draft.egressPolicy.presets?.length ?? 0) > 0 ? `egress_presets = [${(draft.egressPolicy.presets ?? []).map(tomlString).join(", ")}]` : "",
+    (draft.egressPolicy.allow?.length ?? 0) > 0 ? `egress_allow = [${(draft.egressPolicy.allow ?? []).map(tomlString).join(", ")}]` : "",
+    builtInSlots.some((slot) => slot.required !== false) ? `credential_slots = [${builtInSlots.filter((slot) => slot.required !== false).map((slot) => tomlString(slot.providerPresetId)).join(", ")}]` : "",
+    builtInSlots.some((slot) => slot.required === false) ? `optional_credential_slots = [${builtInSlots.filter((slot) => slot.required === false).map((slot) => tomlString(slot.providerPresetId)).join(", ")}]` : "",
+    `start_command = ${tomlString(draft.entrypoint.join(" ") || "sleep 3600")}`,
+    draft.source === "dockerfile" ? `dockerfile = ${tomlString(draft.dockerfilePath)}` : `image = ${tomlString(draft.image)}`,
+    draft.cloneSource ? `clone_source = ${tomlString(draft.cloneSource)}` : "",
+    ...customSlots
+  ].filter(Boolean).join("\n");
+};
 
 const writeAscii = (target: Uint8Array, offset: number, length: number, value: string) => {
   for (let index = 0; index < Math.min(length, value.length); index += 1) target[offset + index] = value.charCodeAt(index);
@@ -238,6 +390,7 @@ const NewTemplateModal = ({
   const [entrypoint, setEntrypoint] = useState("sleep 3600");
   const [runtimeFamily, setRuntimeFamily] = useState("custom");
   const [egressPolicy, setEgressPolicy] = useState<EgressPolicyInput>(() => emptyEgressPolicy());
+  const [credentialSlots, setCredentialSlots] = useState<TemplateCredentialSlotInput[]>([]);
   const [image, setImage] = useState("ubuntu:24.04");
   const [dockerfile, setDockerfile] = useState(defaultDockerfile);
   const [cloneId, setCloneId] = useState(() => templates.find((template) => template.status !== "archived")?.id ?? "");
@@ -258,6 +411,7 @@ const NewTemplateModal = ({
     entrypoint: splitEntrypoint(entrypoint),
     runtimeFamily: runtimeFamily.trim() || "custom",
     egressPolicy: normalizeEgressPolicy(egressPolicy),
+    credentialSlots,
     source: mode,
     dockerfilePath: "Dockerfile",
     image: mode === "dockerfile" ? baseImageFromDockerfile(dockerfile) : mode === "clone" ? selectedClone?.image ?? image : image.trim(),
@@ -277,6 +431,17 @@ const NewTemplateModal = ({
     setHotTemplate((selectedClone.tags ?? []).some((tag) => ["hot", "prepull", "warm"].includes(tag.toLowerCase())));
     setRuntimeFamily(selectedClone.runtimeFamily ?? "custom");
     setEgressPolicy(normalizeEgressPolicy(selectedClone.egressPolicy));
+    setCredentialSlots((selectedClone.credentialSlots ?? []).map((slot) => ({
+      id: slot.id,
+      providerPresetId: slot.providerPresetId,
+      customProfile: slot.customProfile
+        ? { ...slot.customProfile, headerName: slot.customProfile.headerName ?? undefined }
+        : undefined,
+      required: slot.required,
+      label: slot.label,
+      description: slot.description,
+      envName: slot.envName
+    })));
     setImage(selectedClone.image);
     setEntrypoint((selectedClone.defaultEntrypoint ?? ["sleep", "3600"]).join(" "));
   }, [mode, cloneId, selectedClone, idTouched]);
@@ -305,7 +470,8 @@ const NewTemplateModal = ({
         workdir: draft.workdir,
         defaultPorts: draft.ports,
         runtimeFamily: draft.runtimeFamily,
-        egressPolicy: draft.egressPolicy
+        egressPolicy: draft.egressPolicy,
+        credentialSlots: draft.credentialSlots
       };
       const created = await api.createTemplate(payload);
       let build: TemplateBuildSummary | null = null;
@@ -398,6 +564,9 @@ const NewTemplateModal = ({
               <Field label="Outbound access">
                 <EgressPolicyControls policy={egressPolicy} onChange={setEgressPolicy} disabled={loading} />
               </Field>
+              <Field label="Credential slots">
+                <CredentialSlotEditor slots={credentialSlots} onChange={setCredentialSlots} disabled={loading} />
+              </Field>
               {mode === "dockerfile" ? (
                 <>
                   <Field label="Dockerfile">
@@ -430,7 +599,7 @@ const NewTemplateModal = ({
         <div className="modal-foot">
           <button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-ghost" onClick={() => openDocsPage("custom-templates")}>Docs</button>
-          <button className="btn btn-primary" onClick={submit} disabled={loading || !draft.id || !draft.name}>
+          <button className="btn btn-primary" onClick={submit} disabled={loading || !draft.id || !draft.name || !credentialSlotsComplete(draft.credentialSlots)}>
             {loading ? <><span className="spinner" /> Creating...</> : <>Create template <Icon name="arrowR" size={11} /></>}
           </button>
         </div>

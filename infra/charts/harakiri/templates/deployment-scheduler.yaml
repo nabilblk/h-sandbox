@@ -47,10 +47,25 @@ spec:
                 name: {{ include "harakiri.configMapName" . }}
             - secretRef:
                 name: {{ include "harakiri.secretName" . }}
+          {{- if .Values.credentialVault.encryption.keyringSecret.name }}
+          volumeMounts:
+            - name: credential-vault-keyring
+              mountPath: /var/run/secrets/harakiri-vault
+              readOnly: true
+          {{- end }}
           {{- with .Values.scheduler.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- if .Values.credentialVault.encryption.keyringSecret.name }}
+      volumes:
+        - name: credential-vault-keyring
+          secret:
+            secretName: {{ .Values.credentialVault.encryption.keyringSecret.name | quote }}
+            items:
+              - key: {{ .Values.credentialVault.encryption.keyringSecret.key | quote }}
+                path: {{ .Values.credentialVault.encryption.keyringSecret.key | quote }}
+      {{- end }}
       {{- with .Values.scheduler.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

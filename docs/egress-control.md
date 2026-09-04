@@ -165,6 +165,13 @@ sidecar should set `OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY=0`; open-network
 sandboxes will start without the sidecar, while restricted/custom/blocked egress
 remains unavailable until the runtime is granted an approved egress profile.
 
+Credential Vault always requires the strict profile. Before applying a
+credential, Harakiri reads sanitized provider egress state and requires
+`credentialVaultReady: true`; a reachable DNS-only sidecar is rejected. Binding
+hosts are composed into restricted egress policy before injection. Harakiri
+does not fall back to open outbound access, real environment variables, mounted
+Secrets, or Kubernetes exec when enforcement is unavailable.
+
 Harakiri does not implement Kubernetes NetworkPolicy generation, custom packet
 filtering, or HTTPS MITM in the MVP. Route exposure is inbound; outbound access
 is egress policy. Treat them as separate controls.

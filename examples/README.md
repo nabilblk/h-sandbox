@@ -33,7 +33,10 @@ Available examples:
 - `sdk-template-build`: create and build a custom Dockerfile template.
 - `sdk-typescript-quickstart`: TypeScript compile smoke for SDK consumers.
 - `sdk-sandbox-object`: object-oriented `HarakiriSandbox` flow for adapters.
+- `sdk-worker-tutorial`: idempotent application worker with bounded waits, result checks, and guaranteed cleanup.
 - `sdk-git-workflow`: create from a Git source, inspect status, stage and commit a sandbox-local change.
+- `sdk-credential-vault`: attach a built-in provider preset without copying low-level binding fields, verify the fake env value, and test provider-side injection.
+- `sdk-private-api-vault`: bind one exact private API host and header through the same provider-neutral Vault contract.
 - `sdk-opencode-headless`: run `opencode run` in an `opencode` sandbox, with an optional repository clone and diff readback.
 - `sdk-opencode-server`: start `opencode serve`, expose port 4096, wait for health, and connect `@opencode-ai/sdk` through Harakiri route auth.
 

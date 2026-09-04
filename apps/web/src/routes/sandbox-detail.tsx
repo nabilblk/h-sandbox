@@ -20,6 +20,7 @@ import { Icon } from "../components/icon";
 import { Chart, KPI } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
 import type { GoToRoute } from "./types";
+import { SandboxVaultPane } from "./sandbox-vault";
 
 const capabilityState = (sandbox: SandboxSummary, name: RuntimeCapabilityName) =>
   sandbox.runtimeMetadata?.provider.capabilities.find((capability) => capability.name === name)?.state;
@@ -32,10 +33,14 @@ const lifecycleActionError = (error: unknown) =>
 
 export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: GoToRoute; openSandbox?: (id: string) => void }) => {
   const [sandbox, setSandbox] = useState<SandboxSummary | null>(null);
+  const [canViewCredentialAudit, setCanViewCredentialAudit] = useState(false);
   const [tab, setTab] = useState("terminal");
   const [actionBusy, setActionBusy] = useState<"pause" | "resume" | "renew" | "kill" | null>(null);
   const [actionError, setActionError] = useState("");
   useEffect(() => { api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, [id]);
+  useEffect(() => {
+    api.me().then((account) => setCanViewCredentialAudit(account.capabilities.canManageCredentialSecrets)).catch(() => undefined);
+  }, []);
   if (!sandbox) return <div className="dash-page">Loading...</div>;
   const refreshSandbox = () => api.sandbox(id).then((r) => setSandbox(r.sandbox));
   const runLifecycleAction = async (kind: "pause" | "resume" | "renew" | "kill", action: () => Promise<void>) => {
@@ -97,7 +102,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
         </div>
         {actionError ? <div className="detail-action-error">{actionError}</div> : null}
         <div className="detail-tabs">
-          {[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
+          {[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
             <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
               <Icon name={icon} size={12} /> {label}
             </button>
@@ -109,6 +114,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
           {tab === "logs" ? <LogsPane id={sandbox.id} /> : null}
           {tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}
           {tab === "network" ? <NetworkPane sandbox={sandbox} /> : null}
+          {tab === "vault" ? <SandboxVaultPane sandbox={sandbox} canViewAudit={canViewCredentialAudit} /> : null}
           {tab === "snapshots" ? <SnapshotsPane sandbox={sandbox} go={go} openSandbox={openSandbox} /> : null}
         </div>
       </main>

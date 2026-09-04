@@ -13,6 +13,22 @@ import { SettingsRoute } from "./settings";
 import { TemplatesRoute } from "./templates";
 import type { GoToRoute, Route } from "./types";
 import { UsageRoute } from "./usage";
+import { VaultRoute } from "./vault";
+
+type DashboardCapabilityNav = Pick<
+  CurrentAccountResponse["capabilities"],
+  "canManageCredentialSecrets" | "canManageMembers"
+>;
+
+export const dashboardNavItems = (capabilities: DashboardCapabilityNav) => [
+  ["dashboard/sandboxes", "Sandboxes", "box"],
+  ["dashboard/templates", "Templates", "folder"],
+  ...(capabilities.canManageCredentialSecrets ? [["dashboard/vault", "Vault", "lock"]] : []),
+  ["dashboard/metrics", "Usage", "chart"],
+  ["dashboard/keys", "API keys", "key"],
+  ...(capabilities.canManageMembers ? [["dashboard/members", "Members", "user"]] : []),
+  ["dashboard/settings", "Settings", "settings"]
+] as const;
 
 export const DashboardShellRoute = ({
   route,
@@ -33,14 +49,8 @@ export const DashboardShellRoute = ({
   const org = account?.organization ?? defaultWorkspace(profile);
   const orgInitial = (org.name || profile?.email || "H").slice(0, 1).toUpperCase();
   const canManageMembers = account?.capabilities.canManageMembers === true;
-  const navItems = [
-    ["dashboard/sandboxes", "Sandboxes", "box"],
-    ["dashboard/templates", "Templates", "folder"],
-    ["dashboard/metrics", "Usage", "chart"],
-    ["dashboard/keys", "API keys", "key"],
-    ...(canManageMembers ? [["dashboard/members", "Members", "user"]] : []),
-    ["dashboard/settings", "Settings", "settings"]
-  ] as const;
+  const canManageCredentialSecrets = account?.capabilities.canManageCredentialSecrets === true;
+  const navItems = dashboardNavItems({ canManageCredentialSecrets, canManageMembers });
   return (
     <div className="dash">
       <aside className="dash-side">
@@ -57,6 +67,8 @@ export const DashboardShellRoute = ({
         <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm" onClick={() => go("docs")} title="Open documentation" aria-label="Open documentation"><Icon name="book" size={13} /></button><AccountMenu compact profile={profile} workspace={org.slug} avatarLabel={orgInitial} onSignOut={onSignOut} /></div></div>
         {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} /> : null}
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
+        {sub === "vault" && account && !canManageCredentialSecrets ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Credential Vault management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}
+        {sub === "vault" && canManageCredentialSecrets ? <VaultRoute /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}
         {sub === "keys" ? <ApiKeysRoute /> : null}
         {sub === "members" && account && !canManageMembers ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Member management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}

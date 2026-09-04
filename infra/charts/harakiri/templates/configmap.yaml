@@ -7,6 +7,53 @@
 {{- if and .Values.registry.enabled (not (index $cfg "TEMPLATE_REGISTRY_PUSH_HOST")) -}}
 {{- $_ := set $cfg "TEMPLATE_REGISTRY_PUSH_HOST" (printf "%s-registry.%s.svc.cluster.local:%v" (include "harakiri.fullname" .) .Release.Namespace .Values.registry.port) -}}
 {{- end -}}
+{{- $external := .Values.credentialVault.externalSecrets.kubernetes -}}
+{{- $externalDefaultNamespace := default .Release.Namespace $external.defaultNamespace -}}
+{{- $externalNamespaces := compact $external.allowedNamespaces -}}
+{{- if eq (len $externalNamespaces) 0 -}}
+{{- $externalNamespaces = list .Release.Namespace -}}
+{{- end -}}
+{{- if not (hasKey $cfg "EXTERNAL_SECRET_KUBERNETES_ENABLED") -}}
+{{- $_ := set $cfg "EXTERNAL_SECRET_KUBERNETES_ENABLED" (ternary "1" "0" $external.enabled) -}}
+{{- end -}}
+{{- if not (hasKey $cfg "EXTERNAL_SECRET_KUBERNETES_DEFAULT_NAMESPACE") -}}
+{{- $_ := set $cfg "EXTERNAL_SECRET_KUBERNETES_DEFAULT_NAMESPACE" $externalDefaultNamespace -}}
+{{- end -}}
+{{- if not (hasKey $cfg "EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAMESPACES") -}}
+{{- $_ := set $cfg "EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAMESPACES" (join "," $externalNamespaces) -}}
+{{- end -}}
+{{- if not (hasKey $cfg "EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAMES") -}}
+{{- $_ := set $cfg "EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAMES" (join "," (compact $external.allowedNames)) -}}
+{{- end -}}
+{{- if not (hasKey $cfg "EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAME_PREFIXES") -}}
+{{- $_ := set $cfg "EXTERNAL_SECRET_KUBERNETES_ALLOWED_NAME_PREFIXES" (join "," (compact $external.allowedNamePrefixes)) -}}
+{{- end -}}
+{{- $githubApp := .Values.credentialVault.dynamicCredentials.githubApp -}}
+{{- if and $githubApp.enabled (not $githubApp.clientId) -}}
+{{- fail "credentialVault.dynamicCredentials.githubApp.clientId is required when GitHub App dynamic credentials are enabled" -}}
+{{- end -}}
+{{- if not (hasKey $cfg "DYNAMIC_GITHUB_APP_ENABLED") -}}
+{{- $_ := set $cfg "DYNAMIC_GITHUB_APP_ENABLED" (ternary "1" "0" $githubApp.enabled) -}}
+{{- end -}}
+{{- if not (hasKey $cfg "DYNAMIC_GITHUB_APP_CLIENT_ID") -}}
+{{- $_ := set $cfg "DYNAMIC_GITHUB_APP_CLIENT_ID" $githubApp.clientId -}}
+{{- end -}}
+{{- if not (hasKey $cfg "DYNAMIC_GITHUB_API_BASE_URL") -}}
+{{- $_ := set $cfg "DYNAMIC_GITHUB_API_BASE_URL" $githubApp.apiBaseUrl -}}
+{{- end -}}
+{{- if not (hasKey $cfg "DYNAMIC_GITHUB_API_VERSION") -}}
+{{- $_ := set $cfg "DYNAMIC_GITHUB_API_VERSION" $githubApp.apiVersion -}}
+{{- end -}}
+{{- if not (hasKey $cfg "DYNAMIC_GITHUB_REQUEST_TIMEOUT_MS") -}}
+{{- $_ := set $cfg "DYNAMIC_GITHUB_REQUEST_TIMEOUT_MS" (toString $githubApp.requestTimeoutMs) -}}
+{{- end -}}
+{{- $encryption := .Values.credentialVault.encryption -}}
+{{- if not (hasKey $cfg "CREDENTIAL_VAULT_KEY_ID") -}}
+{{- $_ := set $cfg "CREDENTIAL_VAULT_KEY_ID" $encryption.keyId -}}
+{{- end -}}
+{{- if and $encryption.keyringSecret.name (not (hasKey $cfg "CREDENTIAL_VAULT_KEYRING_FILE")) -}}
+{{- $_ := set $cfg "CREDENTIAL_VAULT_KEYRING_FILE" (printf "/var/run/secrets/harakiri-vault/%s" $encryption.keyringSecret.key) -}}
+{{- end -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

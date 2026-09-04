@@ -1,4 +1,11 @@
-import type { EgressNetworkPolicy, EgressNetworkRule, RunResult, SandboxFileEncoding } from "@harakiri/shared";
+import type {
+  CredentialVaultBinding,
+  CredentialVaultProviderState,
+  EgressNetworkPolicy,
+  EgressNetworkRule,
+  RunResult,
+  SandboxFileEncoding
+} from "@harakiri/shared";
 import type { WebSocket } from "ws";
 import type { RegistryImageAuth } from "../../registry-credentials.js";
 import type { RuntimeTemplate } from "../../templates.js";
@@ -271,8 +278,24 @@ export type RuntimeEgressPolicyStatus = {
   status?: string;
   mode?: string;
   enforcementMode?: string;
+  credentialVaultReady?: boolean;
   reason?: string;
   policy: EgressNetworkPolicy | null;
+};
+
+export type RuntimeCredentialVaultValue = {
+  name: string;
+  value: string;
+};
+
+export type RuntimeCredentialVaultApplyInput = RuntimeSandboxRef & {
+  credentials: RuntimeCredentialVaultValue[];
+  bindings: CredentialVaultBinding[];
+};
+
+export type RuntimeCredentialVaultDeleteInput = RuntimeSandboxRef & {
+  credentialNames: string[];
+  bindingNames: string[];
 };
 
 export type RuntimeRenewInput = {
@@ -295,6 +318,10 @@ export type RuntimeProviderCapabilities = {
   metrics: boolean;
   routes: boolean;
   egress?: boolean;
+  credentialVault?: boolean;
+  credentialVaultPatch?: boolean;
+  credentialVaultSanitizedRead?: boolean;
+  credentialVaultRequiresRehydration?: boolean;
   pause?: boolean;
   resume?: boolean;
   snapshots?: boolean;
@@ -340,4 +367,7 @@ export interface RuntimeProvider {
   getEgressPolicy?(ref: RuntimeSandboxRef): Promise<RuntimeEgressPolicyStatus>;
   setEgressPolicy?(ref: RuntimeSandboxRef, policy: EgressNetworkPolicy): Promise<RuntimeEgressPolicyStatus>;
   patchEgressRules?(ref: RuntimeSandboxRef, rules: EgressNetworkRule[]): Promise<RuntimeEgressPolicyStatus>;
+  getCredentialVault?(ref: RuntimeSandboxRef): Promise<CredentialVaultProviderState | null>;
+  applyCredentialVault?(input: RuntimeCredentialVaultApplyInput): Promise<CredentialVaultProviderState>;
+  deleteCredentialVaultEntries?(input: RuntimeCredentialVaultDeleteInput): Promise<CredentialVaultProviderState | null>;
 }

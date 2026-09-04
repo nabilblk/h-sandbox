@@ -14,6 +14,9 @@ ingress:
 config:
   AUTH_DEV_ALLOW: "0"
   AUTO_MIGRATE: "1"
+  # restricted-v2 cannot run the current dns+nft egress sidecar. Keep open
+  # sandboxes sidecar-free and report Credential Vault as operator-action-required.
+  OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "0"
   # Template builds push/pull from a Harbor project instead of the in-cluster registry.
   TEMPLATE_REGISTRY_PUSH_HOST: "core.campus.clusterdiali.me/harakiri-templates"
   TEMPLATE_REGISTRY_RUNTIME_HOST: "core.campus.clusterdiali.me/harakiri-templates"

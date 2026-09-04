@@ -112,6 +112,7 @@ test("sign-in stores a safe return route and delegates login to Keycloak", async
   await session.signIn();
 
   assert.equal(sessionStorage.getItem("harakiri_auth_return_route"), "dashboard/templates");
+  assert.equal((calls.init[0] as { onLoad?: string }).onLoad, "login-required");
   assert.equal((calls.login[0] as { redirectUri?: string }).redirectUri, "http://app.test/");
   assert.equal((calls.login[0] as { scope?: string }).scope, "openid email profile");
 });

@@ -48,6 +48,12 @@ Harakiri uses OpenSandbox for:
   sidecar `GET /policy`, `POST /policy`, and `PATCH /policy` endpoints for
   runtime inspection and mutation. Harakiri stores the product-facing mode and
   compiled policy, but does not enforce packets itself.
+- Credential Vault: create credential-bearing sandboxes with OpenSandbox
+  `credentialProxy.enabled`, resolve the same egress sidecar, and call
+  OpenSandbox Credential Vault APIs through the runtime provider adapter.
+  Harakiri stores attachment metadata, fake env keys, provider revisions, and
+  audit events. Real runtime credential values are not read through Kubernetes,
+  exposed to the sandbox process, or stored for `inline_ephemeral` attachments.
 
 OpenSandbox endpoint responses may include access headers such as
 `OpenSandbox-Secure-Access`. Harakiri forwards those headers to the resolved
@@ -76,7 +82,8 @@ sandbox interaction:
 
 Harakiri should not use direct Kubernetes access for normal sandbox terminal
 commands, filesystem UI, metrics UI, sandbox runtime logs, route exposure,
-egress policy, or sandbox lifecycle. Those paths must go through OpenSandbox APIs so the
+egress policy, Credential Vault injection, or sandbox lifecycle. Those paths
+must go through OpenSandbox APIs so the
 OpenSandbox provider remains the source of runtime behavior and OSS operators do
 not need to grant broad sandbox pod permissions to the Harakiri API.
 

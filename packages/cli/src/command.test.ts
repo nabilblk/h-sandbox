@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { WebSocketServer } from "ws";
+import { credentialProviderPresetCatalog } from "@h-sandbox/sdk";
 
 type RecordedRequest = {
   method: string;
@@ -84,7 +85,7 @@ const startMockWebSocketApi = async (
   };
 };
 
-const runCli = async (args: string[], options: { api: { url: string }; cwd?: string }) => {
+const runCli = async (args: string[], options: { api: { url: string }; cwd?: string; env?: Record<string, string>; input?: string }) => {
   const home = await mkdtemp(join(tmpdir(), "harakiri-cli-home-"));
   const child = spawn(process.execPath, ["--import", tsxImport, cliPath, ...args], {
     cwd: options.cwd ?? packageRoot,
@@ -93,10 +94,12 @@ const runCli = async (args: string[], options: { api: { url: string }; cwd?: str
       HOME: home,
       HARAKIRI_API_URL: options.api.url,
       HARAKIRI_API_KEY: "hk_test_cli",
-      NO_COLOR: "1"
+      NO_COLOR: "1",
+      ...(options.env ?? {})
     },
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"]
   });
+  if (options.input !== undefined) child.stdin.end(options.input);
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
   child.stdout.on("data", (chunk) => stdoutChunks.push(Buffer.from(chunk)));
@@ -166,7 +169,11 @@ test("template init writes a Harakiri config with runtime metadata", async () =>
       "--start-command",
       "sleep 3600",
       "--ready-command",
-      "test -d /workspace"
+      "test -d /workspace",
+      "--credential-slot",
+      "openai",
+      "--optional-credential-slot",
+      "github"
     ], { api, cwd });
 
     assert.equal(result.exitCode, 0, result.stderr);
@@ -188,6 +195,8 @@ test("template init writes a Harakiri config with runtime metadata", async () =>
     assert.match(contents, /tags = \["custom", "hot"\]/);
     assert.match(contents, /aliases = \["agents\/browser"\]/);
     assert.match(contents, /ready_command = "test -d \/workspace"/);
+    assert.match(contents, /credential_slots = \["openai"\]/);
+    assert.match(contents, /optional_credential_slots = \["github"\]/);
   } finally {
     await api.close();
   }
@@ -630,6 +639,8 @@ ports = [3000, 8000]
 aliases = ["agents/open-agents-dev"]
 tags = ["custom", "hot"]
 start_command = "python -m http.server \\"8000\\""
+credential_slots = ["openai", "github"]
+optional_credential_slots = ["npm"]
 `);
 
   const api = await startMockApi((request) => {
@@ -673,7 +684,12 @@ start_command = "python -m http.server \\"8000\\""
       defaultPorts: [3000, 8000],
       workdir: "/workspace",
       runtimeFamily: "custom",
-      tags: ["custom", "hot"]
+      tags: ["custom", "hot"],
+      credentialSlots: [
+        { providerPresetId: "openai", required: true },
+        { providerPresetId: "github", required: true },
+        { providerPresetId: "npm", required: false }
+      ]
     });
 
     const build = api.requests.find((request) => request.path === "/v1/templates/open-agents-dev/builds");
@@ -692,7 +708,12 @@ start_command = "python -m http.server \\"8000\\""
           ports: [3000, 8000],
           aliases: ["agents/open-agents-dev"],
           tags: ["custom", "hot"],
-          startCommand: "python -m http.server \"8000\""
+          startCommand: "python -m http.server \"8000\"",
+          credentialSlots: [
+            { providerPresetId: "openai", required: true },
+            { providerPresetId: "github", required: true },
+            { providerPresetId: "npm", required: false }
+          ]
         }
       }
     });
@@ -773,6 +794,338 @@ test("create command sends repeated env flags in the sandbox payload", async () 
         EMPTY_VALUE: ""
       }
     });
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command sends create-time credentials without printing secrets", async () => {
+  const attachment = {
+    id: "sca_create_cli",
+    sandboxId: "sbx_create_vault",
+    displayName: "openai",
+    sourceType: "inline_ephemeral",
+    sourceRef: null,
+    credentialName: "cred_openai",
+    bindingName: "bind_openai",
+    match: { hosts: ["api.openai.com"], methods: ["GET"], paths: ["/v1/*"] },
+    auth: { type: "bearer" },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 1,
+    providerMetadata: {},
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_create_vault",
+            name: "vault-runner",
+            template: "python-3.12-data",
+            status: "running"
+          },
+          credentialAttachments: [attachment]
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "python-3.12-data",
+      "--name",
+      "vault-runner",
+      "--credential",
+      "name=openai,host=api.openai.com,auth=bearer,method=get,path=/v1/*,from-env=OPENAI_API_KEY,fake-env=OPENAI_API_KEY=fake-openai-key"
+    ], { api, env: { OPENAI_API_KEY: "sk_create_cli_secret" } });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_create_vault/);
+    assert.match(result.stdout, /credentials injected\. count=1/);
+    assert.equal(`${result.stdout}${result.stderr}`.includes("sk_create_cli_secret"), false);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "python-3.12-data",
+      name: "vault-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        displayName: "openai",
+        value: "sk_create_cli_secret",
+        fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+        binding: {
+          match: {
+            hosts: ["api.openai.com"],
+            methods: ["GET"],
+            paths: ["/v1/*"]
+          },
+          auth: { type: "bearer" }
+        }
+      }]
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command sends create-time stored credential references", async () => {
+  const attachment = {
+    id: "sca_create_stored_cli",
+    sandboxId: "sbx_create_stored",
+    displayName: "openai-prod",
+    sourceType: "harakiri_encrypted",
+    sourceRef: "vlt_openai",
+    credentialName: "openai-vlt_openai",
+    bindingName: "openai-api-vlt_openai",
+    match: { hosts: ["api.openai.com"], methods: ["GET"], paths: ["/v1/*"] },
+    auth: { type: "bearer" },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 1,
+    providerMetadata: {},
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_create_stored",
+            name: "stored-vault-runner",
+            template: "open-agents-dev",
+            status: "running"
+          },
+          credentialAttachments: [attachment]
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "open-agents-dev",
+      "--name",
+      "stored-vault-runner",
+      "--credential",
+      "secret-id=vlt_openai,name=openai-prod"
+    ], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_create_stored/);
+    assert.match(result.stdout, /credentials injected\. count=1/);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "open-agents-dev",
+      name: "stored-vault-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        sourceType: "harakiri_encrypted",
+        secretId: "vlt_openai",
+        displayName: "openai-prod"
+      }]
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command sends template slot credential mappings", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_slot_vault",
+            name: "slot-vault-runner",
+            template: "open-agents-dev",
+            status: "running"
+          },
+          credentialAttachments: []
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "open-agents-dev",
+      "--name",
+      "slot-vault-runner",
+      "--credential",
+      "slot=llm,secret-id=vlt_openai,name=openai-prod"
+    ], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /sbx_slot_vault/);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "open-agents-dev",
+      name: "slot-vault-runner",
+      ttlSeconds: 300,
+      env: {},
+      credentialMappings: [{
+        slotId: "llm",
+        source: {
+          sourceType: "harakiri_encrypted",
+          secretId: "vlt_openai",
+          displayName: "openai-prod"
+        }
+      }]
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command expands provider preset credentials", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_preset_vault",
+            name: "preset-vault",
+            template: "open-agents-dev",
+            status: "running"
+          },
+          credentialAttachments: []
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "open-agents-dev",
+      "--name",
+      "preset-vault",
+      "--credential",
+      "preset=openai,from-env=OPENAI_API_KEY"
+    ], { api, env: { OPENAI_API_KEY: "sk_create_preset_secret" } });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(`${result.stdout}${result.stderr}`.includes("sk_create_preset_secret"), false);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "open-agents-dev",
+      name: "preset-vault",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        displayName: "OpenAI API",
+        credentialName: "openai",
+        value: "sk_create_preset_secret",
+        fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+        binding: credentialProviderPresetCatalog.openai.binding
+      }]
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command rejects async create-time credentials before an API request", async () => {
+  const api = await startMockApi(() => ({ status: 500, body: { error: "create should not call api" } }));
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "python-3.12-data",
+      "--no-wait",
+      "--credential",
+      "name=openai,host=api.openai.com,auth=bearer,from-env=OPENAI_API_KEY"
+    ], { api });
+    assert.notEqual(result.exitCode, 0);
+    assert.match(result.stderr, /--credential requires waiting for sandbox readiness/);
+    assert.equal(api.requests.length, 0);
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command reads one create-time credential from stdin", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes") {
+      return {
+        status: 201,
+        body: {
+          sandbox: {
+            id: "sbx_stdin_vault",
+            name: "stdin-vault",
+            template: "python-3.12-data",
+            status: "running"
+          }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "python-3.12-data",
+      "--name",
+      "stdin-vault",
+      "--credential",
+      "name=private,host=api.internal.example,auth=api-key,header=x-api-key,from-stdin=true"
+    ], { api, input: "secret-from-stdin\n" });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(`${result.stdout}${result.stderr}`.includes("secret-from-stdin"), false);
+    assert.deepEqual(api.requests[0]?.body, {
+      template: "python-3.12-data",
+      name: "stdin-vault",
+      ttlSeconds: 300,
+      env: {},
+      credentials: [{
+        displayName: "private",
+        value: "secret-from-stdin",
+        fakeEnv: {},
+        binding: {
+          match: { hosts: ["api.internal.example"] },
+          auth: { type: "apiKey", name: "x-api-key" }
+        }
+      }]
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("create command rejects credential prompts in non-interactive scripts", async () => {
+  const api = await startMockApi(() => ({ status: 500, body: { error: "create should not call api" } }));
+  try {
+    const result = await runCli([
+      "create",
+      "--template",
+      "python-3.12-data",
+      "--credential",
+      "name=private,host=api.internal.example,prompt=true"
+    ], { api });
+    assert.notEqual(result.exitCode, 0);
+    assert.match(result.stderr, /--prompt requires an interactive TTY/);
+    assert.equal(api.requests.length, 0);
   } finally {
     await api.close();
   }
@@ -1350,6 +1703,748 @@ test("file operation commands call sandbox file endpoints", async () => {
     const removed = await runCli(["file-rm", "sbx_files", "--path", "/workspace/out.py"], { api });
     assert.equal(removed.exitCode, 0, removed.stderr);
     assert.match(`${removed.stdout}${removed.stderr}`, /removed \/workspace\/out.py/);
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault commands list, attach, rehydrate, test, and detach sandbox credentials without printing secrets", async () => {
+  const attachment = {
+    id: "sca_cli",
+    sandboxId: "sbx_vault",
+    displayName: "openai",
+    sourceType: "inline_ephemeral",
+    sourceRef: null,
+    credentialName: "cred_openai",
+    bindingName: "bind_openai",
+    match: { schemes: ["https"], hosts: ["api.openai.com"], methods: ["POST"] },
+    auth: { type: "bearer" },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 2,
+    providerState: "present",
+    providerCheckedAt: "2026-09-03T00:00:00.000Z",
+    providerMetadata: {},
+    sourceMetadata: {},
+    expiresAt: null,
+    refreshState: "not_applicable",
+    refreshAttemptedAt: null,
+    refreshedAt: null,
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_vault/credentials") {
+      return { body: { attachments: [attachment] } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials/inspect") {
+      return { body: { attachments: [attachment], vault: { revision: 2, credentials: [], bindings: [] } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials") {
+      const body = request.body as { sourceType?: string } | undefined;
+      const attached = body?.sourceType === "harakiri_encrypted"
+        ? {
+            ...attachment,
+            id: "sca_secret",
+            displayName: "stored-openai",
+            sourceType: "harakiri_encrypted",
+            sourceRef: "vlt_openai"
+          }
+        : attachment;
+      return { status: 201, body: { attachment: attached, vault: { revision: 2, credentials: [], bindings: [] } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials/rehydrate") {
+      return {
+        body: {
+          attachments: [{ ...attachment, status: "requires_reinjection" }],
+          vault: null,
+          rehydrated: 0,
+          skipped: 1,
+          failed: 0
+        }
+      };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials/sca_cli/test") {
+      return {
+        body: {
+          attachmentId: "sca_cli",
+          target: "https://api.openai.com/v1/models",
+          normalizedTarget: "api.openai.com",
+          url: "https://api.openai.com/v1/models",
+          method: "GET",
+          ok: true,
+          status: "reachable",
+          httpStatus: 200,
+          stdout: "http_status=200\n",
+          stderr: "",
+          durationMs: 16,
+          checkedAt: "2026-09-03T00:00:00.000Z"
+        }
+      };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/sandboxes/sbx_vault/credentials/sca_cli") {
+      return { body: { attachment: { ...attachment, status: "detached" }, vault: null } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const attached = await runCli([
+      "vault",
+      "attach",
+      "sbx_vault",
+      "--name",
+      "openai",
+      "--host",
+      "api.openai.com",
+      "--auth",
+      "bearer",
+      "--method",
+      "post",
+      "--fake-env",
+      "OPENAI_API_KEY=fake-openai-key",
+      "--from-env",
+      "OPENAI_API_KEY"
+    ], { api, env: { OPENAI_API_KEY: "sk_real_cli_secret" } });
+    assert.equal(attached.exitCode, 0, attached.stderr);
+    assert.match(attached.stdout, /sca_cli\tinjected\tpresent\topenai\tcred_openai\tbind_openai\tapi\.openai\.com\tOPENAI_API_KEY/);
+    assert.equal(attached.stdout.includes("sk_real_cli_secret"), false);
+    assert.deepEqual(api.requests[0]?.body, {
+      displayName: "openai",
+      value: "sk_real_cli_secret",
+      fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+      binding: {
+        match: { hosts: ["api.openai.com"], methods: ["POST"] },
+        auth: { type: "bearer" }
+      }
+    });
+
+    const stored = await runCli([
+      "vault",
+      "attach-secret",
+      "sbx_vault",
+      "vlt_openai",
+      "--name",
+      "stored-openai",
+      "--binding-name",
+      "openai-prod"
+    ], { api });
+    assert.equal(stored.exitCode, 0, stored.stderr);
+    assert.match(stored.stdout, /sca_secret\tinjected\tpresent\tstored-openai/);
+    assert.equal(stored.stdout.includes("sk_real_cli_secret"), false);
+    const storedRequest = api.requests.find((request) =>
+      request.method === "POST"
+      && request.path === "/v1/sandboxes/sbx_vault/credentials"
+      && (request.body as { sourceType?: string }).sourceType === "harakiri_encrypted"
+    );
+    assert.deepEqual(storedRequest?.body, {
+      sourceType: "harakiri_encrypted",
+      secretId: "vlt_openai",
+      displayName: "stored-openai",
+      bindingName: "openai-prod"
+    });
+
+    const listed = await runCli(["vault", "list", "sbx_vault"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.match(listed.stdout, /id\tstatus\tprovider-state\tname\tcredential\tbinding\thosts\tfake-env/);
+    assert.match(listed.stdout, /sca_cli\tinjected\tpresent/);
+
+    const inspected = await runCli(["vault", "inspect", "sbx_vault"], { api });
+    assert.equal(inspected.exitCode, 0, inspected.stderr);
+    assert.match(inspected.stdout, /runtime vault inspected\. revision=2 missing=0/);
+    assert.match(inspected.stdout, /sca_cli\tinjected\tpresent/);
+
+    const rehydrated = await runCli(["vault", "rehydrate", "sbx_vault"], { api });
+    assert.equal(rehydrated.exitCode, 0, rehydrated.stderr);
+    assert.match(rehydrated.stdout, /credentials rehydrated\. restored=0 skipped=1 failed=0/);
+    assert.match(rehydrated.stdout, /sca_cli\trequires_reinjection\tpresent/);
+    assert.equal(rehydrated.stdout.includes("sk_real_cli_secret"), false);
+
+    const tested = await runCli(["vault", "test", "sbx_vault", "sca_cli", "--target", "https://api.openai.com/v1/models"], { api });
+    assert.equal(tested.exitCode, 0, tested.stderr);
+    assert.equal(tested.stdout, "ok\treachable\tGET\t200\thttps://api.openai.com/v1/models\n");
+    const testRequest = api.requests.find((request) => request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials/sca_cli/test");
+    assert.deepEqual(testRequest?.body, {
+      target: "https://api.openai.com/v1/models"
+    });
+
+    const detached = await runCli(["vault", "detach", "sbx_vault", "sca_cli"], { api });
+    assert.equal(detached.exitCode, 0, detached.stderr);
+    assert.match(detached.stdout, /credential detached/);
+    assert.match(detached.stdout, /sca_cli\tdetached\tpresent/);
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault audit lists filtered sanitized organization events", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/audit-events?targetType=sandbox&targetId=sbx_vault&actionPrefix=sandbox_credential.&limit=20&offset=0") {
+      return {
+        body: {
+          events: [{
+            id: "audit_cli",
+            actorUserId: "user_cli",
+            actorLabel: "cli@test.local",
+            action: "sandbox_credential.attached",
+            targetType: "sandbox",
+            targetId: "sbx_vault",
+            metadata: { sourceType: "harakiri_encrypted", token: "[redacted]" },
+            createdAt: "2026-09-04T10:00:00.000Z"
+          }],
+          page: { total: 1, limit: 20, offset: 0 }
+        }
+      };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+
+  try {
+    const result = await runCli([
+      "vault",
+      "audit",
+      "--target-type",
+      "sandbox",
+      "--target-id",
+      "sbx_vault",
+      "--action-prefix",
+      "sandbox_credential.",
+      "--limit",
+      "20"
+    ], { api });
+
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.match(result.stdout, /created\tactor\taction\ttarget-type\ttarget-id\tmetadata/);
+    assert.match(result.stdout, /sandbox_credential\.attached\tsandbox\tsbx_vault/);
+    assert.match(`${result.stdout}${result.stderr}`, /audit events 1\/1/);
+    assert.equal(`${result.stdout}${result.stderr}`.includes("must-not-leak"), false);
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault preset commands list and inspect provider presets", async () => {
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/credential-presets") {
+      return { body: { presets: [credentialProviderPresetCatalog.openai, credentialProviderPresetCatalog.github] } };
+    }
+    if (request.method === "GET" && request.path === "/v1/credential-presets/openai") {
+      return { body: { preset: credentialProviderPresetCatalog.openai } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const listed = await runCli(["vault", "presets"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.match(listed.stdout, /id\tcategory\tenv\tauth\thosts\ttest-target/);
+    assert.match(listed.stdout, /openai\tmodel-api\tOPENAI_API_KEY\tbearer\tapi\.openai\.com/);
+
+    const inspected = await runCli(["vault", "preset", "openai"], { api });
+    assert.equal(inspected.exitCode, 0, inspected.stderr);
+    assert.match(inspected.stdout, /OpenAI|openai/);
+
+    assert.deepEqual(api.requests.map((request) => [request.method, request.path]), [
+      ["GET", "/v1/credential-presets"],
+      ["GET", "/v1/credential-presets/openai"]
+    ]);
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault attach expands provider preset credentials", async () => {
+  const attachment = {
+    id: "sca_preset",
+    sandboxId: "sbx_vault",
+    displayName: "OpenAI API",
+    sourceType: "inline_ephemeral",
+    sourceRef: null,
+    credentialName: "openai",
+    bindingName: "openai-api",
+    match: credentialProviderPresetCatalog.openai.binding.match,
+    auth: credentialProviderPresetCatalog.openai.binding.auth,
+    fakeEnv: credentialProviderPresetCatalog.openai.fakeEnv,
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 2,
+    providerState: "present",
+    providerCheckedAt: "2026-09-03T00:00:00.000Z",
+    providerMetadata: {},
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials") {
+      return { status: 201, body: { attachment, vault: { revision: 2, credentials: [], bindings: [] } } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const result = await runCli([
+      "vault",
+      "attach",
+      "sbx_vault",
+      "--preset",
+      "openai",
+      "--from-env",
+      "OPENAI_API_KEY"
+    ], { api, env: { OPENAI_API_KEY: "sk_attach_preset_secret" } });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(`${result.stdout}${result.stderr}`.includes("sk_attach_preset_secret"), false);
+    assert.deepEqual(api.requests[0]?.body, {
+      displayName: "OpenAI API",
+      credentialName: "openai",
+      value: "sk_attach_preset_secret",
+      fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+      binding: credentialProviderPresetCatalog.openai.binding
+    });
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault secret commands manage workspace secrets without printing values", async () => {
+  const secret = {
+    id: "vlt_openai",
+    name: "openai-prod",
+    providerPresetId: "openai",
+    sourceType: "harakiri_encrypted",
+    status: "active",
+    version: 1,
+    usePolicy: "admins_only",
+    usage: {
+      activeSandboxCount: 2,
+      attachmentCount: 4,
+      lastAttachedAt: "2026-09-03T01:00:00.000Z"
+    },
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    hasEncryptedSecret: true,
+    metadata: {},
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    rotatedAt: null,
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/credential-secrets") {
+      return { body: { secrets: [secret] } };
+    }
+    if (request.method === "POST" && request.path === "/v1/credential-secrets") {
+      return { status: 201, body: { secret } };
+    }
+    if (request.method === "PATCH" && request.path === "/v1/credential-secrets/vlt_openai") {
+      const usePolicy = (request.body as { usePolicy?: string }).usePolicy;
+      return { body: { secret: { ...secret, usePolicy } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/credential-secrets/vlt_openai/rotate") {
+      return { body: { secret: { ...secret, version: 2 } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/credential-secrets/vlt_openai/disable") {
+      return { body: { secret: { ...secret, status: "disabled" } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/credential-secrets/vlt_openai/enable") {
+      return { body: { secret } };
+    }
+    if (request.method === "DELETE" && request.path === "/v1/credential-secrets/vlt_openai") {
+      return { body: { secret: { ...secret, status: "deleted", hasEncryptedSecret: false } } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const listed = await runCli(["vault", "secrets", "list"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.match(listed.stdout, /id\tstatus\tname\tprofile\tversion\tuse-policy\tactive-sandboxes\thas-secret\tfake-env\tegress-domains/);
+    assert.match(listed.stdout, /vlt_openai\tactive\topenai-prod\topenai\t1\tadmins_only\t2\tyes\tOPENAI_API_KEY\tapi\.openai\.com/);
+
+    const created = await runCli([
+      "vault",
+      "secrets",
+      "create",
+      "--name",
+      "openai-prod",
+      "--preset",
+      "openai",
+      "--from-env",
+      "OPENAI_API_KEY",
+      "--member-use"
+    ], { api, env: { OPENAI_API_KEY: "sk_workspace_secret" } });
+    assert.equal(created.exitCode, 0, created.stderr);
+    assert.match(created.stdout, /credential secret created/);
+    assert.equal(created.stdout.includes("sk_workspace_secret"), false);
+
+    const customCreated = await runCli([
+      "vault", "secrets", "create",
+      "--name", "internal-api",
+      "--host", "api.internal.example",
+      "--auth", "api-key",
+      "--header", "x-service-key",
+      "--method", "GET",
+      "--path", "/v1/*",
+      "--env-name", "INTERNAL_API_KEY",
+      "--test-path", "/health",
+      "--from-env", "INTERNAL_API_KEY"
+    ], { api, env: { INTERNAL_API_KEY: "private-api-secret" } });
+    assert.equal(customCreated.exitCode, 0, customCreated.stderr);
+    assert.equal(customCreated.stdout.includes("private-api-secret"), false);
+
+    const shared = await runCli(["vault", "secrets", "share", "vlt_openai"], { api });
+    const restricted = await runCli(["vault", "secrets", "restrict", "vlt_openai"], { api });
+    assert.equal(shared.exitCode, 0, shared.stderr);
+    assert.match(shared.stdout, /policy=organization_members/);
+    assert.equal(restricted.exitCode, 0, restricted.stderr);
+    assert.match(restricted.stdout, /policy=admins_only/);
+
+    const rotated = await runCli(["vault", "secrets", "rotate", "vlt_openai", "--from-stdin"], {
+      api,
+      input: "sk_rotated_secret\n"
+    });
+    assert.equal(rotated.exitCode, 0, rotated.stderr);
+    assert.match(rotated.stdout, /credential secret rotated\. version=2/);
+    assert.equal(rotated.stdout.includes("sk_rotated_secret"), false);
+
+    const disabled = await runCli(["vault", "secrets", "disable", "vlt_openai"], { api });
+    const enabled = await runCli(["vault", "secrets", "enable", "vlt_openai"], { api });
+    const deleted = await runCli(["vault", "secrets", "delete", "vlt_openai"], { api });
+    assert.equal(disabled.exitCode, 0, disabled.stderr);
+    assert.equal(enabled.exitCode, 0, enabled.stderr);
+    assert.equal(deleted.exitCode, 0, deleted.stderr);
+
+    assert.deepEqual(api.requests.map((request) => [request.method, request.path]), [
+      ["GET", "/v1/credential-secrets"],
+      ["POST", "/v1/credential-secrets"],
+      ["POST", "/v1/credential-secrets"],
+      ["PATCH", "/v1/credential-secrets/vlt_openai"],
+      ["PATCH", "/v1/credential-secrets/vlt_openai"],
+      ["POST", "/v1/credential-secrets/vlt_openai/rotate"],
+      ["POST", "/v1/credential-secrets/vlt_openai/disable"],
+      ["POST", "/v1/credential-secrets/vlt_openai/enable"],
+      ["DELETE", "/v1/credential-secrets/vlt_openai"]
+    ]);
+    assert.deepEqual(api.requests[1]?.body, {
+      name: "openai-prod",
+      providerPresetId: "openai",
+      value: "sk_workspace_secret",
+      usePolicy: "organization_members",
+      fakeEnv: {}
+    });
+    assert.deepEqual(api.requests[2]?.body, {
+      name: "internal-api",
+      providerPresetId: "custom",
+      customProfile: {
+        host: "api.internal.example",
+        authType: "apiKey",
+        headerName: "x-service-key",
+        methods: ["GET"],
+        paths: ["/v1/*"],
+        envName: "INTERNAL_API_KEY",
+        testPath: "/health"
+      },
+      value: "private-api-secret",
+      usePolicy: "admins_only",
+      fakeEnv: {}
+    });
+    assert.deepEqual(api.requests[3]?.body, { usePolicy: "organization_members" });
+    assert.deepEqual(api.requests[4]?.body, { usePolicy: "admins_only" });
+    assert.equal((api.requests[5]?.body as { value?: string }).value, "sk_rotated_secret");
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault external reference commands manage and attach Kubernetes Secret locators", async () => {
+  const reference = {
+    id: "xsr_openai",
+    name: "openai-cluster",
+    providerPresetId: "openai",
+    sourceType: "external_ref",
+    resolverType: "kubernetes_secret",
+    reference: { namespace: "harakiri-security", name: "agent-credentials", key: "OPENAI_API_KEY" },
+    status: "active",
+    usePolicy: "organization_members",
+    version: 1,
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: credentialProviderPresetCatalog.openai.binding,
+    egressDomains: ["api.openai.com"],
+    metadata: {},
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    validation: { state: "valid", message: null, versionRef: "rv-42", checkedAt: "2026-09-03T00:00:00.000Z" },
+    usage: { activeSandboxCount: 1, attachmentCount: 2, lastAttachedAt: "2026-09-03T00:00:00.000Z" },
+    capabilities: {
+      reusable: true,
+      rehydratable: true,
+      rotatable: false,
+      externallyOwned: true,
+      shortLived: false,
+      launchOnly: false
+    }
+  };
+  const attachment = {
+    id: "sca_external",
+    sandboxId: "sbx_vault",
+    displayName: reference.name,
+    sourceType: "external_ref",
+    sourceRef: reference.id,
+    credentialName: "openai-xsr_openai",
+    bindingName: "openai-api-xsr_openai",
+    match: credentialProviderPresetCatalog.openai.binding.match,
+    auth: credentialProviderPresetCatalog.openai.binding.auth,
+    fakeEnv: reference.fakeEnv,
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 2,
+    providerMetadata: {},
+    providerState: "present",
+    providerCheckedAt: "2026-09-03T00:00:00.000Z",
+    lastError: null,
+    injectedAt: "2026-09-03T00:00:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/external-secret-references") {
+      return { body: { references: [reference] } };
+    }
+    if (request.method === "POST" && request.path === "/v1/external-secret-references") {
+      return { status: 201, body: { reference } };
+    }
+    if (request.method === "POST" && request.path === "/v1/external-secret-references/xsr_openai/validate") {
+      return { body: { reference } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials") {
+      return { status: 201, body: { attachment, vault: { revision: 2, credentials: [], bindings: [] } } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const listed = await runCli(["vault", "references", "list"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.match(listed.stdout, /harakiri-security\/agent-credentials:OPENAI_API_KEY/);
+
+    const created = await runCli([
+      "vault", "references", "create",
+      "--name", "openai-cluster",
+      "--preset", "openai",
+      "--namespace", "harakiri-security",
+      "--secret-name", "agent-credentials",
+      "--key", "OPENAI_API_KEY",
+      "--member-use"
+    ], { api });
+    assert.equal(created.exitCode, 0, created.stderr);
+    assert.match(created.stdout, /external secret reference created/);
+
+    const customCreated = await runCli([
+      "vault", "references", "create",
+      "--name", "internal-api-cluster",
+      "--host", "api.internal.example",
+      "--auth", "bearer",
+      "--method", "GET",
+      "--path", "/v1/*",
+      "--secret-name", "agent-credentials",
+      "--key", "INTERNAL_API_KEY"
+    ], { api });
+    assert.equal(customCreated.exitCode, 0, customCreated.stderr);
+
+    const validated = await runCli(["vault", "references", "validate", "xsr_openai"], { api });
+    assert.equal(validated.exitCode, 0, validated.stderr);
+    assert.match(validated.stdout, /validation=valid/);
+
+    const attached = await runCli(["vault", "attach-reference", "sbx_vault", "xsr_openai"], { api });
+    assert.equal(attached.exitCode, 0, attached.stderr);
+    assert.match(attached.stdout, /sca_external\tinjected\tpresent\topenai-cluster/);
+
+    assert.deepEqual(api.requests[1]?.body, {
+      name: "openai-cluster",
+      providerPresetId: "openai",
+      resolverType: "kubernetes_secret",
+      reference: {
+        namespace: "harakiri-security",
+        name: "agent-credentials",
+        key: "OPENAI_API_KEY"
+      },
+      usePolicy: "organization_members",
+      fakeEnv: {}
+    });
+    assert.deepEqual(api.requests[2]?.body, {
+      name: "internal-api-cluster",
+      providerPresetId: "custom",
+      customProfile: {
+        host: "api.internal.example",
+        authType: "bearer",
+        methods: ["GET"],
+        paths: ["/v1/*"]
+      },
+      resolverType: "kubernetes_secret",
+      reference: {
+        name: "agent-credentials",
+        key: "INTERNAL_API_KEY"
+      },
+      usePolicy: "admins_only",
+      fakeEnv: {}
+    });
+    assert.deepEqual(api.requests[4]?.body, {
+      sourceType: "external_ref",
+      referenceId: "xsr_openai"
+    });
+    assert.equal(JSON.stringify(api.requests).includes("external-real-secret"), false);
+  } finally {
+    await api.close();
+  }
+});
+
+test("vault dynamic issuer commands manage and attach scoped GitHub App credentials", async () => {
+  const issuer = {
+    id: "dci_github",
+    name: "agent-repositories",
+    providerPresetId: "github",
+    sourceType: "dynamic",
+    issuerType: "github_app_installation",
+    scope: {
+      installationId: "321",
+      repositories: ["agent-runtime"],
+      permissions: { contents: "write", metadata: "read" }
+    },
+    status: "active",
+    usePolicy: "organization_members",
+    version: 1,
+    fakeEnv: { GITHUB_TOKEN: "fake-github-token" },
+    binding: credentialProviderPresetCatalog.github.binding,
+    egressDomains: credentialProviderPresetCatalog.github.egressDomains,
+    metadata: {},
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    disabledAt: null,
+    deletedAt: null,
+    createdAt: "2026-09-03T00:00:00.000Z",
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    lastIssuedAt: "2026-09-03T00:01:00.000Z",
+    validation: { state: "valid", message: null, checkedAt: "2026-09-03T00:00:00.000Z" },
+    usage: { activeSandboxCount: 1, attachmentCount: 1, lastAttachedAt: "2026-09-03T00:01:00.000Z" },
+    capabilities: {
+      reusable: true,
+      rehydratable: true,
+      rotatable: false,
+      externallyOwned: true,
+      shortLived: true,
+      launchOnly: false
+    }
+  };
+  const attachment = {
+    id: "sca_dynamic",
+    sandboxId: "sbx_vault",
+    displayName: issuer.name,
+    sourceType: "dynamic",
+    sourceRef: issuer.id,
+    credentialName: "github",
+    bindingName: "github-api",
+    match: credentialProviderPresetCatalog.github.binding.match,
+    auth: credentialProviderPresetCatalog.github.binding.auth,
+    fakeEnv: issuer.fakeEnv,
+    status: "injected",
+    provider: "opensandbox",
+    providerRevision: 3,
+    providerState: "present",
+    providerCheckedAt: "2026-09-03T00:01:00.000Z",
+    providerMetadata: {},
+    sourceMetadata: { installationId: "321", repositories: ["agent-runtime"] },
+    expiresAt: "2026-09-03T01:01:00.000Z",
+    refreshState: "current",
+    refreshAttemptedAt: "2026-09-03T00:01:00.000Z",
+    refreshedAt: "2026-09-03T00:01:00.000Z",
+    lastError: null,
+    injectedAt: "2026-09-03T00:01:00.000Z",
+    detachedAt: null,
+    createdByUserId: "user_cli",
+    createdByLabel: "cli@test.local",
+    createdAt: "2026-09-03T00:01:00.000Z",
+    updatedAt: "2026-09-03T00:01:00.000Z"
+  };
+  const api = await startMockApi((request) => {
+    if (request.method === "GET" && request.path === "/v1/dynamic-credential-issuers") {
+      return { body: { issuers: [issuer] } };
+    }
+    if (request.method === "POST" && request.path === "/v1/dynamic-credential-issuers") {
+      return { status: 201, body: { issuer } };
+    }
+    if (request.method === "POST" && request.path === "/v1/dynamic-credential-issuers/dci_github/validate") {
+      return { body: { issuer } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials") {
+      return { status: 201, body: { attachment, vault: { revision: 3, credentials: [], bindings: [] } } };
+    }
+    if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_vault/credentials/sca_dynamic/refresh") {
+      return { body: { attachment, vault: { revision: 4, credentials: [], bindings: [] } } };
+    }
+    return { status: 404, body: { error: "unexpected", path: request.path } };
+  });
+  try {
+    const listed = await runCli(["vault", "issuers", "list"], { api });
+    assert.equal(listed.exitCode, 0, listed.stderr);
+    assert.match(listed.stdout, /321:agent-runtime/);
+
+    const created = await runCli([
+      "vault", "issuers", "create",
+      "--name", "agent-repositories",
+      "--installation-id", "321",
+      "--repository", "agent-runtime",
+      "--permission", "contents=write",
+      "--permission", "metadata=read",
+      "--member-use"
+    ], { api });
+    assert.equal(created.exitCode, 0, created.stderr);
+    assert.match(created.stdout, /dynamic credential issuer created/);
+
+    const validated = await runCli(["vault", "issuers", "validate", "dci_github"], { api });
+    assert.equal(validated.exitCode, 0, validated.stderr);
+    assert.match(validated.stdout, /validation=valid/);
+
+    const attached = await runCli(["vault", "attach-issuer", "sbx_vault", "dci_github"], { api });
+    assert.equal(attached.exitCode, 0, attached.stderr);
+    assert.match(attached.stdout, /dynamic credential attached/);
+    assert.match(attached.stdout, /sca_dynamic\tinjected\tpresent\tagent-repositories/);
+
+    const refreshed = await runCli(["vault", "refresh", "sbx_vault", "sca_dynamic"], { api });
+    assert.equal(refreshed.exitCode, 0, refreshed.stderr);
+    assert.match(refreshed.stdout, /dynamic credential refreshed/);
+
+    assert.deepEqual(api.requests[1]?.body, {
+      name: "agent-repositories",
+      issuerType: "github_app_installation",
+      scope: {
+        installationId: "321",
+        repositories: ["agent-runtime"],
+        permissions: { contents: "write", metadata: "read" }
+      },
+      usePolicy: "organization_members",
+      fakeEnv: {}
+    });
+    assert.deepEqual(api.requests[3]?.body, {
+      sourceType: "dynamic",
+      issuerId: "dci_github"
+    });
+    assert.equal(JSON.stringify(api.requests).includes("ghs_"), false);
   } finally {
     await api.close();
   }

@@ -215,6 +215,7 @@ test("openSandboxCreateBody includes OpenSandbox networkPolicy when egress is re
     defaultAction: "deny",
     egress: [{ action: "allow", target: "pypi.org" }]
   });
+  assert.deepEqual(body.credentialProxy, { enabled: true });
 });
 
 test("openSandboxCreateBody includes no-op open egress policy to enable later runtime egress updates", () => {
@@ -254,6 +255,7 @@ test("openSandboxCreateBody includes no-op open egress policy to enable later ru
     defaultAction: "allow",
     egress: []
   });
+  assert.deepEqual(body.credentialProxy, { enabled: true });
 });
 
 test("openSandboxCreateBody can omit no-op open egress policy for restricted OpenShift installs", () => {
@@ -291,6 +293,142 @@ test("openSandboxCreateBody can omit no-op open egress policy for restricted Ope
   });
 
   assert.equal("networkPolicy" in body, false);
+  assert.equal("credentialProxy" in body, false);
+});
+
+test("openSandbox Credential Vault creates a missing sandbox-local vault through the egress sidecar", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/18080?use_server_proxy=true") {
+      return jsonResponse({
+        endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/18080",
+        headers: {
+          "OpenSandbox-Ingress-To": "osbx-real-18080",
+          "OPENSANDBOX-EGRESS-AUTH": "egress-token"
+        }
+      });
+    }
+    if (url === "http://127.0.0.1:18085/credential-vault" && init?.method === undefined) {
+      return jsonResponse({ detail: "not found" }, { status: 404 });
+    }
+    if (url === "http://127.0.0.1:18085/credential-vault" && init?.method === "POST") {
+      return jsonResponse({
+        revision: 1,
+        credentials: [{ name: "cred_api", sourceType: "inline", revision: 1 }],
+        bindings: [{ name: "api-header", revision: 1, auth: { type: "apiKey", name: "x-api-key" } }]
+      }, { status: 201 });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const vault = await openSandbox.applyCredentialVault({
+    provider: "opensandbox",
+    providerSandboxId: "osbx-real",
+    credentials: [{ name: "cred_api", value: "real-secret" }],
+    bindings: [{
+      name: "api-header",
+      match: { schemes: ["https"], hosts: ["api.example.com"] },
+      auth: { type: "apiKey", name: "x-api-key", credential: "cred_api" }
+    }]
+  });
+
+  assert.equal(vault.revision, 1);
+  const post = requests.find((request) => request.init?.method === "POST" && request.url.endsWith("/credential-vault"));
+  assert.ok(post);
+  const body = JSON.parse(String(post.init?.body));
+  assert.deepEqual(body.credentials, [{ name: "cred_api", source: { type: "inline", value: "real-secret" } }]);
+  assert.deepEqual(body.bindings[0].auth, { type: "apiKey", name: "x-api-key", credential: "cred_api" });
+  assert.equal(new Headers(post.init?.headers).get("OPENSANDBOX-EGRESS-AUTH"), "egress-token");
+});
+
+test("openSandbox Credential Vault replaces existing entries during live source rotation", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/18080?use_server_proxy=true") {
+      return jsonResponse({
+        endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/18080",
+        headers: { "OpenSandbox-Ingress-To": "osbx-real-18080" }
+      });
+    }
+    if (url === "http://127.0.0.1:18085/credential-vault" && init?.method === undefined) {
+      return jsonResponse({
+        revision: 7,
+        credentials: [{ name: "cred_api", sourceType: "inline", revision: 7 }],
+        bindings: [{ name: "api-header", revision: 7 }]
+      });
+    }
+    if (url === "http://127.0.0.1:18085/credential-vault" && init?.method === "PATCH") {
+      return jsonResponse({ revision: 8, credentials: [], bindings: [] });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  await openSandbox.applyCredentialVault({
+    provider: "opensandbox",
+    providerSandboxId: "osbx-real",
+    credentials: [{ name: "cred_api", value: "rotated-secret" }],
+    bindings: [{
+      name: "api-header",
+      match: { schemes: ["https"], hosts: ["api.example.com"] },
+      auth: { type: "apiKey", name: "x-api-key", credential: "cred_api" }
+    }]
+  });
+
+  const patchRequest = requests.find((request) => request.init?.method === "PATCH");
+  assert.ok(patchRequest);
+  const body = JSON.parse(String(patchRequest.init?.body));
+  assert.equal(body.expectedRevision, 7);
+  assert.deepEqual(body.credentials, {
+    replace: [{ name: "cred_api", source: { type: "inline", value: "rotated-secret" } }]
+  });
+  assert.deepEqual(body.bindings.replace.map(({ name }: { name: string }) => name), ["api-header"]);
+  assert.equal("add" in body.credentials, false);
+  assert.equal("add" in body.bindings, false);
+});
+
+test("openSandbox Credential Vault detaches entries with the mutation API", async () => {
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  globalThis.fetch = async (input, init) => {
+    const url = requestUrl(input);
+    requests.push({ url, init });
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/18080?use_server_proxy=true") {
+      return jsonResponse({
+        endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/18080",
+        headers: { "OpenSandbox-Ingress-To": "osbx-real-18080" }
+      });
+    }
+    if (url === "http://127.0.0.1:18085/credential-vault" && init?.method === undefined) {
+      return jsonResponse({
+        revision: 7,
+        credentials: [{ name: "cred_api", sourceType: "inline", revision: 7 }],
+        bindings: [{ name: "api-header", revision: 7 }]
+      });
+    }
+    if (url === "http://127.0.0.1:18085/credential-vault" && init?.method === "PATCH") {
+      return jsonResponse({ revision: 8, credentials: [], bindings: [] });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const vault = await openSandbox.deleteCredentialVaultEntries({
+    provider: "opensandbox",
+    providerSandboxId: "osbx-real",
+    credentialNames: ["cred_api"],
+    bindingNames: ["api-header"]
+  });
+
+  assert.equal(vault?.revision, 8);
+  const patch = requests.find((request) => request.init?.method === "PATCH" && request.url.endsWith("/credential-vault"));
+  assert.ok(patch);
+  assert.deepEqual(JSON.parse(String(patch.init?.body)), {
+    expectedRevision: 7,
+    credentials: { delete: ["cred_api"] },
+    bindings: { delete: ["api-header"] }
+  });
 });
 
 test("openSandbox egress policy calls the OpenSandbox-resolved sidecar endpoint", async () => {
@@ -326,12 +464,38 @@ test("openSandbox egress policy calls the OpenSandbox-resolved sidecar endpoint"
   });
 
   assert.equal(result.enforcementMode, "dns+nft");
+  assert.equal(result.credentialVaultReady, true);
   assert.equal(result.policy?.egress[0]?.target, "pypi.org");
   const policyRequest = requests.find((request) => request.url.endsWith("/policy"));
   assert.ok(policyRequest);
   const headers = new Headers(policyRequest.init?.headers);
   assert.equal(headers.get("OPENSANDBOX-EGRESS-AUTH"), "egress-token");
   assert.equal(policyRequest.init?.method, "POST");
+});
+
+test("openSandbox egress marks DNS-only enforcement unsafe for Credential Vault", async () => {
+  globalThis.fetch = async (input) => {
+    const url = requestUrl(input);
+    if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-dns/endpoints/18080?use_server_proxy=true") {
+      return jsonResponse({
+        endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-dns/proxy/18080",
+        headers: { "OpenSandbox-Ingress-To": "osbx-dns-18080" }
+      });
+    }
+    if (url === "http://127.0.0.1:18085/policy") {
+      return jsonResponse({
+        status: "ok",
+        enforcementMode: "dns",
+        policy: { defaultAction: "deny", egress: [{ action: "allow", target: "api.example.com" }] }
+      });
+    }
+    return jsonResponse({ message: `unexpected ${url}` }, { status: 500 });
+  };
+
+  const result = await openSandbox.getEgressPolicy("osbx-dns");
+
+  assert.equal(result.enforcementMode, "dns");
+  assert.equal(result.credentialVaultReady, false);
 });
 
 test("openSandbox egress policy retries while the sidecar route becomes ready", async () => {

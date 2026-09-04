@@ -93,6 +93,7 @@ export type Template = {
   defaultPorts: number[];
   runtimeFamily: string;
   egressPolicy?: EgressPolicyInput | null;
+  credentialSlots?: TemplateCredentialSlot[];
   latestVersionId?: string | null;
   latestBuildId?: string | null;
   latestBuildStatus?: string | null;
@@ -117,6 +118,7 @@ export type TemplateVersionSummary = {
   defaultPorts: number[];
   envSchema: Record<string, unknown>;
   egressPolicy?: EgressPolicyInput | null;
+  credentialSlots?: TemplateCredentialSlot[];
   metadata: Record<string, unknown>;
   sbomRef: string | null;
   provenance: Record<string, unknown>;
@@ -171,6 +173,22 @@ export type PageSummary = {
   offset: number;
 };
 
+export type AuditEventSummary = {
+  id: string;
+  actorUserId: string | null;
+  actorLabel: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type AuditEventsResponse = {
+  events: AuditEventSummary[];
+  page: PageSummary;
+};
+
 export type TemplateResponse = {
   template: Template;
 };
@@ -200,6 +218,7 @@ export type CreateTemplateBody = {
   defaultPorts?: number[];
   runtimeFamily?: string;
   egressPolicy?: EgressPolicyInput | null;
+  credentialSlots?: TemplateCredentialSlotInput[];
 };
 
 export type UpdateTemplateEgressBody = {
@@ -379,6 +398,8 @@ export type CreateSandboxBody = {
   env?: Record<string, string>;
   egress?: EgressPolicyInput | null;
   source?: SandboxSourceInput;
+  credentials?: AttachSandboxCredentialBody[];
+  credentialMappings?: TemplateCredentialSlotMappingBody[];
   idempotencyKey?: string;
   wait?: boolean;
   waitTimeoutMs?: number;
@@ -386,6 +407,7 @@ export type CreateSandboxBody = {
 
 export type CreateSandboxResponse = {
   sandbox: SandboxSummary;
+  credentialAttachments?: SandboxCredentialAttachmentSummary[];
   operation?: SandboxOperationSummary;
   status?: "created" | "pending";
   message?: string;
@@ -488,6 +510,927 @@ export type SandboxRoutesResponse = {
   routes: SandboxRouteSummary[];
 };
 
+export const credentialSecretSourceTypes = ["inline_ephemeral", "harakiri_encrypted", "external_ref", "dynamic"] as const;
+export type CredentialSecretSourceType = typeof credentialSecretSourceTypes[number];
+
+export type CredentialSourceCapabilities = {
+  reusable: boolean;
+  rehydratable: boolean;
+  rotatable: boolean;
+  externallyOwned: boolean;
+  shortLived: boolean;
+  launchOnly: boolean;
+};
+
+export const credentialSourceCapabilities: Record<CredentialSecretSourceType, CredentialSourceCapabilities> = {
+  inline_ephemeral: {
+    reusable: false,
+    rehydratable: false,
+    rotatable: false,
+    externallyOwned: false,
+    shortLived: false,
+    launchOnly: true
+  },
+  harakiri_encrypted: {
+    reusable: true,
+    rehydratable: true,
+    rotatable: true,
+    externallyOwned: false,
+    shortLived: false,
+    launchOnly: false
+  },
+  external_ref: {
+    reusable: true,
+    rehydratable: true,
+    rotatable: false,
+    externallyOwned: true,
+    shortLived: false,
+    launchOnly: false
+  },
+  dynamic: {
+    reusable: true,
+    rehydratable: true,
+    rotatable: false,
+    externallyOwned: true,
+    shortLived: true,
+    launchOnly: false
+  }
+};
+
+export const credentialVaultAttachmentStatuses = [
+  "pending",
+  "injected",
+  "requires_reinjection",
+  "detached",
+  "failed"
+] as const;
+export type CredentialVaultAttachmentStatus = typeof credentialVaultAttachmentStatuses[number];
+
+export const credentialVaultAuthTypes = ["bearer", "basic", "apiKey", "customHeaders", "passthrough"] as const;
+export type CredentialVaultAuthType = typeof credentialVaultAuthTypes[number];
+
+export type CredentialVaultSubstitutionLocation = "path" | "query" | "header" | "body";
+
+export type CredentialVaultSubstitution = {
+  credential?: string;
+  placeholder: string;
+  in: CredentialVaultSubstitutionLocation[];
+};
+
+export type CredentialVaultMatch = {
+  schemes?: Array<"https" | "http">;
+  hosts: string[];
+  methods?: string[];
+  paths?: string[];
+};
+
+export type CredentialVaultBearerAuth = {
+  type: "bearer";
+  credential?: string;
+  substitutions?: CredentialVaultSubstitution[];
+};
+
+export type CredentialVaultBasicAuth = {
+  type: "basic";
+  credential?: string;
+  substitutions?: CredentialVaultSubstitution[];
+};
+
+export type CredentialVaultApiKeyAuth = {
+  type: "apiKey";
+  name: string;
+  credential?: string;
+  substitutions?: CredentialVaultSubstitution[];
+};
+
+export type CredentialVaultCustomHeader = {
+  name: string;
+  credential?: string;
+};
+
+export type CredentialVaultCustomHeadersAuth = {
+  type: "customHeaders";
+  headers: CredentialVaultCustomHeader[];
+  substitutions?: CredentialVaultSubstitution[];
+};
+
+export type CredentialVaultPassthroughAuth = {
+  type: "passthrough";
+  substitutions?: CredentialVaultSubstitution[];
+};
+
+export type CredentialVaultAuth =
+  | CredentialVaultBearerAuth
+  | CredentialVaultBasicAuth
+  | CredentialVaultApiKeyAuth
+  | CredentialVaultCustomHeadersAuth
+  | CredentialVaultPassthroughAuth;
+
+export type CredentialVaultBinding = {
+  name: string;
+  match: CredentialVaultMatch;
+  auth: CredentialVaultAuth;
+};
+
+export const credentialProviderPresetIds = [
+  "openai",
+  "anthropic",
+  "openrouter",
+  "github",
+  "gitlab",
+  "npm",
+  "pypi-publish"
+] as const;
+export type CredentialProviderPresetId = typeof credentialProviderPresetIds[number];
+export const credentialProviderProfileIds = [...credentialProviderPresetIds, "custom"] as const;
+export type CredentialProviderProfileId = typeof credentialProviderProfileIds[number];
+
+export const customCredentialAuthTypes = ["bearer", "apiKey"] as const;
+export type CustomCredentialAuthType = typeof customCredentialAuthTypes[number];
+
+export type CustomCredentialProfileInput = {
+  host: string;
+  authType: CustomCredentialAuthType;
+  headerName?: string;
+  methods?: string[];
+  paths?: string[];
+  envName?: string;
+  testPath?: string;
+};
+
+export type CustomCredentialProfile = {
+  host: string;
+  authType: CustomCredentialAuthType;
+  headerName: string | null;
+  methods: string[];
+  paths: string[];
+  envName: string;
+  testPath: string;
+};
+
+export const customCredentialProfilesShareScope = (
+  left: CustomCredentialProfile | null | undefined,
+  right: CustomCredentialProfile | null | undefined
+) => {
+  if (!left || !right) return false;
+  const scope = (profile: CustomCredentialProfile) => JSON.stringify({
+    host: profile.host,
+    authType: profile.authType,
+    headerName: profile.headerName,
+    methods: [...profile.methods].sort(),
+    paths: [...profile.paths].sort()
+  });
+  return scope(left) === scope(right);
+};
+
+export type CredentialProviderPresetCategory = "model-api" | "git-hosting" | "package-registry";
+
+export type CredentialProviderPresetTest = {
+  target: string;
+  method?: string;
+};
+
+export type CredentialProviderPreset = {
+  id: CredentialProviderPresetId;
+  label: string;
+  description: string;
+  category: CredentialProviderPresetCategory;
+  defaultEnvName: string;
+  credentialName: string;
+  fakeEnv: Record<string, string>;
+  binding: CredentialVaultBinding;
+  egressDomains: string[];
+  test: CredentialProviderPresetTest;
+};
+
+export type CredentialProviderPresetsResponse = {
+  presets: CredentialProviderPreset[];
+};
+
+export type CredentialProviderPresetResponse = {
+  preset: CredentialProviderPreset;
+};
+
+export const credentialSecretStatuses = ["active", "disabled", "deleted"] as const;
+export type CredentialSecretStatus = typeof credentialSecretStatuses[number];
+
+export const credentialSecretUsePolicies = ["admins_only", "organization_members"] as const;
+export type CredentialSecretUsePolicy = typeof credentialSecretUsePolicies[number];
+
+export type CredentialSecretUsageSummary = {
+  activeSandboxCount: number;
+  attachmentCount: number;
+  lastAttachedAt: string | null;
+};
+
+export type CredentialSecretSummary = {
+  id: string;
+  name: string;
+  providerPresetId: CredentialProviderProfileId;
+  customProfile: CustomCredentialProfile | null;
+  sourceType: "harakiri_encrypted";
+  status: CredentialSecretStatus;
+  usePolicy: CredentialSecretUsePolicy;
+  version: number;
+  fakeEnv: Record<string, string>;
+  binding: CredentialVaultBinding;
+  egressDomains: string[];
+  hasEncryptedSecret: boolean;
+  metadata: Record<string, unknown>;
+  createdByUserId: string | null;
+  createdByLabel: string | null;
+  rotatedAt: string | null;
+  disabledAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  usage: CredentialSecretUsageSummary;
+  capabilities: CredentialSourceCapabilities;
+};
+
+export type CreateCredentialSecretBody = {
+  name: string;
+  providerPresetId: CredentialProviderProfileId;
+  customProfile?: CustomCredentialProfileInput;
+  value: string;
+  usePolicy?: CredentialSecretUsePolicy;
+  fakeEnv?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+};
+
+export type UpdateCredentialSecretBody = {
+  usePolicy: CredentialSecretUsePolicy;
+};
+
+export type RotateCredentialSecretBody = {
+  value: string;
+};
+
+export type CredentialSecretsResponse = {
+  secrets: CredentialSecretSummary[];
+};
+
+export type CredentialSecretResponse = {
+  secret: CredentialSecretSummary;
+};
+
+export const externalSecretResolverTypes = ["kubernetes_secret"] as const;
+export type ExternalSecretResolverType = typeof externalSecretResolverTypes[number];
+
+export const externalSecretReferenceStatuses = ["active", "disabled", "deleted"] as const;
+export type ExternalSecretReferenceStatus = typeof externalSecretReferenceStatuses[number];
+
+export const externalSecretValidationStates = [
+  "unvalidated",
+  "valid",
+  "not_found",
+  "forbidden",
+  "invalid",
+  "unavailable"
+] as const;
+export type ExternalSecretValidationState = typeof externalSecretValidationStates[number];
+
+export type KubernetesSecretReference = {
+  namespace: string;
+  name: string;
+  key: string;
+};
+
+export type ExternalSecretValidationSummary = {
+  state: ExternalSecretValidationState;
+  message: string | null;
+  versionRef: string | null;
+  checkedAt: string | null;
+};
+
+export type ExternalSecretReferenceSummary = {
+  id: string;
+  name: string;
+  providerPresetId: CredentialProviderProfileId;
+  customProfile: CustomCredentialProfile | null;
+  sourceType: "external_ref";
+  resolverType: "kubernetes_secret";
+  reference: KubernetesSecretReference;
+  status: ExternalSecretReferenceStatus;
+  usePolicy: CredentialSecretUsePolicy;
+  version: number;
+  fakeEnv: Record<string, string>;
+  binding: CredentialVaultBinding;
+  egressDomains: string[];
+  metadata: Record<string, unknown>;
+  createdByUserId: string | null;
+  createdByLabel: string | null;
+  disabledAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  validation: ExternalSecretValidationSummary;
+  usage: CredentialSecretUsageSummary;
+  capabilities: CredentialSourceCapabilities;
+};
+
+export type CreateExternalSecretReferenceBody = {
+  name: string;
+  providerPresetId: CredentialProviderProfileId;
+  customProfile?: CustomCredentialProfileInput;
+  resolverType: "kubernetes_secret";
+  reference: {
+    namespace?: string;
+    name: string;
+    key: string;
+  };
+  usePolicy?: CredentialSecretUsePolicy;
+  fakeEnv?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+};
+
+export type UpdateExternalSecretReferenceBody = {
+  name?: string;
+  providerPresetId?: CredentialProviderProfileId;
+  customProfile?: CustomCredentialProfileInput;
+  reference?: {
+    namespace?: string;
+    name: string;
+    key: string;
+  };
+  usePolicy?: CredentialSecretUsePolicy;
+  fakeEnv?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+};
+
+export type ExternalSecretReferencesResponse = {
+  references: ExternalSecretReferenceSummary[];
+};
+
+export type ExternalSecretReferenceResponse = {
+  reference: ExternalSecretReferenceSummary;
+};
+
+export const dynamicCredentialIssuerTypes = ["github_app_installation"] as const;
+export type DynamicCredentialIssuerType = typeof dynamicCredentialIssuerTypes[number];
+
+export const dynamicCredentialIssuerStatuses = ["active", "disabled", "deleted"] as const;
+export type DynamicCredentialIssuerStatus = typeof dynamicCredentialIssuerStatuses[number];
+
+export const dynamicCredentialValidationStates = [
+  "unvalidated",
+  "valid",
+  "not_found",
+  "forbidden",
+  "invalid",
+  "unavailable"
+] as const;
+export type DynamicCredentialValidationState = typeof dynamicCredentialValidationStates[number];
+
+export type GitHubAppInstallationScope = {
+  installationId: string;
+  repositories: string[];
+  permissions: Record<string, "read" | "write" | "admin">;
+};
+
+export type DynamicCredentialValidationSummary = {
+  state: DynamicCredentialValidationState;
+  message: string | null;
+  checkedAt: string | null;
+};
+
+export type DynamicCredentialIssuerSummary = {
+  id: string;
+  name: string;
+  providerPresetId: "github";
+  sourceType: "dynamic";
+  issuerType: "github_app_installation";
+  scope: GitHubAppInstallationScope;
+  status: DynamicCredentialIssuerStatus;
+  usePolicy: CredentialSecretUsePolicy;
+  version: number;
+  fakeEnv: Record<string, string>;
+  binding: CredentialVaultBinding;
+  egressDomains: string[];
+  metadata: Record<string, unknown>;
+  createdByUserId: string | null;
+  createdByLabel: string | null;
+  disabledAt: string | null;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastIssuedAt: string | null;
+  validation: DynamicCredentialValidationSummary;
+  usage: CredentialSecretUsageSummary;
+  capabilities: CredentialSourceCapabilities;
+};
+
+export type CreateDynamicCredentialIssuerBody = {
+  name: string;
+  issuerType: "github_app_installation";
+  scope: GitHubAppInstallationScope;
+  usePolicy?: CredentialSecretUsePolicy;
+  fakeEnv?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+};
+
+export type UpdateDynamicCredentialIssuerBody = {
+  name?: string;
+  scope?: GitHubAppInstallationScope;
+  usePolicy?: CredentialSecretUsePolicy;
+  fakeEnv?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+};
+
+export type DynamicCredentialIssuersResponse = {
+  issuers: DynamicCredentialIssuerSummary[];
+};
+
+export type DynamicCredentialIssuerResponse = {
+  issuer: DynamicCredentialIssuerSummary;
+};
+
+export const credentialProviderPresetCatalog: Record<CredentialProviderPresetId, CredentialProviderPreset> = {
+  openai: {
+    id: "openai",
+    label: "OpenAI API",
+    description: "Inject an OpenAI-compatible bearer token for OpenAI API calls.",
+    category: "model-api",
+    defaultEnvName: "OPENAI_API_KEY",
+    credentialName: "openai",
+    fakeEnv: { OPENAI_API_KEY: "fake-openai-key" },
+    binding: {
+      name: "openai-api",
+      match: {
+        schemes: ["https"],
+        hosts: ["api.openai.com"],
+        methods: ["GET", "POST"],
+        paths: ["/v1/*"]
+      },
+      auth: { type: "bearer" }
+    },
+    egressDomains: ["api.openai.com"],
+    test: { target: "https://api.openai.com/v1/models", method: "GET" }
+  },
+  anthropic: {
+    id: "anthropic",
+    label: "Anthropic API",
+    description: "Inject an Anthropic API key through the x-api-key header.",
+    category: "model-api",
+    defaultEnvName: "ANTHROPIC_API_KEY",
+    credentialName: "anthropic",
+    fakeEnv: { ANTHROPIC_API_KEY: "fake-anthropic-key" },
+    binding: {
+      name: "anthropic-api",
+      match: {
+        schemes: ["https"],
+        hosts: ["api.anthropic.com"],
+        methods: ["GET", "POST"],
+        paths: ["/v1/*"]
+      },
+      auth: { type: "apiKey", name: "x-api-key" }
+    },
+    egressDomains: ["api.anthropic.com"],
+    test: { target: "https://api.anthropic.com/v1/models", method: "GET" }
+  },
+  openrouter: {
+    id: "openrouter",
+    label: "OpenRouter API",
+    description: "Inject an OpenRouter bearer token for OpenAI-compatible model calls.",
+    category: "model-api",
+    defaultEnvName: "OPENROUTER_API_KEY",
+    credentialName: "openrouter",
+    fakeEnv: { OPENROUTER_API_KEY: "fake-openrouter-key" },
+    binding: {
+      name: "openrouter-api",
+      match: {
+        schemes: ["https"],
+        hosts: ["openrouter.ai"],
+        methods: ["GET", "POST"],
+        paths: ["/api/v1/*"]
+      },
+      auth: { type: "bearer" }
+    },
+    egressDomains: ["openrouter.ai"],
+    test: { target: "https://openrouter.ai/api/v1/models", method: "GET" }
+  },
+  github: {
+    id: "github",
+    label: "GitHub",
+    description: "Inject a GitHub token for REST API requests and allow common GitHub source hosts.",
+    category: "git-hosting",
+    defaultEnvName: "GITHUB_TOKEN",
+    credentialName: "github",
+    fakeEnv: { GITHUB_TOKEN: "fake-github-token" },
+    binding: {
+      name: "github-api",
+      match: {
+        schemes: ["https"],
+        hosts: ["api.github.com"],
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+      },
+      auth: { type: "bearer" }
+    },
+    egressDomains: ["api.github.com", "github.com", "raw.githubusercontent.com", "objects.githubusercontent.com", "codeload.github.com"],
+    test: { target: "https://api.github.com/user", method: "GET" }
+  },
+  gitlab: {
+    id: "gitlab",
+    label: "GitLab",
+    description: "Inject a GitLab token through the PRIVATE-TOKEN header for REST API calls.",
+    category: "git-hosting",
+    defaultEnvName: "GITLAB_TOKEN",
+    credentialName: "gitlab",
+    fakeEnv: { GITLAB_TOKEN: "fake-gitlab-token" },
+    binding: {
+      name: "gitlab-api",
+      match: {
+        schemes: ["https"],
+        hosts: ["gitlab.com"],
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        paths: ["/api/v4/*"]
+      },
+      auth: { type: "apiKey", name: "PRIVATE-TOKEN" }
+    },
+    egressDomains: ["gitlab.com"],
+    test: { target: "https://gitlab.com/api/v4/user", method: "GET" }
+  },
+  npm: {
+    id: "npm",
+    label: "npm Registry",
+    description: "Inject an npm token for registry.npmjs.org package registry requests.",
+    category: "package-registry",
+    defaultEnvName: "NPM_TOKEN",
+    credentialName: "npm",
+    fakeEnv: { NPM_TOKEN: "fake-npm-token" },
+    binding: {
+      name: "npm-registry",
+      match: {
+        schemes: ["https"],
+        hosts: ["registry.npmjs.org"],
+        methods: ["GET", "PUT", "POST", "DELETE"]
+      },
+      auth: { type: "bearer" }
+    },
+    egressDomains: ["registry.npmjs.org", "*.npmjs.org"],
+    test: { target: "https://registry.npmjs.org/-/whoami", method: "GET" }
+  },
+  "pypi-publish": {
+    id: "pypi-publish",
+    label: "PyPI Publish",
+    description: "Inject a PyPI upload token for package publishing requests.",
+    category: "package-registry",
+    defaultEnvName: "PYPI_TOKEN",
+    credentialName: "pypi",
+    fakeEnv: { PYPI_TOKEN: "fake-pypi-token" },
+    binding: {
+      name: "pypi-upload",
+      match: {
+        schemes: ["https"],
+        hosts: ["upload.pypi.org"],
+        methods: ["POST"],
+        paths: ["/legacy/*"]
+      },
+      auth: { type: "basic" }
+    },
+    egressDomains: ["upload.pypi.org", "pypi.org", "files.pythonhosted.org", "*.pythonhosted.org"],
+    test: { target: "https://upload.pypi.org/legacy/", method: "POST" }
+  }
+};
+
+export type TemplateCredentialSlotInput = {
+  id?: string;
+  providerPresetId: CredentialProviderProfileId;
+  customProfile?: CustomCredentialProfileInput;
+  required?: boolean;
+  label?: string;
+  description?: string;
+  envName?: string;
+};
+
+export type TemplateCredentialSlot = {
+  id: string;
+  providerPresetId: CredentialProviderProfileId;
+  customProfile: CustomCredentialProfile | null;
+  credentialName: string;
+  required: boolean;
+  label: string;
+  description: string;
+  envName: string;
+  fakeEnv: Record<string, string>;
+  binding: CredentialVaultBinding;
+  egressDomains: string[];
+  test: CredentialProviderPresetTest;
+};
+
+const templateCredentialSlotIdPattern = /^[a-z0-9][a-z0-9._-]{0,79}$/;
+const templateCredentialSlotEnvPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const customCredentialHeaderPattern = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const customCredentialMethodPattern = /^[A-Z]{3,16}$/;
+
+const isCredentialProviderPresetId = (value: string): value is CredentialProviderPresetId =>
+  credentialProviderPresetIds.includes(value as CredentialProviderPresetId);
+
+const copyCredentialVaultMatch = (match: CredentialVaultMatch): CredentialVaultMatch => ({
+  hosts: [...match.hosts],
+  schemes: match.schemes ? [...match.schemes] : undefined,
+  methods: match.methods ? [...match.methods] : undefined,
+  paths: match.paths ? [...match.paths] : undefined
+});
+
+const copyCredentialVaultSubstitutions = (auth: CredentialVaultAuth) =>
+  auth.substitutions ? auth.substitutions.map((substitution) => ({ ...substitution, in: [...substitution.in] })) : undefined;
+
+const copyCredentialVaultAuth = (auth: CredentialVaultAuth): CredentialVaultAuth => {
+  const substitutions = copyCredentialVaultSubstitutions(auth);
+  if (auth.type === "bearer") return { ...auth, substitutions };
+  if (auth.type === "basic") return { ...auth, substitutions };
+  if (auth.type === "apiKey") return { ...auth, substitutions };
+  if (auth.type === "customHeaders") return { ...auth, headers: auth.headers.map((header) => ({ ...header })), substitutions };
+  return { ...auth, substitutions };
+};
+
+const copyCredentialVaultBinding = (binding: CredentialVaultBinding): CredentialVaultBinding => ({
+  name: binding.name,
+  match: copyCredentialVaultMatch(binding.match),
+  auth: copyCredentialVaultAuth(binding.auth)
+});
+
+const normalizeCustomCredentialPath = (value: string, label: string) => {
+  const path = value.trim();
+  if (!path.startsWith("/") || path.length > 512 || path.includes("?") || path.includes("#")) {
+    throw new Error(`${label} must be an absolute path without a query or fragment`);
+  }
+  return path;
+};
+
+const concreteCustomCredentialPath = (path: string) => {
+  const wildcard = path.indexOf("*");
+  const concrete = wildcard < 0 ? path : path.slice(0, wildcard);
+  return concrete || "/";
+};
+
+export const normalizeCustomCredentialProfile = (
+  input: CustomCredentialProfileInput
+): CustomCredentialProfile => {
+  const host = normalizeEgressTarget(input.host);
+  if (host.startsWith("*.")) throw new Error("custom credential host must be exact; wildcards are not allowed");
+  const methods = [...new Set((input.methods?.length ? input.methods : ["GET", "POST"]).map((method) => method.trim().toUpperCase()))];
+  if (methods.length > 16 || methods.some((method) => !customCredentialMethodPattern.test(method))) {
+    throw new Error("custom credential methods must contain at most 16 HTTP method names");
+  }
+  const paths = [...new Set((input.paths?.length ? input.paths : ["/*"]).map((path) => normalizeCustomCredentialPath(path, "custom credential path")))];
+  if (paths.length > 16) throw new Error("custom credential profile supports at most 16 paths");
+  const envName = input.envName?.trim() || "PRIVATE_API_KEY";
+  if (!templateCredentialSlotEnvPattern.test(envName)) throw new Error("custom credential envName must be a valid environment variable name");
+  const headerName = input.headerName?.trim() || null;
+  if (input.authType === "apiKey" && (!headerName || !customCredentialHeaderPattern.test(headerName))) {
+    throw new Error("custom API-key credentials require a valid headerName");
+  }
+  if (input.authType === "bearer" && headerName) throw new Error("bearer credentials do not accept headerName");
+  const testPath = normalizeCustomCredentialPath(
+    input.testPath ?? concreteCustomCredentialPath(paths[0] ?? "/"),
+    "custom credential testPath"
+  );
+  if (testPath.includes("*")) throw new Error("custom credential testPath must not contain wildcards");
+  return { host, authType: input.authType, headerName, methods, paths, envName, testPath };
+};
+
+export const templateCredentialSlotFromInput = (input: TemplateCredentialSlotInput): TemplateCredentialSlot => {
+  if (input.providerPresetId === "custom") {
+    if (!input.customProfile) throw new Error("custom credential slots require customProfile");
+    const profile = normalizeCustomCredentialProfile(input.customProfile);
+    const id = input.id ?? "private-api";
+    if (!templateCredentialSlotIdPattern.test(id)) {
+      throw new Error("template credential slot id must match [a-z0-9][a-z0-9._-]{0,79}");
+    }
+    const envName = input.envName ?? profile.envName;
+    if (!templateCredentialSlotEnvPattern.test(envName)) {
+      throw new Error("template credential slot envName must match [A-Za-z_][A-Za-z0-9_]*");
+    }
+    return {
+      id,
+      providerPresetId: "custom",
+      customProfile: { ...profile, envName },
+      credentialName: id,
+      required: input.required ?? true,
+      label: input.label ?? profile.host,
+      description: input.description ?? `Inject a credential for HTTPS requests to ${profile.host}.`,
+      envName,
+      fakeEnv: { [envName]: "fake-private-api-key" },
+      binding: {
+        name: id,
+        match: { schemes: ["https"], hosts: [profile.host], methods: profile.methods, paths: profile.paths },
+        auth: profile.authType === "bearer"
+          ? { type: "bearer" }
+          : { type: "apiKey", name: profile.headerName! }
+      },
+      egressDomains: [profile.host],
+      test: { target: `https://${profile.host}${profile.testPath}`, method: profile.methods[0] }
+    };
+  }
+  if (!isCredentialProviderPresetId(input.providerPresetId)) {
+    throw new Error(`unknown credential provider preset: ${input.providerPresetId}`);
+  }
+  const preset = credentialProviderPresetCatalog[input.providerPresetId];
+  const id = input.id ?? preset.id;
+  if (!templateCredentialSlotIdPattern.test(id)) {
+    throw new Error("template credential slot id must match [a-z0-9][a-z0-9._-]{0,79}");
+  }
+  const envName = input.envName ?? preset.defaultEnvName;
+  if (!templateCredentialSlotEnvPattern.test(envName)) {
+    throw new Error("template credential slot envName must match [A-Za-z_][A-Za-z0-9_]*");
+  }
+  return {
+    id,
+    providerPresetId: preset.id,
+    customProfile: null,
+    credentialName: preset.credentialName,
+    required: input.required ?? true,
+    label: input.label ?? preset.label,
+    description: input.description ?? preset.description,
+    envName,
+    fakeEnv: { [envName]: preset.fakeEnv[preset.defaultEnvName] ?? `fake-${preset.id}-credential` },
+    binding: copyCredentialVaultBinding(preset.binding),
+    egressDomains: [...preset.egressDomains],
+    test: { ...preset.test }
+  };
+};
+
+export const templateCredentialSlotsFromInputs = (inputs: TemplateCredentialSlotInput[] = []) => {
+  const slots = inputs.map(templateCredentialSlotFromInput);
+  const ids = new Set<string>();
+  const envNames = new Set<string>();
+  for (const slot of slots) {
+    if (ids.has(slot.id)) throw new Error(`duplicate template credential slot id: ${slot.id}`);
+    if (envNames.has(slot.envName)) throw new Error(`duplicate template credential slot envName: ${slot.envName}`);
+    ids.add(slot.id);
+    envNames.add(slot.envName);
+  }
+  return slots;
+};
+
+export type CredentialVaultCredentialMetadata = {
+  name: string;
+  sourceType: string;
+  revision: number;
+};
+
+export type CredentialVaultBindingMetadata = {
+  name: string;
+  revision: number;
+  match?: CredentialVaultMatch;
+  auth?: {
+    type: CredentialVaultAuthType | string;
+    name?: string;
+  };
+};
+
+export type CredentialVaultProviderState = {
+  revision: number;
+  credentials: CredentialVaultCredentialMetadata[];
+  bindings: CredentialVaultBindingMetadata[];
+};
+
+export type InlineEphemeralSandboxCredentialBody = {
+  sourceType?: "inline_ephemeral";
+  displayName?: string;
+  credentialName?: string;
+  value: string;
+  fakeEnv?: Record<string, string>;
+  binding: {
+    name?: string;
+    match: CredentialVaultMatch;
+    auth: CredentialVaultAuth;
+  };
+};
+
+export type HarakiriEncryptedSandboxCredentialBody = {
+  sourceType: "harakiri_encrypted";
+  secretId: string;
+  displayName?: string;
+  credentialName?: string;
+  bindingName?: string;
+};
+
+export type ExternalReferenceSandboxCredentialBody = {
+  sourceType: "external_ref";
+  referenceId: string;
+  displayName?: string;
+  credentialName?: string;
+  bindingName?: string;
+};
+
+export type DynamicSandboxCredentialBody = {
+  sourceType: "dynamic";
+  issuerId: string;
+  displayName?: string;
+  credentialName?: string;
+  bindingName?: string;
+};
+
+export type AttachSandboxCredentialBody =
+  | InlineEphemeralSandboxCredentialBody
+  | HarakiriEncryptedSandboxCredentialBody
+  | ExternalReferenceSandboxCredentialBody
+  | DynamicSandboxCredentialBody;
+
+export type InlineEphemeralTemplateCredentialSourceBody = {
+  sourceType?: "inline_ephemeral";
+  displayName?: string;
+  credentialName?: string;
+  bindingName?: string;
+  value: string;
+  fakeEnv?: Record<string, string>;
+};
+
+export type TemplateCredentialSlotSourceBody =
+  | InlineEphemeralTemplateCredentialSourceBody
+  | HarakiriEncryptedSandboxCredentialBody
+  | ExternalReferenceSandboxCredentialBody
+  | DynamicSandboxCredentialBody;
+
+export type TemplateCredentialSlotMappingBody = {
+  slotId?: string;
+  providerPresetId?: CredentialProviderProfileId;
+  source: TemplateCredentialSlotSourceBody;
+};
+
+export type SandboxCredentialAttachmentSummary = {
+  id: string;
+  sandboxId: string;
+  displayName: string;
+  sourceType: CredentialSecretSourceType;
+  sourceRef: string | null;
+  credentialName: string;
+  bindingName: string;
+  match: CredentialVaultMatch;
+  auth: CredentialVaultAuth;
+  fakeEnv: Record<string, string>;
+  status: CredentialVaultAttachmentStatus;
+  provider: string;
+  providerRevision: number | null;
+  providerState: "unknown" | "present" | "missing" | "unavailable";
+  providerCheckedAt: string | null;
+  providerMetadata: Record<string, unknown>;
+  sourceMetadata: Record<string, unknown>;
+  expiresAt: string | null;
+  refreshState: "not_applicable" | "current" | "expiring" | "expired" | "refresh_failed";
+  refreshAttemptedAt: string | null;
+  refreshedAt: string | null;
+  lastError: string | null;
+  injectedAt: string | null;
+  detachedAt: string | null;
+  createdByUserId: string | null;
+  createdByLabel: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SandboxCredentialsResponse = {
+  attachments: SandboxCredentialAttachmentSummary[];
+};
+
+export type InspectSandboxCredentialsResponse = SandboxCredentialsResponse & {
+  vault: CredentialVaultProviderState | null;
+};
+
+export type AttachSandboxCredentialResponse = {
+  attachment: SandboxCredentialAttachmentSummary;
+  vault: CredentialVaultProviderState;
+};
+
+export type RefreshSandboxCredentialResponse = AttachSandboxCredentialResponse;
+
+export type DetachSandboxCredentialResponse = {
+  attachment: SandboxCredentialAttachmentSummary;
+  vault: CredentialVaultProviderState | null;
+};
+
+export type RehydrateSandboxCredentialsResponse = {
+  attachments: SandboxCredentialAttachmentSummary[];
+  vault: CredentialVaultProviderState | null;
+  rehydrated: number;
+  skipped: number;
+  failed: number;
+};
+
+export type TestSandboxCredentialBody = {
+  target?: string;
+  method?: string;
+  timeoutMs?: number;
+};
+
+export type TestSandboxCredentialResponse = {
+  attachmentId: string;
+  target: string;
+  normalizedTarget: string;
+  url: string;
+  method: string;
+  ok: boolean;
+  status: "reachable" | "blocked_or_unreachable" | "binding_mismatch" | "not_injected" | "sandbox_not_running" | "provider_unavailable";
+  httpStatus: number | null;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  checkedAt: string;
+};
+
 export const runtimeCapabilityNames = [
   "lifecycle",
   "lifecycleRenew",
@@ -516,6 +1459,9 @@ export const runtimeCapabilityNames = [
   "tokenRoutes",
   "git",
   "egressPolicy",
+  "credentialVault",
+  "credentialVaultPatch",
+  "credentialVaultSanitizedRead",
   "logs",
   "metrics"
 ] as const;
@@ -893,6 +1839,7 @@ export type OrganizationSettingsResponse = {
 
 export type AccountCapabilities = {
   canManageMembers: boolean;
+  canManageCredentialSecrets: boolean;
 };
 
 export type OrganizationMemberRole = "admin" | "member" | string;

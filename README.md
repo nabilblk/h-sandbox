@@ -173,9 +173,33 @@ Harakiri compiles developer-facing modes and presets to OpenSandbox
 `networkPolicy` and runtime egress sidecar calls. See
 [docs/egress-control.md](docs/egress-control.md).
 
+## Credential Vault
+
+Credential Vault gives sandbox code fake environment values while the runtime
+injects real credentials only into matching HTTPS requests. It supports
+one-time values, envelope-encrypted workspace custody, Kubernetes Secret
+references, GitHub App installation tokens, template credential slots, and
+credential-aware restricted egress.
+
+```bash
+export OPENAI_API_KEY='...'
+harakiri create \
+  --template open-agents-dev:stable \
+  --credential 'preset=openai,from-env=OPENAI_API_KEY'
+harakiri vault inspect sbx_...
+```
+
+Start with [docs/credential-vault.md](docs/credential-vault.md) and the
+[cookbook](docs/credential-vault-cookbook.md). Operators must review the
+[runtime support matrix](docs/credential-vault-support.md) and
+[operations guide](docs/credential-vault-operations.md), especially the
+OpenSandbox `dns+nft` requirement.
+
 ## Documentation
 
 - [docs/README.md](docs/README.md) - documentation index by audience
+- [docs/tutorials.md](docs/tutorials.md) - tested end-to-end tutorials with
+  assertions and cleanup
 - [docs/architecture.md](docs/architecture.md) - subsystem map and data flow
 - [docs/opensandbox-boundaries.md](docs/opensandbox-boundaries.md) - runtime
   and Kubernetes ownership rules
@@ -184,6 +208,10 @@ Harakiri compiles developer-facing modes and presets to OpenSandbox
 - [docs/sdk.md](docs/sdk.md) - TypeScript SDK guide
 - [docs/cli.md](docs/cli.md) - CLI reference
 - [docs/errors.md](docs/errors.md) - error handling and troubleshooting
+- [docs/credential-vault.md](docs/credential-vault.md) - secure credential
+  sources, template slots, runtime attachment, and lifecycle behavior
+- [docs/security/credential-vault-threat-model.md](docs/security/credential-vault-threat-model.md) -
+  custody boundaries, threats, controls, and residual risks
 - [CONTRIBUTING.md](CONTRIBUTING.md) - contribution workflow
 - [SECURITY.md](SECURITY.md) - security reporting and boundaries
 

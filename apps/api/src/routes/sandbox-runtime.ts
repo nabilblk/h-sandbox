@@ -19,15 +19,25 @@ import type {
   SandboxLogsResponse,
   SandboxMetricsResponse,
   RuntimeCapabilitiesResponse,
+  SandboxCredentialsResponse,
+  InspectSandboxCredentialsResponse,
+  AttachSandboxCredentialResponse,
+  RefreshSandboxCredentialResponse,
+  DetachSandboxCredentialResponse,
+  RehydrateSandboxCredentialsResponse,
+  TestSandboxCredentialResponse,
   SandboxRouteResponse,
   SandboxRoutesResponse,
   SandboxTerminalAttachTicketResponse,
-  TestSandboxEgressResponse
+  TestSandboxEgressResponse,
+  SandboxRuntimeApiErrorCode
 } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
 import WebSocket from "ws";
 import { query as defaultQuery } from "../db.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "../providers/runtime/index.js";
+import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
+import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
 import {
   attachSandboxTerminal,
   createSandboxCommand,
@@ -64,6 +74,16 @@ import {
   type SandboxEventRecorder
 } from "../services/sandbox-runtime.js";
 import {
+  attachSandboxCredential,
+  detachSandboxCredential,
+  inspectSandboxCredentials,
+  listSandboxCredentials,
+  refreshSandboxCredential,
+  rehydrateSandboxCredentials,
+  testSandboxCredential,
+  type RefreshSandboxCredentialResult
+} from "../services/credential-vault.js";
+import {
   consumeTerminalAttachTicket,
   createTerminalAttachTicket
 } from "../services/terminal-attach-tickets.js";
@@ -73,6 +93,8 @@ import {
   commandSessionCreateSchema,
   commandSessionRunSchema,
   commandSchema,
+  credentialAttachSchema,
+  credentialTestSchema,
   egressPatchSchema,
   egressTestSchema,
   fileMkdirSchema,
@@ -92,6 +114,22 @@ export type SandboxRuntimeRouteDependencies = {
   runtimeProvider?: RuntimeProvider;
   recordAudit: Audit;
   recordSandboxEvent: SandboxEventRecorder;
+  externalSecretResolvers?: ExternalSecretResolverRegistry;
+  dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
+};
+
+const refreshSourceError = (
+  kind: Extract<RefreshSandboxCredentialResult, { kind: "source_unavailable" }>["sourceKind"]
+): { status: 403 | 404 | 409 | 422 | 424 | 503; code: SandboxRuntimeApiErrorCode } => {
+  if (kind === "dynamic_issuer_not_found") return { status: 404, code: "dynamic_credential_issuer_not_found" };
+  if (kind === "dynamic_issuer_disabled") return { status: 409, code: "dynamic_credential_issuer_disabled" };
+  if (kind === "dynamic_issuer_forbidden") return { status: 403, code: "dynamic_credential_issuer_forbidden" };
+  if (kind === "dynamic_issue_not_found") return { status: 424, code: "dynamic_credential_issue_not_found" };
+  if (kind === "dynamic_issue_forbidden") return { status: 403, code: "dynamic_credential_issue_forbidden" };
+  if (kind === "dynamic_issue_invalid" || kind === "invalid_binding") {
+    return { status: 422, code: "dynamic_credential_issue_invalid" };
+  }
+  return { status: 503, code: "dynamic_credential_issuer_unavailable" };
 };
 
 export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, dependencies: SandboxRuntimeRouteDependencies) => {
@@ -432,6 +470,205 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const metrics = await getSandboxMetrics({ organizationId: request.auth.organizationId, sandboxId: id }, { query, runtimeProvider });
     if (!metrics) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     return metrics satisfies SandboxMetricsResponse;
+  });
+
+  app.get("/v1/sandboxes/:id/credentials", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await listSandboxCredentials({ organizationId: request.auth.organizationId, sandboxId: id }, query);
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    return { attachments: result.attachments } satisfies SandboxCredentialsResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/credentials/inspect", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await inspectSandboxCredentials(
+      { organizationId: request.auth.organizationId, sandboxId: id },
+      { query, runtimeProvider }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_not_running") {
+      return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
+    }
+    if (result.kind === "unsupported") {
+      return reply.code(501).send(apiErrorResponse("credential_vault_unsupported", { message: result.message }));
+    }
+    if (result.kind === "provider_unavailable") {
+      return reply.code(502).send(apiErrorResponse("credential_vault_provider_unavailable", {
+        message: result.message,
+        attachments: result.attachments
+      }));
+    }
+    return { attachments: result.attachments, vault: result.vault } satisfies InspectSandboxCredentialsResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/credentials", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = credentialAttachSchema.parse(request.body ?? {});
+    const result = await attachSandboxCredential(
+      {
+        organizationId: request.auth.organizationId,
+        sandboxId: id,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        body
+      },
+      {
+        query,
+        runtimeProvider,
+        recordEvent,
+        recordAudit,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
+    if (result.kind === "unsupported") return reply.code(501).send(apiErrorResponse("credential_vault_unsupported", { message: result.message }));
+    if (result.kind === "secret_required") return reply.code(400).send(apiErrorResponse("credential_vault_secret_required", { message: result.message }));
+    if (result.kind === "secret_forbidden") return reply.code(403).send(apiErrorResponse("credential_secret_forbidden"));
+    if (result.kind === "secret_not_found") return reply.code(404).send(apiErrorResponse("credential_secret_not_found"));
+    if (result.kind === "secret_disabled") return reply.code(409).send(apiErrorResponse("credential_secret_disabled"));
+    if (result.kind === "secret_decryption_unavailable") {
+      return reply.code(500).send(apiErrorResponse("credential_secret_decryption_unavailable", { message: result.message }));
+    }
+    if (result.kind === "external_reference_forbidden") return reply.code(403).send(apiErrorResponse("external_secret_reference_forbidden"));
+    if (result.kind === "external_reference_not_found") return reply.code(404).send(apiErrorResponse("external_secret_reference_not_found"));
+    if (result.kind === "external_reference_disabled") return reply.code(409).send(apiErrorResponse("external_secret_reference_disabled"));
+    if (result.kind === "external_resolution_not_found") return reply.code(424).send(apiErrorResponse("external_secret_resolution_not_found", { message: result.message }));
+    if (result.kind === "external_resolution_forbidden") return reply.code(403).send(apiErrorResponse("external_secret_resolution_forbidden", { message: result.message }));
+    if (result.kind === "external_resolution_invalid") return reply.code(422).send(apiErrorResponse("external_secret_resolution_invalid", { message: result.message }));
+    if (result.kind === "external_resolver_unavailable") return reply.code(503).send(apiErrorResponse("external_secret_resolver_unavailable", { message: result.message }));
+    if (result.kind === "dynamic_issuer_forbidden") return reply.code(403).send(apiErrorResponse("dynamic_credential_issuer_forbidden"));
+    if (result.kind === "dynamic_issuer_not_found") return reply.code(404).send(apiErrorResponse("dynamic_credential_issuer_not_found"));
+    if (result.kind === "dynamic_issuer_disabled") return reply.code(409).send(apiErrorResponse("dynamic_credential_issuer_disabled"));
+    if (result.kind === "dynamic_issue_not_found") return reply.code(424).send(apiErrorResponse("dynamic_credential_issue_not_found", { message: result.message }));
+    if (result.kind === "dynamic_issue_forbidden") return reply.code(403).send(apiErrorResponse("dynamic_credential_issue_forbidden", { message: result.message }));
+    if (result.kind === "dynamic_issue_invalid") return reply.code(422).send(apiErrorResponse("dynamic_credential_issue_invalid", { message: result.message }));
+    if (result.kind === "dynamic_issuer_unavailable") return reply.code(503).send(apiErrorResponse("dynamic_credential_issuer_unavailable", { message: result.message }));
+    if (result.kind === "invalid_binding") return reply.code(400).send(apiErrorResponse("credential_vault_invalid_binding", { message: result.message }));
+    if (result.kind === "egress_conflict") return reply.code(409).send(apiErrorResponse("credential_vault_egress_conflict", { message: result.message }));
+    if (result.kind === "provider_unavailable") {
+      return reply.code(502).send(apiErrorResponse("credential_vault_provider_unavailable", {
+        message: result.message,
+        attachment: result.attachment
+      }));
+    }
+    return reply.code(201).send({ attachment: result.attachment, vault: result.vault } satisfies AttachSandboxCredentialResponse);
+  });
+
+  app.post("/v1/sandboxes/:id/credentials/rehydrate", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const result = await rehydrateSandboxCredentials(
+      {
+        organizationId: request.auth.organizationId,
+        sandboxId: id,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel
+      },
+      {
+        query,
+        runtimeProvider,
+        recordEvent,
+        recordAudit,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
+    if (result.kind === "unsupported") return reply.code(501).send(apiErrorResponse("credential_vault_unsupported", { message: result.message }));
+    return {
+      attachments: result.attachments,
+      vault: result.vault,
+      rehydrated: result.rehydrated,
+      skipped: result.skipped,
+      failed: result.failed
+    } satisfies RehydrateSandboxCredentialsResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/credentials/:attachmentId/refresh", async (request, reply) => {
+    const { id, attachmentId } = request.params as { id: string; attachmentId: string };
+    const result = await refreshSandboxCredential(
+      {
+        organizationId: request.auth.organizationId,
+        sandboxId: id,
+        attachmentId,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel
+      },
+      {
+        query,
+        runtimeProvider,
+        recordEvent,
+        recordAudit,
+        externalSecretResolvers: dependencies.externalSecretResolvers,
+        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+      }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "attachment_not_found") return reply.code(404).send(apiErrorResponse("credential_vault_attachment_not_found"));
+    if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
+    if (result.kind === "unsupported") return reply.code(501).send(apiErrorResponse("credential_vault_unsupported", { message: result.message }));
+    if (result.kind === "not_refreshable") {
+      return reply.code(409).send(apiErrorResponse("credential_vault_refresh_not_supported", { sourceType: result.sourceType }));
+    }
+    if (result.kind === "source_unavailable") {
+      const error = refreshSourceError(result.sourceKind);
+      return reply.code(error.status).send(apiErrorResponse(error.code, {
+        message: result.message,
+        attachment: result.attachment
+      }));
+    }
+    if (result.kind === "provider_unavailable") {
+      return reply.code(502).send(apiErrorResponse("credential_vault_provider_unavailable", {
+        message: result.message,
+        attachment: result.attachment
+      }));
+    }
+    return { attachment: result.attachment, vault: result.vault } satisfies RefreshSandboxCredentialResponse;
+  });
+
+  app.delete("/v1/sandboxes/:id/credentials/:attachmentId", async (request, reply) => {
+    const { id, attachmentId } = request.params as { id: string; attachmentId: string };
+    const result = await detachSandboxCredential(
+      {
+        organizationId: request.auth.organizationId,
+        sandboxId: id,
+        attachmentId,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel
+      },
+      { query, runtimeProvider, recordEvent, recordAudit }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "attachment_not_found") return reply.code(404).send(apiErrorResponse("credential_vault_attachment_not_found"));
+    if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
+    if (result.kind === "unsupported") return reply.code(501).send(apiErrorResponse("credential_vault_unsupported", { message: result.message }));
+    if (result.kind === "provider_unavailable") return reply.code(502).send(apiErrorResponse("credential_vault_provider_unavailable", { message: result.message }));
+    return { attachment: result.attachment, vault: result.vault } satisfies DetachSandboxCredentialResponse;
+  });
+
+  app.post("/v1/sandboxes/:id/credentials/:attachmentId/test", async (request, reply) => {
+    const { id, attachmentId } = request.params as { id: string; attachmentId: string };
+    const body = credentialTestSchema.parse(request.body ?? {});
+    const result = await testSandboxCredential(
+      {
+        organizationId: request.auth.organizationId,
+        sandboxId: id,
+        attachmentId,
+        actorUserId: request.auth.userId,
+        actorLabel: request.auth.actorLabel,
+        body
+      },
+      { query, runtimeProvider, recordEvent, recordAudit }
+    );
+    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (result.kind === "attachment_not_found") return reply.code(404).send(apiErrorResponse("credential_vault_attachment_not_found"));
+    if (result.kind === "invalid_binding") return reply.code(400).send(apiErrorResponse("credential_vault_invalid_binding", { message: result.message }));
+    if (result.kind === "sandbox_not_running") return reply.code(409).send(result.response satisfies TestSandboxCredentialResponse);
+    if (result.kind === "not_injected") return reply.code(409).send(result.response satisfies TestSandboxCredentialResponse);
+    if (result.kind === "provider_unavailable") return reply.code(502).send(result.response satisfies TestSandboxCredentialResponse);
+    return result.response satisfies TestSandboxCredentialResponse;
   });
 
   app.get("/v1/sandboxes/:id/egress", async (request, reply) => {

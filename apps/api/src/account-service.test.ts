@@ -47,6 +47,7 @@ test("getCurrentAccount reads organization and user for the authenticated identi
   assert.equal(result.user.email, "user@test.local");
   assert.equal(result.role, "member");
   assert.equal(result.capabilities.canManageMembers, false);
+  assert.equal(result.capabilities.canManageCredentialSecrets, false);
 });
 
 test("completeOnboarding marks the user once and records an audit event", async () => {

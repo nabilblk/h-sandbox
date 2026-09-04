@@ -4,6 +4,10 @@ import { runtimeProvider as defaultRuntimeProvider } from "./providers/runtime/i
 import type { RuntimeProvider, RuntimeSandboxRef } from "./providers/runtime/provider.js";
 import { config, logDeprecatedConfigWarnings } from "./config.js";
 import { processSandboxOperationQueue, type ProcessSandboxOperationQueueReport } from "./services/sandbox-operation-worker.js";
+import {
+  reconcileCredentialVault,
+  type CredentialVaultReconciliationReport
+} from "./services/credential-vault-reconciler.js";
 import { cleanupTemplateRetention, type TemplateRetentionReport } from "./template-retention.js";
 
 export const normalizeState = (state?: string | null) => {
@@ -32,6 +36,10 @@ export type SchedulerDependencies = {
     query: SchedulerQuery;
     runtimeProvider: RuntimeProvider;
   }) => Promise<ProcessSandboxOperationQueueReport>;
+  reconcileCredentialVault?: (dependencies: {
+    query: SchedulerQuery;
+    runtimeProvider: RuntimeProvider;
+  }) => Promise<CredentialVaultReconciliationReport>;
   runTemplateRetentionIfDue?: () => Promise<TemplateRetentionReport | null>;
 };
 
@@ -97,6 +105,8 @@ export const tick = async (dependencies: SchedulerDependencies = {}) => {
   const runtimeProvider = dependencies.runtimeProvider ?? defaultRuntimeProvider;
   await reconcile(dependencies);
   await (dependencies.processSandboxOperationQueue ?? processSandboxOperationQueue)({ query, runtimeProvider });
+  const vaultReport = await (dependencies.reconcileCredentialVault ?? reconcileCredentialVault)({ query, runtimeProvider });
+  if (vaultReport.failed > 0) console.error("credential vault reconciliation failed", vaultReport);
   const due = await query<{
     schedule_id: string;
     sandbox_id: string;
