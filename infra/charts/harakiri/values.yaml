@@ -6,7 +6,7 @@ fullnameOverride: ""
 
 # -- Container images. By default these resolve to:
 #    {registry}/{repository}/{name}:{tag||Chart.appVersion}
-#    e.g. core.campus.clusterdiali.me/harakiri/harakiri-api:0.1.0
+#    e.g. core.campus.clusterdiali.me/harakiri/harakiri-api:0.4.0
 # The CI release workflow publishes exactly these refs.
 image:
   registry: core.campus.clusterdiali.me

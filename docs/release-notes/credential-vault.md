@@ -1,6 +1,6 @@
-# Credential Vault Release Notes
+# Harakiri Sandbox v0.4.0: Credential Vault
 
-**Release state:** Release candidate; k0s supported, restricted OpenShift requires operator action
+**Release state:** Released; k0s supported, restricted OpenShift requires operator action
 **Updated:** 2026-09-04
 
 ## Added

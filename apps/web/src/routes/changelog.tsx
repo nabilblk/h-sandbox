@@ -5,8 +5,8 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
-    id: "2026-09-04-unreleased",
-    version: "Unreleased",
+    id: "2026-09-04-v0-4-0",
+    version: "v0.4.0",
     date: "September 4, 2026",
     title: "Credential Vault and executable tutorials",
     items: [
