@@ -1,0 +1,65 @@
+{
+  "source": "live",
+  "capturedAt": "2026-09-05T02:23:08.267Z",
+  "runId": "product-demo-20260905022217",
+  "release": "0.4.0",
+  "cliVersion": "0.4.0",
+  "template": "open-agents-dev",
+  "templateVersion": "tplv_AviW_b5F4if4",
+  "review": {
+    "reviewedAt": "2026-09-05T02:30:42.006Z",
+    "reviewer": "Codex visual review",
+    "manifestSha256": "4bc0ce2a4ce1e126d130bb2249b3d6890aa47ae467b7b0b29b64e7fbeb8c8346"
+  },
+  "chapters": [
+    {
+      "start": 0,
+      "title": "Harakiri Sandbox"
+    },
+    {
+      "start": 4,
+      "title": "Start with a template."
+    },
+    {
+      "start": 13,
+      "title": "A real shell. Your workspace."
+    },
+    {
+      "start": 21,
+      "title": "Run your application."
+    },
+    {
+      "start": 28,
+      "title": "One command to a live URL."
+    },
+    {
+      "start": 36,
+      "title": "Your code, served from the sandbox."
+    },
+    {
+      "start": 40,
+      "title": "The same sandbox in your browser."
+    },
+    {
+      "start": 44,
+      "title": "Inspect the actual files."
+    },
+    {
+      "start": 48,
+      "title": "Follow the lifecycle."
+    },
+    {
+      "start": 52,
+      "title": "See the runtime state."
+    },
+    {
+      "start": 56,
+      "title": "Keep routes in view."
+    },
+    {
+      "start": 60,
+      "title": "Done means cleaned up."
+    }
+  ],
+  "note": "Waiting time is edited. Metrics are snapshots, not benchmarks. The captured sandbox and route were cleaned up."
+}

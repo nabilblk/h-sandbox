@@ -19,6 +19,7 @@ dist-packages
 *.tgz
 
 # Not needed to build the api/web images
+apps/demo-video
 sandbox_mockups
 test-results
 tests

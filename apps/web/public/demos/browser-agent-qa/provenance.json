@@ -1,0 +1,130 @@
+{
+  "id": "browser-agent-qa",
+  "title": "Let an agent test your web app",
+  "capturedAt": "2026-09-05T17:23:43.964Z",
+  "model": "opencode/mimo-v2.5-free",
+  "openCodeVersion": "1.15.13",
+  "packageVersion": "0.4.0",
+  "sandboxId": "sbx_aYyX7gxwG4",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "reportedStepCosts": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "durationSeconds": 326,
+  "chapters": [
+    {
+      "start": 0,
+      "title": "Turn acceptance criteria into browser tests",
+      "caption": "The agent writes tests. The worker reruns them and checks they fail when the app filter is deliberately broken.",
+      "end": 18
+    },
+    {
+      "start": 18,
+      "title": "The browser runs inside the sandbox",
+      "caption": "Only synthetic app source is provided to the model. No production site, credentials or customer browser session is involved.",
+      "end": 36
+    },
+    {
+      "start": 36,
+      "title": "Run the complete worker example",
+      "caption": "The downloadable example supplies the fixture, complete prompt, worker, artifact checks and cleanup. No paid model fallback.",
+      "end": 56
+    },
+    {
+      "start": 56,
+      "title": "Set the contract before the agent starts",
+      "caption": "Expected results come from the caller. The agent receives an app and requirements, not a prewritten test suite.",
+      "end": 74
+    },
+    {
+      "start": 74,
+      "title": "Prepare Chromium in the remote workspace",
+      "caption": "These commands run inside the sandbox, not on your worker. Do not assume stock OpenCode includes a browser.",
+      "end": 96
+    },
+    {
+      "start": 96,
+      "title": "Start a tracked server, then check readiness",
+      "caption": "The local health check must succeed. Detached returns a job handle, not a ready application.",
+      "end": 116
+    },
+    {
+      "start": 116,
+      "title": "The full prompt: browser interactions",
+      "caption": "The agent must observe real rows, select Passed, restore All and capture the result in Chromium.",
+      "end": 140
+    },
+    {
+      "start": 140,
+      "title": "The full prompt: artifacts and guardrails",
+      "caption": "The prompt names every output and forbids fabricated results. The worker still independently checks acceptance.",
+      "end": 164
+    },
+    {
+      "start": 164,
+      "title": "Build and execute the agentCommand",
+      "caption": "The four-minute agent command runs in /workspace. Raw reasoning stays private; only reviewed evidence is published.",
+      "end": 186
+    },
+    {
+      "start": 186,
+      "title": "Inspect the assertion OpenCode actually wrote",
+      "caption": "The recorded assertion reads browser state. The later mutation check proves it rejects the extra visible rows.",
+      "end": 206
+    },
+    {
+      "start": 206,
+      "title": "Independently rerun the generated tests",
+      "caption": "Fresh artifacts must be created. Existing output from the agent run cannot satisfy the independent rerun.",
+      "end": 226
+    },
+    {
+      "start": 226,
+      "title": "Retrieve the real desktop screenshot",
+      "caption": "A real 1280 x 720 Chromium screenshot, downloaded through the Harakiri SDK after the independent run.",
+      "end": 244
+    },
+    {
+      "start": 244,
+      "title": "Check the mobile viewport too",
+      "caption": "Real 390 x 844 screenshot. The generated test reports no horizontal overflow for this fixture.",
+      "end": 262
+    },
+    {
+      "start": 262,
+      "title": "Break the filter and require a failing test",
+      "caption": "A browser startup error is not accepted as regression detection. The broken filter must trigger an assertion failure.",
+      "end": 286
+    },
+    {
+      "start": 286,
+      "title": "Accept evidence, not a green agent message",
+      "caption": "Original app passes. Broken filter fails. Screenshots downloaded. Model steps reported zero cost in this run.",
+      "end": 306
+    },
+    {
+      "start": 306,
+      "title": "Terminate both servers with the sandbox",
+      "caption": "The capture independently confirms termination. Setup failures, unavailable models and failed assertions also require cleanup.",
+      "end": 326
+    }
+  ],
+  "sourceEvidenceSha256": "ce58e8d9dea92f3713315f85bfe49093584bc0594161a947080b1f7f80485a05",
+  "workflowSha256": "194c0839b1bceaba4bee0874b51bd95832174a65277a429f6538ba33acf63b16",
+  "files": {
+    "video.mp4": "2ddfe9f5c5b2ab7f1ce7ad107358d3abd4274f74eb95a23578fb123c5878899a",
+    "poster.webp": "4f1f752699ebf13b25b906abcff1ddffdf5b0092e70d5b8b792e4f5232cc7b1c",
+    "captions.vtt": "4b995ea1c8859b23b08a68cacdccbc79f54a42179b8e2d028457a30d58dffdfb",
+    "transcript.md": "96e451a14bce9857edff2710c0e989eba699b233e81c635f14a0e3619e95343d",
+    "tutorial.html": "28fc644a5aab4f96423c78fcfe0783f2d7b261954e4a77db3b6ca93ab872d3b9"
+  },
+  "editing": "Real CLI output replay; condensed SDK excerpts; real UI recordings. Waiting removed. No speed benchmark or voiceover."
+}

@@ -1,7 +1,7 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-09-04
+Last updated: 2026-09-05
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
@@ -15,6 +15,348 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - Keycloak: `http://127.0.0.1:18084`
 - OpenSandbox proxy: `http://127.0.0.1:18083`
 - OpenSandbox gateway: `http://127.0.0.1:18085`
+
+## 2026-09-05 Detailed CLI/UI And Browser QA: Deployed (Latest)
+
+The public library at https://sb.harakiri.io/#demos now contains four detailed
+walkthroughs. The original homepage remains unchanged and downloads no video.
+
+| Workflow | Duration | Chapters | MP4 bytes |
+| --- | --- | --- | --- |
+| CLI invoice repair | 4m32s | 14 | 2982884 |
+| UI app creation and preview | 4m22s | 13 | 2902629 |
+| SDK report generation | 4m58s | 16 | 3529436 |
+| Browser-QA agent | 5m26s | 16 | 3737958 |
+
+CLI/UI reuse their verified September 5 executions, now with full task prompts,
+model configuration, boundaries, failure handling, independent checks and
+cleanup. The UI command is complete in both the film and tutorial, without an
+undefined prompt variable. Written tutorials, captions, transcripts, source ZIP,
+no-JavaScript pages and derived chapter times match all four films.
+
+### New Browser-QA Execution
+
+- Published SDK 0.4.0, OpenCode 1.15.13 and explicit mimo-v2.5-free main/small
+  models; template `tplv_WAT-i38tzyOn`.
+- Sandbox `sbx_aYyX7gxwG4`, captured `2026-09-05T17:23:43.964Z`.
+- Actual cold Playwright/Chromium installation: 175 seconds. Both Node servers,
+  the agent and browser run inside the sandbox; no public route or Kubernetes
+  exec is used.
+- OpenCode wrote `qa.mjs`. Ten tool events completed and eight model steps
+  reported cost 0. Private reasoning remains excluded from public artifacts.
+- The caller deleted old outputs, reran the generated suite and downloaded
+  fresh desktop 1280x720 and mobile 390x844 screenshots.
+- Exact report: initialRows 3, passedNames [Portal], restoredRows 3,
+  mobileOverflow false. Original app/server bytes remained unchanged.
+- The same generated test rejected a second fixture whose filter always
+  returns all rows. Exit 1, ERR_ASSERTION: actual Portal/Search/Billing versus
+  expected Portal. Test bytes remained identical.
+- The runtime was terminated. The dedicated API key was revoked and verified
+  to return 401; no active demo sandboxes remained.
+- Reviewed evidence: ignored
+  `docs/artifacts/demo/browser-qa-1788628765889/browser.json`;
+  SHA-256 `ce58e8d9dea92f3713315f85bfe49093584bc0594161a947080b1f7f80485a05`.
+
+Earlier attempts were not published: an orphaned server did not survive its
+short command, one valid light screenshot tripped an overly strict variance
+check, and another generated test timed out waiting for the broken filter.
+The worker now uses a tracked server, image checks preserve light UI detail,
+and the prompt requires immediate Node assertions. All failed runtimes were
+cleaned up. The final complete example was rerun successfully, not patched
+after capture to manufacture successful output.
+
+### Verification
+
+- 43 web tests and 27 demo tests pass; web/demo typechecks, web build,
+  docs link check and `git diff --check` pass.
+- `pnpm demo:verify` passes, including the legacy film plus all workflow
+  hashes, codec/dimensions/durations, byte budgets, captions and OCR scans.
+- Source consistency tests compare complete prompts and shell quoting with
+  runnable examples. Negative tests reject changed input/tests, wrong reports,
+  nonzero cost, missed mutations and infrastructure errors.
+- Browser QA passes against local Vite, the built Nginx image and public HTTPS:
+  1920/1440/390/320 widths, reduced motion, native playback, all 59 chapters,
+  captions, fullscreen, filters, back/forward, no-JS and failure states.
+- Chapter DOM layout measurements and actual screenshot inspection pass.
+  Playback pixel checks sample the content panel after reveal at sufficient
+  resolution to preserve text in light-background UI footage.
+- Built/public server QA passes MIME, cache revalidation, byte ranges,
+  missing-file 404 and actual video/poster/text/source ZIP hash comparisons.
+- Public sign-in reaches sb-auth.harakiri.io and renders the username form.
+  Web, API health and OIDC discovery return 200; issuer remains the public URL.
+
+### Deployment And Rollback
+
+Web-only k0s image: `harakiri-web:four-demos-20260905`.
+
+- Image index: `sha256:262e404bb9f43735e42d54f9393c9e3076487ed6092b564d9026e449bffce589`.
+- Manifest: `sha256:dfd5ddd39bc5eb4fefa27333d70af14e6c443e092734318a723cb216543df8af`.
+- Running image config: `sha256:f27e477d793ed8e12fe62bb72620ed635224f25d4b2ab7dbf5382ae1c17764e7`.
+- Runtime config.js is byte-identical:
+  `2336f0b14e1df176229dfa7ff69cd22f42140e4e02d9034edc3a39347160af3a`.
+
+The pod handoff caused a brief public 502 while the existing host forward
+reconnected; readiness and subsequent public browser/server tests pass.
+API, Keycloak, database, SMTP, ingress and Helm values were not changed.
+
+Rollback:
+
+```sh
+kubectl --kubeconfig infra/k0s/harakiri.kubeconfig -n harakiri set image deployment/harakiri-web web=harakiri-web:sdk-walkthrough-20260905-r2
+kubectl --kubeconfig infra/k0s/harakiri.kubeconfig -n harakiri rollout status deployment/harakiri-web --timeout=120s
+```
+
+No npm/Harbor publication was performed. Protected unattended
+capture remains separate unfinished operational work. The existing Vite
+large-chunk warning remains; Remotion is not bundled into the production app.
+Research and scope boundaries are in `docs/demo-use-case-research.md`.
+
+## 2026-09-05 Expanded SDK Walkthrough: Previous Deployment
+
+The SDK film is now **4m58s, 16 chapters, 3529436 bytes**, replacing the initial
+70-second edit. It introduces the daily order-export use case, distinguishes
+worker/sandbox/external provider responsibilities, shows the full prompt at
+1:58 and defines `agentCommand` at 2:22 before using it. Later chapters explain
+execution/wait/TTL timeouts, real tools, both downloads, independent assertions,
+cleanup and recovery. The tutorial, transcript, captions and source ZIP match.
+
+### Fresh Real Execution
+
+- Published SDK 0.4.0 in a clean consumer; OpenCode 1.15.13, explicit
+  `opencode/mimo-v2.5-free`, template version `tplv_WAT-i38tzyOn`.
+- Sandbox `sbx_bhLG-Y-O4M`, recorded `2026-09-05T14:50:45.937Z`.
+- OpenCode read the fixture, wrote `analyze.py`, executed it and read the output.
+  All six tool events completed; all five completed model steps reported cost 0.
+- Downloaded report: exactly 3 paid orders, 29600 revenue cents and 1 refund.
+  Input bytes unchanged. Both `report.json` and nonempty `summary.md` saved
+  locally. Summary prose is not claimed to be semantically validated.
+- Termination verified; dedicated capture key revoked and rejected with 401.
+  Private evidence: `docs/artifacts/demo/agent-demos-1788619799343/sdk.json`.
+  Raw reasoning traces stay private and are not included in the public film.
+
+### Verification And Corrections
+
+- 43 web tests and 22 demo tests; web/demo typechecks, production build,
+  documentation links and full `pnpm demo:verify` passed.
+- Tests compare the displayed prompt/command to the actual runnable source,
+  verify shell quoting with apostrophes/metacharacters, reject inconsistent
+  evidence and keep the shared chapter outline at exactly 298 seconds.
+- Remotion stills and browser review checked the introduction, full prompt,
+  command and file-download scenes. Public Playwright checks pass at 1920,
+  1440, 390 and 320px plus reduced motion, including all 16 SDK chapter buttons,
+  active captions, playback, no-JS instructions, fullscreen and error states.
+- Caption review caught default cues covering code. Cues are now shorter,
+  omit duplicate headings and use restrained sizing; code remains visible.
+- Public HTML checks caught Cloudflare rewriting `sdk@0.4.0` as an email.
+  Static code blocks now use per-block `email_off` markers; no zone-wide setting
+  was changed. No-JS browser QA asserts the exact copyable npm install command.
+- Revisioned asset URLs prevent cached old films/captions. Public media and
+  source ZIP hashes match the build. MIME, 206 seeking and missing-file 404 pass.
+- The existing Vite >500 kB application-bundle warning remains; Remotion is
+  still build-time-only and is not part of that application bundle.
+
+### Deployment
+
+Only the web deployment was updated to
+`harakiri-web:sdk-walkthrough-20260905-r2`, locally imported into k0s.
+Image index: `sha256:1b1b83b21bd8b5f7a5012fb1368feb1832dce3767cbd51c02c505a68150cc781`.
+Rollback to the prior library: `harakiri-web:agent-demos-20260905`.
+No API/Keycloak/database redeployment or Harbor/npm publication occurred.
+Runtime `config.js` SHA-256 remains
+`2336f0b14e1df176229dfa7ff69cd22f42140e4e02d9034edc3a39347160af3a`.
+
+Initial probes during pod/forward handoff saw brief 502 responses. The retrying
+forward recovered automatically; the complete public suite was rerun after
+readiness and passed. Web, API health and OIDC discovery return HTTP 200.
+This is not a zero-downtime or host-reboot-autostart claim.
+
+## 2026-09-05 Initial Agent Demo Library: Deployed
+
+The maintainer confirmed Remotion eligibility and requested a separate Demos
+menu, the original homepage, and real agent work across CLI, UI, and SDK.
+The earlier candidate below is historical and superseded by this direction.
+
+Deployed `harakiri-web:agent-demos-20260905` to the k0s web deployment only.
+Image index: `sha256:c93a451a80f0605a54d405fed3b0e4cc7176b36d37f884a7c7aca49b238a3463`.
+Previous image for rollback: `core.campus.clusterdiali.me/harakiri/harakiri-web:0.4.0`.
+This is a locally imported lab image, not a published Harbor/npm/Helm release.
+Source changes were pending at this initial deployment checkpoint.
+
+### Real Agent Acceptance
+
+| Workflow | Sandbox | Verified Outcome | Film |
+| --- | --- | --- | --- |
+| CLI repair | `sbx_HjBaG_WiEN` | 3 failing tests before; all 4 pass after; original test SHA unchanged | 76s, 894136 bytes |
+| Dashboard app | `sbx_bJeXe1PAXr` | Agent-created server/HTML; public health 200; real filter assertions; UI Kill | 73s, 840905 bytes |
+| SDK report | `sbx_C5vqvkQpM0` | Published SDK 0.4.0; 3 paid orders, 29600 revenue cents, 1 refund; input unchanged | 70s, 786508 bytes |
+
+Exact UI sandbox ID and template version are in
+`apps/web/public/demos/ui-agent-app/provenance.json`; all three use OpenCode
+1.15.13 and template version `tplv_WAT-i38tzyOn`. The explicit main/small model
+is `opencode/mimo-v2.5-free`. Every completed step reported cost 0. All created
+demo sandboxes were terminated and the dedicated API key was revoked/denied 401.
+No paid model, Kubernetes exec or provider-admin credential was used.
+
+Private evidence: `docs/artifacts/demo/agent-demos-1788611974760`,
+`agent-demos-1788612151153`, and `ui-agent-1788612807022`. Failed recording
+attempts were cleaned up; none are presented as successful recordings. The SDK
+capture was corrected to retain logs before termination; fetching them after
+termination returned 404. Public assets exclude private reasoning traces.
+
+### Website And Media Verification
+
+- Original landing route and stylesheet match HEAD exactly; no homepage video
+  element or media request. Only the public navigation adds Demos.
+- Three public deep links, filters, chapter seeking, pause/play, captions,
+  fullscreen API, browser back/forward and tutorial navigation passed.
+- Playwright passed on Vite, the production Nginx image and public HTTPS at
+  1920, 1440, 390 and 320px, including reduced motion, failed video, missing
+  demo, no-JavaScript tutorials, nonblank video pixels and no horizontal overflow.
+- Public MIME, byte-range 206, media/source downloads and missing-media 404
+  passed. Origin media caching is 3600 seconds; the existing Cloudflare edge
+  policy returns up to 14400 seconds with must-revalidate.
+- `pnpm demo:verify`: source/output hashes, allowlists, dimensions, codecs,
+  durations, captions, posters, chapter/boundary-frame OCR and size budgets pass.
+- 43 web tests and 17 demo tests pass; web/demo typechecks, web production build,
+  docs link check, Helm lint and bounded recording regression pass.
+- Each film has standalone HTML tutorial, English captions, transcript,
+  provenance and an explicit-source ZIP including the template smoke script.
+- Remotion remains build-time only. Films are silent. CLI output is replayed
+  from recorded text, SDK snippets are condensed excerpts, and UI footage is
+  real, tightly cropped capture. No speed benchmark is claimed.
+
+### Availability And Deployment Fixes
+
+Initial Cloudflare 502s traced to absent local origin forwards. The k0s node,
+API, database, Keycloak and OpenSandbox pods were healthy. Existing forwards
+were restored without redeploying those services.
+
+The first web rollout reproduced a second issue: its selected pod disappeared,
+the web forward exited, and the helper skipped recovery because the tmux session
+already existed. The helper now creates missing windows without stopping healthy
+forwards, and new forwards retry after a pod connection ends. During the next
+web rollout, the web forward reconnected automatically. Host reboot still needs
+the startup command; no LaunchAgent or system-wide service was installed.
+
+The Helm-mounted Nginx config initially overrode the image's media locations.
+The chart now serves demo MIME types, ranges and real missing-file 404s, with a
+web-runtime checksum so future chart changes trigger the web rollout. The live
+ConfigMap received only its chart-rendered nginx.conf. `config.js` was asserted
+byte-for-byte unchanged, SHA-256
+`2336f0b14e1df176229dfa7ff69cd22f42140e4e02d9034edc3a39347160af3a`.
+Public web, API health and OIDC discovery return 200; all auth URLs remain public.
+
+Unattended agent-refresh CI remains follow-up work. The current opt-in refresh
+workflow is explicitly labeled legacy; it does not refresh the three agent films.
+
+## 2026-09-05 Initial Product Demo Candidate (Historical)
+
+Status at the initial checkpoint: verified locally but not deployed. This scope
+and its pending licensing checkpoint were superseded by the maintainer's feedback
+and the agent library documented above. The homepage redesign was not shipped.
+
+The approved evaluation capture is `product-demo-20260905022217`, using
+published CLI/API `0.4.0`, sandbox `sbx_AZV1nzslkv`, and template
+`open-agents-dev` version `tplv_AviW_b5F4if4`. One successful run verified CLI
+creation, three uploads, native Bash attach, a tracked Node HTTP server,
+matching public-route health, dashboard Terminal/Filesystem/Logs/Metrics/Network,
+termination, and inactive routes. The capture retains actual event timestamps,
+source media hashes, API specification hash and deployed web bundle hash.
+The source revision identifies the base Git revision of the working tree; this
+initial evaluation capture was produced before the implementation was committed.
+Review is explicitly recorded as `Codex visual review`, not human approval.
+
+The final acceptance audit rejected the initial capture
+`product-demo-20260905012253`: its global video/wall-clock alignment let several
+clips include the next dashboard tab in their trailing frames. The replacement
+records bounded Chrome screencasts and stops before navigation. Its seven clips
+passed first/last-frame inspection and sampled OCR. The terminal's top crop was
+trimmed by eight pixels using the original frames; no output values were edited.
+The local changing-page regression test also passed, proving that a later
+navigation cannot enter an already-recorded clip. Old footage is superseded and
+must not be published.
+
+An independent tutorial run used fresh sandbox `sbx_EQJB0tTXTa`, the published
+CLI and the documented flags without capture-specific environment variables.
+Attach, files, server startup, HTTP `200`, route listing and cleanup passed.
+Run `product-demo-20260905014008` was interrupted with SIGTERM after creation:
+exit `143`, sandbox terminated and disposable CLI container removed. A separate
+recovery invocation against that run also passed, proving idempotence.
+An API-401 recovery test confirmed that failure remains visible through a
+nonzero exit while the local CLI container is still removed.
+
+All demo sandboxes were confirmed terminal. The temporary org-scoped API key
+was revoked and a request with it returned `401`. The dedicated non-platform-admin
+identity, organization, ready template and terminated history are intentionally
+retained for later recordings. No user CLI configuration was overwritten.
+
+| Website Asset | Exact Bytes | Verified Format |
+| --- | ---: | --- |
+| Full walkthrough | 716033 | 68s, 1920x1080, 30fps, H.264/yuv420p, video-only |
+| Hero loop | 87736 | 14s, 1920x1080, 30fps, H.264/yuv420p, video-only |
+| Full poster | 35388 | WebP |
+| Hero poster | 19184 | WebP |
+
+`pnpm demo:verify` passed strict schema, hashes, sampled OCR, credential/private
+URL scans, image metadata, nonblank decoded frames, media dimensions, duration,
+codec, stream count, asset permissions, captions, and size budgets. It also
+verified first/last frames, rejected unexpected files/symlinks, and matched
+provenance, captions, transcript and tutorial against the reviewed sources.
+Both complete videos were rendered with Remotion `4.0.520`; representative
+decoded frames were visually inspected again after the replacement capture.
+
+Browser QA passed on Vite and the actual Nginx image at 1920x1080, 1440x1000,
+1280x600, 390x844, and 320x568, plus reduced motion at 390x844. Checks included
+play/pause, seeking, canvas-pixel decoding, captions, tutorial navigation,
+no horizontal overflow, visible next-section content, narrow-screen button
+fit, failed media, and no-JavaScript fallback. Agent-browser also verified
+keyboard activation of the tutorial and reported no page errors.
+
+The web candidate is `harakiri-web:product-demo-20260905`, manifest
+`sha256:41c61fe8f0d1bda04b171e0f32b51dd7a9f90384bd1f0873226ae9f5a056a43e`.
+Its eight public assets returned `200` with correct MIME/cache headers. A video
+range request returned `206` and exactly 1024 bytes; missing media returned
+`404`, not the SPA document. The acceptance pass caught and fixed a provenance
+file permission error before deployment. `/config.js` retained the public
+Harakiri API and Keycloak hosts, with no localhost issuer.
+
+Workspace checks passed: frozen install, typecheck, build, documentation links,
+OpenAPI, examples, template checks, Credential Vault boundary, and local packed
+SDK/CLI consumer smoke. Tests passed: shared `16`, SDK `48`, CLI `70`, API `288`,
+web `43`, demo contract/scanning `14`, and demo HTTP fixture `1`. The existing
+Vite warning for the monolithic >500KB browser chunk remains; Remotion is not
+part of that runtime bundle or the API/web Docker build context.
+
+Reproducible acceptance commands:
+
+```bash
+pnpm demo:test
+pnpm --filter @harakiri/demo-video recording:check
+pnpm demo:render
+pnpm demo:verify
+pnpm typecheck
+pnpm build
+pnpm --filter @harakiri/demo-video server:qa http://localhost:5190
+pnpm --filter @harakiri/demo-video browser:qa http://localhost:5190
+pnpm docs:check
+pnpm publish:local-check
+```
+
+Raw recovery, cleanup reports, and browser screenshots remain private/ignored
+under `docs/artifacts/demo`. Public source evidence is under
+`apps/demo-video/public/capture`; optimized website output is under
+`apps/web/public/demo`. Production publication must repeat server/browser checks
+on `https://sb.harakiri.io` after the licensing/review checkpoint. The new GitHub
+workflows are source-validated only; protected environment settings and secrets
+have not been provisioned or exercised on GitHub Actions. The private repository
+has no `demo-refresh` environment. Confirm that its subscription supports
+required reviewers for private environments before enabling the explicit
+`HARAKIRI_DEMO_CAPTURE_ENABLED` repository opt-in; do not use an unprotected
+environment as a substitute.
+
+At handoff, existing public web, API health, and Keycloak discovery all returned
+`200`. The disposable Nginx QA container was removed. Vite on port `5185` and
+Remotion Studio on port `3300` are intentionally retained for local review.
 
 ## 2026-09-04 Hands-on Tutorial Acceptance
 

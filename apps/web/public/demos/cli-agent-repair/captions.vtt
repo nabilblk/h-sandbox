@@ -1,0 +1,85 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:09.000 line:92% position:50% size:90% align:center
+The deliverable is changed source code. The same original tests must
+
+00:00:09.000 --> 00:00:18.000 line:92% position:50% size:90% align:center
+fail before the repair and pass afterward.
+
+00:00:18.000 --> 00:00:26.000 line:92% position:50% size:90% align:center
+There is no Kubernetes exec, host repository mount, or paid provider key
+
+00:00:26.000 --> 00:00:34.000 line:92% position:50% size:90% align:center
+in this recording.
+
+00:00:34.000 --> 00:00:43.000 line:92% position:50% size:90% align:center
+The opencode template is ready. Installation is local; OpenCode is
+
+00:00:43.000 --> 00:00:52.000 line:92% position:50% size:90% align:center
+already installed in the remote template.
+
+00:00:52.000 --> 00:01:01.000 line:92% position:50% size:90% align:center
+Retain the sandbox ID and confirm running before continuing. TTL is a
+
+00:01:01.000 --> 00:01:10.000 line:92% position:50% size:90% align:center
+fallback, not the cleanup step.
+
+00:01:10.000 --> 00:01:19.000 line:92% position:50% size:90% align:center
+Only source and tests are uploaded. No completed fix is supplied to the
+
+00:01:19.000 --> 00:01:28.000 line:92% position:50% size:90% align:center
+agent.
+
+00:01:28.000 --> 00:01:39.000 line:92% position:50% size:90% align:center
+Both models are explicit. No paid fallback. Free-provider data policies
+
+00:01:39.000 --> 00:01:50.000 line:92% position:50% size:90% align:center
+still apply to the uploaded task.
+
+00:01:50.000 --> 00:02:00.000 line:92% position:50% size:90% align:center
+Recorded baseline: four tests, one pass, three failures. The test
+
+00:02:00.000 --> 00:02:10.000 line:92% position:50% size:90% align:center
+SHA-256 must remain unchanged after the repair.
+
+00:02:10.000 --> 00:02:22.000 line:92% position:50% size:90% align:center
+Discount subtotal, round cents, add shipping unchanged. The agent must
+
+00:02:22.000 --> 00:02:34.000 line:92% position:50% size:90% align:center
+edit and test, not merely propose a fix.
+
+00:02:34.000 --> 00:02:45.000 line:92% position:50% size:90% align:center
+Retain the command ID. The 240-second limit bounds execution; the next
+
+00:02:45.000 --> 00:02:56.000 line:92% position:50% size:90% align:center
+command waits for its result.
+
+00:02:56.000 --> 00:03:06.000 line:92% position:50% size:90% align:center
+Completed tools and zero-cost model steps must exist. A successful
+
+00:03:06.000 --> 00:03:16.000 line:92% position:50% size:90% align:center
+process alone does not establish a correct repair.
+
+00:03:16.000 --> 00:03:24.000 line:92% position:50% size:90% align:center
+Real read, edit and bash calls completed. The model did not receive a
+
+00:03:24.000 --> 00:03:32.000 line:92% position:50% size:90% align:center
+prewritten replacement implementation.
+
+00:03:32.000 --> 00:03:43.000 line:92% position:50% size:90% align:center
+Four tests pass, zero fail, and the original test hash matches. Review
+
+00:03:43.000 --> 00:03:54.000 line:92% position:50% size:90% align:center
+the diff before adopting the code.
+
+00:03:54.000 --> 00:04:03.000 line:92% position:50% size:90% align:center
+Independent test run: 4 passed, 0 failed. Test file unchanged. Completed
+
+00:04:03.000 --> 00:04:12.000 line:92% position:50% size:90% align:center
+model steps reported zero cost.
+
+00:04:12.000 --> 00:04:22.000 line:92% position:50% size:90% align:center
+The recorded sandbox is terminated. Provider failure, timeout or a bad
+
+00:04:22.000 --> 00:04:32.000 line:92% position:50% size:90% align:center
+repair still requires cleanup.

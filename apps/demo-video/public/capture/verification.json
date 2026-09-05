@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-09-05T02:30:42.006Z",
+  "manifestSha256": "4bc0ce2a4ce1e126d130bb2249b3d6890aa47ae467b7b0b29b64e7fbeb8c8346",
+  "imagesChecked": 7,
+  "clipsChecked": 7,
+  "ocrFramesPerSecond": 2,
+  "textSanitized": true,
+  "mediaHashesVerified": true,
+  "metadataChecked": true,
+  "visualReviewer": "Codex visual review"
+}

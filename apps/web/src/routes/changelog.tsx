@@ -5,6 +5,20 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-05-agent-demos",
+    version: "Website update",
+    date: "September 5, 2026",
+    title: "Real OpenCode demos across CLI, UI, and SDK",
+    items: [
+      "Added a dedicated Demos library with four captioned videos: CLI code repair, dashboard app creation, SDK report generation, and agent-written browser tests with real Chromium screenshots.",
+      "Added matching tutorials, transcripts, downloadable example source, and verified capture details. The original homepage layout is preserved.",
+      "Expanded the SDK demo into a 16-chapter walkthrough with the complete OpenCode prompt and agentCommand, execution boundaries, timeouts, verified report and summary downloads, and cleanup.",
+      "Expanded CLI/UI into detailed 14/13-chapter tutorials with complete prompts and commands. The browser-QA workflow independently reruns generated tests and requires a deliberately broken filter to fail an assertion.",
+      "Executed each scenario with opencode/mimo-v2.5-free and verified tests, artifacts, preview behavior, zero reported model cost, and sandbox cleanup.",
+      "No new npm package or API release is required for this website update. Free-model availability can change."
+    ]
+  },
+  {
     id: "2026-09-04-v0-4-0",
     version: "v0.4.0",
     date: "September 4, 2026",

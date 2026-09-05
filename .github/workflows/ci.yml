@@ -52,6 +52,9 @@ jobs:
       - name: Web typecheck and tests
         run: pnpm --filter @harakiri/web typecheck && pnpm --filter @harakiri/web test
 
+      - name: Demo contract and fixture tests (no live access)
+        run: pnpm demo:test && pnpm --filter @harakiri/demo-video typecheck
+
       - name: Workspace build
         run: pnpm build
 

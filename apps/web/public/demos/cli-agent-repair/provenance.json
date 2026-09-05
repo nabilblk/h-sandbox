@@ -1,0 +1,114 @@
+{
+  "id": "cli-agent-repair",
+  "title": "Repair a bug from the CLI",
+  "capturedAt": "2026-09-05T12:40:12.758Z",
+  "model": "opencode/mimo-v2.5-free",
+  "openCodeVersion": "1.15.13",
+  "packageVersion": "0.4.0",
+  "sandboxId": "sbx_HjBaG_WiEN",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "reportedStepCosts": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "durationSeconds": 272,
+  "chapters": [
+    {
+      "start": 0,
+      "title": "Repair an invoice bug without changing the tests",
+      "caption": "The deliverable is changed source code. The same original tests must fail before the repair and pass afterward.",
+      "end": 18
+    },
+    {
+      "start": 18,
+      "title": "Your terminal controls a remote workspace",
+      "caption": "There is no Kubernetes exec, host repository mount, or paid provider key in this recording.",
+      "end": 34
+    },
+    {
+      "start": 34,
+      "title": "Install the CLI and choose the runtime",
+      "caption": "The opencode template is ready. Installation is local; OpenCode is already installed in the remote template.",
+      "end": 52
+    },
+    {
+      "start": 52,
+      "title": "Create and retain the sandbox ID",
+      "caption": "Retain the sandbox ID and confirm running before continuing. TTL is a fallback, not the cleanup step.",
+      "end": 70
+    },
+    {
+      "start": 70,
+      "title": "Upload the broken source and original tests",
+      "caption": "Only source and tests are uploaded. No completed fix is supplied to the agent.",
+      "end": 88
+    },
+    {
+      "start": 88,
+      "title": "Configure the main and auxiliary free models",
+      "caption": "Both models are explicit. No paid fallback. Free-provider data policies still apply to the uploaded task.",
+      "end": 110
+    },
+    {
+      "start": 110,
+      "title": "Establish the failure before asking for a fix",
+      "caption": "Recorded baseline: four tests, one pass, three failures. The test SHA-256 must remain unchanged after the repair.",
+      "end": 130
+    },
+    {
+      "start": 130,
+      "title": "Give OpenCode the complete repair contract",
+      "caption": "Discount subtotal, round cents, add shipping unchanged. The agent must edit and test, not merely propose a fix.",
+      "end": 154
+    },
+    {
+      "start": 154,
+      "title": "Start the agent as a tracked command",
+      "caption": "Retain the command ID. The 240-second limit bounds execution; the next command waits for its result.",
+      "end": 176
+    },
+    {
+      "start": 176,
+      "title": "Wait and inspect real tool activity",
+      "caption": "Completed tools and zero-cost model steps must exist. A successful process alone does not establish a correct repair.",
+      "end": 196
+    },
+    {
+      "start": 196,
+      "title": "Review the actual agent work",
+      "caption": "Real read, edit and bash calls completed. The model did not receive a prewritten replacement implementation.",
+      "end": 212
+    },
+    {
+      "start": 212,
+      "title": "Rerun the unchanged acceptance tests",
+      "caption": "Four tests pass, zero fail, and the original test hash matches. Review the diff before adopting the code.",
+      "end": 234
+    },
+    {
+      "start": 234,
+      "title": "The repair passes the original contract",
+      "caption": "Independent test run: 4 passed, 0 failed. Test file unchanged. Completed model steps reported zero cost.",
+      "end": 252
+    },
+    {
+      "start": 252,
+      "title": "Retrieve useful work, then terminate",
+      "caption": "The recorded sandbox is terminated. Provider failure, timeout or a bad repair still requires cleanup.",
+      "end": 272
+    }
+  ],
+  "sourceEvidenceSha256": "c53a925bbf9aa702d130d6b3acd196fdf2da32e92849b5d21056cee234b09017",
+  "workflowSha256": "1aeb5a758229732761b0aafa0d59e4d9805406606c3a348643ff11723fd835ec",
+  "files": {
+    "video.mp4": "29fe8d74b471b7167a95a977258c5032e0d672c70514e283a461e2e631084b47",
+    "poster.webp": "846cb1c53f4b19a4dd5ccf8631ee01636365dfbb7509f59cc6972e0f05c37900",
+    "captions.vtt": "0fb35d64a6c80fa785a1feed1cfede95ac6db5055c2c42917b4bc724c20a3a1b",
+    "transcript.md": "fab16a25104d5631e548e3c37651de7e5bbe9e1c1acda848c67d7f5aa12649a4",
+    "tutorial.html": "b31aa2dcb76ebec4dab801423aedc81300febc62d09f22611677bed585a77fd1"
+  },
+  "editing": "Real CLI output replay; condensed SDK excerpts; real UI recordings. Waiting removed. No speed benchmark or voiceover."
+}

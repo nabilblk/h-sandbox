@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SDK: generate and retrieve a report | Harakiri</title><style>body{font:16px/1.65 system-ui;margin:0;color:#17191b;background:#fafbfa}main{max-width:920px;margin:auto;padding:28px 20px 64px}h1{font-size:32px}h2{font-size:23px;margin-top:36px}a{color:#a52b20}pre{background:#191c1e;color:#eef3f0;padding:20px;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:6px;font:13px/1.7 monospace}video{width:100%;aspect-ratio:16/9}video::cue{font-size:16px;background:#151819;color:#fff}p{overflow-wrap:anywhere}.check{border-left:3px solid #267849;padding-left:16px}</style><main><nav><a href="/#demos/sdk-agent-report">Harakiri / Demos</a> | <a href="/demos/agent-workflows.zip?v=20260905-four-workflows-1">Example source</a></nav><h1>SDK: generate and retrieve a report</h1><p>A complete Node.js worker walkthrough: turn a synthetic order export into an agent-written analysis, retrieve the files, assert the result, and terminate the workspace.</p><video controls playsinline preload="metadata" poster="/demos/sdk-agent-report/poster.webp?v=20260905-four-workflows-1"><source src="/demos/sdk-agent-report/video.mp4?v=20260905-four-workflows-1" type="video/mp4"><track kind="captions" src="/demos/sdk-agent-report/captions.vtt?v=20260905-four-workflows-1" srclang="en" label="English"></video><p><a href="/demos/sdk-agent-report/transcript.md?v=20260905-four-workflows-1">Transcript</a> | <a href="/demos/sdk-agent-report/provenance.json?v=20260905-four-workflows-1">Capture details</a></p><p>Use your own Harakiri API URL and an organization-scoped API key. The organization must have a ready opencode template; an administrator can build the included opencode template first. These recordings used CLI/SDK 0.4.0, OpenCode 1.15.13, and opencode/mimo-v2.5-free on September 5, 2026. Free model availability and provider data policies can change. Use only synthetic data, explicitly select a free main and small model, and stop if the model is unavailable. There is no paid-model fallback.</p><p><a href="https://opencode.ai/docs/zen/">OpenCode model availability and data policies</a></p><section><h2>From an order export to a checked report</h2><p>Imagine a Node.js worker receiving a daily order export. It asks an agent to write and run an analysis program in a disposable sandbox, then retrieves a machine-readable report and a short summary. This small synthetic fixture makes the result independently auditable; a fixed production calculation may be better served by ordinary deterministic ETL.</p><p class="check"><strong>Verification:</strong> The deliverable is real files, not a chat answer. Harakiri runs the workspace and transports the files; OpenCode writes and executes the analysis.</p></section><section><h2>What runs where?</h2><p>Your Node.js process is the coordinator. The Harakiri SDK calls your control plane to create a sandbox, transfer files and track a command. OpenCode and its Python tools run inside that sandbox. OpenCode contacts the selected external model provider; sandboxing does not make inference local or prevent the agent from sending input to that provider.</p><p class="check"><strong>Verification:</strong> Keep the Harakiri API key in your worker, not in the sandbox. Use only synthetic data with this free provider and permissive demo tool policy.</p></section><section><h2>Define success before starting the agent</h2><p>The four-row orders.csv fixture has three paid orders and one refunded order. Add 2500 + 19900 + 7200 to get 29600 cents. Exclude the refunded 7000 cents. Expected paid_orders is 3 and refunded_orders is 1. These expectations are defined by the caller, not by the agent.</p><!--email_off--><pre>id,item,total_cents,status
+1,Notebook,2500,paid
+2,Monitor,19900,paid
+3,Adapter,7000,refunded
+4,Keyboard,7200,paid</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The original CSV must remain byte-for-byte unchanged. Generated prose is reviewed separately; only the exact report totals are independently asserted.</p></section><section><h2>Prepare the Node.js worker</h2><p>Download and extract the example source, then work in agent-workflows with Node.js 22 or later. Your organization needs a ready opencode template. Set HARAKIRI_API_URL and HARAKIRI_API_KEY privately before running the script. This recording uses the published SDK 0.4.0, not a workspace build. The npm command installs the SDK on your worker; OpenCode is already in the sandbox template.</p><!--email_off--><pre>npm install @h-sandbox/sdk@0.4.0
+export OPENCODE_MODEL=opencode/mimo-v2.5-free
+node sdk-report.mjs</pre><!--/email_off--><p class="check"><strong>Verification:</strong> No paid LLM API key is required by the model used in the recording. Free model availability can change: stop on unavailability rather than silently choosing a paid model.</p></section><section><h2>Create an isolated OpenCode workspace</h2><p>Read the API endpoint and API key from the worker environment. createSandbox returns a sandbox object; keep its ID for every later call and for recovery. The opencode template supplies the runtime. The full example sets a name and enters try/finally immediately after creation.</p><!--email_off--><pre>import { HarakiriClient } from &#39;@h-sandbox/sdk&#39;;
+const apiUrl = process.env.HARAKIRI_API_URL;
+const apiKey = process.env.HARAKIRI_API_KEY;
+const client = new HarakiriClient({ apiUrl, apiKey });
+const { sandbox } = await client.createSandbox({
+  template: &#39;opencode&#39;, ttlSeconds: 600, wait: true,
+});
+await client.waitForSandbox(sandbox.id, {
+  statuses: [&#39;running&#39;], timeoutMs: 90000,
+});</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The runtime is running before file or command operations. A 600-second TTL bounds abandoned runtime lifetime; it does not replace explicit cleanup.</p></section><section><h2>Transfer the input through the SDK</h2><p>Read the local fixture beside sdk-report.mjs, then upload its contents through files.write. /workspace is inside the remote sandbox, not a mount of your local working directory. createParents creates missing parent directories.</p><!--email_off--><pre>const csv = await readFile(
+  new URL(&#39;./orders.csv&#39;, import.meta.url), &#39;utf8&#39;
+);
+await client.files.write(sandbox.id, {
+  path: &#39;/workspace/orders.csv&#39;, content: csv,
+  encoding: &#39;utf8&#39;, createParents: true,
+});</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The worker keeps csv for a later byte-for-byte comparison. It does not upload an existing analyze.py or precomputed report.</p></section><section><h2>Make the free-model choice explicit</h2><p>The example permits only an explicit opencode/*-free model and writes opencode.json in the working directory. model selects the main model; small_model avoids an unintended auxiliary-model choice. Only the opencode provider is enabled. Sharing and automatic updates are disabled. These settings do not override provider retention policies.</p><!--email_off--><pre>const model = process.env.OPENCODE_MODEL ?? &#39;opencode/mimo-v2.5-free&#39;;
+await client.files.write(sandbox.id, {
+  path: &#39;/workspace/opencode.json&#39;,
+  content: JSON.stringify({
+    model, small_model: model, enabled_providers: [&#39;opencode&#39;],
+    share: &#39;disabled&#39;, autoupdate: false,
+    permission: { &#39;*&#39;: &#39;allow&#39; },
+  }),
+  encoding: &#39;utf8&#39;,
+});</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The broad tool permission is only for this disposable synthetic demonstration. Production workloads need an appropriate tool and outbound-access policy.</p></section><section><h2>Give the agent the complete task</h2><p>This is the entire prompt, not a placeholder. It names the input, asks for an actual Python program, defines the exact output schema, forbids changing the CSV and explicitly asks the agent to execute its tools. Joining the lines produces one instruction string.</p><!--email_off--><pre>const prompt = [
+  &#39;Read orders.csv.&#39;,
+  &#39;Write analyze.py using only the Python standard library.&#39;,
+  &#39;It must sum total_cents only for paid rows and count refunded rows.&#39;,
+  &#39;Execute it to create report.json with exactly paid_orders,&#39;,
+  &#39;revenue_cents, refunded_orders integer fields,&#39;,
+  &#39;and summary.md with a short business summary.&#39;,
+  &#39;Do not modify orders.csv.&#39;,
+  &#39;Use your tools to write and execute the program, not just describe it.&#39;,
+].join(&#39; &#39;);</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The acceptance criteria remain in the worker. Telling an agent not to modify input is an instruction, not an enforced filesystem restriction; the later comparison detects changes.</p></section><section><h2>agentCommand is an ordinary shell string</h2><p>agentCommand is not an SDK method, a hidden agent service or JavaScript running in the sandbox. It is the command string passed to commands.start. opencode run starts a non-interactive task; --format json emits structured execution events, not the business report; --model selects the provider/model. The final positional argument is the full prompt. shellQuote keeps spaces, apostrophes and shell metacharacters in one literal argument.</p><!--email_off--><pre>const shellQuote = (value) =&gt;
+  &quot;&#39;&quot; + value.replaceAll(&quot;&#39;&quot;, &quot;&#39;\\&#39;&#39;&quot;) + &quot;&#39;&quot;;
+
+const agentCommand =
+  `opencode run --format json --model ${model} ${shellQuote(prompt)}`;</pre><!--/email_off--><p class="check"><strong>Verification:</strong> Constructing this string does not start anything. The next SDK call runs it in the sandbox. The selected model is separately restricted by the example to an explicit free-model identifier.</p></section><section><h2>Start a tracked background command</h2><p>The SDK sends the shell string to the sandbox identified by sandbox.id. cwd selects /workspace, where OpenCode finds the CSV and configuration. detached:true starts a tracked command and returns a command ID without waiting for the agent to finish. timeoutMs is a four-minute command execution limit.</p><!--email_off--><pre>const started = await client.commands.start(sandbox.id, {
+  command: agentCommand, cwd: &#39;/workspace&#39;,
+  timeoutMs: 240000, detached: true,
+});
+console.log(&#39;OpenCode job&#39;, started.command.id);</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The returned command ID is a job handle, not the final result. No Kubernetes exec or provider-admin endpoint is involved.</p></section><section><h2>Wait for completion and inspect the logs</h2><p>commands.wait polls the tracked command. Its 260-second timeout is the worker waiting budget, not an extension of the 240-second execution limit or the sandbox TTL. Check the remote exit code, then read logs before terminating the sandbox. A wait timeout is not cancellation; this example goes through finally cleanup.</p><!--email_off--><pre>const result = await client.commands.wait(
+  sandbox.id, started.command.id, { timeoutMs: 260000 }
+);
+assert.equal(result.command.exitCode, 0, &#39;Agent command failed&#39;);
+const logs = await client.commands.logs(
+  sandbox.id, started.command.id
+);</pre><!--/email_off--><p class="check"><strong>Verification:</strong> Exit code 0 only establishes process success. The complete example also rejects missing or unfinished tools and completed model steps with nonzero reported cost, then validates files.</p></section><section><h2>Inspect real work, not an agent promise</h2><p>The film shows completed tool calls from the real execution. OpenCode reads the input, writes analyze.py, runs Python and inspects its artifacts. The caller did not supply the analysis program. Raw JSON logs can contain private reasoning or sensitive values; the public film includes reviewed tool names and paths only.</p><p class="check"><strong>Verification:</strong> Completed step_finish events must exist and report cost 0. Generated code and tool order may vary on a rerun; the original input and output assertions are stable.</p></section><section><h2>Retrieve files before destroying the runtime</h2><p>files.download returns an envelope containing contentBase64. Download both generated artifacts and a fresh copy of the input. Decode the JSON bytes in your Node.js worker; this is a file transfer through Harakiri, not a model response parsed as a report.</p><!--email_off--><pre>const downloaded = await client.files.download(
+  sandbox.id, &#39;/workspace/report.json&#39;
+);
+const summaryFile = await client.files.download(
+  sandbox.id, &#39;/workspace/summary.md&#39;
+);
+const original = await client.files.download(
+  sandbox.id, &#39;/workspace/orders.csv&#39;
+);
+const report = JSON.parse(
+  Buffer.from(downloaded.contentBase64, &#39;base64&#39;).toString(&#39;utf8&#39;)
+);</pre><!--/email_off--><p class="check"><strong>Verification:</strong> Missing artifacts, invalid JSON or failed downloads reject the run. Runtime files and logs are not assumed to remain available after termination.</p></section><section><h2>Make your application the final judge</h2><p>The worker compares the exact report object against expectations calculated from the fixture and checks the original CSV is unchanged. assert.deepEqual also rejects extra fields or string values instead of numbers. The script requires a nonempty summary, but it does not claim to validate every statement in that prose. Only after these checks are report.json and summary.md saved locally.</p><!--email_off--><pre>assert.deepEqual(report, {
+  paid_orders: 3, revenue_cents: 29600, refunded_orders: 1,
+});
+assert.equal(
+  Buffer.from(original.contentBase64, &#39;base64&#39;).toString(&#39;utf8&#39;),
+  csv, &#39;Agent modified input data&#39;
+);
+const summary = Buffer.from(summaryFile.contentBase64, &#39;base64&#39;)
+  .toString(&#39;utf8&#39;);
+assert.ok(summary.trim().length &gt; 0);</pre><!--/email_off--><p class="check"><strong>Verification:</strong> A model success message, a completed process or an attractive summary cannot replace these deterministic checks.</p></section><section><h2>The verified result is now in your worker</h2><p>In the recorded run the downloaded report contains exactly three paid orders, 29600 revenue cents and one refund. Both report.json and summary.md are saved beside sdk-report.mjs. The report can now feed your own application workflow; downstream publishing is not part of this demonstration.</p><!--email_off--><pre>{
+  &quot;paid_orders&quot;: 3,
+  &quot;revenue_cents&quot;: 29600,
+  &quot;refunded_orders&quot;: 1
+}</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The input was unchanged and completed model steps reported zero cost in this recording. That is observed evidence, not a permanent pricing or free-model availability guarantee.</p></section><section><h2>Always clean up, including on failure</h2><p>The full example wraps the sandbox work in try/finally. It kills the runtime and waits for terminated on success or failure. A network failure or a killed worker can still prevent cleanup: retain the printed sandbox ID, inspect it and kill it when connectivity returns. TTL is a safety net. Do not enable the internal DEMO_EVIDENCE option for ordinary use because it stores private execution traces.</p><!--email_off--><pre>finally {
+  await client.killSandbox(sandbox.id);
+  const ended = await client.waitForSandbox(sandbox.id, {
+    statuses: [&#39;terminated&#39;], timeoutMs: 30000,
+  });
+  assert.equal(ended.sandbox.status, &#39;terminated&#39;);
+  console.log(&#39;Cleaned up&#39;, sandbox.id);
+}</pre><!--/email_off--><p class="check"><strong>Verification:</strong> The real recording independently confirmed termination. Download the complete source to run the workflow; individual film snippets omit surrounding imports and try/finally for readability.</p></section></main></html>

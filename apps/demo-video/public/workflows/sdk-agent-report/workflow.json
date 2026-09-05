@@ -1,0 +1,194 @@
+{
+  "id": "sdk-agent-report",
+  "title": "Turn data into a verified report",
+  "surface": "SDK",
+  "capturedAt": "2026-09-05T14:50:45.937Z",
+  "model": "opencode/mimo-v2.5-free",
+  "version": "0.4.0",
+  "sandboxId": "sbx_bhLG-Y-O4M",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "costs": [
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "sourceEvidenceSha256": "487a949ff3dbf9713827db9f86a1b3b6ebe5646a98b42ea7e695cb59cd63df4e",
+  "assets": {},
+  "scenes": [
+    {
+      "title": "From an order export to a checked report",
+      "caption": "A daily order export becomes a checked JSON report and a written summary. The agent must create and execute the analysis.",
+      "seconds": 18,
+      "kind": "overview",
+      "label": "THE TASK / SYNTHETIC ORDER RECONCILIATION",
+      "content": "",
+      "steps": [
+        {
+          "title": "Order export",
+          "detail": "Four synthetic orders. Count paid orders, total paid revenue, and count refunds."
+        },
+        {
+          "title": "Agent-written analysis",
+          "detail": "OpenCode creates analyze.py and runs it with Python inside a disposable sandbox."
+        },
+        {
+          "title": "Checked deliverables",
+          "detail": "Your worker downloads report.json and summary.md, asserts the totals, then cleans up."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "What runs where?",
+      "caption": "Your worker coordinates through Harakiri. OpenCode and Python run in the sandbox; model inference is external.",
+      "seconds": 16,
+      "kind": "overview",
+      "label": "THE EXECUTION BOUNDARY / SDK IS THE COORDINATOR",
+      "content": "",
+      "steps": [
+        {
+          "title": "Your Node.js worker",
+          "detail": "Holds the Harakiri API key. Creates the sandbox, uploads data, tracks the job, verifies files."
+        },
+        {
+          "title": "Harakiri sandbox",
+          "detail": "Hosts OpenCode and its tools. The agent reads orders.csv, writes code, and executes Python."
+        },
+        {
+          "title": "External free model",
+          "detail": "OpenCode calls the selected provider. Inference is not local. Only synthetic data is used."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "Define success before starting the agent",
+      "caption": "Paid revenue: 2500 + 19900 + 7200 = 29600 cents. Exclude the refunded order. Keep the input unchanged.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "orders.csv / COMPLETE INPUT",
+      "content": "id,item,total_cents,status\n1,Notebook,2500,paid\n2,Monitor,19900,paid\n3,Adapter,7000,refunded\n4,Keyboard,7200,paid",
+      "fontSize": 31
+    },
+    {
+      "title": "Prepare the Node.js worker",
+      "caption": "Install the SDK on your worker. Set the Harakiri API URL and key privately. The sandbox template already contains OpenCode.",
+      "seconds": 16,
+      "kind": "code",
+      "label": "YOUR NODE.JS WORKER / SHELL",
+      "content": "npm install @h-sandbox/sdk@0.4.0\nexport OPENCODE_MODEL=opencode/mimo-v2.5-free\nnode sdk-report.mjs",
+      "fontSize": 31
+    },
+    {
+      "title": "Create an isolated OpenCode workspace",
+      "caption": "Keep the returned sandbox ID. Wait until running. The 600-second TTL is a fallback; cleanup still runs in finally.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "import { HarakiriClient } from '@h-sandbox/sdk';\nconst apiUrl = process.env.HARAKIRI_API_URL;\nconst apiKey = process.env.HARAKIRI_API_KEY;\nconst client = new HarakiriClient({ apiUrl, apiKey });\nconst { sandbox } = await client.createSandbox({\n  template: 'opencode', ttlSeconds: 600, wait: true,\n});\nawait client.waitForSandbox(sandbox.id, {\n  statuses: ['running'], timeoutMs: 90000,\n});",
+      "fontSize": 31
+    },
+    {
+      "title": "Transfer the input through the SDK",
+      "caption": "Upload data, not a prewritten analysis. /workspace is the remote sandbox directory. Retain the local input for verification.",
+      "seconds": 14,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const csv = await readFile(\n  new URL('./orders.csv', import.meta.url), 'utf8'\n);\nawait client.files.write(sandbox.id, {\n  path: '/workspace/orders.csv', content: csv,\n  encoding: 'utf8', createParents: true,\n});",
+      "fontSize": 31
+    },
+    {
+      "title": "Make the free-model choice explicit",
+      "caption": "Pin both main and small models to the free model. Broad tool permissions apply only to this synthetic, disposable demo.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const model = process.env.OPENCODE_MODEL ?? 'opencode/mimo-v2.5-free';\nawait client.files.write(sandbox.id, {\n  path: '/workspace/opencode.json',\n  content: JSON.stringify({\n    model, small_model: model, enabled_providers: ['opencode'],\n    share: 'disabled', autoupdate: false,\n    permission: { '*': 'allow' },\n  }),\n  encoding: 'utf8',\n});",
+      "fontSize": 31
+    },
+    {
+      "title": "Give the agent the complete task",
+      "caption": "The complete prompt specifies input, program, output schema, execution and an unchanged CSV. No hidden instructions.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const prompt = [\n  'Read orders.csv.',\n  'Write analyze.py using only the Python standard library.',\n  'It must sum total_cents only for paid rows and count refunded rows.',\n  'Execute it to create report.json with exactly paid_orders,',\n  'revenue_cents, refunded_orders integer fields,',\n  'and summary.md with a short business summary.',\n  'Do not modify orders.csv.',\n  'Use your tools to write and execute the program, not just describe it.',\n].join(' ');",
+      "fontSize": 31
+    },
+    {
+      "title": "agentCommand is an ordinary shell string",
+      "caption": "run: non-interactive task. --format json: execution events. --model: explicit model. shellQuote keeps the prompt one argument.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const shellQuote = (value) =>\n  \"'\" + value.replaceAll(\"'\", \"'\\\\''\") + \"'\";\n\nconst agentCommand =\n  `opencode run --format json --model ${model} ${shellQuote(prompt)}`;",
+      "fontSize": 31
+    },
+    {
+      "title": "Start a tracked background command",
+      "caption": "agentCommand runs in /workspace. detached returns a job ID. timeoutMs limits command execution to four minutes.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const started = await client.commands.start(sandbox.id, {\n  command: agentCommand, cwd: '/workspace',\n  timeoutMs: 240000, detached: true,\n});\nconsole.log('OpenCode job', started.command.id);",
+      "fontSize": 31
+    },
+    {
+      "title": "Wait for completion and inspect the logs",
+      "caption": "260 seconds is the caller waiting budget, not a longer execution limit. Read logs before cleanup. Exit 0 alone is not acceptance.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const result = await client.commands.wait(\n  sandbox.id, started.command.id, { timeoutMs: 260000 }\n);\nassert.equal(result.command.exitCode, 0, 'Agent command failed');\nconst logs = await client.commands.logs(\n  sandbox.id, started.command.id\n);",
+      "fontSize": 31
+    },
+    {
+      "title": "Inspect real work, not an agent promise",
+      "caption": "These are completed tools from the real run. The script checks zero reported model cost; private reasoning is not published.",
+      "seconds": 16,
+      "kind": "tools",
+      "label": "RECORDED COMPLETED TOOLS / COMMAND EXCERPTS",
+      "content": "read     /workspace/orders.csv\nwrite    /workspace/analyze.py\nbash     python analyze.py\nbash     python3 analyze.py\nread     /workspace/report.json\nread     /workspace/summary.md",
+      "fontSize": 31
+    },
+    {
+      "title": "Retrieve files before destroying the runtime",
+      "caption": "Download JSON, summary and original input before termination. contentBase64 is the file envelope, not the agent answer.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "const downloaded = await client.files.download(\n  sandbox.id, '/workspace/report.json'\n);\nconst summaryFile = await client.files.download(\n  sandbox.id, '/workspace/summary.md'\n);\nconst original = await client.files.download(\n  sandbox.id, '/workspace/orders.csv'\n);\nconst report = JSON.parse(\n  Buffer.from(downloaded.contentBase64, 'base64').toString('utf8')\n);",
+      "fontSize": 31
+    },
+    {
+      "title": "Make your application the final judge",
+      "caption": "Assert exact totals and unchanged input before saving. The summary must be nonempty; its prose needs separate review.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "assert.deepEqual(report, {\n  paid_orders: 3, revenue_cents: 29600, refunded_orders: 1,\n});\nassert.equal(\n  Buffer.from(original.contentBase64, 'base64').toString('utf8'),\n  csv, 'Agent modified input data'\n);\nconst summary = Buffer.from(summaryFile.contentBase64, 'base64')\n  .toString('utf8');\nassert.ok(summary.trim().length > 0);",
+      "fontSize": 31
+    },
+    {
+      "title": "The verified result is now in your worker",
+      "caption": "Verified JSON and summary are saved in your worker. This recording passed; future agent runs must pass the same checks.",
+      "seconds": 18,
+      "kind": "result",
+      "label": "report.json / DOWNLOADED AND INDEPENDENTLY ASSERTED",
+      "content": "{\n  \"paid_orders\": 3,\n  \"revenue_cents\": 29600,\n  \"refunded_orders\": 1\n}",
+      "fontSize": 43
+    },
+    {
+      "title": "Always clean up, including on failure",
+      "caption": "finally handles success and failure. Verify terminated. If connectivity prevents cleanup, recover using the sandbox ID and TTL.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "sdk-report.mjs / SOURCE EXCERPT",
+      "content": "finally {\n  await client.killSandbox(sandbox.id);\n  const ended = await client.waitForSandbox(sandbox.id, {\n    statuses: ['terminated'], timeoutMs: 30000,\n  });\n  assert.equal(ended.sandbox.status, 'terminated');\n  console.log('Cleaned up', sandbox.id);\n}",
+      "fontSize": 31
+    }
+  ]
+}

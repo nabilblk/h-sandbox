@@ -1,0 +1,5 @@
+id,item,total_cents,status
+1,Notebook,2500,paid
+2,Monitor,19900,paid
+3,Adapter,7000,refunded
+4,Keyboard,7200,paid

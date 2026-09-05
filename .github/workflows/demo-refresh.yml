@@ -1,0 +1,63 @@
+name: Refresh legacy infrastructure demo
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Exact API/CLI release to capture'
+        required: true
+        default: '0.4.0'
+permissions:
+  contents: read
+concurrency:
+  group: product-demo-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: vars.HARAKIRI_DEMO_CAPTURE_ENABLED == 'true'
+    environment: demo-refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HARAKIRI_API_URL: ${{ vars.HARAKIRI_API_URL }}
+      HARAKIRI_WEB_URL: ${{ vars.HARAKIRI_WEB_URL }}
+      HARAKIRI_DEMO_RELEASE: ${{ inputs.release }}
+      HARAKIRI_API_KEY: ${{ secrets.HARAKIRI_DEMO_API_KEY }}
+      HARAKIRI_DEMO_USER: ${{ secrets.HARAKIRI_DEMO_USER }}
+      HARAKIRI_DEMO_PASSWORD: ${{ secrets.HARAKIRI_DEMO_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr
+      - run: pnpm --filter @harakiri/demo-video exec playwright install --with-deps chromium
+      - run: pnpm demo:capture
+      - name: Scan candidate text, metadata and video frames before upload
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for manifest in "$GITHUB_WORKSPACE"/docs/artifacts/demo/*/capture.json; do
+            pnpm --filter @harakiri/demo-video check-candidate "$(dirname "$manifest")"
+          done
+      - name: Retry recovery for any interrupted attempt
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for manifest in "$GITHUB_WORKSPACE"/docs/artifacts/demo/*/recovery.json; do
+            pnpm demo:cleanup "$manifest"
+          done
+      - name: Upload candidates only, never raw authentication video
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: demo-candidate
+          path: |
+            docs/artifacts/demo/*/capture.json
+            docs/artifacts/demo/*/verification.json
+            docs/artifacts/demo/*/*.png
+            docs/artifacts/demo/*/*.mp4
+          retention-days: 7
+          if-no-files-found: error

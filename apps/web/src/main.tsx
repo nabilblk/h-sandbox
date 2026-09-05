@@ -7,6 +7,7 @@ import { Icon } from "./components/icon";
 import { ChangelogRoute } from "./routes/changelog";
 import { DashboardShellRoute } from "./routes/dashboard-shell";
 import { DocsRoute } from "./routes/docs";
+import { DemosRoute } from "./routes/demos";
 import { LandingRoute } from "./routes/landing";
 import { OnboardingRoute } from "./routes/onboarding";
 import { SandboxDetailRoute } from "./routes/sandbox-detail";
@@ -23,6 +24,7 @@ import {
 import "./styles.css";
 import "./styles-landing.css";
 import "./styles-app.css";
+import "./styles-demos.css";
 
 const pendingPublicRouteKey = "harakiri_pending_public_route";
 
@@ -146,6 +148,8 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
     <SandboxDetailRoute id={routeDetailId} go={go} openSandbox={openSandbox} />
   ) : route === "docs" ? (
     <DocsRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
+  ) : route === "demos" || route.startsWith("demos/") ? (
+    <DemosRoute go={go} selectedId={route === "demos" ? undefined : route.slice(6)} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : route === "changelog" ? (
     <ChangelogRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : (

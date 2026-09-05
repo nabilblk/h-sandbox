@@ -1,0 +1,52 @@
+{
+  "name": "@harakiri/demo-video",
+  "version": "0.4.0",
+  "description": "Verified Harakiri product capture and Remotion compositions",
+  "type": "module",
+  "license": "Apache-2.0",
+  "private": true,
+  "dependencies": {
+    "@fontsource-variable/hanken-grotesk": "5.2.8",
+    "@fontsource-variable/jetbrains-mono": "5.2.8",
+    "@remotion/cli": "4.0.520",
+    "@remotion/fonts": "4.0.520",
+    "@remotion/media": "4.0.520",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "remotion": "4.0.520",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "sharp": "0.34.5",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "studio": "remotion studio src/index.ts --port 3300",
+    "capture": "tsx scripts/capture.ts",
+    "capture:agents": "tsx scripts/capture-agents.ts",
+    "capture:ui": "tsx scripts/capture-agent-ui.ts",
+    "capture:browser": "tsx scripts/capture-browser-qa.ts",
+    "prepare:workflows": "tsx scripts/prepare-workflows.ts",
+    "render:workflows": "tsx scripts/render-workflows.ts",
+    "verify:workflows": "tsx scripts/verify-workflows.ts",
+    "cleanup": "tsx scripts/cleanup.ts",
+    "approve": "tsx scripts/approve.ts",
+    "check-candidate": "tsx scripts/check-candidate.ts",
+    "render": "tsx scripts/render.ts",
+    "verify": "tsx scripts/verify.ts",
+    "browser:qa": "tsx scripts/browser-qa.ts",
+    "recording:check": "tsx scripts/recording-check.ts",
+    "server:qa": "tsx scripts/server-qa.ts",
+    "build": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts scripts/*.test.ts"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}

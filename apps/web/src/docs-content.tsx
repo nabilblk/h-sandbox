@@ -1,4 +1,6 @@
 import type React from "react";
+import { demoTutorialSections } from "./demo-tutorial";
+import { agentDemoPrerequisites, agentDemoTutorials } from "./agent-demo-tutorials";
 
 export type DocPage = {
   id: string;
@@ -139,6 +141,19 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const docPages: DocPage[] = [
+  ...agentDemoTutorials.map((tutorial): DocPage => ({
+    id: tutorial.id, section: "Agent demos", title: tutorial.title, lede: tutorial.lede,
+    toc: tutorial.sections.map((section) => section.title),
+    body: <div className="tutorial-doc"><p><a href={`#demos/${tutorial.id}`}>Watch the demo</a> | <a href="/demos/agent-workflows.zip">Download example source</a> | <a href={`/demos/${tutorial.id}/tutorial.html`}>Standalone tutorial</a></p><p>{agentDemoPrerequisites}</p><p><a href="https://opencode.ai/docs/zen/">OpenCode model availability and data policies</a></p>{tutorial.sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <pre>{section.code}</pre>}<TutorialCheck>{section.check}</TutorialCheck></section>)}</div>,
+  })),
+  {
+    id: "cli-live-preview",
+    section: "Tutorials",
+    title: "CLI to live preview",
+    lede: "Reproduce the real product demo: create a workspace, attach, run an application, expose it, inspect it, and clean up.",
+    toc: demoTutorialSections.map((section) => section.title),
+    body: <div className="tutorial-doc"><p><a href="/demo/harakiri-product-demo.mp4">Watch the 68-second walkthrough</a> | <a href="/demo/transcript.md">Transcript</a> | <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/demo/product-tour">Example application source</a></p>{demoTutorialSections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <pre>{section.code}</pre>}<p><strong>Verification: </strong>{section.check}</p></section>)}</div>,
+  },
   {
     id: "vision-architecture",
     section: "Getting started",

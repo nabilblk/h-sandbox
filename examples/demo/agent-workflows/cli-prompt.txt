@@ -1,0 +1,1 @@
+Fix invoice.mjs so subtotal is discounted by discountPercent, rounded to integer cents, then shipping is added unchanged. Run node --test invoice.spec.mjs to verify your fix. Do not modify invoice.spec.mjs. Use your tools to edit and run tests, not just describe a fix.

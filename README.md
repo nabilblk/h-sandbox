@@ -11,6 +11,25 @@ builder is rootless BuildKit running as per-build Kubernetes Jobs. PostgreSQL is
 the control-plane datastore, and Keycloak-compatible OIDC is used for browser
 authentication.
 
+## Agent Demos
+
+The [Demos library](https://sb.harakiri.io/#demos) contains four independent
+OpenCode workflows: repair code from the CLI, build and preview an app in the
+dashboard, generate/download a report using the published SDK, and generate
+Playwright tests with real Chromium screenshots and a broken-filter check.
+Each includes a captioned video, transcript, tutorial, downloadable source and
+verified capture provenance. The homepage keeps its original layout.
+
+The September 5, 2026 recordings used `opencode/mimo-v2.5-free`, with zero
+reported model cost and independent checks of tests, HTTP behavior, artifacts,
+and cleanup. Free-model availability can change. CLI text is replayed from real
+output; SDK excerpts are condensed; UI footage is recorded. Waiting is edited,
+not a performance benchmark.
+
+See [runnable examples](examples/demo/agent-workflows),
+[production runbook](docs/demo-production-runbook.md), and
+[Remotion workspace](apps/demo-video/README.md).
+
 ## Interfaces
 
 - Web UI: React/Vite dashboard and product docs.

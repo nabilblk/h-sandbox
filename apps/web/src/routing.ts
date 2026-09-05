@@ -16,6 +16,8 @@ export const isRoute = (route: string): route is Route =>
   route === "dashboard/settings" ||
   route === "detail" ||
   route === "docs" ||
+  route === "demos" ||
+  /^demos\/[a-z0-9-]+$/.test(route) ||
   route === "changelog";
 
 export const routeFromHash = (hash: string): Route => {
@@ -32,7 +34,7 @@ export const sandboxDetailIdFromRoute = (route: Route) => {
   }
 };
 
-export const isPublicRoute = (route: Route) => route === "landing" || route === "docs" || route === "changelog";
+export const isPublicRoute = (route: Route) => route === "landing" || route === "docs" || route === "changelog" || route === "demos" || route.startsWith("demos/");
 
 export const hasOidcResponse = (hash: string) => {
   const fragment = hash.replace(/^#/, "");

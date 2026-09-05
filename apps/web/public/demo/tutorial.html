@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CLI to live preview | Harakiri Sandbox</title><style>body{margin:0;background:#fafaf7;color:#0f0f0e;font:17px/1.6 system-ui}main{max-width:860px;margin:auto;padding:32px 24px}h1{font-size:36px;line-height:1.2}h2{font-size:24px;margin-top:40px}pre{overflow:auto;padding:20px;background:#fff;border:1px solid #d9d8d0;font-size:13px}a{color:#b8331f}video{width:100%;aspect-ratio:16/9}</style></head><body><main><a href="/">Harakiri Sandbox</a><h1>CLI to live preview</h1><video controls playsinline preload="none" poster="harakiri-product-demo.webp"><source src="harakiri-product-demo.mp4" type="video/mp4"><track kind="captions" src="harakiri-product-demo.vtt" srclang="en" label="English" default></video><p><a href="transcript.md">Transcript</a> | <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/demo/product-tour">Example source</a></p><section><h2>Prepare your workspace</h2><p>Use a deployed Harakiri API, a workspace API key, and a ready open-agents-dev template. Run these commands in Bash from a checkout of the h-sandbox repository. The example uses only Node&#39;s standard library; it makes no model or package-registry calls while running.</p><pre><code>npm install -g @h-sandbox/cli@0.4.0
+export HARAKIRI_API_URL=&quot;https://your-api.example.com&quot;
+read -r -s -p &quot;Workspace API key: &quot; HARAKIRI_API_KEY
+printf &#39;\n&#39;
+export HARAKIRI_API_KEY
+harakiri login --api-url &quot;$HARAKIRI_API_URL&quot;
+harakiri --version
+harakiri template inspect open-agents-dev</code></pre><p><strong>Verification:</strong> The CLI reports 0.4.0 and the template is ready. Login stores a local CLI configuration; do not record or publish it. If the template is absent, build examples/templates/open-agents-dev using the template build tutorial first.</p></section>
+<section><h2>Create and upload</h2><p>Give the sandbox a short TTL and install a cleanup trap immediately. The printed identifier belongs to your run: do not reuse the ID or route from the video.</p><pre><code>set -euo pipefail
+SBX_ID=&quot;$(harakiri create --template open-agents-dev --name product-tour --ttl 300 | sed -n &#39;/^sbx_/p&#39;)&quot;
+test -n &quot;$SBX_ID&quot;
+cleanup() { harakiri kill &quot;$SBX_ID&quot;; }
+trap cleanup EXIT
+trap &#39;exit 130&#39; INT
+trap &#39;exit 143&#39; TERM
+for file in server.mjs index.html mark.svg; do
+  harakiri file-upload &quot;$SBX_ID&quot; \
+    --from &quot;examples/demo/product-tour/$file&quot; \
+    --path &quot;/workspace/$file&quot; --parents
+done</code></pre><p><strong>Verification:</strong> Creation prints an sbx_ identifier. Each upload reports a file size, checksum, and /workspace path. Keep this Bash session open until cleanup.</p></section>
+<section><h2>Connect to the shell</h2><p>Attach uses Harakiri&#39;s public terminal transport. It does not require kubectl, cluster credentials, or direct OpenSandbox access. The current provider launches Bash; omit shell and per-attach environment overrides.</p><pre><code>harakiri attach &quot;$SBX_ID&quot; --cwd /workspace
+# In the attached shell:
+pwd
+ls -1
+node --version
+exit</code></pre><p><strong>Verification:</strong> Output includes /workspace, server.mjs, index.html, mark.svg, and the template&#39;s Node version. Exiting attach disconnects the shell; it does not terminate the sandbox.</p></section>
+<section><h2>Start and expose the application</h2><p>The server binds to 0.0.0.0:3000. A detached command keeps it running after the CLI returns. This tutorial intentionally creates a public preview: anyone with the URL can visit it. Use token-protected routes for private content.</p><pre><code>harakiri command run &quot;$SBX_ID&quot; --cwd /workspace \
+  --cmd &quot;node server.mjs&quot; --detached
+harakiri expose &quot;$SBX_ID&quot; --port 3000 \
+  --wait --wait-path /health --expect-status 200
+harakiri routes &quot;$SBX_ID&quot;</code></pre><p><strong>Verification:</strong> The command reports a cmd_ identifier with running state. Expose waits for HTTP 200 and prints a deployment-specific HTTPS URL. Open it: the page shows Application running. The /health endpoint returns JSON with status: ok. Readiness is application-response evidence, not a latency benchmark.</p></section>
+<section><h2>Inspect the same sandbox in the dashboard</h2><p>Sign in to the same workspace and open the matching sbx_ ID. In Terminal, run pwd and ls -1. Filesystem shows the uploaded files. Logs include the creation lifecycle event and source. Metrics show provider CPU/memory snapshots; unavailable disk or network readings are not measured values. Network lists the port 3000 route.</p><p><strong>Verification:</strong> The CLI and UI refer to one sandbox. Template versions, command IDs, dates, metrics, and URLs will differ from the recorded demo.</p></section>
+<section><h2>Terminate and verify cleanup</h2><p>Terminate explicitly instead of waiting for TTL. The capture automation also checks cleanup after failures and signals.</p><pre><code>harakiri kill &quot;$SBX_ID&quot;
+harakiri list
+harakiri routes &quot;$SBX_ID&quot;
+trap - EXIT INT TERM</code></pre><p><strong>Verification:</strong> The sandbox is terminated and its route is no longer ready. Refresh the old URL: it must no longer return the application. Older CLI wording about disk zeroing is not a provider guarantee; the demonstration makes no such claim.</p></section>
+<section><h2>Troubleshooting</h2><p>A missing template belongs to another workspace or has not been built. Pending creation needs capacity/image-pull checks. Check attach errors against runtime capabilities. A route timeout commonly means the process exited or bound only to localhost. A dashboard 401 requires normal Keycloak sign-in in the correct organization. If cleanup fails, retry harakiri kill and ask the operator to inspect reconciliation; do not assume TTL already removed it.</p><p><strong>Verification:</strong> No provider-specific escape hatch is required. Capture maintainers should use the demo production runbook for recording, verification, and media refresh.</p></section></main></body></html>

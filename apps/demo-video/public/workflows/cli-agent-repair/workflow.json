@@ -1,0 +1,177 @@
+{
+  "id": "cli-agent-repair",
+  "title": "Repair a bug from the CLI",
+  "surface": "CLI",
+  "capturedAt": "2026-09-05T12:40:12.758Z",
+  "model": "opencode/mimo-v2.5-free",
+  "version": "0.4.0",
+  "sandboxId": "sbx_HjBaG_WiEN",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "costs": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "sourceEvidenceSha256": "c53a925bbf9aa702d130d6b3acd196fdf2da32e92849b5d21056cee234b09017",
+  "assets": {},
+  "scenes": [
+    {
+      "title": "Repair an invoice bug without changing the tests",
+      "caption": "The deliverable is changed source code. The same original tests must fail before the repair and pass afterward.",
+      "seconds": 18,
+      "kind": "overview",
+      "label": "A DEVELOPER WORKFLOW / SYNTHETIC TASK",
+      "content": "",
+      "steps": [
+        {
+          "title": "A failing calculation",
+          "detail": "Discounts are ignored. Four existing tests define correct rounding and shipping behavior."
+        },
+        {
+          "title": "An agent repair",
+          "detail": "OpenCode reads the task, edits the implementation and runs the Node test suite."
+        },
+        {
+          "title": "Independent acceptance",
+          "detail": "Rerun the original tests. Compare the test hash and inspect the implementation diff."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "Your terminal controls a remote workspace",
+      "caption": "There is no Kubernetes exec, host repository mount, or paid provider key in this recording.",
+      "seconds": 16,
+      "kind": "overview",
+      "label": "A DEVELOPER WORKFLOW / SYNTHETIC TASK",
+      "content": "",
+      "steps": [
+        {
+          "title": "Your terminal",
+          "detail": "Published Harakiri CLI. Holds your API key and sends files and commands through the control plane."
+        },
+        {
+          "title": "Remote sandbox",
+          "detail": "OpenCode, Node and Git work in /workspace. No local project mount or Kubernetes exec."
+        },
+        {
+          "title": "External model",
+          "detail": "OpenCode calls the explicit free provider. Only synthetic source and tests are used."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "Install the CLI and choose the runtime",
+      "caption": "The opencode template is ready. Installation is local; OpenCode is already installed in the remote template.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "npm install -g @h-sandbox/cli@0.4.0\nharakiri login --api-url \"$HARAKIRI_API_URL\"\nharakiri template list",
+      "fontSize": 31
+    },
+    {
+      "title": "Create and retain the sandbox ID",
+      "caption": "Retain the sandbox ID and confirm running before continuing. TTL is a fallback, not the cleanup step.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "SBX=$(harakiri create --template opencode \\\n  --name invoice-repair --ttl 600 | sed -n \"/^sbx_/p\")\ntest -n \"$SBX\" || exit 1\ntrap 'harakiri kill \"$SBX\"' EXIT\nharakiri inspect \"$SBX\"",
+      "fontSize": 31
+    },
+    {
+      "title": "Upload the broken source and original tests",
+      "caption": "Only source and tests are uploaded. No completed fix is supplied to the agent.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "for file in invoice.mjs invoice.spec.mjs; do\n  harakiri file-upload \"$SBX\" --from \"$file\" \\\n    --path \"/workspace/$file\" --parents\ndone\nharakiri run \"$SBX\" --cwd /workspace \\\n  --cmd \"git init -q && git add invoice.mjs invoice.spec.mjs\"",
+      "fontSize": 31
+    },
+    {
+      "title": "Configure the main and auxiliary free models",
+      "caption": "Both models are explicit. No paid fallback. Free-provider data policies still apply to the uploaded task.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "{\n  \"model\": \"opencode/mimo-v2.5-free\",\n  \"small_model\": \"opencode/mimo-v2.5-free\",\n  \"enabled_providers\": [\"opencode\"],\n  \"share\": \"disabled\", \"autoupdate\": false,\n  \"permission\": {\"*\": \"allow\"}\n}",
+      "fontSize": 31
+    },
+    {
+      "title": "Establish the failure before asking for a fix",
+      "caption": "Recorded baseline: four tests, one pass, three failures. The test SHA-256 must remain unchanged after the repair.",
+      "seconds": 20,
+      "kind": "terminal",
+      "label": "RECORDED NODE TEST OUTPUT / EXCERPT",
+      "content": "not ok 1 - applies discount before shipping\nnot ok 2 - rounds discounted cents once\nok 3 - handles no discount\nnot ok 4 - a full discount still charges shipping\n# tests 4\n# pass 1\n# fail 3",
+      "command": "harakiri run \"$SBX\" --cwd /workspace --cmd \"node --test invoice.spec.mjs\"",
+      "fontSize": 31
+    },
+    {
+      "title": "Give OpenCode the complete repair contract",
+      "caption": "Discount subtotal, round cents, add shipping unchanged. The agent must edit and test, not merely propose a fix.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "cli-prompt.txt / COMPLETE PROMPT",
+      "content": "Fix invoice.mjs so subtotal is discounted by discountPercent, rounded to integer cents, then shipping is added unchanged. Run node --test invoice.spec.mjs to verify your fix. Do not modify invoice.spec.mjs. Use your tools to edit and run tests, not just describe a fix.",
+      "fontSize": 31
+    },
+    {
+      "title": "Start the agent as a tracked command",
+      "caption": "Retain the command ID. The 240-second limit bounds execution; the next command waits for its result.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "MODEL=opencode/mimo-v2.5-free\nPROMPT=$(cat cli-prompt.txt)\nJOB=$(harakiri command run \"$SBX\" --cwd /workspace \\\n  --cmd \"opencode run --format json --model $MODEL '$PROMPT'\" \\\n  --timeout-ms 240000 --detached --json | jq -r .command.id)\ntest -n \"$JOB\" && test \"$JOB\" != null",
+      "fontSize": 31
+    },
+    {
+      "title": "Wait and inspect real tool activity",
+      "caption": "Completed tools and zero-cost model steps must exist. A successful process alone does not establish a correct repair.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "harakiri command wait \"$SBX\" \"$JOB\" \\\n  --timeout-ms 260000 --json\nharakiri command logs \"$SBX\" \"$JOB\" --json",
+      "fontSize": 31
+    },
+    {
+      "title": "Review the actual agent work",
+      "caption": "Real read, edit and bash calls completed. The model did not receive a prewritten replacement implementation.",
+      "seconds": 16,
+      "kind": "tools",
+      "label": "RECORDED COMPLETED TOOLS / COMMAND EXCERPTS",
+      "content": "read     /workspace/invoice.mjs\nread     /workspace/invoice.spec.mjs\nedit     /workspace/invoice.mjs\nbash     node --test invoice.spec.mjs",
+      "fontSize": 31
+    },
+    {
+      "title": "Rerun the unchanged acceptance tests",
+      "caption": "Four tests pass, zero fail, and the original test hash matches. Review the diff before adopting the code.",
+      "seconds": 22,
+      "kind": "terminal",
+      "label": "RECORDED NODE TEST OUTPUT / EXCERPT",
+      "content": "ok 1 - applies discount before shipping\nok 2 - rounds discounted cents once\nok 3 - handles no discount\nok 4 - a full discount still charges shipping\n# tests 4\n# pass 4\n# fail 0",
+      "command": "harakiri run \"$SBX\" --cwd /workspace --cmd \"node --test invoice.spec.mjs\"",
+      "fontSize": 31
+    },
+    {
+      "title": "The repair passes the original contract",
+      "caption": "Independent test run: 4 passed, 0 failed. Test file unchanged. Completed model steps reported zero cost.",
+      "seconds": 18,
+      "kind": "result",
+      "label": "RECORDED REPAIR / INDEPENDENT ASSERTIONS",
+      "content": "Before       1 passed / 3 failed\nAfter        4 passed / 0 failed\nTest SHA     unchanged\nModel steps  zero reported cost",
+      "fontSize": 39
+    },
+    {
+      "title": "Retrieve useful work, then terminate",
+      "caption": "The recorded sandbox is terminated. Provider failure, timeout or a bad repair still requires cleanup.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "harakiri kill \"$SBX\"\nharakiri inspect \"$SBX\"\n# Only after terminated is confirmed:\ntrap - EXIT",
+      "fontSize": 31
+    }
+  ]
+}

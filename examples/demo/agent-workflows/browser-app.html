@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Release board</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #192322; background: #f6f8f7; font: 16px/1.5 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 22px 32px; border-bottom: 1px solid #d6ddda; background: white; }
+  .mark { padding: 2px 8px; background: #b73325; color: white; font-weight: 700; }
+  main { max-width: 1100px; margin: 48px auto; padding: 0 24px; }
+  h1 { margin: 0; font-size: 32px; line-height: 1.2; }
+  .toolbar { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin: 28px 0; }
+  .muted { color: #586663; }
+  label { display: grid; gap: 6px; font-size: 14px; }
+  select { min-width: 164px; padding: 10px; border: 1px solid #99aaa4; border-radius: 4px; background: white; font: inherit; }
+  table { width: 100%; border-collapse: collapse; background: white; }
+  th, td { text-align: left; padding: 18px; border-bottom: 1px solid #d6ddda; }
+  th { font-size: 13px; font-weight: 500; color: #586663; background: #edf1ef; }
+  .status { display: inline-flex; gap: 7px; align-items: center; }
+  .status::before { content: ''; width: 7px; height: 7px; background: #c0881b; border-radius: 50%; }
+  .passed::before { background: #18815b; }
+  .queued::before { background: #768782; }
+  @media (max-width: 600px) {
+    header { padding: 18px 20px; } main { padding: 0 16px; margin-top: 32px; }
+    .toolbar { align-items: start; flex-direction: column; gap: 12px; }
+    th, td { padding: 14px 10px; } .commit { display: none; }
+  }
+</style>
+<header><span class="mark">h.</span><strong>harakiri</strong><span class="muted">/ Release board</span></header>
+<main>
+  <h1>Releases</h1>
+  <div class="toolbar"><span class="muted">Engineering / Preview environment</span>
+    <label for="status">Status<select id="status"><option value="all">All</option><option value="passed">Passed</option><option value="running">Running</option><option value="queued">Queued</option></select></label>
+  </div>
+  <table><thead><tr><th>Service</th><th>Status</th><th class="commit">Commit</th></tr></thead><tbody id="releases"></tbody></table>
+</main>
+<script>
+  const releases = [{name:'Portal',status:'passed',commit:'e38a240'},{name:'Search',status:'running',commit:'7c123de'},{name:'Billing',status:'queued',commit:'56a803b'}];
+  const filter = document.querySelector('#status');
+  const render = () => {
+    const visible = releases.filter(item => filter.value === 'all' || item.status === filter.value);
+    document.querySelector('#releases').innerHTML = visible.map(item => `<tr data-testid="release-row"><td>${item.name}</td><td><span class="status ${item.status}">${item.status}</span></td><td class="commit">${item.commit}</td></tr>`).join('');
+  };
+  filter.addEventListener('change', render);
+  render();
+</script>
+</html>

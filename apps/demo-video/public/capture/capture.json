@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "source": "live",
+  "status": "verified",
+  "publishable": true,
+  "runId": "product-demo-20260905022217",
+  "capturedAt": "2026-09-05T02:23:08.267Z",
+  "cliVersion": "0.4.0",
+  "release": "0.4.0",
+  "sourceRevision": "636f32a510a7b7c8a9752c2e8300fa3311fdf7f6",
+  "publicOrigins": [
+    "https://sb-api.harakiri.io",
+    "https://sb.harakiri.io",
+    "https://8a7f3fc8-ebe5-4c38-a8ee-f0dc90f13ab2-3000.harakiri.io"
+  ],
+  "releaseEvidence": {
+    "apiSpecSha256": "1383e9e011f000e77fbaca565821c91a497ae8c25d398dd64fe494561780ddff",
+    "webAssetSha256": "6d8d42dbab3ddc4d7cce3789b8e237e1046d2a258eb32d267794268bbcbf1526"
+  },
+  "sandbox": {
+    "id": "sbx_AZV1nzslkv",
+    "template": "open-agents-dev",
+    "version": "tplv_AviW_b5F4if4",
+    "status": "terminated",
+    "ttl": 300
+  },
+  "route": {
+    "url": "https://8a7f3fc8-ebe5-4c38-a8ee-f0dc90f13ab2-3000.harakiri.io",
+    "port": 3000,
+    "readyStatus": 200,
+    "runMatched": true
+  },
+  "events": [
+    {
+      "name": "version",
+      "command": "harakiri --version",
+      "startedMs": 2203.522,
+      "durationMs": 118.75570800000014,
+      "exitCode": 0,
+      "stdout": "0.4.0\n",
+      "stderr": ""
+    },
+    {
+      "name": "login",
+      "command": "harakiri login --api-url https://sb-api.harakiri.io",
+      "startedMs": 2323.118667,
+      "durationMs": 124.48566600000004,
+      "exitCode": 0,
+      "stdout": "-> saved config at /root/.config/harakiri/config.json\n",
+      "stderr": ""
+    },
+    {
+      "name": "create",
+      "command": "harakiri create --template open-agents-dev --name product-demo-20260905022217 --ttl 300 --env DEMO_RUN=product-demo-20260905022217 --env DEMO_TEMPLATE=open-agents-dev",
+      "startedMs": 2447.827458,
+      "durationMs": 5400.994833999999,
+      "exitCode": 0,
+      "stdout": "-> provisioning microVM...\n-> sealed. id=sbx_AZV1nzslkv\nsbx_AZV1nzslkv\n-> provisioned in 5282ms\n",
+      "stderr": ""
+    },
+    {
+      "name": "upload-server",
+      "command": "harakiri file-upload sbx_AZV1nzslkv --from /demo/server.mjs --path /workspace/server.mjs --parents",
+      "startedMs": 7926.903333,
+      "durationMs": 1441.6879169999993,
+      "exitCode": 0,
+      "stdout": "file\t1758\tsha256:d19ec6b54239ec80a36b2d84ead907bde000ee247460ffbd0e7071c036390789\t/workspace/server.mjs\n",
+      "stderr": ""
+    },
+    {
+      "name": "upload-html",
+      "command": "harakiri file-upload sbx_AZV1nzslkv --from /demo/index.html --path /workspace/index.html --parents",
+      "startedMs": 9368.627792,
+      "durationMs": 1487.4186659999996,
+      "exitCode": 0,
+      "stdout": "file\t2791\tsha256:ecf50a15f6879e834c3d52518325c1906cdb08aaa8626d42c290fe72766ff49c\t/workspace/index.html\n",
+      "stderr": ""
+    },
+    {
+      "name": "upload-logo",
+      "command": "harakiri file-upload sbx_AZV1nzslkv --from /demo/mark.svg --path /workspace/mark.svg --parents",
+      "startedMs": 10856.097416999999,
+      "durationMs": 1385.9504160000015,
+      "exitCode": 0,
+      "stdout": "file\t384\tsha256:0ce2302dd25f9c06e5e67aa2ff97abdbf338f1d837424df37c9340087ad03df3\t/workspace/mark.svg\n",
+      "stderr": ""
+    },
+    {
+      "name": "start",
+      "command": "harakiri command run sbx_AZV1nzslkv --cwd /workspace --cmd 'node server.mjs' --detached",
+      "startedMs": 14010.480333,
+      "durationMs": 1335.906667000001,
+      "exitCode": 0,
+      "stdout": "cmd_PvIoqfKcCr4Q\trunning\t[redacted]\n",
+      "stderr": ""
+    },
+    {
+      "name": "expose",
+      "command": "harakiri expose sbx_AZV1nzslkv --port 3000 --wait --wait-path /health --expect-status 200",
+      "startedMs": 15597.202833000001,
+      "durationMs": 741.4064169999983,
+      "exitCode": 0,
+      "stdout": "-> exposing port 3000\n-> waiting for https://8a7f3fc8-ebe5-4c38-a8ee-f0dc90f13ab2-3000.harakiri.io/health\n-> ready. provider=opensandbox-gateway. access=public\nhttps://8a7f3fc8-ebe5-4c38-a8ee-f0dc90f13ab2-3000.harakiri.io\n",
+      "stderr": ""
+    },
+    {
+      "name": "routes",
+      "command": "harakiri routes sbx_AZV1nzslkv",
+      "startedMs": 16575.681625,
+      "durationMs": 358.0452499999992,
+      "exitCode": 0,
+      "stdout": "3000\tready\tpublic\t-\topensandbox-gateway\t-\thttps://8a7f3fc8-ebe5-4c38-a8ee-f0dc90f13ab2-3000.harakiri.io\n",
+      "stderr": ""
+    },
+    {
+      "name": "kill",
+      "command": "harakiri kill sbx_AZV1nzslkv",
+      "startedMs": 43798.687458,
+      "durationMs": 403.41270899999654,
+      "exitCode": 0,
+      "stdout": "-> sandbox terminated. disk zeroed.\n",
+      "stderr": ""
+    }
+  ],
+  "terminal": {
+    "command": "harakiri attach sbx_AZV1nzslkv --cwd /workspace",
+    "stdout": "bash-5.2#                                                                                              bash-5.2# pwd\n/workspace\nbash-5.2# ls -1\nindex.html\nmark.svg\nserver.mjs\nbash-5.2# node --version\nv22.23.2\nbash-5.2# exit\nexit\n",
+    "chunks": [
+      {
+        "atMs": 309.94308400000045,
+        "text": "bash-5.2# "
+      },
+      {
+        "atMs": 440.79625000000124,
+        "text": "                                                                                             bash-5.2# pwd\n/workspace\nbash-5.2# "
+      },
+      {
+        "atMs": 831.183959,
+        "text": "ls -1\n"
+      },
+      {
+        "atMs": 831.4563340000004,
+        "text": "index.html\nmark.svg\nserver.mjs\n"
+      },
+      {
+        "atMs": 832.7242500000011,
+        "text": "bash-5.2# "
+      },
+      {
+        "atMs": 1184.028459000001,
+        "text": "node --version\n"
+      },
+      {
+        "atMs": 1186.0700420000012,
+        "text": "v22.23.2\n"
+      },
+      {
+        "atMs": 1187.0941250000014,
+        "text": "bash-5.2# "
+      },
+      {
+        "atMs": 1556.0068339999998,
+        "text": "exit\nexit\n"
+      }
+    ],
+    "exitCode": 0
+  },
+  "checkpoints": [
+    {
+      "name": "preview",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "HTTP 200; application run matches product-demo-20260905022217",
+      "atMs": 2219.8596660000003,
+      "image": "preview.png",
+      "imageSha256": "22b4dc3f969123fc653b1eae9582dc50a6fce18f6d73e59be4f7feaae6348f71",
+      "video": "preview.mp4",
+      "videoSha256": "ab665cec4b53c489652508f5f7594fca84e0aa28dcb87da51df7b51611ca5133",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 1,
+        "startedAt": "2026-09-05T02:22:38.500Z",
+        "endedAt": "2026-09-05T02:22:41.700Z"
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "name": "terminal",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "PTY attached; shell output contains /workspace and server.mjs",
+      "atMs": 7199.722582999999,
+      "image": "terminal.png",
+      "imageSha256": "ea2c431059df3cb54a0da715e9c669d9aa361023611635b18f837eaadc4ff817",
+      "video": "terminal.mp4",
+      "videoSha256": "78e1d217b4a254007540f71e3ad68ec07fb09757233c7983edd64422f085eca0",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 20,
+        "startedAt": "2026-09-05T02:22:43.496Z",
+        "endedAt": "2026-09-05T02:22:46.696Z"
+      },
+      "crop": {
+        "x": 492,
+        "y": 304,
+        "width": 656,
+        "height": 184
+      }
+    },
+    {
+      "name": "files",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "Provider filesystem contains the uploaded server and HTML",
+      "atMs": 10891.796374999998,
+      "image": "files.png",
+      "imageSha256": "798c67c30303b40c2d933fdad5888677f3a99be235d85ead6e9e0e6c76c3fef7",
+      "video": "files.mp4",
+      "videoSha256": "d7bff1f47f4bbd341cc14c0143ad448384337979b6a2e1ae57dd47f7c8de37d7",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 2,
+        "startedAt": "2026-09-05T02:22:47.167Z",
+        "endedAt": "2026-09-05T02:22:50.367Z"
+      },
+      "crop": {
+        "x": 264,
+        "y": 115,
+        "width": 1152,
+        "height": 208
+      }
+    },
+    {
+      "name": "logs",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "Real creation lifecycle event loaded with explicit source label",
+      "atMs": 15128.873791000002,
+      "image": "logs.png",
+      "imageSha256": "2199c0986e4a64dd1e9065e50c1cdf1c2a10c639185c59d54739efef321a1955",
+      "video": "logs.mp4",
+      "videoSha256": "d5e6bbc710f56db20c1f2685a5f345b3e4b2405bc2d3a98c02b1b7d77638beed",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 1,
+        "startedAt": "2026-09-05T02:22:51.424Z",
+        "endedAt": "2026-09-05T02:22:54.624Z"
+      },
+      "crop": {
+        "x": 264,
+        "y": 831,
+        "width": 1152,
+        "height": 26
+      }
+    },
+    {
+      "name": "metrics",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "Provider CPU/memory snapshot loaded successfully",
+      "atMs": 18522.861166,
+      "image": "metrics.png",
+      "imageSha256": "f4ed8e14613449a8d2ee675af6e188b3792b1fa380ae739a3ac0d1ede3af1e98",
+      "video": "metrics.mp4",
+      "videoSha256": "b0c62e07fc0c4652f6ac41c8637b0bae0b6c2807134e1774a54ce096a791e9f7",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 2,
+        "startedAt": "2026-09-05T02:22:54.801Z",
+        "endedAt": "2026-09-05T02:22:58.001Z"
+      },
+      "crop": {
+        "x": 264,
+        "y": 115,
+        "width": 570,
+        "height": 116
+      }
+    },
+    {
+      "name": "network",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "Port 3000 appears in the real route table",
+      "atMs": 22065.772541000002,
+      "image": "network.png",
+      "imageSha256": "0b926c6100295d43f2d880a5927c60e6534e44942e742e90d9fb995000eff457",
+      "video": "network.mp4",
+      "videoSha256": "4ebfbe85856a314a1210f06095eb28deb7304f0bc14b01a525a6939095138808",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 8,
+        "startedAt": "2026-09-05T02:22:58.360Z",
+        "endedAt": "2026-09-05T02:23:01.560Z"
+      },
+      "crop": {
+        "x": 281,
+        "y": 204,
+        "width": 1118,
+        "height": 108
+      }
+    },
+    {
+      "name": "terminated",
+      "sandboxId": "sbx_AZV1nzslkv",
+      "assertion": "Same sandbox now reports terminated",
+      "atMs": 27644.800708,
+      "image": "terminated.png",
+      "imageSha256": "267945f9b670033f712c8501c4635623e2611b0aea1349164810764ef0fffdc5",
+      "video": "terminated.mp4",
+      "videoSha256": "26873e105da57f64896d5ac4bf5d69f3bc4f9b603d00b7e9bfcf696aed8b4c60",
+      "durationMs": 3200,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 14,
+        "startedAt": "2026-09-05T02:23:03.921Z",
+        "endedAt": "2026-09-05T02:23:07.121Z"
+      },
+      "crop": {
+        "x": 240,
+        "y": 0,
+        "width": 1200,
+        "height": 56
+      }
+    }
+  ],
+  "cleanup": {
+    "status": "complete",
+    "sandboxTerminal": true,
+    "routeInactive": true,
+    "containerRemoved": true,
+    "completedAt": "2026-09-05T02:23:08.267Z"
+  },
+  "review": {
+    "reviewedAt": "2026-09-05T02:30:42.006Z",
+    "reviewer": "Codex visual review",
+    "manifestSha256": "4bc0ce2a4ce1e126d130bb2249b3d6890aa47ae467b7b0b29b64e7fbeb8c8346"
+  }
+}

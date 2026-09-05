@@ -52,12 +52,6 @@ quote() {
 }
 
 start_tmux() {
-  if tmux has-session -t "${SESSION_NAME}" 2>/dev/null; then
-    echo "tmux session ${SESSION_NAME} already exists"
-    return
-  fi
-
-  local first=1
   for item in "${forwards[@]}"; do
     # shellcheck disable=SC2086
     set -- ${item}
@@ -68,14 +62,18 @@ start_tmux() {
     local target="$5"
     local url="$6"
     local log="${STATE_DIR}/${port}.log"
+    if tmux list-windows -t "${SESSION_NAME}" -F '#{window_name}' 2>/dev/null | grep -Fxq "${name}"; then
+      echo "already running ${name}: ${url}"
+      continue
+    fi
     : >"${log}"
 
     local shell_cmd
-    shell_cmd="export KUBECONFIG=$(quote "${KUBECONFIG}"); kubectl -n $(quote "${namespace}") port-forward $(quote "${service}") $(quote "${port}:${target}") 2>&1 | tee -a $(quote "${log}")"
+    # Service forwards end when their selected pod is replaced. Keep the origin alive across rollouts.
+    shell_cmd="export KUBECONFIG=$(quote "${KUBECONFIG}"); while true; do kubectl -n $(quote "${namespace}") port-forward $(quote "${service}") $(quote "${port}:${target}") 2>&1 | tee -a $(quote "${log}"); sleep 2; done"
 
-    if [[ "${first}" == "1" ]]; then
+    if ! tmux has-session -t "${SESSION_NAME}" 2>/dev/null; then
       tmux new-session -d -s "${SESSION_NAME}" -n "${name}" "bash -lc $(quote "${shell_cmd}")"
-      first=0
     else
       tmux new-window -t "${SESSION_NAME}" -n "${name}" "bash -lc $(quote "${shell_cmd}")"
     fi

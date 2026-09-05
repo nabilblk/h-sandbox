@@ -1,0 +1,97 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:09.000 line:92% position:50% size:90% align:center
+A daily order export becomes a checked JSON report and a written
+
+00:00:09.000 --> 00:00:18.000 line:92% position:50% size:90% align:center
+summary. The agent must create and execute the analysis.
+
+00:00:18.000 --> 00:00:26.000 line:92% position:50% size:90% align:center
+Your worker coordinates through Harakiri. OpenCode and Python run in the
+
+00:00:26.000 --> 00:00:34.000 line:92% position:50% size:90% align:center
+sandbox; model inference is external.
+
+00:00:34.000 --> 00:00:43.000 line:92% position:50% size:90% align:center
+Paid revenue: 2500 + 19900 + 7200 = 29600 cents. Exclude the refunded
+
+00:00:43.000 --> 00:00:52.000 line:92% position:50% size:90% align:center
+order. Keep the input unchanged.
+
+00:00:52.000 --> 00:01:00.000 line:92% position:50% size:90% align:center
+Install the SDK on your worker. Set the Harakiri API URL and key
+
+00:01:00.000 --> 00:01:08.000 line:92% position:50% size:90% align:center
+privately. The sandbox template already contains OpenCode.
+
+00:01:08.000 --> 00:01:17.000 line:92% position:50% size:90% align:center
+Keep the returned sandbox ID. Wait until running. The 600-second TTL is
+
+00:01:17.000 --> 00:01:26.000 line:92% position:50% size:90% align:center
+a fallback; cleanup still runs in finally.
+
+00:01:26.000 --> 00:01:33.000 line:92% position:50% size:90% align:center
+Upload data, not a prewritten analysis. /workspace is the remote sandbox
+
+00:01:33.000 --> 00:01:40.000 line:92% position:50% size:90% align:center
+directory. Retain the local input for verification.
+
+00:01:40.000 --> 00:01:49.000 line:92% position:50% size:90% align:center
+Pin both main and small models to the free model. Broad tool permissions
+
+00:01:49.000 --> 00:01:58.000 line:92% position:50% size:90% align:center
+apply only to this synthetic, disposable demo.
+
+00:01:58.000 --> 00:02:10.000 line:92% position:50% size:90% align:center
+The complete prompt specifies input, program, output schema, execution
+
+00:02:10.000 --> 00:02:22.000 line:92% position:50% size:90% align:center
+and an unchanged CSV. No hidden instructions.
+
+00:02:22.000 --> 00:02:33.000 line:92% position:50% size:90% align:center
+run: non-interactive task. --format json: execution events. --model:
+
+00:02:33.000 --> 00:02:44.000 line:92% position:50% size:90% align:center
+explicit model. shellQuote keeps the prompt one argument.
+
+00:02:44.000 --> 00:02:54.000 line:92% position:50% size:90% align:center
+agentCommand runs in /workspace. detached returns a job ID. timeoutMs
+
+00:02:54.000 --> 00:03:04.000 line:92% position:50% size:90% align:center
+limits command execution to four minutes.
+
+00:03:04.000 --> 00:03:14.000 line:92% position:50% size:90% align:center
+260 seconds is the caller waiting budget, not a longer execution limit.
+
+00:03:14.000 --> 00:03:24.000 line:92% position:50% size:90% align:center
+Read logs before cleanup. Exit 0 alone is not acceptance.
+
+00:03:24.000 --> 00:03:32.000 line:92% position:50% size:90% align:center
+These are completed tools from the real run. The script checks zero
+
+00:03:32.000 --> 00:03:40.000 line:92% position:50% size:90% align:center
+reported model cost; private reasoning is not published.
+
+00:03:40.000 --> 00:03:49.000 line:92% position:50% size:90% align:center
+Download JSON, summary and original input before termination.
+
+00:03:49.000 --> 00:03:58.000 line:92% position:50% size:90% align:center
+contentBase64 is the file envelope, not the agent answer.
+
+00:03:58.000 --> 00:04:09.000 line:92% position:50% size:90% align:center
+Assert exact totals and unchanged input before saving. The summary must
+
+00:04:09.000 --> 00:04:20.000 line:92% position:50% size:90% align:center
+be nonempty; its prose needs separate review.
+
+00:04:20.000 --> 00:04:29.000 line:92% position:50% size:90% align:center
+Verified JSON and summary are saved in your worker. This recording
+
+00:04:29.000 --> 00:04:38.000 line:92% position:50% size:90% align:center
+passed; future agent runs must pass the same checks.
+
+00:04:38.000 --> 00:04:48.000 line:92% position:50% size:90% align:center
+finally handles success and failure. Verify terminated. If connectivity
+
+00:04:48.000 --> 00:04:58.000 line:92% position:50% size:90% align:center
+prevents cleanup, recover using the sandbox ID and TTL.

@@ -19,6 +19,7 @@ spec:
         app.kubernetes.io/component: web
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/web-runtime: {{ include (print $.Template.BasePath "/configmap-web.yaml") . | sha256sum }}
         {{- with .Values.web.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

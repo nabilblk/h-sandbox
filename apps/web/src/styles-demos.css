@@ -1,0 +1,50 @@
+.demo-library { width: 100%; max-width: 1600px; margin: 0 auto; padding: 36px 40px 64px; }
+.demo-library-heading { display: flex; align-items: baseline; gap: 16px; padding-bottom: 28px; }
+.demo-library-heading h1 { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: 0; }
+.demo-library-heading > span { color: var(--muted); font-size: 12px; }
+.demo-library-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 36px; align-items: start; }
+.demo-library-index { min-width: 0; }
+.demo-filters { display: flex; gap: 2px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 20px; }
+.demo-filters button { appearance: none; border: 0; background: transparent; color: var(--muted); height: 32px; padding: 0 14px; cursor: pointer; font: inherit; font-size: 12px; border-radius: 4px; }
+.demo-filters button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.demo-library-index nav { display: grid; gap: 18px; }
+.demo-library-item { display: grid; gap: 6px; color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-decoration: none; overflow: hidden; }
+.demo-library-item.selected { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
+.demo-library-item strong { font-size: 14px; line-height: 1.45; font-weight: 550; }
+.demo-thumbnail { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--surface-2); margin-bottom: 4px; }
+.demo-thumbnail img { width: 100%; height: 100%; object-fit: contain; }
+.demo-thumbnail > span { position: absolute; right: 6px; bottom: 6px; display: flex; align-items: center; gap: 6px; padding: 3px 6px; background: var(--ink); color: var(--bg); font: 10px var(--font-mono); border-radius: 3px; }
+.demo-surface { font: 11px/1.5 var(--font-mono); color: var(--accent); letter-spacing: 0; }
+.product-demo-section { min-width: 0; }
+.product-demo-heading { padding-bottom: 24px; }
+.product-demo-heading h2 { font-size: 26px; line-height: 1.25; font-weight: 600; letter-spacing: 0; margin: 6px 0 10px; }
+.product-demo-heading p { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 0; max-width: 720px; }
+.product-demo-player { position: relative; aspect-ratio: 16 / 9; width: 100%; background: var(--surface-2); }
+.product-demo-player video { display: block; width: 100%; height: 100%; }
+.product-demo-player video::cue { font-size: 16px; background: #151819; color: #fff; }
+.demo-playback-status { position: absolute; right: 16px; top: 16px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border); font-size: 13px; }
+.demo-chapters { display: flex; flex-wrap: wrap; gap: 4px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.demo-chapters .btn { font-size: 12px; padding: 0 10px; }
+.demo-chapters span { color: var(--muted); font-family: var(--font-mono); }
+.product-demo-meta { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 0; font-size: 12px; color: var(--muted); }
+.product-demo-meta > div { display: flex; flex-wrap: wrap; gap: 18px; }
+.product-demo-meta a { color: var(--ink-2); text-underline-offset: 3px; }
+.demo-resources { display: flex; flex-wrap: wrap; gap: 8px; }
+.demo-empty { padding: 24px 0; color: var(--muted); font-size: 14px; }
+@media (max-width: 1000px) { .demo-library { padding: 28px 24px; } .demo-library-layout { grid-template-columns: 210px minmax(0, 1fr); gap: 24px; } }
+@media (max-width: 760px) {
+  .topnav { display: grid; grid-template-columns: 1fr auto; }
+  .topnav-start { display: contents !important; }
+  .topnav .links { grid-row: 2; grid-column: 1 / -1; }
+  .topnav .links button:not(.active) { display: block; }
+  .topnav .right { grid-row: 1; grid-column: 2; }
+  .demo-library { padding: 24px 16px 48px; }
+  .demo-library-heading { padding-bottom: 20px; }
+  .demo-library-layout { display: flex; flex-direction: column; gap: 24px; }
+  .demo-library-index, .product-demo-section { width: 100%; }
+  .demo-library-index nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .demo-thumbnail { display: none; }
+  .demo-library-item { padding: 10px 12px; }
+  .product-demo-heading h2 { font-size: 23px; }
+  .demo-chapters .btn { height: auto; min-height: 32px; white-space: normal; text-align: left; }
+}

@@ -1,0 +1,107 @@
+{
+  "id": "ui-agent-app",
+  "title": "Build an app from the dashboard",
+  "capturedAt": "2026-09-05T12:55:15.169Z",
+  "model": "opencode/mimo-v2.5-free",
+  "openCodeVersion": "1.15.13",
+  "packageVersion": "0.4.0",
+  "sandboxId": "sbx_bJeXe1PAXr",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "reportedStepCosts": [
+    0,
+    0,
+    0
+  ],
+  "durationSeconds": 262,
+  "chapters": [
+    {
+      "start": 0,
+      "title": "Build and test a preview from the dashboard",
+      "caption": "The outcome is a working app with a tested filter, not just generated HTML or a screenshot.",
+      "end": 18
+    },
+    {
+      "start": 18,
+      "title": "No local CLI or SDK is needed",
+      "caption": "Dashboard controls manage the workspace. OpenCode writes the app; Harakiri supplies terminal, files, routes and cleanup.",
+      "end": 34
+    },
+    {
+      "start": 34,
+      "title": "Create a workspace from the OpenCode template",
+      "caption": "Use the OpenCode template. Add model configuration before Create sandbox; do not paste a Harakiri API key into the form.",
+      "end": 52
+    },
+    {
+      "start": 52,
+      "title": "Set the model configuration before creating",
+      "caption": "Select Create sandbox. Wait for running and for Terminal to report attached before sending commands.",
+      "end": 74
+    },
+    {
+      "start": 74,
+      "title": "The full prompt: application behavior",
+      "caption": "Three synthetic releases, a real select filter, a health endpoint, and Node standard library only.",
+      "end": 98
+    },
+    {
+      "start": 98,
+      "title": "The full prompt: quality and execution",
+      "caption": "OpenCode must write files and execute tools. It must leave the server stopped so you control when the preview starts.",
+      "end": 120
+    },
+    {
+      "start": 120,
+      "title": "Paste the complete command into Terminal",
+      "caption": "The command runs remotely. Do not close or kill the sandbox while the agent is writing files.",
+      "end": 144
+    },
+    {
+      "start": 144,
+      "title": "Inspect tool activity and model costs",
+      "caption": "The recording contains completed file-writing and bash tools. Completed model steps reported cost 0.",
+      "end": 164
+    },
+    {
+      "start": 164,
+      "title": "Inspect the files the agent actually created",
+      "caption": "Both requested files exist. A success message without files is not an accepted result.",
+      "end": 182
+    },
+    {
+      "start": 182,
+      "title": "Check and start the Node server",
+      "caption": "Syntax passes and local health returns {\"ok\":true}. The app listens on 0.0.0.0:3000 for the route to reach it.",
+      "end": 202
+    },
+    {
+      "start": 202,
+      "title": "Expose only the application port",
+      "caption": "Port 3000, HTTP, Public. The generated preview /health returned HTTP 200 and {\"ok\":true} in the capture.",
+      "end": 222
+    },
+    {
+      "start": 222,
+      "title": "Exercise the filter in the real preview",
+      "caption": "Passed displays Portal only. All restores Portal, Search and Billing. Test behavior, not appearance alone.",
+      "end": 242
+    },
+    {
+      "start": 242,
+      "title": "Terminate and verify the preview is gone",
+      "caption": "The UI Kill action terminated the recorded runtime, and the public route stopped serving the application.",
+      "end": 262
+    }
+  ],
+  "sourceEvidenceSha256": "a0185778b39ccc1554c3162c56365047728a492481990c46e2a1fb68d86e9063",
+  "workflowSha256": "3e72b1802cea8e71de4eebcd4a3b149fd5475daedfa3be73a768e04dadd9dad8",
+  "files": {
+    "video.mp4": "782417ff34717d1d14949802739b168a678a9aa07e5f48408a423e53b147a202",
+    "poster.webp": "6f2840b7e1e25592a1887eb14c24ec83d52d02f6aecd4ae1908710453d7ebe27",
+    "captions.vtt": "01c485634cac06ea366cb63ae8a717daf963d3de637d76e2b58f09b2d48f71ba",
+    "transcript.md": "e0bcc99b920f7cedfbbe24a1a37c21b2306e48887bff74b0988669ba3c050489",
+    "tutorial.html": "e9b917cf9d508fb27285e9928a040d9f92764c2b03cfa8ad74501bb5bc4abe6c"
+  },
+  "editing": "Real CLI output replay; condensed SDK excerpts; real UI recordings. Waiting removed. No speed benchmark or voiceover."
+}

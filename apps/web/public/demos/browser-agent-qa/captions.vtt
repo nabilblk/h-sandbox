@@ -1,0 +1,97 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:09.000 line:92% position:50% size:90% align:center
+The agent writes tests. The worker reruns them and checks they fail when
+
+00:00:09.000 --> 00:00:18.000 line:92% position:50% size:90% align:center
+the app filter is deliberately broken.
+
+00:00:18.000 --> 00:00:27.000 line:92% position:50% size:90% align:center
+Only synthetic app source is provided to the model. No production site,
+
+00:00:27.000 --> 00:00:36.000 line:92% position:50% size:90% align:center
+credentials or customer browser session is involved.
+
+00:00:36.000 --> 00:00:46.000 line:92% position:50% size:90% align:center
+The downloadable example supplies the fixture, complete prompt, worker,
+
+00:00:46.000 --> 00:00:56.000 line:92% position:50% size:90% align:center
+artifact checks and cleanup. No paid model fallback.
+
+00:00:56.000 --> 00:01:05.000 line:92% position:50% size:90% align:center
+Expected results come from the caller. The agent receives an app and
+
+00:01:05.000 --> 00:01:14.000 line:92% position:50% size:90% align:center
+requirements, not a prewritten test suite.
+
+00:01:14.000 --> 00:01:25.000 line:92% position:50% size:90% align:center
+These commands run inside the sandbox, not on your worker. Do not assume
+
+00:01:25.000 --> 00:01:36.000 line:92% position:50% size:90% align:center
+stock OpenCode includes a browser.
+
+00:01:36.000 --> 00:01:46.000 line:92% position:50% size:90% align:center
+The local health check must succeed. Detached returns a job handle, not
+
+00:01:46.000 --> 00:01:56.000 line:92% position:50% size:90% align:center
+a ready application.
+
+00:01:56.000 --> 00:02:08.000 line:92% position:50% size:90% align:center
+The agent must observe real rows, select Passed, restore All and capture
+
+00:02:08.000 --> 00:02:20.000 line:92% position:50% size:90% align:center
+the result in Chromium.
+
+00:02:20.000 --> 00:02:32.000 line:92% position:50% size:90% align:center
+The prompt names every output and forbids fabricated results. The worker
+
+00:02:32.000 --> 00:02:44.000 line:92% position:50% size:90% align:center
+still independently checks acceptance.
+
+00:02:44.000 --> 00:02:55.000 line:92% position:50% size:90% align:center
+The four-minute agent command runs in /workspace. Raw reasoning stays
+
+00:02:55.000 --> 00:03:06.000 line:92% position:50% size:90% align:center
+private; only reviewed evidence is published.
+
+00:03:06.000 --> 00:03:16.000 line:92% position:50% size:90% align:center
+The recorded assertion reads browser state. The later mutation check
+
+00:03:16.000 --> 00:03:26.000 line:92% position:50% size:90% align:center
+proves it rejects the extra visible rows.
+
+00:03:26.000 --> 00:03:36.000 line:92% position:50% size:90% align:center
+Fresh artifacts must be created. Existing output from the agent run
+
+00:03:36.000 --> 00:03:46.000 line:92% position:50% size:90% align:center
+cannot satisfy the independent rerun.
+
+00:03:46.000 --> 00:03:55.000 line:92% position:50% size:90% align:center
+A real 1280 x 720 Chromium screenshot, downloaded through the Harakiri
+
+00:03:55.000 --> 00:04:04.000 line:92% position:50% size:90% align:center
+SDK after the independent run.
+
+00:04:04.000 --> 00:04:13.000 line:92% position:50% size:90% align:center
+Real 390 x 844 screenshot. The generated test reports no horizontal
+
+00:04:13.000 --> 00:04:22.000 line:92% position:50% size:90% align:center
+overflow for this fixture.
+
+00:04:22.000 --> 00:04:34.000 line:92% position:50% size:90% align:center
+A browser startup error is not accepted as regression detection. The
+
+00:04:34.000 --> 00:04:46.000 line:92% position:50% size:90% align:center
+broken filter must trigger an assertion failure.
+
+00:04:46.000 --> 00:04:56.000 line:92% position:50% size:90% align:center
+Original app passes. Broken filter fails. Screenshots downloaded. Model
+
+00:04:56.000 --> 00:05:06.000 line:92% position:50% size:90% align:center
+steps reported zero cost in this run.
+
+00:05:06.000 --> 00:05:16.000 line:92% position:50% size:90% align:center
+The capture independently confirms termination. Setup failures,
+
+00:05:16.000 --> 00:05:26.000 line:92% position:50% size:90% align:center
+unavailable models and failed assertions also require cleanup.

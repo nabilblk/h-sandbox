@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Live preview | Harakiri</title>
+  <link rel="icon" href="/mark.svg">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fafaf7; color: #0f0f0e; font-family: system-ui,sans-serif; letter-spacing: 0; }
+    header { height: 88px; padding: 0 48px; border-bottom: 1px solid #d9d8d0; display: flex; align-items: center; gap: 14px; }
+    header img { width: 36px; height: 36px; } header strong { font-size: 23px; }
+    header span { margin-left: auto; font-size: 14px; color: #5d615b; }
+    main { max-width: 1120px; margin: auto; padding: 84px 40px; }
+    .status { display: inline-flex; align-items: center; gap: 10px; color: #23734c; font-size: 14px; }
+    .status::before { content: ''; width: 8px; height: 8px; background: #238153; border-radius: 50%; }
+    h1 { font-size: 64px; line-height: 1.06; font-weight: 600; margin: 28px 0 24px; max-width: 680px; }
+    p { font-size: 20px; color: #686861; line-height: 1.6; max-width: 560px; }
+    dl { margin: 60px 0 0; border-top: 1px solid #d9d8d0; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; padding-top: 28px; }
+    dt { font-size: 13px; color: #686861; margin-bottom: 12px; } dd { margin: 0; font: 16px/1.7 ui-monospace,monospace; overflow-wrap: anywhere; }
+    footer { margin-top: 54px; border-top: 1px solid #d9d8d0; padding-top: 22px; font: 13px ui-monospace,monospace; color: #686861; }
+    @media (max-width:600px) { header { padding: 0 20px; } main { padding: 48px 22px; } h1 { font-size: 42px; } dl { grid-template-columns: 1fr; margin-top: 32px; } }
+  </style>
+</head>
+<body>
+  <header><img src="/mark.svg" alt=""><strong>harakiri</strong><span>Live preview</span></header>
+  <main>
+    <span class="status" id="status">Connecting</span>
+    <h1>Your code.<br>Your sandbox.<br>A real URL.</h1>
+    <p>This application is running inside a Harakiri sandbox, reached through its exposed HTTP port.</p>
+    <dl><div><dt>RUN</dt><dd id="run">Loading</dd></div><div><dt>TEMPLATE</dt><dd id="template">Loading</dd></div></dl>
+    <footer>0.0.0.0:3000 <span aria-hidden="true"> / </span> <time id="started"></time></footer>
+  </main>
+  <script>
+    fetch('/state').then((r) => { if (!r.ok) throw new Error(); return r.json(); }).then((state) => {
+      document.querySelector('#run').textContent = state.run;
+      document.querySelector('#template').textContent = state.template;
+      document.querySelector('#started').textContent = state.startedAt;
+      document.querySelector('#status').textContent = 'Application running';
+    }).catch(() => { document.querySelector('#status').textContent = 'Connection unavailable'; });
+  </script>
+</body>
+</html>

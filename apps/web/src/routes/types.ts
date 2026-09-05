@@ -11,6 +11,8 @@ export type Route =
   | "dashboard/settings"
   | "detail"
   | "docs"
+  | "demos"
+  | `demos/${string}`
   | "changelog";
 
 export type GoToRoute = (route: Route) => void;

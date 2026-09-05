@@ -1,0 +1,37 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:04.000
+From the CLI to a live application, then back to a clean workspace.
+
+00:00:04.000 --> 00:00:13.000
+Configure the published CLI and create an open-agents-dev sandbox with a five-minute TTL.
+
+00:00:13.000 --> 00:00:21.000
+Attach through Harakiri. Inspect the uploaded application in /workspace.
+
+00:00:21.000 --> 00:00:28.000
+Upload the files and start a tracked background command on port 3000.
+
+00:00:28.000 --> 00:00:36.000
+Expose port 3000 and wait for the application health endpoint to return HTTP 200.
+
+00:00:36.000 --> 00:00:40.000
+The public route returns the application and the identifier of this capture run.
+
+00:00:40.000 --> 00:00:44.000
+The dashboard terminal connects to the same running sandbox.
+
+00:00:44.000 --> 00:00:48.000
+The Filesystem view shows the server, page, and logo uploaded through the CLI.
+
+00:00:48.000 --> 00:00:52.000
+Logs display real control-plane lifecycle events with their source labels.
+
+00:00:52.000 --> 00:00:56.000
+Metrics show the provider CPU and memory snapshot. This is not a performance benchmark.
+
+00:00:56.000 --> 00:01:00.000
+The Network view lists the exposed application port.
+
+00:01:00.000 --> 00:01:08.000
+Terminate the sandbox. This run verified a terminal state and that the public route was no longer active.

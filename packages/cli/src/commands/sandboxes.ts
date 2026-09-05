@@ -248,7 +248,7 @@ export const registerSandboxCommands = (program: Command) => {
       if (options.credential.length && options.waitTimeoutMs !== undefined) throw new Error("--credential cannot be combined with --wait-timeout-ms");
       if (!options.template && !options.snapshot) throw new Error("--template is required unless --snapshot is provided");
       const { credentials, credentialMappings } = await createCredentialInputsFromSpecs(options.credential);
-      printProgress("provisioning microVM...");
+      printProgress("provisioning sandbox...");
       const started = Date.now();
       const body = {
         template: options.template,
@@ -531,7 +531,7 @@ export const registerSandboxCommands = (program: Command) => {
       if (shouldTerminateAfterRun) {
         await client.killSandbox(id);
         await saveConfig({ ...config, lastSandboxId: undefined });
-        printProgress("sandbox terminated. disk zeroed.");
+        printProgress("sandbox terminated.");
       }
       printProgress(`roundtrip ${Date.now() - started}ms`);
     });
@@ -954,12 +954,12 @@ export const registerSandboxCommands = (program: Command) => {
         const result = await client.listSandboxes("?status=idle");
         for (const sandbox of result.sandboxes) {
           await client.killSandbox(sandbox.id);
-          printProgress(`${sandbox.id} terminated. disk zeroed.`);
+          printProgress(`${sandbox.id} terminated.`);
         }
         return;
       }
       if (!id) throw new Error("sandbox id is required unless --idle is set");
       await client.killSandbox(id);
-      printProgress("sandbox terminated. disk zeroed.");
+      printProgress("sandbox terminated.");
     });
 };

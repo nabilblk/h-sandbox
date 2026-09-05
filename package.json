@@ -6,6 +6,13 @@
   "type": "module",
   "packageManager": "pnpm@11.2.2",
   "scripts": {
+    "demo:capture": "pnpm --filter @harakiri/demo-video capture",
+    "demo:cleanup": "pnpm --filter @harakiri/demo-video cleanup",
+    "demo:approve": "pnpm --filter @harakiri/demo-video approve",
+    "demo:studio": "pnpm --filter @harakiri/demo-video studio",
+    "demo:render": "pnpm --filter @harakiri/demo-video render:workflows",
+    "demo:verify": "pnpm --filter @harakiri/demo-video verify && pnpm --filter @harakiri/demo-video verify:workflows",
+    "demo:test": "node --test examples/demo/product-tour/server.test.mjs && pnpm --filter @harakiri/demo-video test",
     "build": "pnpm -r build",
     "cli:pack": "pnpm pack:cli",
     "pack:sdk": "mkdir -p dist-packages && pnpm --filter @h-sandbox/sdk build && pnpm --filter @h-sandbox/sdk pack --pack-destination dist-packages",

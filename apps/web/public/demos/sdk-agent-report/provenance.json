@@ -1,0 +1,127 @@
+{
+  "id": "sdk-agent-report",
+  "title": "Turn data into a verified report",
+  "capturedAt": "2026-09-05T14:50:45.937Z",
+  "model": "opencode/mimo-v2.5-free",
+  "openCodeVersion": "1.15.13",
+  "packageVersion": "0.4.0",
+  "sandboxId": "sbx_bhLG-Y-O4M",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "reportedStepCosts": [
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "durationSeconds": 298,
+  "chapters": [
+    {
+      "start": 0,
+      "title": "From an order export to a checked report",
+      "caption": "A daily order export becomes a checked JSON report and a written summary. The agent must create and execute the analysis.",
+      "end": 18
+    },
+    {
+      "start": 18,
+      "title": "What runs where?",
+      "caption": "Your worker coordinates through Harakiri. OpenCode and Python run in the sandbox; model inference is external.",
+      "end": 34
+    },
+    {
+      "start": 34,
+      "title": "Define success before starting the agent",
+      "caption": "Paid revenue: 2500 + 19900 + 7200 = 29600 cents. Exclude the refunded order. Keep the input unchanged.",
+      "end": 52
+    },
+    {
+      "start": 52,
+      "title": "Prepare the Node.js worker",
+      "caption": "Install the SDK on your worker. Set the Harakiri API URL and key privately. The sandbox template already contains OpenCode.",
+      "end": 68
+    },
+    {
+      "start": 68,
+      "title": "Create an isolated OpenCode workspace",
+      "caption": "Keep the returned sandbox ID. Wait until running. The 600-second TTL is a fallback; cleanup still runs in finally.",
+      "end": 86
+    },
+    {
+      "start": 86,
+      "title": "Transfer the input through the SDK",
+      "caption": "Upload data, not a prewritten analysis. /workspace is the remote sandbox directory. Retain the local input for verification.",
+      "end": 100
+    },
+    {
+      "start": 100,
+      "title": "Make the free-model choice explicit",
+      "caption": "Pin both main and small models to the free model. Broad tool permissions apply only to this synthetic, disposable demo.",
+      "end": 118
+    },
+    {
+      "start": 118,
+      "title": "Give the agent the complete task",
+      "caption": "The complete prompt specifies input, program, output schema, execution and an unchanged CSV. No hidden instructions.",
+      "end": 142
+    },
+    {
+      "start": 142,
+      "title": "agentCommand is an ordinary shell string",
+      "caption": "run: non-interactive task. --format json: execution events. --model: explicit model. shellQuote keeps the prompt one argument.",
+      "end": 164
+    },
+    {
+      "start": 164,
+      "title": "Start a tracked background command",
+      "caption": "agentCommand runs in /workspace. detached returns a job ID. timeoutMs limits command execution to four minutes.",
+      "end": 184
+    },
+    {
+      "start": 184,
+      "title": "Wait for completion and inspect the logs",
+      "caption": "260 seconds is the caller waiting budget, not a longer execution limit. Read logs before cleanup. Exit 0 alone is not acceptance.",
+      "end": 204
+    },
+    {
+      "start": 204,
+      "title": "Inspect real work, not an agent promise",
+      "caption": "These are completed tools from the real run. The script checks zero reported model cost; private reasoning is not published.",
+      "end": 220
+    },
+    {
+      "start": 220,
+      "title": "Retrieve files before destroying the runtime",
+      "caption": "Download JSON, summary and original input before termination. contentBase64 is the file envelope, not the agent answer.",
+      "end": 238
+    },
+    {
+      "start": 238,
+      "title": "Make your application the final judge",
+      "caption": "Assert exact totals and unchanged input before saving. The summary must be nonempty; its prose needs separate review.",
+      "end": 260
+    },
+    {
+      "start": 260,
+      "title": "The verified result is now in your worker",
+      "caption": "Verified JSON and summary are saved in your worker. This recording passed; future agent runs must pass the same checks.",
+      "end": 278
+    },
+    {
+      "start": 278,
+      "title": "Always clean up, including on failure",
+      "caption": "finally handles success and failure. Verify terminated. If connectivity prevents cleanup, recover using the sandbox ID and TTL.",
+      "end": 298
+    }
+  ],
+  "sourceEvidenceSha256": "487a949ff3dbf9713827db9f86a1b3b6ebe5646a98b42ea7e695cb59cd63df4e",
+  "workflowSha256": "946ded5e0f824d7a9786a550024546afa52ef29a20730454c219ff6444f37a8b",
+  "files": {
+    "video.mp4": "40fb05e70c99f7ad552b7625854de9f0f40d680888a5fc369cf618ebfe6cdc9f",
+    "poster.webp": "209a0bffd5b9c49706f4ace2247a93b84e1730ab6db83d1548dda58f13c0dd93",
+    "captions.vtt": "164d943946a3fcd7755b5ea018f0ec44879bdbe0de0d8cb34e18be9d5e3cd4de",
+    "transcript.md": "c847e478719ddc83b0b97cf1a86c111c1604d65ec2242abcbfd078781f4b0707",
+    "tutorial.html": "f3ad606be12de37d5863cd9c5641ce8c6f20f4f98a8305126ee649d319776a92"
+  },
+  "editing": "Real CLI output replay; condensed SDK excerpts; real UI recordings. Waiting removed. No speed benchmark or voiceover."
+}

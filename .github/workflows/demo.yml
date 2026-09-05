@@ -1,0 +1,37 @@
+name: Product demo checks
+on:
+  pull_request:
+    paths: ['apps/demo-video/**', 'apps/web/**', 'examples/demo/**', '.github/workflows/demo*', 'pnpm-lock.yaml']
+  push:
+    branches: [main]
+    paths: ['apps/demo-video/**', 'apps/web/**', 'examples/demo/**', '.github/workflows/demo*', 'pnpm-lock.yaml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr
+      - run: pnpm --filter @harakiri/demo-video exec playwright install --with-deps chromium
+      - run: pnpm --filter @harakiri/demo-video recording:check
+      - run: pnpm demo:verify
+      - name: Representative agent workflow stills
+        if: vars.REMOTION_RENDER_ENABLED == 'true'
+        run: |
+          pnpm --filter @harakiri/demo-video exec remotion still src/index.ts cli-agent-repair out/ci-cli.png --frame=1830 --scale=0.5
+          pnpm --filter @harakiri/demo-video exec remotion still src/index.ts sdk-agent-report out/ci-sdk.png --frame=1500 --scale=0.5
+          pnpm --filter @harakiri/demo-video exec remotion still src/index.ts ui-agent-app out/ci-ui.png --frame=120 --scale=0.5
+          pnpm --filter @harakiri/demo-video exec remotion still src/index.ts browser-agent-qa out/ci-browser.png --frame=7500 --scale=0.5
+      - uses: actions/upload-artifact@v4
+        if: vars.REMOTION_RENDER_ENABLED == 'true'
+        with:
+          name: demo-stills
+          path: apps/demo-video/out/ci-*.png
+          retention-days: 7

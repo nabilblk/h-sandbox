@@ -1,0 +1,202 @@
+{
+  "id": "browser-agent-qa",
+  "title": "Let an agent test your web app",
+  "surface": "SDK",
+  "capturedAt": "2026-09-05T17:23:43.964Z",
+  "model": "opencode/mimo-v2.5-free",
+  "version": "0.4.0",
+  "sandboxId": "sbx_aYyX7gxwG4",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "costs": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "sourceEvidenceSha256": "ce58e8d9dea92f3713315f85bfe49093584bc0594161a947080b1f7f80485a05",
+  "assets": {
+    "desktop.png": "cc104be3ba721172dfdb42104410ab2654e40c5cae615453acb2295685284643",
+    "mobile.png": "0977efd81dd43e09fb221a5efef808027c0370a42061a92e6a4168eced105606"
+  },
+  "scenes": [
+    {
+      "title": "Turn acceptance criteria into browser tests",
+      "caption": "The agent writes tests. The worker reruns them and checks they fail when the app filter is deliberately broken.",
+      "seconds": 18,
+      "kind": "overview",
+      "label": "BROWSER QA / CURRENT COMMANDS AND FILES CAPABILITIES",
+      "content": "",
+      "steps": [
+        {
+          "title": "A preview contract",
+          "detail": "An existing release board. Three rows, a working filter and a mobile layout to verify."
+        },
+        {
+          "title": "Agent-written tests",
+          "detail": "OpenCode writes qa.mjs. Playwright drives real Chromium and produces screenshots."
+        },
+        {
+          "title": "A regression gate",
+          "detail": "Rerun the suite. Break the filter deliberately and require the same tests to reject it."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "The browser runs inside the sandbox",
+      "caption": "Only synthetic app source is provided to the model. No production site, credentials or customer browser session is involved.",
+      "seconds": 18,
+      "kind": "overview",
+      "label": "BROWSER QA / CURRENT COMMANDS AND FILES CAPABILITIES",
+      "content": "",
+      "steps": [
+        {
+          "title": "Your Node worker",
+          "detail": "Published SDK. Upload fixtures, track commands, compare bytes and download artifacts."
+        },
+        {
+          "title": "One sandbox",
+          "detail": "OpenCode, Node and Chromium. Local-only HTTP app. No public browser or agent endpoint."
+        },
+        {
+          "title": "External free model",
+          "detail": "Receives synthetic task context. No paid key or managed browser subscription."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "Run the complete worker example",
+      "caption": "The downloadable example supplies the fixture, complete prompt, worker, artifact checks and cleanup. No paid model fallback.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "npm install @h-sandbox/sdk@0.4.0\nexport OPENCODE_MODEL=opencode/mimo-v2.5-free\nnode browser-qa.mjs",
+      "fontSize": 31
+    },
+    {
+      "title": "Set the contract before the agent starts",
+      "caption": "Expected results come from the caller. The agent receives an app and requirements, not a prewritten test suite.",
+      "seconds": 18,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "Initial rows     Portal / Search / Billing\nPassed          Portal only\nAll             three rows restored\nDesktop         1280 x 720\nMobile          390 x 844 / no horizontal overflow",
+      "fontSize": 31
+    },
+    {
+      "title": "Prepare Chromium in the remote workspace",
+      "caption": "These commands run inside the sandbox, not on your worker. Do not assume stock OpenCode includes a browser.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "REMOTE SETUP / 175s IN THIS RUN / WAITING EDITED",
+      "content": "npm install --save-exact playwright@1.60.0\nnpx playwright install --with-deps chromium",
+      "fontSize": 31
+    },
+    {
+      "title": "Start a tracked server, then check readiness",
+      "caption": "The local health check must succeed. Detached returns a job handle, not a ready application.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "await client.commands.start(sandbox.id, {\n  command: 'node browser-server.mjs', cwd: '/workspace',\n  timeoutMs: 600000, detached: true,\n});\n// Check inside the sandbox before starting the agent:\n// curl --fail http://127.0.0.1:3000/health",
+      "fontSize": 31
+    },
+    {
+      "title": "The full prompt: browser interactions",
+      "caption": "The agent must observe real rows, select Passed, restore All and capture the result in Chromium.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "browser-prompt.txt / COMPLETE PROMPT / PART 1 OF 2",
+      "content": "Read browser-app.html and write qa.mjs using playwright and node:assert/strict.\nThe app is already running. Use process.env.BASE_URL as the target URL.\nLaunch headless Chromium; always close it in finally. Do not start a server.\nAt 1280x720, assert three visible release rows on load.\nSelect Passed in the Status dropdown and assert only Portal is visible using node:assert immediately after selectOption; do not wait for expected row counts.\nSelect All and assert the three rows return. Save desktop.png after restoring All.",
+      "fontSize": 31
+    },
+    {
+      "title": "The full prompt: artifacts and guardrails",
+      "caption": "The prompt names every output and forbids fabricated results. The worker still independently checks acceptance.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "browser-prompt.txt / COMPLETE PROMPT / PART 2 OF 2",
+      "content": "At 390x844, assert there is no horizontal page overflow and save mobile.png.\nWrite qa-report.json with exactly initialRows:3, passedNames:[\"Portal\"], restoredRows:3, mobileOverflow:false, using observed browser values.\nDo not modify browser-app.html, browser-server.mjs, package files or configuration.\nDo not mock Playwright, fabricate results or catch assertion failures to exit successfully.\nUse your tools to write and execute qa.mjs, then inspect the results.",
+      "fontSize": 31
+    },
+    {
+      "title": "Build and execute the agentCommand",
+      "caption": "The four-minute agent command runs in /workspace. Raw reasoning stays private; only reviewed evidence is published.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "const prompt = (await readFile(\n  new URL('./browser-prompt.txt', import.meta.url), 'utf8'\n)).trim();\nconst shellQuote = (value) => \"'\" + value.replaceAll(\"'\", \"'\\\\''\") + \"'\";\nconst agentCommand =\n  `opencode run --format json --model ${model} ${shellQuote(prompt)}`;\nconst agent = await run(\n  `BASE_URL=http://127.0.0.1:3000 ${agentCommand}`, 240000\n);",
+      "fontSize": 31
+    },
+    {
+      "title": "Inspect the assertion OpenCode actually wrote",
+      "caption": "The recorded assertion reads browser state. The later mutation check proves it rejects the extra visible rows.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "qa.mjs / RECORDED AGENT-WRITTEN ASSERTION EXCERPT",
+      "content": "await page.selectOption('#status', 'passed');\n\nconst passedNames = await page.locator('[data-testid=\"release-row\"] td:first-child').allTextContents();\n\nassert.deepEqual(passedNames, ['Portal'], 'After selecting Passed, only Portal should be visible');",
+      "fontSize": 31
+    },
+    {
+      "title": "Independently rerun the generated tests",
+      "caption": "Fresh artifacts must be created. Existing output from the agent run cannot satisfy the independent rerun.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "rm -f qa-report.json desktop.png mobile.png\nBASE_URL=http://127.0.0.1:3000 node qa.mjs",
+      "fontSize": 31
+    },
+    {
+      "title": "Retrieve the real desktop screenshot",
+      "caption": "A real 1280 x 720 Chromium screenshot, downloaded through the Harakiri SDK after the independent run.",
+      "seconds": 18,
+      "kind": "image",
+      "label": "desktop.png / ACTUAL CHROMIUM OUTPUT / DOWNLOADED THROUGH SDK",
+      "content": "",
+      "fontSize": 31,
+      "image": "desktop.png"
+    },
+    {
+      "title": "Check the mobile viewport too",
+      "caption": "Real 390 x 844 screenshot. The generated test reports no horizontal overflow for this fixture.",
+      "seconds": 18,
+      "kind": "image",
+      "label": "mobile.png / ACTUAL CHROMIUM OUTPUT / DOWNLOADED THROUGH SDK",
+      "content": "",
+      "fontSize": 31,
+      "image": "mobile.png"
+    },
+    {
+      "title": "Break the filter and require a failing test",
+      "caption": "A browser startup error is not accepted as regression detection. The broken filter must trigger an assertion failure.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "// Target the broken copy with the unchanged generated suite:\nBASE_URL=http://127.0.0.1:3001 node qa.mjs\n\n// The worker requires:\n// nonzero exitCode AND AssertionError / ERR_ASSERTION\n// identical qa.mjs bytes before and after verification",
+      "fontSize": 31
+    },
+    {
+      "title": "Accept evidence, not a green agent message",
+      "caption": "Original app passes. Broken filter fails. Screenshots downloaded. Model steps reported zero cost in this run.",
+      "seconds": 20,
+      "kind": "result",
+      "label": "RECORDED RUN / INDEPENDENT VERIFICATION",
+      "content": "Original app      passed\nBroken filter     assertion failed (exit 1)\nSource and tests  unchanged\nArtifacts         desktop.png / mobile.png\nModel steps       zero reported cost",
+      "fontSize": 39
+    },
+    {
+      "title": "Terminate both servers with the sandbox",
+      "caption": "The capture independently confirms termination. Setup failures, unavailable models and failed assertions also require cleanup.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "browser-qa.mjs / SOURCE EXCERPT",
+      "content": "finally {\n  await client.killSandbox(sandbox.id);\n  await client.waitForSandbox(sandbox.id, {\n    statuses: ['terminated'], timeoutMs: 30000,\n  });\n}",
+      "fontSize": 31
+    }
+  ]
+}

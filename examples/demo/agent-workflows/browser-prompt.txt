@@ -1,0 +1,11 @@
+Read browser-app.html and write qa.mjs using playwright and node:assert/strict.
+The app is already running. Use process.env.BASE_URL as the target URL.
+Launch headless Chromium; always close it in finally. Do not start a server.
+At 1280x720, assert three visible release rows on load.
+Select Passed in the Status dropdown and assert only Portal is visible using node:assert immediately after selectOption; do not wait for expected row counts.
+Select All and assert the three rows return. Save desktop.png after restoring All.
+At 390x844, assert there is no horizontal page overflow and save mobile.png.
+Write qa-report.json with exactly initialRows:3, passedNames:["Portal"], restoredRows:3, mobileOverflow:false, using observed browser values.
+Do not modify browser-app.html, browser-server.mjs, package files or configuration.
+Do not mock Playwright, fabricate results or catch assertion failures to exit successfully.
+Use your tools to write and execute qa.mjs, then inspect the results.

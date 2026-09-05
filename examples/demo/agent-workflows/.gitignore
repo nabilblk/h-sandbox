@@ -1,0 +1,7 @@
+browser-output/
+opencode.json
+node_modules/
+package-lock.json
+package.json
+report.json
+summary.md

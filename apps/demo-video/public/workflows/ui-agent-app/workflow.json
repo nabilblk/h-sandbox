@@ -1,0 +1,180 @@
+{
+  "id": "ui-agent-app",
+  "title": "Build an app from the dashboard",
+  "surface": "UI",
+  "capturedAt": "2026-09-05T12:55:15.169Z",
+  "model": "opencode/mimo-v2.5-free",
+  "version": "0.4.0",
+  "sandboxId": "sbx_bJeXe1PAXr",
+  "templateVersion": "tplv_WAT-i38tzyOn",
+  "cleanup": true,
+  "costs": [
+    0,
+    0,
+    0
+  ],
+  "sourceEvidenceSha256": "a0185778b39ccc1554c3162c56365047728a492481990c46e2a1fb68d86e9063",
+  "assets": {
+    "preview.mp4": "c71eb2a80d4c1638273390999cbdb3e05e7422060e1582983a5824a4fa962659",
+    "preview.png": "8f690b94bcb01c1a38910ab36713b565cbeb2aed8bd9c6a5c1451274f21912c6",
+    "create.mp4": "566c2a20bdd46b2909ab7ce19ce282da22b3cf540582839534f1e241abf63c44",
+    "create.png": "c161c8361db36d95d9db94562ffc43e1a472696885379d3f616638594f98f09f",
+    "agent-tools.mp4": "dc1c5bb3f7b6ae434e31071992ca1a847929813d1a8289a6d20b2fbfca70610c",
+    "agent-tools.png": "e6d8599290654c88f2d4711ee1769817811d4870a4cfa0400850b35a30da4d65",
+    "files.mp4": "70f6d18c3c7451247bc82dfbcd029935fd6e9f24dd488b857d6c82f13c729e5e",
+    "files.png": "84e3dcbff2b06d27716f7a3841d74a9f367ee9dfcf347132e29b9952ec4c6580",
+    "terminated.mp4": "d4a65e0cf596837ff16bca44810b45f1880c8d59ca26c99a9cf11e6e734bec11",
+    "terminated.png": "1236d0210c88680399316be742e08e4e889454c728dad1130d950134f7b98174"
+  },
+  "scenes": [
+    {
+      "title": "Build and test a preview from the dashboard",
+      "caption": "The outcome is a working app with a tested filter, not just generated HTML or a screenshot.",
+      "seconds": 18,
+      "kind": "footage",
+      "label": "REAL DASHBOARD CAPTURE",
+      "content": "",
+      "fontSize": 31,
+      "video": "preview.mp4",
+      "image": "preview.png",
+      "footageSeconds": 8
+    },
+    {
+      "title": "No local CLI or SDK is needed",
+      "caption": "Dashboard controls manage the workspace. OpenCode writes the app; Harakiri supplies terminal, files, routes and cleanup.",
+      "seconds": 16,
+      "kind": "overview",
+      "label": "THE DASHBOARD / NO LOCAL TOOLCHAIN",
+      "content": "",
+      "steps": [
+        {
+          "title": "Your browser",
+          "detail": "Create a workspace. Use Terminal, Filesystem and Network. Check results before cleanup."
+        },
+        {
+          "title": "Harakiri sandbox",
+          "detail": "OpenCode generates server.mjs and index.html. Node serves the app on port 3000."
+        },
+        {
+          "title": "External model",
+          "detail": "Only the explicit free model is configured. The provider receives synthetic task context."
+        }
+      ],
+      "fontSize": 31
+    },
+    {
+      "title": "Create a workspace from the OpenCode template",
+      "caption": "Use the OpenCode template. Add model configuration before Create sandbox; do not paste a Harakiri API key into the form.",
+      "seconds": 18,
+      "kind": "footage",
+      "label": "REAL DASHBOARD CAPTURE",
+      "content": "",
+      "fontSize": 31,
+      "video": "create.mp4",
+      "image": "create.png",
+      "footageSeconds": 6
+    },
+    {
+      "title": "Set the model configuration before creating",
+      "caption": "Select Create sandbox. Wait for running and for Terminal to report attached before sending commands.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "OPENCODE_CONFIG_CONTENT={\"model\":\"opencode/mimo-v2.5-free\",\"small_model\":\"opencode/mimo-v2.5-free\",\"enabled_providers\":[\"opencode\"],\"share\":\"disabled\",\"autoupdate\":false,\"permission\":{\"*\":\"allow\"}}",
+      "fontSize": 31
+    },
+    {
+      "title": "The full prompt: application behavior",
+      "caption": "Three synthetic releases, a real select filter, a health endpoint, and Node standard library only.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "ui-prompt.txt / COMPLETE PROMPT / PART 1 OF 2",
+      "content": "Build a working release status dashboard in /workspace with only Node standard library, no npm dependencies. Create server.mjs and index.html. Serve on 0.0.0.0:3000. GET /health must return JSON {\"ok\":true}. The page title and h1 must be Release board. Include three release rows with data-status: Portal passed, Search running, Billing queued. Add a select with id status-filter and options All, passed, running, queued; selecting an option must hide nonmatching rows.",
+      "fontSize": 31
+    },
+    {
+      "title": "The full prompt: quality and execution",
+      "caption": "OpenCode must write files and execute tools. It must leave the server stopped so you control when the preview starts.",
+      "seconds": 22,
+      "kind": "code",
+      "label": "ui-prompt.txt / COMPLETE PROMPT / PART 2 OF 2",
+      "content": "Use a professional white layout, dark text, a small red brand accent, green/amber status indicators, clear headings, and responsive spacing. Add a count in #visible-count that updates with the visible rows. Test syntax with node --check server.mjs. Do not leave the server running. Use your tools to write the files and test them.",
+      "fontSize": 31
+    },
+    {
+      "title": "Paste the complete command into Terminal",
+      "caption": "The command runs remotely. Do not close or kill the sandbox while the agent is writing files.",
+      "seconds": 24,
+      "kind": "code",
+      "label": "DASHBOARD TERMINAL / COMPLETE COPYABLE COMMAND",
+      "content": "cd /workspace && opencode run --format json --model opencode/mimo-v2.5-free 'Build a working release status dashboard in /workspace with only Node standard library, no npm dependencies. Create server.mjs and index.html. Serve on 0.0.0.0:3000. GET /health must return JSON {\"ok\":true}. The page title and h1 must be Release board. Include three release rows with data-status: Portal passed, Search running, Billing queued. Add a select with id status-filter and options All, passed, running, queued; selecting an option must hide nonmatching rows. Use a professional white layout, dark text, a small red brand accent, green/amber status indicators, clear headings, and responsive spacing. Add a count in #visible-count that updates with the visible rows. Test syntax with node --check server.mjs. Do not leave the server running. Use your tools to write the files and test them.' > agent.jsonl 2>&1",
+      "fontSize": 28
+    },
+    {
+      "title": "Inspect tool activity and model costs",
+      "caption": "The recording contains completed file-writing and bash tools. Completed model steps reported cost 0.",
+      "seconds": 20,
+      "kind": "footage",
+      "label": "REAL DASHBOARD CAPTURE",
+      "content": "",
+      "fontSize": 31,
+      "video": "agent-tools.mp4",
+      "image": "agent-tools.png",
+      "footageSeconds": 6
+    },
+    {
+      "title": "Inspect the files the agent actually created",
+      "caption": "Both requested files exist. A success message without files is not an accepted result.",
+      "seconds": 18,
+      "kind": "footage",
+      "label": "REAL DASHBOARD CAPTURE",
+      "content": "",
+      "fontSize": 31,
+      "video": "files.mp4",
+      "image": "files.png",
+      "footageSeconds": 6
+    },
+    {
+      "title": "Check and start the Node server",
+      "caption": "Syntax passes and local health returns {\"ok\":true}. The app listens on 0.0.0.0:3000 for the route to reach it.",
+      "seconds": 20,
+      "kind": "code",
+      "label": "REPRODUCTION COMMANDS / SEE COMPLETE TUTORIAL",
+      "content": "cd /workspace && node --check server.mjs\ncd /workspace && nohup node server.mjs > server.log 2>&1 < /dev/null &\ncurl -fsS http://127.0.0.1:3000/health",
+      "fontSize": 31
+    },
+    {
+      "title": "Expose only the application port",
+      "caption": "Port 3000, HTTP, Public. The generated preview /health returned HTTP 200 and {\"ok\":true} in the capture.",
+      "seconds": 20,
+      "kind": "result",
+      "label": "NETWORK / VERIFIED PUBLIC PREVIEW",
+      "content": "Port       3000\nProtocol   HTTP\nAccess     Public\nHealth     200 / {\"ok\":true}\n\nOnly the app port is exposed.",
+      "fontSize": 39
+    },
+    {
+      "title": "Exercise the filter in the real preview",
+      "caption": "Passed displays Portal only. All restores Portal, Search and Billing. Test behavior, not appearance alone.",
+      "seconds": 20,
+      "kind": "footage",
+      "label": "REAL DASHBOARD CAPTURE",
+      "content": "",
+      "fontSize": 31,
+      "video": "preview.mp4",
+      "image": "preview.png",
+      "footageSeconds": 8
+    },
+    {
+      "title": "Terminate and verify the preview is gone",
+      "caption": "The UI Kill action terminated the recorded runtime, and the public route stopped serving the application.",
+      "seconds": 20,
+      "kind": "footage",
+      "label": "REAL DASHBOARD CAPTURE",
+      "content": "",
+      "fontSize": 31,
+      "video": "terminated.mp4",
+      "image": "terminated.png",
+      "footageSeconds": 6
+    }
+  ]
+}
