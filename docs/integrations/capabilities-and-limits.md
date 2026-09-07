@@ -27,6 +27,18 @@ what applications can rely on without knowing OpenSandbox internals.
 
 ## Partial
 
+### Unreleased Phase 2B Preview
+
+Matching source builds add organization-owned persistent workspaces and command
+event streams through API/SDK/CLI/dashboard. These are **not included in 0.4.0**.
+Workspace allocation requires operator opt-in, retained native PVC support and
+disabled runtime fallback. One sandbox owns a workspace; archive retains files
+and quota. Snapshot/restore with workspaces is rejected. Command events are an
+authenticated polling overlay over retained provider logs, not durable replay.
+See [workspace limits and acceptance](../persistent-workspaces.md).
+
+### Existing Partial Capabilities
+
 | Capability | Current behavior | Integration guidance |
 | --- | --- | --- |
 | Large artifacts | `transfer.mode=json-base64` is bounded by `SANDBOX_FILE_ARTIFACT_MAX_BYTES`. | Use the current API for small/medium artifacts; plan for signed URLs or streaming later. |

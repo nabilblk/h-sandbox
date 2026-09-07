@@ -1,0 +1,26 @@
+annotations:
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/prerelease: "false"
+apiVersion: v2
+appVersion: 0.2.2
+description: OpenSandbox Lifecycle API server for sandbox creation and management
+home: https://github.com/opensandbox-group/OpenSandbox
+keywords:
+- sandbox
+- kubernetes
+- api
+- lifecycle
+- batchsandbox
+- ingress
+- gateway
+kubeVersion: '>=1.21.1-0'
+maintainers:
+- email: opensandbox@example.com
+  name: OpenSandbox Team
+name: opensandbox-server
+sources:
+- https://github.com/opensandbox-group/OpenSandbox/tree/main/server
+- https://github.com/opensandbox-group/OpenSandbox/tree/main/components/ingress
+type: application
+version: 0.1.0

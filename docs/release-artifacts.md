@@ -28,6 +28,8 @@ workflow input.
 | Helm chart | `oci://core.campus.clusterdiali.me/harakiri/charts/harakiri` | `.github/workflows/release.yml` | Deploys only the Harakiri control plane; PostgreSQL, Keycloak, and OpenSandbox are external prerequisites. |
 | TypeScript SDK | `@h-sandbox/sdk` | `.github/workflows/npm-release.yml` | Public npm package for API integrations. |
 | CLI | `@h-sandbox/cli` | `.github/workflows/npm-release.yml` | Installs the `harakiri` executable. |
+| Runtime templates | `core.campus.clusterdiali.me/harakiri/templates/<name>:sha-<commit>-<run>-<attempt>` | `.github/workflows/template-release.yml` | New workflow; both native architectures must pass before manifest publication. Runtime acceptance/promotion is separate. |
+| Maintained OpenSandbox chart | `oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox` | `.github/workflows/opensandbox-chart-release.yml` | Reviewed vendored upstream sources with configurable non-root server port; independent chart version. |
 
 `packages/shared` is intentionally not published. Public consumers depend on the
 SDK and CLI only; shared protocol code stays an internal workspace package so the
@@ -72,6 +74,13 @@ Default Harbor chart coordinate:
 oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox --version 0.2.2
 ```
 
+The staged restricted OpenShift installer uses the maintained
+`0.2.2-harakiri.2` distribution instead, with a configurable server container
+port and included upstream license. Its Harbor manifest digest is
+`sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34`.
+The unchanged upstream chart remains available for provenance. See
+[distribution notes](../infra/charts/opensandbox/HARAKIRI.md).
+
 ## Template Images
 
 Template images are runtime images, not control-plane release images. The
@@ -92,9 +101,10 @@ The OpenShift test package has validated this imported template image:
 core.campus.clusterdiali.me/harakiri/templates/open-agents-dev@sha256:fd71e2b7610f81260755ccb86ee60a119ce14816016a4870ef9820a8b4255070
 ```
 
-Current gap: template image publishing is not yet a first-class release workflow.
-Until that is added, docs must name the template image tag or digest used by a
-given environment.
+Template publishing now has a dedicated source workflow. Its first remote run,
+multiarch candidate manifests and runtime acceptance are still pending. See
+[template image releases](template-release.md). The June digest above is historical
+evidence, not acceptance of the latest template sources.
 
 ## Optional Integration Artifacts
 

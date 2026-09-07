@@ -1,0 +1,13 @@
+apiVersion: v2
+appVersion: 0.1.0
+description: Node-level sandbox log collection for OpenSandbox
+home: https://github.com/opensandbox-group/OpenSandbox
+kubeVersion: '>=1.21.1-0'
+maintainers:
+- email: opensandbox@example.com
+  name: OpenSandbox Team
+name: opensandbox-node-agent
+sources:
+- https://github.com/opensandbox-group/OpenSandbox/tree/main/components/nodeagent
+type: application
+version: 0.1.0

@@ -1,0 +1,43 @@
+name: Release maintained OpenSandbox chart
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [infra/charts/opensandbox/**, .github/workflows/opensandbox-chart-release.yml]
+permissions:
+  contents: read
+concurrency:
+  group: opensandbox-chart-release
+  cancel-in-progress: false
+jobs:
+  chart:
+    runs-on: ubuntu-latest
+    environment: harbor
+    env:
+      HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY || 'core.campus.clusterdiali.me' }}
+      HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'harakiri' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint infra/charts/opensandbox
+      - run: helm package infra/charts/opensandbox --destination dist
+      - name: Publish versioned chart
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          printf '%s' "$HARBOR_PASSWORD" | helm registry login "$HARBOR_REGISTRY" --username "$HARBOR_USERNAME" --password-stdin
+          VERSION=$(helm show chart infra/charts/opensandbox | awk '/^version:/ {print $2}')
+          if helm show chart "oci://${HARBOR_REGISTRY}/${HARBOR_PROJECT}/charts/opensandbox" --version "$VERSION" >/dev/null 2>&1; then
+            mkdir -p verify/published verify/candidate
+            helm pull "oci://${HARBOR_REGISTRY}/${HARBOR_PROJECT}/charts/opensandbox" --version "$VERSION" --destination verify
+            tar -xzf "verify/opensandbox-${VERSION}.tgz" -C verify/published
+            tar -xzf "dist/opensandbox-${VERSION}.tgz" -C verify/candidate
+            if diff -qr verify/published verify/candidate; then
+              echo "Chart $VERSION is already published with identical content. No overwrite."
+              exit 0
+            fi
+            echo "Published chart content differs. Bump the maintained version." >&2
+            exit 1
+          fi
+          helm push dist/opensandbox-*.tgz "oci://${HARBOR_REGISTRY}/${HARBOR_PROJECT}/charts"

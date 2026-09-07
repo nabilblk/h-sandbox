@@ -9,6 +9,7 @@ import {
   type CredentialVaultReconciliationReport
 } from "./services/credential-vault-reconciler.js";
 import { cleanupTemplateRetention, type TemplateRetentionReport } from "./template-retention.js";
+import { reconcileWorkspaces } from "./services/persistent-workspaces.js";
 
 export const normalizeState = (state?: string | null) => {
   const value = String(state ?? "").toLowerCase();
@@ -134,11 +135,12 @@ export const tick = async (dependencies: SchedulerDependencies = {}) => {
     await query("UPDATE sandbox_schedules SET completed_at = now() WHERE id = $1", [item.schedule_id]);
     await query(
       `INSERT INTO sandbox_events (sandbox_id, organization_id, type, message)
-       VALUES ($1, $2, 'ttl', 'idle ttl exceeded - sandbox terminated - disk zeroed')`,
+       VALUES ($1, $2, 'ttl', 'idle ttl exceeded; sandbox terminated; persistent workspace storage retained')`,
       [item.sandbox_id, item.organization_id]
     );
   }
   await (dependencies.runTemplateRetentionIfDue ?? runTemplateRetentionIfDue)();
+  await reconcileWorkspaces(query, runtimeProvider);
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

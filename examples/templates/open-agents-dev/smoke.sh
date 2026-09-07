@@ -37,7 +37,7 @@ jq --version
 python3 --version
 chromium --version
 code-server --version | head -n 1
-agent-browser --version || true
+agent-browser --version
 
 test -w "${workspace}"
 printf 'ok\n' >"${workspace}/.harakiri-open-agents-smoke"

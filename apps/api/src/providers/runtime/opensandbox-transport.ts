@@ -2,6 +2,7 @@ import type { EgressNetworkPolicy, RunResult } from "@harakiri/shared";
 import { config } from "../../config.js";
 import { registryImageAuthForImage, type RegistryImageAuth } from "../../registry-credentials.js";
 import type { RuntimeTemplate } from "../../templates.js";
+import type { RuntimeWorkspaceMount } from "./provider.js";
 import { callOpenSandbox, OpenSandboxHttpError } from "./opensandbox-client.js";
 import {
   attachExecdPtySession,
@@ -74,6 +75,7 @@ const shouldSendNetworkPolicy = (
 };
 
 export const openSandboxCreateBody = (input: {
+  workspace?: RuntimeWorkspaceMount;
   template: RuntimeTemplate;
   ttlSeconds: number;
   name: string;
@@ -112,6 +114,17 @@ export const openSandboxCreateBody = (input: {
       ...(input.metadata ?? {})
     }),
     ...(env ? { env } : {}),
+    ...(input.workspace ? { volumes: [{
+      name: "workspace", mountPath: input.workspace.mountPath, readOnly: false,
+      pvc: {
+        claimName: input.workspace.volumeName,
+        createIfNotExists: input.workspace.createIfMissing,
+        deleteOnSandboxTermination: false,
+        storage: `${input.workspace.sizeGiB}Gi`,
+        storageClass: input.workspace.storageClass,
+        accessModes: ["ReadWriteOnce"]
+      }
+    }] } : {}),
     ...(sendNetworkPolicy
       ? { networkPolicy: input.egressPolicy, credentialProxy: { enabled: true } }
       : {})
@@ -125,6 +138,7 @@ const requireOpenSandboxId = (opensandboxId?: string | null) => {
 
 export const openSandbox = {
   async create(input: {
+    workspace?: RuntimeWorkspaceMount;
     template: RuntimeTemplate;
     ttlSeconds: number;
     name: string;
@@ -139,6 +153,7 @@ export const openSandbox = {
     const result = await callOpenSandbox<ProviderSandbox>("/v1/sandboxes", {
       method: "POST",
       body: JSON.stringify(openSandboxCreateBody({
+        workspace: input.workspace,
         template,
         ttlSeconds: input.ttlSeconds,
         name: input.name,
@@ -323,12 +338,12 @@ export const openSandbox = {
     });
   },
 
-  async getCommand(opensandboxId: string | null | undefined, providerCommandId: string) {
-    return getExecdCommandStatus(requireOpenSandboxId(opensandboxId), providerCommandId);
+  async getCommand(opensandboxId: string | null | undefined, providerCommandId: string, signal?: AbortSignal) {
+    return getExecdCommandStatus(requireOpenSandboxId(opensandboxId), providerCommandId, signal);
   },
 
-  async commandLogs(opensandboxId: string | null | undefined, providerCommandId: string, cursor?: number) {
-    return getExecdCommandLogs(requireOpenSandboxId(opensandboxId), providerCommandId, cursor);
+  async commandLogs(opensandboxId: string | null | undefined, providerCommandId: string, cursor?: number, signal?: AbortSignal) {
+    return getExecdCommandLogs(requireOpenSandboxId(opensandboxId), providerCommandId, cursor, signal);
   },
 
   async interruptCommand(opensandboxId: string | null | undefined, providerCommandId: string) {

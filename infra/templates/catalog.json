@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    { "name": "base-linux", "smoke": "harakiri-base-linux-smoke" },
+    { "name": "python-3.12-data", "smoke": "harakiri-python-data-smoke" },
+    { "name": "node-20-app", "smoke": "harakiri-node-app-smoke" },
+    { "name": "browser-chromium", "smoke": "harakiri-browser-chromium-smoke" },
+    { "name": "open-agents-dev", "smoke": "harakiri-open-agents-smoke" },
+    { "name": "opencode", "smoke": "harakiri-opencode-smoke" }
+  ]
+}

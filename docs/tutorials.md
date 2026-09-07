@@ -4,6 +4,16 @@ These tutorials exercise Harakiri as an application developer would use it.
 They create real sandboxes, verify an observable result, and clean up every
 resource they create.
 
+## Upcoming: Persistent Agent Projects
+
+The [persistent workspace tutorial](persistent-workspaces.md) and
+[runnable acceptance example](../examples/sdk-persistent-workspace/index.mjs)
+write a checkpoint, replace the sandbox, read the same file, disconnect a live
+command viewer and resume its output without executing the job twice. They
+require unreleased matching source builds and operator-enabled storage, not npm
+0.4.0. Cleanup terminates sandboxes and archives the workspace, but does not
+physically erase retained storage.
+
 ## Before You Start
 
 You need:

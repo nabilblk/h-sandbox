@@ -32,7 +32,8 @@ RUN apt-get update \
       vim-tiny \
       xz-utils \
       zip \
- && mkdir -p /workspace \
+ && mkdir -p /workspace /root/.cache \
+ && chmod -R g=u /root /workspace \
  && chmod 1777 /tmp \
  && rm -rf /var/lib/apt/lists/*
 

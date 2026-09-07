@@ -7,6 +7,7 @@ import { runtimeLine } from "../format.js";
 import { collectEnv, collectString, parsePositiveInt, printProgress } from "../utils.js";
 import { createCredentialInputsFromSpecs } from "./credential-options.js";
 import { gitCredentialsFromOptions } from "./git.js";
+import { followCommand } from "./command-stream.js";
 
 const stdinFramePrefix = 0x00;
 const stdoutFramePrefix = 0x01;
@@ -234,6 +235,7 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--git <url>", "clone a Git repository after sandbox creation")
     .option("--git-branch <branch>", "branch or tag to clone")
     .option("--git-commit <sha>", "commit to checkout after clone")
+    .option("--workspace <id>", "attach an available persistent workspace at /workspace")
     .option("--git-path <path>", "target path inside the sandbox", "/workspace/project")
     .option("--git-depth <n>", "shallow clone depth", parsePositiveInt)
     .option("--git-submodules", "initialize Git submodules recursively")
@@ -253,6 +255,7 @@ export const registerSandboxCommands = (program: Command) => {
       const body = {
         template: options.template,
         snapshotId: options.snapshot,
+        workspaceId: options.workspace,
         name: options.name,
         ttlSeconds: Number(options.ttl),
         env: options.env,
@@ -748,6 +751,13 @@ export const registerSandboxCommands = (program: Command) => {
     .alias("process")
     .description("Manage tracked sandbox commands");
 
+  command.command("follow")
+    .argument("<id>", "sandbox id")
+    .argument("<command-id>", "existing command id; never starts a new command")
+    .option("--cursor <cursor>", "resume from a previous event cursor")
+    .option("--json", "print newline-delimited JSON events")
+    .action(async (id, commandId, options) => followCommand(await apiClient(), id, commandId, options));
+
   command
     .command("run")
     .argument("<id>", "sandbox id")
@@ -756,6 +766,7 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--timeout-ms <ms>", "command timeout in milliseconds", parsePositiveInt)
     .option("--run-env <key=value>", "environment variable for this command; can be repeated", collectEnv, {})
     .option("--detached", "start a background command and return its command id")
+    .option("--follow", "stream output until completion; Ctrl-C only stops viewing")
     .option("--json", "print JSON")
     .description("Start a tracked command")
     .action(async (id, options) => {
@@ -766,8 +777,13 @@ export const registerSandboxCommands = (program: Command) => {
         cwd: options.cwd,
         timeoutMs: options.timeoutMs,
         env: Object.keys(runEnv).length ? runEnv : undefined,
-        detached: options.detached
+        detached: options.follow || options.detached
       });
+      if (options.follow) {
+        printProgress(`command=${result.command.id}`);
+        await followCommand(client, id, result.command.id, options);
+        return;
+      }
       if (options.json) {
         printJson(result);
         return;

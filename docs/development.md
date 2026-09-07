@@ -13,6 +13,11 @@ the `harakiri.io` DNS zone, or the public tunnel used by the maintainer lab.
 
 ## Repository Setup
 
+Run `pnpm test`, `pnpm typecheck` and `pnpm build` one at a time. These root
+commands order package tasks sequentially because CLI validation rebuilds the
+SDK artifacts also consumed by the dashboard. Running separate build commands
+concurrently can remove `packages/sdk/dist` while another process is reading it.
+
 ```bash
 pnpm install
 cp .env.example .env

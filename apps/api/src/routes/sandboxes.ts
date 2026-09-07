@@ -91,6 +91,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         actorLabel: request.auth.actorLabel,
         templateRef: body.template,
         snapshotId: body.snapshotId,
+        workspaceId: body.workspaceId,
         name: body.name,
         ttlSeconds: body.ttlSeconds,
         env: body.env,

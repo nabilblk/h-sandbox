@@ -33,7 +33,7 @@ const readBody = async (request: IncomingMessage) => {
   return raw ? JSON.parse(raw) : undefined;
 };
 
-const startMockApi = async (handler: (request: RecordedRequest) => { status?: number; body?: unknown }) => {
+const startMockApi = async (handler: (request: RecordedRequest) => { status?: number; body?: unknown; stream?: string; keepOpen?: boolean }) => {
   const requests: RecordedRequest[] = [];
   const server = createServer(async (request, response) => {
     const recorded = {
@@ -45,6 +45,11 @@ const startMockApi = async (handler: (request: RecordedRequest) => { status?: nu
     requests.push(recorded);
     const result = handler(recorded);
     response.statusCode = result.status ?? 200;
+    if (result.stream !== undefined) {
+      response.setHeader("content-type", "text/event-stream");
+      if (result.keepOpen) response.write(result.stream); else response.end(result.stream);
+      return;
+    }
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify(result.body ?? {}));
   });
@@ -85,7 +90,7 @@ const startMockWebSocketApi = async (
   };
 };
 
-const runCli = async (args: string[], options: { api: { url: string }; cwd?: string; env?: Record<string, string>; input?: string }) => {
+const runCli = async (args: string[], options: { api: { url: string }; cwd?: string; env?: Record<string, string>; input?: string; signalOnOutput?: string }) => {
   const home = await mkdtemp(join(tmpdir(), "harakiri-cli-home-"));
   const child = spawn(process.execPath, ["--import", tsxImport, cliPath, ...args], {
     cwd: options.cwd ?? packageRoot,
@@ -102,7 +107,13 @@ const runCli = async (args: string[], options: { api: { url: string }; cwd?: str
   if (options.input !== undefined) child.stdin.end(options.input);
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
-  child.stdout.on("data", (chunk) => stdoutChunks.push(Buffer.from(chunk)));
+  let signaled = false;
+  child.stdout.on("data", (chunk) => {
+    stdoutChunks.push(Buffer.from(chunk));
+    if (!signaled && options.signalOnOutput && Buffer.concat(stdoutChunks).toString().includes(options.signalOnOutput)) {
+      signaled = true; child.kill("SIGINT");
+    }
+  });
   child.stderr.on("data", (chunk) => stderrChunks.push(Buffer.from(chunk)));
   const exitCode = await new Promise<number | null>((resolve) => child.on("close", resolve));
   return {
@@ -129,6 +140,50 @@ const buildRow = (overrides: Record<string, unknown>) => ({
   createdAt: "2026-05-24T00:00:00.000Z",
   updatedAt: "2026-05-24T00:00:00.000Z",
   ...overrides
+});
+
+test("workspace CLI preserves public IDs and requires retained-storage acknowledgement", async () => {
+  const api = await startMockApi(() => ({ body: { workspace: { id: "wsp_cli", status: "archived" } } }));
+  try {
+    const created = await runCli(["workspace", "create", "--name", "Agent files"], { api });
+    assert.equal(created.exitCode, 0);
+    assert.deepEqual(api.requests[0].body, { name: "Agent files" });
+    const refused = await runCli(["workspace", "archive", "wsp_cli"], { api });
+    assert.notEqual(refused.exitCode, 0);
+    assert.equal(api.requests.length, 1);
+    const archived = await runCli(["workspace", "archive", "wsp_cli", "--retain-storage"], { api });
+    assert.equal(archived.exitCode, 0);
+    assert.match(archived.stdout, /storage retained/);
+    assert.equal(api.requests[1].path, "/v1/workspaces/wsp_cli/archive");
+  } finally { await api.close(); }
+});
+
+test("command follow returns the command exit status and sends only authenticated GET", async () => {
+  const cursor = "v1:cmd_cli:p:2";
+  const event = { type: "complete", commandId: "cmd_cli", cursor, status: "failed", exitCode: 7 };
+  const api = await startMockApi(() => ({ stream: `id: ${cursor}\nevent: complete\ndata: ${JSON.stringify(event)}\n\n` }));
+  try {
+    const result = await runCli(["command", "follow", "sbx_cli", "cmd_cli", "--cursor", cursor, "--json"], { api });
+    assert.equal(result.exitCode, 7);
+    assert.equal(JSON.parse(result.stdout).exitCode, 7);
+    assert.equal(api.requests.length, 1);
+    assert.equal(api.requests[0].method, "GET");
+    assert.equal(api.requests[0].headers["x-api-key"], "hk_test_cli");
+    assert.equal(new URL(api.requests[0].path, api.url).searchParams.get("cursor"), cursor);
+  } finally { await api.close(); }
+});
+
+test("Ctrl-C closes a command viewer with a resume cursor and never kills the command", { timeout: 10000 }, async () => {
+  const cursor = "v1:cmd_cli:p:1";
+  const event = { type: "output", commandId: "cmd_cli", cursor, stdout: "tick\n", stderr: "" };
+  const api = await startMockApi(() => ({ stream: `id: ${cursor}\nevent: output\ndata: ${JSON.stringify(event)}\n\n`, keepOpen: true }));
+  try {
+    const result = await runCli(["command", "follow", "sbx_cli", "cmd_cli"], { api, signalOnOutput: "tick" });
+    assert.equal(result.exitCode, 130);
+    assert.match(result.stderr, /was not cancelled/);
+    assert.ok(result.stderr.includes(`--cursor ${cursor}`));
+    assert.deepEqual(api.requests.map((request) => request.method), ["GET"]);
+  } finally { await api.close(); }
 });
 
 test("template init writes a Harakiri config with runtime metadata", async () => {

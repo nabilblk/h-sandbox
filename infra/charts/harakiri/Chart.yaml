@@ -4,8 +4,8 @@ description: Harakiri Sandbox control plane (API, web, scheduler, template build
 type: application
 # version  = the chart version (SemVer). Overridden by CI from the git tag.
 # appVersion = the Harakiri release the chart deploys (the image tag default).
-version: 0.4.0
-appVersion: "0.4.0"
+version: 0.5.0-rc.1
+appVersion: "0.5.0-rc.1"
 home: https://github.com/nabilblk/h-sandbox
 sources:
   - https://github.com/nabilblk/h-sandbox

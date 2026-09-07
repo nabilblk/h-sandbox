@@ -1,5 +1,7 @@
 opensandbox-controller:
   namespaceOverride: ${NAMESPACE}
+  imagePullSecrets:
+    - name: registry-pull
   controller:
     logLevel: info
     replicaCount: 1
@@ -11,11 +13,13 @@ opensandbox-controller:
 
 opensandbox-server:
   namespaceOverride: ${NAMESPACE}
+  imagePullSecrets:
+    - name: registry-pull
   configToml: |
     [server]
     host = "0.0.0.0"
     port = 8080
-    api_key = "${OPEN_SANDBOX_API_KEY}"
+    api_key = ""
 
     [log]
     level = "INFO"
@@ -44,6 +48,19 @@ opensandbox-server:
 
   server:
     port: 8080
+    env:
+      - name: OPENSANDBOX_SERVER_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: harakiri-api
+            key: OPEN_SANDBOX_API_KEY
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
     image:
       repository: ${HARBOR}/${HARBOR_PROJECT}/mirror/opensandbox/server
       tag: v0.2.3
@@ -57,6 +74,13 @@ opensandbox-server:
         memory: 1Gi
     gateway:
       enabled: true
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: [ALL]
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       host: ${SBX_DOMAIN}
       gatewayRouteMode: header
       image:

@@ -16,7 +16,7 @@ export const buildServer = async () => {
   await app.register(cors, {
     origin: true,
     credentials: true,
-    allowedHeaders: ["authorization", "content-type", "x-api-key", "x-harakiri-route-token"],
+    allowedHeaders: ["authorization", "content-type", "x-api-key", "x-harakiri-route-token", "last-event-id"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
   await registerRoutes(app);

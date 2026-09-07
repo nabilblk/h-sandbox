@@ -53,6 +53,7 @@ import {
 } from "./credential-vault.js";
 import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-secrets.js";
 import { redactText } from "../redaction.js";
+import { prepareRuntimeWorkspace, validateWorkspaceAttachment, WorkspaceError } from "./persistent-workspaces.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
 export type SandboxSummary = SharedSandboxSummary;
@@ -82,6 +83,7 @@ export type SandboxListFilters = {
 };
 
 export type CreateSandboxInput = {
+  workspaceId?: string;
   organizationId: string;
   userId: string;
   actorLabel: string;
@@ -101,6 +103,7 @@ export type CreateSandboxInput = {
 
 export const sandboxSelect = `
   SELECT s.id, s.opensandbox_id AS "opensandboxId", s.name, s.template_id AS template,
+         s.workspace_id AS "workspaceId",
          s.status, s.cpu_pct AS cpu, s.memory_mb AS mem,
          COALESCE(to_char(now() - s.started_at, 'HH24"h "MI"m"'), '-') AS started,
          s.owner_label AS owner, s.cost_usd::float AS cost, s.ttl_seconds AS "ttlSeconds",
@@ -879,12 +882,16 @@ export const createSandbox = async (
       message: "async sandbox creation with env requires CONTROL_PLANE_SECRET_KEY or HARAKIRI_SECRET_KEY so env can be encrypted for worker replay"
     };
   }
+  if (input.workspaceId) {
+    if (input.snapshotId) throw new WorkspaceError("workspace_snapshot_conflict", 400, "Workspace attachment cannot be combined with snapshot restore");
+    await validateWorkspaceAttachment(input.organizationId, input.workspaceId, query, dependencies.runtimeProvider);
+  }
   await query(
     `INSERT INTO sandboxes
      (id, opensandbox_id, organization_id, template_id, name, status, cpu_pct, memory_mb,
       owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url,
-      template_version_id, template_image_digest, egress_policy, egress_compiled_policy, source_provenance)
-     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb)`,
+      template_version_id, template_image_digest, egress_policy, egress_compiled_policy, source_provenance, workspace_id)
+     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14)`,
     [
       id,
       input.organizationId,
@@ -898,9 +905,15 @@ export const createSandbox = async (
       template.imageDigest,
       JSON.stringify(policyInputFromSummary(egressSummary)),
       JSON.stringify(runtimeEgressPolicy),
-      source ? JSON.stringify(source) : null
+      source ? JSON.stringify(source) : null,
+      input.workspaceId ?? null
     ]
-  );
+  ).catch((error: unknown) => {
+    if ((error as { code?: string; message?: string }).code === "P0001" && (error as Error).message === "workspace_unavailable") {
+      throw new WorkspaceError("workspace_unavailable", 409, "Workspace was reserved by another sandbox");
+    }
+    throw error;
+  });
   const { operation, reused } = await enqueueSandboxOperation(
     {
       organizationId: input.organizationId,
@@ -937,6 +950,10 @@ export const createSandbox = async (
     );
   }
   if (reused) {
+    if (input.workspaceId && operation.sandboxId !== id) {
+      await query("UPDATE sandboxes SET status = 'error', updated_at = now() WHERE id = $1 AND organization_id = $2", [id, input.organizationId]);
+      await query("UPDATE persistent_workspaces SET attached_sandbox_id = NULL, updated_at = now() WHERE attached_sandbox_id = $1 AND organization_id = $2 AND attachment_attempted_at IS NULL", [id, input.organizationId]);
+    }
     const sandbox = operation.sandboxId ? await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider }) : null;
     if (sandbox && (sandbox.status === "pending" || operation.state === "queued" || operation.state === "running")) {
       return {
@@ -976,6 +993,7 @@ export const createSandbox = async (
     let provider;
     try {
       provider = await dependencies.runtimeProvider.create({
+        workspace: input.workspaceId ? await prepareRuntimeWorkspace(input.organizationId, id, query, dependencies.runtimeProvider) : undefined,
         template,
         ttlSeconds: input.ttlSeconds,
         name,
@@ -1179,11 +1197,14 @@ export const deleteSandbox = async (
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
 ) => {
   const query = dependencies.query ?? defaultQuery;
-  const result = await query<{ opensandbox_id: string | null }>(
-    "SELECT opensandbox_id FROM sandboxes WHERE id = $1 AND organization_id = $2",
+  const result = await query<{ opensandbox_id: string | null; workspace_id: string | null; status: string }>(
+    "SELECT opensandbox_id, workspace_id, status FROM sandboxes WHERE id = $1 AND organization_id = $2",
     [input.sandboxId, input.organizationId]
   );
   if (!result.rowCount) return false;
+  if (result.rows[0].workspace_id && result.rows[0].status === "pending") {
+    throw new WorkspaceError("workspace_provision_in_progress", 409, "Workspace provisioning is still in progress. Wait for it to finish before terminating the sandbox.");
+  }
   const { operation } = await enqueueSandboxOperation(
     {
       organizationId: input.organizationId,
@@ -1206,7 +1227,7 @@ export const deleteSandbox = async (
     await failSandboxOperation({ operationId: activeOperation.id, error: message }, query);
     throw error;
   }
-  await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminated", "sandbox terminated - disk zeroed");
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminated", "sandbox terminated; persistent workspace storage is retained");
   await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.kill", "sandbox", input.sandboxId);
   return true;
 };

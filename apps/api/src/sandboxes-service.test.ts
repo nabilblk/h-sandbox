@@ -1517,8 +1517,8 @@ test("deleteSandbox and renewSandbox use injected provider refs", async () => {
     if (text.includes("SELECT opensandbox_id, ttl_seconds")) {
       return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300 }] as never[] };
     }
-    if (text.includes("SELECT opensandbox_id FROM sandboxes")) {
-      return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx" }] as never[] };
+    if (text.includes("SELECT opensandbox_id, workspace_id, status FROM sandboxes")) {
+      return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", workspace_id: null, status: "running" }] as never[] };
     }
     if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
     if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) return { rowCount: 1, rows: [operationRow()] as never[] };

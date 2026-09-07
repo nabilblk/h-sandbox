@@ -53,6 +53,7 @@ export type RuntimeSnapshotSummary = RuntimeSnapshotRef & {
 };
 
 export type RuntimeCreateSandboxInput = {
+  workspace?: RuntimeWorkspaceMount;
   template: RuntimeTemplate;
   ttlSeconds: number;
   name: string;
@@ -62,6 +63,14 @@ export type RuntimeCreateSandboxInput = {
   env?: Record<string, string>;
   imageAuth?: RegistryImageAuth | null;
   egressPolicy?: EgressNetworkPolicy | null;
+};
+
+export type RuntimeWorkspaceMount = {
+  volumeName: string;
+  storageClass: string | null;
+  sizeGiB: number;
+  createIfMissing: boolean;
+  mountPath: "/workspace";
 };
 
 export type RuntimeCreateSandboxResult = RuntimeSandboxSummary & {
@@ -308,6 +317,7 @@ export type RuntimeCreateSnapshotInput = RuntimeSandboxRef & {
 };
 
 export type RuntimeProviderCapabilities = {
+  persistentWorkspaces?: boolean;
   terminal: boolean;
   terminalAttach?: boolean;
   terminalResize?: boolean;
@@ -344,8 +354,8 @@ export interface RuntimeProvider {
   deleteSnapshot?(ref: RuntimeSnapshotRef): Promise<void>;
   run(input: RuntimeRunInput): Promise<RunResult>;
   startCommand?(input: RuntimeStartCommandInput): Promise<RuntimeStartedCommand>;
-  getCommand?(ref: RuntimeSandboxRef & { providerCommandId: string }): Promise<RuntimeCommandState>;
-  commandLogs?(ref: RuntimeSandboxRef & { providerCommandId: string; cursor?: number }): Promise<RuntimeCommandLogs>;
+  getCommand?(ref: RuntimeSandboxRef & { providerCommandId: string; signal?: AbortSignal }): Promise<RuntimeCommandState>;
+  commandLogs?(ref: RuntimeSandboxRef & { providerCommandId: string; cursor?: number; signal?: AbortSignal }): Promise<RuntimeCommandLogs>;
   interruptCommand?(ref: RuntimeSandboxRef & { providerCommandId: string }): Promise<void>;
   createCommandSession?(input: RuntimeCreateCommandSessionInput): Promise<RuntimeCommandSession>;
   runCommandSession?(input: RuntimeRunCommandSessionInput): Promise<RuntimeCommandSessionRun>;

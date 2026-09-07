@@ -25,6 +25,7 @@ import "./styles.css";
 import "./styles-landing.css";
 import "./styles-app.css";
 import "./styles-demos.css";
+import "./styles-workspaces.css";
 
 const pendingPublicRouteKey = "harakiri_pending_public_route";
 

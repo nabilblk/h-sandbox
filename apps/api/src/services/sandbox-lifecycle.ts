@@ -18,6 +18,7 @@ import type {
 import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
 import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
 import { getSandbox } from "./sandboxes.js";
+import { WorkspaceError } from "./persistent-workspaces.js";
 import {
   claimSandboxOperationById,
   completeSandboxOperation,
@@ -58,6 +59,7 @@ type LifecycleAction = "pause" | "resume";
 
 type LifecycleSandboxRow = {
   id: string;
+  workspaceId?: string | null;
   opensandboxId: string | null;
   status: string;
   template: string;
@@ -123,6 +125,7 @@ const getLifecycleSandboxRow = async (
 ) => {
   const result = await query<LifecycleSandboxRow>(
     `SELECT id,
+            workspace_id AS "workspaceId",
             opensandbox_id AS "opensandboxId",
             status,
             template_id AS template,
@@ -425,6 +428,7 @@ export const createSandboxSnapshot = async (
   if (existing) return existing;
   const sandbox = await getLifecycleSandboxRow(input, query);
   if (!sandbox) return { kind: "sandbox_not_found" };
+  if (sandbox.workspaceId) throw new WorkspaceError("workspace_snapshot_unsupported", 409, "Snapshots of workspace-backed sandboxes are not supported. Back up the persistent volume separately.");
   if (!["running", "idle", "paused"].includes(sandbox.status)) {
     return { kind: "sandbox_invalid_state", state: sandbox.status, allowed: ["running", "idle", "paused"] };
   }

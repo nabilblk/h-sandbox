@@ -1,0 +1,37 @@
+# Default values for opensandbox (all-in-one chart).
+# This chart aggregates values from opensandbox-controller and opensandbox-server sub-charts.
+
+# Controller component values
+opensandbox-controller:
+  # Default values are inherited from the sub-chart.
+  # Override specific controller settings here if needed.
+  controller:
+    logLevel: info
+    replicaCount: 1
+    snapshot:
+      # DockerHub: opensandbox/image-committer:v0.1.1
+      imageCommitterImage: sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/image-committer:v0.1.1
+      imageCommitterPodTemplate: {}
+      commitJobTimeout: 10m
+      registry: ""
+      registryInsecure: false
+      snapshotPushSecret: ""
+      resumePullSecret: ""
+
+# Server component values
+opensandbox-server:
+  # Default values are inherited from the sub-chart.
+  # Override specific server settings here if needed.
+  server:
+    replicaCount: 2
+
+# Optional node-level sandbox log collection. Configure the target in the
+# sub-chart values before enabling it.
+opensandbox-node-agent:
+  enabled: false
+
+# Global values (passed to both sub-charts)
+global:
+  # Example: shared image pull secrets
+  # imagePullSecrets:
+  #   - name: my-registry-secret

@@ -1,13 +1,3 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: keycloak-admin
-  namespace: ${NAMESPACE}
-type: Opaque
-stringData:
-  KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
-  KC_DB_PASSWORD: "${POSTGRES_PASSWORD}"
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,9 +24,9 @@ spec:
           image: ${KEYCLOAK_IMAGE}
           imagePullPolicy: IfNotPresent
           args:
-            - start-dev
+            - start
             - --import-realm
-            - --hostname-strict=false
+            - --hostname-strict=true
           env:
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
               value: admin
@@ -91,8 +81,8 @@ spec:
               readOnly: true
       volumes:
         - name: realms
-          configMap:
-            name: keycloak-realms
+          secret:
+            secretName: keycloak-realms
 ---
 apiVersion: v1
 kind: Service

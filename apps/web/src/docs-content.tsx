@@ -1,6 +1,7 @@
 import type React from "react";
 import { demoTutorialSections } from "./demo-tutorial";
 import { agentDemoPrerequisites, agentDemoTutorials } from "./agent-demo-tutorials";
+import { workspaceDocs } from "./workspace-docs";
 
 export type DocPage = {
   id: string;
@@ -146,6 +147,7 @@ export const docPages: DocPage[] = [
     toc: tutorial.sections.map((section) => section.title),
     body: <div className="tutorial-doc"><p><a href={`#demos/${tutorial.id}`}>Watch the demo</a> | <a href="/demos/agent-workflows.zip">Download example source</a> | <a href={`/demos/${tutorial.id}/tutorial.html`}>Standalone tutorial</a></p><p>{agentDemoPrerequisites}</p><p><a href="https://opencode.ai/docs/zen/">OpenCode model availability and data policies</a></p>{tutorial.sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <pre>{section.code}</pre>}<TutorialCheck>{section.check}</TutorialCheck></section>)}</div>,
   })),
+  workspaceDocs,
   {
     id: "cli-live-preview",
     section: "Tutorials",

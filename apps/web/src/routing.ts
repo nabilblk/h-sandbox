@@ -9,6 +9,7 @@ export const isRoute = (route: string): route is Route =>
   route === "dashboard/sandboxes" ||
   isSandboxDetailRoute(route) ||
   route === "dashboard/templates" ||
+  route === "dashboard/workspaces" ||
   route === "dashboard/vault" ||
   route === "dashboard/members" ||
   route === "dashboard/metrics" ||

@@ -7,6 +7,7 @@ import type { RuntimeTemplate } from "../templates.js";
 import type { EgressNetworkPolicy } from "@harakiri/shared";
 import { recordSandboxEvent, type SandboxEventRecorder } from "./sandbox-events.js";
 import type { Query } from "./query.js";
+import { prepareRuntimeWorkspace } from "./persistent-workspaces.js";
 import {
   claimNextSandboxOperation,
   claimStaleRunningSandboxOperation,
@@ -91,6 +92,7 @@ const metadataMatches = (summary: RuntimeSandboxSummary, sandboxId: string, orga
 };
 
 type ProvisionSandboxRow = {
+  workspaceId?: string | null;
   id: string;
   opensandboxId: string | null;
   status: string;
@@ -170,6 +172,7 @@ const executeProvisionOperation = async (
   if (!sandboxId) throw new NonRetryableOperationError("provision operation is missing sandbox id");
   const result = await dependencies.query<ProvisionSandboxRow>(
     `SELECT s.id,
+            s.workspace_id AS "workspaceId",
             s.opensandbox_id AS "opensandboxId",
             s.status,
             s.name AS "sandboxName",
@@ -211,6 +214,7 @@ const executeProvisionOperation = async (
   let provider;
   try {
     provider = await dependencies.runtimeProvider.create({
+      workspace: row.workspaceId ? await prepareRuntimeWorkspace(operation.organizationId, sandboxId, dependencies.query, dependencies.runtimeProvider) : undefined,
       template,
       ttlSeconds: row.ttlSeconds,
       name: row.sandboxName,

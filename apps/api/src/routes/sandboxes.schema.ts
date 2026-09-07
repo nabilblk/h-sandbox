@@ -48,6 +48,7 @@ const sandboxSourceProvenanceSchema = sandboxGitSourceSchema.omit({ applyEgressP
 }).strict();
 
 export const createSandboxSchema = z.object({
+  workspaceId: z.string().regex(/^wsp_[A-Za-z0-9_-]+$/).max(160).optional(),
   template: z.string().optional(),
   snapshotId: z.string().min(1).max(160).optional(),
   name: z.string().optional(),
@@ -60,6 +61,8 @@ export const createSandboxSchema = z.object({
   idempotencyKey: z.string().min(1).max(160).optional(),
   wait: z.boolean().optional(),
   waitTimeoutMs: z.number().int().min(0).max(30000).optional()
+}).refine((value) => !(value.snapshotId && value.workspaceId), {
+  message: "workspace attachment cannot be combined with snapshot restore; create from a template to reuse persistent files"
 }).refine((value) => !(value.snapshotId && value.source), {
   message: "source bootstrap cannot be combined with snapshot restore in the same request"
 }).refine((value) => {

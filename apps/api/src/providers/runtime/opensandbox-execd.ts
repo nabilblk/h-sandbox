@@ -31,9 +31,9 @@ const execdHeaders = (endpointHeaders?: Record<string, string> | null) => {
   return merged;
 };
 
-export const resolveExecdEndpoint = async (opensandboxId: string) => {
+export const resolveExecdEndpoint = async (opensandboxId: string, signal?: AbortSignal) => {
   const result = await callOpenSandbox<ProviderEndpoint>(
-    `/v1/sandboxes/${opensandboxId}/endpoints/${EXECD_PORT}?use_server_proxy=true`
+    `/v1/sandboxes/${opensandboxId}/endpoints/${EXECD_PORT}?use_server_proxy=true`, { signal }
   );
   const endpoint = result.endpoint ?? result.url;
   if (!endpoint) throw new Error(`OpenSandbox did not return an execd endpoint for ${opensandboxId}`);
@@ -53,7 +53,7 @@ const isExecdGatewayReadinessError = (status: number, body: string) =>
   status === 503 && /opensandbox ingress/i.test(body) && /sandbox not ready/i.test(body);
 
 export const callExecd = async (opensandboxId: string, path: string, init: RequestInit = {}) => {
-  const endpoint = await resolveExecdEndpoint(opensandboxId);
+  const endpoint = await resolveExecdEndpoint(opensandboxId, init.signal ?? undefined);
   const maxAttempts = 12;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const response = await fetch(joinUrl(endpoint.baseUrl, path), {
@@ -229,8 +229,8 @@ const statusFromExecd = (input: { running?: boolean; exit_code?: number | null; 
   return "failed" as const;
 };
 
-export const getExecdCommandStatus = async (opensandboxId: string, providerCommandId: string) => {
-  const body = await callExecd(opensandboxId, `/command/status/${encodeURIComponent(providerCommandId)}`);
+export const getExecdCommandStatus = async (opensandboxId: string, providerCommandId: string, signal?: AbortSignal) => {
+  const body = await callExecd(opensandboxId, `/command/status/${encodeURIComponent(providerCommandId)}`, { signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000) });
   const status = parseJsonBody<{
     id?: string;
     content?: string;
@@ -251,11 +251,24 @@ export const getExecdCommandStatus = async (opensandboxId: string, providerComma
   };
 };
 
-export const getExecdCommandLogs = async (opensandboxId: string, providerCommandId: string, cursor?: number) => {
-  const endpoint = await resolveExecdEndpoint(opensandboxId);
+export const getExecdCommandLogs = async (opensandboxId: string, providerCommandId: string, cursor?: number, signal?: AbortSignal) => {
+  const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000);
+  const endpoint = await resolveExecdEndpoint(opensandboxId, requestSignal);
   const path = `/command/${encodeURIComponent(providerCommandId)}/logs${cursor === undefined ? "" : `?cursor=${cursor}`}`;
-  const response = await fetch(joinUrl(endpoint.baseUrl, path), { headers: endpoint.headers });
-  const body = await response.text();
+  const response = await fetch(joinUrl(endpoint.baseUrl, path), { headers: endpoint.headers, signal: requestSignal });
+  const reader = response.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    if (reader) while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 4 * 1024 * 1024) throw new Error("Command log response exceeds 4 MiB; use a later cursor");
+      chunks.push(value);
+    }
+  } finally { await reader?.cancel().catch(() => undefined); }
+  const body = Buffer.concat(chunks).toString("utf8");
   if (!response.ok) throw new OpenSandboxHttpError(response.status, body);
   const cursorHeader = response.headers.get("EXECD-COMMANDS-TAIL-CURSOR");
   const parsedCursor = cursorHeader ? Number(cursorHeader) : undefined;

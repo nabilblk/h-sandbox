@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-07-v0-5-0-rc-1",
+    version: "v0.5.0-rc.1",
+    date: "September 7, 2026",
+    title: "Persistent workspaces and live command output",
+    items: [
+      "Added opt-in organization-owned workspaces that retain files at /workspace across sandbox replacement, with exclusive attachment and explicit retained-storage archiving.",
+      "Added authenticated command output streams, resumable cursors, SDK async iteration, CLI follow commands, and dashboard workspace and command views. Disconnecting a viewer never reruns or kills a command.",
+      "Verified checkpoint reuse across two native OpenSandbox runtimes and output reconnection without duplicate execution on k0s. Added runnable tutorials, operator recovery procedures, and storage limits.",
+      "Added registry-only staged installation tooling, protected template release workflows, and independent supervision for the hosted lab tunnel and origins.",
+      "This is a test release candidate, not an OpenShift production certification. Clean restricted OpenShift and full template architecture acceptance remain pending; stable npm latest remains 0.4.0."
+    ]
+  },
+  {
     id: "2026-09-05-agent-demos",
     version: "Website update",
     date: "September 5, 2026",

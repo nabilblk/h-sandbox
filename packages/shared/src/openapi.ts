@@ -96,6 +96,22 @@ const credentialIdPath = parameter("id", "path", string);
 const attachmentIdPath = parameter("attachmentId", "path", string);
 
 const schemas: Record<string, JsonSchema> = {
+  WorkspaceSummary: objectSchema({
+    id: string, name: string, sizeGiB: integer, mountPath: { const: "/workspace" },
+    status: { type: "string", enum: ["available", "attached", "releasing", "recovery_required", "archived"] },
+    attachedSandboxId: nullableString, storageRequested: boolean, archivedAt: { type: ["string", "null"], format: "date-time" }, createdAt: dateTime, updatedAt: dateTime
+  }),
+  WorkspacePolicy: objectSchema({ available: boolean, reason: nullableString, sizeGiB: integer, maxPerOrganization: integer, mountPath: { const: "/workspace" }, retention: { const: "until_operator_reclaims" }, physicalDeletion: { const: false } }),
+  CreateWorkspaceBody: objectSchema({ name: { type: "string", minLength: 1, maxLength: 80 } }),
+  WorkspaceResponse: objectSchema({ workspace: ref("WorkspaceSummary") }),
+  WorkspacesResponse: objectSchema({ workspaces: arrayOf(ref("WorkspaceSummary")), policy: ref("WorkspacePolicy") }),
+  SandboxCommandEvent: { oneOf: [
+    objectSchema({ type: { const: "output" }, commandId: string, cursor: string, stdout: string, stderr: string }),
+    objectSchema({ type: { const: "status" }, commandId: string, cursor: string, status: { enum: ["queued", "running", "succeeded", "failed", "killed"] }, exitCode: { type: ["integer", "null"] } }),
+    objectSchema({ type: { const: "complete" }, commandId: string, cursor: string, status: { enum: ["succeeded", "failed", "killed"] }, exitCode: { type: ["integer", "null"] } }),
+    objectSchema({ type: { const: "reconnect" }, commandId: string, cursor: string }),
+    objectSchema({ type: { const: "error" }, commandId: string, cursor: string, code: string, message: string })
+  ] },
   ApiErrorResponse: objectSchema({
     error: {
       ...string,
@@ -389,6 +405,7 @@ const schemas: Record<string, JsonSchema> = {
     })
   }),
   SandboxSummary: objectSchema({
+    workspaceId: nullableString,
     id: string,
     opensandboxId: nullableString,
     name: string,
@@ -422,6 +439,7 @@ const schemas: Record<string, JsonSchema> = {
   CreateSandboxBody: objectSchema({
     template: string,
     snapshotId: string,
+    workspaceId: { type: "string", pattern: "^wsp_[A-Za-z0-9_-]+$", description: "Exclusive organization workspace attachment. Cannot be combined with snapshotId." },
     name: string,
     ttlSeconds: integer,
     env: { type: "object", additionalProperties: { type: "string" } },
@@ -1412,7 +1430,7 @@ export const openApiDocument = {
   openapi: "3.1.0",
   info: {
     title: "Harakiri Sandbox API",
-    version: "0.4.0",
+    version: "0.5.0-rc.1",
     description: "Control-plane API for sandbox lifecycle, templates, Credential Vault, routes, registry credentials, and account settings."
   },
   servers: [
@@ -1600,6 +1618,21 @@ export const openApiDocument = {
     "/v1/sandboxes/{id}/commands/{commandId}": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Get a sandbox command", operationId: "getSandboxCommand", parameters: [pathId, commandIdPath], responses: { ...ok("Sandbox command", ref("SandboxCommandResponse")), ...authErrorResponses } }),
       delete: secured({ tags: ["Sandbox Runtime"], summary: "Interrupt a sandbox command", operationId: "killSandboxCommand", parameters: [pathId, commandIdPath], responses: { ...ok("Sandbox command", ref("SandboxCommandResponse")), ...authErrorResponses } })
+    },
+    "/v1/workspaces": {
+      get: secured({ tags: ["Workspaces"], summary: "List organization workspaces and storage policy", operationId: "listWorkspaces", responses: { ...ok("Persistent workspaces", ref("WorkspacesResponse")), ...authErrorResponses } }),
+      post: secured({ tags: ["Workspaces"], summary: "Allocate a persistent workspace", operationId: "createWorkspace", requestBody: jsonBody(ref("CreateWorkspaceBody")), responses: { ...created("Workspace metadata; volume provisioned on first attachment", ref("WorkspaceResponse")), ...authErrorResponses, "501": jsonResponse("Storage not enabled", ref("ApiErrorResponse")) } })
+    },
+    "/v1/workspaces/{id}": {
+      get: secured({ tags: ["Workspaces"], summary: "Read an organization workspace", operationId: "getWorkspace", parameters: [pathId], responses: { ...ok("Persistent workspace", ref("WorkspaceResponse")), ...authErrorResponses } })
+    },
+    "/v1/workspaces/{id}/archive": {
+      post: secured({ tags: ["Workspaces"], summary: "Archive a detached workspace, retaining storage and quota", operationId: "archiveWorkspace", parameters: [pathId], responses: { ...ok("Archived workspace; files are not deleted", ref("WorkspaceResponse")), ...authErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/commands/{commandId}/events": {
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Observe a tracked command without re-executing it", operationId: "streamSandboxCommand", parameters: [pathId, commandIdPath, parameter("cursor", "query", string, false), parameter("Last-Event-ID", "header", string, false)], responses: {
+        "200": { description: "SSE with id=cursor, event=type, and JSON SandboxCommandEvent data. Native logs polled once per second; streams rotate at 60 seconds. Disconnect does not kill the command. Replay limited by runtime retention.", content: { "text/event-stream": { schema: { type: "string" } } }, "x-event-schema": ref("SandboxCommandEvent") }, ...authErrorResponses
+      } })
     },
     "/v1/sandboxes/{id}/commands/{commandId}/logs": {
       get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox command logs", operationId: "getSandboxCommandLogs", parameters: [pathId, commandIdPath, parameter("cursor", "query", integer, false), parameter("tail", "query", integer, false)], responses: { ...ok("Sandbox command logs", ref("SandboxCommandLogsResponse")), ...authErrorResponses } })

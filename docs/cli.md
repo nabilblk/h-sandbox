@@ -1,5 +1,26 @@
 # CLI Reference
 
+## Upcoming Workspace and Live Output Commands
+
+**Unreleased:** the following commands require matching CLI/API source builds,
+not npm 0.4.0. Workspace allocation also requires operator opt-in.
+
+```bash
+harakiri workspace list
+harakiri workspace create --name agent-project
+harakiri workspace inspect wsp_...
+harakiri create --template python-3.12 --workspace wsp_...
+harakiri command run sbx_... --cmd 'python -u job.py' --follow
+harakiri command follow sbx_... cmd_... --cursor 'v1:cmd_...:p:12'
+harakiri workspace archive wsp_... --retain-storage
+```
+
+Upload `job.py` before running it. Ctrl-C closes the viewer and exits 130; the
+command continues. Terminate it explicitly with `harakiri command kill`.
+The follow command reports the last cursor after an interrupted stream; store it
+for reconnection to the same command. Archive requires a detached workspace and
+retains storage and quota. See [the full tutorial and limits](persistent-workspaces.md).
+
 The `@h-sandbox/cli` package installs the `harakiri` executable for local
 development, CI scripts, and operator smoke checks. It talks to the same public
 API as the SDK and dashboard.

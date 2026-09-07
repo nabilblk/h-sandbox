@@ -4,6 +4,7 @@ export type Route =
   | "dashboard/sandboxes"
   | `dashboard/sandboxes/${string}`
   | "dashboard/templates"
+  | "dashboard/workspaces"
   | "dashboard/vault"
   | "dashboard/members"
   | "dashboard/metrics"

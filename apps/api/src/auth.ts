@@ -163,3 +163,25 @@ export const requireAuth = async (request: FastifyRequest, reply: FastifyReply) 
 
   return reply.code(401).send(apiErrorResponse("unauthorized"));
 };
+
+// Recheck a stream without provisioning an account or changing its bound organization.
+export const streamAuthValid = async (request: FastifyRequest) => {
+  if (request.auth.authType === "dev") return config.authDevAllow;
+  const value = request.headers["x-api-key"] ?? request.headers.authorization;
+  const header = Array.isArray(value) ? value[0] : value;
+  if (!header) return false;
+  const token = header.startsWith("Bearer ") ? header.slice(7) : header;
+  if (request.auth.authType === "api_key") {
+    const result = await query("SELECT id FROM api_keys WHERE organization_id = $1 AND key_hash = $2 AND revoked_at IS NULL", [request.auth.organizationId, hashApiKey(token)]);
+    return Boolean(result.rowCount);
+  }
+  if (!config.keycloakJwksUrl || !config.keycloakIssuer) return false;
+  try {
+    jwks ??= createRemoteJWKSet(new URL(config.keycloakJwksUrl));
+    const { payload } = await jwtVerify(token, jwks);
+    if (!config.keycloakIssuerAllowlist.includes(String(payload.iss))) return false;
+    const member = await query(`SELECT m.id FROM memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.organization_id = $1 AND m.user_id = $2 AND u.keycloak_subject = $3`, [request.auth.organizationId, request.auth.userId, payload.sub]);
+    return Boolean(member.rowCount);
+  } catch { return false; }
+};

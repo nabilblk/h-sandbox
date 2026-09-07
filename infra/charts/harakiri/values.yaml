@@ -6,7 +6,7 @@ fullnameOverride: ""
 
 # -- Container images. By default these resolve to:
 #    {registry}/{repository}/{name}:{tag||Chart.appVersion}
-#    e.g. core.campus.clusterdiali.me/harakiri/harakiri-api:0.4.0
+#    e.g. core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.1
 # The CI release workflow publishes exactly these refs.
 image:
   registry: core.campus.clusterdiali.me
@@ -177,6 +177,11 @@ securityContext: {}
 # ---------------------------------------------------------------------------
 config:
   API_PORT: "8080"
+  # Enable only after testing the native OpenSandbox storage profile.
+  PERSISTENT_WORKSPACES_ENABLED: "0"
+  WORKSPACE_STORAGE_CLASS: ""
+  WORKSPACE_SIZE_GIB: "10"
+  WORKSPACE_MAX_PER_ORGANIZATION: "20"
   PUBLIC_API_URL: "http://127.0.0.1:18082"
   PUBLIC_WEB_URL: "http://127.0.0.1:15173"
   PUBLIC_KEYCLOAK_URL: "http://127.0.0.1:18084"

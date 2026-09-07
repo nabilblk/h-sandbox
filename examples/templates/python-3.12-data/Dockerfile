@@ -37,7 +37,8 @@ RUN python -m pip install --upgrade pip uv \
       scikit-learn \
       scipy
 
-RUN mkdir -p /workspace \
+RUN mkdir -p /workspace /root/.cache \
+ && chmod -R g=u /root /workspace \
  && chmod 1777 /tmp
 
 COPY smoke.sh /usr/local/bin/harakiri-python-data-smoke

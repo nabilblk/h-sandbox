@@ -13,6 +13,8 @@
 
 # --- Control-plane dependencies ---
 docker.io/library/postgres:16-alpine          mirror/postgres:16-alpine
+# SCL PostgreSQL supports OpenShift-assigned UIDs and the POSTGRESQL_* contract.
+quay.io/sclorg/postgresql-16-c9s@sha256:e4605b8392796927aa2c4c77284fcfca18afde2006d47587e78a00de6bf63659 mirror/postgresql-16:c9s-20260907
 docker.io/library/registry:2                   mirror/registry:2
 quay.io/keycloak/keycloak:26.4                 mirror/keycloak:26.4
 docker.io/axllent/mailpit:v1.27                mirror/mailpit:v1.27

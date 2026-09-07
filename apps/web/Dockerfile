@@ -13,11 +13,13 @@ ENV VITE_PUBLIC_KEYCLOAK_SILENT_CHECK_SSO=${VITE_PUBLIC_KEYCLOAK_SILENT_CHECK_SS
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
+COPY packages/sdk/package.json packages/sdk/package.json
 RUN npm install -g pnpm@11.2.2 \
  && pnpm install --filter @harakiri/web... --frozen-lockfile=false
 COPY packages/shared packages/shared
+COPY packages/sdk packages/sdk
 COPY apps/web apps/web
-RUN pnpm --filter @harakiri/shared build && pnpm --filter @harakiri/web build
+RUN pnpm --filter @harakiri/shared build && pnpm --filter @h-sandbox/sdk build && pnpm --filter @harakiri/web build
 
 FROM nginx:1.29-alpine
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html

@@ -6,6 +6,7 @@ import { settingsApi } from "./api-client/settings";
 import { templatesApi } from "./api-client/templates";
 import { usageApi } from "./api-client/usage";
 import { vaultApi } from "./api-client/vault";
+import { workspacesApi } from "./api-client/workspaces";
 
 export const api = {
   ...accountApi,
@@ -15,5 +16,6 @@ export const api = {
   ...membersApi,
   ...usageApi,
   ...vaultApi,
+  ...workspacesApi,
   ...settingsApi
 };

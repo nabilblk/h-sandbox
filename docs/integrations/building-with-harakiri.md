@@ -15,8 +15,11 @@ Harakiri is a good fit for:
 - controlled package installation and outbound access
 - template-driven runtime images
 
-It is not a persistence layer. Use TTL, renew, and kill semantics, and persist
-important outputs outside the sandbox.
+The published 0.4.0 release is not a project-file persistence layer. Use TTL,
+renew, and kill semantics, and export important outputs. An
+[unreleased persistent-workspace preview](../persistent-workspaces.md) adds
+opt-in project storage across sandbox replacement. It does not replace artifact
+backups, a database, or Credential Vault, and needs matching source builds.
 
 ## Integration Shape
 

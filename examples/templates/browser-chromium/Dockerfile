@@ -2,6 +2,8 @@
 
 FROM node:20-bookworm-slim
 
+ARG PNPM_VERSION=10.11.0
+
 ENV CHROME_BIN=/usr/bin/chromium \
     COREPACK_HOME=/root/.cache/corepack \
     HOME=/root \
@@ -37,10 +39,11 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable \
- && corepack prepare pnpm@latest --activate \
+ && corepack prepare "pnpm@${PNPM_VERSION}" --activate \
  && npm cache clean --force
 
-RUN mkdir -p /workspace \
+RUN mkdir -p /workspace /root/.npm \
+ && chmod -R g=u /root /workspace \
  && chmod 1777 /tmp
 
 COPY smoke.sh /usr/local/bin/harakiri-browser-chromium-smoke

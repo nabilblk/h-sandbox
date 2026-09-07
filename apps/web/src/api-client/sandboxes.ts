@@ -23,7 +23,8 @@ import type {
   TestSandboxEgressBody,
   TestSandboxEgressResponse
 } from "@harakiri/shared";
-import { request } from "./request";
+import { observeCommandStream, type CommandStreamOptions } from "@h-sandbox/sdk";
+import { request, requestResponse } from "./request";
 
 export const sandboxesApi = {
   sandboxes: (params = "") => request<SandboxesResponse>(`/v1/sandboxes${params}`),
@@ -45,6 +46,13 @@ export const sandboxesApi = {
       body: JSON.stringify(body)
     }),
   commands: (id: string) => request<SandboxCommandsResponse>(`/v1/sandboxes/${id}/commands`),
+  startCommand: (id: string, command: string, cwd: string) => request<SandboxCommandResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands`, {
+    method: "POST", body: JSON.stringify({ command, cwd, detached: true, timeoutMs: 300_000 })
+  }),
+  streamCommand: (id: string, commandId: string, options: CommandStreamOptions = {}) => observeCommandStream(
+    (cursor, signal) => requestResponse(`/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}/events${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal, headers: { accept: "text/event-stream" } }),
+    commandId, options
+  ),
   killCommand: (id: string, commandId: string) =>
     request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, { method: "DELETE" }),
   terminalAttachTicket: (id: string) =>

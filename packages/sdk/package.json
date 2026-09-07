@@ -1,6 +1,6 @@
 {
   "name": "@h-sandbox/sdk",
-  "version": "0.4.0",
+  "version": "0.5.0-rc.1",
   "description": "TypeScript SDK for Harakiri Sandbox.",
   "license": "Apache-2.0",
   "type": "module",
@@ -52,5 +52,8 @@
   },
   "devDependencies": {
     "tsx": "^4.21.0"
+  },
+  "dependencies": {
+    "eventsource-parser": "^3.1.1"
   }
 }

@@ -1,4 +1,6 @@
 export const sandboxStatuses = ["pending", "running", "idle", "pausing", "paused", "resuming", "error", "terminated"] as const;
+export type { WorkspaceSummary, WorkspacePolicy, CreateWorkspaceBody, WorkspacesResponse, WorkspaceResponse } from "./workspaces.js";
+export type { SandboxCommandEvent } from "./command-events.js";
 export type SandboxStatus = typeof sandboxStatuses[number];
 
 export {
@@ -358,6 +360,7 @@ export type SandboxRuntimeMetadata = {
 };
 
 export type SandboxSummary = {
+  workspaceId?: string | null;
   id: string;
   opensandboxId?: string | null;
   name: string;
@@ -391,6 +394,7 @@ export type SandboxOperationSummary = {
 };
 
 export type CreateSandboxBody = {
+  workspaceId?: string;
   template?: string;
   snapshotId?: string;
   name?: string;
@@ -1432,6 +1436,8 @@ export type TestSandboxCredentialResponse = {
 };
 
 export const runtimeCapabilityNames = [
+  "persistentWorkspaces",
+  "commandStream",
   "lifecycle",
   "lifecycleRenew",
   "lifecycleKill",

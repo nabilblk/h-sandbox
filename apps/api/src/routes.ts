@@ -22,6 +22,8 @@ import { publicRoutePaths, registerSystemRoutes } from "./routes/system.js";
 import { registerTemplateBuildRoutes } from "./routes/template-builds.js";
 import { registerTemplateRoutes } from "./routes/templates.js";
 import { registerUsageRoutes } from "./routes/usage.js";
+import { registerWorkspaceRoutes } from "./routes/persistent-workspaces.js";
+import { registerCommandEventRoutes } from "./routes/command-events.js";
 import type { Query } from "./services/query.js";
 import { recordSandboxEvent as createSandboxEventRecorder } from "./services/sandbox-events.js";
 import { terminalAttachTicketQueryParam } from "./services/terminal-attach-tickets.js";
@@ -92,6 +94,8 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
   });
   await registerRegistryCredentialRoutes(app, { query, recordAudit: audit });
   await registerUsageRoutes(app, { query });
+  await registerWorkspaceRoutes(app, { query, runtimeProvider, recordAudit: audit });
+  await registerCommandEventRoutes(app, { query, runtimeProvider });
   await registerOrgSettingsRoutes(app, { query, recordAudit: audit });
 
 };

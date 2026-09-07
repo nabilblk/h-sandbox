@@ -1,14 +1,4 @@
 apiVersion: v1
-kind: Secret
-metadata:
-  name: platform-postgres
-  namespace: ${NAMESPACE}
-type: Opaque
-stringData:
-  POSTGRESQL_PASSWORD: "${POSTGRES_PASSWORD}"
-  POSTGRESQL_ADMIN_PASSWORD: "${POSTGRES_ADMIN_PASSWORD}"
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: platform-postgres-data
@@ -47,6 +37,13 @@ spec:
         - name: postgres
           image: ${POSTGRES_IMAGE}
           imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
           env:
             - name: POSTGRESQL_USER
               value: platform_admin

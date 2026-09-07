@@ -1,0 +1,40 @@
+annotations:
+  artifacthub.io/category: integration-delivery
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/opensandbox-group/OpenSandbox/blob/main/kubernetes/README.md
+    - name: Support
+      url: https://github.com/opensandbox-group/OpenSandbox/issues
+  artifacthub.io/prerelease: "false"
+apiVersion: v2
+appVersion: 0.2.3
+dependencies:
+- name: opensandbox-controller
+  repository: file://../opensandbox-controller
+  version: 0.2.1
+- name: opensandbox-server
+  repository: file://../opensandbox-server
+  version: 0.1.0
+- condition: opensandbox-node-agent.enabled
+  name: opensandbox-node-agent
+  repository: file://../opensandbox-node-agent
+  version: 0.1.0
+description: All-in-one Helm chart for deploying OpenSandbox controller and server
+home: https://github.com/opensandbox-group/OpenSandbox
+keywords:
+- sandbox
+- kubernetes
+- operator
+- api
+- lifecycle
+- batchsandbox
+kubeVersion: '>=1.21.1-0'
+maintainers:
+- email: opensandbox@example.com
+  name: OpenSandbox Team
+name: opensandbox
+sources:
+- https://github.com/opensandbox-group/OpenSandbox/tree/main/kubernetes
+type: application
+version: 0.2.2-harakiri.2

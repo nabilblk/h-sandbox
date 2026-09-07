@@ -44,8 +44,8 @@ const fetchWithRetry = async (url: string, init: RequestInit) => {
   }
 };
 
-export const createRequester = (session: AuthSession = auth) => {
-  const send = async <T>(path: string, init: RequestInit, token: string | null) => {
+export const createResponseRequester = (session: AuthSession = auth) => {
+  const send = async (path: string, init: RequestInit, token: string | null) => {
     const hasBody = init.body !== undefined;
     const credentials = authHeaders(token);
     if (!credentials) throw new Error("Missing authentication. Sign in with Keycloak or configure PUBLIC_API_KEY.");
@@ -57,10 +57,10 @@ export const createRequester = (session: AuthSession = auth) => {
       headers
     });
     if (!response.ok) throw new ApiResponseError(response.status, formatApiErrorResponse(response.status, await response.text()));
-    return (await response.json()) as T;
+    return response;
   };
 
-  return async <T>(path: string, init: RequestInit = {}) => {
+  return async (path: string, init: RequestInit = {}) => {
     let token: string | null;
     try {
       token = await session.getAccessToken(30);
@@ -71,12 +71,12 @@ export const createRequester = (session: AuthSession = auth) => {
     }
 
     try {
-      return await send<T>(path, init, token);
+      return await send(path, init, token);
     } catch (error) {
       if (!token || !(error instanceof ApiResponseError) || error.status !== 401) throw error;
       try {
         const refreshed = await session.getAccessToken(-1);
-        return await send<T>(path, init, refreshed);
+        return await send(path, init, refreshed);
       } catch (refreshError) {
         if (refreshError instanceof AuthSessionExpiredError) throw new Error(sessionExpiredMessage);
         throw refreshError;
@@ -85,4 +85,10 @@ export const createRequester = (session: AuthSession = auth) => {
   };
 };
 
+export const createRequester = (session: AuthSession = auth) => {
+  const send = createResponseRequester(session);
+  return async <T>(path: string, init: RequestInit = {}): Promise<T> => (await send(path, init)).json();
+};
+
+export const requestResponse = createResponseRequester();
 export const request = createRequester();

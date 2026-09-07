@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { apiErrorResponse } from "@harakiri/shared";
 import { ZodError } from "zod";
+import { WorkspaceError } from "./services/persistent-workspaces.js";
 
 const issuePath = (path: PropertyKey[]) => path.map(String).join(".");
 
@@ -11,6 +12,7 @@ const issueMessage = (issue: ZodError["issues"][number]) => {
 
 export const registerApiErrorHandler = (app: FastifyInstance) => {
   app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof WorkspaceError) return reply.code(error.statusCode).send(apiErrorResponse(error.code, { message: error.message }));
     if (error instanceof ZodError) {
       const issues = error.issues.map((issue) => ({
         code: issue.code,

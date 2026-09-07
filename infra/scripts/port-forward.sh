@@ -28,6 +28,11 @@ stop_one() {
   local port="$2"
   local pid_file="${STATE_DIR}/${port}.pid"
 
+  if managed_by_launchd "${name}"; then
+    echo "launchd owns ${name}; use local-services.mjs uninstall to stop supervision"
+    return
+  fi
+
   if [[ -f "${pid_file}" ]]; then
     local pid
     pid="$(cat "${pid_file}")"
@@ -51,6 +56,10 @@ quote() {
   printf "%q" "$1"
 }
 
+managed_by_launchd() {
+  [[ "$(uname -s)" == Darwin ]] && launchctl list "io.harakiri.lab.forward-${1}" >/dev/null 2>&1
+}
+
 start_tmux() {
   for item in "${forwards[@]}"; do
     # shellcheck disable=SC2086
@@ -62,6 +71,10 @@ start_tmux() {
     local target="$5"
     local url="$6"
     local log="${STATE_DIR}/${port}.log"
+    if managed_by_launchd "${name}"; then
+      echo "launchd supervises ${name}: ${url}"
+      continue
+    fi
     if tmux list-windows -t "${SESSION_NAME}" -F '#{window_name}' 2>/dev/null | grep -Fxq "${name}"; then
       echo "already running ${name}: ${url}"
       continue
@@ -110,7 +123,7 @@ check_one() {
     return
   fi
 
-  curl -fsS "${url}" >/dev/null 2>&1
+  curl -fsS --connect-timeout 2 --max-time 5 "${url}" >/dev/null 2>&1
 }
 
 wait_one() {

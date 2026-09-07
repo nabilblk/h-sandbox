@@ -1,5 +1,14 @@
 # Harakiri SDK
 
+## Upcoming Workspace and Streaming API
+
+**Unreleased:** npm 0.4.0 does not include `client.workspaces`, `workspaceId` or
+`client.commands.stream`. Use a matching source build and operator-enabled API
+for evaluation. See the [workspace and streaming guide](persistent-workspaces.md)
+and the [runnable two-sandbox tutorial](../examples/sdk-persistent-workspace/index.mjs).
+Existing `commands.logs` remains supported; the new stream observes a tracked
+command and never re-executes it on reconnect.
+
 The `@h-sandbox/sdk` package is the recommended integration surface for
 external TypeScript and Node.js applications. It wraps the public HTTP API and
 keeps callers away from OpenSandbox IDs, Kubernetes objects, route internals,

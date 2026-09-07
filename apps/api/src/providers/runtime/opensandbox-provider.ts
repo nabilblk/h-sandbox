@@ -75,6 +75,7 @@ export const runtimeRef = (providerSandboxId: string | null | undefined): Runtim
 export const openSandboxRuntimeProvider: RuntimeProvider = {
   kind: "opensandbox",
   capabilities: {
+    persistentWorkspaces: true,
     terminal: true,
     terminalAttach: true,
     terminalResize: true,
@@ -185,11 +186,11 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
   },
 
   getCommand(input) {
-    return openSandbox.getCommand(input.providerSandboxId, input.providerCommandId);
+    return openSandbox.getCommand(input.providerSandboxId, input.providerCommandId, input.signal);
   },
 
   commandLogs(input) {
-    return openSandbox.commandLogs(input.providerSandboxId, input.providerCommandId, input.cursor);
+    return openSandbox.commandLogs(input.providerSandboxId, input.providerCommandId, input.cursor, input.signal);
   },
 
   interruptCommand(input) {

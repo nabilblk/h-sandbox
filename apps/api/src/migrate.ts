@@ -1,29 +1,38 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { query, closeDb } from "./db.js";
+import { withClient, closeDb } from "./db.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const migrationsDir = join(repoRoot, "db/migrations");
 
 export const migrate = async () => {
-  await query("CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())");
-  const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
-  for (const file of files) {
-    const applied = await query<{ id: string }>("SELECT id FROM schema_migrations WHERE id = $1", [file]);
-    if (applied.rowCount) continue;
-    const sql = await readFile(join(migrationsDir, file), "utf8");
-    await query("BEGIN");
+  await withClient(async (client) => {
+    const query = client.query.bind(client);
+    // Migration locks and transactions must use one connection, including during concurrent API starts.
+    await query("SELECT pg_advisory_lock(hashtext(current_schema() || ':harakiri-migrations'))");
     try {
-      await query(sql);
-      await query("INSERT INTO schema_migrations (id) VALUES ($1)", [file]);
-      await query("COMMIT");
-      console.log(`applied ${file}`);
-    } catch (error) {
-      await query("ROLLBACK");
-      throw error;
+      await query("CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())");
+      const files = (await readdir(migrationsDir)).filter((f) => f.endsWith(".sql")).sort();
+      for (const file of files) {
+        const applied = await query<{ id: string }>("SELECT id FROM schema_migrations WHERE id = $1", [file]);
+        if (applied.rowCount) continue;
+        const sql = await readFile(join(migrationsDir, file), "utf8");
+        await query("BEGIN");
+        try {
+          await query(sql);
+          await query("INSERT INTO schema_migrations (id) VALUES ($1)", [file]);
+          await query("COMMIT");
+          console.log(`applied ${file}`);
+        } catch (error) {
+          await query("ROLLBACK");
+          throw error;
+        }
+      }
+    } finally {
+      await query("SELECT pg_advisory_unlock(hashtext(current_schema() || ':harakiri-migrations'))");
     }
-  }
+  });
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {

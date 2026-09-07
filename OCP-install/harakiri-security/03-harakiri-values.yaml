@@ -1,6 +1,10 @@
 image:
   registry: ${HARBOR}
   repository: ${HARBOR_PROJECT}
+  api:
+    tag: "${SANDBOX_IMAGE_TAG}"
+  web:
+    tag: "${SANDBOX_IMAGE_TAG}"
   pullPolicy: Always
 
 imagePullSecrets:

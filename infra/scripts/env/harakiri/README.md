@@ -24,6 +24,40 @@ Environment-specific checks here:
 
 ## Public Developer Surface
 
+### Supervised Local Origins
+
+On the maintainer's macOS host, install user-login supervision with:
+
+```bash
+node infra/scripts/env/harakiri/local-services.mjs install --migrate-tmux
+node infra/scripts/env/harakiri/local-services.mjs status
+```
+
+Separate `io.harakiri.lab.*` launch agents start the existing Lima VM, reconnect
+the four public origin forwards after pod replacement, and run the existing
+`harakiri-dev` named tunnel. The migration option stops only matching legacy
+tmux windows; other forwards and unrelated launch agents remain unchanged.
+Unknown port listeners cause installation to fail rather than being killed.
+The existing `.cloudflared/config.yml` and its credential file are not changed.
+
+Logs live in `~/Library/Logs/harakiri-lab/`. Hourly rotation truncates logs over
+10 MiB in place; these are local diagnostics, not a durable audit log. The
+cluster startup job exits successfully once Lima is running; that is normal.
+Keep the repo and Node executable at their installed paths, or uninstall and
+reinstall after moving them.
+
+This is user-login supervision, not always-on hosting: it cannot serve while
+the host is asleep, powered off, or waiting for the first user login. A public
+production installation needs an always-on cluster and ingress/tunnel connector.
+
+```bash
+node infra/scripts/env/harakiri/local-services.mjs uninstall
+```
+
+Uninstall removes only these launch agents. It does not delete cluster data,
+stop the VM, modify tunnel routes, or remove other applications' Cloudflare jobs.
+The legacy `pnpm ports` helper leaves supervised origins alone.
+
 The `harakiri-dev` Cloudflare Tunnel uses these hostnames:
 
 - Web: `https://sb.harakiri.io` -> local k0s web forward `127.0.0.1:15173`

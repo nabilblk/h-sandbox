@@ -1,0 +1,2 @@
+# This distribution intentionally versions extracted upstream subcharts.
+# Do not exclude charts/: packaging must work from a clean checkout.

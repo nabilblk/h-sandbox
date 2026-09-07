@@ -21,6 +21,7 @@ import { Chart, KPI } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
 import type { GoToRoute } from "./types";
 import { SandboxVaultPane } from "./sandbox-vault";
+import { SandboxCommandsPane } from "./sandbox-commands";
 
 const capabilityState = (sandbox: SandboxSummary, name: RuntimeCapabilityName) =>
   sandbox.runtimeMetadata?.provider.capabilities.find((capability) => capability.name === name)?.state;
@@ -80,6 +81,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
               <span>TTL {sandbox.ttlSeconds}s</span>
               <span>expires {sandbox.expiresAt ? formatDateTime(sandbox.expiresAt) : "-"}</span>
               <span>created {formatDateTime(sandbox.createdAt)}</span>
+              {sandbox.workspaceId ? <a href="#dashboard/workspaces" onClick={(event) => { event.preventDefault(); go("dashboard/workspaces"); }}>Workspace: {sandbox.workspaceId}</a> : null}
             </div>
           </div>
           <div className="detail-actions">
@@ -102,7 +104,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
         </div>
         {actionError ? <div className="detail-action-error">{actionError}</div> : null}
         <div className="detail-tabs">
-          {[["terminal", "Terminal", "terminal"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
+          {[["terminal", "Terminal", "terminal"], ["commands", "Commands", "play"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
             <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
               <Icon name={icon} size={12} /> {label}
             </button>
@@ -110,6 +112,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
         </div>
         <div className="detail-body">
           {tab === "terminal" ? <TerminalPane sandbox={sandbox} /> : null}
+          {tab === "commands" ? <SandboxCommandsPane sandbox={sandbox} /> : null}
           {tab === "files" ? <FilesPane id={sandbox.id} /> : null}
           {tab === "logs" ? <LogsPane id={sandbox.id} /> : null}
           {tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}
@@ -409,7 +412,7 @@ const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; 
   const [busy, setBusy] = useState<"load" | "create" | "restore" | "delete" | null>("load");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const canSnapshot = hasCapability(sandbox, "lifecycleSnapshot") && ["running", "idle", "paused"].includes(sandbox.status);
+  const canSnapshot = !sandbox.workspaceId && hasCapability(sandbox, "lifecycleSnapshot") && ["running", "idle", "paused"].includes(sandbox.status);
   const canRestore = hasCapability(sandbox, "createFromSnapshot");
   const canDelete = hasCapability(sandbox, "snapshotDelete");
   const load = () => {
@@ -497,7 +500,7 @@ const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; 
           </button>
         </form>
       </section>
-      {!canSnapshot ? <div className="network-warning">Snapshot creation is unavailable for this runtime state or provider.</div> : null}
+      {!canSnapshot ? <div className="network-warning">{sandbox.workspaceId ? "Workspace files require a separate storage backup. Snapshots of workspace-backed sandboxes are not supported." : "Snapshot creation is unavailable for this runtime state or provider."}</div> : null}
       {error ? <div className="network-error">{error}</div> : null}
       {message ? <div className="snapshot-message">{message}</div> : null}
       <div className="snapshot-table card">

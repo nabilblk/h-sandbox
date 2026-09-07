@@ -223,6 +223,7 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/sandboxes/{id}",
     "GET /v1/sandboxes/{id}/commands",
     "GET /v1/sandboxes/{id}/commands/{commandId}",
+    "GET /v1/sandboxes/{id}/commands/{commandId}/events",
     "GET /v1/sandboxes/{id}/commands/{commandId}/logs",
     "GET /v1/sandboxes/{id}/credentials",
     "GET /v1/sandboxes/{id}/egress",
@@ -242,6 +243,8 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/templates/{id}",
     "GET /v1/templates/{id}/versions",
     "GET /v1/usage",
+    "GET /v1/workspaces",
+    "GET /v1/workspaces/{id}",
     "PATCH /v1/credential-secrets/{id}",
     "PATCH /v1/dynamic-credential-issuers/{id}",
     "PATCH /v1/external-secret-references/{id}",
@@ -295,6 +298,8 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "POST /v1/templates/{id}/archive",
     "POST /v1/templates/{id}/builds",
     "POST /v1/templates/{id}/promote",
+    "POST /v1/workspaces",
+    "POST /v1/workspaces/{id}/archive",
     "PUT /v1/sandboxes/{id}/files"
   ]);
 });

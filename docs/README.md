@@ -19,6 +19,7 @@
 ## Users
 
 - [Hands-on tutorials](tutorials.md)
+- [Persistent workspaces and live commands (unreleased)](persistent-workspaces.md)
 - [API reference](api.md)
 - [SDK guide](sdk.md)
 - [CLI reference](cli.md)
@@ -49,6 +50,8 @@
 
 - [Runbook](runbook.md)
 - [Release artifacts](release-artifacts.md)
+- [Template image releases](template-release.md)
+- [Persistent workspace operations](persistent-workspace-operations.md)
 - [OpenShift install](install-openshift.md)
 - [Air-gapped deployment](airgap.md)
 - [Outbound access](egress-control.md)

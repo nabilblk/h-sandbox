@@ -1,3 +1,8 @@
+import { observeCommandStream, type CommandStreamOptions } from "./command-stream.js";
+import type { WorkspaceResponse, WorkspacesResponse, CreateWorkspaceBody } from "./workspaces.js";
+export { readCommandEvents, observeCommandStream, CommandStreamError, type CommandStreamOptions } from "./command-stream.js";
+export type { WorkspaceSummary, WorkspacePolicy, CreateWorkspaceBody, WorkspacesResponse, WorkspaceResponse } from "./workspaces.js";
+export type { SandboxCommandEvent } from "./command-events.js";
 import type {
   ApiErrorResponse,
   ApiKeysResponse,
@@ -1247,6 +1252,7 @@ export class HarakiriSandbox {
 
   readonly commands = {
     start: (input: CreateSandboxCommandInput) => this.client.commands.start(this.id, input),
+    stream: (commandId: string, options: CommandStreamOptions = {}) => this.client.commands.stream(this.id, commandId, options),
     run: (input: CreateSandboxCommandInput) => this.client.commands.run(this.id, input),
     list: () => this.client.commands.list(this.id),
     get: (commandId: string) => this.client.commands.get(this.id, commandId),
@@ -1365,6 +1371,7 @@ export class HarakiriClient {
   }
 
   readonly commands = {
+    stream: (id: string, commandId: string, options: CommandStreamOptions = {}) => this.streamCommand(id, commandId, options),
     start: (id: string, input: CreateSandboxCommandInput) => this.startCommand(id, input),
     run: (id: string, input: CreateSandboxCommandInput) => this.runCommand(id, input),
     list: (id: string) => this.listCommands(id),
@@ -1381,6 +1388,7 @@ export class HarakiriClient {
 
   readonly processes = {
     start: (id: string, input: CreateSandboxCommandInput) => this.startCommand(id, { ...input, detached: input.detached ?? true }),
+    stream: (id: string, commandId: string, options: CommandStreamOptions = {}) => this.streamCommand(id, commandId, options),
     list: (id: string) => this.listCommands(id),
     get: (id: string, processId: string) => this.getCommand(id, processId),
     logs: (id: string, processId: string, options: GetCommandLogsOptions = {}) => this.getCommandLogs(id, processId, options),
@@ -1537,6 +1545,23 @@ export class HarakiriClient {
     return (await response.json()) as T;
   }
 
+  readonly workspaces = {
+    list: () => this.request<WorkspacesResponse>("/v1/workspaces"),
+    create: (input: CreateWorkspaceBody) => this.request<WorkspaceResponse>("/v1/workspaces", { method: "POST", body: JSON.stringify(input) }),
+    get: (id: string) => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}`),
+    archive: (id: string) => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}/archive`, { method: "POST" })
+  };
+
+  streamCommand(id: string, commandId: string, options: CommandStreamOptions = {}) {
+    return observeCommandStream(async (cursor, signal) => {
+      const url = new URL(`${this.apiUrl}/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}/events`);
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const response = await this.fetchImpl(url, { signal, headers: { "x-api-key": this.apiKey, accept: "text/event-stream" } });
+      if (!response.ok) throw createHarakiriApiError(response.status, await response.text());
+      return response;
+    }, commandId, options);
+  }
+
   listTemplates() {
     return this.request<TemplatesResponse>("/v1/templates");
   }
@@ -1626,6 +1651,7 @@ export class HarakiriClient {
       body: JSON.stringify({
         template: createInput.template ?? (createInput.snapshotId ? undefined : "python-3.12-data"),
         snapshotId: createInput.snapshotId,
+        workspaceId: createInput.workspaceId,
         name: createInput.name,
         ttlSeconds: createInput.ttlSeconds ?? 300,
         env: createInput.env,

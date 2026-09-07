@@ -18,6 +18,7 @@ import { api } from "../api";
 import { EgressModePicker } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
+import type { WorkspacesResponse } from "@harakiri/shared";
 
 export const SandboxesRoute = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
   const [rows, setRows] = useState<SandboxSummary[]>([]);
@@ -208,7 +209,8 @@ export const buildCreateSandboxBody = ({
   name,
   slotDrafts,
   template,
-  ttlSeconds
+  ttlSeconds,
+  workspaceId
 }: {
   allowTarget: string;
   credentialSlots: TemplateCredentialSlot[];
@@ -219,6 +221,7 @@ export const buildCreateSandboxBody = ({
   slotDrafts: CredentialSlotDraft[];
   template: string;
   ttlSeconds: number;
+  workspaceId?: string;
 }): CreateSandboxBody => {
   const env = parseSandboxEnvText(envText);
   const allow = allowTargetsFromText(allowTarget);
@@ -228,6 +231,7 @@ export const buildCreateSandboxBody = ({
     template,
     name,
     ttlSeconds,
+    workspaceId: workspaceId || undefined,
     env,
     credentialMappings: credentialMappings.length ? credentialMappings : undefined,
     egress: egressMode === "open" && !egressPresets.length && !allow.length ? undefined : { mode: egressMode, presets: egressPresets, allow }
@@ -250,7 +254,15 @@ const loadSandboxLaunchOptions = async () => {
   return { templates, secrets, references, issuers };
 };
 
-const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id: string) => void }) => {
+export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { onClose: () => void; onCreate: (id: string) => void; initialWorkspaceId?: string }) => {
+  const [workspaces, setWorkspaces] = useState<WorkspacesResponse | null>(null);
+  const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId);
+  const [workspaceError, setWorkspaceError] = useState("");
+  useEffect(() => {
+    let active = true;
+    api.workspaces().then((result) => { if (active) setWorkspaces(result); }).catch((cause) => { if (active) setWorkspaceError(cause instanceof Error ? cause.message : "Workspace storage unavailable."); });
+    return () => { active = false; };
+  }, []);
   const [templates, setTemplates] = useState<Template[]>(TEMPLATES);
   const [credentialSecrets, setCredentialSecrets] = useState<CredentialSecretSummary[]>([]);
   const [externalReferences, setExternalReferences] = useState<ExternalSecretReferenceSummary[]>([]);
@@ -328,7 +340,8 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
         name,
         slotDrafts,
         template,
-        ttlSeconds
+        ttlSeconds,
+        workspaceId
       }));
       onCreate(result.sandbox.id);
     } catch (err) {
@@ -357,6 +370,14 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
             <input className="input" placeholder="agent-eval-runner" value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
           <SandboxResourceFields ttlSeconds={ttlSeconds} onTtlChange={setTtlSeconds} />
+          <Field label="Persistent workspace">
+            <select className="input" aria-label="Persistent workspace" disabled={!workspaces?.policy.available || loading} value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)}>
+              <option value="">None (ephemeral files)</option>
+              {workspaces?.workspaces.filter((row) => row.status === "available").map((row) => <option key={row.id} value={row.id}>{row.name} ({row.sizeGiB} GiB)</option>)}
+            </select>
+            {workspaceError ? <div role="alert" className="field-h">{workspaceError}</div> : null}
+            {workspaceId ? <div className="field-h">Mounted at /workspace. Files remain after sandbox termination.</div> : null}
+          </Field>
           <CredentialSlotSection
             drafts={slotDrafts}
             issuers={activeIssuers}
@@ -381,7 +402,7 @@ const CreateModal = ({ onClose, onCreate }: { onClose: () => void; onCreate: (id
         </div>
         <div className="modal-foot">
           <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={submit} disabled={loading}>{loading ? <><span className="spinner" /> Provisioning...</> : <>Create sandbox <Icon name="arrowR" size={11} /></>}</button>
+          <button className="btn btn-primary" onClick={submit} disabled={loading || optionsLoading || Boolean(workspaceId && !workspaces?.workspaces.some((row) => row.id === workspaceId && row.status === "available"))}>{loading ? <><span className="spinner" /> Provisioning...</> : <>Create sandbox <Icon name="arrowR" size={11} /></>}</button>
         </div>
       </div>
     </div>

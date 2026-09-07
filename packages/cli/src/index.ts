@@ -9,13 +9,14 @@ import { registerRouteCommands } from "./commands/routes.js";
 import { registerSandboxCommands } from "./commands/sandboxes.js";
 import { registerTemplateCommands } from "./commands/templates.js";
 import { registerVaultCommands } from "./commands/vault.js";
+import { registerWorkspaceCommands } from "./commands/workspaces.js";
 
 const program = new Command();
 
 program
   .name("harakiri")
   .description("Harakiri Sandbox CLI")
-  .version("0.4.0")
+  .version("0.5.0-rc.1")
   .addHelpText("after", `
 Examples:
   $ harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...
@@ -40,6 +41,7 @@ registerRouteCommands(program);
 registerEgressCommands(program);
 registerRegistryCredentialCommands(program);
 registerVaultCommands(program);
+registerWorkspaceCommands(program);
 
 program.parseAsync(process.argv).catch((error) => {
   console.error(error.message);

@@ -32,6 +32,7 @@ import {
   sandboxRouteStates
 } from "@harakiri/shared";
 import { config } from "../config.js";
+import { workspacePolicy } from "./persistent-workspaces.js";
 import { constantEquals, hashApiKey, makeId } from "../crypto.js";
 import type {
   RuntimeFileError,
@@ -326,6 +327,8 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
     provider: runtimeProvider.kind,
     generatedAt: new Date().toISOString(),
     capabilities: [
+      capabilitySummary("persistentWorkspaces", workspacePolicy(runtimeProvider).available ? "available" : "unavailable", workspacePolicy(runtimeProvider).reason, false, "harakiri_control_plane", "Organization-owned retained storage over native provider volumes; exclusive attachment and operator reclamation"),
+      capabilitySummary("commandStream", commandMethods.state, commandMethods.reason, false, "harakiri_control_plane", "Resumable SSE over retained provider command logs, polled once per second"),
       capabilitySummary("lifecycle", "available", null, true, "opensandbox_spec", "OpenSandbox lifecycle API"),
       capabilitySummary("lifecycleRenew", "available", null, true, "opensandbox_spec", "OpenSandbox renew API"),
       capabilitySummary("lifecycleKill", "available", null, true, "opensandbox_spec", "OpenSandbox delete API"),
@@ -726,14 +729,15 @@ export const listSandboxCommands = async (
 
 const refreshCommand = async (
   row: SandboxCommandRow,
-  input: { organizationId: string; sandboxId: string },
+  input: { organizationId: string; sandboxId: string; signal?: AbortSignal },
   dependencies: { query: Query; runtimeProvider: RuntimeProvider; providerSandboxId: string | null }
 ) => {
   const command = mapCommandRow(row);
   if (!command.providerCommandId || !dependencies.runtimeProvider.getCommand || command.status !== "running") return command;
   const providerState = await dependencies.runtimeProvider.getCommand({
     ...runtimeRef(dependencies.runtimeProvider, dependencies.providerSandboxId),
-    providerCommandId: command.providerCommandId
+    providerCommandId: command.providerCommandId,
+    signal: input.signal
   });
   const updated = await dependencies.query<SandboxCommandRow>(
     `WITH updated AS (
@@ -760,7 +764,7 @@ const refreshCommand = async (
 };
 
 export const getSandboxCommand = async (
-  input: { organizationId: string; sandboxId: string; commandId: string },
+  input: { organizationId: string; sandboxId: string; commandId: string; signal?: AbortSignal },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
 ) => {
   const query = dependencies.query ?? defaultQuery;
@@ -776,7 +780,7 @@ export const getSandboxCommand = async (
 };
 
 export const getSandboxCommandLogs = async (
-  input: { organizationId: string; sandboxId: string; commandId: string; cursor?: number; tail?: number },
+  input: { organizationId: string; sandboxId: string; commandId: string; cursor?: number; tail?: number; signal?: AbortSignal },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
 ) => {
   const query = dependencies.query ?? defaultQuery;
@@ -819,7 +823,8 @@ export const getSandboxCommandLogs = async (
     return applyTail(await dependencies.runtimeProvider.commandLogs({
       ...runtimeRef(dependencies.runtimeProvider, result.rows[0].opensandboxId),
       providerCommandId: command.providerCommandId,
-      cursor: input.cursor
+      cursor: input.cursor,
+      signal: input.signal
     }));
   }
   return applyTail({ stdout: command.stdout, stderr: command.stderr });

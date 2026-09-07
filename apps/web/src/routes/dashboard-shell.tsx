@@ -14,6 +14,7 @@ import { TemplatesRoute } from "./templates";
 import type { GoToRoute, Route } from "./types";
 import { UsageRoute } from "./usage";
 import { VaultRoute } from "./vault";
+import { WorkspacesRoute } from "./workspaces";
 
 type DashboardCapabilityNav = Pick<
   CurrentAccountResponse["capabilities"],
@@ -23,6 +24,7 @@ type DashboardCapabilityNav = Pick<
 export const dashboardNavItems = (capabilities: DashboardCapabilityNav) => [
   ["dashboard/sandboxes", "Sandboxes", "box"],
   ["dashboard/templates", "Templates", "folder"],
+  ["dashboard/workspaces", "Workspaces", "file"],
   ...(capabilities.canManageCredentialSecrets ? [["dashboard/vault", "Vault", "lock"]] : []),
   ["dashboard/metrics", "Usage", "chart"],
   ["dashboard/keys", "API keys", "key"],
@@ -67,6 +69,7 @@ export const DashboardShellRoute = ({
         <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm" onClick={() => go("docs")} title="Open documentation" aria-label="Open documentation"><Icon name="book" size={13} /></button><AccountMenu compact profile={profile} workspace={org.slug} avatarLabel={orgInitial} onSignOut={onSignOut} /></div></div>
         {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} /> : null}
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
+        {sub === "workspaces" ? <WorkspacesRoute openSandbox={openSandbox} /> : null}
         {sub === "vault" && account && !canManageCredentialSecrets ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Credential Vault management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}
         {sub === "vault" && canManageCredentialSecrets ? <VaultRoute /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}
