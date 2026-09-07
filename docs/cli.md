@@ -1,9 +1,14 @@
 # CLI Reference
 
-## Upcoming Workspace and Live Output Commands
+## Workspace and Live Output Preview
 
-**Unreleased:** the following commands require matching CLI/API source builds,
-not npm 0.4.0. Workspace allocation also requires operator opt-in.
+**Available in npm 0.5.0-rc.3 (`next`):** the following commands require the
+matching API. Stable npm 0.4.0 (`latest`) does not include them. Workspace
+allocation also requires operator opt-in.
+
+```bash
+npm install -g @h-sandbox/cli@0.5.0-rc.3
+```
 
 ```bash
 harakiri workspace list

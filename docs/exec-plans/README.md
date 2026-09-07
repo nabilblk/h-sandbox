@@ -8,7 +8,7 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
-| [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspace and live-output preview; rc.3 TTL correction deployed to k0s with migration 036 | npm authorization/publication, Commands working-directory follow-up, fresh restricted OpenShift storage acceptance, complete template architecture checks, host and coherent DB/PVC recovery |
+| [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspace and live-output preview; rc.3 deployed to k0s with migration 036; matching npm SDK/CLI on `next` | Commands working-directory follow-up, fresh restricted OpenShift storage acceptance, complete template architecture checks, host and coherent DB/PVC recovery; unattended npm trusted publishing remains operational debt |
 | [Real product demos](active/real-product-demo-remotion.md) | Public CLI, UI, SDK and browser-QA demos, tutorials and transcripts | Protected unattended agent-refresh credentials, CI environment and live acceptance |
 
 There are 28 plans in `completed/`, including the explicitly abandoned and

@@ -266,7 +266,8 @@ artifact was changed. See the [deployment receipt](../../release-notes/0.5.0-rc.
 - [x] Publish versioned multi-architecture API/web images and Helm chart for `0.5.0-rc.2`.
 - [x] Publish the GitHub prerelease with SDK/CLI tarballs, chart, checksums and receipt;
       download all three archives and verify their SHA-256 checksums.
-- [ ] Publish matching npm `next` packages; local npm authentication is missing.
+- [x] Publish matching npm `next` packages; SDK and CLI rc.3 are published and
+      fresh registry-installed consumers passed verification.
 - [x] Back up the hosted database and Helm configuration, then upgrade only Harakiri.
 - [x] Verify public URLs, OIDC origins and deployed workspace/command workflows.
 - [x] Record exact artifacts, restore procedure, and remaining stable-release gates.
@@ -305,12 +306,15 @@ command/reconnect smoke: it is an explicit remaining stable-release blocker.
 The rc.2 template workflow passed 11 architecture jobs but its OpenCode amd64
 arbitrary-UID runtime check hit its 90-second timeout. No combined template
 candidate or alias was promoted. Build/runtime smoke timeouts now bound retries.
-This remains a stable-release
-gate, independent of the tested control-plane candidate. npm authentication is
-currently missing locally and has been requested without asking for a token in chat.
+This remains a stable-release gate, independent of the tested control-plane
+candidate. npm authentication was missing at this rc.2 checkpoint; the rc.3
+publication checkpoint below records its resolution.
 
 ## Tech Debt Incurred
 
+- Unattended npm trusted publishing still fails its OIDC token exchange. rc.3
+  was published using restored local authentication and verified release
+  archives; configure and validate CI authorization separately for future releases.
 - Physical volume reclamation is operator-only because the pinned runtime has
   no volume deletion API. Archived workspaces continue counting toward quota.
 - Detached event streams poll retained provider logs, not a durable event store.
@@ -412,7 +416,8 @@ were removed. Public web, API health and Keycloak discovery still returned 200.
       receipts. This is a prerelease because the stable gates below remain open.
 - [x] Commit and push the TTL correction, pass release CI and publish immutable
       multi-architecture images, Helm chart and matching SDK/CLI archives.
-- [ ] Publish SDK then CLI to npm `next` when publishing authentication is available.
+- [x] Publish SDK then CLI to npm `next` after authentication was restored;
+      registry bytes match the tested release and fresh consumer checks passed.
 - [x] Back up current state, stop the old scheduler, migrate and deploy matching
       binaries while preserving public OIDC origins and existing data.
 - [x] Verify the deployed candidate past the original deadline, confirm public
@@ -430,22 +435,27 @@ the brief API 502 during automatic origin handoff. No zero-downtime claim.
 
 The npm workflow's detached-tag failure was corrected in `6ab8fb5`. A subsequent
 run verified packages from the exact release tag but failed npm OIDC exchange
-(404); local npm authentication remains missing. npm publication is the only
-unfinished item in this release-execution checklist, not an artifact build issue.
+(404). The maintainer then restored local npm authentication as `nabilblk`;
+the exact checksum-verified release archives were published SDK first, then CLI.
+Both `next` tags now resolve to `0.5.0-rc.3`, while `latest` remains `0.4.0`.
+Registry downloads match the archives byte-for-byte; TypeScript/SDK imports and
+fresh CLI version/help/dependency checks passed. This release-execution checklist
+is complete. CI trusted publishing remains operational debt, not a distribution
+blocker, and the parent plan stays active for the stable acceptance below.
 
 #### Stable Acceptance Still Open
 
 In progress. Phase 2B is deployed to the public k0s lab as `0.5.0-rc.3`, Helm
 revision 25, with migration 036 and matching digest-pinned images. Source CI and
 Harbor release passed. Matching SDK/CLI archives are attached to the GitHub
-prerelease; registry publication is blocked by missing local authentication and
-a rejected CI npm OIDC exchange. npm `latest` stays
+prerelease and published to npm `next` with registry consumer verification.
+npm `latest` stays
 at 0.4.0. The OpenSandbox compatibility chart is separately mirrored in Harbor.
-Do not archive this plan while stable acceptance and publishing gates remain.
+Do not archive this plan while stable acceptance gates remain.
 
 Next acceptance is Harakiri-only: Commands default working-directory correction,
 fresh restricted OpenShift storage/mount checks, complete template architecture
-release checks, npm `next` publication, and host/rollback recovery validation. No
+release checks, and host/rollback recovery validation. No
 BackgroundAgent install is needed to complete these gates. Preserve the existing
 populated CRC namespace and its data.
 

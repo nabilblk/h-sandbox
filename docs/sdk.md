@@ -1,10 +1,16 @@
 # Harakiri SDK
 
-## Upcoming Workspace and Streaming API
+## Workspace and Streaming Preview
 
-**Unreleased:** npm 0.4.0 does not include `client.workspaces`, `workspaceId` or
-`client.commands.stream`. Use a matching source build and operator-enabled API
-for evaluation. See the [workspace and streaming guide](persistent-workspaces.md)
+**Available in npm 0.5.0-rc.3 (`next`):** `client.workspaces`, `workspaceId` and
+`client.commands.stream` require a matching operator-enabled API. Stable npm
+0.4.0 (`latest`) does not include them. Install the candidate explicitly:
+
+```bash
+npm install @h-sandbox/sdk@0.5.0-rc.3
+```
+
+See the [workspace and streaming guide](persistent-workspaces.md)
 and the [runnable two-sandbox tutorial](../examples/sdk-persistent-workspace/index.mjs).
 Existing `commands.logs` remains supported; the new stream observes a tracked
 command and never re-executes it on reconnect.
