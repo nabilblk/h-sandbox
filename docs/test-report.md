@@ -2095,7 +2095,9 @@ Known release-candidate gaps:
 
 ## 2026-09-07: TTL Renewal and Scheduler Correction
 
-Working-tree correction after `0.5.0-rc.2`, not a deployment or release receipt.
+Source acceptance checkpoint after `0.5.0-rc.2`. The subsequent
+[rc.3 delivery receipt](release-notes/0.5.0-rc.3-delivery.md) records publication,
+deployment and packaged-client acceptance; the checks below preceded that rollout.
 
 - An isolated PostgreSQL 16 database with migrations through 036 passed the
   lease race suite: concurrent renewal/expiration in both orders, duplicate

@@ -143,9 +143,9 @@ beyond the retained provider log data.
       activity renewal, reject inactive runtimes, and prevent idempotent replay.
 - [x] Exercise both renewal/expiration race orders, provider failure and recovery,
       duplicate workers, and a real native runtime past its original deadline.
-- [ ] Release and deploy migration 036 with the corrected API and scheduler;
-      do not mix the old scheduler with the corrected API. The public rc.2
-      deployment still has the original defect until this coordinated rollout.
+- [x] Release and deploy migration 036 with the corrected API and scheduler;
+      rc.3 is on k0s revision 25. The old scheduler was stopped before migration
+      and was not restarted alongside the corrected API.
 - [x] Preserve Credential Vault custody; clearly state arbitrary agent-created
       files persist and are not magically scrubbed by credential revocation.
 - [ ] Test tenant isolation, concurrent create, unavailable storage, failures,
@@ -404,34 +404,46 @@ Vault boundary checks and smoke script syntax passed. The existing web bundle
 size warning remains. The isolated PostgreSQL container and temporary forwards
 were removed. Public web, API health and Keycloak discovery still returned 200.
 
-### Remaining Delivery Gates
-
 ### rc.3 Release Execution: 2026-09-07
 
 - [x] Recheck git, cluster and publishing access; only this release's temporary
       resources may be cleaned. Unrelated research documents remain untouched.
 - [x] Prepare rc.3 versions and accurate current documentation; retain historical
       receipts. This is a prerelease because the stable gates below remain open.
-- [ ] Commit and push the TTL correction, pass release CI and publish immutable
+- [x] Commit and push the TTL correction, pass release CI and publish immutable
       multi-architecture images, Helm chart and matching SDK/CLI archives.
 - [ ] Publish SDK then CLI to npm `next` when publishing authentication is available.
-- [ ] Back up current state, stop the old scheduler, migrate and deploy matching
+- [x] Back up current state, stop the old scheduler, migrate and deploy matching
       binaries while preserving public OIDC origins and existing data.
-- [ ] Verify the deployed candidate past the original deadline, confirm public
+- [x] Verify the deployed candidate past the original deadline, confirm public
       endpoints/login, clean owned smoke resources and record a delivery receipt.
-- [ ] Review plan folder placement; archive only plans with all required work
+- [x] Review plan folder placement; archive only plans with all required work
       complete, leaving delivery and unattended-demo acceptance visible.
+
+Delivery evidence: source `3ab3f63`, CI/Harbor passed, immutable tag rc.3 and
+matching archives published. Public k0s revision 25 passed packaged SDK renewal
+beyond the original deadline, final/short-TTL expiry, terminal keepalive and
+packaged CLI JSON output. All three native test runtimes are absent; the test
+key is revoked, temporary forwards/browser/consumer removed, and all four
+pre-existing workspace records preserved. The full receipt records digests and
+the brief API 502 during automatic origin handoff. No zero-downtime claim.
+
+The npm workflow's detached-tag failure was corrected in `6ab8fb5`. A subsequent
+run verified packages from the exact release tag but failed npm OIDC exchange
+(404); local npm authentication remains missing. npm publication is the only
+unfinished item in this release-execution checklist, not an artifact build issue.
 
 #### Stable Acceptance Still Open
 
-In progress. Phase 2B is deployed to the public k0s lab as `0.5.0-rc.2`, Helm
-revision 23 (web-only Workspace documentation update), with digest-pinned images and successful public package/runtime
-acceptance. SDK/CLI rc.2 tarballs are available with the GitHub prerelease;
-registry publication is blocked by local npm authentication. npm `latest` stays
+In progress. Phase 2B is deployed to the public k0s lab as `0.5.0-rc.3`, Helm
+revision 25, with migration 036 and matching digest-pinned images. Source CI and
+Harbor release passed. Matching SDK/CLI archives are attached to the GitHub
+prerelease; registry publication is blocked by missing local authentication and
+a rejected CI npm OIDC exchange. npm `latest` stays
 at 0.4.0. The OpenSandbox compatibility chart is separately mirrored in Harbor.
 Do not archive this plan while stable acceptance and publishing gates remain.
 
-Next acceptance is Harakiri-only: coordinated rollout of the tested TTL correction,
+Next acceptance is Harakiri-only: Commands default working-directory correction,
 fresh restricted OpenShift storage/mount checks, complete template architecture
 release checks, npm `next` publication, and host/rollback recovery validation. No
 BackgroundAgent install is needed to complete these gates. Preserve the existing
@@ -441,3 +453,7 @@ CRC currently runs OpenSandbox server `v0.1.14` and controller `v0.1.0`, while
 Phase 2B acceptance targets server `v0.2.3` with the current native volume contract.
 Do not count checks against this older installation as proof of the new contract,
 or upgrade shared runtime dependencies as a side effect of client-project testing.
+
+See the [rc.3 delivery receipt](../../release-notes/0.5.0-rc.3-delivery.md) and
+[plan inventory](../README.md). Both active plans still contain required work;
+the existing 28 completed/abandoned plans are already in the correct archive.

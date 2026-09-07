@@ -290,6 +290,13 @@ follow-up does not block watching or reproducing the delivered tutorials.
 
 ### Remaining Operational Debt
 
+September 7 placement review: keep this plan in `active/` for protected
+unattended agent refresh. The September 5 tmux limitations below are historical:
+the [delivery plan](delivery-readiness-and-persistent-workspaces.md) subsequently
+added independent launchd supervision and verified pod/process handoff. Host
+login/reboot acceptance remains open there. rc.3 release cleanup does not imply
+that demo-refresh credentials or its protected environment have been provisioned.
+
 - Host reboot still requires restoring the tmux session. This change reconnects
   new forwards after pod replacement, not an absent host startup service.
 - Existing forward windows are not interrupted to migrate their running command.
