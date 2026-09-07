@@ -13,7 +13,7 @@ configuration. No npm release, API migration or provider update is required.
 ## Steps
 
 - [x] Inspect source changes, current deployment, chart and public environment conventions.
-- [ ] Recheck documentation tests, commit the scoped changes and push source.
+- [x] Recheck documentation tests, commit the scoped changes and push source (`db1a7c7`).
 - [ ] Build and publish an immutable, revision-labelled web image to Harbor.
 - [ ] Compare rendered manifests, then upgrade only the web image with rollback on failure.
 - [ ] Verify ready deployments, public endpoints, public sign-in redirect and documentation interactions on desktop/mobile.
@@ -26,6 +26,10 @@ configuration. No npm release, API migration or provider update is required.
   `1469c5add1242115be0a332bde43137f528d18679dd1fa98455cd41f3137c588`.
 - Keep credentials and captured Helm values in ignored private artifacts.
 - Leave the unrelated local `docs/cot/` research document untouched.
+- The first multi-platform build passed ARM64 but Node aborted inside AMD64
+  emulation during dependency installation. Build browser assets on
+  `BUILDPLATFORM`; nginx remains target-platform specific. No live change was
+  applied from the failed build.
 
 ## Outcome
 

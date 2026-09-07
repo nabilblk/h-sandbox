@@ -1,4 +1,5 @@
-FROM node:26-bookworm-slim AS build
+# Static browser assets are architecture-independent; avoid emulating Node.
+FROM --platform=$BUILDPLATFORM node:26-bookworm-slim AS build
 WORKDIR /app
 ARG VITE_PUBLIC_API_URL=http://127.0.0.1:18082
 ARG VITE_PUBLIC_KEYCLOAK_URL=http://127.0.0.1:18084
