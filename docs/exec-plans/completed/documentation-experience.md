@@ -116,3 +116,6 @@ Local screenshot evidence is in ignored `docs/artifacts/docs-redesign/`:
 Preview: `http://127.0.0.1:19475/#docs/overview`. This completion covers source
 changes and local acceptance only; no commit, production deployment, npm
 publication or rerun of all historical runtime tutorials is implied.
+
+Subsequent delivery on September 8 is recorded separately in the
+[web-only deployment receipt](../../release-notes/2026-09-08-documentation-redesign-delivery.md).
