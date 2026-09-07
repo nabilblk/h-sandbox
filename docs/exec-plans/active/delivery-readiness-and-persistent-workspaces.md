@@ -210,13 +210,27 @@ release gates.
 
 Documentation deployment follow-up:
 
-- [ ] Commit the tested documentation and navigation changes.
-- [ ] Publish a commit-specific web image for the arm64 k0s lab without replacing
+- [x] Commit the tested documentation and navigation changes (`fa483d3`, pushed).
+- [x] Publish a commit-specific web image for the arm64 k0s lab without replacing
       the published `0.5.0-rc.2` artifacts.
-- [ ] Preserve the installed chart and values; verify that only the web image
+- [x] Preserve the installed chart and values; verify that only the web image
       changes before applying the Helm upgrade.
-- [ ] Verify public documentation, API health and the public Keycloak origin;
+- [x] Verify public documentation, API health and the public Keycloak origin;
       record the deployed source, image digest and Helm revision.
+
+Deployed on 2026-09-07: Helm revision **23**, existing chart `0.5.0-rc.2`, web
+source `fa483d3ef60aeeb2440a47be5e6860b242c10fd3`. The new arm64 web image is
+`core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.2-docs.fa483d3`, digest
+`sha256:a667ca50d1b6d0b6cd99d5dcb4e806b6b6c02455e59eab5f4f395f58125569cb`.
+The Helm preflight and post-deployment comparison confirmed only the web image
+changed: all other deployment specs and shared/web runtime ConfigMaps are intact.
+The web port-forward recovered automatically after a brief 502 during pod handoff.
+
+All four public pages render; desktop/mobile navigation and browser history pass.
+Sign-in uses `sb-auth.harakiri.io`, client `harakiri-web`, PKCE S256 and the public
+web callback. Web, API health and OIDC discovery return 200. Main CI for the
+source commit passed. No backend, Keycloak, provider, npm or published release
+artifact was changed. See the [deployment receipt](../../release-notes/0.5.0-rc.2-delivery.md#workspace-documentation-update).
 
 ## Decision Log
 
