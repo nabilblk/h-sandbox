@@ -1,5 +1,6 @@
 import Keycloak, { type KeycloakTokenParsed } from "keycloak-js";
 import { env } from "./runtime-config";
+import { isDocsRoute } from "./routing";
 
 const defaultKeycloakUrl = () => "http://127.0.0.1:8081";
 
@@ -72,7 +73,7 @@ const isInternalRoute = (route: string) => {
     route === "landing" ||
     route === "onboarding" ||
     route === "detail" ||
-    route === "docs" ||
+    isDocsRoute(route) ||
     route === "changelog" ||
     route.startsWith("dashboard/")
   );

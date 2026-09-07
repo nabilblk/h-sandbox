@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   hasOidcResponse,
+  isPublicRoute,
   routeFromHash,
   sandboxDetailIdFromRoute,
   selectInitialRoute
@@ -12,6 +13,16 @@ test("routeFromHash accepts dashboard sandbox detail deep links", () => {
 
   assert.equal(route, "dashboard/sandboxes/sbx_1vwJ_6FiQo");
   assert.equal(sandboxDetailIdFromRoute(route), "sbx_1vwJ_6FiQo");
+});
+
+test("documentation deep links remain public and reject malformed paths", () => {
+  for (const hash of ["#docs", "#docs/workspaces", "#docs/persistent-workspaces", "#docs/workspace-reference", "#docs/workspace-operations"]) {
+    assert.equal(routeFromHash(hash), hash.slice(1));
+    assert.equal(isPublicRoute(routeFromHash(hash)), true);
+  }
+  for (const hash of ["#docs/../../dashboard", "#docs/https://evil.example", "#docs/", "#docs/workspaces?code=bad"]) {
+    assert.equal(routeFromHash(hash), "landing");
+  }
 });
 
 test("routeFromHash accepts dashboard vault route", () => {

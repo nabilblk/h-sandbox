@@ -1,5 +1,12 @@
 # Persistent Workspace Operations
 
+Related: [workspace concepts](workspaces.md), [API/SDK/CLI reference](workspace-reference.md)
+and [the checkpoint/reconnect tutorial](persistent-workspaces.md).
+
+This is the `0.5.0-rc.2` preview. Restricted OpenShift acceptance and coherent
+restore validation remain open. The existing TTL-renewal/scheduler defect is a
+stable-release blocker; use sufficient initial TTLs for bounded acceptance tests.
+
 ## Enable Deliberately
 
 Use an API/scheduler build containing migration `035_persistent_workspaces.sql`.
@@ -69,9 +76,10 @@ a follow-up, not an unimplemented API advertised as available.
 
 Migration 035 is additive. The migration runner now uses one connection for its
 advisory lock and each transaction. Never run down-migrations that discard
-workspace ownership while volumes exist. Disable new attachment with the feature
-flag if necessary; preserve metadata and reservations. Keep the matching scheduler
-running until in-flight cleanup is complete before disabling reconciliation.
+workspace ownership while volumes exist. The feature flag gates new attachment
+and workspace reconciliation; it is not a drain or deletion switch. Preserve
+metadata/reservations and complete in-flight cleanup with the matching scheduler
+before disabling reconciliation.
 
 Restore the compatible API/web/scheduler images together on rollback. An older
 version does not understand workspace reservations; do not allow it to create or

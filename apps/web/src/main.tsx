@@ -14,6 +14,7 @@ import { SandboxDetailRoute } from "./routes/sandbox-detail";
 import type { Route } from "./routes/types";
 import {
   hasOidcResponse,
+  isDocsRoute,
   isPublicRoute,
   isRoute,
   isSandboxDetailRoute,
@@ -147,8 +148,8 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
     <OnboardingRoute go={go} profile={profile} />
   ) : (route === "detail" || isSandboxDetailRoute(route)) && routeDetailId ? (
     <SandboxDetailRoute id={routeDetailId} go={go} openSandbox={openSandbox} />
-  ) : route === "docs" ? (
-    <DocsRoute go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
+  ) : isDocsRoute(route) ? (
+    <DocsRoute selectedId={route === "docs" ? undefined : route.slice(5)} go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : route === "demos" || route.startsWith("demos/") ? (
     <DemosRoute go={go} selectedId={route === "demos" ? undefined : route.slice(6)} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} />
   ) : route === "changelog" ? (

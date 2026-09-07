@@ -179,6 +179,45 @@ beyond the retained provider log data.
 - [ ] Validate install/upgrade and rollback with existing data, deploy the tested
       candidate, and record exact versions/digests and remaining limitations.
 
+#### Workspace Documentation Structure Follow-Up
+
+- [x] Check the workspace API, SDK, CLI, lifecycle and operator contracts against source.
+- [x] Add separate public Concepts, Tutorials, Reference and Operations pages with
+      first-party cross-links; distinguish organization membership from storage.
+- [x] Add shareable public documentation URLs, backward-compatible selection,
+      mobile navigation and working section navigation.
+- [x] Add current prerelease/distribution/TTL caveats to the public pages, and
+      make the walkthrough runnable without a private repository checkout.
+- [x] Test documentation contracts, deep links/history and desktop/mobile
+      rendering; record local verification and deployment status accurately.
+
+Verification on 2026-09-07: 51 web tests pass, including all documentation page
+and section targets, safe public deep links and legacy selection. Web typecheck,
+production build, documentation link check and `git diff --check` pass. Vite
+still reports the existing large-bundle warning; this change does not introduce
+a new runtime dependency. Browser checks at 1440, 768, 390 and 320 pixels confirm
+readable layouts without page-level horizontal overflow. Direct entry is public
+without Keycloak requests; cross-links, back/forward, reload, mobile selection,
+section focus and missing-page recovery work. Screenshots are retained locally
+under `docs/artifacts/workspace-*.png`.
+
+The inline SDK tutorial is syntax-checked and includes assertions and cleanup;
+its real-runtime scenario was not rerun for this documentation-only follow-up.
+Initial verification used `http://127.0.0.1:19474/#docs/workspaces`; no deployment
+was made during the documentation implementation. The maintainer subsequently
+requested commit and deployment. The parent plan stays active for its remaining
+release gates.
+
+Documentation deployment follow-up:
+
+- [ ] Commit the tested documentation and navigation changes.
+- [ ] Publish a commit-specific web image for the arm64 k0s lab without replacing
+      the published `0.5.0-rc.2` artifacts.
+- [ ] Preserve the installed chart and values; verify that only the web image
+      changes before applying the Helm upgrade.
+- [ ] Verify public documentation, API health and the public Keycloak origin;
+      record the deployed source, image digest and Helm revision.
+
 ## Decision Log
 
 | Date | Decision | Rationale | Alternatives Considered |

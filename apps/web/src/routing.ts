@@ -1,5 +1,8 @@
 import type { Route } from "./routes/types";
 
+export const isDocsRoute = (route: string): route is "docs" | `docs/${string}` =>
+  route === "docs" || /^docs\/[a-z0-9-]+$/.test(route);
+
 export const isSandboxDetailRoute = (route: string): route is `dashboard/sandboxes/${string}` =>
   /^dashboard\/sandboxes\/[^/]+$/.test(route);
 
@@ -16,7 +19,7 @@ export const isRoute = (route: string): route is Route =>
   route === "dashboard/keys" ||
   route === "dashboard/settings" ||
   route === "detail" ||
-  route === "docs" ||
+  isDocsRoute(route) ||
   route === "demos" ||
   /^demos\/[a-z0-9-]+$/.test(route) ||
   route === "changelog";
@@ -35,7 +38,7 @@ export const sandboxDetailIdFromRoute = (route: Route) => {
   }
 };
 
-export const isPublicRoute = (route: Route) => route === "landing" || route === "docs" || route === "changelog" || route === "demos" || route.startsWith("demos/");
+export const isPublicRoute = (route: Route) => route === "landing" || isDocsRoute(route) || route === "changelog" || route === "demos" || route.startsWith("demos/");
 
 export const hasOidcResponse = (hash: string) => {
   const fragment = hash.replace(/^#/, "");

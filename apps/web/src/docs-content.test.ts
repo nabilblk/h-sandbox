@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { docPages } from "./docs-content.js";
+import { execFileSync } from "node:child_process";
+import { workspaceStates } from "./workspace-docs.js";
+import { workspaceOperations } from "./workspace-reference-docs.js";
+import { workspaceTutorialSource } from "./workspace-tutorial-docs.js";
 
 test("docs content exposes expected product pages and renderable body markup", () => {
   assert.ok(docPages.length >= 8);
@@ -9,7 +14,7 @@ test("docs content exposes expected product pages and renderable body markup", (
   assert.ok(docPages.some((page) => page.id === "quickstart" && page.section === "Getting started"));
   assert.ok(docPages.some((page) => page.id === "hands-on-tutorials" && page.section === "Tutorials"));
   assert.ok(docPages.some((page) => page.id === "sdk-cli" && page.section === "Getting started"));
-  assert.ok(docPages.some((page) => page.id === "team-members" && page.section === "Workspace"));
+  assert.ok(docPages.some((page) => page.id === "team-members" && page.section === "Organization"));
   assert.ok(docPages.some((page) => page.id === "sandbox-lifecycle" && page.section === "Sandboxes"));
   assert.ok(docPages.some((page) => page.id === "sandbox-processes" && page.section === "Sandboxes"));
   assert.ok(docPages.some((page) => page.id === "api-reference" && page.section === "Reference"));
@@ -87,4 +92,54 @@ test("docs content exposes expected product pages and renderable body markup", (
   const errorsMarkup = renderToStaticMarkup(errors.body);
   assert.match(errorsMarkup, /HarakiriProviderUnavailableError/);
   assert.match(errorsMarkup, /sandbox_file_artifact_checksum_mismatch/);
+});
+
+test("documentation navigation targets existing pages and section headings", () => {
+  const ids = new Set(docPages.map((page) => page.id));
+  assert.equal(ids.size, docPages.length);
+  for (const page of docPages) {
+    const markup = renderToStaticMarkup(page.body);
+    for (const heading of page.toc) {
+      const target = renderToStaticMarkup(createElement("h2", null, heading));
+      assert.ok(markup.includes(target), `${page.id}: missing heading ${heading}`);
+    }
+    for (const match of markup.matchAll(/href="#docs\/([a-z0-9-]+)"/g)) {
+      assert.ok(ids.has(match[1]), `${page.id}: broken page link ${match[1]}`);
+    }
+  }
+});
+
+test("workspaces have separate concept, tutorial, reference and operations pages", () => {
+  const expected = [
+    ["workspaces", "Concepts"], ["persistent-workspaces", "Tutorials"],
+    ["workspace-reference", "Reference"], ["workspace-operations", "Operations"]
+  ];
+  for (const [id, section] of expected) {
+    const page = docPages.find((item) => item.id === id);
+    assert.ok(page);
+    assert.equal(page.section, section);
+    const markup = renderToStaticMarkup(page.body);
+    assert.doesNotMatch(markup, /href="https:\/\/github.com\/nabilblk\/h-sandbox/);
+    assert.match(markup, /0\.5\.0-rc\.2/);
+  }
+  const concept = renderToStaticMarkup(docPages.find((page) => page.id === "workspaces")!.body);
+  for (const [status] of workspaceStates) assert.ok(concept.includes(status));
+  assert.match(concept, /not private to its creator/);
+  assert.match(concept, /not a persistent storage resource/);
+  assert.match(concept, /no public unarchive/);
+  const reference = renderToStaticMarkup(docPages.find((page) => page.id === "workspace-reference")!.body);
+  for (const [method, path] of workspaceOperations) assert.ok(reference.includes(`${method} ${path}`));
+  assert.match(reference, /storageRequested/);
+  assert.match(reference, /--retain-storage/);
+});
+
+test("public workspace scenario is complete, syntactically valid and checks one execution", () => {
+  execFileSync(process.execPath, ["--input-type=module", "--check"], { input: workspaceTutorialSource });
+  assert.match(workspaceTutorialSource, /from "@h-sandbox\/sdk"/);
+  assert.match(workspaceTutorialSource, /finally/);
+  assert.match(workspaceTutorialSource, /await client\.workspaces\.archive/);
+  assert.match(workspaceTutorialSource, /assert\.deepEqual\(JSON\.parse\(checkpoint.content\)/);
+  assert.match(workspaceTutorialSource, /runs\.txt/);
+  assert.match(workspaceTutorialSource, /commands\.stream\(second\.id, command\.id, \{ cursor \}\)/);
+  assert.doesNotMatch(workspaceTutorialSource, /job\.py|packages\/sdk\/dist/);
 });

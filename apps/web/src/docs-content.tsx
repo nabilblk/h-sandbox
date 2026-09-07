@@ -2,6 +2,9 @@ import type React from "react";
 import { demoTutorialSections } from "./demo-tutorial";
 import { agentDemoPrerequisites, agentDemoTutorials } from "./agent-demo-tutorials";
 import { workspaceDocs } from "./workspace-docs";
+import { workspaceTutorialDocs } from "./workspace-tutorial-docs";
+import { workspaceReferenceDocs } from "./workspace-reference-docs";
+import { workspaceOperationsDocs } from "./workspace-operations-docs";
 
 export type DocPage = {
   id: string;
@@ -148,6 +151,9 @@ export const docPages: DocPage[] = [
     body: <div className="tutorial-doc"><p><a href={`#demos/${tutorial.id}`}>Watch the demo</a> | <a href="/demos/agent-workflows.zip">Download example source</a> | <a href={`/demos/${tutorial.id}/tutorial.html`}>Standalone tutorial</a></p><p>{agentDemoPrerequisites}</p><p><a href="https://opencode.ai/docs/zen/">OpenCode model availability and data policies</a></p>{tutorial.sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <pre>{section.code}</pre>}<TutorialCheck>{section.check}</TutorialCheck></section>)}</div>,
   })),
   workspaceDocs,
+  workspaceTutorialDocs,
+  workspaceReferenceDocs,
+  workspaceOperationsDocs,
   {
     id: "cli-live-preview",
     section: "Tutorials",
@@ -265,7 +271,7 @@ const sandbox = await harakiri.sandboxes.create({
     section: "Tutorials",
     title: "Hands-on tutorials",
     lede: "Run complete sandbox workflows with observable checks: execute a data job, publish a private preview, constrain egress, work with Git, restore a snapshot, and integrate the SDK.",
-    toc: ["Before you start", "Data job", "Private preview", "Restricted egress", "Git workspace", "Snapshot restore", "SDK worker", "Troubleshooting"],
+    toc: ["Before you start", "Run a data job and retrieve its artifact", "Publish a token-protected preview", "Restrict outbound network access", "Create a Git workspace", "Pause, snapshot, and restore state", "Integrate Harakiri into a worker", "Troubleshooting"],
     body: (
       <div className="tutorial-doc">
         <div className="tutorial-map" aria-label="Tutorial scenarios">
@@ -514,7 +520,7 @@ try {
   },
   {
     id: "team-members",
-    section: "Workspace",
+    section: "Organization",
     title: "Team members",
     lede: "Invite teammates by email, review pending invitations, and keep workspace access limited to active members.",
     toc: ["Invite", "Statuses", "Access", "Troubleshooting"],
@@ -563,7 +569,7 @@ try {
   },
   {
     id: "session-management",
-    section: "Workspace",
+    section: "Organization",
     title: "Sign-in sessions",
     lede: "Harakiri uses Keycloak for browser sign-in, token refresh, and provider logout.",
     toc: ["Sign in", "Refresh", "Sign out", "Session expired"],

@@ -2762,16 +2762,17 @@
 }
 
 /* DOCS */
-.docs { display: grid; grid-template-columns: 260px 1fr 240px; }
+.docs { display: grid; grid-template-columns: 260px minmax(0, 1fr) 240px; align-items: start; }
+.docs-mobile-nav { display: none; }
 .docs-side {
   border-right: 1px solid var(--border);
   padding: 24px 18px;
-  min-height: 100vh;
+  min-height: 0;
   position: sticky; top: 56px; height: calc(100vh - 56px); overflow: auto;
   background: var(--surface);
 }
-.docs-section-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin: 18px 0 8px; padding: 0 8px; }
-.docs-section-h:first-child { margin-top: 0; }
+.docs-section-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0; color: var(--muted); font-weight: 600; margin: 18px 0 8px; padding: 0 8px; }
+.docs-side > div:first-child .docs-section-h { margin-top: 0; }
 .docs-link {
   appearance: none;
   display: block;
@@ -2785,16 +2786,22 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
+  overflow-wrap: anywhere;
 }
 .docs-link:hover { background: var(--surface-2); }
 .docs-link.active { background: var(--surface-2); color: var(--ink); font-weight: 500; box-shadow: inset 2px 0 0 var(--accent); }
 
 .docs-body { width: 100%; min-width: 0; padding: 56px 64px; max-width: 800px; }
-.docs-body h1 { font-size: 36px; letter-spacing: -0.025em; margin: 0 0 12px; font-weight: 600; }
-.docs-body h2 { font-size: 22px; letter-spacing: -0.015em; margin: 40px 0 12px; font-weight: 600; }
+.docs-body h1 { font-size: 36px; letter-spacing: 0; margin: 0 0 12px; font-weight: 600; overflow-wrap: anywhere; }
+.docs-body h2 { font-size: 22px; letter-spacing: 0; margin: 40px 0 12px; font-weight: 600; scroll-margin-top: 80px; }
 .docs-body h3 { font-size: 16px; margin: 28px 0 8px; font-weight: 600; }
 .docs-body p { font-size: 14.5px; line-height: 1.65; color: var(--ink-2); margin: 0 0 16px; max-width: 64ch; }
-.docs-body ul { font-size: 14.5px; line-height: 1.7; color: var(--ink-2); padding-left: 20px; }
+.docs-body ul, .docs-body ol { font-size: 14.5px; line-height: 1.7; color: var(--ink-2); padding-left: 20px; }
+.docs-body li + li { margin-top: 8px; }
+.docs-body .docs-category { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+.docs-body :is(p, li, dd) { overflow-wrap: anywhere; }
+.docs-body :is(p, li, dd) a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .docs-body code:not(pre code) {
   font-family: var(--font-mono); font-size: 12.5px;
   background: var(--surface-2); padding: 2px 5px; border-radius: 3px;
@@ -2813,10 +2820,30 @@
   position: sticky; top: 56px; height: calc(100vh - 56px); overflow: auto;
   font-size: 12.5px;
 }
-.docs-toc-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
-.docs-toc a { display: block; padding: 4px 0; color: var(--muted); }
-.docs-toc a:hover { color: var(--ink); }
-.docs-toc a.active { color: var(--ink); }
+.docs-toc-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+.docs-toc button { display: block; width: 100%; padding: 6px 0; color: var(--muted); background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.docs-toc button:hover { color: var(--ink); }
+.docs-notice { margin: 24px 0; padding: 16px 18px; background: var(--surface-2); border-left: 3px solid var(--accent); }
+.docs-notice p:last-child { margin-bottom: 0; }
+.docs-data-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 20px 0; font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+.docs-data-table caption { text-align: left; color: var(--muted); font-size: 12px; padding-bottom: 8px; }
+.docs-data-table :is(th, td) { text-align: left; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.docs-data-table th { font-weight: 500; color: var(--ink); }
+.docs-data-table th:first-child { width: 38%; }
+.docs-data-table thead { background: var(--surface-2); font-size: 12px; }
+.docs-data-table code { box-decoration-break: clone; }
+.docs-definitions { margin: 24px 0; font-size: 14px; line-height: 1.65; }
+.docs-definitions > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.docs-definitions dt { font-weight: 500; overflow-wrap: anywhere; }
+.docs-definitions dd { margin: 0; color: var(--ink-2); }
+.workspace-model { margin: 24px 0; }
+.docs-body .workspace-model ol { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 0; margin: 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.workspace-model li { padding: 16px 12px; margin: 0 !important; border-right: 1px solid var(--border); }
+.workspace-model li:last-child { border-right: 0; }
+.workspace-model li:nth-child(2) { background: var(--surface-2); border-top: 2px solid var(--accent); }
+.workspace-model strong { display: block; color: var(--ink); font-size: 14px; }
+.workspace-model span { display: block; font-size: 12px; line-height: 1.6; margin-top: 6px; }
+.workspace-model figcaption { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
 
 .vision-doc {
   max-width: 820px;
@@ -3889,24 +3916,19 @@
   }
 
   .docs-side {
-    position: static;
-    height: auto;
-    min-height: 0;
-    width: 100%;
-    max-width: 100vw;
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-    padding: 10px 12px;
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
+    display: none;
   }
 
-  .docs-side > div {
-    display: flex;
-    flex: 0 0 auto;
-    gap: 4px;
+  .docs-mobile-nav {
+    display: grid;
+    gap: 6px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
   }
+  .docs-mobile-nav label { font-size: 12px; color: var(--muted); }
+  .docs-mobile-nav select { width: 100%; min-width: 0; min-height: 40px; font-size: 14px; }
+  .docs-definitions > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 
   .docs-section-h,
   .docs-toc {

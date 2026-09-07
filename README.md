@@ -217,6 +217,8 @@ OpenSandbox `dns+nft` requirement.
 ## Documentation
 
 - [docs/README.md](docs/README.md) - documentation index by audience
+- [docs/workspaces.md](docs/workspaces.md) - workspace concepts, ownership and lifecycle
+- [docs/workspace-reference.md](docs/workspace-reference.md) - workspace API, SDK and CLI
 - [docs/tutorials.md](docs/tutorials.md) - tested end-to-end tutorials with
   assertions and cleanup
 - [docs/architecture.md](docs/architecture.md) - subsystem map and data flow

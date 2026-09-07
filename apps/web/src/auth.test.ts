@@ -127,6 +127,14 @@ test("sign-in accepts public changelog as a safe return route", async () => {
   assert.equal(sessionStorage.getItem("harakiri_auth_return_route"), "changelog");
 });
 
+test("sign-in preserves a public documentation deep link", async () => {
+  const { sessionStorage } = installBrowser("#docs/workspaces");
+  const { client } = createClient({ authenticated: false });
+  const session = createAuthSession(() => client);
+  await session.signIn();
+  assert.equal(sessionStorage.getItem("harakiri_auth_return_route"), "docs/workspaces");
+});
+
 test("sign-in preserves a protected route remembered before check-sso redirects", async () => {
   const { sessionStorage } = installBrowser("#landing");
   sessionStorage.setItem("harakiri_auth_return_route", "dashboard/sandboxes");

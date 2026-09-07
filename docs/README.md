@@ -18,8 +18,10 @@
 
 ## Users
 
+- [Workspaces: concepts, ownership and lifecycle](workspaces.md)
+- [Workspace API, SDK and CLI reference](workspace-reference.md)
 - [Hands-on tutorials](tutorials.md)
-- [Persistent workspaces and live commands (unreleased)](persistent-workspaces.md)
+- [Tutorial: reuse files across sandboxes](persistent-workspaces.md)
 - [API reference](api.md)
 - [SDK guide](sdk.md)
 - [CLI reference](cli.md)

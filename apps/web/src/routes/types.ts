@@ -12,6 +12,7 @@ export type Route =
   | "dashboard/settings"
   | "detail"
   | "docs"
+  | `docs/${string}`
   | "demos"
   | `demos/${string}`
   | "changelog";
