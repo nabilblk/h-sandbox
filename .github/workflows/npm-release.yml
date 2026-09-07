@@ -7,10 +7,18 @@ on:
         description: "npm dist-tag"
         default: "latest"
         required: true
+      release_ref:
+        description: "Source tag or commit to publish (defaults to the workflow ref)"
+        default: ""
+        required: false
 
 permissions:
   contents: read
   id-token: write
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -18,6 +26,8 @@ jobs:
     environment: npm
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
@@ -26,6 +36,19 @@ jobs:
 
       - name: Enable pnpm
         run: corepack enable
+
+      - name: Guard release channel and package versions
+        env:
+          RELEASE_DIST_TAG: ${{ inputs.tag }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          const sdk = JSON.parse(readFileSync("packages/sdk/package.json", "utf8"));
+          const cli = JSON.parse(readFileSync("packages/cli/package.json", "utf8"));
+          assert.equal(sdk.version, cli.version, "SDK and CLI must have matching versions");
+          assert.ok(!sdk.version.includes("-") || process.env.RELEASE_DIST_TAG !== "latest", "Prereleases must not replace latest");
+          JS
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -41,11 +64,17 @@ jobs:
 
       - name: Publish SDK
         working-directory: packages/sdk
-        run: pnpm publish --provenance --access public --tag "${{ inputs.tag }}"
+        env:
+          RELEASE_DIST_TAG: ${{ inputs.tag }}
+        # Tagged checkouts are detached. The package prepublishOnly hook still
+        # verifies a clean worktree before rebuilding and checking the package.
+        run: pnpm publish --no-git-checks --provenance --access public --tag "$RELEASE_DIST_TAG"
 
       - name: Publish CLI
         working-directory: packages/cli
-        run: pnpm publish --provenance --access public --tag "${{ inputs.tag }}"
+        env:
+          RELEASE_DIST_TAG: ${{ inputs.tag }}
+        run: pnpm publish --no-git-checks --provenance --access public --tag "$RELEASE_DIST_TAG"
 
       - name: Verify published packages
         run: pnpm publish:postcheck

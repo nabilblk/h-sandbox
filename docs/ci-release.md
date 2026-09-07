@@ -95,6 +95,23 @@ helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version 0
 
 Then deploy with [the chart](../infra/charts/harakiri/README.md).
 
+## Tagged npm Candidates
+
+The npm workflow can publish an immutable source tag using the current workflow
+definition. It publishes SDK before CLI and rejects prereleases targeting
+`latest`:
+
+```bash
+gh workflow run npm-release.yml --ref main \
+  -f release_ref=v0.5.0-rc.3 -f tag=next
+```
+
+The tagged checkout is detached, so pnpm's branch check is disabled only for the
+publish commands. Each package's `prepublishOnly` hook still checks that the
+worktree is clean, rebuilds it and validates the public package boundary. npm
+trusted-publisher authorization must be configured separately for both packages;
+a successful build or GitHub login does not grant npm publishing permission.
+
 ## What CI validates on PRs
 
 The [`CI`](../.github/workflows/ci.yml) workflow `chart` and `images` jobs lint +
