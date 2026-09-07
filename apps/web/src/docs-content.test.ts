@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { docPages } from "./docs-content.js";
 import { execFileSync } from "node:child_process";
 import { workspaceStates } from "./workspace-docs.js";
 import { workspaceOperations } from "./workspace-reference-docs.js";
 import { workspaceTutorialSource } from "./workspace-tutorial-docs.js";
+
+// Content assertions ignore presentation-only token spans.
+const renderToStaticMarkup = (...args: Parameters<typeof renderMarkup>) => renderMarkup(...args).replace(/<\/?span\b[^>]*>/g, "");
 
 test("docs content exposes expected product pages and renderable body markup", () => {
   assert.ok(docPages.length >= 8);
@@ -23,7 +26,8 @@ test("docs content exposes expected product pages and renderable body markup", (
   assert.ok(quickstart);
   const markup = renderToStaticMarkup(quickstart.body);
   assert.match(markup, /harakiri create --template python-3\.12-data/);
-  assert.match(markup, /harakiri expose sbx_\.\.\. --port 3000/);
+  assert.match(markup, /Verify and clean up/);
+  assert.match(markup, /href="#docs\/cli-live-preview"/);
 
   const tutorials = docPages.find((page) => page.id === "hands-on-tutorials");
   assert.ok(tutorials);
@@ -41,7 +45,8 @@ test("docs content exposes expected product pages and renderable body markup", (
   assert.ok(vision);
   const visionMarkup = renderToStaticMarkup(vision.body);
   assert.match(visionMarkup, /Harakiri control plane/);
-  assert.match(visionMarkup, /ArchitectureDiagram|Harakiri architecture diagram/);
+  assert.match(visionMarkup, /System map/);
+  assert.match(visionMarkup, /Task lifecycle/);
 
   const sdkCli = docPages.find((page) => page.id === "sdk-cli");
   assert.ok(sdkCli);

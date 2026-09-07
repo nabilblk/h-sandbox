@@ -1,3 +1,4 @@
+import { CodeBlock } from "./components/docs-code";
 import type { DocPage } from "./docs-content";
 import { WorkspaceReleaseNote } from "./workspace-docs";
 
@@ -11,12 +12,12 @@ export const workspaceOperationsDocs: DocPage = {
     <WorkspaceReleaseNote />
     <section><h2>Enable a storage profile</h2>
       <p>Back up PostgreSQL and apply migration <code>035_persistent_workspaces.sql</code> before enabling creation. API and scheduler must both understand workspace reservations. Use the same configuration and native OpenSandbox provider, with fallback disabled.</p>
-      <pre>{`config:
+      <CodeBlock language="yaml">{`config:
   PERSISTENT_WORKSPACES_ENABLED: "1"
   WORKSPACE_STORAGE_CLASS: "your-approved-rwo-class"
   WORKSPACE_SIZE_GIB: "10"
   WORKSPACE_MAX_PER_ORGANIZATION: "20"
-  OPEN_SANDBOX_ALLOW_FALLBACK: "0"`}</pre>
+  OPEN_SANDBOX_ALLOW_FALLBACK: "0"`}</CodeBlock>
       <p>Replace the example storage class with one approved for your cluster. A blank class uses the cluster default. Size is an integer from 1 to 1,024 GiB; allocation limit is 1 to 1,000 records per organization. Capacity and storage class are captured when a workspace is created; changing defaults does not resize or migrate existing workspaces.</p>
       <p>OpenSandbox must be allowed to provision and mount PVCs in its runtime namespace. Harakiri does not create StorageClasses, accept arbitrary host paths, grant SCCs or bypass OpenShift security. The tested native contract uses OpenSandbox server v0.2.3. An arbitrary-UID image smoke alone does not prove a mounted volume is writable.</p>
     </section>

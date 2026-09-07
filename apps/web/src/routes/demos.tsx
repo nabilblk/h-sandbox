@@ -3,7 +3,7 @@ import { TopNav, type TopNavProps } from "../components/top-nav";
 import { Icon } from "../components/icon";
 import { ProductDemo } from "../components/product-demo";
 import { demos, type Demo } from "../demo-catalog";
-import { setDocsPageSelection } from "./docs";
+import { setDocsPageSelection } from "../docs-selection";
 
 export const DemosRoute = ({ selectedId, ...navigation }: TopNavProps & { selectedId?: string }) => {
   const [surface, setSurface] = useState<"All" | Demo["surface"]>("All");

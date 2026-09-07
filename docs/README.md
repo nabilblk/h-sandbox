@@ -4,6 +4,7 @@
 
 - [Local development](development.md)
 - [Architecture](architecture.md)
+- [Public documentation structure and authoring](internal/documentation-experience.md)
 - [Extension interfaces](extensions.md)
 - [OpenSandbox boundaries](opensandbox-boundaries.md)
 - [Credential Vault internals](credential-vault-internals.md)

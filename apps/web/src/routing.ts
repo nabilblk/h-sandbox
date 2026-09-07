@@ -1,7 +1,7 @@
 import type { Route } from "./routes/types";
 
 export const isDocsRoute = (route: string): route is "docs" | `docs/${string}` =>
-  route === "docs" || /^docs\/[a-z0-9-]+$/.test(route);
+  route === "docs" || /^docs\/[a-z0-9-]+(?:\?section=[a-z0-9-]+)?$/.test(route);
 
 export const isSandboxDetailRoute = (route: string): route is `dashboard/sandboxes/${string}` =>
   /^dashboard\/sandboxes\/[^/]+$/.test(route);

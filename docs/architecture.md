@@ -1,6 +1,10 @@
 # Architecture
 
-Harakiri Sandbox is a thin product and control plane around OpenSandbox.
+Harakiri Sandbox is an open-source product and control plane around OpenSandbox.
+Applications own agent orchestration and task correctness; Harakiri owns the
+organization-scoped product contract and lifecycle coordination; OpenSandbox
+owns runtime execution. The public Vision and architecture article is maintained
+in `apps/web/src/vision-docs.tsx`. This document describes implementation details.
 
 ## Components
 
@@ -8,7 +12,9 @@ Harakiri Sandbox is a thin product and control plane around OpenSandbox.
 - Control-plane API: Fastify service that owns orgs, invitations, memberships, API keys, sandbox records, routing, schedules, usage, and audit events.
 - Scheduler: worker process that kills expired sandboxes, records lifecycle
   events, and runs template retention cleanup.
-- PostgreSQL: source of truth for control-plane data.
+- PostgreSQL: source of truth for control-plane metadata, including workspace
+  reservations. Retained workspace files live on operator-managed volumes, not
+  in PostgreSQL; database backups alone do not preserve them.
 - Keycloak: OIDC identity provider for browser users, password setup, and email verification.
 - OpenSandbox: runtime provider for sandbox lifecycle.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
@@ -147,7 +153,10 @@ The API accepts:
 - Keycloak JWTs validated through the realm JWKS endpoint.
 - Hashed Harakiri API keys with `hk_live_` and `hk_test_` prefixes.
 
-The deployed prototype keeps `AUTH_DEV_ALLOW=1` so bootstrap smoke tests can run while the realm is first imported. Disable it for stricter testing.
+`AUTH_DEV_ALLOW=1` is a development-only authentication bypass. It is not a
+production deployment requirement or a statement of current live configuration.
+Keep it disabled outside isolated development and authenticate smoke tests with
+real scoped credentials.
 
 ## OpenSandbox Adapter
 

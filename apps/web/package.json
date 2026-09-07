@@ -15,7 +15,9 @@
     "@h-sandbox/sdk": "workspace:*",
     "@harakiri/shared": "workspace:*",
     "@vitejs/plugin-react": "^5.1.1",
+    "highlight.js": "^11.12.0",
     "keycloak-js": "^26.2.4",
+    "lowlight": "^3.3.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "vite": "^7.2.6"

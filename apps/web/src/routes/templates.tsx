@@ -20,7 +20,7 @@ import { api } from "../api";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
-import { setDocsPageSelection } from "./docs";
+import { setDocsPageSelection } from "../docs-selection";
 import {
   CredentialProfileFields,
   credentialProfileComplete,

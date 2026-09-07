@@ -44,7 +44,7 @@ test("public deep links override remembered selection and expose accessible navi
   assert.match(markup, /<optgroup label="Concepts">/);
   assert.match(markup, /<option value="workspaces" selected="">/);
   assert.match(markup, /aria-label="On this page"/);
-  assert.match(markup, /<button type="button">Lifecycle<\/button>/);
+  assert.match(markup, /href="#docs\/workspaces\?section=lifecycle">Lifecycle<\/a>/);
   assert.ok(markup.indexOf('docs-section-h">Getting started') < markup.indexOf('docs-section-h">Concepts'));
   assert.ok(markup.indexOf('docs-section-h">Concepts') < markup.indexOf('docs-section-h">Tutorials'));
 });
@@ -54,9 +54,9 @@ test("unknown deep links show a recoverable not-found page", () => {
   assert.match(renderDocs("unknown-page"), /<h1>Documentation page not found<\/h1>/);
 });
 
-test("the quickstart works without remembered or available browser storage", () => {
+test("the overview works without remembered or available browser storage", () => {
   installSessionStorage().set(docsPageKey, "obsolete-page");
-  assert.match(renderDocs(), /<h1>Quickstart<\/h1>/);
+  assert.match(renderDocs(), /<h1>Harakiri documentation<\/h1>/);
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw new Error("Storage blocked"); } });
   try { assert.match(renderDocs("workspaces"), /<h1>Workspaces<\/h1>/); }
   finally { installSessionStorage(); }

@@ -1,4 +1,7 @@
 import type React from "react";
+import { CodeBlock } from "./components/docs-code";
+import { visionDocs } from "./vision-docs";
+import { overviewDocs, quickstartDocs } from "./getting-started-docs";
 import { demoTutorialSections } from "./demo-tutorial";
 import { agentDemoPrerequisites, agentDemoTutorials } from "./agent-demo-tutorials";
 import { workspaceDocs } from "./workspace-docs";
@@ -10,119 +13,13 @@ export type DocPage = {
   id: string;
   section: string;
   title: string;
+  navTitle?: string;
   lede: string;
   toc: string[];
   body: React.ReactNode;
 };
 
-const ArchitectureDiagram = () => (
-  <svg className="docs-arch-svg" viewBox="0 0 1120 720" role="img" aria-labelledby="harakiri-architecture-title harakiri-architecture-desc">
-    <title id="harakiri-architecture-title">Harakiri architecture diagram</title>
-    <desc id="harakiri-architecture-desc">Harakiri exposes dashboard, CLI, SDK, and API surfaces through a control plane backed by Keycloak and PostgreSQL, then delegates runtime execution to OpenSandbox on Kubernetes.</desc>
-    <defs>
-      <linearGradient id="archPanel" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#ffffff" />
-        <stop offset="1" stopColor="#f4f3ee" />
-      </linearGradient>
-      <linearGradient id="archDark" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stopColor="#191917" />
-        <stop offset="1" stopColor="#2a2925" />
-      </linearGradient>
-      <marker id="arrowInk" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-        <path d="M0 1 L7 4.5 L0 8 Z" fill="#2a2a27" />
-      </marker>
-      <marker id="arrowCrimson" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
-        <path d="M0 1 L7 4.5 L0 8 Z" fill="#b8331f" />
-      </marker>
-      <filter id="archShadow" x="-10%" y="-10%" width="120%" height="130%">
-        <feDropShadow dx="0" dy="14" stdDeviation="16" floodColor="#0f0f0e" floodOpacity="0.12" />
-      </filter>
-    </defs>
 
-    <rect x="18" y="18" width="1084" height="674" rx="18" fill="#fafaf7" stroke="#ecebe5" />
-    <rect x="50" y="56" width="1020" height="68" rx="12" fill="url(#archDark)" />
-    <rect x="76" y="79" width="30" height="30" rx="5" fill="#b8331f" />
-    <text x="91" y="101" textAnchor="middle" className="docs-arch-brand">h.</text>
-    <text x="134" y="99" className="docs-arch-kicker">HARAKIRI SANDBOX</text>
-    <text x="1040" y="99" textAnchor="end" className="docs-arch-kicker muted">CONTROL PLANE FOR AGENT RUNTIMES</text>
-
-    <rect x="72" y="190" width="240" height="214" rx="16" fill="url(#archPanel)" stroke="#d9d8d0" filter="url(#archShadow)" />
-    <text x="104" y="232" className="docs-arch-title">Product surface</text>
-    <text x="104" y="258" className="docs-arch-body">One contract for every</text>
-    <text x="104" y="278" className="docs-arch-body">user and automation</text>
-    <text x="104" y="298" className="docs-arch-body">entry point.</text>
-    <g className="docs-arch-tags">
-      <rect x="104" y="326" width="108" height="28" rx="6" />
-      <text x="158" y="345" textAnchor="middle">Dashboard</text>
-      <rect x="104" y="366" width="62" height="28" rx="6" />
-      <text x="135" y="385" textAnchor="middle">CLI</text>
-      <rect x="178" y="366" width="62" height="28" rx="6" />
-      <text x="209" y="385" textAnchor="middle">SDK</text>
-      <rect x="252" y="366" width="48" height="28" rx="6" />
-      <text x="276" y="385" textAnchor="middle">API</text>
-    </g>
-
-    <rect x="390" y="164" width="342" height="270" rx="18" fill="#ffffff" stroke="#b8331f" strokeWidth="1.5" filter="url(#archShadow)" />
-    <text x="430" y="212" className="docs-arch-title large">Harakiri control plane</text>
-    <text x="430" y="240" className="docs-arch-body">Product state, policy, and developer experience.</text>
-    <g className="docs-arch-grid">
-      <rect x="430" y="286" width="132" height="54" rx="9" />
-      <text x="448" y="312">Auth and orgs</text>
-      <text x="448" y="328" className="small">Keycloak boundary</text>
-      <rect x="590" y="286" width="132" height="54" rx="9" />
-      <text x="608" y="312">API keys</text>
-      <text x="608" y="328" className="small">hashed tokens</text>
-      <rect x="430" y="362" width="132" height="54" rx="9" />
-      <text x="448" y="388">Templates</text>
-      <text x="448" y="404" className="small">builds and aliases</text>
-      <rect x="590" y="362" width="132" height="54" rx="9" />
-      <text x="608" y="388">Runtime policy</text>
-      <text x="608" y="404" className="small">TTL, routes, egress</text>
-    </g>
-    <rect x="430" y="462" width="262" height="34" rx="7" fill="#f4f3ee" stroke="#ecebe5" />
-    <text x="561" y="483" textAnchor="middle" className="docs-arch-mono">PostgreSQL stores control-plane state</text>
-
-    <rect x="810" y="190" width="240" height="214" rx="16" fill="url(#archPanel)" stroke="#d9d8d0" filter="url(#archShadow)" />
-    <text x="842" y="232" className="docs-arch-title">Runtime provider</text>
-    <text x="842" y="258" className="docs-arch-body">Execution stays behind a</text>
-    <text x="842" y="278" className="docs-arch-body">provider interface.</text>
-    <rect x="842" y="314" width="160" height="56" rx="10" fill="#171719" />
-    <text x="922" y="340" textAnchor="middle" className="docs-arch-invert">OpenSandbox</text>
-    <text x="922" y="358" textAnchor="middle" className="docs-arch-invert muted">on Kubernetes</text>
-    <text x="842" y="392" className="docs-arch-body">No app code depends on</text>
-    <text x="842" y="412" className="docs-arch-body">pods, exec, or provider IDs.</text>
-
-    <path d="M312 300 H378" className="docs-arch-flow" markerEnd="url(#arrowInk)" />
-    <text x="345" y="282" textAnchor="middle" className="docs-arch-label">public contract</text>
-    <path d="M732 300 H798" className="docs-arch-flow accent" markerEnd="url(#arrowCrimson)" />
-    <text x="765" y="282" textAnchor="middle" className="docs-arch-label accent">provider boundary</text>
-    <path d="M561 434 V454" className="docs-arch-flow accent" markerEnd="url(#arrowCrimson)" />
-    <path d="M561 496 V538" className="docs-arch-flow accent" markerEnd="url(#arrowCrimson)" />
-    <path d="M930 404 V538" className="docs-arch-flow" markerEnd="url(#arrowInk)" />
-
-    <rect x="72" y="548" width="980" height="108" rx="16" fill="#ffffff" stroke="#d9d8d0" />
-    <text x="104" y="590" className="docs-arch-title">Sandbox runtime capabilities</text>
-    <text x="104" y="616" className="docs-arch-body">Commands, files, logs, metrics, routes, Git, artifacts, and egress diagnostics are exposed through Harakiri.</text>
-    <g className="docs-arch-capabilities">
-      <rect x="104" y="632" width="88" height="26" rx="6" />
-      <text x="148" y="650" textAnchor="middle">Terminal</text>
-      <rect x="206" y="632" width="72" height="26" rx="6" />
-      <text x="242" y="650" textAnchor="middle">Files</text>
-      <rect x="292" y="632" width="66" height="26" rx="6" />
-      <text x="325" y="650" textAnchor="middle">Logs</text>
-      <rect x="372" y="632" width="80" height="26" rx="6" />
-      <text x="412" y="650" textAnchor="middle">Metrics</text>
-      <rect x="466" y="632" width="76" height="26" rx="6" />
-      <text x="504" y="650" textAnchor="middle">Routes</text>
-      <rect x="556" y="632" width="54" height="26" rx="6" />
-      <text x="583" y="650" textAnchor="middle">Git</text>
-      <rect x="624" y="632" width="92" height="26" rx="6" />
-      <text x="670" y="650" textAnchor="middle">Artifacts</text>
-      <rect x="730" y="632" width="82" height="26" rx="6" />
-      <text x="771" y="650" textAnchor="middle">Egress</text>
-    </g>
-  </svg>
-);
 
 const TutorialScenario = ({ number, title, meta, children }: { number: string; title: string; meta: string; children: React.ReactNode }) => (
   <section className="tutorial-scenario">
@@ -145,10 +42,12 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const docPages: DocPage[] = [
+  overviewDocs,
   ...agentDemoTutorials.map((tutorial): DocPage => ({
     id: tutorial.id, section: "Agent demos", title: tutorial.title, lede: tutorial.lede,
+    navTitle: ({ "cli-agent-repair": "CLI: repair code", "ui-agent-app": "UI: build an app", "sdk-agent-report": "SDK: generate a report", "browser-agent-qa": "SDK: browser QA" } as Record<string, string>)[tutorial.id],
     toc: tutorial.sections.map((section) => section.title),
-    body: <div className="tutorial-doc"><p><a href={`#demos/${tutorial.id}`}>Watch the demo</a> | <a href="/demos/agent-workflows.zip">Download example source</a> | <a href={`/demos/${tutorial.id}/tutorial.html`}>Standalone tutorial</a></p><p>{agentDemoPrerequisites}</p><p><a href="https://opencode.ai/docs/zen/">OpenCode model availability and data policies</a></p>{tutorial.sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <pre>{section.code}</pre>}<TutorialCheck>{section.check}</TutorialCheck></section>)}</div>,
+    body: <div className="tutorial-doc"><p><a href={`#demos/${tutorial.id}`}>Watch the demo</a> | <a href="/demos/agent-workflows.zip">Download example source</a> | <a href={`/demos/${tutorial.id}/tutorial.html`}>Standalone tutorial</a></p><p>{agentDemoPrerequisites}</p><p><a href="https://opencode.ai/docs/zen/">OpenCode model availability and data policies</a></p>{tutorial.sections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <CodeBlock language={section.language}>{section.code}</CodeBlock>}<TutorialCheck>{section.check}</TutorialCheck></section>)}</div>,
   })),
   workspaceDocs,
   workspaceTutorialDocs,
@@ -160,112 +59,10 @@ export const docPages: DocPage[] = [
     title: "CLI to live preview",
     lede: "Reproduce the real product demo: create a workspace, attach, run an application, expose it, inspect it, and clean up.",
     toc: demoTutorialSections.map((section) => section.title),
-    body: <div className="tutorial-doc"><p><a href="/demo/harakiri-product-demo.mp4">Watch the 68-second walkthrough</a> | <a href="/demo/transcript.md">Transcript</a> | <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/demo/product-tour">Example application source</a></p>{demoTutorialSections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <pre>{section.code}</pre>}<p><strong>Verification: </strong>{section.check}</p></section>)}</div>,
+    body: <div className="tutorial-doc"><p><a href="/demo/harakiri-product-demo.mp4">Watch the 68-second walkthrough</a> | <a href="/demo/transcript.md">Transcript</a> | <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/demo/product-tour">Example application source</a></p>{demoTutorialSections.map((section) => <section key={section.title}><h2>{section.title}</h2><p>{section.text}</p>{section.code && <CodeBlock language="bash">{section.code}</CodeBlock>}<p><strong>Verification: </strong>{section.check}</p></section>)}</div>,
   },
-  {
-    id: "vision-architecture",
-    section: "Getting started",
-    title: "Vision and architecture",
-    lede: "Harakiri is a developer-first sandbox control plane: one product contract for disposable agent runtimes, with OpenSandbox kept behind a clean provider boundary.",
-    toc: ["Vision", "Architecture", "Principles", "Deployment", "What changes for teams"],
-    body: (
-      <div className="vision-doc">
-        <section className="vision-hero card">
-          <div className="vision-hero-copy">
-            <span className="vision-eyebrow">Open-source control plane</span>
-            <h2>Disposable sandboxes should feel like a product, not a cluster integration.</h2>
-            <p>Harakiri gives teams a stable API, SDK, CLI, dashboard, templates, routes, API keys, egress controls, and audit trail while delegating runtime execution to a provider such as OpenSandbox.</p>
-          </div>
-          <div className="vision-hero-terminal" aria-label="Harakiri command preview">
-            <span>$ harakiri create --template open-agents-dev</span>
-            <span className="muted">{"-> sealed. id=sbx_agent_7mK"}</span>
-            <span>$ harakiri expose sbx_agent_7mK --port 5173</span>
-            <span className="ok">ok route=https://sbx_agent_7mK-5173.example.dev</span>
-          </div>
-        </section>
-
-        <h2>Vision</h2>
-        <p>Agent products need the same runtime features again and again: start an isolated workspace, run commands, edit files, expose a preview, install packages, control egress, and clean up automatically. Harakiri compresses that operational complexity into a product surface that developers can adopt through one contract.</p>
-        <div className="vision-pill-row">
-          <span>Agent runtimes</span>
-          <span>Code execution</span>
-          <span>Preview routes</span>
-          <span>Template images</span>
-          <span>Policy and audit</span>
-        </div>
-
-        <h2>Architecture</h2>
-        <p>The architecture separates product responsibilities from runtime responsibilities. Harakiri owns identity, organizations, API keys, templates, scheduling, routes, egress policy, usage, audit events, and SDK/CLI contracts. The runtime provider owns sandbox execution.</p>
-        <div className="docs-arch-card">
-          <ArchitectureDiagram />
-        </div>
-
-        <h2>Principles</h2>
-        <div className="vision-principles">
-          <div>
-            <b>Provider boundary first</b>
-            <p>Application integrations use Harakiri IDs and API responses. They do not depend on OpenSandbox IDs, Kubernetes pods, or provider endpoint tokens.</p>
-          </div>
-          <div>
-            <b>Developer experience over plumbing</b>
-            <p>Complex features such as route exposure, template builds, egress presets, and Git setup become simple SDK and CLI operations.</p>
-          </div>
-          <div>
-            <b>Control-plane state is explicit</b>
-            <p>PostgreSQL stores the product record: organizations, API keys, sandboxes, routes, usage, templates, builds, operations, and audit history.</p>
-          </div>
-          <div>
-            <b>Runtime features are capability-gated</b>
-            <p>Clients can inspect what the active provider supports and degrade cleanly instead of guessing from provider names.</p>
-          </div>
-        </div>
-
-        <h2>Deployment</h2>
-        <p>A typical deployment includes the Harakiri API, web app, scheduler, template builder, PostgreSQL, Keycloak, a registry, and an OpenSandbox-backed Kubernetes runtime. Operators can swap or extend runtime, builder, and storage implementations through explicit interfaces.</p>
-        <div className="vision-deploy-grid">
-          <div><span>Identity</span><b>Keycloak</b></div>
-          <div><span>State</span><b>PostgreSQL</b></div>
-          <div><span>Control plane</span><b>API, scheduler, builder</b></div>
-          <div><span>Runtime</span><b>OpenSandbox provider</b></div>
-        </div>
-
-        <h2>What changes for teams</h2>
-        <p>Teams building background agents, code interpreters, test runners, or browser automation tools can integrate the Harakiri SDK instead of wiring directly into a runtime substrate. That keeps product code portable while Harakiri continues to improve the underlying runtime support.</p>
-        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";
-
-const harakiri = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL!,
-  apiKey: process.env.HARAKIRI_API_KEY!
-});
-
-const sandbox = await harakiri.sandboxes.create({
-  template: "open-agents-dev",
-  wait: true,
-  ttlSeconds: 900,
-  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
-});`}</pre>
-      </div>
-    )
-  },
-  {
-    id: "quickstart",
-    section: "Getting started",
-    title: "Quickstart",
-    lede: "Spawn a sealed Python sandbox, run code in it, expose a port, and end it from the dashboard or CLI.",
-    toc: ["Install", "Create", "Expose", "Next"],
-    body: (
-      <>
-        <h2>Install</h2>
-        <pre>{`npm install -g @h-sandbox/cli\nharakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...`}</pre>
-        <h2>Create</h2>
-        <pre>{`harakiri create --template python-3.12-data --name first-agent --ttl 600\nharakiri run sbx_... --cmd "python --version"\nharakiri kill sbx_...`}</pre>
-        <h2>Expose</h2>
-        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri routes sbx_...`}</pre>
-        <h2>Next</h2>
-        <p>Use SDK and CLI when integrating Harakiri into an application. Use Templates when you need a project-specific image with dependencies already installed.</p>
-      </>
-    )
-  },
+  visionDocs,
+  quickstartDocs,
   {
     id: "hands-on-tutorials",
     section: "Tutorials",
@@ -285,7 +82,7 @@ const sandbox = await harakiri.sandboxes.create({
 
         <h2>Before you start</h2>
         <p>Install the public CLI, create an API key in the dashboard, and point the CLI at your deployment. The examples use <code>jq</code> where a generated route or snapshot ID must be read from JSON.</p>
-        <pre>{`npm install -g @h-sandbox/cli
+        <CodeBlock language="bash">{`npm install -g @h-sandbox/cli
 
 export HARAKIRI_API_URL=https://sb-api.harakiri.io
 export HARAKIRI_API_KEY=hk_live_...
@@ -293,12 +90,12 @@ export HARAKIRI_API_KEY=hk_live_...
 harakiri login \\
   --api-url "$HARAKIRI_API_URL" \\
   --api-key "$HARAKIRI_API_KEY"
-harakiri capabilities`}</pre>
+harakiri capabilities`}</CodeBlock>
         <div className="tutorial-note"><b>Cleanup contract</b><p>Every tutorial installs a shell trap immediately after creation. TTL is the platform safety net, not a replacement for application cleanup.</p></div>
 
         <TutorialScenario number="01" title="Run a data job and retrieve its artifact" meta="10 minutes - python-3.12-data - command and file APIs">
           <p>Create a disposable workspace, upload input and code, execute the job, then make the result checkable outside the sandbox.</p>
-          <pre>{`WORK_DIR="$(mktemp -d)"
+          <CodeBlock language="bash">{`WORK_DIR="$(mktemp -d)"
 printf 'item,amount\napi,21\nworker,34\npreview,13\n' >"$WORK_DIR/orders.csv"
 cat >"$WORK_DIR/job.py" <<'PY'
 import csv
@@ -316,13 +113,13 @@ harakiri file-upload "$SBX_ID" --from "$WORK_DIR/orders.csv" --path /workspace/o
 harakiri file-upload "$SBX_ID" --from "$WORK_DIR/job.py" --path /workspace/job.py --parents
 harakiri run "$SBX_ID" --cwd /workspace --cmd "python job.py"
 harakiri file-download "$SBX_ID" --path /workspace/summary.txt --to "$WORK_DIR/summary.txt"
-grep -qx "orders=3 total=68" "$WORK_DIR/summary.txt"`}</pre>
+grep -qx "orders=3 total=68" "$WORK_DIR/summary.txt"`}</CodeBlock>
           <TutorialCheck>The run prints <code>processed 3 orders</code>. The download verifies its checksum and the final <code>grep</code> exits successfully.</TutorialCheck>
         </TutorialScenario>
 
         <TutorialScenario number="02" title="Publish a token-protected preview" meta="10 minutes - python-3.12 - detached process and route auth">
           <p>Start a service that remains alive after the command returns. Expose it through a token route and prove both the denied and authenticated paths.</p>
-          <pre>{`SBX_ID="$(harakiri create --template python-3.12 --name tutorial-private-preview --ttl 600 | sed -n '/^sbx_/p')"
+          <CodeBlock language="bash">{`SBX_ID="$(harakiri create --template python-3.12 --name tutorial-private-preview --ttl 600 | sed -n '/^sbx_/p')"
 cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
@@ -345,13 +142,13 @@ ROUTE_TOKEN="$(jq -r '.accessToken' <<<"$ROUTE_JSON")"
 
 test "$(curl -sS -o /dev/null -w '%{http_code}' "$ROUTE_URL")" = "401"
 curl -fsS -H "$HEADER_NAME: $ROUTE_TOKEN" "$ROUTE_URL" | \\
-  grep -q "Harakiri preview is ready"`}</pre>
+  grep -q "Harakiri preview is ready"`}</CodeBlock>
           <TutorialCheck>The anonymous request returns <code>401</code>; the request carrying the one-time route header returns the preview body.</TutorialCheck>
         </TutorialScenario>
 
         <TutorialScenario number="03" title="Restrict outbound network access" meta="10 minutes - python-3.12-data - egress policy">
           <p>Use a preset for package infrastructure, keep unrelated destinations denied, and add one explicit hostname at runtime.</p>
-          <pre>{`SBX_ID="$(harakiri create --template python-3.12-data \\
+          <CodeBlock language="bash">{`SBX_ID="$(harakiri create --template python-3.12-data \\
   --name tutorial-restricted-egress --ttl 600 \\
   --egress restricted --egress-preset python-package-install | sed -n '/^sbx_/p')"
 cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; }
@@ -365,13 +162,13 @@ test "$GOOGLE" = "blocked"
 harakiri egress allow "$SBX_ID" api.github.com
 GITHUB="$(harakiri egress test "$SBX_ID" https://api.github.com 2>/dev/null | cut -f1)"
 test "$GITHUB" = "ok"
-harakiri egress "$SBX_ID"`}</pre>
+harakiri egress "$SBX_ID"`}</CodeBlock>
           <TutorialCheck>PyPI and the newly added GitHub API hostname report <code>ok</code>. Google remains <code>blocked</code>.</TutorialCheck>
         </TutorialScenario>
 
         <TutorialScenario number="04" title="Create a Git workspace" meta="10 minutes - ubuntu-24.04 - public clone and local commit">
           <p>Prepare a portable Ubuntu workspace, clone a repository, edit through the file API, then use Harakiri Git operations without granting any push credential.</p>
-          <pre>{`SBX_ID="$(harakiri create --template ubuntu-24.04 \\
+          <CodeBlock language="bash">{`SBX_ID="$(harakiri create --template ubuntu-24.04 \\
   --name tutorial-git-workspace --ttl 900 | sed -n '/^sbx_/p')"
 cleanup() { harakiri kill "$SBX_ID" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
@@ -387,14 +184,14 @@ harakiri git add "$SBX_ID" harakiri.txt --cwd /workspace/project
 harakiri git commit "$SBX_ID" --cwd /workspace/project \\
   --message "Add Harakiri workspace marker" \\
   --author-name "Harakiri Tutorial" --author-email "tutorial@example.com"
-harakiri git status "$SBX_ID" --cwd /workspace/project | grep -q clean`}</pre>
+harakiri git status "$SBX_ID" --cwd /workspace/project | grep -q clean`}</CodeBlock>
           <TutorialCheck>The repository starts clean, the local commit succeeds, and the final status returns <code>clean</code>.</TutorialCheck>
           <p>For real workloads, bake Git into a custom template such as <code>open-agents-dev</code>. The bootstrap also makes Git honor a runtime-provided <code>SSL_CERT_FILE</code> when egress uses a trusted interception certificate. Installing tools at runtime adds latency and weakens reproducibility.</p>
         </TutorialScenario>
 
         <TutorialScenario number="05" title="Pause, snapshot, and restore state" meta="15 minutes - python-3.12 - provider persistence">
           <p>Preflight persistence capabilities, preserve state across pause/resume, then restore the same state into a second sandbox.</p>
-          <pre>{`harakiri capabilities | grep -E \\
+          <CodeBlock language="bash">{`harakiri capabilities | grep -E \\
   'lifecyclePause|lifecycleResume|lifecycleSnapshot|createFromSnapshot'
 
 SOURCE_ID=""; RESTORED_ID=""; SNAPSHOT_ID=""
@@ -417,14 +214,14 @@ SNAPSHOT_JSON="$(harakiri snapshot "$SOURCE_ID" --name tutorial-checkpoint \\
 SNAPSHOT_ID="$(jq -r '.snapshot.id' <<<"$SNAPSHOT_JSON")"
 RESTORED_ID="$(harakiri create --snapshot "$SNAPSHOT_ID" \\
   --name tutorial-snapshot-restored --ttl 600 | sed -n '/^sbx_/p')"
-test "$(harakiri file-read "$RESTORED_ID" --path /workspace/checkpoint.txt)" = "checkpoint-ready"`}</pre>
+test "$(harakiri file-read "$RESTORED_ID" --path /workspace/checkpoint.txt)" = "checkpoint-ready"`}</CodeBlock>
           <TutorialCheck>The marker survives both resume and creation from the immutable snapshot.</TutorialCheck>
         </TutorialScenario>
 
         <TutorialScenario number="06" title="Integrate Harakiri into a worker" meta="10 minutes - @h-sandbox/sdk - idempotent application flow">
           <p>Use the public SDK with a bounded wait, an idempotency key, explicit result validation, and cleanup in <code>finally</code>.</p>
-          <pre>{`npm install @h-sandbox/sdk`}</pre>
-          <pre>{`import { randomUUID } from "node:crypto";
+          <CodeBlock language="bash">{`npm install @h-sandbox/sdk`}</CodeBlock>
+          <CodeBlock language="javascript">{`import { randomUUID } from "node:crypto";
 import { HarakiriApiError, HarakiriClient } from "@h-sandbox/sdk";
 
 const client = new HarakiriClient({
@@ -461,8 +258,8 @@ try {
   throw error;
 } finally {
   if (sandboxId) await client.killSandbox(sandboxId).catch(() => undefined);
-}`}</pre>
-          <pre>{`JOB_ID="$(date +%s)" node worker.mjs`}</pre>
+}`}</CodeBlock>
+          <CodeBlock language="bash">{`JOB_ID="$(date +%s)" node worker.mjs`}</CodeBlock>
           <TutorialCheck>The worker prints a <code>PASS</code> line and the sandbox is terminated even when task validation throws.</TutorialCheck>
         </TutorialScenario>
 
@@ -487,34 +284,34 @@ try {
     body: (
       <>
         <h2>Packages</h2>
-        <p>`@h-sandbox/sdk` is the TypeScript integration package. `@h-sandbox/cli` installs the `harakiri` executable for local development and CI scripts.</p>
-        <pre>{`npm install @h-sandbox/sdk\nnpm install -g @h-sandbox/cli`}</pre>
+        <p><code>{"@h-sandbox/sdk"}</code> is the TypeScript integration package. <code>{"@h-sandbox/cli"}</code> installs the <code>{"harakiri"}</code> executable for local development and CI scripts.</p>
+        <CodeBlock language="bash">{`npm install @h-sandbox/sdk\nnpm install -g @h-sandbox/cli`}</CodeBlock>
         <h2>Configure</h2>
-        <p>Create an API key in the dashboard, then pass it through environment variables or `harakiri login`. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
-        <pre>{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"`}</pre>
+        <p>Create an API key in the dashboard, then pass it through environment variables or <code>{"harakiri login"}</code>. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
+        <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"`}</CodeBlock>
         <h2>Sandbox object</h2>
-        <p>`HarakiriSandbox` wraps one sandbox ID and binds commands, files, routes, egress, logs, metrics, and lifecycle methods to that sandbox. Use `refresh()` or `wait()` when your code needs an updated cached summary.</p>
-        <pre>{`import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: false,\n  ttlSeconds: 600,\n  idempotencyKey: "job-123"\n});\n\nawait sandbox.wait();\nawait sandbox.files.write({\n  path: "/workspace/task.py",\n  content: "print(2 + 2)\\n",\n  createParents: true\n});\nconst run = await sandbox.run({ command: "python /workspace/task.py" });\nconsole.log(run.result.stdout);\n\nconst reconnected = await HarakiriSandbox.connect(harakiri, sandbox.id);\nconsole.log(reconnected.summary.status);\nawait sandbox.kill();`}</pre>
+        <p><code>{"HarakiriSandbox"}</code> wraps one sandbox ID and binds commands, files, routes, egress, logs, metrics, and lifecycle methods to that sandbox. Use <code>{"refresh()"}</code> or <code>{"wait()"}</code> when your code needs an updated cached summary.</p>
+        <CodeBlock language="typescript">{`import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: false,\n  ttlSeconds: 600,\n  idempotencyKey: "job-123"\n});\n\nawait sandbox.wait();\nawait sandbox.files.write({\n  path: "/workspace/task.py",\n  content: "print(2 + 2)\\n",\n  createParents: true\n});\nconst run = await sandbox.run({ command: "python /workspace/task.py" });\nconsole.log(run.result.stdout);\n\nconst reconnected = await HarakiriSandbox.connect(harakiri, sandbox.id);\nconsole.log(reconnected.summary.status);\nawait sandbox.kill();`}</CodeBlock>
         <h2>Runtime metadata</h2>
-        <p>Sandbox create, get, and list responses include `runtimeMetadata`, the resolved contract for workdir, user, shell, template version, default ports, exposed routes, egress mode, limits, TTL, and provider capability states. Use it instead of deriving runtime facts from template names.</p>
-        <pre>{`const sandbox = await harakiri.sandboxes.create({ template: "open-agents-dev" });\nconst runtime = sandbox.runtimeMetadata;\n\nconsole.log(runtime.workdir);\nconsole.log(runtime.ports.default);\nconsole.log(runtime.egress.mode);\nconsole.log(runtime.provider.capabilities);`}</pre>
+        <p>Sandbox create, get, and list responses include <code>{"runtimeMetadata"}</code>, the resolved contract for workdir, user, shell, template version, default ports, exposed routes, egress mode, limits, TTL, and provider capability states. Use it instead of deriving runtime facts from template names.</p>
+        <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({ template: "open-agents-dev" });\nconst runtime = sandbox.runtimeMetadata;\n\nconsole.log(runtime.workdir);\nconsole.log(runtime.ports.default);\nconsole.log(runtime.egress.mode);\nconsole.log(runtime.provider.capabilities);`}</CodeBlock>
         <h2>SDK flow</h2>
-        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst { sandbox } = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  ttlSeconds: 600,\n  idempotencyKey: "job-123",\n  egress: { mode: "restricted", presets: ["python-package-install"] }\n});\n\nawait harakiri.waitForSandbox(sandbox.id);\nconst result = await harakiri.runSandbox(sandbox.id, {\n  command: "python -c 'print(2 + 2)'",\n  cwd: "/workspace"\n});\nconsole.log(result.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</pre>
+        <CodeBlock language="typescript">{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst { sandbox } = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  ttlSeconds: 600,\n  idempotencyKey: "job-123",\n  egress: { mode: "restricted", presets: ["python-package-install"] }\n});\n\nawait harakiri.waitForSandbox(sandbox.id);\nconst result = await harakiri.runSandbox(sandbox.id, {\n  command: "python -c 'print(2 + 2)'",\n  cwd: "/workspace"\n});\nconsole.log(result.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</CodeBlock>
         <h2>Git</h2>
         <p>Use <code>source: {"{ type: \"git\" }"}</code> when a sandbox should start from a repository. The SDK creates the sandbox normally, sends only sanitized source provenance to the API, waits for readiness, and clones through the tracked command API. For restricted egress, the <code>git-hosting</code> preset is added automatically unless disabled.</p>
-        <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "open-agents-dev",\n  egress: { mode: "restricted", presets: ["llm-apis"] },\n  source: {\n    type: "git",\n    url: "https://github.com/acme/project.git",\n    branch: "main",\n    targetPath: "/workspace/project",\n    shallow: true\n  }\n});\n\nconst status = await sandbox.git.status({ cwd: "/workspace/project" });\nconsole.log(status.branch, status.clean);`}</pre>
-        <p>Private HTTPS repositories use one-shot token credentials by default. Command records store environment variable names, not token values, and the SDK resets `origin` to a credential-free URL after clone. The sandbox summary exposes a safe source status trail for dashboards and reconnect flows. Mutating Git helpers record `sandbox.git.*` audit entries with sanitized repository context.</p>
+        <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({\n  template: "open-agents-dev",\n  egress: { mode: "restricted", presets: ["llm-apis"] },\n  source: {\n    type: "git",\n    url: "https://github.com/acme/project.git",\n    branch: "main",\n    targetPath: "/workspace/project",\n    shallow: true\n  }\n});\n\nconst status = await sandbox.git.status({ cwd: "/workspace/project" });\nconsole.log(status.branch, status.clean);`}</CodeBlock>
+        <p>Private HTTPS repositories use one-shot token credentials by default. Command records store environment variable names, not token values, and the SDK resets <code>{"origin"}</code> to a credential-free URL after clone. The sandbox summary exposes a safe source status trail for dashboards and reconnect flows. Mutating Git helpers record <code>{"sandbox.git.*"}</code> audit entries with sanitized repository context.</p>
         <h2>Git troubleshooting</h2>
-        <p>If Git is unavailable, SDK calls throw `HarakiriGitUnsupportedRuntimeError` with code `git_runtime_unsupported`; use a template that includes the `git` binary, such as `open-agents-dev`, `opencode`, or a custom template that installs it. If private clone or push fails, verify the token scope and pass credentials as one-shot env values. If clone or pull is unreachable, `HarakiriGitNetworkAccessError` points to restricted egress and Git hostnames; add the `git-hosting` preset or allow the required Git hostnames. For commit failures, configure identity first with `sandbox.git.configureUser` or `harakiri git user`.</p>
+        <p>If Git is unavailable, SDK calls throw <code>{"HarakiriGitUnsupportedRuntimeError"}</code> with code <code>{"git_runtime_unsupported"}</code>; use a template that includes the <code>{"git"}</code> binary, such as <code>{"open-agents-dev"}</code>, <code>{"opencode"}</code>, or a custom template that installs it. If private clone or push fails, verify the token scope and pass credentials as one-shot env values. If clone or pull is unreachable, <code>{"HarakiriGitNetworkAccessError"}</code> points to restricted egress and Git hostnames; add the <code>{"git-hosting"}</code> preset or allow the required Git hostnames. For commit failures, configure identity first with <code>{"sandbox.git.configureUser"}</code> or <code>{"harakiri git user"}</code>.</p>
         <h2>CLI flow</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri create --template open-agents-dev --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri git status sbx_... --cwd /workspace/project\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri kill sbx_...`}</pre>
+        <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri create --template open-agents-dev --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri git status sbx_... --cwd /workspace/project\nharakiri run sbx_... --cmd "python -c 'print(2 + 2)'"\nharakiri files sbx_... --path /workspace\nharakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri kill sbx_...`}</CodeBlock>
         <h2>Terminal</h2>
-        <p>Use `attach` for an interactive human terminal. Use command sessions for stateful automation that needs `cd`, exported variables, or setup steps without taking over the local terminal.</p>
-        <pre>{`harakiri attach sbx_... --cwd /workspace\n\nSESSION_ID=$(harakiri command session create sbx_... --cwd /workspace | head -n1)\nharakiri command session run sbx_... "$SESSION_ID" --cmd "cd /tmp && pwd"\nharakiri command session run sbx_... "$SESSION_ID" --cmd "pwd"\nharakiri command session delete sbx_... "$SESSION_ID"`}</pre>
-        <p>The browser dashboard uses the same attach endpoint through a short-lived `/terminal/attach-ticket`, so Keycloak-authenticated users can open a WebSocket terminal without putting API keys in JavaScript.</p>
-        <p>The current OpenSandbox PTY provider launches Bash. Harakiri exposes `--shell` and `--env` as stable attach options, but non-default shell or per-attach env values return `runtime_terminal_unsupported` until OpenSandbox exposes those fields.</p>
+        <p>Use <code>{"attach"}</code> for an interactive human terminal. Use command sessions for stateful automation that needs <code>{"cd"}</code>, exported variables, or setup steps without taking over the local terminal.</p>
+        <CodeBlock language="bash">{`harakiri attach sbx_... --cwd /workspace\n\nSESSION_ID=$(harakiri command session create sbx_... --cwd /workspace | head -n1)\nharakiri command session run sbx_... "$SESSION_ID" --cmd "cd /tmp && pwd"\nharakiri command session run sbx_... "$SESSION_ID" --cmd "pwd"\nharakiri command session delete sbx_... "$SESSION_ID"`}</CodeBlock>
+        <p>The browser dashboard uses the same attach endpoint through a short-lived <code>{"/terminal/attach-ticket"}</code>, so Keycloak-authenticated users can open a WebSocket terminal without putting API keys in JavaScript.</p>
+        <p>The current OpenSandbox PTY provider launches Bash. Harakiri exposes <code>{"--shell"}</code> and <code>{"--env"}</code> as stable attach options, but non-default shell or per-attach env values return <code>{"runtime_terminal_unsupported"}</code> until OpenSandbox exposes those fields.</p>
         <h2>Contract</h2>
-        <p>The dashboard, CLI, and SDK use the same `/v1` API and OpenAPI contract. External applications should import only `@h-sandbox/sdk`; internal monorepo packages are not part of the public npm contract.</p>
+        <p>The dashboard, CLI, and SDK use the same <code>{"/v1"}</code> API and OpenAPI contract. External applications should import only <code>{"@h-sandbox/sdk"}</code>; internal monorepo packages are not part of the public npm contract.</p>
       </>
     )
   },
@@ -540,30 +337,30 @@ try {
   },
   {
     id: "cli-reference",
-    section: "Getting started",
+    section: "Reference",
     title: "CLI reference",
     lede: "Install the harakiri executable, configure an API key, and automate sandbox workflows from a terminal.",
     toc: ["Install", "Configure", "Lifecycle", "Processes", "Files", "Routes", "Vault", "Templates"],
     body: (
       <>
         <h2>Install</h2>
-        <pre>{`npm install -g @h-sandbox/cli\nharakiri --version`}</pre>
+        <CodeBlock language="bash">{`npm install -g @h-sandbox/cli\nharakiri --version`}</CodeBlock>
         <h2>Configure</h2>
-        <pre>{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</pre>
+        <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</CodeBlock>
         <p>The CLI resolves explicit flags first, then environment variables, then saved config. Browser sign-in remains Keycloak-owned; CLI automation uses API keys.</p>
         <h2>Lifecycle</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri status sbx_... --json\nharakiri renew sbx_...\nharakiri capabilities\nharakiri kill sbx_...`}</pre>
+        <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri status sbx_... --json\nharakiri renew sbx_...\nharakiri capabilities\nharakiri kill sbx_...`}</CodeBlock>
         <h2>Processes</h2>
-        <pre>{`harakiri run sbx_... --cmd "python --version"\nharakiri process run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0" --detached --json\nharakiri command wait sbx_... cmd_... --status running\nharakiri command tail sbx_... cmd_... --lines 100\nharakiri attach sbx_... --cwd /workspace`}</pre>
+        <CodeBlock language="bash">{`harakiri run sbx_... --cmd "python --version"\nharakiri process run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0" --detached --json\nharakiri command wait sbx_... cmd_... --status running\nharakiri command tail sbx_... cmd_... --lines 100\nharakiri attach sbx_... --cwd /workspace`}</CodeBlock>
         <h2>Files</h2>
-        <pre>{`harakiri files sbx_... --path /workspace\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</pre>
+        <CodeBlock language="bash">{`harakiri files sbx_... --path /workspace\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</CodeBlock>
         <h2>Routes</h2>
-        <pre>{`harakiri expose sbx_... --port 5173 --access token --label preview --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri unexpose sbx_... --port 5173`}</pre>
+        <CodeBlock language="bash">{`harakiri expose sbx_... --port 5173 --access token --label preview --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri unexpose sbx_... --port 5173`}</CodeBlock>
         <h2>Vault</h2>
-        <pre>{`export OPENAI_API_KEY=placeholder\nharakiri create --template open-agents-dev --credential 'name=openai,host=api.openai.com,auth=bearer,from-env=OPENAI_API_KEY,fake-env=OPENAI_API_KEY=fake-openai-key'\nharakiri vault attach sbx_... --name openai --host api.openai.com --auth bearer --from-env OPENAI_API_KEY --fake-env OPENAI_API_KEY=fake-openai-key\nharakiri vault attach sbx_... --preset openai --prompt\nharakiri vault list sbx_...\nharakiri vault test sbx_... sca_... --target https://api.openai.com/v1/models\nharakiri vault detach sbx_... sca_...`}</pre>
-        <p>Use `--from-env`, `--from-stdin`, or `--prompt` for real values. The sandbox sees only fake env values; the provider injects credentials only for matching outbound requests. Create-time credentials require synchronous sandbox creation.</p>
+        <CodeBlock language="bash">{`export OPENAI_API_KEY=placeholder\nharakiri create --template open-agents-dev --credential 'name=openai,host=api.openai.com,auth=bearer,from-env=OPENAI_API_KEY,fake-env=OPENAI_API_KEY=fake-openai-key'\nharakiri vault attach sbx_... --name openai --host api.openai.com --auth bearer --from-env OPENAI_API_KEY --fake-env OPENAI_API_KEY=fake-openai-key\nharakiri vault attach sbx_... --preset openai --prompt\nharakiri vault list sbx_...\nharakiri vault test sbx_... sca_... --target https://api.openai.com/v1/models\nharakiri vault detach sbx_... sca_...`}</CodeBlock>
+        <p>Use <code>{"--from-env"}</code>, <code>{"--from-stdin"}</code>, or <code>{"--prompt"}</code> for real values. The sandbox sees only fake env values; the provider injects credentials only for matching outbound requests. Create-time credentials require synchronous sandbox creation.</p>
         <h2>Templates</h2>
-        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile\nharakiri template build --name open-agents-dev .\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner`}</pre>
+        <CodeBlock language="bash">{`harakiri template init --name open-agents-dev --dockerfile Dockerfile\nharakiri template build --name open-agents-dev .\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner`}</CodeBlock>
       </>
     )
   },
@@ -578,7 +375,7 @@ try {
         <h2>Sign in</h2>
         <p>The dashboard starts an OpenID Connect Authorization Code flow with PKCE. Keycloak owns credentials, required actions, and the browser SSO session. Harakiri keeps only the intended return route in session storage while the browser leaves for Keycloak.</p>
         <h2>Refresh</h2>
-        <p>The web app refreshes short-lived access tokens before API calls. Tokens stay in Keycloak adapter memory and are not written to `localStorage`; after a page reload, the app checks the Keycloak SSO session again instead of replaying a saved token.</p>
+        <p>The web app refreshes short-lived access tokens before API calls. Tokens stay in Keycloak adapter memory and are not written to <code>{"localStorage"}</code>; after a page reload, the app checks the Keycloak SSO session again instead of replaying a saved token.</p>
         <h2>Sign out</h2>
         <p>Use the account menu and choose Sign out of Harakiri and Keycloak. This starts OIDC provider logout and returns to the landing page after Keycloak closes the SSO session.</p>
         <h2>Session expired</h2>
@@ -595,15 +392,15 @@ try {
     body: (
       <>
         <h2>CLI</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri create --template open-agents-dev --name repo-runner --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner\nharakiri status sbx_...`}</pre>
+        <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 300 --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri create --template open-agents-dev --name repo-runner --git https://github.com/acme/project.git --git-path /workspace/project\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner\nharakiri status sbx_...`}</CodeBlock>
         <h2>API</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes</code></span>
-        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'\n\ncurl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","name":"stable-runner","ttlSeconds":300}'`}</pre>
+        <CodeBlock language="bash">{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","name":"agent-runner","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'\n\ncurl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","name":"stable-runner","ttlSeconds":300}'`}</CodeBlock>
         <h2>Dashboard</h2>
-        <p>Use New sandbox when you want to start from the browser. The Environment field accepts `KEY=value` rows and passes them only to the sandbox being created.</p>
+        <p>Use New sandbox when you want to start from the browser. The Environment field accepts <code>{"KEY=value"}</code> rows and passes them only to the sandbox being created.</p>
         <h2>Routing</h2>
-        <p>Expose a port only when a process is listening on `0.0.0.0` inside the sandbox.</p>
-        <pre>{`harakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri routes sbx_...\nharakiri unexpose sbx_... --port 3000`}</pre>
+        <p>Expose a port only when a process is listening on <code>{"0.0.0.0"}</code> inside the sandbox.</p>
+        <CodeBlock language="bash">{`harakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri routes sbx_...\nharakiri unexpose sbx_... --port 3000`}</CodeBlock>
       </>
     )
   },
@@ -616,24 +413,24 @@ try {
     body: (
       <>
         <h2>States</h2>
-        <p>Sandbox states are `pending`, `running`, `idle`, `pausing`, `paused`, `resuming`, `error`, and `terminated`. OpenSandbox owns the runtime status. Harakiri stores the control-plane record, TTL, expiration, routes, commands, snapshots, usage, and audit events around that runtime.</p>
-        <p>`terminated` is terminal. Reconnect can read the historical summary, but it does not resurrect a runtime.</p>
+        <p>Sandbox states are <code>{"pending"}</code>, <code>{"running"}</code>, <code>{"idle"}</code>, <code>{"pausing"}</code>, <code>{"paused"}</code>, <code>{"resuming"}</code>, <code>{"error"}</code>, and <code>{"terminated"}</code>. OpenSandbox owns the runtime status. Harakiri stores the control-plane record, TTL, expiration, routes, commands, snapshots, usage, and audit events around that runtime.</p>
+        <p><code>{"terminated"}</code> is terminal. Reconnect can read the historical summary, but it does not resurrect a runtime.</p>
         <h2>Supported operations</h2>
-        <p>Create starts a runtime from a template or a ready snapshot. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates `expiresAt`. Kill terminates the runtime and removes active route records. Pause and resume delegate to provider lifecycle operations when available.</p>
+        <p>Create starts a runtime from a template or a ready snapshot. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates <code>{"expiresAt"}</code>. Kill terminates the runtime and removes active route records. Pause and resume delegate to provider lifecycle operations when available.</p>
         <h2>TTL and activity</h2>
         <p><strong>From 0.5.0-rc.3:</strong> renewal and expiration coordinate on the same deadline. Operators must stop the old scheduler, apply migration 036 and deploy matching API and scheduler versions. Earlier releases can expire a renewed sandbox at its original schedule.</p>
         <p>Commands and command sessions renew before execution. An attached terminal renews periodically. Reading status, files or metrics and following command output do not keep a sandbox alive. For long or detached jobs, choose sufficient TTL or explicitly renew before expiry.</p>
         <p>A successful renewal requires a running or idle native runtime; it cannot revive an expired sandbox. Reusing an <code>Idempotency-Key</code> replays the same renewal, not another extension. Read <code>expiresAt</code> after renewal to see the current deadline.</p>
         <h2>Snapshots</h2>
-        <p>Snapshot creation stores a public Harakiri `snp_...` ID and keeps the provider snapshot ID internal. Restores use `POST /v1/sandboxes` with `snapshotId`, so SDK and CLI users never need provider-specific snapshot identifiers.</p>
+        <p>Snapshot creation stores a public Harakiri <code>{"snp_..."}</code> ID and keeps the provider snapshot ID internal. Restores use <code>{"POST /v1/sandboxes"}</code> with <code>{"snapshotId"}</code>, so SDK and CLI users never need provider-specific snapshot identifiers.</p>
         <h2>Capability gating</h2>
-        <p>Runtime capabilities report `lifecyclePause`, `lifecycleResume`, `lifecycleSnapshot`, `snapshotList`, `snapshotDelete`, and `createFromSnapshot`. Product UI should enable these actions only when the capability state is `available`.</p>
+        <p>Runtime capabilities report <code>{"lifecyclePause"}</code>, <code>{"lifecycleResume"}</code>, <code>{"lifecycleSnapshot"}</code>, <code>{"snapshotList"}</code>, <code>{"snapshotDelete"}</code>, and <code>{"createFromSnapshot"}</code>. Product UI should enable these actions only when the capability state is <code>{"available"}</code>.</p>
         <h2>SDK</h2>
-        <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nawait sandbox.pause();\nawait sandbox.resume();\n\nconst { snapshot } = await sandbox.snapshot({\n  name: "before-upgrade",\n  wait: true\n});\n\nawait harakiri.sandboxes.create({\n  snapshotId: snapshot.id,\n  name: "restored-runner",\n  wait: true\n});\n\nawait sandbox.kill();`}</pre>
+        <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nawait sandbox.pause();\nawait sandbox.resume();\n\nconst { snapshot } = await sandbox.snapshot({\n  name: "before-upgrade",\n  wait: true\n});\n\nawait harakiri.sandboxes.create({\n  snapshotId: snapshot.id,\n  name: "restored-runner",\n  wait: true\n});\n\nawait sandbox.kill();`}</CodeBlock>
         <h2>CLI</h2>
-        <pre>{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri pause sbx_...\nharakiri resume sbx_...\nharakiri snapshot sbx_... --name before-upgrade --wait\nharakiri snapshots list\nharakiri create --snapshot snp_... --name restored-runner\nharakiri capabilities\nharakiri kill sbx_...`}</pre>
+        <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri pause sbx_...\nharakiri resume sbx_...\nharakiri snapshot sbx_... --name before-upgrade --wait\nharakiri snapshots list\nharakiri create --snapshot snp_... --name restored-runner\nharakiri capabilities\nharakiri kill sbx_...`}</CodeBlock>
         <h2>Cleanup</h2>
-        <p>Use `kill` when your application owns the sandbox lifecycle. Use short TTLs when a caller may crash or lose the sandbox ID. For route-heavy flows, delete preview routes when the server stops and kill the sandbox when runtime work is done.</p>
+        <p>Use <code>{"kill"}</code> when your application owns the sandbox lifecycle. Use short TTLs when a caller may crash or lose the sandbox ID. For route-heavy flows, delete preview routes when the server stops and kill the sandbox when runtime work is done.</p>
       </>
     )
   },
@@ -648,11 +445,11 @@ try {
         <h2>Contract</h2>
         <p>Detached processes are OpenSandbox execd tracked commands persisted by Harakiri. Store the sandbox ID and command ID when a caller may restart or reconnect later. Command summaries include status, timestamps, exit code, finish reason, signal, redacted output, provider command ID, and log cursor/tail metadata.</p>
         <h2>SDK</h2>
-        <pre>{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nconst { command } = await sandbox.processes.start({\n  command: "python -m http.server 3000 --bind 0.0.0.0",\n  cwd: "/workspace"\n});\n\nawait sandbox.processes.wait(command.id, { statuses: ["running"] });\nconst logs = await sandbox.processes.tail(command.id, 100);\nawait sandbox.processes.kill(command.id);`}</pre>
+        <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nconst { command } = await sandbox.processes.start({\n  command: "python -m http.server 3000 --bind 0.0.0.0",\n  cwd: "/workspace"\n});\n\nawait sandbox.processes.wait(command.id, { statuses: ["running"] });\nconst logs = await sandbox.processes.tail(command.id, 100);\nawait sandbox.processes.kill(command.id);`}</CodeBlock>
         <h2>CLI</h2>
-        <pre>{`harakiri process run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0" --detached --json\nharakiri command wait sbx_... cmd_... --status running\nharakiri command tail sbx_... cmd_... --lines 100\nharakiri command status sbx_... cmd_... --json\nharakiri command kill sbx_... cmd_...`}</pre>
+        <CodeBlock language="bash">{`harakiri process run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0" --detached --json\nharakiri command wait sbx_... cmd_... --status running\nharakiri command tail sbx_... cmd_... --lines 100\nharakiri command status sbx_... cmd_... --json\nharakiri command kill sbx_... cmd_...`}</CodeBlock>
         <h2>Failure modes</h2>
-        <p>SDK callers receive typed errors for missing commands, provider unavailability, unsupported command transport, wait timeouts, and commands that reach `failed` or `killed` before success. Invalid cursor or tail parameters return validation errors.</p>
+        <p>SDK callers receive typed errors for missing commands, provider unavailability, unsupported command transport, wait timeouts, and commands that reach <code>{"failed"}</code> or <code>{"killed"}</code> before success. Invalid cursor or tail parameters return validation errors.</p>
         <h2>Cleanup</h2>
         <p>Kill individual commands when a server should stop but the sandbox remains useful. Kill the sandbox when the integration owns the whole runtime lifecycle. Sandbox termination removes active route records.</p>
       </>
@@ -667,18 +464,18 @@ try {
     body: (
       <>
         <h2>Contract</h2>
-        <p>Filesystem operations stay behind the OpenSandbox provider interface. Use sandbox paths, prefer the runtime `workdir`, and handle structured errors for missing paths, permission failures, directory/file mismatches, and provider unavailability.</p>
-        <p>List responses include the resolved `cwd`, file entries, provider `source`, and optional `warnings`. Harakiri does not invent directory data when a provider is degraded.</p>
+        <p>Filesystem operations stay behind the OpenSandbox provider interface. Use sandbox paths, prefer the runtime <code>{"workdir"}</code>, and handle structured errors for missing paths, permission failures, directory/file mismatches, and provider unavailability.</p>
+        <p>List responses include the resolved <code>{"cwd"}</code>, file entries, provider <code>{"source"}</code>, and optional <code>{"warnings"}</code>. Harakiri does not invent directory data when a provider is degraded.</p>
         <h2>Artifacts</h2>
-        <p>Use artifacts for binary payloads, generated reports, and archives. The v1 transfer mode is `json-base64`; responses include `transfer.encoding=base64` and `transfer.maxBytes` so clients can reject unsupported modes before moving large files.</p>
+        <p>Use artifacts for binary payloads, generated reports, and archives. The v1 transfer mode is <code>{"json-base64"}</code>; responses include <code>{"transfer.encoding=base64"}</code> and <code>{"transfer.maxBytes"}</code> so clients can reject unsupported modes before moving large files.</p>
         <h2>SDK</h2>
-        <pre>{`await sandbox.files.write({\n  path: "/workspace/task.txt",\n  content: "ready\\n",\n  createParents: true\n});\n\nconst uploaded = await sandbox.artifacts.upload({\n  path: "/workspace/out.bin",\n  contentBase64: Buffer.from("ok").toString("base64"),\n  sizeBytes: 2,\n  sha256: "sha256:..."\n});\n\nconst artifact = await sandbox.artifacts.download("/workspace/out.bin");\nconsole.log(uploaded.transfer.mode, artifact.sha256);`}</pre>
+        <CodeBlock language="typescript">{`await sandbox.files.write({\n  path: "/workspace/task.txt",\n  content: "ready\\n",\n  createParents: true\n});\n\nconst uploaded = await sandbox.artifacts.upload({\n  path: "/workspace/out.bin",\n  contentBase64: Buffer.from("ok").toString("base64"),\n  sizeBytes: 2,\n  sha256: "sha256:..."\n});\n\nconst artifact = await sandbox.artifacts.download("/workspace/out.bin");\nconsole.log(uploaded.transfer.mode, artifact.sha256);`}</CodeBlock>
         <h2>CLI</h2>
-        <pre>{`harakiri files sbx_... --path /workspace\nharakiri file-write sbx_... --path /workspace/task.txt --content ready --parents\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --to ./out.bin\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</pre>
+        <CodeBlock language="bash">{`harakiri files sbx_... --path /workspace\nharakiri file-write sbx_... --path /workspace/task.txt --content ready --parents\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --to ./out.bin\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</CodeBlock>
         <h2>Dashboard</h2>
         <p>The Files tab shows directories, files, empty paths, loading state, provider source, and provider warnings. Very large directories are capped in the UI and should be narrowed by path.</p>
         <h2>Limits</h2>
-        <p>`SANDBOX_FILE_ARTIFACT_MAX_BYTES` controls the decoded artifact limit and defaults to 16 MiB. Large streaming, multipart uploads, or signed transfer URLs are future scale-up work after OpenSandbox exposes a matching provider contract.</p>
+        <p><code>{"SANDBOX_FILE_ARTIFACT_MAX_BYTES"}</code> controls the decoded artifact limit and defaults to 16 MiB. Large streaming, multipart uploads, or signed transfer URLs are future scale-up work after OpenSandbox exposes a matching provider contract.</p>
       </>
     )
   },
@@ -691,18 +488,18 @@ try {
     body: (
       <>
         <h2>Access modes</h2>
-        <p>`public` returns the provider preview URL directly. `token` returns a Harakiri proxy URL plus a route token shown only when the route is created. Later route lists expose `tokenHint`, labels, creator metadata, provider IDs, readiness state, and `lastUsedAt`, but not the token value.</p>
+        <p><code>{"public"}</code> returns the provider preview URL directly. <code>{"token"}</code> returns a Harakiri proxy URL plus a route token shown only when the route is created. Later route lists expose <code>{"tokenHint"}</code>, labels, creator metadata, provider IDs, readiness state, and <code>{"lastUsedAt"}</code>, but not the token value.</p>
         <h2>Readiness</h2>
-        <p>Route state tells you whether the provider route exists. It does not prove the application server inside the sandbox has booted. Bind the server to `0.0.0.0`, expose the matching port, then poll a health path.</p>
-        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /`}</pre>
+        <p>Route state tells you whether the provider route exists. It does not prove the application server inside the sandbox has booted. Bind the server to <code>{"0.0.0.0"}</code>, expose the matching port, then poll a health path.</p>
+        <CodeBlock language="bash">{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /`}</CodeBlock>
         <h2>SDK</h2>
-        <pre>{`const route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 5173,\n  accessMode: "token",\n  labels: ["preview"]\n}, {\n  path: "/health",\n  timeoutMs: 30_000\n});\n\nconst routeFetch = harakiri.routes.fetch(route);\nawait routeFetch("/health");`}</pre>
-        <p>If an adapter needs synchronous `domain(port)` behavior, pre-expose the route and cache the returned summary by sandbox ID and port. Keep the one-time token in your application if the route is token-protected.</p>
+        <CodeBlock language="typescript">{`const route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 5173,\n  accessMode: "token",\n  labels: ["preview"]\n}, {\n  path: "/health",\n  timeoutMs: 30_000\n});\n\nconst routeFetch = harakiri.routes.fetch(route);\nawait routeFetch("/health");`}</CodeBlock>
+        <p>If an adapter needs synchronous <code>{"domain(port)"}</code> behavior, pre-expose the route and cache the returned summary by sandbox ID and port. Keep the one-time token in your application if the route is token-protected.</p>
         <h2>CLI</h2>
-        <pre>{`harakiri expose sbx_... --port 5173 --access token --label vite --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri open sbx_... --port 5173 --token "$HARAKIRI_ROUTE_TOKEN"`}</pre>
+        <CodeBlock language="bash">{`harakiri expose sbx_... --port 5173 --access token --label vite --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri open sbx_... --port 5173 --token "$HARAKIRI_ROUTE_TOKEN"`}</CodeBlock>
         <h2>Cleanup</h2>
-        <p>Use the Network tab delete control or `harakiri unexpose` when the preview is no longer needed. Sandbox termination also disables active route records.</p>
-        <pre>{`harakiri unexpose sbx_... --port 5173`}</pre>
+        <p>Use the Network tab delete control or <code>{"harakiri unexpose"}</code> when the preview is no longer needed. Sandbox termination also disables active route records.</p>
+        <CodeBlock language="bash">{`harakiri unexpose sbx_... --port 5173`}</CodeBlock>
       </>
     )
   },
@@ -715,7 +512,7 @@ try {
     body: (
       <>
         <h2>Modes</h2>
-        <p>Use `open` for local prototyping, `restricted` when an agent should only reach selected domains, `blocked` for offline evaluation, and `custom` when you need explicit allow and deny rules.</p>
+        <p>Use <code>{"open"}</code> for local prototyping, <code>{"restricted"}</code> when an agent should only reach selected domains, <code>{"blocked"}</code> for offline evaluation, and <code>{"custom"}</code> when you need explicit allow and deny rules.</p>
         <h2>Presets</h2>
         <p>Presets expand to domain rules for common workflows such as Python package installs, Node package installs, Git hosting, and model API calls. Templates can define defaults; sandbox creation can override them.</p>
         <h2>Workspace</h2>
@@ -723,16 +520,16 @@ try {
         <h2>Templates</h2>
         <p>Use the Egress tab on a team template to store the outbound access default. New sandboxes inherit the template policy unless a create request explicitly overrides it.</p>
         <h2>CLI</h2>
-        <pre>{`harakiri create --template python-3.12-data --egress restricted --egress-preset python-package-install\nharakiri egress sbx_...\nharakiri egress allow sbx_... api.github.com\nharakiri egress block sbx_...\nharakiri egress test sbx_... https://pypi.org/simple`}</pre>
+        <CodeBlock language="bash">{`harakiri create --template python-3.12-data --egress restricted --egress-preset python-package-install\nharakiri egress sbx_...\nharakiri egress allow sbx_... api.github.com\nharakiri egress block sbx_...\nharakiri egress test sbx_... https://pypi.org/simple`}</CodeBlock>
         <h2>API</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes/:id/egress</code></span>
         <span className="api-endpoint"><span className="api-method patch">PATCH</span><code>/v1/sandboxes/:id/egress</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/egress/test</code></span>
         <span className="api-endpoint"><span className="api-method patch">PATCH</span><code>/v1/templates/:id/egress</code></span>
-        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","egress":{"mode":"restricted","presets":["python-package-install"],"allow":["api.github.com"]}}'`}</pre>
+        <CodeBlock language="bash">{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"python-3.12-data","egress":{"mode":"restricted","presets":["python-package-install"],"allow":["api.github.com"]}}'`}</CodeBlock>
         <h2>Troubleshooting</h2>
         <p>Open a sandbox, then use Network, Outbound access. Test access returns whether the target is reachable from inside the sandbox. If the provider status is unavailable, OpenSandbox did not return a ready egress sidecar endpoint.</p>
-        <p>Test access depends on the sandbox image having a probe tool such as `curl`, `wget`, or `python3`. Minimal images can still enforce policy even when the test cannot run.</p>
+        <p>Test access depends on the sandbox image having a probe tool such as <code>{"curl"}</code>, <code>{"wget"}</code>, or <code>{"python3"}</code>. Minimal images can still enforce policy even when the test cannot run.</p>
       </>
     )
   },
@@ -747,16 +544,16 @@ try {
         <h2>Why</h2>
         <p>Agent sandboxes often need model APIs, private Git hosts, package registries, or internal services. Credential Vault lets a sandbox call those services while Harakiri stores only sanitized metadata and the runtime provider injects auth only when the outbound request matches a binding.</p>
         <h2>Source types</h2>
-        <p>Use `inline_ephemeral` when the caller already has a one-time value, `harakiri_encrypted` for reusable envelope-encrypted workspace custody, `external_ref` for an operator-approved Kubernetes Secret locator, and `dynamic` for a short-lived GitHub App installation token. All four use the same synchronous launch, template mapping, runtime attachment, inspection, test, and sanitized metadata contract. Harakiri forgets ephemeral values, never returns encrypted values, stores only external locators, and never persists issued dynamic tokens.</p>
+        <p>Use <code>{"inline_ephemeral"}</code> when the caller already has a one-time value, <code>{"harakiri_encrypted"}</code> for reusable envelope-encrypted workspace custody, <code>{"external_ref"}</code> for an operator-approved Kubernetes Secret locator, and <code>{"dynamic"}</code> for a short-lived GitHub App installation token. All four use the same synchronous launch, template mapping, runtime attachment, inspection, test, and sanitized metadata contract. Harakiri forgets ephemeral values, never returns encrypted values, stores only external locators, and never persists issued dynamic tokens.</p>
         <p>Admins manage reusable sources and organization audit history in Vault. Members can use only active sources explicitly shared for organization-member use. The new-sandbox flow lists only sources available to the current caller.</p>
         <h2>Provider presets</h2>
         <p>Presets provide fake env names, auth shape, binding hosts, egress domains, and a default test target for common services. Built-ins cover OpenAI, Anthropic, OpenRouter, GitHub, GitLab, npm, and PyPI publish. Private APIs, self-hosted Git, and private package indexes should use explicit custom bindings.</p>
         <h2>Template slots</h2>
-        <p>Templates can declare required and optional provider credentials without storing values. `credential_slots = ["openai"]` and `optional_credential_slots = ["github"]` become sanitized slot metadata on each immutable version. Structured `[[credential_slot]]` entries support a private API with one exact HTTPS host, bearer or API-key auth, and optional method/path restrictions. The dashboard uses the same schema and shows a binding preview.</p>
+        <p>Templates can declare required and optional provider credentials without storing values. <code>{"credential_slots = [\"openai\"]"}</code> and <code>{"optional_credential_slots = [\"github\"]"}</code> become sanitized slot metadata on each immutable version. Structured <code>{"[[credential_slot]]"}</code> entries support a private API with one exact HTTPS host, bearer or API-key auth, and optional method/path restrictions. The dashboard uses the same schema and shows a binding preview.</p>
         <h2>CLI</h2>
-        <pre>{`export OPENAI_API_KEY=placeholder\n\nharakiri vault presets\nharakiri vault preset openai\n\nharakiri template init \\\n  --name open-agents-dev \\\n  --dockerfile Dockerfile \\\n  --credential-slot openai\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name agent-with-vault \\\n  --credential 'preset=openai,from-env=OPENAI_API_KEY'\n\nharakiri vault secrets create \\\n  --name openai-prod \\\n  --preset openai \\\n  --from-env OPENAI_API_KEY\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name stored-vault-agent \\\n  --credential 'secret-id=vlt_...,name=openai-prod'\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name slotted-vault-agent \\\n  --credential 'slot=llm,secret-id=vlt_...,name=openai-prod'\n\nharakiri vault attach sbx_... \\\n  --preset openai \\\n  --from-env OPENAI_API_KEY\n\nharakiri vault attach sbx_... \\\n  --preset openai \\\n  --prompt\n\nharakiri vault list sbx_...\nharakiri vault test sbx_... sca_... --target https://api.openai.com/v1/models\nharakiri vault rehydrate sbx_...\nharakiri vault detach sbx_... sca_...\n\nharakiri vault attach-secret sbx_... vlt_... \\\n  --name openai-prod\n\nharakiri vault secrets list\nharakiri vault secrets rotate vlt_... --prompt\nharakiri vault secrets delete vlt_...`}</pre>
-        <p>Use `--from-env`, `--from-stdin`, or `--prompt` so real values do not appear in shell history. `--credential` can select a preset, custom host, encrypted secret, external reference, or dynamic issuer, optionally mapped to a template slot. Creation is synchronous. `--member-use`, `share`, and `restrict` control reusable-source use without granting value readback. `vault inspect` and `vault rehydrate` diagnose and repair provider state.</p>
-        <pre>{`harakiri vault references create \\
+        <CodeBlock language="bash">{`export OPENAI_API_KEY=placeholder\n\nharakiri vault presets\nharakiri vault preset openai\n\nharakiri template init \\\n  --name open-agents-dev \\\n  --dockerfile Dockerfile \\\n  --credential-slot openai\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name agent-with-vault \\\n  --credential 'preset=openai,from-env=OPENAI_API_KEY'\n\nharakiri vault secrets create \\\n  --name openai-prod \\\n  --preset openai \\\n  --from-env OPENAI_API_KEY\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name stored-vault-agent \\\n  --credential 'secret-id=vlt_...,name=openai-prod'\n\nharakiri create \\\n  --template open-agents-dev \\\n  --name slotted-vault-agent \\\n  --credential 'slot=llm,secret-id=vlt_...,name=openai-prod'\n\nharakiri vault attach sbx_... \\\n  --preset openai \\\n  --from-env OPENAI_API_KEY\n\nharakiri vault attach sbx_... \\\n  --preset openai \\\n  --prompt\n\nharakiri vault list sbx_...\nharakiri vault test sbx_... sca_... --target https://api.openai.com/v1/models\nharakiri vault rehydrate sbx_...\nharakiri vault detach sbx_... sca_...\n\nharakiri vault attach-secret sbx_... vlt_... \\\n  --name openai-prod\n\nharakiri vault secrets list\nharakiri vault secrets rotate vlt_... --prompt\nharakiri vault secrets delete vlt_...`}</CodeBlock>
+        <p>Use <code>{"--from-env"}</code>, <code>{"--from-stdin"}</code>, or <code>{"--prompt"}</code> so real values do not appear in shell history. <code>{"--credential"}</code> can select a preset, custom host, encrypted secret, external reference, or dynamic issuer, optionally mapped to a template slot. Creation is synchronous. <code>{"--member-use"}</code>, <code>{"share"}</code>, and <code>{"restrict"}</code> control reusable-source use without granting value readback. <code>{"vault inspect"}</code> and <code>{"vault rehydrate"}</code> diagnose and repair provider state.</p>
+        <CodeBlock language="bash">{`harakiri vault references create \\
   --name "OpenAI from cluster" \\
   --preset openai \\
   --namespace harakiri \\
@@ -765,9 +562,9 @@ try {
   --member-use
 
 harakiri vault references validate xsr_...
-harakiri vault attach-reference sbx_... xsr_...`}</pre>
-        <p>External-reference commands manage locators and never accept a raw value. Use `--credential 'reference-id=xsr_...'` for a direct synchronous launch, optionally with `slot=...` for a template mapping.</p>
-        <pre>{`harakiri vault issuers create \
+harakiri vault attach-reference sbx_... xsr_...`}</CodeBlock>
+        <p>External-reference commands manage locators and never accept a raw value. Use <code>{"--credential 'reference-id=xsr_...'"}</code> for a direct synchronous launch, optionally with <code>{"slot=..."}</code> for a template mapping.</p>
+        <CodeBlock language="bash">{`harakiri vault issuers create \
   --name agent-repositories \
   --installation-id 123456 \
   --repository agent-runtime \
@@ -776,16 +573,16 @@ harakiri vault attach-reference sbx_... xsr_...`}</pre>
 harakiri vault issuers validate dci_...
 harakiri vault attach-issuer sbx_... dci_...
 harakiri vault inspect sbx_...
-harakiri vault audit --action-prefix credential_ --json`}</pre>
-        <p>Dynamic issuer commands manage GitHub App installation scope, never the platform private key or issued token. `inspect` compares desired attachments with sanitized provider state. Organization audit is admin-only.</p>
+harakiri vault audit --action-prefix credential_ --json`}</CodeBlock>
+        <p>Dynamic issuer commands manage GitHub App installation scope, never the platform private key or issued token. <code>{"inspect"}</code> compares desired attachments with sanitized provider state. Organization audit is admin-only.</p>
         <h2>SDK</h2>
-        <pre>{`import { credentialFromPreset } from "@h-sandbox/sdk";
+        <CodeBlock language="typescript">{`import { credentialFromPreset } from "@h-sandbox/sdk";
 
 await harakiri.createSandbox({
   template: "open-agents-dev",
   credentials: [credentialFromPreset("anthropic", process.env.ANTHROPIC_API_KEY!)]
-});`}</pre>
-        <pre>{`const external = await harakiri.externalSecretReferences.create({
+});`}</CodeBlock>
+        <CodeBlock language="typescript">{`const external = await harakiri.externalSecretReferences.create({
   name: "OpenAI from cluster",
   providerPresetId: "openai",
   resolverType: "kubernetes_secret",
@@ -797,8 +594,8 @@ await harakiri.createSandbox({
 });
 
 await harakiri.externalSecretReferences.validate(external.reference.id);
-await sandbox.credentials.attachReference(external.reference.id);`}</pre>
-        <pre>{`const { preset } = await harakiri.credentialPresets.get("openai");\n\nconst created = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  credentials: [{\n    displayName: preset.label,\n    credentialName: preset.credentialName,\n    value: process.env.OPENAI_API_KEY!,\n    fakeEnv: preset.fakeEnv,\n    binding: preset.binding\n  }]\n});\n\nconsole.log(created.credentialAttachments?.[0]?.status);\n\nconst attachment = await sandbox.credentials.attach({\n  displayName: preset.label,\n  credentialName: preset.credentialName,\n  value: process.env.OPENAI_API_KEY!,\n  fakeEnv: preset.fakeEnv,\n  binding: preset.binding\n});\n\nconst test = await sandbox.credentials.test(attachment.attachment.id, {\n  target: preset.test.target,\n  timeoutMs: 10_000\n});\n\nawait sandbox.credentials.detach(attachment.attachment.id);\n\nconst secret = await harakiri.credentialSecrets.create({\n  name: "openai-prod",\n  providerPresetId: "openai",\n  value: process.env.OPENAI_API_KEY!,\n  fakeEnv: preset.fakeEnv\n});\n\nawait harakiri.createSandbox({\n  template: "open-agents-dev",\n  credentials: [{\n    sourceType: "harakiri_encrypted",\n    secretId: secret.secret.id,\n    displayName: "OpenAI production"\n  }]\n});\n\nawait harakiri.createSandbox({\n  template: "open-agents-dev",\n  credentialMappings: [{\n    slotId: "llm",\n    source: {\n      sourceType: "harakiri_encrypted",\n      secretId: secret.secret.id,\n      displayName: "OpenAI production"\n    }\n  }]\n});\n\nawait sandbox.credentials.attachSecret(secret.secret.id, {\n  displayName: "OpenAI production"\n});\n\nawait sandbox.credentials.rehydrate();\n\nawait harakiri.credentialSecrets.rotate(secret.secret.id, {\n  value: process.env.OPENAI_API_KEY_NEXT!\n});`}</pre>
+await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
+        <CodeBlock language="typescript">{`const { preset } = await harakiri.credentialPresets.get("openai");\n\nconst created = await harakiri.createSandbox({\n  template: "python-3.12-data",\n  credentials: [{\n    displayName: preset.label,\n    credentialName: preset.credentialName,\n    value: process.env.OPENAI_API_KEY!,\n    fakeEnv: preset.fakeEnv,\n    binding: preset.binding\n  }]\n});\n\nconsole.log(created.credentialAttachments?.[0]?.status);\n\nconst attachment = await sandbox.credentials.attach({\n  displayName: preset.label,\n  credentialName: preset.credentialName,\n  value: process.env.OPENAI_API_KEY!,\n  fakeEnv: preset.fakeEnv,\n  binding: preset.binding\n});\n\nconst test = await sandbox.credentials.test(attachment.attachment.id, {\n  target: preset.test.target,\n  timeoutMs: 10_000\n});\n\nawait sandbox.credentials.detach(attachment.attachment.id);\n\nconst secret = await harakiri.credentialSecrets.create({\n  name: "openai-prod",\n  providerPresetId: "openai",\n  value: process.env.OPENAI_API_KEY!,\n  fakeEnv: preset.fakeEnv\n});\n\nawait harakiri.createSandbox({\n  template: "open-agents-dev",\n  credentials: [{\n    sourceType: "harakiri_encrypted",\n    secretId: secret.secret.id,\n    displayName: "OpenAI production"\n  }]\n});\n\nawait harakiri.createSandbox({\n  template: "open-agents-dev",\n  credentialMappings: [{\n    slotId: "llm",\n    source: {\n      sourceType: "harakiri_encrypted",\n      secretId: secret.secret.id,\n      displayName: "OpenAI production"\n    }\n  }]\n});\n\nawait sandbox.credentials.attachSecret(secret.secret.id, {\n  displayName: "OpenAI production"\n});\n\nawait sandbox.credentials.rehydrate();\n\nawait harakiri.credentialSecrets.rotate(secret.secret.id, {\n  value: process.env.OPENAI_API_KEY_NEXT!\n});`}</CodeBlock>
         <h2>API</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-presets</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/credential-presets/:id</code></span>
@@ -829,11 +626,11 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/:attachmentId/test</code></span>
         <p>Create-time credentials accept one-time values, encrypted workspace sources, Kubernetes external references, GitHub App dynamic issuers, or template mappings to any of them. Slot mappings use the template's binding, fake env, and egress hosts. Required slots must be mapped explicitly. Creation is synchronous and rolls back if safe egress or any attachment fails. Responses never return a real credential value.</p>
         <h2>Lifecycle</h2>
-        <p>Provider vault state is observed, not assumed. Resume and background inspection rehydrate active encrypted, external, and dynamic sources. Ephemeral sources become `requires_reinjection`. Snapshot restore requires explicit source mappings and never inherits provider vault state.</p>
+        <p>Provider vault state is observed, not assumed. Resume and background inspection rehydrate active encrypted, external, and dynamic sources. Ephemeral sources become <code>{"requires_reinjection"}</code>. Snapshot restore requires explicit source mappings and never inherits provider vault state.</p>
         <h2>Security</h2>
-        <p>Credential-bearing sandboxes use restricted outbound access with binding destinations. OpenSandbox injection requires Credential Proxy, `dns+nft`, and a positive runtime readiness attestation. Harakiri does not fall back to Kubernetes exec, mounted Secrets, sidecar URLs, open egress, or real sandbox env vars.</p>
+        <p>Credential-bearing sandboxes use restricted outbound access with binding destinations. OpenSandbox injection requires Credential Proxy, <code>{"dns+nft"}</code>, and a positive runtime readiness attestation. Harakiri does not fall back to Kubernetes exec, mounted Secrets, sidecar URLs, open egress, or real sandbox env vars.</p>
         <h2>Troubleshooting</h2>
-        <p>`credential_vault_egress_conflict` means the runtime cannot attest safe `dns+nft` enforcement. `credential_vault_unsupported` means the provider lacks the capability; `credential_vault_provider_unavailable` means its sidecar cannot be reached. `binding_mismatch` is a caller error. `requires_reinjection` means desired metadata exists but provider state is absent. Run `vault inspect` and `vault rehydrate`; supply a fresh value for an ephemeral source.</p>
+        <p><code>{"credential_vault_egress_conflict"}</code> means the runtime cannot attest safe <code>{"dns+nft"}</code> enforcement. <code>{"credential_vault_unsupported"}</code> means the provider lacks the capability; <code>{"credential_vault_provider_unavailable"}</code> means its sidecar cannot be reached. <code>{"binding_mismatch"}</code> is a caller error. <code>{"requires_reinjection"}</code> means desired metadata exists but provider state is absent. Run <code>{"vault inspect"}</code> and <code>{"vault rehydrate"}</code>; supply a fresh value for an ephemeral source.</p>
       </>
     )
   },
@@ -846,17 +643,17 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>Config</h2>
-        <pre>{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot --credential-slot openai`}</pre>
-        <pre>{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\negress_mode = "restricted"\negress_presets = ["python-package-install", "git-hosting"]\nstart_command = "sleep 3600"\nready_command = "true"\ncredential_slots = ["openai"]`}</pre>
+        <CodeBlock language="bash">{`harakiri template init --name open-agents-dev --dockerfile Dockerfile --port 3000 --port 5173 --tag hot --credential-slot openai`}</CodeBlock>
+        <CodeBlock language="toml">{`name = "open-agents-dev"\nid = "open-agents-dev"\ndockerfile = "Dockerfile"\nvisibility = "private"\nruntime_family = "custom"\ncpu_count = 2\nmemory_mb = 2048\nworkdir = "/workspace"\nports = [3000, 5173]\ntags = ["hot"]\naliases = ["open-agents-dev"]\negress_mode = "restricted"\negress_presets = ["python-package-install", "git-hosting"]\nstart_command = "sleep 3600"\nready_command = "true"\ncredential_slots = ["openai"]`}</CodeBlock>
         <h2>Dashboard</h2>
-        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Set Outbound access during creation when the runtime should start restricted by default. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated `harakiri.toml` before submit so the dashboard and CLI stay aligned.</p>
+        <p>Use Templates, New template when you want to start from the browser. The flow can create a template from a pasted or uploaded Dockerfile, import an existing OCI image, or clone an existing template into your workspace. Set Outbound access during creation when the runtime should start restricted by default. Enable Hot image pre-pull for templates you expect to start frequently. The right panel previews the generated <code>{"harakiri.toml"}</code> before submit so the dashboard and CLI stay aligned.</p>
         <h2>Build</h2>
-        <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</pre>
-        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. A new template definition cannot create sandboxes until a build succeeds and creates a ready digest-pinned version. Tag frequently used templates as `hot` when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use `--no-wait` when you want to enqueue and inspect later.</p>
+        <CodeBlock language="bash">{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template build --name open-agents-dev . --no-wait\nharakiri template logs bld_...`}</CodeBlock>
+        <p>The CLI uploads Dockerfile contexts as verified tar+gzip archives, follows build logs by default, and prints the final version, digest, duration, and next create command. A new template definition cannot create sandboxes until a build succeeds and creates a ready digest-pinned version. Tag frequently used templates as <code>{"hot"}</code> when you want the platform to pre-pull the resulting image on cluster nodes after a successful build. Use <code>{"--no-wait"}</code> when you want to enqueue and inspect later.</p>
         <h2>Run</h2>
-        <pre>{`harakiri create --template open-agents-dev --name agent-runner\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
-        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Egress, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Egress stores the template's outbound access default for new sandboxes. Config shows the generated `harakiri.toml` plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
-        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Use is enabled only after a ready version exists. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as `stable`; use `template:stable` when you want the stable channel and `tplv_...` when you need an immutable pin.</p>
+        <CodeBlock language="bash">{`harakiri create --template open-agents-dev --name agent-runner\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</CodeBlock>
+        <p>The Templates List filters by visibility, owner, runtime family, and active/archived status. Rows show created and updated timestamps, aliases, latest build status, and latest image version or digest. Open shows the template detail panel with Overview, Versions, Egress, Config, and Runs tabs. Overview gives the create command and SDK snippet. Versions shows immutable version IDs and aliases. Egress stores the template's outbound access default for new sandboxes. Config shows the generated <code>{"harakiri.toml"}</code> plus redacted build args and metadata. Runs shows recent sandboxes created from the selected template and the exact version/digest selected at create time.</p>
+        <p>Row actions provide Use, Build, Builds, Promote, Archive, and Copy ID. Use is enabled only after a ready version exists. Shared platform templates can be used by every workspace; Build, Promote, and Archive are limited to team-owned templates. Builds opens the Builds tab filtered to that template, and Promote marks the latest ready version as <code>{"stable"}</code>; use <code>{"template:stable"}</code> when you want the stable channel and <code>{"tplv_..."}</code> when you need an immutable pin.</p>
       </>
     )
   },
@@ -869,23 +666,23 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>Statuses</h2>
-        <p>Builds move through `queued`, `building`, `success`, `failed`, or `canceled`. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, optional hot-template image pre-pull status, and context metadata in the dashboard detail pane. A template becomes runnable only after one of those successful builds creates a ready version.</p>
-        <pre>{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</pre>
+        <p>Builds move through <code>{"queued"}</code>, <code>{"building"}</code>, <code>{"success"}</code>, <code>{"failed"}</code>, or <code>{"canceled"}</code>. The CLI follows logs and status by default; retry creates a new queued build linked to the original. Successful builds show the resulting template version ID, Kubernetes builder pod and node when available, runtime pull preflight status, optional hot-template image pre-pull status, and context metadata in the dashboard detail pane. A template becomes runnable only after one of those successful builds creates a ready version.</p>
+        <CodeBlock language="bash">{`harakiri template build --name open-agents-dev .\nharakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template builds --status queued\nharakiri template builds --query ubuntu-import`}</CodeBlock>
         <h2>Logs</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
-        <pre>{`harakiri template logs bld_...`}</pre>
+        <CodeBlock language="bash">{`harakiri template logs bld_...`}</CodeBlock>
         <h2>Retention</h2>
-        <p>Build logs and uploaded Dockerfile contexts are retained for debugging, then pruned by the scheduler after the workspace operator policy window. Old unused versions are marked `retired` instead of deleted, so existing audit records still show which image digest a sandbox used.</p>
+        <p>Build logs and uploaded Dockerfile contexts are retained for debugging, then pruned by the scheduler after the workspace operator policy window. Old unused versions are marked <code>{"retired"}</code> instead of deleted, so existing audit records still show which image digest a sandbox used.</p>
         <h2>Retry</h2>
         <p>Use retry after a failed or canceled build. Use promote only for ready template versions.</p>
-        <pre>{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</pre>
+        <CodeBlock language="bash">{`curl -X POST "$PUBLIC_API_URL/v1/template-builds/bld_.../retry" -H "x-api-key: $HK_KEY"\nharakiri template promote open-agents-dev --version-id tplv_... --alias stable`}</CodeBlock>
         <h2>Troubleshooting</h2>
         <p>When a build fails, open the Builds tab and select the failed row. The detail panel keeps the redacted error, retained logs, context hash, and any Kubernetes builder pod/node metadata. Registry lookup failures usually mean the image tag does not exist, is private, or did not return a digest. Runtime pull preflight failures mean the image was built or imported but the cluster could not pull the final digest. Optional hot-template pre-pull failures mean the image is ready, but the cluster could not warm every node cache. Dockerfile failures should be debugged from the retained logs first, then retried after the source changes.</p>
         <h2>Archive</h2>
         <p>Archive a template when it should no longer appear in active lists or be used for new sandboxes. Existing sandboxes keep running; queued or building template builds are canceled.</p>
-        <pre>{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</pre>
+        <CodeBlock language="bash">{`harakiri template archive open-agents-dev\ncurl -X POST "$PUBLIC_API_URL/v1/templates/open-agents-dev/archive" -H "x-api-key: $HK_KEY"`}</CodeBlock>
         <h2>Limits</h2>
-        <p>If a template asks for more CPU, memory, or default ports than the workspace allows, the API returns `template_resource_limit_exceeded`. If too many builds are already queued or building, it returns `template_build_concurrency_limit_exceeded`. Image and Dockerfile base-image policy failures return `template_image_policy_violation`.</p>
+        <p>If a template asks for more CPU, memory, or default ports than the workspace allows, the API returns <code>{"template_resource_limit_exceeded"}</code>. If too many builds are already queued or building, it returns <code>{"template_build_concurrency_limit_exceeded"}</code>. Image and Dockerfile base-image policy failures return <code>{"template_image_policy_violation"}</code>.</p>
       </>
     )
   },
@@ -899,19 +696,19 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
       <>
         <h2>Failed builds</h2>
         <p>Select the failed row in Templates, Builds. The detail panel shows the redacted error, retained logs, context digest, source image, Dockerfile path, and builder pod/node metadata when the Kubernetes builder started. Use Retry only after changing the source image, Dockerfile, or policy setting that caused the failure. Very old logs and uploaded contexts can disappear after the operator retention window, but the build status and audit trail remain.</p>
-        <pre>{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</pre>
+        <CodeBlock language="bash">{`harakiri template builds --status failed\nharakiri template logs bld_...\nharakiri template build --name open-agents-dev .`}</CodeBlock>
         <h2>Registry pull</h2>
-        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Builds also fail before ready if runtime pull preflight cannot pull the final digest from the cluster. Check spelling, tag existence, registry visibility, workspace image policy, and whether the runtime registry host is reachable from k0s. A template without a ready version returns `template_not_ready` when you try to create a sandbox. Private runtime images can use a matching registry credential; if the credential includes encrypted username/password material, sandbox create passes it to OpenSandbox for the image pull. Dockerfile builds can also fail if the `FROM` image is private or denied by policy.</p>
-        <pre>{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template inspect ubuntu-import`}</pre>
+        <p>Image imports fail before a version is ready when the registry cannot return a manifest digest. Builds also fail before ready if runtime pull preflight cannot pull the final digest from the cluster. Check spelling, tag existence, registry visibility, workspace image policy, and whether the runtime registry host is reachable from k0s. A template without a ready version returns <code>{"template_not_ready"}</code> when you try to create a sandbox. Private runtime images can use a matching registry credential; if the credential includes encrypted username/password material, sandbox create passes it to OpenSandbox for the image pull. Dockerfile builds can also fail if the <code>{"FROM"}</code> image is private or denied by policy.</p>
+        <CodeBlock language="bash">{`harakiri template build --name ubuntu-import --source image --image ubuntu:24.04\nharakiri template inspect ubuntu-import`}</CodeBlock>
         <h2>Environment</h2>
-        <p>Environment variables are chosen when the sandbox is created. They are not added retroactively to an existing sandbox. Use `harakiri run --env KEY=value` only when the command creates a temporary sandbox for the run.</p>
-        <pre>{`harakiri create --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri run --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok --cmd "printenv HARAKIRI_ENV_SMOKE"`}</pre>
+        <p>Environment variables are chosen when the sandbox is created. They are not added retroactively to an existing sandbox. Use <code>{"harakiri run --env KEY=value"}</code> only when the command creates a temporary sandbox for the run.</p>
+        <CodeBlock language="bash">{`harakiri create --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok\nharakiri run --template open-agents-dev --env HARAKIRI_ENV_SMOKE=env-ok --cmd "printenv HARAKIRI_ENV_SMOKE"`}</CodeBlock>
         <h2>Aliases</h2>
-        <p>If `harakiri create --template ...` cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use `template:stable` for a promoted channel and the immutable version ID when you need to prove exactly which image digest was selected. Bare aliases like `stable` become ambiguous when several templates have the same alias, so prefer the qualified form.</p>
-        <pre>{`harakiri template list\nharakiri template inspect open-agents-dev\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</pre>
+        <p>If <code>{"harakiri create --template ..."}</code> cannot resolve a template, inspect the template ID, aliases, visibility, and archive status. Use <code>{"template:stable"}</code> for a promoted channel and the immutable version ID when you need to prove exactly which image digest was selected. Bare aliases like <code>{"stable"}</code> become ambiguous when several templates have the same alias, so prefer the qualified form.</p>
+        <CodeBlock language="bash">{`harakiri template list\nharakiri template inspect open-agents-dev\nharakiri create --template open-agents-dev:stable --name stable-runner\nharakiri create --template tplv_... --name pinned-runner`}</CodeBlock>
         <h2>Routes</h2>
-        <p>Route failures are usually separate from template builds. Start the server on `0.0.0.0` inside the sandbox, expose the matching port, then open the route from the Network tab or CLI. A server bound only to `127.0.0.1` will not be reachable through the public route.</p>
-        <pre>{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri routes sbx_...`}</pre>
+        <p>Route failures are usually separate from template builds. Start the server on <code>{"0.0.0.0"}</code> inside the sandbox, expose the matching port, then open the route from the Network tab or CLI. A server bound only to <code>{"127.0.0.1"}</code> will not be reachable through the public route.</p>
+        <CodeBlock language="bash">{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /\nharakiri routes sbx_...`}</CodeBlock>
       </>
     )
   },
@@ -924,9 +721,9 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>JavaScript</h2>
-        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.runSandbox(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</pre>
+        <CodeBlock language="typescript">{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.runSandbox(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</CodeBlock>
         <h2>HTTP</h2>
-        <pre>{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</pre>
+        <CodeBlock language="bash">{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</CodeBlock>
         <h2>Python</h2>
         <p>A Python SDK is not shipped in this prototype yet. Use the HTTP API from Python until the SDK package is added.</p>
       </>
@@ -941,16 +738,16 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>Included tools</h2>
-        <ul><li>`bun`, `node`, `pnpm`, `npm`, and `yarn`</li><li>`agent-browser` and Chromium headless dependencies</li><li>`code-server`, `git`, `jq`, and Python</li><li>Writable `/workspace` directory</li></ul>
+        <ul><li><code>{"bun"}</code>, <code>{"node"}</code>, <code>{"pnpm"}</code>, <code>{"npm"}</code>, and <code>{"yarn"}</code></li><li><code>{"agent-browser"}</code> and Chromium headless dependencies</li><li><code>{"code-server"}</code>, <code>{"git"}</code>, <code>{"jq"}</code>, and Python</li><li>Writable <code>{"/workspace"}</code> directory</li></ul>
         <h2>Build</h2>
-        <pre>{`harakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</pre>
+        <CodeBlock language="bash">{`harakiri template build --name open-agents-dev examples/templates/open-agents-dev\nharakiri template builds --query open-agents-dev\nharakiri template logs bld_...`}</CodeBlock>
         <h2>Ports</h2>
-        <p>Use `3000`, `5173`, `4321`, and `8000` as default exposed-port candidates for web apps, Vite, code-server, and API servers.</p>
+        <p>Use <code>{"3000"}</code>, <code>{"5173"}</code>, <code>{"4321"}</code>, and <code>{"8000"}</code> as default exposed-port candidates for web apps, Vite, code-server, and API servers.</p>
         <h2>Smoke test</h2>
-        <pre>{`harakiri create --template open-agents-dev --name pilot\nharakiri run sbx_... --cmd "harakiri-open-agents-smoke"`}</pre>
+        <CodeBlock language="bash">{`harakiri create --template open-agents-dev --name pilot\nharakiri run sbx_... --cmd "harakiri-open-agents-smoke"`}</CodeBlock>
         <h2>Expose a route</h2>
-        <p>Bind your dev server to `0.0.0.0`, then expose the internal port.</p>
-        <pre>{`harakiri run sbx_... --cmd "nohup node -e \\"require('http').createServer((req,res)=>res.end('ok')).listen(3000,'0.0.0.0')\\" >/tmp/app.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /`}</pre>
+        <p>Bind your dev server to <code>{"0.0.0.0"}</code>, then expose the internal port.</p>
+        <CodeBlock language="bash">{`harakiri run sbx_... --cmd "nohup node -e \\"require('http').createServer((req,res)=>res.end('ok')).listen(3000,'0.0.0.0')\\" >/tmp/app.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /`}</CodeBlock>
       </>
     )
   },
@@ -963,24 +760,24 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>Included tools</h2>
-        <ul><li>`opencode` from a pinned `opencode-ai` package</li><li>Node 22, `npm`, `pnpm`, and `yarn`</li><li>Python, Git, jq, ripgrep, fd, curl, and SSH tools</li><li>Writable `/workspace` directory</li><li>Default route candidate ports `4096`, `3000`, and `5173`</li></ul>
+        <ul><li><code>{"opencode"}</code> from a pinned <code>{"opencode-ai"}</code> package</li><li>Node 22, <code>{"npm"}</code>, <code>{"pnpm"}</code>, and <code>{"yarn"}</code></li><li>Python, Git, jq, ripgrep, fd, curl, and SSH tools</li><li>Writable <code>{"/workspace"}</code> directory</li><li>Default route candidate ports <code>{"4096"}</code>, <code>{"3000"}</code>, and <code>{"5173"}</code></li></ul>
         <h2>Build</h2>
-        <pre>{`harakiri template build --name opencode examples/templates/opencode\nharakiri template smoke opencode --cmd "harakiri-opencode-smoke"\nharakiri template promote opencode --version-id tplv_... --alias stable`}</pre>
-        <p>The smoke command verifies the installed tools, writable workspace, OpenCode CLI help, and a local OpenCode `/global/health` response. It does not require model provider credentials.</p>
+        <CodeBlock language="bash">{`harakiri template build --name opencode examples/templates/opencode\nharakiri template smoke opencode --cmd "harakiri-opencode-smoke"\nharakiri template promote opencode --version-id tplv_... --alias stable`}</CodeBlock>
+        <p>The smoke command verifies the installed tools, writable workspace, OpenCode CLI help, and a local OpenCode <code>{"/global/health"}</code> response. It does not require model provider credentials.</p>
         <h2>Run</h2>
-        <pre>{`harakiri create --template opencode --name opencode-agent --ttl 1200\nharakiri attach sbx_... --cwd /workspace\n\nharakiri create --template opencode --name opencode-runner\nharakiri run sbx_... --cwd /workspace --cmd \\\n  'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"'`}</pre>
-        <p>Use the attached terminal for the OpenCode TUI. Use `opencode run` for automation. The example uses an OpenCode Zen free model; paid or bring-your-own-key models can still receive provider credentials as sandbox environment variables.</p>
+        <CodeBlock language="bash">{`harakiri create --template opencode --name opencode-agent --ttl 1200\nharakiri attach sbx_... --cwd /workspace\n\nharakiri create --template opencode --name opencode-runner\nharakiri run sbx_... --cwd /workspace --cmd \\\n  'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"'`}</CodeBlock>
+        <p>Use the attached terminal for the OpenCode TUI. Use <code>{"opencode run"}</code> for automation. The example uses an OpenCode Zen free model; paid or bring-your-own-key models can still receive provider credentials as sandbox environment variables.</p>
         <h2>SDK</h2>
-        <p>Use `@h-sandbox/sdk` to create the sandbox, run headless prompts, clone repositories, read diffs, and expose the OpenCode server without depending on OpenSandbox or Kubernetes internals.</p>
-        <pre>{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await harakiri.createSandbox({\n  template: "opencode",\n  wait: true,\n  ttlSeconds: 1200,\n  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }\n});\n\nconst run = await harakiri.runSandbox(sandbox.id, {\n  command: 'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"',\n  cwd: "/workspace",\n  timeoutMs: 300_000\n});\nconsole.log(run.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</pre>
-        <p>For the server mode, start `opencode serve`, then use `routes.exposeAndWait`, `routes.headers`, and `routes.fetch` to pass Harakiri route-token auth and OpenCode basic auth to HTTP clients.</p>
-        <pre>{`import { createOpencodeClient } from "@opencode-ai/sdk";\n\nconst password = crypto.randomUUID();\nconst route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 4096,\n  accessMode: "token",\n  labels: ["opencode"]\n}, {\n  path: "/global/health",\n  basicAuth: { username: "opencode", password },\n  expect: async (response) => response.ok && (await response.clone().json()).healthy === true\n});\n\nconst opencode = createOpencodeClient({\n  baseUrl: route.route.url,\n  fetch: harakiri.routes.fetch(route, {\n    basicAuth: { username: "opencode", password }\n  })\n});\nawait opencode.config.get();`}</pre>
+        <p>Use <code>{"@h-sandbox/sdk"}</code> to create the sandbox, run headless prompts, clone repositories, read diffs, and expose the OpenCode server without depending on OpenSandbox or Kubernetes internals.</p>
+        <CodeBlock language="typescript">{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await harakiri.createSandbox({\n  template: "opencode",\n  wait: true,\n  ttlSeconds: 1200,\n  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }\n});\n\nconst run = await harakiri.runSandbox(sandbox.id, {\n  command: 'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"',\n  cwd: "/workspace",\n  timeoutMs: 300_000\n});\nconsole.log(run.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</CodeBlock>
+        <p>For the server mode, start <code>{"opencode serve"}</code>, then use <code>{"routes.exposeAndWait"}</code>, <code>{"routes.headers"}</code>, and <code>{"routes.fetch"}</code> to pass Harakiri route-token auth and OpenCode basic auth to HTTP clients.</p>
+        <CodeBlock language="typescript">{`import { createOpencodeClient } from "@opencode-ai/sdk";\n\nconst password = crypto.randomUUID();\nconst route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 4096,\n  accessMode: "token",\n  labels: ["opencode"]\n}, {\n  path: "/global/health",\n  basicAuth: { username: "opencode", password },\n  expect: async (response) => response.ok && (await response.clone().json()).healthy === true\n});\n\nconst opencode = createOpencodeClient({\n  baseUrl: route.route.url,\n  fetch: harakiri.routes.fetch(route, {\n    basicAuth: { username: "opencode", password }\n  })\n});\nawait opencode.config.get();`}</CodeBlock>
         <h2>Server route</h2>
-        <p>OpenCode's server defaults to loopback. Start it on `0.0.0.0` before exposing port `4096`, and protect the route with a Harakiri route token.</p>
-        <pre>{`harakiri create \\\n  --template opencode \\\n  --name opencode-server \\\n  --ttl 1200 \\\n  --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"\n\nharakiri run sbx_... --cwd /workspace --cmd \\\n  'nohup opencode serve --hostname 0.0.0.0 --port 4096 >/tmp/opencode.log 2>&1 &'\n\nharakiri expose sbx_... --port 4096 --access token --label opencode --wait --wait-path /global/health\nharakiri routes sbx_...`}</pre>
-        <p>The OpenCode username defaults to `opencode`. The CLI prints the route URL and token header once when a token-protected route is created; later route lists show only a token hint.</p>
+        <p>OpenCode's server defaults to loopback. Start it on <code>{"0.0.0.0"}</code> before exposing port <code>{"4096"}</code>, and protect the route with a Harakiri route token.</p>
+        <CodeBlock language="bash">{`harakiri create \\\n  --template opencode \\\n  --name opencode-server \\\n  --ttl 1200 \\\n  --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"\n\nharakiri run sbx_... --cwd /workspace --cmd \\\n  'nohup opencode serve --hostname 0.0.0.0 --port 4096 >/tmp/opencode.log 2>&1 &'\n\nharakiri expose sbx_... --port 4096 --access token --label opencode --wait --wait-path /global/health\nharakiri routes sbx_...`}</CodeBlock>
+        <p>The OpenCode username defaults to <code>{"opencode"}</code>. The CLI prints the route URL and token header once when a token-protected route is created; later route lists show only a token hint.</p>
         <h2>Troubleshooting</h2>
-        <p>If the route is not reachable, check that OpenCode was started with `--hostname 0.0.0.0`. If `opencode run` fails, verify the selected model and any provider keys required by that model. If the template is not runnable, inspect the latest build with `harakiri template builds --query opencode` and `harakiri template logs bld_...`.</p>
+        <p>If the route is not reachable, check that OpenCode was started with <code>{"--hostname 0.0.0.0"}</code>. If <code>{"opencode run"}</code> fails, verify the selected model and any provider keys required by that model. If the template is not runnable, inspect the latest build with <code>{"harakiri template builds --query opencode"}</code> and <code>{"harakiri template logs bld_..."}</code>.</p>
       </>
     )
   },
@@ -993,7 +790,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>Visibility</h2>
-        <p>`private`, `internal`, and `public` control product visibility. Team-owned templates are visible only inside the owning workspace. Platform `public` and `internal` templates are shared for sandbox creation, while platform `private` templates stay hidden. Build, promote, archive, logs, and uploaded contexts remain scoped to the owning workspace.</p>
+        <p><code>{"private"}</code>, <code>{"internal"}</code>, and <code>{"public"}</code> control product visibility. Team-owned templates are visible only inside the owning workspace. Platform <code>{"public"}</code> and <code>{"internal"}</code> templates are shared for sandbox creation, while platform <code>{"private"}</code> templates stay hidden. Build, promote, archive, logs, and uploaded contexts remain scoped to the owning workspace.</p>
         <h2>Digests</h2>
         <p>Mutable tags can be accepted as input, but ready versions store an immutable image digest and pass runtime pull preflight before production use.</p>
         <h2>Secrets</h2>
@@ -1001,9 +798,9 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
         <h2>Runtime metadata</h2>
         <p>Every sandbox create request carries label-safe Harakiri metadata for the sandbox, organization, template, template version, image digest, and current route policy. API responses also expose a typed runtime metadata object for workdir, user, shell, default ports, exposed routes, egress mode, artifact and command limits, TTL, and provider capability states.</p>
         <h2>Image policy</h2>
-        <p>Template images, image-import builds, and Dockerfile `FROM` references must match the workspace registry and prefix policy before a build can run. Generated Dockerfile images are stored under an organization-scoped registry namespace so teams do not share one flat repository path.</p>
+        <p>Template images, image-import builds, and Dockerfile <code>{"FROM"}</code> references must match the workspace registry and prefix policy before a build can run. Generated Dockerfile images are stored under an organization-scoped registry namespace so teams do not share one flat repository path.</p>
         <h2>Provenance</h2>
-        <p>Template versions keep SBOM references, provenance, runtime pull preflight status, optional hot-template pre-pull status, scan status, and scan summaries. Without a scanner hook, new versions are marked `not_scanned` with the reason `scanner_not_configured`. When operators configure a scanner webhook, the builder stores the scanner status such as `clean`, `vulnerable`, `blocked`, or `scan_failed` on the immutable version.</p>
+        <p>Template versions keep SBOM references, provenance, runtime pull preflight status, optional hot-template pre-pull status, scan status, and scan summaries. Without a scanner hook, new versions are marked <code>{"not_scanned"}</code> with the reason <code>{"scanner_not_configured"}</code>. When operators configure a scanner webhook, the builder stores the scanner status such as <code>{"clean"}</code>, <code>{"vulnerable"}</code>, <code>{"blocked"}</code>, or <code>{"scan_failed"}</code> on the immutable version.</p>
         <h2>Audit</h2>
         <p>Template create, build create, build cancel, retry, builder success or failure, promote, archive, version retirement, and sandbox create actions are stored as audit events with redacted metadata.</p>
         <h2>Limits</h2>
@@ -1020,14 +817,14 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     body: (
       <>
         <h2>API shape</h2>
-        <pre>{`{\n  "error": "runtime_files_unavailable",\n  "message": "Filesystem provider is unavailable.",\n  "details": { "provider": "opensandbox" }\n}`}</pre>
-        <p>Use HTTP status for coarse handling and the `error` field for product behavior. Do not parse human messages.</p>
+        <CodeBlock language="json">{`{\n  "error": "runtime_files_unavailable",\n  "message": "Filesystem provider is unavailable.",\n  "details": { "provider": "opensandbox" }\n}`}</CodeBlock>
+        <p>Use HTTP status for coarse handling and the <code>{"error"}</code> field for product behavior. Do not parse human messages.</p>
         <h2>SDK classes</h2>
-        <p>The SDK maps common responses to typed errors such as `HarakiriAuthenticationError`, `HarakiriValidationError`, `HarakiriNotFoundError`, `HarakiriProviderUnavailableError`, `HarakiriUnsupportedCapabilityError`, and `HarakiriCommandEndedError`.</p>
+        <p>The SDK maps common responses to typed errors such as <code>{"HarakiriAuthenticationError"}</code>, <code>{"HarakiriValidationError"}</code>, <code>{"HarakiriNotFoundError"}</code>, <code>{"HarakiriProviderUnavailableError"}</code>, <code>{"HarakiriUnsupportedCapabilityError"}</code>, and <code>{"HarakiriCommandEndedError"}</code>.</p>
         <h2>Retry</h2>
         <p>Retry idempotent creates, waits, route readiness, and provider-unavailable reads with backoff. Do not blindly retry validation errors, auth failures, terminated sandboxes, resource-limit failures, or artifact checksum mismatches.</p>
         <h2>Common fixes</h2>
-        <p>`sandbox_file_artifact_checksum_mismatch` means the caller must recompute `sha256` over raw bytes. `route_proxy_upstream_unreachable` usually means the server is not listening on `0.0.0.0` or the wrong port was exposed. `git_network_access_failed` usually needs the `git-hosting` egress preset or explicit host allow rules. `template_not_ready` requires a successful digest-pinned template build.</p>
+        <p><code>{"sandbox_file_artifact_checksum_mismatch"}</code> means the caller must recompute <code>{"sha256"}</code> over raw bytes. <code>{"route_proxy_upstream_unreachable"}</code> usually means the server is not listening on <code>{"0.0.0.0"}</code> or the wrong port was exposed. <code>{"git_network_access_failed"}</code> usually needs the <code>{"git-hosting"}</code> egress preset or explicit host allow rules. <code>{"template_not_ready"}</code> requires a successful digest-pinned template build.</p>
         <h2>Boundary</h2>
         <p>Application integrations should recover through Harakiri API, SDK, CLI, and documented route URLs. Do not reach into Kubernetes pods or provider endpoint credentials from application code.</p>
       </>
@@ -1038,12 +835,18 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
     section: "Reference",
     title: "API reference",
     lede: "The Harakiri API is the shared contract behind the dashboard, CLI, and SDK.",
-    toc: ["OpenAPI", "Templates", "Builds", "Sandboxes", "Credential Vault", "Promotion", "Archive"],
+    toc: ["OpenAPI", "Authentication", "Templates", "Builds", "Sandboxes", "Credential Vault", "Promotion", "Archive"],
     body: (
       <>
         <h2>OpenAPI</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/openapi.json</code></span>
-        <p>The repository keeps the same OpenAPI contract in `docs/openapi.json`. Use it for generated clients, contract review, and external integration checks.</p>
+        <p>The deployed OpenAPI document is the complete schema for that server version. The groups below are a navigation aid, not a replacement for its request bodies, response schemas and error contracts.</p>
+        <CodeBlock language="bash">{`curl --fail-with-body "$HARAKIRI_API_URL/openapi.json" \\
+  --output openapi.json`}</CodeBlock>
+        <p>The repository keeps the same OpenAPI contract in <code>{"docs/openapi.json"}</code>. Use it for generated clients, contract review, and external integration checks.</p>
+        <h2>Authentication</h2>
+        <p>Resource operations accept an organization-scoped API key in <code>x-api-key</code> or a valid Keycloak bearer token. Keep API keys on the trusted caller, not in frontend bundles or sandbox files. The organization comes from the authenticated identity.</p>
+        <p>Start with <a href="#docs/quickstart">the quickstart</a> for connection setup, <a href="#docs/security-model">the security model</a> for access boundaries, and <a href="#docs/errors-troubleshooting">errors and troubleshooting</a> for failures. Workspace operations have a dedicated <a href="#docs/workspace-reference">API, SDK and CLI reference</a>.</p>
         <h2>Templates</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>
@@ -1053,7 +856,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/template-builds/:id/context</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/template-builds/:id/logs</code></span>
-        <p>Use `GET /v1/template-builds?template=open-agents-dev&limit=20` when a UI or script needs recent build records for one template.</p>
+        <p>Use <code>{"GET /v1/template-builds?template=open-agents-dev&limit=20"}</code> when a UI or script needs recent build records for one template.</p>
         <h2>Sandboxes</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?template=:id</code></span>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/sandboxes?templateVersionId=:id</code></span>
@@ -1072,7 +875,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials</code></span>
         <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/sandboxes/:id/credentials/:attachmentId</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/sandboxes/:id/credentials/:attachmentId/test</code></span>
-        <p>The current vault API supports running-sandbox `inline_ephemeral` attachments, admin-managed encrypted workspace secret custody, explicit organization-member use policy, attachment-derived usage, and attaching permitted active stored secrets to running sandboxes. Responses are sanitized and never include raw credential values.</p>
+        <p>The current vault API supports running-sandbox <code>{"inline_ephemeral"}</code> attachments, admin-managed encrypted workspace secret custody, explicit organization-member use policy, attachment-derived usage, and attaching permitted active stored secrets to running sandboxes. Responses are sanitized and never include raw credential values.</p>
         <h2>Promotion</h2>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates/:id/promote</code></span>
         <h2>Archive</h2>
@@ -1081,7 +884,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</pre>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/registry-credentials</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/registry-credentials</code></span>
         <span className="api-endpoint"><span className="api-method del">DELETE</span><code>/v1/registry-credentials/:id</code></span>
-        <p>Credential responses include registry host, purpose, repository prefix, Secret references, `lastUsedAt`, and `hasEncryptedSecret`, never the raw registry secret.</p>
+        <p>Credential responses include registry host, purpose, repository prefix, Secret references, <code>{"lastUsedAt"}</code>, and <code>{"hasEncryptedSecret"}</code>, never the raw registry secret.</p>
       </>
     )
   }

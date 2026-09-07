@@ -1,3 +1,4 @@
+import { CodeBlock } from "./components/docs-code";
 import type { DocPage } from "./docs-content";
 import { WorkspaceReleaseNote } from "./workspace-docs";
 
@@ -31,11 +32,13 @@ export const workspaceReferenceDocs: DocPage = {
   toc: ["Distribution and prerequisites", "HTTP operations", "Parameters and responses", "SDK methods", "CLI commands", "Errors and recovery"],
   body: <div className="workspace-doc">
     <section><h2>Distribution and prerequisites</h2>
-      <p>This reference targets <code>0.5.0-rc.3</code>. Use the matching release archives below, or verify that the exact candidate is available in npm before installing it. The stable <code>latest</code> channel is separate; an unversioned install of 0.4.0 does not contain workspaces.</p>
-      <p>Obtain <code>h-sandbox-sdk-0.5.0-rc.3.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.3.tgz</code> and their release checksums from your operator. Maintainers with repository access can also retrieve them from the GitHub prerelease. In a fresh directory with Node.js 20 or newer, install both archives together because the CLI depends on the matching SDK:</p>
-      <pre>{`npm init -y
-npm install ./h-sandbox-sdk-0.5.0-rc.3.tgz ./h-sandbox-cli-0.5.0-rc.3.tgz
-./node_modules/.bin/harakiri --version`}</pre>
+      <p>This reference targets <code>0.5.0-rc.3</code>, published on npm under <code>next</code>. Pin the exact version for a reproducible installation. The stable <code>latest</code> channel is separate; an unversioned install of 0.4.0 does not contain workspaces.</p>
+      <p>In a fresh directory with Node.js 20 or newer:</p>
+      <CodeBlock language="bash">{`npm init -y
+npm install @h-sandbox/sdk@0.5.0-rc.3
+npm install -g @h-sandbox/cli@0.5.0-rc.3
+harakiri --version`}</CodeBlock>
+      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.3.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.3.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
       <p>The rest of these docs use <code>harakiri</code> for the installed executable. For a local install, use <code>./node_modules/.bin/harakiri</code>. Configure <code>HARAKIRI_API_URL</code> and <code>HARAKIRI_API_KEY</code> privately. The API/scheduler must run matching workspace-aware code and an enabled storage profile.</p>
       <p>For the mental model, start with <a href="#docs/workspaces">Workspaces</a>. For a complete exercise, use <a href="#docs/persistent-workspaces">Reuse files across sandboxes</a>.</p>
     </section>
@@ -45,10 +48,10 @@ npm install ./h-sandbox-sdk-0.5.0-rc.3.tgz ./h-sandbox-cli-0.5.0-rc.3.tgz
         {workspaceOperations.map(([method, path, behavior]) => <tr key={path + method}><th scope="row"><code>{method} {path}</code></th><td>{behavior}</td></tr>)}
       </tbody></table>
       <p>Attach at sandbox creation through <code>POST /v1/sandboxes</code> with <code>workspaceId</code> and a template. A running sandbox cannot switch workspaces. There is no rename, resize, detach, unarchive or physical-delete workspace endpoint.</p>
-      <pre>{`curl --fail-with-body "$HARAKIRI_API_URL/v1/workspaces" \\
+      <CodeBlock language="bash">{`curl --fail-with-body "$HARAKIRI_API_URL/v1/workspaces" \\
   -H "x-api-key: $HARAKIRI_API_KEY" \\
   -H 'Content-Type: application/json' \\
-  --data '{"name":"agent-project"}'`}</pre>
+  --data '{"name":"agent-project"}'`}</CodeBlock>
     </section>
     <section><h2>Parameters and responses</h2>
       <p>Create accepts only <code>name</code>: trimmed, 1 to 80 characters, beginning with a Unicode letter or number. Subsequent characters may be letters, numbers, spaces, periods, underscores or hyphens. Names must be unique within the organization, including archived records. Do not add size, class or provider fields: the request schema is strict.</p>
@@ -63,7 +66,7 @@ npm install ./h-sandbox-sdk-0.5.0-rc.3.tgz ./h-sandbox-cli-0.5.0-rc.3.tgz
       <p>The list response's <code>policy</code> contains <code>available</code>, a nullable <code>reason</code>, <code>sizeGiB</code>, <code>maxPerOrganization</code>, <code>mountPath</code>, <code>retention: "until_operator_reclaims"</code> and <code>physicalDeletion: false</code>. Read existing records even when new creation is unavailable. Policy availability is not a live storage health probe.</p>
     </section>
     <section><h2>SDK methods</h2>
-      <pre>{`const { workspaces, policy } = await client.workspaces.list();
+      <CodeBlock language="typescript">{`const { workspaces, policy } = await client.workspaces.list();
 const { workspace } = await client.workspaces.create({ name: "agent-project" });
 const inspected = await client.workspaces.get(workspace.id);
 const { sandbox } = await client.createSandbox({
@@ -73,16 +76,16 @@ await client.waitForSandbox(sandbox.id);
 // Run work, then terminate and wait for workspace.status === "available".
 await client.killSandbox(sandbox.id);
 // Only after release:
-// await client.workspaces.archive(workspace.id);`}</pre>
+// await client.workspaces.archive(workspace.id);`}</CodeBlock>
       <p>These are method examples; the <a href="#docs/persistent-workspaces">complete tutorial</a> includes the client setup, bounded release polling, assertions and cleanup. <code>commands.stream(sandboxId, commandId, {"{ cursor, signal }"})</code> observes a tracked command, not a workspace. Resume the same command ID; never start it again merely to reconnect.</p>
     </section>
     <section><h2>CLI commands</h2>
-      <pre>{`harakiri workspace create --name agent-project --json
+      <CodeBlock language="bash">{`harakiri workspace create --name agent-project --json
 harakiri workspace list --json
 harakiri workspace inspect wsp_...
 harakiri create --template python-3.12 --workspace wsp_... --ttl 600
 # After sandbox termination and confirmed release:
-harakiri workspace archive wsp_... --retain-storage`}</pre>
+harakiri workspace archive wsp_... --retain-storage`}</CodeBlock>
       <p>Create and list accept <code>--json</code>; inspect prints JSON. Archive requires <code>--retain-storage</code> as an explicit acknowledgment, not a deletion option. List includes policy in JSON output. The CLI uses the same organization-scoped API contract.</p>
     </section>
     <section><h2>Errors and recovery</h2>
