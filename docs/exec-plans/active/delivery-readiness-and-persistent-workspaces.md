@@ -190,11 +190,33 @@ beyond the retained provider log data.
 - [x] Confirm explicit release authorization and reserve new version `0.5.0-rc.1`.
 - [x] Align API/web/SDK/CLI, OpenAPI, chart, public changelog and preview docs.
 - [x] Include the SDK dependency in the web container build.
-- [ ] Recheck clean CI and package consumer gates; commit and push source.
+- [x] Recheck clean CI and package consumer gates; commit and push source.
 - [ ] Publish versioned multi-architecture images, Helm chart and npm `next` packages.
 - [ ] Back up the hosted database and Helm configuration, then upgrade only Harakiri.
 - [ ] Verify public URLs, OIDC origins and deployed workspace/command workflows.
 - [ ] Record exact artifacts, restore procedure, and remaining stable-release gates.
+
+### Live Validation Findings
+
+`1241171` passed CI, package checks and multi-architecture image/chart release.
+Validation build `0.5.0-rc.1` was deployed through Helm to k0s with migration 035,
+public origins preserved, and 1 GiB local-path storage enabled after the API and
+scheduler upgrade. The packaged SDK passed two-sandbox checkpoint reuse and
+command reconnection through Cloudflare. Real Keycloak browser login, workspace
+creation and command output passed on desktop/mobile. The database and original
+Helm/configuration were backed up privately; backup archive catalog is readable.
+
+Live CLI verification caught two issues before npm publication: `run --follow
+--json` included a progress banner on stdout, and saved configuration overrode
+environment credentials contrary to documentation. Both are fixed with three
+new regression tests (76 CLI tests passing). `0.5.0-rc.2` supersedes the validation
+build; old artifacts/tags are not overwritten. Its release/deployment is pending.
+
+The template workflow passed 11 architecture jobs but its OpenCode amd64 job
+stalled and was cancelled. No combined template candidate or alias was promoted.
+Build/runtime smoke timeouts now bound retries. This remains a stable-release
+gate, independent of the tested control-plane candidate. npm authentication is
+currently missing locally and has been requested without asking for a token in chat.
 
 ## Tech Debt Incurred
 

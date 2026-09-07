@@ -1,6 +1,6 @@
 # Persistent Workspaces and Live Commands
 
-**Availability:** Release candidate `0.5.0-rc.1`. Use matching API, SDK and CLI
+**Availability:** Release candidate `0.5.0-rc.2`. Use matching API, SDK and CLI
 versions; stable `0.4.0` does not include this feature. Operators must explicitly
 enable a tested storage profile. k0s acceptance is passing; clean restricted
 OpenShift storage validation is still pending.

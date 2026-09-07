@@ -8,7 +8,7 @@ export const workspaceDocs: DocPage = {
   toc: ["Availability", "Create a workspace", "Replace the sandbox", "Follow a command", "Cleanup and limits"],
   body: <div className="tutorial-doc">
     <section><h2>Availability</h2>
-      <p><strong>Release candidate: 0.5.0-rc.1.</strong> Use matching API, SDK and CLI versions; stable 0.4.0 does not include this API. Your operator must enable persistent storage on a supported OpenSandbox installation. k0s acceptance is passing; clean restricted OpenShift validation is pending. The development provider cannot emulate persistent storage.</p>
+      <p><strong>Release candidate: 0.5.0-rc.2.</strong> Use matching API, SDK and CLI versions; stable 0.4.0 does not include this API. Your operator must enable persistent storage on a supported OpenSandbox installation. k0s acceptance is passing; clean restricted OpenShift validation is pending. The development provider cannot emulate persistent storage.</p>
       <p>A workspace is organization-owned storage at <code>/workspace</code>. A sandbox is the runtime that uses it. Only one sandbox can own the workspace at a time, including while paused. A checkpoint file belongs in the workspace; a credential belongs in Credential Vault.</p>
     </section>
     <section><h2>Create a workspace</h2>

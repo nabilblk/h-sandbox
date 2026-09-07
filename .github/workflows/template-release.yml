@@ -31,6 +31,7 @@ jobs:
   images:
     needs: catalog
     environment: harbor
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

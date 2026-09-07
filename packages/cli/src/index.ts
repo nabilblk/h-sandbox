@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name("harakiri")
   .description("Harakiri Sandbox CLI")
-  .version("0.5.0-rc.1")
+  .version("0.5.0-rc.2")
   .addHelpText("after", `
 Examples:
   $ harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...

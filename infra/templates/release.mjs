@@ -23,12 +23,12 @@ export function releaseInput(env) {
 function main() {
   if (process.argv[2] === 'matrix') { console.log(JSON.stringify(catalog)); return; }
   const input = releaseInput(process.env);
-  const run = (args) => execFileSync('docker', args, { stdio: 'inherit' });
+  const run = (args, timeout = 15 * 60_000) => execFileSync('docker', args, { stdio: 'inherit', timeout });
   const context = join(root, 'examples/templates', input.name);
   assert.ok(existsSync(join(context, 'Dockerfile')) && existsSync(join(context, 'smoke.sh')));
   run(['buildx', 'build', '--platform', input.platform, '--load', '--tag', input.image, context]);
   for (const user of ['0:0', '1001230000:0']) {
-    run(['run', '--rm', '--platform', input.platform, '--user', user, '--cap-drop=ALL', '--security-opt=no-new-privileges', '--entrypoint', input.smoke, input.image]);
+    run(['run', '--rm', '--platform', input.platform, '--user', user, '--cap-drop=ALL', '--security-opt=no-new-privileges', '--entrypoint', input.smoke, input.image], 90_000);
   }
   console.log(`Template ${input.name}: ${input.platform}, root and arbitrary-UID smoke passed`);
   if (process.argv[2] !== 'publish') return;

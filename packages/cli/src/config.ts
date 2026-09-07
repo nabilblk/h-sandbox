@@ -18,8 +18,8 @@ export const loadConfig = async (): Promise<Config> => {
   if (!existsSync(configPath)) return { apiUrl: defaultApiUrl, apiKey: defaultKey };
   const parsed = JSON.parse(await readFile(configPath, "utf8")) as Partial<Config>;
   return {
-    apiUrl: parsed.apiUrl ?? defaultApiUrl,
-    apiKey: parsed.apiKey ?? defaultKey,
+    apiUrl: process.env.HARAKIRI_API_URL ?? parsed.apiUrl ?? defaultApiUrl,
+    apiKey: process.env.HARAKIRI_API_KEY ?? parsed.apiKey ?? defaultKey,
     lastSandboxId: parsed.lastSandboxId
   };
 };

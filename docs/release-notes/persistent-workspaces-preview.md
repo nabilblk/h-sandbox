@@ -1,7 +1,7 @@
-# v0.5.0-rc.1: Persistent Workspaces and Live Commands
+# v0.5.0-rc.2: Persistent Workspaces and Live Commands
 
 September 7, 2026. Test release candidate; not a stable or production-readiness
-claim. Use matching `0.5.0-rc.1` API/web, Helm chart, SDK and CLI artifacts.
+claim. Use matching `0.5.0-rc.2` API/web, Helm chart, SDK and CLI artifacts.
 The npm `latest` channel remains `0.4.0`; the candidate uses `next`.
 Publication and hosted deployment evidence is recorded in the active plan.
 
@@ -17,6 +17,15 @@ Publication and hosted deployment evidence is recorded in the active plan.
   commands; dashboard workspace management and tracked command output.
 - Staged registry-only OpenShift installation, protected template image release
   workflow and independent public-lab origin/tunnel supervision.
+
+## Fixed During Live Acceptance
+
+- `command run --follow --json` keeps command progress on stderr so stdout is
+  valid newline-delimited JSON, including when starting and following together.
+- CLI environment credentials and API origin take precedence over saved config,
+  matching the documented automation contract without rewriting local config.
+- `0.5.0-rc.1` was a validation build, superseded before npm publication. Its
+  immutable image/chart artifacts and tag are not overwritten.
 
 ## Compatibility and Limits
 

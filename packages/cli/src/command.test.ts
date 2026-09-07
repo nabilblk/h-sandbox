@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -90,8 +90,12 @@ const startMockWebSocketApi = async (
   };
 };
 
-const runCli = async (args: string[], options: { api: { url: string }; cwd?: string; env?: Record<string, string>; input?: string; signalOnOutput?: string }) => {
+const runCli = async (args: string[], options: { api: { url: string }; cwd?: string; env?: Record<string, string | undefined>; savedConfig?: { apiUrl: string; apiKey?: string }; input?: string; signalOnOutput?: string }) => {
   const home = await mkdtemp(join(tmpdir(), "harakiri-cli-home-"));
+  if (options.savedConfig) {
+    await mkdir(join(home, ".config", "harakiri"), { recursive: true });
+    await writeFile(join(home, ".config", "harakiri", "config.json"), JSON.stringify(options.savedConfig));
+  }
   const child = spawn(process.execPath, ["--import", tsxImport, cliPath, ...args], {
     cwd: options.cwd ?? packageRoot,
     env: {
@@ -170,6 +174,45 @@ test("command follow returns the command exit status and sends only authenticate
     assert.equal(api.requests[0].method, "GET");
     assert.equal(api.requests[0].headers["x-api-key"], "hk_test_cli");
     assert.equal(new URL(api.requests[0].path, api.url).searchParams.get("cursor"), cursor);
+  } finally { await api.close(); }
+});
+
+test("command run --follow --json keeps progress on stderr and emits only JSON events", async () => {
+  const cursor = "v1:cmd_cli:p:2";
+  const event = { type: "complete", commandId: "cmd_cli", cursor, status: "succeeded", exitCode: 0 };
+  const api = await startMockApi((request) => request.method === "POST"
+    ? { status: 201, body: { command: { id: "cmd_cli", status: "running" } } }
+    : { stream: `id: ${cursor}\nevent: complete\ndata: ${JSON.stringify(event)}\n\n` });
+  try {
+    const result = await runCli(["command", "run", "sbx_cli", "--cmd", "echo ok", "--follow", "--json"], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n").map((line) => JSON.parse(line)), [event]);
+    assert.match(result.stderr, /command=cmd_cli/);
+    assert.deepEqual(api.requests.map((request) => request.method), ["POST", "GET"]);
+    assert.deepEqual(api.requests[0].body, { command: "echo ok", detached: true });
+  } finally { await api.close(); }
+});
+
+test("CLI environment overrides saved credentials and origin without rewriting config", async () => {
+  const api = await startMockApi(() => ({ body: { workspaces: [] } }));
+  const savedConfig = { apiUrl: "http://127.0.0.1:1", apiKey: "hk_stale" };
+  try {
+    const result = await runCli(["workspace", "list", "--json"], { api, savedConfig });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(api.requests[0].headers["x-api-key"], "hk_test_cli");
+    assert.deepEqual(JSON.parse(await readFile(join(result.home, ".config", "harakiri", "config.json"), "utf8")), savedConfig);
+  } finally { await api.close(); }
+});
+
+test("CLI still uses saved credentials when environment overrides are absent", async () => {
+  const api = await startMockApi(() => ({ body: { workspaces: [] } }));
+  try {
+    const result = await runCli(["workspace", "list", "--json"], {
+      api, savedConfig: { apiUrl: api.url, apiKey: "hk_saved" },
+      env: { HARAKIRI_API_URL: undefined, HARAKIRI_API_KEY: undefined }
+    });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(api.requests[0].headers["x-api-key"], "hk_saved");
   } finally { await api.close(); }
 });
 

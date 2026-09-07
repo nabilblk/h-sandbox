@@ -780,7 +780,7 @@ export const registerSandboxCommands = (program: Command) => {
         detached: options.follow || options.detached
       });
       if (options.follow) {
-        printProgress(`command=${result.command.id}`);
+        console.error(`command=${result.command.id}`);
         await followCommand(client, id, result.command.id, options);
         return;
       }

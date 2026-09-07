@@ -1430,7 +1430,7 @@ export const openApiDocument = {
   openapi: "3.1.0",
   info: {
     title: "Harakiri Sandbox API",
-    version: "0.5.0-rc.1",
+    version: "0.5.0-rc.2",
     description: "Control-plane API for sandbox lifecycle, templates, Credential Vault, routes, registry credentials, and account settings."
   },
   servers: [
