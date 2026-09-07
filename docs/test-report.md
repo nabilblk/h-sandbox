@@ -2092,3 +2092,44 @@ Known release-candidate gaps:
 - Template image publishing is documented, but template images are not yet
   produced by the same first-class release workflow as the API, web, chart, SDK,
   and CLI.
+
+## 2026-09-07: TTL Renewal and Scheduler Correction
+
+Working-tree correction after `0.5.0-rc.2`, not a deployment or release receipt.
+
+- An isolated PostgreSQL 16 database with migrations through 036 passed the
+  lease race suite: concurrent renewal/expiration in both orders, duplicate
+  schedulers and schedules, failed/ambiguous renewal, recovery from native
+  success plus database failure, inactive/cross-tenant access, HTTP error
+  responses, idempotent replay, operation-worker execution/fencing, pause races
+  and native minimum-TTL preservation. The existing persistent-workspace
+  reservation/retention suite also passed (19 tests including the parent test).
+- With native OpenSandbox on k0s and fallback disabled, the SDK created
+  `sbx_YjCAxjcfx_` with expiry `18:12:47.151Z`, renewed to `18:13:22.207Z`,
+  and ran a command 12 seconds beyond the original deadline. No command or
+  terminal activity was used to mask the explicit renewal before that check.
+  Command activity extended expiry to `18:13:59.213Z`, followed by verified
+  termination after activity stopped.
+- A separate 10-second sandbox, `sbx_FnT_kZ2ijh`, expired at the product TTL
+  while its native minimum create lease still had time remaining.
+- A real SDK-authenticated terminal for `sbx_PffHzgp563` kept a 10-second
+  sandbox alive beyond its original expiry, then expired after detach.
+  A timer-controlled unit test also checks short-TTL heartbeat cadence and
+  explicit connection failure when native renewal fails.
+- Native provider GET returned 404 for all three test runtimes. Test orgs,
+  credentials and API/scheduler processes were removed. No BackgroundAgent,
+  populated CRC namespace, SCC or production release was modified.
+
+The repeatable SDK smoke is `pnpm smoke:renew`; allow about three minutes.
+See [lease operations](./sandbox-lease-operations.md) for the coordinated upgrade.
+Private logs and receipts are ignored under `docs/artifacts/ttl-regression-private/`.
+
+Final source verification: `pnpm test` passed 526 tests (two database-gated tests
+skipped there, exercised separately above). Root `typecheck` and `build`, docs
+link check, OpenAPI check, Credential Vault boundary check, shell/Node syntax
+checks and `git diff --check` passed. The production web build retains its
+existing bundle-size warning. A focused regression first reproduced swallowed
+503 responses with legacy fallback enabled, then passed after native lease
+get/delete/renew stopped masking those errors. Temporary PostgreSQL and both
+port forwards were removed. Public web, API health and Keycloak discovery all
+returned HTTP 200 after testing; their rc.2 deployment was not changed.

@@ -1,8 +1,8 @@
 import type { DocPage } from "./docs-content";
 
 export const WorkspaceReleaseNote = () => <aside className="docs-notice" aria-label="Release availability">
-  <p><strong>Preview: 0.5.0-rc.2.</strong> Persistent storage is opt-in and requires matching API, scheduler, SDK and CLI versions. Stable 0.4.0 does not include it. k0s acceptance has passed; restricted OpenShift acceptance is pending.</p>
-  <p>At this candidate's release, npm publication was still pending. See <a href="#docs/workspace-reference">Distribution and prerequisites</a> before installing. A known TTL-renewal issue can end a sandbox at its original deadline; use a sufficient initial TTL for bounded tests.</p>
+  <p><strong>Preview: 0.5.0-rc.3.</strong> Persistent storage is opt-in and requires matching API, scheduler, SDK and CLI versions. Stable 0.4.0 does not include it. k0s acceptance has passed; restricted OpenShift acceptance is pending.</p>
+  <p>See <a href="#docs/workspace-reference">Distribution and prerequisites</a> before installing. This candidate corrects renewal and expiration coordination. Migration 036 and the matching API/scheduler are required; following command output alone does not keep a sandbox alive.</p>
 </aside>;
 
 export const workspaceStates = [

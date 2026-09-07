@@ -1515,13 +1515,14 @@ test("deleteSandbox and renewSandbox use injected provider refs", async () => {
   const query = async (text: string, params?: unknown[]) => {
     calls.push({ text, params });
     if (text.includes("SELECT opensandbox_id, ttl_seconds")) {
-      return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300 }] as never[] };
+      return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300, status: "running", expires_at: null }] as never[] };
     }
+    if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
     if (text.includes("SELECT opensandbox_id, workspace_id, status FROM sandboxes")) {
       return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", workspace_id: null, status: "running" }] as never[] };
     }
     if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
-    if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) return { rowCount: 1, rows: [operationRow()] as never[] };
+    if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) return { rowCount: 1, rows: [operationRow({ state: "running" })] as never[] };
     if (text.includes("UPDATE sandbox_operations")) {
       return { rowCount: 1, rows: [operationRow({ state: text.includes("succeeded") ? "succeeded" : "running" })] as never[] };
     }
@@ -1529,6 +1530,7 @@ test("deleteSandbox and renewSandbox use injected provider refs", async () => {
   };
 
   const runtimeProvider = fakeRuntimeProvider(runtimeState);
+  runtimeProvider.get = async () => ({ provider: "fake", providerSandboxId: "provider_sbx", state: "running", expiresAt: null });
   const deleted = await deleteSandbox(
     { organizationId: "org_sbx", userId: "user_sbx", actorLabel: "user@test.local", sandboxId: "sbx_test" },
     {
@@ -1542,6 +1544,7 @@ test("deleteSandbox and renewSandbox use injected provider refs", async () => {
     { organizationId: "org_sbx", sandboxId: "sbx_test" },
     {
       query,
+      transaction: (fn) => fn(query),
       runtimeProvider,
       recordEvent: async () => undefined
     }

@@ -1,7 +1,7 @@
 # Air-gap overlay for the Harakiri Helm chart: pull everything from Harbor.
 #
 #   helm install harakiri oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
-#     --version 0.5.0-rc.2 -n harakiri \
+#     --version 0.5.0-rc.3 -n harakiri \
 #     -f infra/charts/harakiri/values-airgap.yaml \
 #     --set secret.existingSecret=harakiri-api
 #

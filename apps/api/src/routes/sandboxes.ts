@@ -9,7 +9,8 @@ import type {
   SandboxesResponse
 } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
-import { query as defaultQuery } from "../db.js";
+import { query as defaultQuery, type Transaction } from "../db.js";
+import { SandboxLeaseError } from "../services/sandbox-lease.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "../providers/runtime/index.js";
 import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
 import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
@@ -37,6 +38,7 @@ import { createSandboxSchema, createSandboxSnapshotSchema, patchSandboxSourceSch
 
 export type SandboxRouteDependencies = {
   query?: Query;
+  transaction?: Transaction;
   runtimeProvider?: RuntimeProvider;
   recordAudit: Audit;
   recordSandboxEvent: SandboxEventRecorder;
@@ -484,11 +486,16 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
 
   app.post("/v1/sandboxes/:id/renew", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const renewed = await renewSandbox(
-      { organizationId: request.auth.organizationId, sandboxId: id, idempotencyKey: idempotencyKey(request.headers) },
-      { query, runtimeProvider, recordEvent }
-    );
-    if (!renewed) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
-    return { ok: true } satisfies OkResponse;
+    try {
+      const renewed = await renewSandbox(
+        { organizationId: request.auth.organizationId, sandboxId: id, idempotencyKey: idempotencyKey(request.headers) },
+        { query, runtimeProvider, recordEvent, transaction: dependencies.transaction }
+      );
+      if (!renewed) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+      return { ok: true } satisfies OkResponse;
+    } catch (error) {
+      if (error instanceof SandboxLeaseError) return reply.code(error.code === "sandbox_not_found" ? 404 : 409).send(apiErrorResponse(error.code));
+      throw error;
+    }
   });
 };

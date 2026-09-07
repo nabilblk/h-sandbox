@@ -4,15 +4,16 @@ Start with [Workspaces](workspaces.md) for the concept, ownership and lifecycle.
 Use [Workspace API, SDK and CLI](workspace-reference.md) for the reference contract
 and [Persistent storage operations](persistent-workspace-operations.md) for enablement and recovery.
 
-**Availability:** Release candidate `0.5.0-rc.2`. Use matching API, SDK and CLI
+**Availability:** Release candidate `0.5.0-rc.3`. Use matching API, SDK and CLI
 versions; stable `0.4.0` does not include this feature. Operators must explicitly
 enable a tested storage profile. k0s acceptance is passing; clean restricted
 OpenShift storage validation is still pending.
 
-At this candidate's release, npm publication was pending. Obtain matching
-archives from your operator; see the [delivery receipt](release-notes/0.5.0-rc.2-delivery.md).
-Use sufficient initial TTL for bounded tests: a known renewal/scheduler defect
-can still terminate a renewed sandbox at its original deadline.
+Obtain matching archives from your operator, or verify the exact npm candidate
+is published; see the [release notes](release-notes/0.5.0-rc.3.md).
+This candidate corrects the renewal/scheduler defect in earlier releases.
+Apply migration 036 and deploy matching API/scheduler versions. Following output
+alone does not renew TTL; explicitly renew long-running jobs before expiry.
 
 ## Choose the Right State
 

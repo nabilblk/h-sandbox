@@ -9,7 +9,8 @@ import {
   type CredentialVaultProviderState
 } from "@harakiri/shared";
 import WebSocket, { type RawData } from "ws";
-import { registerRoutes } from "./routes.js";
+import { registerRoutes as registerDefaultRoutes } from "./routes.js";
+import type { Transaction } from "./db.js";
 import { hashApiKey } from "./crypto.js";
 import type {
   RuntimeCredentialVaultApplyInput,
@@ -17,6 +18,14 @@ import type {
   RuntimeProvider,
   RuntimeRunInput
 } from "./providers/runtime/provider.js";
+
+const leaseTransaction: Transaction = (fn) => fn(async (text) => {
+  if (text.includes("FOR UPDATE")) return { rows: [{ opensandbox_id: "fake_provider", ttl_seconds: 300, status: "running", expires_at: null, provider_expires_at: null }] as never[] };
+  if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
+  return { rows: [], rowCount: 1 };
+});
+const registerRoutes = (app: Parameters<typeof registerDefaultRoutes>[0], dependencies: Parameters<typeof registerDefaultRoutes>[1] = {}) =>
+  registerDefaultRoutes(app, { transaction: leaseTransaction, ...dependencies });
 
 const fakeAuth = async (request: FastifyRequest): Promise<undefined> => {
   request.auth = {
@@ -29,6 +38,7 @@ const fakeAuth = async (request: FastifyRequest): Promise<undefined> => {
 };
 
 const routeRuntimeProvider = (state: {
+  renewed?: boolean;
   runInput?: RuntimeRunInput;
   runStdout?: string;
   runExitCode?: number;
@@ -52,9 +62,9 @@ const routeRuntimeProvider = (state: {
     throw new Error("not used");
   },
   list: async () => [],
-  get: async () => null,
+  get: async () => ({ provider: "fake", providerSandboxId: "fake_provider", state: "running", expiresAt: null }),
   delete: async () => undefined,
-  renew: async () => undefined,
+  renew: async () => { state.renewed = true; },
   run: async (input) => {
     state.runInput = input;
     return {
@@ -289,7 +299,7 @@ test("credential secret routes separate member use from admin management", async
 
 test("sandbox runtime routes run against an injected runtime provider", async () => {
   const app = Fastify();
-  const runtimeState: { runInput?: RuntimeRunInput; filesInput?: RuntimeListFilesInput } = {};
+  const runtimeState: { runInput?: RuntimeRunInput; filesInput?: RuntimeListFilesInput; renewed?: boolean } = {};
   const queries: Array<{ text: string; params?: unknown[] }> = [];
   await registerRoutes(app, {
     requireAuth: fakeAuth,
@@ -371,7 +381,7 @@ test("sandbox runtime routes run against an injected runtime provider", async ()
     assert.equal(JSON.parse(files.body).cwd, "/workspace");
     assert.equal(runtimeState.filesInput?.providerSandboxId, "fake_provider");
     assert.equal(runtimeState.filesInput?.defaultCwd, "/workspace");
-    assert.ok(queries.some((query) => query.text.includes("UPDATE sandboxes SET last_active_at")));
+    assert.equal(runtimeState.renewed, true, "command activity must renew the provider, not only a local timestamp");
 
     const read = await app.inject({
       method: "GET",

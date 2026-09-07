@@ -1,5 +1,5 @@
 import { config } from "../config.js";
-import { query as defaultQuery } from "../db.js";
+import { query as defaultQuery, type Transaction } from "../db.js";
 import type { RuntimeProvider, RuntimeRouteTarget, RuntimeSandboxRef, RuntimeSandboxSummary } from "../providers/runtime/provider.js";
 import { runtimeProvider as defaultRuntimeProvider } from "../providers/runtime/index.js";
 import { configuredRouteTarget, routeHost } from "../providers/runtime/route-targets.js";
@@ -8,6 +8,7 @@ import type { EgressNetworkPolicy } from "@harakiri/shared";
 import { recordSandboxEvent, type SandboxEventRecorder } from "./sandbox-events.js";
 import type { Query } from "./query.js";
 import { prepareRuntimeWorkspace } from "./persistent-workspaces.js";
+import { renewSandboxLease, SandboxLeaseError } from "./sandbox-lease.js";
 import {
   claimNextSandboxOperation,
   claimStaleRunningSandboxOperation,
@@ -35,6 +36,7 @@ export type ProcessSandboxOperationQueueReport = {
 
 export type ProcessSandboxOperationQueueDependencies = {
   query?: Query;
+  transaction?: Transaction;
   runtimeProvider?: RuntimeProvider;
   recordEvent?: SandboxEventRecorder;
   limit?: number;
@@ -236,15 +238,16 @@ const executeProvisionOperation = async (
            memory_mb = 128,
            started_at = now(),
            last_active_at = now(),
-           expires_at = now() + make_interval(secs => ttl_seconds::int),
+           expires_at = LEAST($4::timestamptz, now() + make_interval(secs => ttl_seconds::int)),
+           provider_expires_at = $4::timestamptz,
            updated_at = now()
        WHERE id = $1 AND organization_id = $3`,
-      [sandboxId, provider.providerSandboxId, operation.organizationId]
+      [sandboxId, provider.providerSandboxId, operation.organizationId, provider.expiresAt ?? null]
     );
     await dependencies.query(
       `INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at)
-       VALUES ($1, $2, 'idle_ttl', now() + make_interval(secs => $3::int))`,
-      [sandboxId, operation.organizationId, row.ttlSeconds]
+       SELECT id, organization_id, 'idle_ttl', expires_at FROM sandboxes WHERE id = $1 AND organization_id = $2`,
+      [sandboxId, operation.organizationId]
     );
     await completeSandboxOperation(
       {
@@ -326,6 +329,7 @@ const reconcileStaleProvisionOperation = async (
          started_at = COALESCE(started_at, now()),
          last_active_at = now(),
          expires_at = COALESCE($4::timestamptz, expires_at, now() + make_interval(secs => ttl_seconds::int)),
+         provider_expires_at = $4::timestamptz,
          updated_at = now()
      WHERE id = $1 AND organization_id = $5`,
     [sandboxId, match.providerSandboxId, status, match.expiresAt ?? null, operation.organizationId]
@@ -389,20 +393,11 @@ const executeDeleteOperation = async (
 
 const executeRenewOperation = async (
   operation: SandboxOperation,
-  dependencies: { query: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: { query: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
 ) => {
   const sandboxId = sandboxIdForOperation(operation);
   if (!sandboxId) throw new NonRetryableOperationError("renew operation is missing sandbox id");
-  const sandbox = await dependencies.query<{ opensandbox_id: string | null; ttl_seconds: number }>(
-    "SELECT opensandbox_id, ttl_seconds FROM sandboxes WHERE id = $1 AND organization_id = $2",
-    [sandboxId, operation.organizationId]
-  );
-  if (!sandbox.rowCount) throw new NonRetryableOperationError("sandbox not found for renew operation");
-  const providerSandboxId = stringValue(operation.request.providerSandboxId) ?? sandbox.rows[0].opensandbox_id;
-  const expiresAt = new Date(Date.now() + sandbox.rows[0].ttl_seconds * 1000).toISOString();
-  if (providerSandboxId) await dependencies.runtimeProvider.renew(runtimeRef(dependencies.runtimeProvider, providerSandboxId), { expiresAt });
-  await dependencies.query("UPDATE sandboxes SET expires_at = $2::timestamptz, last_active_at = now() WHERE id = $1", [sandboxId, expiresAt]);
-  await completeSandboxOperation({ operationId: operation.id, result: { providerSandboxId, expiresAt } }, dependencies.query);
+  await renewSandboxLease({ sandboxId, organizationId: operation.organizationId, operation }, dependencies);
   await dependencies.recordEvent(operation.organizationId, sandboxId, "renewed", "ttl reset by operation worker", {
     operationId: operation.id
   });
@@ -504,7 +499,7 @@ const executeRouteExposeOperation = async (
 
 export const executeSandboxOperation = async (
   operation: SandboxOperation,
-  dependencies: { query: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: { query: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
 ) => {
   if (operation.kind === "provision") return executeProvisionOperation(operation, dependencies);
   if (operation.kind === "delete") return executeDeleteOperation(operation, dependencies);
@@ -562,15 +557,16 @@ export const processSandboxOperationQueue = async (
     if (!operation) break;
     report.claimed += 1;
     try {
-      await executeSandboxOperation(operation, { query, runtimeProvider, recordEvent });
+      await executeSandboxOperation(operation, { query, runtimeProvider, recordEvent, transaction: dependencies.transaction });
       report.succeeded += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      if (error instanceof NonRetryableOperationError || operation.attempts >= maxAttempts) {
-        await failSandboxOperation({ operationId: operation.id, error: message }, query);
+      if (error instanceof SandboxLeaseError && error.code === "renew_in_progress") continue;
+      if (error instanceof NonRetryableOperationError || error instanceof SandboxLeaseError || operation.attempts >= maxAttempts) {
+        await failSandboxOperation({ operationId: operation.id, error: message, expectedAttempts: operation.attempts }, query);
         report.failed += 1;
       } else {
-        await requeueSandboxOperation({ operationId: operation.id, error: message }, query);
+        await requeueSandboxOperation({ operationId: operation.id, error: message, expectedAttempts: operation.attempts }, query);
         report.requeued += 1;
       }
     }

@@ -3,9 +3,10 @@
 Related: [workspace concepts](workspaces.md), [API/SDK/CLI reference](workspace-reference.md)
 and [the checkpoint/reconnect tutorial](persistent-workspaces.md).
 
-This is the `0.5.0-rc.2` preview. Restricted OpenShift acceptance and coherent
-restore validation remain open. The existing TTL-renewal/scheduler defect is a
-stable-release blocker; use sufficient initial TTLs for bounded acceptance tests.
+This is the `0.5.0-rc.3` preview. Restricted OpenShift acceptance and coherent
+restore validation remain open. Renewal/scheduler coordination is corrected in
+this candidate; stop the old scheduler, apply migration 036, deploy matching API
+and scheduler versions, then run the [live lease regression](sandbox-lease-operations.md).
 
 ## Enable Deliberately
 

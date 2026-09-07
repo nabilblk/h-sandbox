@@ -9,6 +9,9 @@ test("normalizeState maps OpenSandbox states to Harakiri statuses", () => {
   assert.equal(normalizeState("Pending"), "pending");
   assert.equal(normalizeState("Failed"), "error");
   assert.equal(normalizeState("Terminating"), "terminated");
+  assert.equal(normalizeState("Paused"), "paused");
+  assert.equal(normalizeState("Resuming"), "resuming");
+  assert.equal(normalizeState("unknown"), null);
 });
 
 test("shouldRunTemplateRetention respects interval boundaries", () => {
@@ -58,12 +61,15 @@ test("reconcile runs against an injected runtime provider and marks missing sand
     runtimeProvider: fakeRuntimeProvider({ get: null }),
     query: async (text, params) => {
       calls.push({ text, params });
-      if (text.includes("SELECT id, opensandbox_id FROM sandboxes")) {
-        return { rows: [{ id: "sbx_missing", opensandbox_id: "osbx_missing" }] as never[] };
+      if (text.includes("SELECT id, organization_id FROM sandboxes")) {
+        return { rows: [{ id: "sbx_missing", organization_id: "org_test" }] as never[] };
       }
+      if (text.includes("FOR UPDATE")) return { rows: [{ opensandbox_id: "osbx_missing", status: "running", expires_at: new Date() }] as never[] };
+      if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
       return { rows: [] };
     }
   };
+  dependencies.transaction = (fn) => fn(dependencies.query!);
 
   await reconcile(dependencies);
 
@@ -75,14 +81,15 @@ test("tick deletes due sandboxes through an injected runtime provider", async ()
   const deleted: string[] = [];
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const dependencies: SchedulerDependencies = {
-    runtimeProvider: fakeRuntimeProvider({ deleted }),
+    runtimeProvider: fakeRuntimeProvider({ deleted, get: { provider: "fake", providerSandboxId: "osbx_due", state: "running", expiresAt: "2026-01-01T00:00:00Z" } }),
+    reconcileCredentialVault: async () => ({ claimed: 0, inspectionClaimed: 0, inspected: 0, refreshed: 0, rehydrated: 0, skipped: 0, failed: 0, errors: [] }),
     runTemplateRetentionIfDue: async () => null,
     query: async (text, params) => {
       calls.push({ text, params });
-      if (text.includes("SELECT id, opensandbox_id FROM sandboxes")) {
+      if (text.includes("SELECT id, organization_id FROM sandboxes")) {
         return { rows: [] };
       }
-      if (text.includes("SELECT ss.id AS schedule_id")) {
+      if (text.includes("SELECT id AS sandbox_id")) {
         return {
           rows: [
             {
@@ -94,14 +101,17 @@ test("tick deletes due sandboxes through an injected runtime provider", async ()
           ] as never[]
         };
       }
+      if (text.includes("FOR UPDATE")) return { rows: [{ opensandbox_id: "osbx_due", status: "running", expires_at: "2026-01-01T00:00:00Z" }] as never[] };
+      if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
       return { rows: [] };
     }
   };
+  dependencies.transaction = (fn) => fn(dependencies.query!);
 
   await tick(dependencies);
 
   assert.deepEqual(deleted, ["osbx_due"]);
   assert.ok(calls.some((call) => call.text.includes("UPDATE sandboxes SET status = 'terminated'") && call.params?.[0] === "sbx_due"));
-  assert.ok(calls.some((call) => call.text.includes("UPDATE sandbox_schedules SET completed_at") && call.params?.[0] === "sched_due"));
+  assert.ok(calls.some((call) => call.text.includes("UPDATE sandbox_schedules SET completed_at") && call.params?.[0] === "sbx_due"));
   assert.ok(calls.some((call) => call.text.includes("INSERT INTO sandbox_events") && call.params?.[0] === "sbx_due"));
 });

@@ -31,10 +31,10 @@ export const workspaceReferenceDocs: DocPage = {
   toc: ["Distribution and prerequisites", "HTTP operations", "Parameters and responses", "SDK methods", "CLI commands", "Errors and recovery"],
   body: <div className="workspace-doc">
     <section><h2>Distribution and prerequisites</h2>
-      <p>This reference targets <code>0.5.0-rc.2</code>. At release, matching SDK and CLI archives were available but npm publication was pending; <code>latest</code> remained 0.4.0 and <code>next</code> was not available. Do not assume an unversioned npm install contains workspaces.</p>
-      <p>Obtain <code>h-sandbox-sdk-0.5.0-rc.2.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.2.tgz</code> and their release checksums from your operator. Maintainers with repository access can also retrieve them from the GitHub prerelease. In a fresh directory with Node.js 20 or newer, install both archives together because the CLI depends on the matching SDK:</p>
+      <p>This reference targets <code>0.5.0-rc.3</code>. Use the matching release archives below, or verify that the exact candidate is available in npm before installing it. The stable <code>latest</code> channel is separate; an unversioned install of 0.4.0 does not contain workspaces.</p>
+      <p>Obtain <code>h-sandbox-sdk-0.5.0-rc.3.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.3.tgz</code> and their release checksums from your operator. Maintainers with repository access can also retrieve them from the GitHub prerelease. In a fresh directory with Node.js 20 or newer, install both archives together because the CLI depends on the matching SDK:</p>
       <pre>{`npm init -y
-npm install ./h-sandbox-sdk-0.5.0-rc.2.tgz ./h-sandbox-cli-0.5.0-rc.2.tgz
+npm install ./h-sandbox-sdk-0.5.0-rc.3.tgz ./h-sandbox-cli-0.5.0-rc.3.tgz
 ./node_modules/.bin/harakiri --version`}</pre>
       <p>The rest of these docs use <code>harakiri</code> for the installed executable. For a local install, use <code>./node_modules/.bin/harakiri</code>. Configure <code>HARAKIRI_API_URL</code> and <code>HARAKIRI_API_KEY</code> privately. The API/scheduler must run matching workspace-aware code and an enabled storage profile.</p>
       <p>For the mental model, start with <a href="#docs/workspaces">Workspaces</a>. For a complete exercise, use <a href="#docs/persistent-workspaces">Reuse files across sandboxes</a>.</p>

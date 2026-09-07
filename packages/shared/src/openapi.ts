@@ -1430,7 +1430,7 @@ export const openApiDocument = {
   openapi: "3.1.0",
   info: {
     title: "Harakiri Sandbox API",
-    version: "0.5.0-rc.2",
+    version: "0.5.0-rc.3",
     description: "Control-plane API for sandbox lifecycle, templates, Credential Vault, routes, registry credentials, and account settings."
   },
   servers: [
@@ -1578,7 +1578,7 @@ export const openApiDocument = {
       post: secured({ tags: ["Sandboxes"], summary: "Resume a paused sandbox", operationId: "resumeSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Resumed sandbox", ref("SandboxResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/renew": {
-      post: secured({ tags: ["Sandboxes"], summary: "Renew a sandbox TTL", operationId: "renewSandbox", parameters: [pathId], responses: { ...ok("Renewed sandbox", ref("OkResponse")), ...authErrorResponses } })
+      post: secured({ tags: ["Sandboxes"], summary: "Renew an active sandbox TTL after provider confirmation", operationId: "renewSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Renewed sandbox", ref("OkResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/snapshots": {
       post: secured({ tags: ["Sandboxes"], summary: "Create a sandbox snapshot", operationId: "createSandboxSnapshot", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], requestBody: jsonBody(ref("CreateSandboxSnapshotBody")), responses: { ...created("Created snapshot", ref("SandboxSnapshotResponse")), ...accepted("Queued snapshot", ref("SandboxSnapshotResponse")), ...authErrorResponses } })

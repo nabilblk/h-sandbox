@@ -1,7 +1,7 @@
 import type { QueryResultRow } from "pg";
-import { closeDb, query as defaultQuery } from "./db.js";
+import { closeDb, query as defaultQuery, type Transaction } from "./db.js";
 import { runtimeProvider as defaultRuntimeProvider } from "./providers/runtime/index.js";
-import type { RuntimeProvider, RuntimeSandboxRef } from "./providers/runtime/provider.js";
+import type { RuntimeProvider } from "./providers/runtime/provider.js";
 import { config, logDeprecatedConfigWarnings } from "./config.js";
 import { processSandboxOperationQueue, type ProcessSandboxOperationQueueReport } from "./services/sandbox-operation-worker.js";
 import {
@@ -10,15 +10,9 @@ import {
 } from "./services/credential-vault-reconciler.js";
 import { cleanupTemplateRetention, type TemplateRetentionReport } from "./template-retention.js";
 import { reconcileWorkspaces } from "./services/persistent-workspaces.js";
+import { normalizeRuntimeState, reconcileSandboxLease } from "./services/sandbox-lease.js";
 
-export const normalizeState = (state?: string | null) => {
-  const value = String(state ?? "").toLowerCase();
-  if (value.includes("running") || value.includes("ready")) return "running";
-  if (value.includes("pending") || value.includes("creating")) return "pending";
-  if (value.includes("fail") || value.includes("error")) return "error";
-  if (value.includes("delete") || value.includes("terminat") || value.includes("stopped")) return "terminated";
-  return "running";
-};
+export const normalizeState = normalizeRuntimeState;
 
 export const shouldRunTemplateRetention = (lastRunAtMs: number, nowMs: number, intervalMs: number) =>
   intervalMs > 0 && nowMs - lastRunAtMs >= intervalMs;
@@ -32,10 +26,12 @@ type SchedulerQuery = <T extends QueryResultRow = QueryResultRow>(text: string, 
 
 export type SchedulerDependencies = {
   query?: SchedulerQuery;
+  transaction?: Transaction;
   runtimeProvider?: RuntimeProvider;
   processSandboxOperationQueue?: (dependencies: {
     query: SchedulerQuery;
     runtimeProvider: RuntimeProvider;
+    transaction?: Transaction;
   }) => Promise<ProcessSandboxOperationQueueReport>;
   reconcileCredentialVault?: (dependencies: {
     query: SchedulerQuery;
@@ -43,11 +39,6 @@ export type SchedulerDependencies = {
   }) => Promise<CredentialVaultReconciliationReport>;
   runTemplateRetentionIfDue?: () => Promise<TemplateRetentionReport | null>;
 };
-
-const runtimeRef = (provider: RuntimeProvider, providerSandboxId: string | null | undefined): RuntimeSandboxRef => ({
-  provider: provider.kind,
-  providerSandboxId: providerSandboxId ?? ""
-});
 
 export const runTemplateRetentionIfDue = async (nowMs = Date.now()) => {
   if (!config.templateRetentionEnabled) return null;
@@ -66,37 +57,18 @@ export const runTemplateRetentionIfDue = async (nowMs = Date.now()) => {
 export const reconcile = async (dependencies: SchedulerDependencies = {}) => {
   const query = dependencies.query ?? defaultQuery;
   const runtimeProvider = dependencies.runtimeProvider ?? defaultRuntimeProvider;
-  const rows = await query<{ id: string; opensandbox_id: string }>(
-    `SELECT id, opensandbox_id FROM sandboxes
+  const rows = await query<{ id: string; organization_id: string }>(
+    `SELECT id, organization_id FROM sandboxes
      WHERE opensandbox_id IS NOT NULL AND status IN ('running', 'pending', 'idle')
      LIMIT 100`
   );
   for (const row of rows.rows) {
-    const provider = await runtimeProvider.get(runtimeRef(runtimeProvider, row.opensandbox_id));
-    if (!provider) {
-      await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [row.id]);
-      await query(
-        `UPDATE sandbox_routes
-         SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
-         WHERE sandbox_id = $1 AND state <> 'terminated'`,
-        [row.id]
-      );
-      continue;
-    }
-    const status = normalizeState(provider.state);
-    await query(
-      `UPDATE sandboxes
-       SET status = $2, expires_at = COALESCE($3::timestamptz, expires_at), updated_at = now()
-       WHERE id = $1 AND status IS DISTINCT FROM $2`,
-      [row.id, status, provider.expiresAt ?? null]
-    );
-    if (status === "terminated") {
-      await query(
-        `UPDATE sandbox_routes
-         SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
-         WHERE sandbox_id = $1 AND state <> 'terminated'`,
-        [row.id]
-      );
+    try {
+      await reconcileSandboxLease({ sandboxId: row.id, organizationId: row.organization_id }, {
+        runtimeProvider, transaction: dependencies.transaction
+      });
+    } catch (error) {
+      console.error("sandbox reconciliation failed", row.id, error);
     }
   }
 };
@@ -105,39 +77,27 @@ export const tick = async (dependencies: SchedulerDependencies = {}) => {
   const query = dependencies.query ?? defaultQuery;
   const runtimeProvider = dependencies.runtimeProvider ?? defaultRuntimeProvider;
   await reconcile(dependencies);
-  await (dependencies.processSandboxOperationQueue ?? processSandboxOperationQueue)({ query, runtimeProvider });
+  await (dependencies.processSandboxOperationQueue ?? processSandboxOperationQueue)({ query, runtimeProvider, transaction: dependencies.transaction });
   const vaultReport = await (dependencies.reconcileCredentialVault ?? reconcileCredentialVault)({ query, runtimeProvider });
   if (vaultReport.failed > 0) console.error("credential vault reconciliation failed", vaultReport);
   const due = await query<{
-    schedule_id: string;
     sandbox_id: string;
     organization_id: string;
-    opensandbox_id: string | null;
   }>(
-    `SELECT ss.id AS schedule_id, ss.sandbox_id, ss.organization_id, s.opensandbox_id
-     FROM sandbox_schedules ss
-     JOIN sandboxes s ON s.id = ss.sandbox_id
-     WHERE ss.completed_at IS NULL
-       AND ss.run_at <= now()
-       AND ss.kind = 'idle_ttl'
-       AND s.status IN ('running', 'idle', 'pending')
+    `SELECT id AS sandbox_id, organization_id FROM sandboxes
+     WHERE expires_at <= clock_timestamp()
+       AND status IN ('running', 'idle', 'pending') AND opensandbox_id IS NOT NULL
+     ORDER BY expires_at
      LIMIT 20`
   );
   for (const item of due.rows) {
-    if (item.opensandbox_id) await runtimeProvider.delete(runtimeRef(runtimeProvider, item.opensandbox_id));
-    await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [item.sandbox_id]);
-    await query(
-      `UPDATE sandbox_routes
-       SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now()
-       WHERE sandbox_id = $1`,
-      [item.sandbox_id]
-    );
-    await query("UPDATE sandbox_schedules SET completed_at = now() WHERE id = $1", [item.schedule_id]);
-    await query(
-      `INSERT INTO sandbox_events (sandbox_id, organization_id, type, message)
-       VALUES ($1, $2, 'ttl', 'idle ttl exceeded; sandbox terminated; persistent workspace storage retained')`,
-      [item.sandbox_id, item.organization_id]
-    );
+    try {
+      await reconcileSandboxLease({ sandboxId: item.sandbox_id, organizationId: item.organization_id, expire: true }, {
+        runtimeProvider, transaction: dependencies.transaction
+      });
+    } catch (error) {
+      console.error("sandbox expiration failed", item.sandbox_id, error);
+    }
   }
   await (dependencies.runTemplateRetentionIfDue ?? runTemplateRetentionIfDue)();
   await reconcileWorkspaces(query, runtimeProvider);
@@ -146,12 +106,15 @@ export const tick = async (dependencies: SchedulerDependencies = {}) => {
 if (import.meta.url === `file://${process.argv[1]}`) {
   logDeprecatedConfigWarnings();
   console.log("harakiri scheduler started");
-  const timer = setInterval(() => {
-    tick().catch((error) => console.error(error));
-  }, 10_000);
-  tick().catch((error) => console.error(error));
+  let activeTick: Promise<void> | undefined;
+  const runTick = () => {
+    if (!activeTick) activeTick = tick().catch((error) => console.error(error)).finally(() => { activeTick = undefined; });
+  };
+  const timer = setInterval(runTick, 10_000);
+  runTick();
   const shutdown = async () => {
     clearInterval(timer);
+    await activeTick;
     await closeDb();
     process.exit(0);
   };

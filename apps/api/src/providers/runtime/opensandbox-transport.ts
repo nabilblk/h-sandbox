@@ -191,32 +191,28 @@ export const openSandbox = {
 
   async get(opensandboxId: string) {
     try {
-      return await callOpenSandbox<ProviderSandbox>(`/v1/sandboxes/${opensandboxId}`);
+      return await callOpenSandbox<ProviderSandbox>(`/v1/sandboxes/${opensandboxId}`, { signal: AbortSignal.timeout(10_000) });
     } catch (error) {
       if (error instanceof OpenSandboxHttpError && error.status === 404) return null;
-      if (!config.openSandboxAllowFallback) throw error;
-      return null;
+      throw error;
     }
   },
 
   async delete(opensandboxId: string) {
     try {
-      await callOpenSandbox(`/v1/sandboxes/${opensandboxId}`, { method: "DELETE" });
+      await callOpenSandbox(`/v1/sandboxes/${opensandboxId}`, { method: "DELETE", signal: AbortSignal.timeout(10_000) });
     } catch (error) {
       if (error instanceof OpenSandboxHttpError && error.status === 404) return;
-      if (!config.openSandboxAllowFallback) throw error;
+      throw error;
     }
   },
 
   async renew(opensandboxId: string, input: { expiresAt: string }) {
-    try {
-      await callOpenSandbox(`/v1/sandboxes/${opensandboxId}/renew-expiration`, {
-        method: "POST",
-        body: JSON.stringify({ expiresAt: input.expiresAt })
-      });
-    } catch (error) {
-      if (!config.openSandboxAllowFallback) throw error;
-    }
+    await callOpenSandbox(`/v1/sandboxes/${opensandboxId}/renew-expiration`, {
+      method: "POST",
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({ expiresAt: input.expiresAt })
+    });
   },
 
   async pause(opensandboxId: string) {

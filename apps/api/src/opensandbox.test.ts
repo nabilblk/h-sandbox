@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { openSandbox, openSandboxCreateBody } from "./opensandbox.js";
 import type { RuntimeTemplate } from "./templates.js";
+import { config } from "./config.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -25,6 +26,24 @@ const execdEndpointResponse = (headers?: Record<string, string>) =>
     endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772",
     ...(headers ? { headers } : {})
   });
+
+test("native lease operations fail closed even when legacy fallback is enabled", async () => {
+  const previous = config.openSandboxAllowFallback;
+  config.openSandboxAllowFallback = true;
+  try {
+    globalThis.fetch = async (_input, init) => {
+      assert.ok(init?.signal, "lease provider requests must have a timeout signal");
+      return jsonResponse({ error: "unavailable" }, { status: 503 });
+    };
+    await assert.rejects(openSandbox.get("native-lease"), /503/);
+    await assert.rejects(openSandbox.renew("native-lease", { expiresAt: new Date(Date.now() + 60000).toISOString() }), /503/);
+    await assert.rejects(openSandbox.delete("native-lease"), /503/);
+    globalThis.fetch = async () => jsonResponse({ error: "not found" }, { status: 404 });
+    assert.equal(await openSandbox.get("native-lease"), null);
+    await openSandbox.delete("native-lease");
+    await assert.rejects(openSandbox.renew("native-lease", { expiresAt: new Date().toISOString() }), /404/);
+  } finally { config.openSandboxAllowFallback = previous; }
+});
 
 test("openSandbox.create sends the resolved DB template image, entrypoint, and resources", async () => {
   const requests: Array<{ input: string | URL | Request; init?: RequestInit }> = [];

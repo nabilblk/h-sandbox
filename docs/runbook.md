@@ -163,6 +163,7 @@ Core platform checks:
 pnpm smoke
 pnpm smoke:members
 pnpm smoke:ttl
+pnpm smoke:renew
 pnpm smoke:templates
 pnpm smoke:template-redaction
 pnpm smoke:template-limits
@@ -176,6 +177,10 @@ pnpm screenshots
 `pnpm smoke:templates` creates, runs, and kills sandboxes from the default
 `python-3.12`, `python-3.12-data`, and `node-20` catalog templates to catch
 custom-template regressions in the original catalog path.
+`pnpm smoke:renew` runs the SDK beyond the original expiration deadline and
+checks final expiration plus a short TTL. Allow about three minutes with the
+scheduler running. See [lease coordination](./sandbox-lease-operations.md) for
+migration 036 and coordinated API/scheduler upgrade requirements.
 `pnpm smoke:template-redaction` submits secret-shaped build args and metadata
 through the deployed API, verifies responses are redacted, and checks
 PostgreSQL did not retain the original secret values.

@@ -28,7 +28,7 @@ export const workspaceOperationsDocs: DocPage = {
         <li>On OpenShift, test the real assigned UID and approved fsGroup permissions. Validate each template/architecture used by the installation.</li>
         <li>Exercise provider unavailability and verify failure stays explicit, without fallback execution or an empty replacement volume.</li>
       </ol>
-      <p>Metadata availability and <code>storageRequested</code> are not health checks. Provisioning happens on the first attachment; verify real write/read behavior. The current preview has a known renewal/scheduler deadline defect. Choose sufficient initial TTLs and do not promote to stable until renewal beyond the original deadline is verified.</p>
+      <p>Metadata availability and <code>storageRequested</code> are not health checks. Provisioning happens on the first attachment; verify real write/read behavior. Version 0.5.0-rc.3 corrects renewal/scheduler coordination: stop the old scheduler, apply migration 036, then deploy the matching API and scheduler. Verify renewal beyond the original deadline after upgrading.</p>
     </section>
     <section><h2>Retention and reclamation</h2>
       <p>Sandbox termination retains mounted project files. Archive retires a detached workspace, but does not remove its PVC or free its allocation slot. Harakiri exposes no physical volume-delete endpoint in this preview.</p>

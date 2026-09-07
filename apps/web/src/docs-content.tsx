@@ -612,7 +612,7 @@ try {
     section: "Sandboxes",
     title: "Lifecycle",
     lede: "Use explicit create, reconnect, renew, kill, and provider-backed persistence semantics without exposing provider IDs to users.",
-    toc: ["States", "Supported operations", "Snapshots", "Capability gating", "SDK", "CLI", "Cleanup"],
+    toc: ["States", "Supported operations", "TTL and activity", "Snapshots", "Capability gating", "SDK", "CLI", "Cleanup"],
     body: (
       <>
         <h2>States</h2>
@@ -620,6 +620,10 @@ try {
         <p>`terminated` is terminal. Reconnect can read the historical summary, but it does not resurrect a runtime.</p>
         <h2>Supported operations</h2>
         <p>Create starts a runtime from a template or a ready snapshot. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates `expiresAt`. Kill terminates the runtime and removes active route records. Pause and resume delegate to provider lifecycle operations when available.</p>
+        <h2>TTL and activity</h2>
+        <p><strong>From 0.5.0-rc.3:</strong> renewal and expiration coordinate on the same deadline. Operators must stop the old scheduler, apply migration 036 and deploy matching API and scheduler versions. Earlier releases can expire a renewed sandbox at its original schedule.</p>
+        <p>Commands and command sessions renew before execution. An attached terminal renews periodically. Reading status, files or metrics and following command output do not keep a sandbox alive. For long or detached jobs, choose sufficient TTL or explicitly renew before expiry.</p>
+        <p>A successful renewal requires a running or idle native runtime; it cannot revive an expired sandbox. Reusing an <code>Idempotency-Key</code> replays the same renewal, not another extension. Read <code>expiresAt</code> after renewal to see the current deadline.</p>
         <h2>Snapshots</h2>
         <p>Snapshot creation stores a public Harakiri `snp_...` ID and keeps the provider snapshot ID internal. Restores use `POST /v1/sandboxes` with `snapshotId`, so SDK and CLI users never need provider-specific snapshot identifiers.</p>
         <h2>Capability gating</h2>

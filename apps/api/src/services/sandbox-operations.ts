@@ -75,6 +75,7 @@ export const enqueueSandboxOperation = async (
     `INSERT INTO sandbox_operations
      (id, organization_id, sandbox_id, kind, state, idempotency_key, request)
      VALUES ($1, $2, $3, $4, 'queued', $5, $6)
+     ON CONFLICT DO NOTHING
      RETURNING id, organization_id AS "organizationId", sandbox_id AS "sandboxId",
                kind, state, idempotency_key AS "idempotencyKey", request, result,
                error, attempts, locked_at AS "lockedAt", started_at AS "startedAt",
@@ -89,6 +90,14 @@ export const enqueueSandboxOperation = async (
       JSON.stringify(input.request ?? {})
     ]
   );
+  if (!inserted.rows.length && input.idempotencyKey) {
+    const existing = await query<SandboxOperation>(
+      `${sandboxOperationSelect} WHERE organization_id = $1 AND kind = $2 AND idempotency_key = $3`,
+      [input.organizationId, input.kind, input.idempotencyKey]
+    );
+    if (existing.rows[0]) return { operation: existing.rows[0], reused: true };
+  }
+  if (!inserted.rows[0]) throw new Error("sandbox operation could not be enqueued");
   return { operation: inserted.rows[0], reused: false };
 };
 
@@ -310,7 +319,7 @@ export const completeSandboxOperation = async (
 };
 
 export const failSandboxOperation = async (
-  input: { operationId: string; error: string; result?: Record<string, unknown> },
+  input: { operationId: string; error: string; result?: Record<string, unknown>; expectedAttempts?: number },
   query: Query = defaultQuery
 ) => {
   const failed = await query<SandboxOperation>(
@@ -322,18 +331,19 @@ export const failSandboxOperation = async (
          locked_at = NULL,
          updated_at = now()
      WHERE id = $1
+       AND ($4::int IS NULL OR (state = 'running' AND attempts = $4))
      RETURNING id, organization_id AS "organizationId", sandbox_id AS "sandboxId",
                kind, state, idempotency_key AS "idempotencyKey", request, result,
                error, attempts, locked_at AS "lockedAt", started_at AS "startedAt",
                completed_at AS "completedAt", created_at AS "createdAt",
                updated_at AS "updatedAt"`,
-    [input.operationId, input.error, JSON.stringify(input.result ?? {})]
+    [input.operationId, input.error, JSON.stringify(input.result ?? {}), input.expectedAttempts ?? null]
   );
   return failed.rows[0] ?? null;
 };
 
 export const requeueSandboxOperation = async (
-  input: { operationId: string; error: string; result?: Record<string, unknown> },
+  input: { operationId: string; error: string; result?: Record<string, unknown>; expectedAttempts?: number },
   query: Query = defaultQuery
 ) => {
   const requeued = await query<SandboxOperation>(
@@ -346,12 +356,13 @@ export const requeueSandboxOperation = async (
          updated_at = now()
      WHERE id = $1
        AND state = 'running'
+       AND ($4::int IS NULL OR attempts = $4)
      RETURNING id, organization_id AS "organizationId", sandbox_id AS "sandboxId",
                kind, state, idempotency_key AS "idempotencyKey", request, result,
                error, attempts, locked_at AS "lockedAt", started_at AS "startedAt",
                completed_at AS "completedAt", created_at AS "createdAt",
                updated_at AS "updatedAt"`,
-    [input.operationId, input.error, JSON.stringify(input.result ?? {})]
+    [input.operationId, input.error, JSON.stringify(input.result ?? {}), input.expectedAttempts ?? null]
   );
   return requeued.rows[0] ?? null;
 };

@@ -81,7 +81,7 @@ export const workspaceTutorialDocs: DocPage = {
     <section><h2>Before you start</h2>
       <p>Read <a href="#docs/workspaces">Workspaces</a> for the storage model. This exercise requires no model provider or paid API key. Use an operator-enabled installation, a Python template and one free workspace allocation.</p>
       <p>The SDK scenario needs your organization API key and the <a href="#docs/workspace-reference">matching candidate package</a>. The dashboard scenario requires neither a local SDK nor a repository checkout.</p>
-      <p>Allow about two minutes. The example uses an initial TTL of 600 seconds; do not rely on renewal while the scheduler issue remains open. Arrange storage cleanup with your operator: archive does not delete the volume or recover the allocation slot.</p>
+      <p>Allow about two minutes. The example uses an initial TTL of 600 seconds. Longer jobs must explicitly renew before expiry; following command output does not renew TTL. Arrange storage cleanup with your operator: archive does not delete the volume or recover the allocation slot.</p>
     </section>
     <section><h2>Try it in the dashboard</h2>
       <ol>

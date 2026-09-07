@@ -28,6 +28,13 @@ import {
   writeSandboxFile
 } from "./services/sandbox-runtime.js";
 import { hashApiKey } from "./crypto.js";
+import type { Transaction } from "./db.js";
+
+const leaseTransaction: Transaction = (fn) => fn(async (text) => {
+  if (text.includes("FOR UPDATE")) return { rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300, status: "running", expires_at: null }] as never[] };
+  if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
+  return { rows: [], rowCount: 1 };
+});
 
 const fakeRuntimeProvider = (overrides: Partial<RuntimeProvider> = {}): RuntimeProvider => ({
   kind: "fake",
@@ -42,7 +49,7 @@ const fakeRuntimeProvider = (overrides: Partial<RuntimeProvider> = {}): RuntimeP
     throw new Error("not used");
   },
   list: async () => [],
-  get: async () => null,
+  get: async () => ({ provider: "fake", providerSandboxId: "provider_sbx", state: "running", expiresAt: null }),
   delete: async () => undefined,
   renew: async () => undefined,
   run: async () => {
@@ -348,6 +355,7 @@ test("createSandboxCommand persists a tracked provider command and reads detache
       runtimeProvider: provider,
       query,
       idFactory: () => "cmd_runtime",
+      transaction: leaseTransaction,
       recordEvent: async (_organizationId, _sandboxId, type, _message, metadata) => {
         events.push({ type, metadata });
       }
@@ -446,6 +454,7 @@ test("runSandboxCommand uses the tracked command resource when available", async
   const result = await runSandboxCommand(
     { organizationId: "org_runtime", sandboxId: "sbx_runtime", command: "python -V", cwd: "/workspace", timeoutMs: 15_000 },
     {
+      transaction: leaseTransaction,
       runtimeProvider: provider,
       query,
       recordEvent: async (_organizationId, _sandboxId, type, _message, metadata) => {
@@ -540,7 +549,8 @@ test("runSandboxCommand records explicit Git operation audit metadata", async ()
       runtimeProvider: provider,
       query,
       recordEvent: async (_organizationId, _sandboxId, type, message, metadata) => events.push({ type, message, metadata }),
-      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => audits.push({ action, metadata })
+      recordAudit: async (_organizationId, _userId, _actorLabel, action, _targetType, _targetId, metadata) => audits.push({ action, metadata }),
+      transaction: leaseTransaction
     }
   );
 
@@ -629,6 +639,7 @@ test("createSandboxCommand redacts credentialed Git URLs in stored command recor
       runtimeProvider: provider,
       query,
       idFactory: () => "cmd_git",
+      transaction: leaseTransaction,
       recordEvent: async (_organizationId, _sandboxId, type, message, metadata) => {
         events.push({ type, message, metadata });
       }
@@ -647,7 +658,9 @@ test("createSandboxCommand redacts credentialed Git URLs in stored command recor
 
 test("persistent command sessions resolve sandbox context and renew activity", async () => {
   const events: Array<{ type: string; metadata?: Record<string, unknown> }> = [];
+  let renews = 0;
   const provider = fakeRuntimeProvider({
+    renew: async () => { renews += 1; },
     createCommandSession: async (input) => {
       assert.equal(input.providerSandboxId, "provider_sbx");
       assert.equal(input.cwd, "/workspace");
@@ -664,20 +677,15 @@ test("persistent command sessions resolve sandbox context and renew activity", a
       assert.equal(input.providerSessionId, "ses_runtime");
     }
   });
-  let renews = 0;
   const query = async (text: string, params?: unknown[]) => {
     if (text.includes("SELECT s.id, s.opensandbox_id")) {
       assert.deepEqual(params, ["sbx_runtime", "org_runtime"]);
       return { rowCount: 1, rows: [{ id: "sbx_runtime", opensandboxId: "provider_sbx", status: "running", workdir: "/workspace" }] as never[] };
     }
-    if (text.includes("UPDATE sandboxes SET last_active_at")) {
-      renews += 1;
-      assert.deepEqual(params, ["sbx_runtime", "org_runtime"]);
-      return { rowCount: 1, rows: [] as never[] };
-    }
     throw new Error(`unexpected query: ${text}`);
   };
   const dependencies = {
+    transaction: leaseTransaction,
     runtimeProvider: provider,
     query,
     recordEvent: async (_organizationId: string, _sandboxId: string, type: string, _message: string, metadata?: Record<string, unknown>) => {
@@ -746,6 +754,7 @@ test("attachSandboxTerminal maps provider unsupported options to terminal unsupp
       sessionName: "service-terminal"
     },
     {
+      transaction: leaseTransaction,
       runtimeProvider: provider,
       query,
       recordEvent: async (_organizationId, _sandboxId, type, _message, metadata) => {
@@ -760,6 +769,39 @@ test("attachSandboxTerminal maps provider unsupported options to terminal unsupp
   });
   assert.equal(events[0].type, "terminal.attach.failed");
   assert.equal(events[0].metadata?.message, "OpenSandbox PTY does not support per-attach environment variables yet.");
+});
+
+test("terminal keepalive respects short TTLs and reports native renewal failure", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  let ready!: () => void; let detach!: () => void;
+  const attached = new Promise<void>((resolve) => { ready = resolve; });
+  const detached = new Promise<void>((resolve) => { detach = resolve; });
+  let renews = 0;
+  const closed: Array<{ code: number; reason: string }> = [];
+  const attaching = attachSandboxTerminal({
+    organizationId: "org_runtime", sandboxId: "sbx_runtime", actorUserId: "user_runtime", actorLabel: "test",
+    client: { close: (code: number, reason: string) => { closed.push({ code, reason }); detach(); } } as never
+  }, {
+    query: async () => ({ rows: [{ id: "sbx_runtime", opensandboxId: "provider_sbx", status: "running", workdir: "/tmp", ttlSeconds: 10 }] as never[] }),
+    transaction: leaseTransaction,
+    recordEvent: async () => undefined,
+    runtimeProvider: fakeRuntimeProvider({
+      renew: async () => { if (++renews === 3) throw new Error("renewal unavailable"); },
+      createPtySession: async () => ({ providerSessionId: "pty_test", cwd: "/tmp", provider: "fake" }),
+      attachPtySession: async () => { ready(); await detached; }
+    })
+  });
+  try {
+    await attached;
+    assert.equal(renews, 1);
+    t.mock.timers.tick(4000);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(renews, 2, "a 10-second TTL must not wait 30 seconds to renew");
+    t.mock.timers.tick(4000);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(closed[0]?.code, 1011);
+    assert.match(closed[0]?.reason ?? "", /renewal failed/);
+  } finally { detach(); await attaching; }
 });
 
 test("listSandboxLogs merges control-plane and provider logs chronologically", async () => {

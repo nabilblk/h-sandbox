@@ -2,10 +2,10 @@
 
 Read [Workspaces](workspaces.md) for the model or use the
 [checkpoint/reconnect tutorial](persistent-workspaces.md) for a full scenario.
-This reference describes `0.5.0-rc.2`. API and scheduler must have workspace
-support enabled. SDK/CLI candidate archives are available from the operator;
-npm publication was pending at release. See the
-[delivery receipt](release-notes/0.5.0-rc.2-delivery.md) for checksums and install steps.
+This reference describes `0.5.0-rc.3`. API and scheduler must have workspace
+support enabled. Use matching SDK/CLI archives, or verify the exact npm candidate
+is available. See the [release notes](release-notes/0.5.0-rc.3.md) for installation
+and the required migration 036 upgrade order.
 
 ## HTTP Operations
 

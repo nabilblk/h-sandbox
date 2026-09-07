@@ -132,10 +132,20 @@ beyond the retained provider log data.
       semantics honest and provider references out of public IDs.
 - [ ] Handle create retries/failures, kill/TTL cleanup, pause reservations,
       snapshot metadata and restore without unintended storage sharing.
-- [ ] Correct stale idle schedules after renewal/activity. Real release testing
+- [x] Correct stale idle schedules after renewal/activity. Real release testing
       reproduced termination at the original deadline despite a later reported
       expiry. Coordinate the authoritative deadline with renewal and add a real
       PostgreSQL plus beyond-original-deadline runtime regression before stable.
+- [x] Trace the renewal defect across the API, retry worker, command/terminal
+      activity and scheduler. All currently advance deadlines independently.
+- [x] Serialize native renewal and expiration with connection-affine PostgreSQL
+      row locks; persist confirmed expiry and schedules together. Preserve
+      activity renewal, reject inactive runtimes, and prevent idempotent replay.
+- [x] Exercise both renewal/expiration race orders, provider failure and recovery,
+      duplicate workers, and a real native runtime past its original deadline.
+- [ ] Release and deploy migration 036 with the corrected API and scheduler;
+      do not mix the old scheduler with the corrected API. The public rc.2
+      deployment still has the original defect until this coordinated rollout.
 - [x] Preserve Credential Vault custody; clearly state arbitrary agent-created
       files persist and are not magically scrubbed by credential revocation.
 - [ ] Test tenant isolation, concurrent create, unavailable storage, failures,
@@ -236,6 +246,7 @@ artifact was changed. See the [deployment receipt](../../release-notes/0.5.0-rc.
 
 | Date | Decision | Rationale | Alternatives Considered |
 | --- | --- | --- | --- |
+| 2026-09-07 | Coordinate lease changes under a sandbox row lock and retain the last confirmed provider deadline (migration 036). | Native renewal and control-plane expiry must agree, without extending Harakiri's 10-second TTL to OpenSandbox's longer minimum create lease. An observed native deadline change recovers a renewal whose database commit failed. | Timestamp-only schedule repair (race remains); a new general-purpose lease ownership engine (unnecessary complexity). |
 | 2026-09-07 | Delivery gates precede Phase 2B implementation. | Reusable customer installs are part of the north star, not an afterthought. | Add more API features while install defaults remain stale. |
 | 2026-09-07 | Use pinned provider source, not only current upstream proposals. | PVC provisioning semantics changed across upstream revisions. | Assume proposal or main-branch behavior matches the deployed image. |
 | 2026-09-07 | Keep repository private until separately authorized. | Publishing source is distinct from making release artifacts reliable. | Treat roadmap approval as permission to change visibility. |
@@ -357,14 +368,70 @@ public acceptance, current artifact availability and open release gates.
 
 ## Completion Notes
 
+### TTL Correction Checkpoint: 2026-09-07
+
+Source implementation and isolated acceptance passed. API renewals, worker
+retries, command/session activity and terminal keepalive share one confirmed
+lease path. Scheduler selections are rechecked under the sandbox row lock;
+stale pause completions and late worker failures cannot resurrect/overwrite
+completed state. Migration 036 distinguishes product expiry from the native
+minimum create lease and adds an active-deadline index.
+
+Real PostgreSQL acceptance covers 14 lease scenarios plus the existing workspace
+reservation suite. Native OpenSandbox acceptance used an isolated database/API/
+scheduler and the repository SDK, not BackgroundAgent or Kubernetes exec:
+
+- `sbx_YjCAxjcfx_`: original expiry `18:12:47.151Z`, explicit renewal
+  `18:13:22.207Z`; execution after the original expiry succeeded and activity
+  renewed it to `18:13:59.213Z`. It then expired without more activity.
+- `sbx_FnT_kZ2ijh`: 10-second product TTL expired while the longer native
+  creation lease would otherwise still have been active.
+- `sbx_PffHzgp563`: a terminal kept a 10-second sandbox alive beyond its
+  original expiry, then it expired after detach. All three native runtime IDs
+  returned 404 after cleanup.
+
+The reusable `smoke:renew` now crosses the original deadline and verifies final
+expiry, instead of only checking a timestamp two seconds after renewal. Public
+lifecycle docs, OpenAPI and an operator upgrade/rollback runbook describe the
+unreleased correction. Private receipts are in the ignored
+`docs/artifacts/ttl-regression-private/` directory. No deployed release is
+claimed fixed by these isolated tests.
+
+Final checks: `pnpm test` passed 526 tests; its two PostgreSQL-gated tests were
+run separately with the migrated database (19 tests passed). Root typecheck,
+production build, documentation links, OpenAPI generation checks, Credential
+Vault boundary checks and smoke script syntax passed. The existing web bundle
+size warning remains. The isolated PostgreSQL container and temporary forwards
+were removed. Public web, API health and Keycloak discovery still returned 200.
+
+### Remaining Delivery Gates
+
+### rc.3 Release Execution: 2026-09-07
+
+- [x] Recheck git, cluster and publishing access; only this release's temporary
+      resources may be cleaned. Unrelated research documents remain untouched.
+- [x] Prepare rc.3 versions and accurate current documentation; retain historical
+      receipts. This is a prerelease because the stable gates below remain open.
+- [ ] Commit and push the TTL correction, pass release CI and publish immutable
+      multi-architecture images, Helm chart and matching SDK/CLI archives.
+- [ ] Publish SDK then CLI to npm `next` when publishing authentication is available.
+- [ ] Back up current state, stop the old scheduler, migrate and deploy matching
+      binaries while preserving public OIDC origins and existing data.
+- [ ] Verify the deployed candidate past the original deadline, confirm public
+      endpoints/login, clean owned smoke resources and record a delivery receipt.
+- [ ] Review plan folder placement; archive only plans with all required work
+      complete, leaving delivery and unattended-demo acceptance visible.
+
+#### Stable Acceptance Still Open
+
 In progress. Phase 2B is deployed to the public k0s lab as `0.5.0-rc.2`, Helm
-revision 22, with digest-pinned images and successful public package/runtime
+revision 23 (web-only Workspace documentation update), with digest-pinned images and successful public package/runtime
 acceptance. SDK/CLI rc.2 tarballs are available with the GitHub prerelease;
 registry publication is blocked by local npm authentication. npm `latest` stays
 at 0.4.0. The OpenSandbox compatibility chart is separately mirrored in Harbor.
 Do not archive this plan while stable acceptance and publishing gates remain.
 
-Next acceptance is Harakiri-only: fix renewal/scheduler deadline coordination,
+Next acceptance is Harakiri-only: coordinated rollout of the tested TTL correction,
 fresh restricted OpenShift storage/mount checks, complete template architecture
 release checks, npm `next` publication, and host/rollback recovery validation. No
 BackgroundAgent install is needed to complete these gates. Preserve the existing

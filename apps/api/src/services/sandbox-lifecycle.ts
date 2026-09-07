@@ -260,6 +260,8 @@ const claimLifecycleOperation = async (
   return await claimSandboxOperationById({ operationId: operation.id, kinds: [kind] }, query) ?? operation;
 };
 
+class LifecycleConflictError extends Error {}
+
 const runLifecycleProviderChange = async (
   input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
   dependencies: LifecycleDependencies,
@@ -269,7 +271,8 @@ const runLifecycleProviderChange = async (
   query: Query
 ) => {
   const ref = runtimeRef(dependencies.runtimeProvider, sandbox.opensandboxId);
-  await setSandboxStatus(input, spec.transitionStatus, query);
+  const transitioned = await setSandboxStatus(input, spec.transitionStatus, sandbox.status, query);
+  if (!transitioned.rowCount) throw new LifecycleConflictError("Sandbox state changed before lifecycle operation");
   const requested = await spec.callProvider(dependencies.runtimeProvider, ref);
   const provider = await waitForRuntimeSandboxState(dependencies, ref, requested, spec.expectedStatuses);
   return completeLifecycleChange(input, dependencies, spec, operation, provider, query);
@@ -278,8 +281,9 @@ const runLifecycleProviderChange = async (
 const setSandboxStatus = (
   input: { organizationId: string; sandboxId: string },
   status: SandboxStatus,
+  previousStatus: string,
   query: Query
-) => query("UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2", [input.sandboxId, input.organizationId, status]);
+) => query("UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4", [input.sandboxId, input.organizationId, status, previousStatus]);
 
 const completeLifecycleChange = async (
   input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
@@ -290,10 +294,11 @@ const completeLifecycleChange = async (
   query: Query
 ): Promise<SandboxLifecycleResult> => {
   const status = normalizeSandboxStatus(provider.state);
-  await query(
-    "UPDATE sandboxes SET status = $3, last_active_at = now(), updated_at = now() WHERE id = $1 AND organization_id = $2",
-    [input.sandboxId, input.organizationId, status]
+  const updated = await query(
+    "UPDATE sandboxes SET status = $3, last_active_at = now(), updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4",
+    [input.sandboxId, input.organizationId, status, spec.transitionStatus]
   );
+  if (!updated.rowCount) throw new LifecycleConflictError("Sandbox state changed during lifecycle operation");
   const credentialsNeedingReinjection = spec.kind === "resume"
     ? await markSandboxCredentialsRequireReinjection(input, query)
     : 0;
@@ -369,7 +374,10 @@ const failLifecycleChange = async (
   error: unknown
 ): Promise<SandboxLifecycleResult> => {
   const message = providerErrorMessage(error);
-  await query("UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2", [input.sandboxId, input.organizationId, previousStatus]);
+  if (!(error instanceof LifecycleConflictError)) await query(
+    "UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4",
+    [input.sandboxId, input.organizationId, previousStatus, operation.kind === "pause" ? "pausing" : "resuming"]
+  );
   await failSandboxOperation({ operationId: operation.id, error: message }, query);
   return { kind: "runtime_provider_failed", message, operation };
 };

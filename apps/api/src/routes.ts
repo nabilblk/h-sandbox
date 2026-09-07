@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import websocket from "@fastify/websocket";
 import { recordAuditEvent } from "./audit.js";
 import { requireAuth } from "./auth.js";
-import { query as defaultQuery } from "./db.js";
+import { query as defaultQuery, type Transaction } from "./db.js";
 import { keycloakAdminClient, type KeycloakAdminClient } from "./providers/auth/keycloak-admin.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "./providers/runtime/index.js";
 import type { ExternalSecretResolverRegistry } from "./providers/secrets/provider.js";
@@ -41,6 +41,7 @@ const isTicketAuthenticatedTerminalAttach = (url: string) => {
 export type RouteDependencies = {
   runtimeProvider?: RuntimeProvider;
   query?: Query;
+  transaction?: Transaction;
   requireAuth?: typeof requireAuth;
   recordAudit?: typeof defaultAudit;
   recordSandboxEvent?: ReturnType<typeof createSandboxEventRecorder>;
@@ -73,10 +74,12 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
   const externalSecretResolvers = dependencies.externalSecretResolvers;
   const dynamicIssuers = dependencies.dynamicCredentialIssuers;
   await registerSandboxRoutes(app, {
+    transaction: dependencies.transaction,
     query, runtimeProvider, recordAudit: audit, recordSandboxEvent: event,
     externalSecretResolvers, dynamicCredentialIssuers: dynamicIssuers
   });
   await registerSandboxRuntimeRoutes(app, {
+    transaction: dependencies.transaction,
     query, runtimeProvider, recordAudit: audit, recordSandboxEvent: event,
     externalSecretResolvers, dynamicCredentialIssuers: dynamicIssuers
   });

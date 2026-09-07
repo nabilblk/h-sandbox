@@ -5,6 +5,20 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-07-v0-5-0-rc-3",
+    version: "v0.5.0-rc.3",
+    date: "September 7, 2026",
+    title: "Reliable sandbox renewal and terminal keepalive",
+    items: [
+      "Fixed renewed sandboxes expiring at their original schedule. Renewal, retry workers and expiration now coordinate through one locked deadline and a confirmed native lease.",
+      "Commands renew the native lease before execution. Attached terminals keep short-TTL sandboxes alive; failed keepalive closes the connection with an explicit error. Following output alone does not renew TTL.",
+      "Added idempotency and concurrent-expiration regression coverage, provider failure recovery, and a live SDK test that waits beyond the original deadline without masking the result with activity.",
+      "Kept the 10-second product TTL distinct from OpenSandbox's longer minimum create lease. Provider errors are no longer treated as successful renewal or missing runtimes.",
+      "Published first-class workspace concepts, reference and operations guides alongside the runnable tutorial. Operators must stop the old scheduler, apply migration 036, and deploy matching API/scheduler versions.",
+      "This remains a prerelease. Restricted OpenShift storage acceptance, full template architecture checks and coherent recovery validation are still open; stable channels are unchanged."
+    ]
+  },
+  {
     id: "2026-09-07-v0-5-0-rc-2",
     version: "v0.5.0-rc.2",
     date: "September 7, 2026",

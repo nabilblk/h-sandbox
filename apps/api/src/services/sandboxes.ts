@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { makeId } from "../crypto.js";
-import { query as defaultQuery } from "../db.js";
+import { query as defaultQuery, type Transaction } from "../db.js";
 import {
   compileEgressPolicy,
   defaultEgressPolicyInput,
@@ -54,6 +54,7 @@ import {
 import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-secrets.js";
 import { redactText } from "../redaction.js";
 import { prepareRuntimeWorkspace, validateWorkspaceAttachment, WorkspaceError } from "./persistent-workspaces.js";
+import { renewSandboxLease, SandboxLeaseError } from "./sandbox-lease.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
 export type SandboxSummary = SharedSandboxSummary;
@@ -1019,15 +1020,16 @@ export const createSandbox = async (
              memory_mb = 128,
              started_at = now(),
              last_active_at = now(),
-             expires_at = now() + make_interval(secs => ttl_seconds::int),
+             expires_at = LEAST($4::timestamptz, now() + make_interval(secs => ttl_seconds::int)),
+             provider_expires_at = $4::timestamptz,
              updated_at = now()
          WHERE id = $1 AND organization_id = $3`,
-        [id, provider.providerSandboxId, input.organizationId]
+        [id, provider.providerSandboxId, input.organizationId, provider.expiresAt ?? null]
       );
       await query(
         `INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at)
-         VALUES ($1, $2, 'idle_ttl', now() + make_interval(secs => $3::int))`,
-        [id, input.organizationId, input.ttlSeconds]
+         SELECT id, organization_id, 'idle_ttl', expires_at FROM sandboxes WHERE id = $1 AND organization_id = $2`,
+        [id, input.organizationId]
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1234,7 +1236,7 @@ export const deleteSandbox = async (
 
 export const renewSandbox = async (
   input: { organizationId: string; sandboxId: string; idempotencyKey?: string | null },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: { query?: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
 ) => {
   const query = dependencies.query ?? defaultQuery;
   const result = await query<{ opensandbox_id: string | null; ttl_seconds: number }>(
@@ -1252,18 +1254,20 @@ export const renewSandbox = async (
     },
     { query }
   );
-  const runningOperation = await claimSandboxOperationById({ operationId: operation.id, kinds: ["renew"] }, query);
-  const activeOperation = runningOperation ?? operation;
-  const expiresAt = new Date(Date.now() + result.rows[0].ttl_seconds * 1000).toISOString();
+  if (operation.sandboxId !== input.sandboxId) throw new SandboxLeaseError("idempotency_conflict");
+  if (operation.state === "succeeded") return true;
+  const activeOperation = await claimSandboxOperationById({ operationId: operation.id, kinds: ["renew"] }, query);
+  if (!activeOperation) {
+    const latest = await query<{ state: string }>("SELECT state FROM sandbox_operations WHERE id = $1 AND organization_id = $2", [operation.id, input.organizationId]);
+    if (latest.rows[0]?.state === "succeeded") return true;
+    throw new SandboxLeaseError(["queued", "running"].includes(latest.rows[0]?.state) ? "renew_in_progress" : "renew_failed");
+  }
   try {
-    if (result.rows[0].opensandbox_id) {
-      await dependencies.runtimeProvider.renew(runtimeRef(dependencies.runtimeProvider, result.rows[0].opensandbox_id), { expiresAt });
-    }
-    await query("UPDATE sandboxes SET expires_at = $2::timestamptz, last_active_at = now() WHERE id = $1", [input.sandboxId, expiresAt]);
-    await completeSandboxOperation({ operationId: activeOperation.id, result: { providerSandboxId: result.rows[0].opensandbox_id, expiresAt } }, query);
+    await renewSandboxLease({ ...input, operation: activeOperation }, dependencies);
   } catch (error) {
+    if (error instanceof SandboxLeaseError && error.code === "renew_in_progress") throw error;
     const message = error instanceof Error ? error.message : String(error);
-    await failSandboxOperation({ operationId: activeOperation.id, error: message }, query);
+    await failSandboxOperation({ operationId: activeOperation.id, error: message, expectedAttempts: activeOperation.attempts }, query);
     throw error;
   }
   await dependencies.recordEvent(input.organizationId, input.sandboxId, "renewed", "ttl reset");

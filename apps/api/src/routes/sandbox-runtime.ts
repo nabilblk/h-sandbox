@@ -34,7 +34,7 @@ import type {
 } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
 import WebSocket from "ws";
-import { query as defaultQuery } from "../db.js";
+import { query as defaultQuery, type Transaction } from "../db.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "../providers/runtime/index.js";
 import type { ExternalSecretResolverRegistry } from "../providers/secrets/provider.js";
 import type { DynamicCredentialIssuerRegistry } from "../providers/credentials/provider.js";
@@ -110,6 +110,7 @@ import {
 } from "./sandbox-runtime.schema.js";
 
 export type SandboxRuntimeRouteDependencies = {
+  transaction?: Transaction;
   query?: Query;
   runtimeProvider?: RuntimeProvider;
   recordAudit: Audit;
@@ -242,7 +243,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         client: socket,
         ...attachOptions
       },
-      { query, runtimeProvider, recordEvent }
+      { query, runtimeProvider, recordEvent, transaction: dependencies.transaction }
     );
     if (result.kind === "not_found") {
       await sendTerminalAttachError(socket, 1008, apiErrorResponse("sandbox_not_found"));
@@ -277,7 +278,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         actorUserId: request.auth.userId,
         actorLabel: request.auth.actorLabel
       },
-      { query, runtimeProvider, recordEvent, recordAudit }
+      { query, runtimeProvider, recordEvent, recordAudit, transaction: dependencies.transaction }
     );
     if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
@@ -297,7 +298,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const body = commandSchema.parse(request.body ?? {});
     const result = await createSandboxCommand(
       { organizationId: request.auth.organizationId, sandboxId: id, body },
-      { query, runtimeProvider, recordEvent, recordAudit, actorUserId: request.auth.userId, actorLabel: request.auth.actorLabel }
+      { query, runtimeProvider, recordEvent, recordAudit, actorUserId: request.auth.userId, actorLabel: request.auth.actorLabel, transaction: dependencies.transaction }
     );
     if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
@@ -341,7 +342,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const body = commandSessionCreateSchema.parse(request.body ?? {});
     const result = await createSandboxCommandSession(
       { organizationId: request.auth.organizationId, sandboxId: id, body },
-      { query, runtimeProvider, recordEvent }
+      { query, runtimeProvider, recordEvent, transaction: dependencies.transaction }
     );
     if (result.kind !== "ok") return sendCommandSessionError(reply, result);
     return reply.code(201).send(result.response satisfies SandboxCommandSessionResponse);
@@ -352,7 +353,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const body = commandSessionRunSchema.parse(request.body ?? {});
     const result = await runSandboxCommandSession(
       { organizationId: request.auth.organizationId, sandboxId: id, sessionId, body },
-      { query, runtimeProvider, recordEvent }
+      { query, runtimeProvider, recordEvent, transaction: dependencies.transaction }
     );
     if (result.kind !== "ok") return sendCommandSessionError(reply, result);
     return result.response satisfies RunSandboxCommandSessionResponse;

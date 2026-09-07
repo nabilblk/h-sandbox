@@ -64,7 +64,7 @@ test("enqueue/claim/complete/fail sandbox operations use stable state updates", 
     if (text.includes("INSERT INTO sandbox_operations")) {
       return { rowCount: 1, rows: [operationRow({ id: "op_created" })] as never[] };
     }
-    if (text.includes("state = 'running'")) return { rowCount: 1, rows: [operationRow({ state: "running", attempts: 1 })] as never[] };
+    if (text.includes("SET state = 'running'")) return { rowCount: 1, rows: [operationRow({ state: "running", attempts: 1 })] as never[] };
     if (text.includes("state = 'succeeded'")) return { rowCount: 1, rows: [operationRow({ state: "succeeded" })] as never[] };
     if (text.includes("state = 'failed'")) return { rowCount: 1, rows: [operationRow({ state: "failed", error: "failed" })] as never[] };
     return { rowCount: 0, rows: [] as never[] };

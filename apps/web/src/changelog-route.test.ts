@@ -13,6 +13,8 @@ test("changelog route renders release entries and active public navigation", () 
   }));
 
   assert.match(markup, /Changelog/);
+  assert.match(markup, /v0\.5\.0-rc\.3/);
+  assert.match(markup, /Reliable sandbox renewal and terminal keepalive/);
   assert.match(markup, /v0\.5\.0-rc\.2/);
   assert.match(markup, /Persistent workspaces and live command output/);
   assert.match(markup, /Credential Vault and executable tutorials/);

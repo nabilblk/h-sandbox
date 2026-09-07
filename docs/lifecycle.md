@@ -33,6 +33,38 @@ summary." It does not resurrect a terminated runtime. In the SDK, use
 `renew` extends the TTL and updates `expiresAt`. Use it for long running jobs or
 interactive sessions that are still active.
 
+### TTL and Activity: 0.5.0-rc.3
+
+These guarantees require `0.5.0-rc.3` or newer. Earlier releases can expire a
+renewed sandbox at its original schedule. Stop the old scheduler, apply migration
+036 and deploy the matching API and scheduler before relying on this correction.
+
+- Renewal succeeds only for a running or idle native runtime. It resets the
+  remaining lifetime to at least `ttlSeconds` without shortening a confirmed
+  lease. A failed provider request does not advance the reported expiry.
+- `POST /v1/sandboxes/:id/renew` returns `{ "ok": true }`. Read the sandbox
+  again to obtain `expiresAt`. Inactive runtimes return `409 sandbox_not_running`;
+  unknown or other-organization IDs return `404 sandbox_not_found`.
+- An optional `Idempotency-Key` identifies one renewal, not an ongoing keepalive.
+  Repeating a successful key does not extend TTL again. Use a new key for each
+  intentional extension. An in-flight duplicate returns `409 renew_in_progress`;
+  reusing a key for a different sandbox returns `409 idempotency_conflict`.
+  An exhausted or canceled renewal returns `409 renew_failed`; inspect the
+  operation before explicitly starting another renewal with a new key.
+- Starting a command or persistent command session renews the native lease
+  before execution. An attached terminal renews periodically, at most every
+  30 seconds and more frequently for short TTLs. A failed terminal renewal
+  closes the connection with an explicit error; reconnect to retry.
+- Reading status, following command output, files, routes or metrics does not
+  renew TTL. Detached jobs and long commands do not run a background keepalive.
+  Choose sufficient initial TTL or explicitly renew before expiry.
+- If expiration wins the race, renewal cannot resurrect the sandbox. If renewal
+  wins, an older selected expiration must recheck and leave the runtime alive.
+  TTL termination retains persistent workspace storage.
+
+Operators should read [lease coordination and verification](./sandbox-lease-operations.md)
+for deployment order, uncertain provider outcomes and the live SDK regression.
+
 `kill` terminates the runtime and marks the sandbox as `terminated`. Harakiri
 also removes route records from the active route table as part of sandbox
 cleanup.

@@ -305,10 +305,7 @@ test("processSandboxOperationQueue requeues retryable worker failures", async ()
 test("processSandboxOperationQueue renews queued sandboxes", async () => {
   const renewed: string[] = [];
   const calls: Array<{ text: string; params?: unknown[] }> = [];
-  const report = await processSandboxOperationQueue({
-    runtimeProvider: fakeRuntimeProvider({ renewed }),
-    limit: 1,
-    query: async (text, params) => {
+  const query = async (text: string, params?: unknown[]) => {
       calls.push({ text, params });
       if (text.includes("WITH candidate") && text.includes("state = 'queued'")) {
         return {
@@ -322,14 +319,23 @@ test("processSandboxOperationQueue renews queued sandboxes", async () => {
           ] as never[]
         };
       }
-      if (text.includes("SELECT opensandbox_id, ttl_seconds FROM sandboxes")) {
-        return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300 }] as never[] };
+      if (text.includes("SELECT opensandbox_id, ttl_seconds")) {
+        return { rowCount: 1, rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300, status: "running", expires_at: null }] as never[] };
       }
+      if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
+      if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) return { rows: [operationRow({ kind: "renew" })] as never[] };
       if (text.includes("UPDATE sandbox_operations") && text.includes("state = 'succeeded'")) {
         return { rowCount: 1, rows: [operationRow({ state: "succeeded" })] as never[] };
       }
       return { rowCount: 0, rows: [] as never[] };
-    },
+    };
+  const runtimeProvider = fakeRuntimeProvider({ renewed });
+  runtimeProvider.get = async () => ({ provider: "fake", providerSandboxId: "provider_sbx", state: "running", expiresAt: null });
+  const report = await processSandboxOperationQueue({
+    runtimeProvider,
+    limit: 1,
+    query,
+    transaction: (fn) => fn(query),
     recordEvent: async () => undefined
   });
 

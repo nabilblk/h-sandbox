@@ -33,6 +33,7 @@ import {
 } from "@harakiri/shared";
 import { config } from "../config.js";
 import { workspacePolicy } from "./persistent-workspaces.js";
+import { renewSandboxLease, type LeaseDependencies } from "./sandbox-lease.js";
 import { constantEquals, hashApiKey, makeId } from "../crypto.js";
 import type {
   RuntimeFileError,
@@ -437,7 +438,7 @@ export const runSandboxCommand = async (
     actorUserId?: string;
     actorLabel?: string;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit?: Audit }
+  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder; recordAudit?: Audit }
 ): Promise<
   | { kind: "ok"; result: RunResult }
   | { kind: "not_found" }
@@ -475,6 +476,7 @@ export const runSandboxCommand = async (
     [input.sandboxId, input.organizationId]
   );
   if (!sandbox.rowCount) return { kind: "not_found" };
+  await renewSandboxLease(input, dependencies);
   const result = await dependencies.runtimeProvider.run({
     ...runtimeRef(dependencies.runtimeProvider, sandbox.rows[0].opensandbox_id),
     controlPlaneSandboxId: input.sandboxId,
@@ -484,9 +486,6 @@ export const runSandboxCommand = async (
     env: input.env,
     timeoutMs: input.timeoutMs
   });
-  await query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1", [
-    input.sandboxId
-  ]);
   const redactedResult = redactRunResult({ ...result, command: redactedCommand });
   await dependencies.recordEvent(input.organizationId, input.sandboxId, "run", `command: ${redactedCommand}`, {
     exitCode: redactedResult.exitCode,
@@ -581,7 +580,7 @@ export const createSandboxCommand = async (
     sandboxId: string;
     body: CreateSandboxCommandBody;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit?: Audit; actorUserId?: string; actorLabel?: string; idFactory?: typeof makeId }
+  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder; recordAudit?: Audit; actorUserId?: string; actorLabel?: string; idFactory?: typeof makeId }
 ): Promise<
   | { kind: "ok"; command: SandboxCommandSummary }
   | { kind: "not_found" }
@@ -622,6 +621,7 @@ export const createSandboxCommand = async (
   );
 
   try {
+    await renewSandboxLease(input, dependencies);
     const started = await dependencies.runtimeProvider.startCommand({
       ...runtimeRef(dependencies.runtimeProvider, sandbox.rows[0].opensandbox_id),
       controlPlaneSandboxId: input.sandboxId,
@@ -656,7 +656,6 @@ export const createSandboxCommand = async (
         input.organizationId
       ]
     );
-    await query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1", [input.sandboxId]);
     await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.started", `command: ${redactedCommand}`, {
       commandId,
       providerCommandId: result.providerCommandId,
@@ -899,12 +898,6 @@ const getSandboxRuntimeContext = async (
 const sessionNotFound = (error: unknown) =>
   typeof (error as { status?: unknown }).status === "number" && (error as { status: number }).status === 404;
 
-const renewSandboxActivity = (query: Query, input: { organizationId: string; sandboxId: string }) =>
-  query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1 AND organization_id = $2", [
-    input.sandboxId,
-    input.organizationId
-  ]);
-
 export type SandboxCommandSessionMutationResult =
   | { kind: "ok"; response: SandboxCommandSessionResponse }
   | { kind: "not_found" }
@@ -919,7 +912,7 @@ export const createSandboxCommandSession = async (
     sandboxId: string;
     body: CreateSandboxCommandSessionBody;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder }
 ): Promise<SandboxCommandSessionMutationResult> => {
   const query = dependencies.query ?? defaultQuery;
   const runtimeProvider = dependencies.runtimeProvider;
@@ -933,8 +926,8 @@ export const createSandboxCommandSession = async (
 
   const cwd = input.body.cwd ?? context.workdir;
   try {
+    await renewSandboxLease(input, dependencies);
     const session = await runtimeProvider.createCommandSession({ ...context.ref, cwd });
-    await renewSandboxActivity(query, input);
     await dependencies.recordEvent(input.organizationId, input.sandboxId, "command.session.created", "command session created", {
       providerSessionId: session.providerSessionId,
       cwd
@@ -972,7 +965,7 @@ export const runSandboxCommandSession = async (
     sessionId: string;
     body: RunSandboxCommandSessionBody;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder }
 ): Promise<SandboxCommandSessionRunResult> => {
   const query = dependencies.query ?? defaultQuery;
   const runtimeProvider = dependencies.runtimeProvider;
@@ -988,6 +981,7 @@ export const runSandboxCommandSession = async (
   if (context.status !== "running" && context.status !== "idle") return { kind: "sandbox_not_running", status: context.status };
 
   try {
+    await renewSandboxLease(input, dependencies);
     const started = Date.now();
     const result = await runtimeProvider.runCommandSession({
       ...context.ref,
@@ -996,7 +990,6 @@ export const runSandboxCommandSession = async (
       cwd: input.body.cwd,
       timeoutMs: input.body.timeoutMs
     });
-    await renewSandboxActivity(query, input);
     const redactedResult = redactRunResult({
       sandboxId: input.sandboxId,
       command: redactedCommand,
@@ -1083,7 +1076,7 @@ export const attachSandboxTerminal = async (
     since?: number;
     pty?: boolean;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder }
 ): Promise<AttachSandboxTerminalResult> => {
   const query = dependencies.query ?? defaultQuery;
   const runtimeProvider = dependencies.runtimeProvider;
@@ -1091,8 +1084,8 @@ export const attachSandboxTerminal = async (
     return { kind: "unsupported", message: "Runtime provider does not support interactive terminal attach." };
   }
 
-  const sandbox = await query<{ id: string; opensandboxId: string | null; status: string; workdir: string | null }>(
-    `SELECT s.id, s.opensandbox_id AS "opensandboxId", s.status,
+  const sandbox = await query<{ id: string; opensandboxId: string | null; status: string; workdir: string | null; ttlSeconds: number }>(
+    `SELECT s.id, s.opensandbox_id AS "opensandboxId", s.status, s.ttl_seconds AS "ttlSeconds",
             COALESCE(v.workdir, t.workdir, '/') AS workdir
      FROM sandboxes s
      JOIN templates t ON t.id = s.template_id
@@ -1109,14 +1102,12 @@ export const attachSandboxTerminal = async (
   const ref = runtimeRef(runtimeProvider, row.opensandboxId);
   let providerSessionId: string | undefined;
   const startedAt = Date.now();
-  const renewLease = () =>
-    query("UPDATE sandboxes SET last_active_at = now(), expires_at = now() + (ttl_seconds || ' seconds')::interval WHERE id = $1 AND organization_id = $2", [
-      input.sandboxId,
-      input.organizationId
-    ]);
+  const renewLease = () => renewSandboxLease(input, dependencies);
 
   let renewTimer: ReturnType<typeof setInterval> | undefined;
+  let renewing = false;
   try {
+    await renewLease();
     const session = await runtimeProvider.createPtySession({
       ...ref,
       cwd,
@@ -1127,10 +1118,13 @@ export const attachSandboxTerminal = async (
       sessionName: input.sessionName
     });
     providerSessionId = session.providerSessionId;
-    await renewLease();
     renewTimer = setInterval(() => {
-      void renewLease().catch(() => undefined);
-    }, 30_000);
+      if (renewing) return;
+      renewing = true;
+      void renewLease().catch(() => {
+        input.client.close(1011, "Sandbox lease renewal failed; reconnect to retry");
+      }).finally(() => { renewing = false; });
+    }, Math.max(1000, Math.min(30_000, (row.ttlSeconds ?? 90) * 1000 / 3)));
     renewTimer.unref?.();
     await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminal.attach.started", "terminal attached", {
       providerSessionId,

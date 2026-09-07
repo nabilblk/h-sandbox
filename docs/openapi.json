@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Harakiri Sandbox API",
-    "version": "0.5.0-rc.2",
+    "version": "0.5.0-rc.3",
     "description": "Control-plane API for sandbox lifecycle, templates, Credential Vault, routes, registry credentials, and account settings."
   },
   "servers": [
@@ -3042,13 +3042,21 @@
         "tags": [
           "Sandboxes"
         ],
-        "summary": "Renew a sandbox TTL",
+        "summary": "Renew an active sandbox TTL after provider confirmation",
         "operationId": "renewSandbox",
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
             "schema": {
               "type": "string"
             }
