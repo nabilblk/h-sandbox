@@ -132,6 +132,10 @@ beyond the retained provider log data.
       semantics honest and provider references out of public IDs.
 - [ ] Handle create retries/failures, kill/TTL cleanup, pause reservations,
       snapshot metadata and restore without unintended storage sharing.
+- [ ] Correct stale idle schedules after renewal/activity. Real release testing
+      reproduced termination at the original deadline despite a later reported
+      expiry. Coordinate the authoritative deadline with renewal and add a real
+      PostgreSQL plus beyond-original-deadline runtime regression before stable.
 - [x] Preserve Credential Vault custody; clearly state arbitrary agent-created
       files persist and are not magically scrubbed by credential revocation.
 - [ ] Test tenant isolation, concurrent create, unavailable storage, failures,
@@ -149,7 +153,7 @@ beyond the retained provider log data.
       cancellation, command failure, sandbox termination and slow consumers.
 
 ### Phase 6: SDK, CLI and Dashboard
-**Status**: Complete in source; release/deployment remains a Phase 7 gate
+**Status**: Source delivered in rc.2; acceptance follow-up remains
 
 - [x] Add typed workspace helpers and abortable command async iteration without
       duplicating control-plane behavior in clients.
@@ -159,6 +163,9 @@ beyond the retained provider log data.
       workspace status, archive warnings and streamed process output.
 - [x] Use existing UI components, honest empty/degraded/loading states, and
       browser testing across desktop/mobile. No hidden destructive defaults.
+- [ ] Initialize Commands working directory from the sandbox runtime metadata,
+      not always `/workspace`. Existing ephemeral Python images may not have
+      that directory; explicitly selecting `/` passed the final browser smoke.
 
 ### Phase 7: Documentation, Acceptance and Delivery
 **Status**: In Progress
@@ -183,7 +190,8 @@ beyond the retained provider log data.
 | 2026-09-07 | Fail closed after an unconfirmed workspace provider request. | Retrying native creates can duplicate runtimes and concurrently mount storage. Durable per-attachment markers require operator recovery for ambiguity. | Blindly retry provision or silently recreate missing storage. |
 | 2026-09-07 | Release template manifests only after both native architectures pass. | A successful arm64 build is not evidence for amd64 or arbitrary-UID compatibility. | Publish all tags before acceptance or use an untested alias. |
 | 2026-09-07 | BackgroundAgent is outside implementation and acceptance scope. | Maintainer explicitly requested keeping that project's complexity out of sandbox work. | Couple Harakiri delivery to an external application's deployment. |
-| 2026-09-07 | Release and deploy `0.5.0-rc.1` after explicit maintainer request. | Enable testing on validated k0s without misrepresenting pending clean OpenShift and template gates. npm uses `next`, not `latest`; source visibility and BackgroundAgent remain unchanged. | Declare stable readiness prematurely or block the independently validated lab deployment. |
+| 2026-09-07 | Release and deploy a `0.5.0` candidate after explicit maintainer request. | Enable testing on validated k0s without misrepresenting pending clean OpenShift and template gates. Planned npm channel is `next`, not `latest`; source visibility and BackgroundAgent remain unchanged. | Declare stable readiness prematurely or block the independently validated lab deployment. |
+| 2026-09-07 | Supersede rc.1 with rc.2 before npm publication; keep stable gates open. | Live CLI checks found JSON/config defects, fixed and retested in rc.2. Final acceptance also exposed an existing TTL renewal/scheduler defect, now explicitly documented as a stable blocker. | Overwrite immutable tags, or describe a candidate as production-ready. |
 
 ## Release Candidate Delivery
 
@@ -191,10 +199,13 @@ beyond the retained provider log data.
 - [x] Align API/web/SDK/CLI, OpenAPI, chart, public changelog and preview docs.
 - [x] Include the SDK dependency in the web container build.
 - [x] Recheck clean CI and package consumer gates; commit and push source.
-- [ ] Publish versioned multi-architecture images, Helm chart and npm `next` packages.
-- [ ] Back up the hosted database and Helm configuration, then upgrade only Harakiri.
-- [ ] Verify public URLs, OIDC origins and deployed workspace/command workflows.
-- [ ] Record exact artifacts, restore procedure, and remaining stable-release gates.
+- [x] Publish versioned multi-architecture API/web images and Helm chart for `0.5.0-rc.2`.
+- [x] Publish the GitHub prerelease with SDK/CLI tarballs, chart, checksums and receipt;
+      download all three archives and verify their SHA-256 checksums.
+- [ ] Publish matching npm `next` packages; local npm authentication is missing.
+- [x] Back up the hosted database and Helm configuration, then upgrade only Harakiri.
+- [x] Verify public URLs, OIDC origins and deployed workspace/command workflows.
+- [x] Record exact artifacts, restore procedure, and remaining stable-release gates.
 
 ### Live Validation Findings
 
@@ -210,11 +221,27 @@ Live CLI verification caught two issues before npm publication: `run --follow
 --json` included a progress banner on stdout, and saved configuration overrode
 environment credentials contrary to documentation. Both are fixed with three
 new regression tests (76 CLI tests passing). `0.5.0-rc.2` supersedes the validation
-build; old artifacts/tags are not overwritten. Its release/deployment is pending.
+build; old artifacts/tags are not overwritten. Commit `bf90ff0` passed main CI and
+Harbor image/chart publication. Helm revision 22 deploys its digest-pinned images
+on k0s. Public web/API/OIDC return 200. Both installed package tarballs passed live
+acceptance: checkpoint reuse, reconnect without duplicate output/execution, CLI
+JSON framing and environment config precedence. Revoking a temporary observer key
+closed its public command stream while the underlying command completed normally.
+The final rc.2 UI command returned all eight expected lines with exit 0 on
+desktop/mobile. The public changelog and selected workspace tutorial show rc.2;
+OIDC logout returned to the public landing page with Sign in restored. Release
+test keys were revoked, runtime fixtures terminated, and three archived/detached
+workspace PVCs reclaimed by exact name. Archived metadata/quota history remains.
 
-The template workflow passed 11 architecture jobs but its OpenCode amd64 job
-stalled and was cancelled. No combined template candidate or alias was promoted.
-Build/runtime smoke timeouts now bound retries. This remains a stable-release
+The same test sandbox later terminated at its original idle schedule despite its
+successful renewal. Read-only DB evidence and source comparison confirm the
+stale schedule also exists in v0.4.0. This is not covered by the successful short
+command/reconnect smoke: it is an explicit remaining stable-release blocker.
+
+The rc.2 template workflow passed 11 architecture jobs but its OpenCode amd64
+arbitrary-UID runtime check hit its 90-second timeout. No combined template
+candidate or alias was promoted. Build/runtime smoke timeouts now bound retries.
+This remains a stable-release
 gate, independent of the tested control-plane candidate. npm authentication is
 currently missing locally and has been requested without asking for a token in chat.
 
@@ -228,9 +255,17 @@ currently missing locally and has been requested without asking for a token in c
   restricted OpenShift storage ownership acceptance is still pending.
 - Colima has only approximately 2.6 GiB free after removing this session's own
   build artifacts. Existing containers, images and volumes were preserved.
-  Four remaining templates and amd64 smoke evidence require CI or another builder.
+  CI passed 11 template architecture jobs; OpenCode amd64 arbitrary UID and
+  combined template publication/import/promotion remain pending.
+- Renewal changes the sandbox/provider expiry without updating the original
+  idle schedule. The scheduler must coordinate with the authoritative current
+  deadline and renewal operations before stable promotion.
 
-## Verification Checkpoint
+## Initial Source Verification Checkpoint
+
+The following evidence predates the release candidate deployment. See
+[the rc.2 delivery receipt](../../release-notes/0.5.0-rc.2-delivery.md) for live
+public acceptance, current artifact availability and open release gates.
 
 - Public web/API/OIDC returned 200 after independently supervised origins and
   named tunnel were installed. Killing the owned API forward recovered in about
@@ -269,13 +304,16 @@ currently missing locally and has been requested without asking for a token in c
 
 ## Completion Notes
 
-In progress. Phase 2B is implemented in source and undergoing verification. The
-hosted API/SDK/CLI release remains 0.4.0; it does not contain this feature. The
-OpenSandbox compatibility chart is separately mirrored in Harbor. Do not archive
-this plan until clean install, runtime acceptance and release gates are complete.
+In progress. Phase 2B is deployed to the public k0s lab as `0.5.0-rc.2`, Helm
+revision 22, with digest-pinned images and successful public package/runtime
+acceptance. SDK/CLI rc.2 tarballs are available with the GitHub prerelease;
+registry publication is blocked by local npm authentication. npm `latest` stays
+at 0.4.0. The OpenSandbox compatibility chart is separately mirrored in Harbor.
+Do not archive this plan while stable acceptance and publishing gates remain.
 
-Next acceptance is Harakiri-only: fresh restricted OpenShift storage/mount checks,
-template architecture release checks, and versioned API/web/SDK/CLI delivery. No
+Next acceptance is Harakiri-only: fix renewal/scheduler deadline coordination,
+fresh restricted OpenShift storage/mount checks, complete template architecture
+release checks, npm `next` publication, and host/rollback recovery validation. No
 BackgroundAgent install is needed to complete these gates. Preserve the existing
 populated CRC namespace and its data.
 

@@ -2,8 +2,13 @@
 
 September 7, 2026. Test release candidate; not a stable or production-readiness
 claim. Use matching `0.5.0-rc.2` API/web, Helm chart, SDK and CLI artifacts.
-The npm `latest` channel remains `0.4.0`; the candidate uses `next`.
-Publication and hosted deployment evidence is recorded in the active plan.
+API/web images and the Helm chart are published in Harbor and deployed to the
+public k0s lab. SDK/CLI tarballs are attached to the GitHub prerelease and pass
+installed-package acceptance. npm publication is pending authentication: neither
+package is on `next` yet, and `latest` remains `0.4.0`.
+
+See the [artifact and deployment receipt](./0.5.0-rc.2-delivery.md) for exact
+digests, installation commands, checks and remaining gates.
 
 ## Added
 
@@ -39,11 +44,25 @@ Archiving does not delete PVCs or release quota. Physical reclamation is an
 operator task. Command output replay depends on provider log retention, not a
 new durable event database. Closing a viewer never kills a command.
 
+Some existing ephemeral templates do not contain `/workspace`. For these, set
+Commands working directory to an existing path such as `/`; automatic selection
+from runtime metadata remains a UI follow-up. Attached persistent workspaces
+provide `/workspace` as documented.
+
 ## Acceptance Still Required
 
-The source-level, PostgreSQL, desktop/mobile browser and k0s SDK
-checkpoint/reconnect tests are passing. Clean restricted OpenShift install,
-remaining template architectures, final hosted acceptance and deployment are tracked in
+**Known renewal defect:** the idle schedule can terminate a renewed sandbox at
+its original deadline, despite a later reported expiry. This predates this
+candidate and was reproduced during release acceptance. Do not rely on renewal
+or terminal activity to extend a job's lifetime in this preview. Select a
+sufficient initial TTL for bounded tests. Correcting scheduler/renewal
+coordination and testing it with PostgreSQL is a stable-release blocker.
+
+Source CI, PostgreSQL tests and real public k0s checkpoint/reconnect, CLI and
+credential-revocation acceptance passed. The template workflow passed 11 of 12
+architecture jobs; the OpenCode amd64 arbitrary-UID check timed out. No combined
+template candidate or alias was promoted. Clean restricted OpenShift install,
+template acceptance, host-login recovery and coherent rollback validation remain in
 the [active execution plan](../exec-plans/active/delivery-readiness-and-persistent-workspaces.md).
 Do not use this candidate as a production readiness claim. BackgroundAgent is
 an external consumer and is not installed or changed by this release.
