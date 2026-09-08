@@ -127,6 +127,20 @@ for (const width of [1440, 390, 320]) test(`member key form is accessible and fi
   expect(errors).toEqual([]);
 });
 
+for (const role of ["admin", "member"] as const) test(`${role} populated key list stays within a mobile viewport`, async ({ page }) => {
+  const state = await setup(page, role);
+  const name = "ci-artifact-reader-with-a-long-integration-name";
+  state.keys.push({ id: "key-long", name, prefix: "hk_live_test", lastFour: "abcd", createdAt: new Date().toISOString(), revokedAt: null, lastUsedAt: null, createdByUserId: role, legacy: false, scopes: defaultApiKeyScopes, expiresAt: new Date(Date.now() + 86400_000).toISOString() });
+  await page.goto("/#dashboard/keys");
+  const revoke = page.getByRole("button", { name: `Revoke ${name}`, exact: true });
+  await expect(revoke).toHaveText("Revoke");
+  await page.setViewportSize({ width: 390, height: 900 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page.getByRole("button", { name: "Create key", exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await expect(page.getByRole("dialog").getByLabel("Name", { exact: true })).toBeFocused();
+});
+
 for (const width of [1440, 320]) test(`authorization reference keeps scope names intact at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   await page.goto("/#docs/authorization");

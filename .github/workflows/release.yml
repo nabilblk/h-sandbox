@@ -35,6 +35,12 @@ on:
         description: "Image platforms"
         required: false
         default: "linux/amd64,linux/arm64"
+      component:
+        description: "Publish all components and chart, or a single image only"
+        type: choice
+        options: [all, api, web]
+        required: true
+        default: all
 
 # Least privilege: we push to Harbor with secrets, not to GHCR, so no write scopes.
 permissions:
@@ -58,11 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - component: api
-            dockerfile: apps/api/Dockerfile
-          - component: web
-            dockerfile: apps/web/Dockerfile
+        component: ${{ fromJSON(inputs.component == 'web' && '["web"]' || inputs.component == 'api' && '["api"]' || '["api","web"]') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -112,7 +114,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: apps/${{ matrix.component }}/Dockerfile
           platforms: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -127,6 +129,8 @@ jobs:
 
   chart:
     name: Package & push Helm chart
+    # A single-image hotfix must not publish an incomplete product chart.
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.component == 'all' || inputs.component == '' }}
     runs-on: ubuntu-latest
     environment: harbor
     needs: images

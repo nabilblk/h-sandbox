@@ -60,7 +60,7 @@ export const ApiKeysRoute = ({ userId }: { userId?: string }) => {
         <details className="key-scopes"><summary>{key.scopes.length} scopes</summary><div>{key.scopes.map((scope) => <code key={scope}>{scope}</code>)}</div></details>
       </div>
       <div className="key-fingerprint"><code>{key.prefix}...{key.lastFour}</code><div className="key-metadata">{key.expiresAt ? `Expires ${date(key.expiresAt)}` : "No expiry"}</div>{key.legacy ? <div className="key-metadata">Runtime-only compatibility key</div> : null}</div>
-      <button className="btn btn-ghost btn-sm" disabled={!!key.revokedAt || busy} onClick={() => { setFormError(""); setRevoking(key); }}>Revoke<span className="sr-only"> {key.name}</span></button>
+      <button className="btn btn-ghost btn-sm" aria-label={`Revoke ${key.name}`} disabled={!!key.revokedAt || busy} onClick={() => { setFormError(""); setRevoking(key); }}>Revoke</button>
     </article>)}</div>
     {creating ? <Dialog title="Create API key" onClose={close} initialFocus={nameInput}><form className="key-form" onSubmit={create}>
       <fieldset disabled={busy}><label className="field">Name<input ref={nameInput} required maxLength={100} className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="CI integration" /></label>
