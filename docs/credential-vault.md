@@ -72,10 +72,18 @@ loss while the issuer remains active and valid.
 
 ## Access And Usage
 
+On deployments with migration 037, API keys use explicit scopes. Reusable source
+management needs an admin-created key with `credentials:manage`; audit queries
+need `audit:read`. Runtime attachment additionally needs `sandboxes:write` and
+credential use; list/inspection also needs the matching sandbox scope. Default
+and legacy runtime keys can use shared sources, not manage custody. See
+[Authorization and API keys](authorization.md) for the full matrix and upgrade
+order before running the management examples below.
+
 Workspace secrets default to `usePolicy: "admins_only"`. An organization admin
 can change a secret to `organization_members`; members can then discover that
 secret in launch controls and attach it to sandboxes in the same organization.
-Members cannot create, rotate, disable, delete, or read workspace secrets. A
+Members cannot create, rotate, disable, delete, or read raw workspace values. A
 shared secret is still write-only, and changing its policy never returns or
 re-encrypts the value.
 
@@ -610,8 +618,9 @@ credentials are sync-only; the CLI rejects `--credential` with `--no-wait` or
 `--wait-timeout-ms`.
 `--prompt` requires an interactive TTY and fails loudly in CI.
 
-Workspace secret management commands are admin-only and always print sanitized
-metadata. `--member-use` creates a shared secret; `share` and `restrict` change
+Workspace secret management commands require `credentials:manage` on the CLI's
+key and always print sanitized metadata. `--member-use` creates a shared secret;
+`share` and `restrict` change
 who may attach it. Secret tables include use policy and active sandbox count.
 Use `--credential 'secret-id=vlt_...'` for synchronous launch injection, or
 `harakiri vault attach-secret` to attach an active stored secret to a running
@@ -628,7 +637,7 @@ creation or add `slot=...` for a template mapping.
 `--credential 'issuer-id=dci_...'` at synchronous creation or
 `vault attach-issuer` at runtime. Issued tokens never appear in CLI output.
 `vault refresh` explicitly rotates one dynamic attachment; the scheduler also
-refreshes due attachments before expiry. `vault audit` is admin-only and
+refreshes due attachments before expiry. `vault audit` requires `audit:read` and
 supports target, action-prefix, limit, offset, and JSON filters.
 
 `harakiri credentials` is an alias for `harakiri vault`.

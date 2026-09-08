@@ -17,7 +17,7 @@ import type {
   ExternalSecretResolverRegistry
 } from "../providers/secrets/provider.js";
 import { redactRecord, redactText } from "../redaction.js";
-import { isOrganizationAdmin, organizationMembershipRole } from "./organization-access.js";
+import { canManageCredentials, credentialAccessRole } from "./organization-access.js";
 import type { Query } from "./query.js";
 
 type ExternalSecretReferenceRow = {
@@ -282,10 +282,10 @@ const activeNameExists = async (
 };
 
 export const listExternalSecretReferences = async (
-  input: { organizationId: string; actorUserId: string; includeDeleted?: boolean },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; includeDeleted?: boolean },
   query: Query = defaultQuery
 ): Promise<ExternalSecretReferencesResult> => {
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const predicates = ["organization_id = $1"];
   if (role !== "admin") predicates.push("member_use_allowed = true", "deleted_at IS NULL");
@@ -298,10 +298,10 @@ export const listExternalSecretReferences = async (
 };
 
 export const getExternalSecretReference = async (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   query: Query = defaultQuery
 ): Promise<ExternalSecretReferenceResult> => {
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const row = await selectReference(input.organizationId, input.referenceId, query, role === "admin");
   if (!row) return { kind: "not_found" };
@@ -312,14 +312,14 @@ export const getExternalSecretReference = async (
 export const createExternalSecretReference = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null; actorApiKeyId?: string;
     actorLabel: string;
     body: CreateExternalSecretReferenceBody;
   },
   dependencies: { query?: Query; idFactory?: typeof makeId } = {}
 ): Promise<ExternalSecretReferenceResult> => {
   const query = dependencies.query ?? defaultQuery;
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   let prepared;
   try {
     prepared = prepareMetadata(input.body);
@@ -378,13 +378,13 @@ const mergedUpdate = (
 export const updateExternalSecretReference = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null; actorApiKeyId?: string;
     referenceId: string;
     body: UpdateExternalSecretReferenceBody;
   },
   query: Query = defaultQuery
 ): Promise<ExternalSecretReferenceResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const row = await selectReference(input.organizationId, input.referenceId, query);
   if (!row) return { kind: "not_found" };
   let prepared;
@@ -422,11 +422,11 @@ export const updateExternalSecretReference = async (
 };
 
 const changeReferenceStatus = async (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   action: "disable" | "enable" | "delete",
   query: Query
 ): Promise<ExternalSecretReferenceResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const row = await selectReference(input.organizationId, input.referenceId, query);
   if (!row) return { kind: "not_found" };
   const assignments = action === "disable"
@@ -445,17 +445,17 @@ const changeReferenceStatus = async (
 };
 
 export const disableExternalSecretReference = (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   query: Query = defaultQuery
 ) => changeReferenceStatus(input, "disable", query);
 
 export const enableExternalSecretReference = (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   query: Query = defaultQuery
 ) => changeReferenceStatus(input, "enable", query);
 
 export const deleteExternalSecretReference = (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   query: Query = defaultQuery
 ) => changeReferenceStatus(input, "delete", query);
 
@@ -514,11 +514,11 @@ const resolveRow = async (
 };
 
 export const validateExternalSecretReference = async (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   options: ResolveOptions = {}
 ): Promise<ExternalSecretReferenceResult> => {
   const query = options.query ?? defaultQuery;
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const row = await selectReference(input.organizationId, input.referenceId, query);
   if (!row) return { kind: "not_found" };
   if (row.disabledAt) return { kind: "disabled" };
@@ -529,11 +529,11 @@ export const validateExternalSecretReference = async (
 };
 
 export const resolveExternalSecretReferenceMaterial = async (
-  input: { organizationId: string; actorUserId: string; referenceId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; referenceId: string },
   options: ResolveOptions = {}
 ): Promise<ExternalSecretMaterialResult> => {
   const query = options.query ?? defaultQuery;
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const row = await selectReference(input.organizationId, input.referenceId, query);
   if (!row) return { kind: "not_found" };

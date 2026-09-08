@@ -19,6 +19,8 @@
 
 ## Users
 
+- [Authorization, scoped API keys and operator upgrade](authorization.md)
+
 - [Workspaces: concepts, ownership and lifecycle](workspaces.md)
 - [Workspace API, SDK and CLI reference](workspace-reference.md)
 - [Hands-on tutorials](tutorials.md)

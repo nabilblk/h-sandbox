@@ -1,17 +1,15 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { apiErrorResponse } from "@harakiri/shared";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { config } from "./config.js";
 import { hashApiKey } from "./crypto.js";
-import { query } from "./db.js";
+import { query as defaultQuery } from "./db.js";
 import { acceptPendingOrganizationInvitations } from "./services/account.js";
+import { readApiKeyPrincipal } from "./services/api-key-principals.js";
+import type { Query } from "./services/query.js";
+import type { AuthContext } from "./auth-context.js";
 
-export type AuthContext = {
-  userId: string;
-  organizationId: string;
-  actorLabel: string;
-  authType: "keycloak" | "api_key" | "dev";
-};
+export type { AuthContext } from "./auth-context.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -19,7 +17,28 @@ declare module "fastify" {
   }
 }
 
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+type JwtSettings = Pick<typeof config, "keycloakIssuerAllowlist" | "keycloakAudience" | "keycloakJwksUrl" | "keycloakSigningAlgorithms">;
+
+export const verifyAccessToken = async (token: string, settings: JwtSettings = config, keyResolver?: JWTVerifyGetKey) => {
+  if (!settings.keycloakAudience || !settings.keycloakIssuerAllowlist.length || !settings.keycloakSigningAlgorithms.length) {
+    throw new Error("JWT issuer, audience and signing algorithms must be configured");
+  }
+  if (!keyResolver) {
+    if (!settings.keycloakJwksUrl) throw new Error("JWT keys are not configured");
+    if (!keySets.has(settings.keycloakJwksUrl)) keySets.set(settings.keycloakJwksUrl, createRemoteJWKSet(new URL(settings.keycloakJwksUrl)));
+    keyResolver = keySets.get(settings.keycloakJwksUrl)!;
+  }
+  const { payload } = await jwtVerify(token, keyResolver, {
+    issuer: settings.keycloakIssuerAllowlist,
+    audience: settings.keycloakAudience,
+    algorithms: settings.keycloakSigningAlgorithms,
+    requiredClaims: ["iss", "sub", "aud", "exp"]
+  });
+  if (typeof payload.sub !== "string" || !payload.sub.trim()) throw new Error("JWT subject is missing");
+  return payload;
+};
 
 const slugify = (value: string) =>
   value
@@ -40,7 +59,7 @@ const workspaceName = (email: string, name: string) => {
   return `${first} Labs`;
 };
 
-const ensureWorkspaceForUser = async (input: { userId: string; email: string; name: string }) => {
+const ensureWorkspaceForUser = async (input: { userId: string; email: string; name: string }, query: Query) => {
   const baseSlug = workspaceBase(input.email);
   const name = workspaceName(input.email, input.name);
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -65,7 +84,7 @@ const ensureWorkspaceForUser = async (input: { userId: string; email: string; na
   throw new Error("unable_to_create_workspace");
 };
 
-const ensureDevIdentity = async () => {
+const ensureDevIdentity = async (query: Query) => {
   const user = await query<{ id: string }>(
     `INSERT INTO users (email, full_name, keycloak_subject)
      VALUES ('dev@harakiri.local', 'Development User', 'dev-local')
@@ -88,100 +107,89 @@ const ensureDevIdentity = async () => {
   return { userId: user.rows[0].id, organizationId: org.rows[0].id };
 };
 
-const authFromApiKey = async (token: string): Promise<AuthContext | null> => {
-  const hash = hashApiKey(token);
-  const result = await query<{
-    user_id: string | null;
-    organization_id: string;
-    name: string;
-    id: string;
-  }>(
-    `SELECT ak.id, ak.organization_id, ak.name, m.user_id
-     FROM api_keys ak
-     LEFT JOIN memberships m ON m.organization_id = ak.organization_id
-     WHERE ak.key_hash = $1 AND ak.revoked_at IS NULL
-     ORDER BY m.created_at ASC
-     LIMIT 1`,
-    [hash]
-  );
-  if (!result.rowCount) return null;
-  await query("UPDATE api_keys SET last_used_at = now() WHERE id = $1", [result.rows[0].id]);
-  return {
-    userId: result.rows[0].user_id ?? "00000000-0000-0000-0000-000000000000",
-    organizationId: result.rows[0].organization_id,
-    actorLabel: `api-key:${result.rows[0].name}`,
-    authType: "api_key"
-  };
-};
-
-const authFromJwt = async (token: string): Promise<AuthContext | null> => {
-  if (!config.keycloakJwksUrl || !config.keycloakIssuer) return null;
-  jwks ??= createRemoteJWKSet(new URL(config.keycloakJwksUrl));
-  const verified = await jwtVerify(token, jwks);
-  if (config.keycloakIssuerAllowlist.length && !config.keycloakIssuerAllowlist.includes(String(verified.payload.iss))) {
-    return null;
-  }
-  const email = String(verified.payload.email ?? "");
-  const name = String(verified.payload.name ?? email);
-  const subject = String(verified.payload.sub);
-  if (!email || !subject) return null;
+const authFromJwt = async (token: string, query: Query, verify: typeof verifyAccessToken): Promise<AuthContext | null> => {
+  const payload = await verify(token);
+  const email = typeof payload.email === "string" ? payload.email.trim().toLowerCase() : "";
+  const name = typeof payload.name === "string" ? payload.name : email;
+  const subject = payload.sub!;
+  if (!email) return null;
 
   const user = await query<{ id: string }>(
     `INSERT INTO users (email, full_name, keycloak_subject)
      VALUES ($1, $2, $3)
      ON CONFLICT (email) DO UPDATE
        SET full_name = EXCLUDED.full_name, keycloak_subject = EXCLUDED.keycloak_subject
+       WHERE users.keycloak_subject = EXCLUDED.keycloak_subject
+          OR (users.keycloak_subject IS NULL AND $4::boolean)
      RETURNING id`,
-    [email, name, subject]
+    [email, name, subject, payload.email_verified === true]
   );
-  await acceptPendingOrganizationInvitations({ userId: user.rows[0].id, email, keycloakSubject: subject }, query);
-  const org = await query<{ id: string }>("SELECT organization_id AS id FROM memberships WHERE user_id = $1 LIMIT 1", [user.rows[0].id]);
+  if (!user.rows[0]) return null;
+  if (payload.email_verified === true) await acceptPendingOrganizationInvitations({ userId: user.rows[0].id, email, keycloakSubject: subject }, query);
+  const org = await query<{ id: string; role: "admin" | "member" }>(
+    "SELECT organization_id AS id, role FROM memberships WHERE user_id = $1 AND role IN ('admin', 'member') ORDER BY created_at, id LIMIT 1", [user.rows[0].id]);
+  const identity = { authType: "keycloak" as const, actorLabel: email, subject, expiresAt: new Date(payload.exp! * 1000).toISOString() };
   if (org.rowCount) {
-    return { userId: user.rows[0].id, organizationId: org.rows[0].id, actorLabel: email, authType: "keycloak" };
+    return { ...identity, userId: user.rows[0].id, organizationId: org.rows[0].id, role: org.rows[0].role };
   }
-  const workspace = await ensureWorkspaceForUser({ userId: user.rows[0].id, email, name });
-  return { userId: user.rows[0].id, organizationId: workspace.organizationId, actorLabel: email, authType: "keycloak" };
+  const workspace = await ensureWorkspaceForUser({ userId: user.rows[0].id, email, name }, query);
+  return { ...identity, userId: user.rows[0].id, organizationId: workspace.organizationId, role: "admin" };
 };
 
-export const requireAuth = async (request: FastifyRequest, reply: FastifyReply) => {
+export const createAuthHandler = (dependencies: { query?: Query; verify?: typeof verifyAccessToken; devAllowed?: () => boolean } = {}) => async (request: FastifyRequest, reply: FastifyReply) => {
+  const query = dependencies.query ?? defaultQuery;
   const apiKeyHeader = request.headers["x-api-key"] ?? request.headers.authorization;
-  const headerValue = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
-  if (headerValue) {
-    const raw = headerValue.startsWith("Bearer ") ? headerValue.slice(7) : headerValue;
-    const context = raw.startsWith("hk_") ? await authFromApiKey(raw) : await authFromJwt(raw).catch(() => null);
+  if (apiKeyHeader !== undefined) {
+    if (typeof apiKeyHeader !== "string" || !apiKeyHeader.trim()) return reply.code(401).send(apiErrorResponse("unauthorized"));
+    const raw = apiKeyHeader.startsWith("Bearer ") ? apiKeyHeader.slice(7) : apiKeyHeader;
+    const context = raw.startsWith("hk_")
+      ? await readApiKeyPrincipal({ hash: hashApiKey(raw) }, query)
+      : await authFromJwt(raw, query, dependencies.verify ?? verifyAccessToken).catch(() => null);
     if (context) {
+      if (context.authType === "api_key") await query("UPDATE api_keys SET last_used_at = now() WHERE id = $1", [context.apiKeyId]);
       request.auth = context;
       return;
     }
+    return reply.code(401).send(apiErrorResponse("unauthorized"));
   }
 
-  if (config.authDevAllow) {
-    const dev = await ensureDevIdentity();
-    request.auth = { ...dev, actorLabel: "dev@harakiri.local", authType: "dev" };
+  if ((dependencies.devAllowed ?? (() => config.authDevAllow))()) {
+    const dev = await ensureDevIdentity(query);
+    request.auth = { ...dev, actorLabel: "dev@harakiri.local", authType: "dev", role: "admin" };
     return;
   }
 
   return reply.code(401).send(apiErrorResponse("unauthorized"));
 };
 
-// Recheck a stream without provisioning an account or changing its bound organization.
-export const streamAuthValid = async (request: FastifyRequest) => {
-  if (request.auth.authType === "dev") return config.authDevAllow;
+export const requireAuth = createAuthHandler();
+
+// Revalidation never provisions users or switches the connection's organization.
+export const revalidatePrincipal = async (auth: AuthContext, query: Query = defaultQuery): Promise<AuthContext | null> => {
+  if (auth.authType === "api_key") return readApiKeyPrincipal({ id: auth.apiKeyId, organizationId: auth.organizationId }, query);
+  if (auth.authType === "dev" && !config.authDevAllow) return null;
+  if (auth.authType === "keycloak" && (!auth.subject || !auth.expiresAt || !(Date.parse(auth.expiresAt) > Date.now()))) return null;
+  const member = await query<{ role: "admin" | "member" }>(
+    `SELECT m.role FROM memberships m JOIN users u ON u.id = m.user_id
+     WHERE m.organization_id = $1 AND m.user_id = $2 AND m.role IN ('admin', 'member')
+       AND ($3::text IS NULL OR u.keycloak_subject = $3)`,
+    [auth.organizationId, auth.userId, auth.authType === "keycloak" ? auth.subject : null]
+  );
+  return member.rows[0] ? { ...auth, role: member.rows[0].role } : null;
+};
+
+export const streamAuthValid = async (request: Pick<FastifyRequest, "auth" | "headers">, query: Query = defaultQuery) => {
   const value = request.headers["x-api-key"] ?? request.headers.authorization;
   const header = Array.isArray(value) ? value[0] : value;
-  if (!header) return false;
-  const token = header.startsWith("Bearer ") ? header.slice(7) : header;
-  if (request.auth.authType === "api_key") {
-    const result = await query("SELECT id FROM api_keys WHERE organization_id = $1 AND key_hash = $2 AND revoked_at IS NULL", [request.auth.organizationId, hashApiKey(token)]);
-    return Boolean(result.rowCount);
-  }
-  if (!config.keycloakJwksUrl || !config.keycloakIssuer) return false;
   try {
-    jwks ??= createRemoteJWKSet(new URL(config.keycloakJwksUrl));
-    const { payload } = await jwtVerify(token, jwks);
-    if (!config.keycloakIssuerAllowlist.includes(String(payload.iss))) return false;
-    const member = await query(`SELECT m.id FROM memberships m JOIN users u ON u.id = m.user_id
-      WHERE m.organization_id = $1 AND m.user_id = $2 AND u.keycloak_subject = $3`, [request.auth.organizationId, request.auth.userId, payload.sub]);
-    return Boolean(member.rowCount);
+    if (request.auth.authType === "keycloak") {
+      if (!header) return false;
+      const payload = await verifyAccessToken(header.startsWith("Bearer ") ? header.slice(7) : header);
+      if (payload.sub !== request.auth.subject) return false;
+    }
+    const current = await revalidatePrincipal(request.auth, query);
+    if (!current) return false;
+    request.auth = current;
+    return true;
   } catch { return false; }
 };

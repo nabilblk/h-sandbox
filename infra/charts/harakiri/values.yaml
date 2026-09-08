@@ -240,6 +240,8 @@ config:
   TEMPLATE_RETENTION_DELETE_BUILDER_JOBS: "1"
   TEMPLATE_BUILDER_POLL_MS: "5000"
   KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri"
+  KEYCLOAK_AUDIENCE: "harakiri-api"
+  KEYCLOAK_SIGNING_ALGORITHMS: "RS256"
   KEYCLOAK_ISSUER_ALLOWLIST: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri"
   KEYCLOAK_JWKS_URL: "http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri/protocol/openid-connect/certs"
   KEYCLOAK_INVITATION_REDIRECT_URI: "http://127.0.0.1:15173/#dashboard/sandboxes"

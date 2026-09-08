@@ -16,7 +16,7 @@ import type {
   DynamicCredentialValidation
 } from "../providers/credentials/provider.js";
 import { redactRecord, redactText } from "../redaction.js";
-import { isOrganizationAdmin, organizationMembershipRole } from "./organization-access.js";
+import { canManageCredentials, credentialAccessRole } from "./organization-access.js";
 import type { Query } from "./query.js";
 
 type DynamicCredentialIssuerRow = {
@@ -249,10 +249,10 @@ const activeNameExists = async (
 };
 
 export const listDynamicCredentialIssuers = async (
-  input: { organizationId: string; actorUserId: string; includeDeleted?: boolean },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; includeDeleted?: boolean },
   query: Query = defaultQuery
 ): Promise<DynamicCredentialIssuersResult> => {
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const predicates = ["organization_id = $1"];
   if (role !== "admin") predicates.push("member_use_allowed = true", "deleted_at IS NULL");
@@ -265,10 +265,10 @@ export const listDynamicCredentialIssuers = async (
 };
 
 export const getDynamicCredentialIssuer = async (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   query: Query = defaultQuery
 ): Promise<DynamicCredentialIssuerResult> => {
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const row = await selectIssuer(input.organizationId, input.issuerId, query, role === "admin");
   if (!row) return { kind: "not_found" };
@@ -279,14 +279,14 @@ export const getDynamicCredentialIssuer = async (
 export const createDynamicCredentialIssuer = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null; actorApiKeyId?: string;
     actorLabel: string;
     body: CreateDynamicCredentialIssuerBody;
   },
   dependencies: { query?: Query; idFactory?: typeof makeId } = {}
 ): Promise<DynamicCredentialIssuerResult> => {
   const query = dependencies.query ?? defaultQuery;
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   let prepared;
   try {
     prepared = prepareMetadata(input.body);
@@ -317,13 +317,13 @@ export const createDynamicCredentialIssuer = async (
 export const updateDynamicCredentialIssuer = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null; actorApiKeyId?: string;
     issuerId: string;
     body: UpdateDynamicCredentialIssuerBody;
   },
   query: Query = defaultQuery
 ): Promise<DynamicCredentialIssuerResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const row = await selectIssuer(input.organizationId, input.issuerId, query);
   if (!row) return { kind: "not_found" };
   const current = mapDynamicCredentialIssuerRow(row);
@@ -360,11 +360,11 @@ export const updateDynamicCredentialIssuer = async (
 };
 
 const changeIssuerStatus = async (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   action: "disable" | "enable" | "delete",
   query: Query
 ): Promise<DynamicCredentialIssuerResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const row = await selectIssuer(input.organizationId, input.issuerId, query);
   if (!row) return { kind: "not_found" };
   const assignments = action === "disable"
@@ -383,17 +383,17 @@ const changeIssuerStatus = async (
 };
 
 export const disableDynamicCredentialIssuer = (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   query: Query = defaultQuery
 ) => changeIssuerStatus(input, "disable", query);
 
 export const enableDynamicCredentialIssuer = (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   query: Query = defaultQuery
 ) => changeIssuerStatus(input, "enable", query);
 
 export const deleteDynamicCredentialIssuer = (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   query: Query = defaultQuery
 ) => changeIssuerStatus(input, "delete", query);
 
@@ -453,11 +453,11 @@ const issueFromRow = async (
 };
 
 export const validateDynamicCredentialIssuer = async (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   options: IssuerOptions = {}
 ): Promise<DynamicCredentialIssuerResult> => {
   const query = options.query ?? defaultQuery;
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const row = await selectIssuer(input.organizationId, input.issuerId, query);
   if (!row) return { kind: "not_found" };
   if (row.disabledAt) return { kind: "disabled" };
@@ -472,11 +472,11 @@ export const validateDynamicCredentialIssuer = async (
 };
 
 export const issueDynamicCredential = async (
-  input: { organizationId: string; actorUserId: string; issuerId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; issuerId: string },
   options: IssuerOptions = {}
 ): Promise<DynamicCredentialMaterialResult> => {
   const query = options.query ?? defaultQuery;
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const row = await selectIssuer(input.organizationId, input.issuerId, query);
   if (!row) return { kind: "not_found" };

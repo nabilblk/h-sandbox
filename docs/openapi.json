@@ -124,9 +124,6 @@
       "get": {
         "security": [
           {
-            "apiKey": []
-          },
-          {
             "bearerAuth": []
           }
         ],
@@ -232,9 +229,6 @@
     "/v1/me/onboarding/complete": {
       "post": {
         "security": [
-          {
-            "apiKey": []
-          },
           {
             "bearerAuth": []
           }
@@ -12002,9 +11996,6 @@
       "get": {
         "security": [
           {
-            "apiKey": []
-          },
-          {
             "bearerAuth": []
           }
         ],
@@ -12108,9 +12099,6 @@
       },
       "post": {
         "security": [
-          {
-            "apiKey": []
-          },
           {
             "bearerAuth": []
           }
@@ -12227,9 +12215,6 @@
     "/v1/api-keys/{id}": {
       "delete": {
         "security": [
-          {
-            "apiKey": []
-          },
           {
             "bearerAuth": []
           }
@@ -12811,9 +12796,6 @@
       "get": {
         "security": [
           {
-            "apiKey": []
-          },
-          {
             "bearerAuth": []
           }
         ],
@@ -12917,9 +12899,6 @@
       },
       "post": {
         "security": [
-          {
-            "apiKey": []
-          },
           {
             "bearerAuth": []
           }
@@ -13047,9 +13026,6 @@
       "post": {
         "security": [
           {
-            "apiKey": []
-          },
-          {
             "bearerAuth": []
           }
         ],
@@ -13176,9 +13152,6 @@
       "post": {
         "security": [
           {
-            "apiKey": []
-          },
-          {
             "bearerAuth": []
           }
         ],
@@ -13295,9 +13268,6 @@
       "post": {
         "security": [
           {
-            "apiKey": []
-          },
-          {
             "bearerAuth": []
           }
         ],
@@ -13413,9 +13383,6 @@
     "/v1/org/members/{id}": {
       "delete": {
         "security": [
-          {
-            "apiKey": []
-          },
           {
             "bearerAuth": []
           }
@@ -13639,9 +13606,6 @@
       },
       "patch": {
         "security": [
-          {
-            "apiKey": []
-          },
           {
             "bearerAuth": []
           }
@@ -19894,6 +19858,28 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyScope"
+            }
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdByUserId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "legacy": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -19903,9 +19889,29 @@
           "lastFour",
           "createdAt",
           "lastUsedAt",
-          "revokedAt"
+          "revokedAt",
+          "scopes",
+          "expiresAt",
+          "createdByUserId",
+          "legacy"
         ],
         "additionalProperties": false
+      },
+      "ApiKeyScope": {
+        "type": "string",
+        "enum": [
+          "sandboxes:read",
+          "sandboxes:write",
+          "templates:read",
+          "templates:write",
+          "workspaces:read",
+          "workspaces:write",
+          "credentials:use",
+          "credentials:manage",
+          "registry:manage",
+          "audit:read",
+          "org:read"
+        ]
       },
       "ApiKeysResponse": {
         "type": "object",
@@ -19915,6 +19921,15 @@
             "items": {
               "$ref": "#/components/schemas/ApiKeySummary"
             }
+          },
+          "allowedScopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyScope"
+            }
+          },
+          "canManageAll": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -19926,7 +19941,23 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyScope"
+            },
+            "minItems": 1,
+            "maxItems": 11,
+            "description": "Omitted: runtime profile. Sensitive scopes require a human admin; keys cannot manage keys."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Future expiry within 365 days; defaults to 90 days. New keys cannot be non-expiring."
           }
         },
         "required": [
@@ -20281,6 +20312,12 @@
             "type": "boolean"
           },
           "canManageCredentialSecrets": {
+            "type": "boolean"
+          },
+          "canManageSettings": {
+            "type": "boolean"
+          },
+          "canManageAllApiKeys": {
             "type": "boolean"
           }
         },

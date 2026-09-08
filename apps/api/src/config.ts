@@ -67,6 +67,8 @@ export const config = {
     .map((item) => item.trim())
     .filter(Boolean),
   keycloakJwksUrl: process.env.KEYCLOAK_JWKS_URL,
+  keycloakAudience: process.env.KEYCLOAK_AUDIENCE ?? "harakiri-api",
+  keycloakSigningAlgorithms: csv(process.env.KEYCLOAK_SIGNING_ALGORITHMS, "RS256"),
   keycloakAdminBaseUrl: process.env.KEYCLOAK_ADMIN_BASE_URL ?? "http://keycloak.keycloak.svc.cluster.local:8080",
   keycloakAdminRealm: process.env.KEYCLOAK_ADMIN_REALM ?? process.env.PUBLIC_KEYCLOAK_REALM ?? "harakiri",
   keycloakAdminTokenRealm: process.env.KEYCLOAK_ADMIN_TOKEN_REALM ?? "master",

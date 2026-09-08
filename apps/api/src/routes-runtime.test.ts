@@ -25,14 +25,22 @@ const leaseTransaction: Transaction = (fn) => fn(async (text) => {
   return { rows: [], rowCount: 1 };
 });
 const registerRoutes = (app: Parameters<typeof registerDefaultRoutes>[0], dependencies: Parameters<typeof registerDefaultRoutes>[1] = {}) =>
-  registerDefaultRoutes(app, { transaction: leaseTransaction, ...dependencies });
+  registerDefaultRoutes(app, { transaction: leaseTransaction, ...dependencies,
+    ...(dependencies.query ? { query: async (text, params) => {
+      if (text.includes("SELECT m.role FROM memberships")) return { rows: [{ role: "admin" }] as never[], rowCount: 1 };
+      return dependencies.query!(text, params);
+    } } : {})
+  });
 
 const fakeAuth = async (request: FastifyRequest): Promise<undefined> => {
   request.auth = {
     userId: "user_route",
     organizationId: "org_route",
     actorLabel: "route@test.local",
-    authType: "dev"
+    authType: "keycloak",
+    subject: "route-subject",
+    expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    role: "admin"
   };
   return undefined;
 };
@@ -726,6 +734,7 @@ test("sandbox credential refresh route renews dynamic material without returning
     recordSandboxEvent: async () => undefined,
     recordAudit: async () => undefined,
     query: async (text, params) => {
+      if (text.includes("SELECT role FROM memberships")) return { rows: [{ role: "admin" }] as never[], rowCount: 1 };
       if (text.includes("FROM sandboxes WHERE id = $1 AND organization_id = $2")) {
         return { rowCount: 1, rows: [{ id: "sbx_route", opensandboxId: "fake_provider", status: "running" }] as never[] };
       }
@@ -908,7 +917,7 @@ test("sandbox terminal attach route accepts one-time browser tickets without Web
         assert.equal(params?.[2], "org_route");
         assert.equal(params?.[3], "user_route");
         assert.equal(params?.[4], "route@test.local");
-        assert.equal(params?.[5], "dev");
+        assert.equal(params?.[5], "keycloak");
         assert.match(String(params?.[6]), /^\d{4}-\d{2}-\d{2}T/);
         return { rowCount: 1, rows: [] };
       }
@@ -919,7 +928,7 @@ test("sandbox terminal attach route accepts one-time browser tickets without Web
         consumedTicket = true;
         return {
           rowCount: 1,
-          rows: [{ organizationId: "org_route", userId: "user_route", actorLabel: "route@test.local", authType: "dev" }] as never[]
+          rows: [{ organizationId: "org_route", userId: "user_route", actorLabel: "route@test.local", authType: "keycloak", apiKeyId: null, subject: "route-subject", authExpiresAt: new Date(Date.now() + 3600_000) }] as never[]
         };
       }
       if (text.includes("SELECT s.id, s.opensandbox_id")) {

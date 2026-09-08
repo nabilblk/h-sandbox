@@ -1232,6 +1232,38 @@
   gap: 16px;
 }
 
+.settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.settings-fields:disabled input, .settings-fields:disabled button { cursor: not-allowed; }
+.key-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.key-list { border-top: 1px solid var(--border); }
+.key-entry { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, 280px) 80px; gap: 24px; align-items: start; padding: 20px 0; border-bottom: 1px solid var(--border); }
+.key-entry > * { min-width: 0; overflow-wrap: anywhere; }
+.key-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.key-status-active { color: var(--ok); }
+.key-status-expired, .key-status-revoked { color: var(--err); }
+.key-metadata { margin-top: 6px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.key-scopes { margin-top: 10px; font-size: 12px; }
+.key-scopes summary { width: fit-content; cursor: pointer; }
+.key-scopes > div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.key-scopes code { padding: 2px 5px; background: var(--surface-2); }
+.key-fingerprint { font-size: 12px; }
+.key-form { padding: 20px; display: grid; gap: 16px; }
+.key-form p { margin: 0; overflow-wrap: anywhere; }
+.key-form > fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; }
+.key-form .field { display: grid; gap: 6px; font-size: 12px; }
+.key-scope-options { border: 0; padding: 10px 0 0; margin: 0; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.key-scope-options legend { font-size: 12px; font-weight: 600; }
+.key-scope-options label { display: flex; align-items: center; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.key-scope-options input { flex: 0 0 auto; accent-color: var(--accent); }
+.key-secret { display: flex; gap: 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; }
+.key-secret code { min-width: 0; flex: 1; overflow-wrap: anywhere; user-select: all; }
+@media (max-width: 640px) {
+  .key-entry { grid-template-columns: minmax(0, 1fr) 72px; gap: 12px; }
+  .key-entry > button { grid-column: 2; grid-row: 1; }
+  .key-fingerprint { grid-column: 1 / -1; }
+  .key-scope-options { grid-template-columns: 1fr; }
+}
+
 /* MEMBERS */
 .members-workspace {
   max-width: 1280px;

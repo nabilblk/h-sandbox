@@ -23,18 +23,24 @@ const defaultSettings: OrganizationSettings = {
   egressRedactDomains: false
 };
 
-export const SettingsRoute = () => {
+export const SettingsRoute = ({ canManage = false }: { canManage?: boolean }) => {
   const [org, setOrg] = useState<OrganizationSettings>(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
-  useEffect(() => { api.settings().then((r) => setOrg(r.organization)).catch(() => undefined); }, []);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { api.settings().then((r) => { setOrg(r.organization); setLoaded(true); }).catch((e) => setError(e instanceof Error ? e.message : "Unable to load settings.")); }, []);
   const save = async () => {
+    if (!canManage || !loaded || saving) return;
     setSaving(true);
     setNotice("");
+    setError("");
     try {
       const updated = await api.updateSettings({ ...org });
       setOrg(updated.organization);
       setNotice("Settings saved.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to save settings.");
     } finally {
       setSaving(false);
     }
@@ -53,9 +59,12 @@ export const SettingsRoute = () => {
           <h1 className="page-h">Settings</h1>
           <div className="page-sub"><span style={{ color: "var(--muted)" }}>Workspace controls and sandbox defaults.</span></div>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? <><span className="spinner" /> Saving</> : "Save"}</button>
+        {canManage ? <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || !loaded}>{saving ? <><span className="spinner" /> Saving</> : "Save"}</button> : null}
       </div>
-      {notice ? <div className="settings-notice">{notice}</div> : null}
+      {error ? <div role="alert" className="build-inline-alert">{error}</div> : null}
+      {!canManage ? <div className="workspace-notice">Read-only. Organization settings are managed by admins.</div> : null}
+      {notice ? <div role="status" className="settings-notice">{notice}</div> : null}
+      <fieldset className="settings-fields" disabled={!canManage || !loaded || saving} aria-label="Organization settings">
       <div className="settings-grid">
         <section className="card settings-card">
           <div className="card-h">Organization</div>
@@ -116,6 +125,7 @@ export const SettingsRoute = () => {
           </div>
         </div>
       </section>
+      </fieldset>
     </div>
   );
 };

@@ -58,7 +58,18 @@ export function buildConfig(env, docker = {}) {
   const users = env.BOOTSTRAP_USER_EMAIL && env.BOOTSTRAP_USER_PASSWORD ? [{ username: env.BOOTSTRAP_USER_EMAIL, email: env.BOOTSTRAP_USER_EMAIL, enabled: true, emailVerified: true, credentials: [{ type: 'password', value: env.BOOTSTRAP_USER_PASSWORD, temporary: true }] }] : [];
   assert.equal(Boolean(env.BOOTSTRAP_USER_EMAIL), Boolean(env.BOOTSTRAP_USER_PASSWORD), 'Provide both bootstrap email and password, or neither');
   const clientSecret = env.BACKGROUND_AGENT_CLIENT_SECRET || secretEnv.KEYCLOAK_CLIENT_SECRET || token();
-  const realm = (name, clientId, host, publicClient) => ({ realm: name, enabled: true, loginWithEmailAllowed: true, registrationAllowed: false, clients: [{ clientId, enabled: true, publicClient, standardFlowEnabled: true, directAccessGrantsEnabled: false, redirectUris: [`https://${host}/*`], webOrigins: [`https://${host}`], attributes: { 'pkce.code.challenge.method': 'S256' }, ...(publicClient ? {} : { secret: clientSecret }) }], users });
+  const apiAudience = {
+    name: 'harakiri-api-audience', protocol: 'openid-connect', protocolMapper: 'oidc-audience-mapper', consentRequired: false,
+    config: { 'included.custom.audience': 'harakiri-api', 'id.token.claim': 'false', 'access.token.claim': 'true', 'introspection.token.claim': 'true' }
+  };
+  const realm = (name, clientId, host, publicClient) => ({
+    realm: name, enabled: true, loginWithEmailAllowed: true, registrationAllowed: false,
+    clients: [{ clientId, enabled: true, publicClient, standardFlowEnabled: true, directAccessGrantsEnabled: false,
+      redirectUris: [`https://${host}/*`], webOrigins: [`https://${host}`],
+      attributes: { 'pkce.code.challenge.method': 'S256' },
+      ...(name === 'harakiri' ? { protocolMappers: [apiAudience] } : {}),
+      ...(publicClient ? {} : { secret: clientSecret }) }], users
+  });
   const object = (name, stringData, type = 'Opaque') => ({ apiVersion: 'v1', kind: 'Secret', metadata: { name, namespace }, type, stringData });
   const imported = ['JWE_SECRET', 'ENCRYPTION_KEY', 'NEXT_PUBLIC_GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_WEBHOOK_SECRET', 'OPENROUTER_API_KEY', 'AI_GATEWAY_API_KEY', 'REDIS_URL', 'KV_URL'];
   const secrets = [

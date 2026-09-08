@@ -7,7 +7,7 @@ import { settingsSchema } from "./org-settings.schema.js";
 
 type Audit = (
   organizationId: string,
-  actorUserId: string,
+  actorUserId: string | null,
   actorLabel: string,
   action: string,
   targetType: string,

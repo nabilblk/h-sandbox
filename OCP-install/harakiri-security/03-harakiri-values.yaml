@@ -40,6 +40,8 @@ config:
   PUBLIC_KEYCLOAK_SILENT_CHECK_SSO: "true"
 
   KEYCLOAK_ISSUER: "https://${AUTH_HOST}/realms/harakiri"
+  KEYCLOAK_AUDIENCE: "harakiri-api"
+  KEYCLOAK_SIGNING_ALGORITHMS: "RS256"
   KEYCLOAK_ISSUER_ALLOWLIST: "https://${AUTH_HOST}/realms/harakiri"
   # Keep issuer validation on the public route, but fetch signing keys through
   # the in-cluster service so OpenShift/CRC route certificates do not break JWT

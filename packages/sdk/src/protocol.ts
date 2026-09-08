@@ -1595,14 +1595,26 @@ export type ApiKeySummary = {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  scopes: ApiKeyScope[];
+  expiresAt: string | null;
+  createdByUserId: string | null;
+  legacy: boolean;
 };
+
+export type ApiKeyScope = "sandboxes:read" | "sandboxes:write" | "templates:read" | "templates:write" |
+  "workspaces:read" | "workspaces:write" | "credentials:use" | "credentials:manage" |
+  "registry:manage" | "audit:read" | "org:read";
 
 export type ApiKeysResponse = {
   keys: ApiKeySummary[];
+  allowedScopes?: ApiKeyScope[];
+  canManageAll?: boolean;
 };
 
 export type CreateApiKeyBody = {
   name: string;
+  scopes?: ApiKeyScope[];
+  expiresAt?: string;
 };
 
 export type CreateApiKeyResponse = {
@@ -1684,6 +1696,8 @@ export type OrganizationSettingsResponse = {
 export type AccountCapabilities = {
   canManageMembers: boolean;
   canManageCredentialSecrets: boolean;
+  canManageSettings?: boolean;
+  canManageAllApiKeys?: boolean;
 };
 
 export type OrganizationMemberRole = "admin" | "member" | string;

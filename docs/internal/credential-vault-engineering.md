@@ -28,6 +28,21 @@ API routes authorize and validate. Domain services own state transitions.
 Source adapters may briefly hold real material. Runtime adapters translate the
 provider-neutral request. No other layer may read credential values.
 
+## Authorization Boundary
+
+Use [the authorization contract](../authorization.md) for principal identity,
+scopes and migration 037. `credentialActor(auth)` forwards either a real user ID
+or a key ID; a key has a null human actor and an `api-key:<id>` audit label.
+`credentialAccessRole` rechecks the current key and creator membership before
+source access. Never pass a creator user ID as the key's identity or treat null
+as a system/admin grant.
+
+Manual attach, refresh and rehydrate resolve material under caller permissions.
+Only trusted lifecycle resume and reconciliation opt into `sourceAccess:
+"system"` to maintain an already-authorized binding. HTTP bodies cannot select
+that mode. Disable/delete a source to revoke existing bindings; changing source
+sharing does not erase credentials already attached to a shared sandbox.
+
 ## Non-Negotiable Invariants
 
 1. A real value crosses only an authenticated write boundary, a source
@@ -126,7 +141,7 @@ state and old source selections are not inherited from a snapshot.
 | Source adapter | Success, missing, forbidden, disabled, malformed, unavailable, redaction |
 | Provider adapter | Apply, inspect, detach, stale revision, unavailable, DNS-only rejection |
 | Lifecycle | Resume/restore/sidecar loss, partial failure, retry, ephemeral stale state |
-| RBAC | Admin management, member shared use, member direct-route rejection |
+| RBAC | Admin management, scoped-key custody/use, member shared use, wrong-org/expired/revoked keys, manual refresh denial, trusted reconciliation |
 | UI | Empty/loading/error/success, desktop/mobile, keyboard, no secret readback |
 | Operator config | Helm lint and rendered least-privilege RBAC |
 

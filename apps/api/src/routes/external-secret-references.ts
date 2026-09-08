@@ -1,3 +1,4 @@
+import { credentialActor, type AuthContext } from "../auth-context.js";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type {
   ExternalSecretReferenceResponse,
@@ -100,7 +101,7 @@ const auditMetadata = (result: ExternalSecretReferenceResponse["reference"]) => 
 });
 
 const auditReference = async (
-  request: { auth: { organizationId: string; userId: string; actorLabel: string } },
+  request: { auth: AuthContext },
   audit: Audit,
   action: string,
   reference: ExternalSecretReferenceResponse["reference"]
@@ -125,22 +126,22 @@ export const registerExternalSecretReferenceRoutes = async (
   const revokeSourceAttachments = dependencies.revokeSourceAttachments ?? revokeCredentialSourceAttachments;
 
   const reinjectReferenceAttachments = (request: {
-    auth: { organizationId: string; userId: string; actorLabel: string };
+    auth: AuthContext;
   }, referenceId: string) => reinjectSourceAttachments({
     organizationId: request.auth.organizationId,
     sourceType: "external_ref",
     sourceRef: referenceId,
-    actorUserId: request.auth.userId,
+    ...credentialActor(request.auth),
     actorLabel: request.auth.actorLabel
   }, { query, runtimeProvider, recordEvent: event, recordAudit: dependencies.recordAudit });
 
   const revokeReferenceAttachments = (request: {
-    auth: { organizationId: string; userId: string; actorLabel: string };
+    auth: AuthContext;
   }, referenceId: string, reason: "source_disabled" | "source_deleted") => revokeSourceAttachments({
     organizationId: request.auth.organizationId,
     sourceType: "external_ref",
     sourceRef: referenceId,
-    actorUserId: request.auth.userId,
+    ...credentialActor(request.auth),
     actorLabel: request.auth.actorLabel,
     reason
   }, { query, runtimeProvider, recordEvent: event, recordAudit: dependencies.recordAudit });
@@ -149,7 +150,7 @@ export const registerExternalSecretReferenceRoutes = async (
     const filters = externalSecretReferenceListQuerySchema.parse(request.query ?? {});
     const result = await listExternalSecretReferences({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       includeDeleted: filters.includeDeleted
     }, query);
     if (result.kind !== "ok") return sendReferenceError(reply, result);
@@ -160,7 +161,7 @@ export const registerExternalSecretReferenceRoutes = async (
     const { id } = request.params as { id: string };
     const result = await getExternalSecretReference({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       referenceId: id
     }, query);
     if (result.kind !== "ok") return sendReferenceError(reply, result);
@@ -171,7 +172,7 @@ export const registerExternalSecretReferenceRoutes = async (
     const body = externalSecretReferenceCreateSchema.parse(request.body ?? {});
     const result = await createExternalSecretReference({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       actorLabel: request.auth.actorLabel,
       body
     }, { query });
@@ -185,7 +186,7 @@ export const registerExternalSecretReferenceRoutes = async (
     const body = externalSecretReferenceUpdateSchema.parse(request.body ?? {});
     const result = await updateExternalSecretReference({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       referenceId: id,
       body
     }, query);
@@ -202,7 +203,7 @@ export const registerExternalSecretReferenceRoutes = async (
     const { id } = request.params as { id: string };
     const result = await validateExternalSecretReference({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       referenceId: id
     }, { query, resolvers: dependencies.resolvers });
     if (result.kind !== "ok") return sendReferenceError(reply, result);
@@ -218,7 +219,7 @@ export const registerExternalSecretReferenceRoutes = async (
       const operation = action === "disable" ? disableExternalSecretReference : enableExternalSecretReference;
       const result = await operation({
         organizationId: request.auth.organizationId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         referenceId: id
       }, query);
       if (result.kind !== "ok") return sendReferenceError(reply, result);
@@ -235,7 +236,7 @@ export const registerExternalSecretReferenceRoutes = async (
     const { id } = request.params as { id: string };
     const disabled = await disableExternalSecretReference({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       referenceId: id
     }, query);
     if (disabled.kind !== "ok") return sendReferenceError(reply, disabled);
@@ -244,7 +245,7 @@ export const registerExternalSecretReferenceRoutes = async (
     if (revoked.kind !== "ok") return sendRevocationError(reply, revoked);
     const result = await deleteExternalSecretReference({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       referenceId: id
     }, query);
     if (result.kind !== "ok") return sendReferenceError(reply, result);

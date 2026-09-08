@@ -1749,6 +1749,8 @@ export const compileEgressPolicy = (input?: EgressPolicyInput | null): EgressPol
 
 export const defaultEgressPolicyInput: EgressPolicyInput = { mode: "open", presets: [], allow: [], deny: [] };
 
+export * from "./authorization.js";
+
 export type ApiKeySummary = {
   id: string;
   name: string;
@@ -1757,14 +1759,22 @@ export type ApiKeySummary = {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  scopes: import("./authorization.js").ApiKeyScope[];
+  expiresAt: string | null;
+  createdByUserId: string | null;
+  legacy: boolean;
 };
 
 export type ApiKeysResponse = {
   keys: ApiKeySummary[];
+  allowedScopes?: import("./authorization.js").ApiKeyScope[];
+  canManageAll?: boolean;
 };
 
 export type CreateApiKeyBody = {
   name: string;
+  scopes?: import("./authorization.js").ApiKeyScope[];
+  expiresAt?: string;
 };
 
 export type CreateApiKeyResponse = {
@@ -1846,6 +1856,8 @@ export type OrganizationSettingsResponse = {
 export type AccountCapabilities = {
   canManageMembers: boolean;
   canManageCredentialSecrets: boolean;
+  canManageSettings?: boolean;
+  canManageAllApiKeys?: boolean;
 };
 
 export type OrganizationMemberRole = "admin" | "member" | string;

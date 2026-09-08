@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ApiKeysRoute } from "./routes/api-keys.js";
+import { ApiKeysRoute, apiKeyStatus } from "./routes/api-keys.js";
+import type { ApiKeySummary } from "@harakiri/shared";
 import { MembersRoute } from "./routes/members.js";
 import { SettingsRoute } from "./routes/settings.js";
 import { UsageRoute } from "./routes/usage.js";
@@ -30,4 +31,16 @@ test("small dashboard routes render without dashboard shell coupling", () => {
   assert.match(vault, /External references/);
   assert.match(vault, /Audit history/);
   assert.match(vault, /New secret/);
+});
+
+test("settings fail closed before capabilities load and keys distinguish expired from revoked", () => {
+  const member = renderToStaticMarkup(createElement(SettingsRoute, { canManage: false }));
+  assert.match(member, /fieldset[^>]*disabled/);
+  assert.doesNotMatch(member, />Save<\/button>/);
+  const admin = renderToStaticMarkup(createElement(SettingsRoute, { canManage: true }));
+  assert.match(admin, />Save<\/button>/);
+  const key = { revokedAt: null, expiresAt: null } as ApiKeySummary;
+  assert.equal(apiKeyStatus(key), "Active");
+  assert.equal(apiKeyStatus({ ...key, expiresAt: new Date(0).toISOString() }), "Expired");
+  assert.equal(apiKeyStatus({ ...key, revokedAt: new Date().toISOString() }), "Revoked");
 });

@@ -1,3 +1,7 @@
+import { credentialActor, type AuthContext } from "../auth-context.js";
+import { revalidatePrincipal } from "../auth.js";
+import { hasScope } from "../authorization.js";
+import { watchTerminalAuthorization } from "../live-authorization.js";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type {
   SandboxFileMkdirResponse,
@@ -183,6 +187,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
   app.post("/v1/sandboxes/:id/terminal/attach-ticket", async (request, reply) => {
     const { id } = request.params as { id: string };
     const result = await createTerminalAttachTicket({ sandboxId: id, auth: request.auth }, { query });
+    if (result.kind === "forbidden") return reply.code(403).send(apiErrorResponse("forbidden"));
     if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
     return reply.code(201).send({
@@ -219,8 +224,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
       await sendTerminalAttachError(socket, 1008, apiErrorResponse("runtime_terminal_unavailable", { message }));
       return;
     }
-    const requestWithOptionalAuth = request as typeof request & { auth?: typeof request.auth };
-    let auth = requestWithOptionalAuth.auth;
+    let auth: AuthContext | undefined = request.auth;
     if (!auth && queryParams.ticket) {
       const ticket = await consumeTerminalAttachTicket({ sandboxId: id, ticket: queryParams.ticket }, { query });
       if (ticket.kind !== "ok") {
@@ -229,11 +233,14 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
       }
       auth = ticket.auth;
     }
-    if (!auth) {
+    auth = auth ? await revalidatePrincipal(auth, query).catch(() => null) ?? undefined : undefined;
+    if (!auth || !hasScope(auth, "sandboxes:write")) {
       await sendTerminalAttachError(socket, 1008, apiErrorResponse("unauthorized"));
       return;
     }
     const { ticket: _ticket, ...attachOptions } = queryParams;
+    const stopWatching = watchTerminalAuthorization(auth, () => socket.close(1008, "Authorization expired or revoked"), { query });
+    socket.once("close", stopWatching);
     const result = await attachSandboxTerminal(
       {
         organizationId: auth.organizationId,
@@ -244,7 +251,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         ...attachOptions
       },
       { query, runtimeProvider, recordEvent, transaction: dependencies.transaction }
-    );
+    ).finally(stopWatching);
     if (result.kind === "not_found") {
       await sendTerminalAttachError(socket, 1008, apiErrorResponse("sandbox_not_found"));
       return;
@@ -275,7 +282,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         env: body.env,
         timeoutMs: body.timeoutMs,
         metadata: body.metadata,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel
       },
       { query, runtimeProvider, recordEvent, recordAudit, transaction: dependencies.transaction }
@@ -298,7 +305,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const body = commandSchema.parse(request.body ?? {});
     const result = await createSandboxCommand(
       { organizationId: request.auth.organizationId, sandboxId: id, body },
-      { query, runtimeProvider, recordEvent, recordAudit, actorUserId: request.auth.userId, actorLabel: request.auth.actorLabel, transaction: dependencies.transaction }
+      { query, runtimeProvider, recordEvent, recordAudit, ...credentialActor(request.auth), actorLabel: request.auth.actorLabel, transaction: dependencies.transaction }
     );
     if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_not_running") return reply.code(409).send(apiErrorResponse("sandbox_not_running", { status: result.status }));
@@ -509,7 +516,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
       {
         organizationId: request.auth.organizationId,
         sandboxId: id,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel,
         body
       },
@@ -563,7 +570,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
       {
         organizationId: request.auth.organizationId,
         sandboxId: id,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel
       },
       {
@@ -594,7 +601,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         organizationId: request.auth.organizationId,
         sandboxId: id,
         attachmentId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel
       },
       {
@@ -636,7 +643,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         organizationId: request.auth.organizationId,
         sandboxId: id,
         attachmentId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel
       },
       { query, runtimeProvider, recordEvent, recordAudit }
@@ -657,7 +664,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         organizationId: request.auth.organizationId,
         sandboxId: id,
         attachmentId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel,
         body
       },
@@ -685,7 +692,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const result = await updateSandboxEgress(
       {
         organizationId: request.auth.organizationId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel,
         sandboxId: id,
         patch: body
@@ -712,7 +719,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
         runtimeProvider,
         recordEvent,
         recordAudit,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel
       }
     );
@@ -734,7 +741,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const result = await createSandboxRoute(
       {
         organizationId: request.auth.organizationId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel,
         sandboxId: id,
         port: body.port,
@@ -770,7 +777,7 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const route = await deleteSandboxRoute(
       {
         organizationId: request.auth.organizationId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         actorLabel: request.auth.actorLabel,
         sandboxId: id,
         port: parsed.port

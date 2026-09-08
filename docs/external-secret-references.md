@@ -5,6 +5,11 @@ external secret manager without storing plaintext values in the Harakiri
 database. Harakiri stores only a locator, provider preset, use policy,
 validation state, and usage metadata.
 
+On migration-037 installations, management examples require an admin-created
+API key with `credentials:manage`. Runtime keys with `credentials:use` can attach
+only references shared with organization members and also need the sandbox
+operation's scope. See [Authorization](authorization.md) for upgrade ordering.
+
 ## Custody Boundary
 
 The shipped resolver reads one key from an approved Kubernetes Secret at

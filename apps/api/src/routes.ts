@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
+import { apiErrorResponse } from "@harakiri/shared";
 import websocket from "@fastify/websocket";
 import { recordAuditEvent } from "./audit.js";
 import { requireAuth } from "./auth.js";
+import { authorizeRequest } from "./authorization.js";
 import { query as defaultQuery, type Transaction } from "./db.js";
 import { keycloakAdminClient, type KeycloakAdminClient } from "./providers/auth/keycloak-admin.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "./providers/runtime/index.js";
@@ -61,9 +63,12 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
 
   app.addHook("preHandler", async (request, reply) => {
     const path = request.url.split("?")[0] ?? request.url;
-    if (publicRoutePaths.has(path) || path.startsWith("/v1/route-proxy/") || path === "/v1/route-proxy") return;
-    if (isTicketAuthenticatedTerminalAttach(request.url)) return;
-    return authHandler(request, reply);
+    if (request.method === "OPTIONS" || publicRoutePaths.has(path) || request.routeOptions.url === "/v1/route-proxy/:routeKey" || request.routeOptions.url === "/v1/route-proxy/:routeKey/*") return;
+    if (request.method === "GET" && request.routeOptions.url === "/v1/sandboxes/:id/terminal/attach" && isTicketAuthenticatedTerminalAttach(request.url)) return;
+    await authHandler(request, reply);
+    if (reply.sent) return;
+    if (!request.auth) return reply.code(401).send(apiErrorResponse("unauthorized"));
+    return authorizeRequest(request, reply);
   });
 
   await registerAccountRoutes(app, { query, recordAudit: audit, keycloakAdmin: dependencies.keycloakAdmin ?? keycloakAdminClient });

@@ -124,7 +124,7 @@ const recordGitCommandActivity = async (
   input: {
     organizationId: string;
     sandboxId: string;
-    actorUserId?: string;
+    actorUserId?: string | null;
     actorLabel?: string;
     commandId?: string;
     providerCommandId?: string | null;
@@ -435,7 +435,7 @@ export const runSandboxCommand = async (
     env?: Record<string, string>;
     timeoutMs?: number;
     metadata?: SandboxCommandMetadata;
-    actorUserId?: string;
+    actorUserId?: string | null;
     actorLabel?: string;
   },
   dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder; recordAudit?: Audit }
@@ -580,7 +580,7 @@ export const createSandboxCommand = async (
     sandboxId: string;
     body: CreateSandboxCommandBody;
   },
-  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder; recordAudit?: Audit; actorUserId?: string; actorLabel?: string; idFactory?: typeof makeId }
+  dependencies: LeaseDependencies & { query?: Query; recordEvent: SandboxEventRecorder; recordAudit?: Audit; actorUserId?: string | null; actorLabel?: string; idFactory?: typeof makeId }
 ): Promise<
   | { kind: "ok"; command: SandboxCommandSummary }
   | { kind: "not_found" }
@@ -1063,7 +1063,7 @@ export type AttachSandboxTerminalResult =
 export const attachSandboxTerminal = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     actorLabel: string;
     sandboxId: string;
     client: WebSocket;
@@ -1571,7 +1571,7 @@ export type UpdateSandboxEgressResult =
 export const updateSandboxEgress = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     actorLabel: string;
     sandboxId: string;
     patch: PatchSandboxEgressBody;
@@ -1649,7 +1649,7 @@ const normalizeEgressTestTarget = (target: string) => {
 
 export const testSandboxEgress = async (
   input: { organizationId: string; sandboxId: string; target: string },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit; actorUserId: string; actorLabel: string }
+  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit; actorUserId: string | null; actorLabel: string }
 ): Promise<{ kind: "not_found" } | { kind: "sandbox_not_running"; response: TestSandboxEgressResponse } | { kind: "ok"; response: TestSandboxEgressResponse }> => {
   const query = dependencies.query ?? defaultQuery;
   const sandbox = await query<{ id: string; opensandbox_id: string | null; status: string }>(
@@ -1748,7 +1748,7 @@ export type CreateSandboxRouteResult =
 export const createSandboxRoute = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     actorLabel: string;
     sandboxId: string;
     port: number;
@@ -2055,7 +2055,7 @@ export const proxySandboxRouteRequest = async (
 export const deleteSandboxRoute = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     actorLabel: string;
     sandboxId: string;
     port: number;

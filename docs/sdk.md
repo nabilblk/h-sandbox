@@ -1,5 +1,10 @@
 # Harakiri SDK
 
+For APIs using migration 037, SDK requests use the same scoped key contract as
+the CLI. Writes followed by polling normally need both read and write scopes.
+`listApiKeys()` requires human OIDC authentication, not a runtime key.
+See [authorization, expiry and legacy migration](authorization.md).
+
 ## Workspace and Streaming Preview
 
 **Available in npm 0.5.0-rc.3 (`next`):** `client.workspaces`, `workspaceId` and

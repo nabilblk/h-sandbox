@@ -18,10 +18,15 @@ TOKEN_RESPONSE="$(curl -fsS \
   "${KEYCLOAK_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token")"
 
 ACCESS_TOKEN="$(node -e "const r=JSON.parse(process.argv[1]); console.log(r.access_token)" "${TOKEN_RESPONSE}")"
+KEY_BODY="$(KEY_NAME="${KEY_NAME}" node --input-type=module -e '
+  const scopes = ["sandboxes:read", "sandboxes:write", "templates:read", "templates:write", "workspaces:read", "workspaces:write", "credentials:use", "org:read"];
+  const extras = (process.env.HARAKIRI_TEST_KEY_EXTRA_SCOPES || "").split(",").map(s => s.trim()).filter(Boolean);
+  console.log(JSON.stringify({ name: process.env.KEY_NAME, scopes: [...new Set([...scopes, ...extras])], expiresAt: new Date(Date.now() + 86400000).toISOString() }));
+')"
 KEY_RESPONSE="$(curl -fsS \
   -H "authorization: Bearer ${ACCESS_TOKEN}" \
   -H 'content-type: application/json' \
-  -d "{\"name\":\"${KEY_NAME}\"}" \
+  -d "${KEY_BODY}" \
   "${API_URL}/v1/api-keys")"
 
 node -e "const key=JSON.parse(process.argv[1]); console.log('HARAKIRI_API_KEY='+JSON.stringify(key.token)); console.log('HARAKIRI_API_KEY_ID='+JSON.stringify(key.key.id)); console.log('HARAKIRI_ACCESS_TOKEN='+JSON.stringify(process.argv[2]));" "${KEY_RESPONSE}" "${ACCESS_TOKEN}"

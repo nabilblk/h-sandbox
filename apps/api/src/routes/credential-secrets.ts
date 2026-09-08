@@ -1,3 +1,4 @@
+import { credentialActor, type AuthContext } from "../auth-context.js";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { CredentialSecretResponse, CredentialSecretsResponse } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
@@ -109,22 +110,22 @@ export const registerCredentialSecretRoutes = async (
   const revokeSourceAttachments = dependencies.revokeSourceAttachments ?? revokeCredentialSourceAttachments;
 
   const reinjectSecretAttachments = (request: {
-    auth: { organizationId: string; userId: string; actorLabel: string };
+    auth: AuthContext;
   }, secretId: string) => reinjectSourceAttachments({
     organizationId: request.auth.organizationId,
     sourceType: "harakiri_encrypted",
     sourceRef: secretId,
-    actorUserId: request.auth.userId,
+    ...credentialActor(request.auth),
     actorLabel: request.auth.actorLabel
   }, { query, runtimeProvider, recordEvent: event, recordAudit: audit });
 
   const revokeSecretAttachments = (request: {
-    auth: { organizationId: string; userId: string; actorLabel: string };
+    auth: AuthContext;
   }, secretId: string, reason: "source_disabled" | "source_deleted") => revokeSourceAttachments({
     organizationId: request.auth.organizationId,
     sourceType: "harakiri_encrypted",
     sourceRef: secretId,
-    actorUserId: request.auth.userId,
+    ...credentialActor(request.auth),
     actorLabel: request.auth.actorLabel,
     reason
   }, { query, runtimeProvider, recordEvent: event, recordAudit: audit });
@@ -133,7 +134,7 @@ export const registerCredentialSecretRoutes = async (
     const listQuery = credentialSecretListQuerySchema.parse(request.query ?? {});
     const result = await listCredentialSecrets({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       includeDeleted: listQuery.includeDeleted
     }, query);
     if (result.kind !== "ok") return sendSecretError(reply, result);
@@ -142,7 +143,7 @@ export const registerCredentialSecretRoutes = async (
 
   app.get("/v1/credential-secrets/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const result = await getCredentialSecret({ organizationId: request.auth.organizationId, actorUserId: request.auth.userId, secretId: id }, query);
+    const result = await getCredentialSecret({ organizationId: request.auth.organizationId, ...credentialActor(request.auth), secretId: id }, query);
     if (result.kind !== "ok") return sendSecretError(reply, result);
     return { secret: result.secret } satisfies CredentialSecretResponse;
   });
@@ -152,7 +153,7 @@ export const registerCredentialSecretRoutes = async (
     const body = credentialSecretUpdateSchema.parse(request.body ?? {});
     const result = await updateCredentialSecret({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       secretId: id,
       body
     }, query);
@@ -173,7 +174,7 @@ export const registerCredentialSecretRoutes = async (
     const body = credentialSecretCreateSchema.parse(request.body ?? {});
     const result = await createCredentialSecret({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       actorLabel: request.auth.actorLabel,
       body
     }, { query });
@@ -185,7 +186,7 @@ export const registerCredentialSecretRoutes = async (
   app.post("/v1/credential-secrets/:id/rotate", async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = credentialSecretRotateSchema.parse(request.body ?? {});
-    const result = await rotateCredentialSecret({ organizationId: request.auth.organizationId, actorUserId: request.auth.userId, secretId: id, body }, { query });
+    const result = await rotateCredentialSecret({ organizationId: request.auth.organizationId, ...credentialActor(request.auth), secretId: id, body }, { query });
     if (result.kind !== "ok") return sendSecretError(reply, result);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "credential_secret.rotate", "credential_secret", id, auditMetadata(result.secret));
     const reinjected = await reinjectSecretAttachments(request, id);
@@ -195,7 +196,7 @@ export const registerCredentialSecretRoutes = async (
 
   app.post("/v1/credential-secrets/:id/disable", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const result = await disableCredentialSecret({ organizationId: request.auth.organizationId, actorUserId: request.auth.userId, secretId: id }, query);
+    const result = await disableCredentialSecret({ organizationId: request.auth.organizationId, ...credentialActor(request.auth), secretId: id }, query);
     if (result.kind !== "ok") return sendSecretError(reply, result);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "credential_secret.disable", "credential_secret", id, auditMetadata(result.secret));
     const revoked = await revokeSecretAttachments(request, id, "source_disabled");
@@ -205,7 +206,7 @@ export const registerCredentialSecretRoutes = async (
 
   app.post("/v1/credential-secrets/:id/enable", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const result = await enableCredentialSecret({ organizationId: request.auth.organizationId, actorUserId: request.auth.userId, secretId: id }, query);
+    const result = await enableCredentialSecret({ organizationId: request.auth.organizationId, ...credentialActor(request.auth), secretId: id }, query);
     if (result.kind !== "ok") return sendSecretError(reply, result);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "credential_secret.enable", "credential_secret", id, auditMetadata(result.secret));
     return { secret: result.secret } satisfies CredentialSecretResponse;
@@ -215,14 +216,14 @@ export const registerCredentialSecretRoutes = async (
     const { id } = request.params as { id: string };
     const disabled = await disableCredentialSecret({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       secretId: id
     }, query);
     if (disabled.kind !== "ok") return sendSecretError(reply, disabled);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "credential_secret.disable", "credential_secret", id, auditMetadata(disabled.secret));
     const revoked = await revokeSecretAttachments(request, id, "source_deleted");
     if (revoked.kind !== "ok") return sendRevocationError(reply, revoked);
-    const result = await deleteCredentialSecret({ organizationId: request.auth.organizationId, actorUserId: request.auth.userId, secretId: id }, query);
+    const result = await deleteCredentialSecret({ organizationId: request.auth.organizationId, ...credentialActor(request.auth), secretId: id }, query);
     if (result.kind !== "ok") return sendSecretError(reply, result);
     await audit(request.auth.organizationId, request.auth.userId, request.auth.actorLabel, "credential_secret.delete", "credential_secret", id, auditMetadata(result.secret));
     return { secret: result.secret } satisfies CredentialSecretResponse;

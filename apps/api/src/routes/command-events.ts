@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { apiErrorResponse } from "@harakiri/shared";
 import { streamAuthValid } from "../auth.js";
+import { hasScope } from "../authorization.js";
 import type { RuntimeProvider } from "../providers/runtime/provider.js";
 import type { Query } from "../services/query.js";
 import { commandEvents, encodeCommandEvent, parseCommandCursor } from "../services/command-events.js";
@@ -35,7 +36,7 @@ export async function registerCommandEventRoutes(app: FastifyInstance, deps: { q
     const events = commandEvents({ commandId: input.commandId, cursor, signal: controller.signal,
       readCommand: () => getSandboxCommand({ ...input, signal: controller.signal }, deps),
       readLogs: (offset) => getSandboxCommandLogs({ ...input, cursor: offset, signal: controller.signal }, deps),
-      authorize: () => (deps.authorize ?? streamAuthValid)(request) });
+      authorize: async () => await (deps.authorize ? deps.authorize(request) : streamAuthValid(request, deps.query)) && hasScope(request.auth, "sandboxes:read") });
     const stream = Readable.from((async function* () {
       try { for await (const event of events) yield encodeCommandEvent(event); }
       finally { cleanup(); }

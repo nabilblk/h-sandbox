@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CurrentAccountResponse, CreateApiKeyResponse } from "@harakiri/shared";
 import { api } from "../api";
 import type { UserProfile } from "../auth";
 import { Brand } from "../components/brand";
@@ -9,13 +10,66 @@ import type { GoToRoute } from "./types";
 
 export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: UserProfile | null }) => {
   const [step, setStep] = useState(0);
-  const [token, setToken] = useState<string | null>(null);
+  const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null);
+  const [account, setAccount] = useState<CurrentAccountResponse | null>(null);
   const [out, setOut] = useState<string[]>([]);
   const [workspace, setWorkspace] = useState(defaultWorkspace(profile));
-  useEffect(() => { api.settings().then((r) => setWorkspace(r.organization)).catch(() => undefined); }, []);
-  const saveWorkspace = async () => { const result = await api.updateSettings(workspace); setWorkspace(result.organization); setStep(2); };
-  const createKey = async () => { const result = await api.createKey("onboarding"); setToken(result.token); setStep(3); };
-  const run = async () => { const created = await api.createSandbox({ template: "python-3.12", ttlSeconds: 300 }); const result = await api.run(created.sandbox.id, { command: "python -c 'print(2+2)'" }); setOut([`POST /v1/sandboxes -> ${created.sandbox.id}`, result.result.stdout.trim(), "sandbox ready in dashboard"]); };
-  const openDashboard = async () => { await api.completeOnboarding(); go("dashboard/sandboxes"); };
-  return <div className="onb"><div className="onb-bar"><Brand /><div className="right"><a onClick={() => go("landing")}>Exit setup -&gt;</a></div></div><div className="onb-wrap"><div className="onb-steps">{["Account", "Workspace", "API key", "Hello, sandbox"].map((label, i) => <div key={label} className={`onb-step ${i === step ? "active" : i < step ? "done" : ""}`}><div className="onb-num">{i < step ? <Icon name="check" size={11} /> : i + 1}</div><div><div className="onb-step-l">{label}</div><div className="onb-step-s">{i === 0 ? "Keycloak profile." : i === 1 ? "Org defaults." : i === 2 ? "Drop this in .env." : "Run code."}</div></div></div>)}</div><div className="onb-body">{step === 0 ? <div><h1 className="onb-h">Welcome to Harakiri.</h1><p className="onb-sub">Keycloak owns sign-in. Your profile comes from the deployed realm.</p><div className="onb-section" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 560 }}><Field label="Full name"><input className="input" readOnly value={profile?.name ?? "Lyra Ito"} /></Field><Field label="Work email"><input className="input" readOnly value={profile?.email ?? "lyra@k.ai"} /></Field></div><div className="onb-foot"><button className="btn btn-primary" onClick={() => setStep(1)}>Continue <Icon name="arrowR" size={11} /></button></div></div> : null}{step === 1 ? <div><h1 className="onb-h">Your workspace.</h1><p className="onb-sub">Sandboxes live in an org. Defaults are saved to your workspace.</p><div className="onb-section" style={{ maxWidth: 560 }}><Field label="Organization name"><input className="input" value={workspace.name} onChange={(e) => setWorkspace({ ...workspace, name: e.target.value })} /></Field><div style={{ height: 14 }} /><Field label="Slug"><input className="input mono" value={workspace.slug} onChange={(e) => setWorkspace({ ...workspace, slug: e.target.value })} /></Field></div><div className="onb-foot"><button className="btn" onClick={() => setStep(0)}>Back</button><button className="btn btn-primary" onClick={saveWorkspace}>Continue <Icon name="arrowR" size={11} /></button></div></div> : null}{step === 2 ? <div><h1 className="onb-h">Your first API key.</h1><p className="onb-sub">This is shown once and stored hashed in the control plane.</p><div className="onb-foot"><button className="btn" onClick={() => setStep(1)}>Back</button><button className="btn btn-primary" onClick={createKey}>Create key <Icon name="key" size={11} /></button></div></div> : null}{step === 3 ? <div><h1 className="onb-h">Hello, sandbox.</h1>{token ? <div className="card" style={{ padding: 16, maxWidth: 680, marginBottom: 16 }}><div className="field-l">API key</div><div className="num" style={{ wordBreak: "break-all" }}>{token}</div></div> : null}<div className="hterm card" style={{ maxWidth: 780 }}><div className="hterm-bar"><span className="dot r" /><span className="dot y" /><span className="dot g" /><span className="hterm-title">first-sandbox.py</span></div><div className="hterm-body" style={{ minHeight: 220 }}>{out.length ? out.map((line) => <div key={line} className="hterm-line">{line}</div>) : <><div className="hterm-line muted"># Click Run to spawn your first sandbox</div><div className="hterm-line">print(2+2)</div></>}</div></div><div className="onb-foot"><button className="btn btn-accent" onClick={run}><Icon name="play" size={11} /> Run first sandbox</button><button className="btn btn-primary" onClick={openDashboard}>Open dashboard <Icon name="arrowR" size={11} /></button></div></div> : null}</div></div></div>;
+  const [busy, setBusy] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const canManage = account?.capabilities.canManageSettings === true;
+  const load = async () => {
+    try {
+      const [settings, current] = await Promise.all([api.settings(), api.me()]);
+      setWorkspace(settings.organization); setAccount(current); setLoaded(true); setError("");
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to load your workspace."); }
+  };
+  useEffect(() => { void load(); }, []);
+  const perform = async (action: () => Promise<void>) => {
+    if (busy || !loaded) return;
+    setBusy(true); setError("");
+    try { await action(); }
+    catch (e) { setError(e instanceof Error ? e.message : "The request failed. Please retry."); }
+    finally { setBusy(false); }
+  };
+  const saveWorkspace = () => perform(async () => {
+    if (canManage) setWorkspace((await api.updateSettings(workspace)).organization);
+    setStep(2);
+  });
+  const createKey = () => perform(async () => { setCreatedKey(await api.createKey("onboarding")); setStep(3); });
+  const run = () => perform(async () => {
+    const created = await api.createSandbox({ template: "python-3.12", ttlSeconds: 300 });
+    const result = await api.run(created.sandbox.id, { command: "python -c 'print(2+2)'" });
+    setOut([`POST /v1/sandboxes -> ${created.sandbox.id}`, result.result.stdout.trim(), "sandbox ready in dashboard"]);
+  });
+  const openDashboard = () => perform(async () => { await api.completeOnboarding(); go("dashboard/sandboxes"); });
+  return <div className="onb">
+    <div className="onb-bar"><Brand /><div className="right"><a onClick={() => go("landing")}>Exit setup -&gt;</a></div></div>
+    <div className="onb-wrap"><div className="onb-steps">{["Account", "Workspace", "API key", "Hello, sandbox"].map((label, i) => <div key={label} className={`onb-step ${i === step ? "active" : i < step ? "done" : ""}`}><div className="onb-num">{i < step ? <Icon name="check" size={11} /> : i + 1}</div><div className="onb-step-l">{label}</div></div>)}</div>
+      <div className="onb-body">
+        {error ? <div role="alert" className="build-inline-alert">{error}{!loaded ? <button className="btn btn-sm" onClick={() => void load()}>Retry</button> : null}</div> : null}
+        {step === 0 ? <div>
+          <h1 className="onb-h">Welcome to Harakiri.</h1>
+          <div className="onb-section"><Field label="Full name"><input className="input" readOnly value={account?.user.fullName ?? profile?.name ?? ""} /></Field><Field label="Work email"><input className="input" readOnly value={account?.user.email ?? profile?.email ?? ""} /></Field></div>
+          <div className="onb-foot"><button className="btn btn-primary" disabled={!loaded} onClick={() => setStep(1)}>Continue <Icon name="arrowR" size={11} /></button></div>
+        </div> : null}
+        {step === 1 ? <div>
+          <h1 className="onb-h">Your workspace.</h1>
+          {!canManage ? <p className="onb-sub">You joined {workspace.name} as a member. Organization settings are managed by admins.</p> : null}
+          <div className="onb-section" style={{ maxWidth: 560 }}><Field label="Organization name"><input aria-label="Organization name" className="input" readOnly={!canManage} value={workspace.name} onChange={(e) => setWorkspace({ ...workspace, name: e.target.value })} /></Field><Field label="Slug"><input aria-label="Slug" className="input mono" readOnly={!canManage} value={workspace.slug} onChange={(e) => setWorkspace({ ...workspace, slug: e.target.value })} /></Field></div>
+          <div className="onb-foot"><button className="btn" disabled={busy} onClick={() => setStep(0)}>Back</button><button className="btn btn-primary" disabled={busy || !loaded} onClick={saveWorkspace}>Continue <Icon name="arrowR" size={11} /></button></div>
+        </div> : null}
+        {step === 2 ? <div>
+          <h1 className="onb-h">Your first API key.</h1><p className="onb-sub">Runtime permissions. Expires in 90 days. No organization administration access.</p>
+          <div className="onb-foot"><button className="btn" disabled={busy} onClick={() => setStep(1)}>Back</button><button className="btn btn-primary" disabled={busy} onClick={createKey}>Create key <Icon name="key" size={11} /></button><button className="btn btn-ghost" disabled={busy} onClick={() => setStep(3)}>Skip</button></div>
+        </div> : null}
+        {step === 3 ? <div>
+          <h1 className="onb-h">Hello, sandbox.</h1>
+          {createdKey ? <div className="onb-section"><div className="field-l">API key. Shown once.</div><div className="key-secret"><code>{createdKey.token}</code><button className="btn btn-ghost btn-sm" aria-label="Copy API key" title="Copy API key" onClick={() => void navigator.clipboard.writeText(createdKey.token).catch(() => setError("Clipboard unavailable. Select the key to copy it."))}><Icon name="copy" /></button></div><p className="key-metadata">Expires {createdKey.key.expiresAt ? new Date(createdKey.key.expiresAt).toLocaleDateString() : "unknown"}</p></div> : null}
+          <div className="hterm card" style={{ maxWidth: 780 }}><div className="hterm-bar"><span className="hterm-title">first-sandbox.py</span></div><div className="hterm-body" style={{ minHeight: 160 }}>{out.length ? out.map((line) => <div key={line} className="hterm-line">{line}</div>) : <div className="hterm-line">print(2+2)</div>}</div></div>
+          <div className="onb-foot"><button className="btn btn-accent" disabled={busy} onClick={run}><Icon name="play" size={11} /> Run first sandbox</button><button className="btn btn-primary" disabled={busy} onClick={openDashboard}>Open dashboard <Icon name="arrowR" size={11} /></button></div>
+        </div> : null}
+      </div>
+    </div>
+  </div>;
 };

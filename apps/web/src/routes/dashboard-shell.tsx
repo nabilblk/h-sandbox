@@ -73,10 +73,10 @@ export const DashboardShellRoute = ({
         {sub === "vault" && account && !canManageCredentialSecrets ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Credential Vault management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}
         {sub === "vault" && canManageCredentialSecrets ? <VaultRoute /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}
-        {sub === "keys" ? <ApiKeysRoute /> : null}
+        {sub === "keys" ? <ApiKeysRoute userId={account?.user.id} /> : null}
         {sub === "members" && account && !canManageMembers ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Member management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}
         {sub === "members" && canManageMembers ? <MembersRoute /> : null}
-        {sub === "settings" ? <SettingsRoute /> : null}
+        {sub === "settings" ? <SettingsRoute canManage={account?.capabilities.canManageSettings === true} /> : null}
       </main>
     </div>
   );

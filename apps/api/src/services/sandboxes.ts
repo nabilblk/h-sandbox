@@ -86,7 +86,8 @@ export type SandboxListFilters = {
 export type CreateSandboxInput = {
   workspaceId?: string;
   organizationId: string;
-  userId: string;
+  userId: string | null;
+  apiKeyId?: string;
   actorLabel: string;
   templateRef?: string;
   snapshotId?: string;
@@ -406,7 +407,8 @@ const missingRequiredCredentialSlots = (template: RuntimeTemplate, mappedSlots: 
 const prepareCreateCredentials = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
+    apiKeyId?: string;
     template: RuntimeTemplate;
     credentials: AttachSandboxCredentialBody[];
     credentialMappings: TemplateCredentialSlotMappingBody[];
@@ -422,7 +424,7 @@ const prepareCreateCredentials = async (
   const attachments: PreparedSandboxCredentialAttachment[] = [];
   for (const credential of input.credentials) {
     const prepared = await prepareSandboxCredentialSourceAttachment(
-      { organizationId: input.organizationId, actorUserId: input.userId, body: credential },
+      { organizationId: input.organizationId, actorUserId: input.userId, actorApiKeyId: input.apiKeyId, body: credential },
       {
         query: dependencies.query,
         idFactory: dependencies.idFactory,
@@ -446,7 +448,7 @@ const prepareCreateCredentials = async (
   }
   for (const [index, mapping] of input.credentialMappings.entries()) {
     const prepared = await prepareTemplateCredentialSlotAttachment(
-      { organizationId: input.organizationId, actorUserId: input.userId, slot: mappedSlots.slots[index], body: mapping },
+      { organizationId: input.organizationId, actorUserId: input.userId, actorApiKeyId: input.apiKeyId, slot: mappedSlots.slots[index], body: mapping },
       {
         query: dependencies.query,
         idFactory: dependencies.idFactory,
@@ -583,7 +585,7 @@ export const listSandboxes = async (
 const attachCreateCredentials = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     sandbox: SandboxSummary;
     credentials: PreparedSandboxCredentialAttachment[];
@@ -614,7 +616,7 @@ const attachCreateCredentials = async (
 const rollbackCredentialCreate = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     sandboxId: string;
     providerSandboxId: string;
@@ -837,7 +839,7 @@ export const createSandbox = async (
     return { kind: "template_image_digest_unresolved", template: templateRef, message };
   }
   const preparedCredentials = await prepareCreateCredentials(
-    { organizationId: input.organizationId, userId: input.userId, template, credentials: createCredentials, credentialMappings },
+    { organizationId: input.organizationId, userId: input.userId, apiKeyId: input.apiKeyId, template, credentials: createCredentials, credentialMappings },
     {
       query,
       idFactory,
@@ -1160,7 +1162,7 @@ export const createSandbox = async (
 export const updateSandboxSource = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     sandboxId: string;
     source: SandboxSourceProvenance | null;
@@ -1191,7 +1193,7 @@ export const updateSandboxSource = async (
 export const deleteSandbox = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     sandboxId: string;
     idempotencyKey?: string | null;

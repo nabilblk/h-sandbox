@@ -144,7 +144,7 @@ curl -fsS "${API_URL}/health" >/dev/null || fail "Harakiri API is not reachable 
 kubectl cluster-info >/dev/null || fail "Kubernetes is not reachable through ${KUBECONFIG}"
 
 if [[ -z "${HARAKIRI_API_KEY:-}" ]]; then
-  eval "$(HARAKIRI_TEST_KEY_NAME="credential-vault-${STAMP}" "${ROOT}/infra/scripts/create-test-api-key.sh")"
+  eval "$(HARAKIRI_TEST_KEY_EXTRA_SCOPES="credentials:manage,audit:read" HARAKIRI_TEST_KEY_NAME="credential-vault-${STAMP}" "${ROOT}/infra/scripts/create-test-api-key.sh")"
   TEMP_KEY=1
 fi
 printf 'header = "x-api-key: %s"\n' "${HARAKIRI_API_KEY}" >"${TMP_DIR}/api.curl"

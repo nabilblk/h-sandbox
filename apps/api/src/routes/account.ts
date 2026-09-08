@@ -25,7 +25,8 @@ export const registerAccountRoutes = async (app: FastifyInstance, dependencies: 
   const query = dependencies.query ?? defaultQuery;
   const audit = dependencies.recordAudit;
 
-  app.get("/v1/me", async (request) => {
+  app.get("/v1/me", async (request, reply) => {
+    if (request.auth.authType === "api_key") return reply.code(403).send(apiErrorResponse("forbidden", { message: "This endpoint requires a user identity." }));
     const response = await getCurrentAccount({ auth: request.auth }, query);
     return response satisfies CurrentAccountResponse;
   });
@@ -39,6 +40,7 @@ export const registerAccountRoutes = async (app: FastifyInstance, dependencies: 
   };
 
   app.get("/v1/org/members", async (request, reply) => {
+    if (request.auth.authType === "api_key") return reply.code(403).send(apiErrorResponse("forbidden"));
     const result = await listOrganizationMembers({ organizationId: request.auth.organizationId, actorUserId: request.auth.userId }, query);
     if ("kind" in result) return sendServiceError(reply, result);
     return { members: result } satisfies OrganizationMembersResponse;
@@ -87,7 +89,8 @@ export const registerAccountRoutes = async (app: FastifyInstance, dependencies: 
     return result satisfies OrganizationMemberMutationResponse;
   });
 
-  app.post("/v1/me/onboarding/complete", async (request) => {
+  app.post("/v1/me/onboarding/complete", async (request, reply) => {
+    if (request.auth.authType === "api_key") return reply.code(403).send(apiErrorResponse("forbidden"));
     const response = {
       user: await completeOnboarding(
       {

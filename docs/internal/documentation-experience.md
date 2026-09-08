@@ -34,6 +34,7 @@ Existing `#docs/<page-id>` URLs remain valid. Section permalinks use
 | Highlighted code and synchronized examples | `apps/web/src/components/docs-code.tsx` |
 | Reading-surface styles | `apps/web/src/styles-docs.css` |
 | Workspace concept/tutorial/reference/operations | `apps/web/src/workspace-*-docs.tsx` and `workspace-docs.tsx` |
+| Authorization concept, API keys and staged operator upgrade | `apps/web/src/authorization-docs.tsx` and `docs/authorization.md` |
 | Recorded workflow text and snippets | `apps/web/src/*-demo-walkthrough.ts` |
 
 The `DocPage` registry stores page identity, title, category, lede, table of

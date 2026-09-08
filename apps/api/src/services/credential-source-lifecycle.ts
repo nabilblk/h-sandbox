@@ -23,7 +23,7 @@ type RevokeSourceAttachmentsInput = {
   organizationId: string;
   sourceType: ReusableCredentialSourceType;
   sourceRef: string;
-  actorUserId: string;
+  actorUserId: string | null; actorApiKeyId?: string;
   actorLabel: string;
   reason: "source_disabled" | "source_deleted";
 };
@@ -149,7 +149,7 @@ const detachLiveAttachment = async (
       organizationId: input.organizationId,
       sandboxId: attachment.sandboxId,
       attachmentId: attachment.id,
-      actorUserId: input.actorUserId,
+      actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId,
       actorLabel: input.actorLabel,
       reason: input.reason
     },
@@ -245,7 +245,7 @@ export const reinjectCredentialSourceAttachments = async (
     const result = await rehydrate({
       organizationId: input.organizationId,
       sandboxId,
-      actorUserId: input.actorUserId,
+      actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId,
       actorLabel: input.actorLabel
     }, dependencies);
     if (result.kind !== "ok" || result.failed > 0) {

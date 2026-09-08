@@ -5,6 +5,18 @@
   "clients": [
     {
       "clientId": "harakiri-web",
+      "protocolMappers": [{
+        "name": "harakiri-api-audience",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "consentRequired": false,
+        "config": {
+          "included.custom.audience": "harakiri-api",
+          "id.token.claim": "false",
+          "access.token.claim": "true",
+          "introspection.token.claim": "true"
+        }
+      }],
       "enabled": true,
       "publicClient": true,
       "redirectUris": ["*"],

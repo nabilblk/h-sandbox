@@ -2638,6 +2638,7 @@ export class HarakiriClient {
     return result;
   }
 
+  /** Requires a human OIDC bearer token. API keys cannot list or mint other keys. */
   listApiKeys() {
     return this.request<ApiKeysResponse>("/v1/api-keys");
   }
@@ -2661,3 +2662,4 @@ export class HarakiriClient {
     return this.request<UsageSummary>("/v1/usage");
   }
 }
+export type { ApiKeyScope, ApiKeySummary, CreateApiKeyBody, CreateApiKeyResponse } from "./protocol.js";

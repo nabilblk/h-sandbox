@@ -13,7 +13,7 @@ import { registryCredentialSchema } from "./registry-credentials.schema.js";
 
 type Audit = (
   organizationId: string,
-  actorUserId: string,
+  actorUserId: string | null,
   actorLabel: string,
   action: string,
   targetType: string,

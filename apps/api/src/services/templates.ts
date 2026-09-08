@@ -25,7 +25,7 @@ export type { Query } from "./query.js";
 
 export type Audit = (
   organizationId: string,
-  actorUserId: string,
+  actorUserId: string | null,
   actorLabel: string,
   action: string,
   targetType: string,
@@ -154,7 +154,7 @@ export type CreateTemplateResult =
 export const createTemplate = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     template: TemplateCreateInput;
   },
@@ -250,7 +250,7 @@ export type PromoteTemplateResult =
 export const promoteTemplate = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     templateId: string;
     versionId: string;
@@ -304,7 +304,7 @@ export type UpdateTemplateEgressResult =
 export const updateTemplateEgress = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     templateId: string;
     egressPolicy: EgressPolicyInput;
@@ -360,7 +360,7 @@ export type ArchiveTemplateResult =
 export const archiveTemplateForOrganization = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     templateId: string;
   },

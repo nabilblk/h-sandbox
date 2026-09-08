@@ -5,6 +5,20 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-08-v0-5-0-rc-4",
+    version: "v0.5.0-rc.4",
+    date: "September 8, 2026",
+    title: "Scoped authorization and owned API keys",
+    items: [
+      "Separated API keys from human identities. Keys now have explicit permissions, creator ownership and expiry; members manage their own keys and admins manage organization keys.",
+      "Enforced role and scope checks across protected API routes. Vault, registry and audit administration requires explicit scopes; keys cannot manage members, settings or other keys.",
+      "Required the harakiri-api audience in Keycloak access tokens. Operators must configure the audience mapper before applying migration 037 and deploying matching services.",
+      "Bound terminal tickets to the real principal and rechecked authorization on active terminals and command-output streams. Revocation disconnects observers without cancelling detached commands.",
+      "Added permission and expiry controls, one-time key copying, revocation confirmation and read-only member settings. Expanded public authorization, rotation and operator upgrade documentation.",
+      "Included the redesigned docs navigation, architecture diagrams and highlighted examples. Legacy keys retain runtime-only permissions; offline JWT logout remains effective at access-token expiry. This is still a prerelease."
+    ]
+  },
+  {
     id: "2026-09-07-v0-5-0-rc-3",
     version: "v0.5.0-rc.3",
     date: "September 7, 2026",

@@ -1,5 +1,11 @@
 # CLI Reference
 
+With the authorization-consolidation API (migration 037), CLI credentials need
+scopes for their operations. Use read/write runtime scopes for normal workflows;
+Vault administration needs `credentials:manage`, registry administration needs
+`registry:manage`, and audit reads need `audit:read`. Keys cannot manage members,
+settings or other keys. See [authorization and rotation](authorization.md).
+
 ## Workspace and Live Output Preview
 
 **Available in npm 0.5.0-rc.3 (`next`):** the following commands require the

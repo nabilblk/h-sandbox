@@ -2,6 +2,11 @@
 
 Base path: `/v1`
 
+See [authorization and API keys](authorization.md) for the permission matrix,
+owner/admin management, key expiry, legacy compatibility and migration 037.
+Members and settings writes, API-key management and `/me` require human OIDC
+authentication; runtime keys cannot delegate keys or impersonate an admin.
+
 Authentication:
 
 ```http

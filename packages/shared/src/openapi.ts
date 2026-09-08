@@ -1,4 +1,5 @@
 import { sandboxRuntimeApiErrorCodes } from "./api-errors.js";
+import { apiKeyScopes } from "./authorization.js";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -81,7 +82,8 @@ const authErrorResponses = {
 };
 
 const secured = (operation: Operation): Operation => ({
-  security: [{ apiKey: [] }, { bearerAuth: [] }],
+  security: operation.tags.some((tag) => ["Account", "Members", "API Keys"].includes(tag)) || operation.operationId === "updateOrganizationSettings"
+    ? [{ bearerAuth: [] }] : [{ apiKey: [] }, { bearerAuth: [] }],
   ...operation
 });
 
@@ -1302,10 +1304,19 @@ const schemas: Record<string, JsonSchema> = {
     lastFour: string,
     createdAt: dateTime,
     lastUsedAt: { type: ["string", "null"], format: "date-time" },
-    revokedAt: { type: ["string", "null"], format: "date-time" }
+    revokedAt: { type: ["string", "null"], format: "date-time" },
+    scopes: arrayOf(ref("ApiKeyScope")),
+    expiresAt: { type: ["string", "null"], format: "date-time" },
+    createdByUserId: nullableString,
+    legacy: boolean
   }),
-  ApiKeysResponse: objectSchema({ keys: arrayOf(ref("ApiKeySummary")) }),
-  CreateApiKeyBody: objectSchema({ name: string }),
+  ApiKeyScope: { type: "string", enum: apiKeyScopes },
+  ApiKeysResponse: objectSchema({ keys: arrayOf(ref("ApiKeySummary")), allowedScopes: arrayOf(ref("ApiKeyScope")), canManageAll: boolean }, ["keys"]),
+  CreateApiKeyBody: objectSchema({
+    name: { type: "string", minLength: 1, maxLength: 100 },
+    scopes: { type: "array", items: ref("ApiKeyScope"), minItems: 1, maxItems: apiKeyScopes.length, description: "Omitted: runtime profile. Sensitive scopes require a human admin; keys cannot manage keys." },
+    expiresAt: { ...dateTime, description: "Future expiry within 365 days; defaults to 90 days. New keys cannot be non-expiring." }
+  }, ["name"]),
   CreateApiKeyResponse: objectSchema({
     key: ref("ApiKeySummary"),
     token: string
@@ -1368,8 +1379,10 @@ const schemas: Record<string, JsonSchema> = {
   OrganizationSettingsResponse: objectSchema({ organization: ref("OrganizationSettings") }),
   AccountCapabilities: objectSchema({
     canManageMembers: boolean,
-    canManageCredentialSecrets: boolean
-  }),
+    canManageCredentialSecrets: boolean,
+    canManageSettings: boolean,
+    canManageAllApiKeys: boolean
+  }, ["canManageMembers", "canManageCredentialSecrets"]),
   OrganizationMemberSummary: objectSchema({
     id: string,
     kind: { type: "string", enum: ["member", "invitation"] },

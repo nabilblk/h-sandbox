@@ -199,17 +199,17 @@ const resumeSpec: LifecycleSpec = {
 };
 
 export const pauseSandbox = (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string; idempotencyKey?: string | null },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string; idempotencyKey?: string | null },
   dependencies: LifecycleDependencies
 ) => changeSandboxLifecycle(input, dependencies, pauseSpec);
 
 export const resumeSandbox = (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string; idempotencyKey?: string | null },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string; idempotencyKey?: string | null },
   dependencies: LifecycleDependencies
 ) => changeSandboxLifecycle(input, dependencies, resumeSpec);
 
 const changeSandboxLifecycle = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string; idempotencyKey?: string | null },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string; idempotencyKey?: string | null },
   dependencies: LifecycleDependencies,
   spec: LifecycleSpec
 ): Promise<SandboxLifecycleResult> => {
@@ -263,7 +263,7 @@ const claimLifecycleOperation = async (
 class LifecycleConflictError extends Error {}
 
 const runLifecycleProviderChange = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
   dependencies: LifecycleDependencies,
   spec: LifecycleSpec,
   sandbox: LifecycleSandboxRow,
@@ -286,7 +286,7 @@ const setSandboxStatus = (
 ) => query("UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4", [input.sandboxId, input.organizationId, status, previousStatus]);
 
 const completeLifecycleChange = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
   dependencies: LifecycleDependencies,
   spec: LifecycleSpec,
   operation: SandboxOperation,
@@ -311,6 +311,7 @@ const completeLifecycleChange = async (
         actorLabel: input.actorLabel
       },
       {
+        sourceAccess: "system",
         query,
         runtimeProvider: dependencies.runtimeProvider,
         recordEvent: dependencies.recordEvent,
@@ -345,7 +346,7 @@ const credentialMetadata = (
 };
 
 const recordLifecycleChange = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
   dependencies: LifecycleDependencies,
   spec: LifecycleSpec,
   status: SandboxStatus,
@@ -424,7 +425,7 @@ export type CreateSandboxSnapshotResult =
 export const createSandboxSnapshot = async (
   input: {
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     sandboxId: string;
   } & CreateSandboxSnapshotBody,
@@ -480,7 +481,7 @@ const snapshotOperationForIdempotency = async (
 };
 
 const createNewSandboxSnapshot = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string } & CreateSandboxSnapshotBody,
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string } & CreateSandboxSnapshotBody,
   dependencies: SnapshotDependencies,
   sandbox: LifecycleSandboxRow,
   query: Query
@@ -496,7 +497,7 @@ const createNewSandboxSnapshot = async (
 };
 
 const insertCreatingSnapshot = (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string } & CreateSandboxSnapshotBody,
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string } & CreateSandboxSnapshotBody,
   dependencies: SnapshotDependencies,
   sandbox: LifecycleSandboxRow,
   snapshotId: string,
@@ -551,7 +552,7 @@ const claimSnapshotCreateOperation = async (
 };
 
 const createProviderSnapshot = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string } & CreateSandboxSnapshotBody,
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string } & CreateSandboxSnapshotBody,
   dependencies: SnapshotDependencies,
   snapshotId: string,
   sandbox: LifecycleSandboxRow,
@@ -628,7 +629,7 @@ const failSnapshotCreateOperation = async (
 };
 
 const completeSnapshotCreate = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
   dependencies: SnapshotDependencies,
   snapshotId: string,
   snapshot: SandboxSnapshotSummary,
@@ -650,7 +651,7 @@ const completeSnapshotCreate = async (
 };
 
 const recordSnapshotCreate = async (
-  input: { organizationId: string; userId: string; actorLabel: string; sandboxId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
   dependencies: SnapshotDependencies,
   snapshotId: string,
   snapshot: SandboxSnapshotSummary,
@@ -775,7 +776,7 @@ export type DeleteSandboxSnapshotResult =
   | { kind: "runtime_provider_failed"; message: string; operation: SandboxOperation };
 
 export const deleteSandboxSnapshot = async (
-  input: { organizationId: string; userId: string; actorLabel: string; snapshotId: string; idempotencyKey?: string | null },
+  input: { organizationId: string; userId: string | null; actorLabel: string; snapshotId: string; idempotencyKey?: string | null },
   dependencies: SnapshotDependencies
 ): Promise<DeleteSandboxSnapshotResult> => {
   const query = dependencies.query ?? defaultQuery;
@@ -826,7 +827,7 @@ const claimSnapshotDeleteOperation = async (
 };
 
 const deleteProviderSnapshot = async (
-  input: { organizationId: string; userId: string; actorLabel: string; snapshotId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; snapshotId: string },
   dependencies: SnapshotDependencies,
   snapshot: SandboxSnapshotRow,
   operation: SandboxOperation,
@@ -859,7 +860,7 @@ const markSnapshotDeleted = (
 );
 
 const finishSnapshotDelete = async (
-  input: { organizationId: string; userId: string; actorLabel: string; snapshotId: string },
+  input: { organizationId: string; userId: string | null; actorLabel: string; snapshotId: string },
   dependencies: SnapshotDependencies,
   snapshot: SandboxSnapshotRow,
   operation: SandboxOperation,

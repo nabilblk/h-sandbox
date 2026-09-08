@@ -118,6 +118,12 @@ Reviewed on 2026-09-04:
 - Organization admins manage custody and audit. Members see and use only sources
   explicitly shared with the organization.
 
+With migration 037, automation uses distinct scoped key principals: source
+management requires explicit `credentials:manage`, audit requires `audit:read`,
+and default runtime keys can use only shared sources. Read the
+[authorization contract and upgrade guide](authorization.md); these changes
+are not automatically applied to installations running older releases.
+
 The SDK still mirrors protocol types manually. Contract and package tests are
 the current drift gate until generation is introduced.
 

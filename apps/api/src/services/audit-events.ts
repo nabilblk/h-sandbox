@@ -2,6 +2,7 @@ import type { AuditEventSummary, AuditEventsResponse } from "@harakiri/shared";
 import { query as defaultQuery } from "../db.js";
 import { redactRecord } from "../redaction.js";
 import { isOrganizationAdmin } from "./organization-access.js";
+import { readApiKeyPrincipal } from "./api-key-principals.js";
 import type { Query } from "./query.js";
 
 type AuditEventRow = {
@@ -58,10 +59,13 @@ ORDER BY created_at DESC, id DESC
 LIMIT $5 OFFSET $6`;
 
 export const listAuditEvents = async (
-  input: { organizationId: string; actorUserId: string; filters: AuditEventFilters },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; filters: AuditEventFilters },
   query: Query = defaultQuery
 ): Promise<ListAuditEventsResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) {
+  const allowed = input.actorApiKeyId
+    ? !input.actorUserId && (await readApiKeyPrincipal({ id: input.actorApiKeyId, organizationId: input.organizationId }, query))?.scopes.includes("audit:read")
+    : await isOrganizationAdmin(input.organizationId, input.actorUserId, query);
+  if (!allowed) {
     return { kind: "forbidden" };
   }
   const { targetType, targetId, actionPrefix, limit, offset } = input.filters;

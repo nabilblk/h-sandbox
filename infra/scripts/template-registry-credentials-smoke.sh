@@ -24,7 +24,7 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ -z "${HARAKIRI_API_KEY:-}" ]]; then
-  eval "$("${ROOT}/infra/scripts/create-test-api-key.sh")"
+  eval "$(HARAKIRI_TEST_KEY_EXTRA_SCOPES="registry:manage" "${ROOT}/infra/scripts/create-test-api-key.sh")"
   TEMP_KEY=1
 fi
 

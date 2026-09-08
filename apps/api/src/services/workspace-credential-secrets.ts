@@ -17,7 +17,7 @@ import { makeId } from "../crypto.js";
 import { query as defaultQuery } from "../db.js";
 import { redactRecord } from "../redaction.js";
 import type { Query } from "./query.js";
-import { isOrganizationAdmin, organizationMembershipRole } from "./organization-access.js";
+import { canManageCredentials, credentialAccessRole } from "./organization-access.js";
 
 type CredentialSecretRow = {
   id: string;
@@ -299,11 +299,11 @@ export const resolveCredentialSecretMaterialForSystem = (
 ) => readCredentialSecretMaterial(input, options);
 
 export const resolveCredentialSecretMaterial = async (
-  input: { organizationId: string; actorUserId: string; secretId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string },
   options: CredentialSecretMaterialOptions = {}
 ): Promise<CredentialSecretMaterialResult> => {
   const query = options.query ?? defaultQuery;
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   return readCredentialSecretMaterial(input, { ...options, query }, (row) => role === "admin" || row.memberUseAllowed);
 };
@@ -321,7 +321,7 @@ const activeNameExists = async (organizationId: string, name: string, query: Que
 const insertSecret = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null; actorApiKeyId?: string;
     actorLabel: string;
     body: WorkspaceCredentialSecretInput;
     encrypted: EnvelopeEncryptedSecret;
@@ -367,10 +367,10 @@ const insertSecret = async (
 };
 
 export const listCredentialSecrets = async (
-  input: { organizationId: string; actorUserId: string; includeDeleted?: boolean },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; includeDeleted?: boolean },
   query: Query = defaultQuery
 ): Promise<CredentialSecretsListResult> => {
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const where = role === "admin" && input.includeDeleted
     ? "WHERE organization_id = $1"
@@ -382,10 +382,10 @@ export const listCredentialSecrets = async (
 };
 
 export const getCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; secretId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string },
   query: Query = defaultQuery
 ): Promise<CredentialSecretResult> => {
-  const role = await organizationMembershipRole(input.organizationId, input.actorUserId, query);
+  const role = await credentialAccessRole(input.organizationId, input, query);
   if (!role) return { kind: "forbidden" };
   const secret = await selectSecretById(input.organizationId, input.secretId, query);
   if (secret && role !== "admin" && secret.usePolicy !== "organization_members") return { kind: "forbidden" };
@@ -393,10 +393,10 @@ export const getCredentialSecret = async (
 };
 
 export const updateCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; secretId: string; body: UpdateWorkspaceCredentialSecretInput },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string; body: UpdateWorkspaceCredentialSecretInput },
   query: Query = defaultQuery
 ): Promise<CredentialSecretResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const result = await query<{ id: string }>(
     `UPDATE workspace_credential_secrets
      SET member_use_allowed = $3, updated_at = now()
@@ -410,11 +410,11 @@ export const updateCredentialSecret = async (
 };
 
 export const createCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; actorLabel: string; body: WorkspaceCredentialSecretInput },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string; body: WorkspaceCredentialSecretInput },
   options: { query?: Query; encryptSecret?: EncryptWorkspaceCredentialSecret; idFactory?: typeof makeId } = {}
 ): Promise<CredentialSecretResult> => {
   const query = options.query ?? defaultQuery;
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   let id: string;
   try {
     const metadata = prepareSecretMetadata(input.body);
@@ -431,11 +431,11 @@ export const createCredentialSecret = async (
 };
 
 export const rotateCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; secretId: string; body: RotateWorkspaceCredentialSecretInput },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string; body: RotateWorkspaceCredentialSecretInput },
   options: { query?: Query; encryptSecret?: EncryptWorkspaceCredentialSecret } = {}
 ): Promise<CredentialSecretResult> => {
   const query = options.query ?? defaultQuery;
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const encrypted = encryptValue(input.body.value, options.encryptSecret ?? encryptCredentialEnvelope);
   if (encrypted.kind !== "ok") return encrypted;
   const result = await query<{ id: string }>(
@@ -472,11 +472,11 @@ export const rotateCredentialSecret = async (
 };
 
 const updateSecretStatus = async (
-  input: { organizationId: string; actorUserId: string; secretId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string },
   query: Query,
   sql: string
 ): Promise<CredentialSecretResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const result = await query<{ id: string }>(
     sql,
     [input.organizationId, input.secretId]
@@ -487,7 +487,7 @@ const updateSecretStatus = async (
 };
 
 export const disableCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; secretId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string },
   query: Query = defaultQuery
 ) => updateSecretStatus(
   input,
@@ -499,7 +499,7 @@ export const disableCredentialSecret = async (
 );
 
 export const enableCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; secretId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string },
   query: Query = defaultQuery
 ) => updateSecretStatus(
   input,
@@ -511,10 +511,10 @@ export const enableCredentialSecret = async (
 );
 
 export const deleteCredentialSecret = async (
-  input: { organizationId: string; actorUserId: string; secretId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; secretId: string },
   query: Query = defaultQuery
 ): Promise<CredentialSecretResult> => {
-  if (!await isOrganizationAdmin(input.organizationId, input.actorUserId, query)) return { kind: "forbidden" };
+  if (!await canManageCredentials(input.organizationId, input, query)) return { kind: "forbidden" };
   const result = await query<{ id: string }>(
     `UPDATE workspace_credential_secrets
      SET secret_ciphertext = NULL,

@@ -39,11 +39,17 @@ async function createDashboardApiKey(page: Page) {
   await page.locator(".side-link", { hasText: "API keys" }).click();
   await expect(page.getByRole("heading", { name: "API keys" })).toBeVisible();
   await page.getByRole("button", { name: /Create key/i }).click();
-  const keyCard = page.locator(".card", { hasText: "New key. Shown once." });
+  const form = page.getByRole("dialog", { name: "Create API key" });
+  await form.getByLabel("Name", { exact: true }).fill("browser-e2e");
+  const created = page.waitForResponse((response) => response.url().endsWith("/v1/api-keys") && response.request().method() === "POST");
+  await form.getByRole("button", { name: "Create key", exact: true }).click();
+  const keyBody = await (await created).json();
+  const keyCard = page.getByRole("dialog", { name: "API key created" });
   await expect(keyCard).toContainText("hk_live_", { timeout: 10_000 });
-  const token = (await keyCard.locator(".num").textContent())?.trim();
+  const token = (await keyCard.locator(".key-secret code").textContent())?.trim();
   expect(token).toMatch(/^hk_live_/);
-  return token!;
+  await keyCard.getByRole("button", { name: "Done", exact: true }).click();
+  return { token: token!, id: keyBody.key.id as string };
 }
 
 async function cleanupSandbox(request: APIRequestContext, apiKey: string, sandboxId?: string) {
@@ -71,11 +77,11 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
   const persistedAccessToken = await page.evaluate(() => localStorage.getItem("harakiri_access_token"));
   expect(persistedAccessToken).toBeNull();
 
-  apiKey = await createDashboardApiKey(page);
+  const createdKey = await createDashboardApiKey(page);
+  apiKey = createdKey.token;
+  apiKeyId = createdKey.id;
   const keyList = await request.get(`${API_URL}/v1/api-keys`, { headers: keyHeaders(apiKey) });
-  expect(keyList.ok()).toBeTruthy();
-  const keyBody = await keyList.json();
-  apiKeyId = keyBody.keys.find((key: { prefix: string; lastFour: string }) => key.prefix === apiKey.slice(0, 12) && key.lastFour === apiKey.slice(-4))?.id;
+  expect(keyList.status()).toBe(403);
   expect(apiKeyId).toBeTruthy();
 
   try {
@@ -220,7 +226,9 @@ test("real Web, API, CLI, and SDK sandbox workflows run on the deployed k0s stac
       await cleanupSandbox(request, apiKey, sandboxId);
     }
     if (apiKey && apiKeyId) {
-      await request.delete(`${API_URL}/v1/api-keys/${apiKeyId}`, { headers: keyHeaders(apiKey) }).catch(() => undefined);
+      await page.locator(".side-link", { hasText: "API keys" }).click();
+      await page.getByRole("button", { name: "Revoke browser-e2e", exact: true }).click();
+      await page.getByRole("dialog", { name: "Revoke API key" }).getByRole("button", { name: "Revoke key", exact: true }).click();
     }
   }
 });

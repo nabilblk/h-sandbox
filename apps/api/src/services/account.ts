@@ -17,7 +17,7 @@ export type { Query } from "./query.js";
 
 export type Audit = (
   organizationId: string,
-  actorUserId: string,
+  actorUserId: string | null,
   actorLabel: string,
   action: string,
   targetType: string,
@@ -99,10 +99,12 @@ const mapUser = (user: UserSnapshot) => ({
 
 const capabilitiesForRole = (role: string) => ({
   canManageMembers: role === "admin",
-  canManageCredentialSecrets: role === "admin"
+  canManageCredentialSecrets: role === "admin",
+  canManageSettings: role === "admin",
+  canManageAllApiKeys: role === "admin"
 });
 
-const mapMember = (member: MemberSnapshot, options: { actorUserId?: string; adminCount?: number } = {}): OrganizationMemberSummary => ({
+const mapMember = (member: MemberSnapshot, options: { actorUserId?: string | null; adminCount?: number } = {}): OrganizationMemberSummary => ({
   id: member.id,
   kind: "member",
   userId: member.userId,
@@ -183,7 +185,7 @@ const mapInvitation = (invitation: InvitationSnapshot): OrganizationMemberSummar
   };
 };
 
-const adminCheck = async (organizationId: string, actorUserId: string, query: Query) => {
+const adminCheck = async (organizationId: string, actorUserId: string | null, query: Query) => {
   const actor = await query<RoleSnapshot>(
     "SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1",
     [organizationId, actorUserId]
@@ -212,7 +214,7 @@ const localUserForKeycloakUser = async (keycloakUser: KeycloakUserSummary, query
   return user.rows[0].id;
 };
 
-const fetchMemberByUserId = async (organizationId: string, userId: string, actorUserId: string, query: Query) => {
+const fetchMemberByUserId = async (organizationId: string, userId: string, actorUserId: string | null, query: Query) => {
   const member = await query<MemberSnapshot>(
     `${membersSelect}
      WHERE m.organization_id = $1 AND u.id = $2
@@ -340,7 +342,7 @@ export const listOrganizationMembers = async (
 export const createOrganizationInvitation = async (
   input: {
     organizationId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     actorLabel: string;
     email: string;
   },
@@ -412,7 +414,7 @@ export const createOrganizationInvitation = async (
 export const addOrganizationMember = createOrganizationInvitation;
 
 export const resendOrganizationInvitation = async (
-  input: { organizationId: string; actorUserId: string; actorLabel: string; invitationId: string },
+  input: { organizationId: string; actorUserId: string | null; actorLabel: string; invitationId: string },
   dependencies: { query?: Query; recordAudit: Audit; keycloakAdmin?: KeycloakAdminClient }
 ): Promise<OrganizationMemberMutationResponse | { kind: "forbidden" | "not_found" }> => {
   const query = dependencies.query ?? defaultQuery;
@@ -431,7 +433,7 @@ export const resendOrganizationInvitation = async (
 };
 
 export const cancelOrganizationInvitation = async (
-  input: { organizationId: string; actorUserId: string; actorLabel: string; invitationId: string },
+  input: { organizationId: string; actorUserId: string | null; actorLabel: string; invitationId: string },
   dependencies: { query?: Query; recordAudit: Audit }
 ): Promise<OrganizationMemberMutationResponse | { kind: "forbidden" | "not_found" }> => {
   const query = dependencies.query ?? defaultQuery;
@@ -452,7 +454,7 @@ export const cancelOrganizationInvitation = async (
 };
 
 export const removeOrganizationMember = async (
-  input: { organizationId: string; actorUserId: string; actorLabel: string; membershipId: string },
+  input: { organizationId: string; actorUserId: string | null; actorLabel: string; membershipId: string },
   dependencies: { query?: Query; recordAudit: Audit }
 ): Promise<OrganizationMemberMutationResponse | { kind: "forbidden" | "not_found" | "last_admin" | "self_remove" }> => {
   const query = dependencies.query ?? defaultQuery;

@@ -196,7 +196,7 @@ export const reconcileCredentialVault = async (
         rehydratedSandboxes.add(item.sandboxId);
         const result = await rehydrate(
           { ...item, actorUserId: null, actorLabel: systemActorLabel },
-          { query, runtimeProvider, recordEvent, recordAudit }
+          { query, runtimeProvider, recordEvent, recordAudit, sourceAccess: "system" }
         );
         if (result.kind !== "ok") {
           report.failed += 1;
@@ -211,7 +211,7 @@ export const reconcileCredentialVault = async (
 
       const result = await refresh(
         { ...item, actorUserId: null, actorLabel: systemActorLabel },
-        { query, runtimeProvider, recordEvent, recordAudit }
+        { query, runtimeProvider, recordEvent, recordAudit, sourceAccess: "system" }
       );
       if (result.kind === "ok") report.refreshed += 1;
       else {

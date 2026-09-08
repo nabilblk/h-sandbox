@@ -11,6 +11,13 @@ secret store. Harakiri owns organization authorization, template slots,
 credential attachment state, egress compilation, audit metadata, and provider
 translation. OpenSandbox owns sandbox execution and runtime injection.
 
+Keep runtime and custody-management keys separate. With migration 037, runtime
+launch/inspection uses the corresponding sandbox scopes plus `credentials:use`;
+source provisioning requires explicit `credentials:manage`, and audit reads
+require `audit:read`. Default runtime keys cannot administer custody or use
+admin-only sources. See [Authorization](../authorization.md) for creation,
+rotation, creator membership and legacy migration.
+
 Choose a source per workflow:
 
 | Source | Use when | Persistence | Rehydration |

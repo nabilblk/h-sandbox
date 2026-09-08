@@ -1,3 +1,4 @@
+import { credentialActor, type AuthContext } from "../auth-context.js";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import {
   apiErrorResponse,
@@ -92,7 +93,7 @@ const auditMetadata = (issuer: DynamicCredentialIssuerResponse["issuer"]) => ({
 });
 
 const auditIssuer = (
-  request: { auth: { organizationId: string; userId: string; actorLabel: string } },
+  request: { auth: AuthContext },
   audit: Audit,
   action: string,
   issuer: DynamicCredentialIssuerResponse["issuer"]
@@ -117,22 +118,22 @@ export const registerDynamicCredentialIssuerRoutes = async (
   const revokeSourceAttachments = dependencies.revokeSourceAttachments ?? revokeCredentialSourceAttachments;
 
   const reinjectIssuerAttachments = (request: {
-    auth: { organizationId: string; userId: string; actorLabel: string };
+    auth: AuthContext;
   }, issuerId: string) => reinjectSourceAttachments({
     organizationId: request.auth.organizationId,
     sourceType: "dynamic",
     sourceRef: issuerId,
-    actorUserId: request.auth.userId,
+    ...credentialActor(request.auth),
     actorLabel: request.auth.actorLabel
   }, { query, runtimeProvider, recordEvent: event, recordAudit: dependencies.recordAudit });
 
   const revokeIssuerAttachments = (request: {
-    auth: { organizationId: string; userId: string; actorLabel: string };
+    auth: AuthContext;
   }, issuerId: string, reason: "source_disabled" | "source_deleted") => revokeSourceAttachments({
     organizationId: request.auth.organizationId,
     sourceType: "dynamic",
     sourceRef: issuerId,
-    actorUserId: request.auth.userId,
+    ...credentialActor(request.auth),
     actorLabel: request.auth.actorLabel,
     reason
   }, { query, runtimeProvider, recordEvent: event, recordAudit: dependencies.recordAudit });
@@ -141,7 +142,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     const filters = dynamicCredentialIssuerListQuerySchema.parse(request.query ?? {});
     const result = await listDynamicCredentialIssuers({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       includeDeleted: filters.includeDeleted
     }, query);
     if (result.kind !== "ok") return sendIssuerError(reply, result);
@@ -152,7 +153,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     const { id } = request.params as { id: string };
     const result = await getDynamicCredentialIssuer({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       issuerId: id
     }, query);
     if (result.kind !== "ok") return sendIssuerError(reply, result);
@@ -163,7 +164,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     const body = dynamicCredentialIssuerCreateSchema.parse(request.body ?? {});
     const result = await createDynamicCredentialIssuer({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       actorLabel: request.auth.actorLabel,
       body
     }, { query });
@@ -177,7 +178,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     const body = dynamicCredentialIssuerUpdateSchema.parse(request.body ?? {});
     const result = await updateDynamicCredentialIssuer({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       issuerId: id,
       body
     }, query);
@@ -194,7 +195,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     const { id } = request.params as { id: string };
     const result = await validateDynamicCredentialIssuer({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       issuerId: id
     }, { query, issuers: dependencies.issuers });
     if (result.kind !== "ok") return sendIssuerError(reply, result);
@@ -208,7 +209,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
       const operation = action === "disable" ? disableDynamicCredentialIssuer : enableDynamicCredentialIssuer;
       const result = await operation({
         organizationId: request.auth.organizationId,
-        actorUserId: request.auth.userId,
+        ...credentialActor(request.auth),
         issuerId: id
       }, query);
       if (result.kind !== "ok") return sendIssuerError(reply, result);
@@ -225,7 +226,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     const { id } = request.params as { id: string };
     const disabled = await disableDynamicCredentialIssuer({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       issuerId: id
     }, query);
     if (disabled.kind !== "ok") return sendIssuerError(reply, disabled);
@@ -234,7 +235,7 @@ export const registerDynamicCredentialIssuerRoutes = async (
     if (revoked.kind !== "ok") return sendRevocationError(reply, revoked);
     const result = await deleteDynamicCredentialIssuer({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       issuerId: id
     }, query);
     if (result.kind !== "ok") return sendIssuerError(reply, result);

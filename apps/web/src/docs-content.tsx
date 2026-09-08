@@ -1,6 +1,7 @@
 import type React from "react";
 import { CodeBlock } from "./components/docs-code";
 import { visionDocs } from "./vision-docs";
+import { authorizationDocs } from "./authorization-docs";
 import { overviewDocs, quickstartDocs } from "./getting-started-docs";
 import { demoTutorialSections } from "./demo-tutorial";
 import { agentDemoPrerequisites, agentDemoTutorials } from "./agent-demo-tutorials";
@@ -43,6 +44,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 
 export const docPages: DocPage[] = [
   overviewDocs,
+  authorizationDocs,
   ...agentDemoTutorials.map((tutorial): DocPage => ({
     id: tutorial.id, section: "Agent demos", title: tutorial.title, lede: tutorial.lede,
     navTitle: ({ "cli-agent-repair": "CLI: repair code", "ui-agent-app": "UI: build an app", "sdk-agent-report": "SDK: generate a report", "browser-agent-qa": "SDK: browser QA" } as Record<string, string>)[tutorial.id],
@@ -574,7 +576,7 @@ harakiri vault issuers validate dci_...
 harakiri vault attach-issuer sbx_... dci_...
 harakiri vault inspect sbx_...
 harakiri vault audit --action-prefix credential_ --json`}</CodeBlock>
-        <p>Dynamic issuer commands manage GitHub App installation scope, never the platform private key or issued token. <code>{"inspect"}</code> compares desired attachments with sanitized provider state. Organization audit is admin-only.</p>
+        <p>Dynamic issuer commands manage GitHub App installation scope, never the platform private key or issued token. <code>{"inspect"}</code> compares desired attachments with sanitized provider state. Source-management examples require an admin-created key with <code>credentials:manage</code>; audit queries need <code>audit:read</code>. See <a href="#docs/authorization">Authorization</a> for migration and runtime scopes.</p>
         <h2>SDK</h2>
         <CodeBlock language="typescript">{`import { credentialFromPreset } from "@h-sandbox/sdk";
 
@@ -790,6 +792,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
     body: (
       <>
         <h2>Visibility</h2>
+        <p>Organization membership and API-key scopes are a separate boundary from template visibility. See <a href="#docs/authorization">Authorization and API keys</a> for roles, scoped credentials, expiry and upgrade requirements.</p>
         <p><code>{"private"}</code>, <code>{"internal"}</code>, and <code>{"public"}</code> control product visibility. Team-owned templates are visible only inside the owning workspace. Platform <code>{"public"}</code> and <code>{"internal"}</code> templates are shared for sandbox creation, while platform <code>{"private"}</code> templates stay hidden. Build, promote, archive, logs, and uploaded contexts remain scoped to the owning workspace.</p>
         <h2>Digests</h2>
         <p>Mutable tags can be accepted as input, but ready versions store an immutable image digest and pass runtime pull preflight before production use.</p>

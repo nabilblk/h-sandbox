@@ -1,6 +1,6 @@
 # Credential Vault Threat Model
 
-**Review date:** 2026-09-04
+**Review date:** 2026-09-08
 **Scope:** Credential sources, Harakiri control plane, OpenSandbox credential
 injection, lifecycle repair, and user-facing metadata.
 
@@ -68,6 +68,21 @@ privilege at the credential issuer.
 - System reconciliation uses the existing attachment's organization and source
   reference. It cannot discover or substitute another source.
 
+The [authorization consolidation](../authorization.md), requiring migration 037
+and the matching API, adds independent API-key principals. Default/legacy keys
+have runtime scopes and can use shared sources only. Explicit admin-granted
+`credentials:manage` authorizes source custody and admin-only source use;
+`audit:read` authorizes audit access. Neither grant authorizes organization
+settings, members or API-key delegation. Creator removal and role ceilings,
+key expiry and revocation are rechecked before source resolution.
+
+Manual refresh/rehydrate must use caller-aware resolution. Only trusted resume
+and reconciliation explicitly select system resolution of an existing binding.
+Changing sharing rules does not retract an already-injected credential from a
+shared runtime. Key revocation closes API observers, but does not terminate
+the sandbox or revoke independent route/upstream tokens. Incident response must
+disable affected sources and revoke upstream credentials separately.
+
 ## Cryptographic Custody
 
 Each encrypted workspace value receives a random data-encryption key (DEK). The
@@ -123,7 +138,8 @@ a value readback channel through the Harakiri API.
 - Positive and negative provider tests use disposable values.
 - OpenAPI and UI expose no value-bearing response field.
 - The current OpenSandbox version and `dns+nft` attestation are recorded.
-- RBAC tests cover admin, shared member, and forbidden member paths.
+- RBAC tests cover admin, scoped/legacy keys, shared members, forbidden manual
+  refresh, tenant isolation, creator removal, expiry and revocation.
 - Helm rendering proves least-privilege external Secret access.
 - Support and operator docs identify unsupported OpenShift/service-mesh
   profiles before users enable Vault.

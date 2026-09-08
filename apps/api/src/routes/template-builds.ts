@@ -18,7 +18,7 @@ import {
 import { templateImagePolicyPayload, templateMutationForbidden, templateResourceLimitPayload } from "./template-shared.js";
 import { templateBuildContextUploadSchema, templateBuildSchema } from "./template-builds.schema.js";
 
-type Audit = (organizationId: string, actorUserId: string, actorLabel: string, action: string, targetType: string, targetId?: string, metadata?: Record<string, unknown>) => Promise<unknown>;
+type Audit = (organizationId: string, actorUserId: string | null, actorLabel: string, action: string, targetType: string, targetId?: string, metadata?: Record<string, unknown>) => Promise<unknown>;
 
 export type TemplateBuildRouteDependencies = {
   query?: Query;

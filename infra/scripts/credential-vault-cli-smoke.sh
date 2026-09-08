@@ -79,7 +79,7 @@ curl -fsS "${API_URL}/health" >/dev/null || fail "Harakiri API is not reachable 
 mkdir -m 700 "${CLI_HOME}" "${TMP_DIR}/output"
 
 if [[ -z "${HARAKIRI_API_KEY:-}" ]]; then
-  eval "$(HARAKIRI_TEST_KEY_NAME="credential-vault-cli-${STAMP}" "${ROOT}/infra/scripts/create-test-api-key.sh")"
+  eval "$(HARAKIRI_TEST_KEY_EXTRA_SCOPES="credentials:manage,audit:read" HARAKIRI_TEST_KEY_NAME="credential-vault-cli-${STAMP}" "${ROOT}/infra/scripts/create-test-api-key.sh")"
   TEMP_KEY=1
 fi
 

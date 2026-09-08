@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { credentialActor } from "../auth-context.js";
 import type { AuditEventsResponse } from "@harakiri/shared";
 import { apiErrorResponse } from "@harakiri/shared";
 import { query as defaultQuery } from "../db.js";
@@ -15,7 +16,7 @@ export const registerAuditEventRoutes = async (
     const filters = auditEventListQuerySchema.parse(request.query ?? {});
     const result = await listAuditEvents({
       organizationId: request.auth.organizationId,
-      actorUserId: request.auth.userId,
+      ...credentialActor(request.auth),
       filters
     }, query);
     if (result.kind === "forbidden") {

@@ -83,7 +83,7 @@ type TestSandboxCredentialInput = {
   organizationId: string;
   sandboxId: string;
   attachmentId: string;
-  actorUserId: string;
+  actorUserId: string | null; actorApiKeyId?: string;
   actorLabel: string;
   body: TestSandboxCredentialBody;
 };
@@ -581,7 +581,7 @@ const prepareResolvedCredentialMaterial = (
 type AttachSandboxCredentialInput = {
   organizationId: string;
   sandboxId: string;
-  actorUserId: string;
+  actorUserId: string | null; actorApiKeyId?: string;
   actorLabel: string;
   body: AttachSandboxCredentialBody;
 };
@@ -600,7 +600,7 @@ type AttachSandboxCredentialDependencies = {
 };
 
 export const prepareSandboxCredentialSourceAttachment = async (
-  input: { organizationId: string; actorUserId: string; body: AttachSandboxCredentialBody },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; body: AttachSandboxCredentialBody },
   dependencies: CredentialSourceMaterialDependencies & { idFactory?: typeof makeId } = {}
 ): Promise<PrepareCredentialSourceAttachmentResult> => {
   if (isResolvableCredentialSourceBody(input.body)) {
@@ -690,7 +690,7 @@ const prepareResolvedSlotCredential = (
 };
 
 export const prepareTemplateCredentialSlotAttachment = async (
-  input: { organizationId: string; actorUserId: string; slot: TemplateCredentialSlot; body: TemplateCredentialSlotMappingBody },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; slot: TemplateCredentialSlot; body: TemplateCredentialSlotMappingBody },
   dependencies: CredentialSourceMaterialDependencies & { idFactory?: typeof makeId } = {}
 ): Promise<PrepareCredentialSourceAttachmentResult> => {
   const idFactory = dependencies.idFactory ?? makeId;
@@ -698,7 +698,7 @@ export const prepareTemplateCredentialSlotAttachment = async (
     return prepareSandboxCredentialAttachment(inlineCredentialBodyFromSlot(input.slot, input.body.source), idFactory);
   }
   const resolved = await resolveCredentialSourceMaterial(
-    { organizationId: input.organizationId, actorUserId: input.actorUserId, body: input.body.source },
+    { organizationId: input.organizationId, actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId, body: input.body.source },
     dependencies
   );
   if (resolved.kind !== "ok") return resolved;
@@ -917,7 +917,7 @@ const credentialTestCommand = (target: ReturnType<typeof normalizeCredentialTest
 ].join(" ");
 
 const recordCredentialTest = async (
-  input: { organizationId: string; sandboxId: string; attachmentId: string; actorUserId: string; actorLabel: string },
+  input: { organizationId: string; sandboxId: string; attachmentId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string },
   dependencies: { recordEvent: SandboxEventRecorder; recordAudit: Audit },
   response: TestSandboxCredentialResponse
 ) => {
@@ -1152,7 +1152,7 @@ type CredentialRehydrateOutcome = {
 };
 
 const recordCredentialRehydration = async (
-  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorLabel: string },
+  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string },
   dependencies: { recordEvent: SandboxEventRecorder; recordAudit: Audit },
   outcome: CredentialRehydrateOutcome
 ) => {
@@ -1171,16 +1171,25 @@ const recordCredentialRehydration = async (
 };
 
 const resolveAttachmentMaterial = (
-  input: { organizationId: string },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string },
   attachment: SandboxCredentialAttachmentSummary,
   dependencies: Pick<
     RehydrateSandboxCredentialsDependencies,
-    "decryptSecret" | "externalSecretResolvers" | "dynamicCredentialIssuers"
+    "decryptSecret" | "externalSecretResolvers" | "dynamicCredentialIssuers" | "sourceAccess"
   >,
   query: Query
 ): Promise<CredentialSourceMaterialResult> => {
   if (!attachment.sourceRef) {
     return Promise.resolve({ kind: "invalid_binding", message: "stored credential attachment is missing source reference" });
+  }
+  if (dependencies.sourceAccess !== "system") {
+    const sourceRef = attachment.sourceRef;
+    const body = attachment.sourceType === "harakiri_encrypted"
+      ? { sourceType: "harakiri_encrypted" as const, secretId: sourceRef }
+      : attachment.sourceType === "external_ref"
+        ? { sourceType: "external_ref" as const, referenceId: sourceRef }
+        : { sourceType: "dynamic" as const, issuerId: sourceRef };
+    return resolveCredentialSourceMaterial({ ...input, body }, { ...dependencies, query });
   }
   return resolveCredentialSourceMaterialForSystem(
     {
@@ -1213,7 +1222,7 @@ const applyResolvedCredential = (
 };
 
 const rehydrateResolvableCredential = async (
-  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorLabel: string },
+  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string },
   sandbox: SandboxForCredentials,
   attachment: SandboxCredentialAttachmentSummary,
   dependencies: RehydrateSandboxCredentialsDependencies,
@@ -1254,7 +1263,7 @@ const rehydrateResolvableCredential = async (
 };
 
 const failCredentialRehydration = async (
-  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorLabel: string },
+  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string },
   attachment: SandboxCredentialAttachmentSummary,
   message: string,
   dependencies: Pick<RehydrateSandboxCredentialsDependencies, "recordEvent" | "recordAudit">,
@@ -1267,7 +1276,7 @@ const failCredentialRehydration = async (
 };
 
 const rehydrateCredentialAttachment = async (
-  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorLabel: string },
+  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string },
   sandbox: SandboxForCredentials,
   attachment: SandboxCredentialAttachmentSummary,
   dependencies: RehydrateSandboxCredentialsDependencies,
@@ -1286,6 +1295,8 @@ const rehydrateCredentialAttachment = async (
 };
 
 type RehydrateSandboxCredentialsDependencies = {
+  // Trusted reconciliation of an existing attachment, never accepted from HTTP input.
+  sourceAccess?: "system";
   query?: Query;
   runtimeProvider: RuntimeProvider;
   recordEvent: SandboxEventRecorder;
@@ -1296,7 +1307,7 @@ type RehydrateSandboxCredentialsDependencies = {
 };
 
 export const rehydrateSandboxCredentials = async (
-  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorLabel: string },
+  input: { organizationId: string; sandboxId: string; actorUserId: string | null; actorApiKeyId?: string; actorLabel: string },
   dependencies: RehydrateSandboxCredentialsDependencies
 ): Promise<RehydrateSandboxCredentialsResult> => {
   const query = dependencies.query ?? defaultQuery;
@@ -1328,7 +1339,7 @@ type RefreshSandboxCredentialInput = {
   organizationId: string;
   sandboxId: string;
   attachmentId: string;
-  actorUserId: string | null;
+  actorUserId: string | null; actorApiKeyId?: string;
   actorLabel: string;
 };
 
@@ -1666,7 +1677,7 @@ export const attachSandboxCredential = async (
     return { kind: "unsupported", message: "runtime provider does not expose Credential Vault injection" };
   }
   const prepared = await prepareSandboxCredentialSourceAttachment(
-    { organizationId: input.organizationId, actorUserId: input.actorUserId, body: input.body },
+    { organizationId: input.organizationId, actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId, body: input.body },
     {
       query,
       idFactory: dependencies.idFactory,
@@ -1684,7 +1695,7 @@ export const detachSandboxCredential = async (
     organizationId: string;
     sandboxId: string;
     attachmentId: string;
-    actorUserId: string;
+    actorUserId: string | null; actorApiKeyId?: string;
     actorLabel: string;
     reason?: "source_disabled" | "source_deleted";
   },

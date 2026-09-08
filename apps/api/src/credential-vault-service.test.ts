@@ -803,11 +803,11 @@ test("attachSandboxCredential fails loudly when an external resolver is unavaila
   assert.equal(harness.attachments.size, 0);
 });
 
-test("rehydrateSandboxCredentials restores encrypted workspace secret attachments", async () => {
+test("rehydrateSandboxCredentials restores explicitly shared workspace secret attachments for members", async () => {
   const harness = createHarness({ role: "member" });
   const events: string[] = [];
   const audits: string[] = [];
-  harness.secrets.set("vlt_openai", workspaceSecret());
+  harness.secrets.set("vlt_openai", workspaceSecret({ memberUseAllowed: true }));
   harness.attachments.set("sca_openai", credentialAttachment());
 
   const result = await rehydrateSandboxCredentials(
@@ -845,6 +845,20 @@ test("rehydrateSandboxCredentials restores encrypted workspace secret attachment
   assert.equal(JSON.stringify(result.attachments).includes("stored-real-secret"), false);
   assert.deepEqual(events, ["credential.rehydrated"]);
   assert.deepEqual(audits, ["sandbox.credential.rehydrated"]);
+});
+
+test("manual rehydration cannot reuse an admin-only source as a member", async () => {
+  const harness = createHarness({ role: "member" });
+  harness.secrets.set("vlt_openai", workspaceSecret());
+  harness.attachments.set("sca_openai", credentialAttachment());
+  const result = await rehydrateSandboxCredentials(
+    { organizationId: "org_test", sandboxId: "sbx_test", actorUserId: "user_member", actorLabel: "member@example.com" },
+    { query: harness.query, runtimeProvider: harness.provider, recordEvent: async () => undefined, recordAudit: async () => undefined,
+      decryptSecret: () => { throw new Error("must not decrypt"); } }
+  );
+  assert.equal(result.kind, "ok");
+  if (result.kind === "ok") { assert.equal(result.failed, 1); assert.equal(result.rehydrated, 0); }
+  assert.equal(harness.calls.length, 0);
 });
 
 test("rehydrateSandboxCredentials refuses a source whose credential profile changed", async () => {

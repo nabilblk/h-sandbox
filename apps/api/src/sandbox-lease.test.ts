@@ -201,7 +201,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
     await t.test("renewal HTTP errors distinguish inactive, missing and exhausted operations", async () => {
       const app = Fastify();
       app.addHook("preHandler", async (request) => {
-        request.auth = { userId: "test", organizationId, actorLabel: "test", authType: "api_key" };
+        request.auth = { userId: null, apiKeyId: "test-key", scopes: ["sandboxes:write"], organizationId, actorLabel: "api-key:test-key", authType: "api_key" };
       });
       await registerSandboxRoutes(app, { ...dependencies, recordSandboxEvent: dependencies.recordEvent, recordAudit: async () => undefined });
       try {

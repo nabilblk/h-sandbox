@@ -206,46 +206,46 @@ const mapDynamicMaterial = (
 });
 
 const resolveWorkspaceSource = async (
-  input: { organizationId: string; actorUserId: string; body: HarakiriEncryptedSandboxCredentialBody },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; body: HarakiriEncryptedSandboxCredentialBody },
   dependencies: CredentialSourceMaterialDependencies
 ): Promise<CredentialSourceMaterialResult> => {
   const secretId = input.body.secretId.trim();
   if (!secretId) return { kind: "invalid_binding", message: "credential secret id is required" };
   const result = await resolveCredentialSecretMaterial(
-    { organizationId: input.organizationId, actorUserId: input.actorUserId, secretId },
+    { organizationId: input.organizationId, actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId, secretId },
     { query: dependencies.query, decryptSecret: dependencies.decryptSecret }
   );
   return result.kind === "ok" ? mapWorkspaceMaterial(secretId, result) : mapWorkspaceFailure(result);
 };
 
 const resolveExternalSource = async (
-  input: { organizationId: string; actorUserId: string; body: ExternalReferenceSandboxCredentialBody },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; body: ExternalReferenceSandboxCredentialBody },
   dependencies: CredentialSourceMaterialDependencies
 ): Promise<CredentialSourceMaterialResult> => {
   const referenceId = input.body.referenceId.trim();
   if (!referenceId) return { kind: "invalid_binding", message: "external secret reference id is required" };
   const result = await resolveExternalSecretReferenceMaterial(
-    { organizationId: input.organizationId, actorUserId: input.actorUserId, referenceId },
+    { organizationId: input.organizationId, actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId, referenceId },
     { query: dependencies.query, resolvers: dependencies.externalSecretResolvers }
   );
   return result.kind === "ok" ? mapExternalMaterial(referenceId, result) : mapExternalFailure(result);
 };
 
 const resolveDynamicSource = async (
-  input: { organizationId: string; actorUserId: string; body: DynamicSandboxCredentialBody },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; body: DynamicSandboxCredentialBody },
   dependencies: CredentialSourceMaterialDependencies
 ): Promise<CredentialSourceMaterialResult> => {
   const issuerId = input.body.issuerId.trim();
   if (!issuerId) return { kind: "invalid_binding", message: "dynamic credential issuer id is required" };
   const result = await issueDynamicCredential(
-    { organizationId: input.organizationId, actorUserId: input.actorUserId, issuerId },
+    { organizationId: input.organizationId, actorUserId: input.actorUserId, actorApiKeyId: input.actorApiKeyId, issuerId },
     { query: dependencies.query, issuers: dependencies.dynamicCredentialIssuers }
   );
   return result.kind === "ok" ? mapDynamicMaterial(issuerId, result) : mapDynamicFailure(result);
 };
 
 export const resolveCredentialSourceMaterial = (
-  input: { organizationId: string; actorUserId: string; body: ResolvableCredentialSourceBody },
+  input: { organizationId: string; actorUserId: string | null; actorApiKeyId?: string; body: ResolvableCredentialSourceBody },
   dependencies: CredentialSourceMaterialDependencies = {}
 ) => {
   if (input.body.sourceType === "harakiri_encrypted") {

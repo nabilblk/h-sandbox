@@ -150,8 +150,15 @@ The schema is in `db/migrations/001_control_plane.sql` and includes:
 
 The API accepts:
 
-- Keycloak JWTs validated through the realm JWKS endpoint.
-- Hashed Harakiri API keys with `hk_live_` and `hk_test_` prefixes.
+- Keycloak access JWTs validated against JWKS, issuer, API audience, subject,
+  expiry and the signing-algorithm allowlist.
+- Hashed Harakiri API keys as separate scoped principals, with current creator
+  membership and expiry checks, never borrowed user identities.
+
+The consolidated model following 0.5.0-rc.3 requires migration 037. Exact route
+permissions, source access, live-session revocation and the staged Keycloak
+upgrade are documented in [Authorization](authorization.md). The API enforces
+these policies regardless of dashboard navigation visibility.
 
 `AUTH_DEV_ALLOW=1` is a development-only authentication bypass. It is not a
 production deployment requirement or a statement of current live configuration.

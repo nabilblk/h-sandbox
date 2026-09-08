@@ -1,7 +1,8 @@
 import { config } from "../config.js";
 import { hashApiKey, makeId } from "../crypto.js";
 import { query as defaultQuery } from "../db.js";
-import type { AuthContext } from "../auth.js";
+import { revalidatePrincipal, type AuthContext } from "../auth.js";
+import { hasScope } from "../authorization.js";
 import type { Query } from "./query.js";
 
 export const terminalAttachTicketQueryParam = "ticket";
@@ -9,6 +10,7 @@ export const terminalAttachTicketQueryParam = "ticket";
 export type CreateTerminalAttachTicketResult =
   | { kind: "ok"; ticket: string; expiresAt: string; attachUrl: string }
   | { kind: "not_found" }
+  | { kind: "forbidden" }
   | { kind: "sandbox_not_running"; status: string };
 
 export type ConsumeTerminalAttachTicketResult =
@@ -24,9 +26,6 @@ const terminalAttachUrl = (sandboxId: string, ticket: string) => {
   return url.toString();
 };
 
-const normalizeAuthType = (value: string): AuthContext["authType"] =>
-  value === "keycloak" || value === "api_key" || value === "dev" ? value : "dev";
-
 export const createTerminalAttachTicket = async (
   input: {
     sandboxId: string;
@@ -36,6 +35,8 @@ export const createTerminalAttachTicket = async (
 ): Promise<CreateTerminalAttachTicketResult> => {
   const query = dependencies.query ?? defaultQuery;
   const idFactory = dependencies.idFactory ?? makeId;
+  const auth = await revalidatePrincipal(input.auth, query);
+  if (!auth || !hasScope(auth, "sandboxes:write")) return { kind: "forbidden" };
   const sandbox = await query<{ id: string; status: string }>(
     "SELECT id, status FROM sandboxes WHERE id = $1 AND organization_id = $2",
     [input.sandboxId, input.auth.organizationId]
@@ -45,11 +46,11 @@ export const createTerminalAttachTicket = async (
   if (row.status !== "running" && row.status !== "idle") return { kind: "sandbox_not_running", status: row.status };
 
   const ticket = idFactory("hat", 40);
-  const expiresAt = new Date(Date.now() + terminalAttachTicketTtlMs()).toISOString();
+  const expiresAt = new Date(Math.min(Date.now() + terminalAttachTicketTtlMs(), auth.expiresAt ? Date.parse(auth.expiresAt) : Infinity)).toISOString();
   await query(
     `INSERT INTO terminal_attach_tickets
-       (token_hash, sandbox_id, organization_id, user_id, actor_label, auth_type, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+       (token_hash, sandbox_id, organization_id, user_id, actor_label, auth_type, expires_at, api_key_id, auth_expires_at, subject)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       hashApiKey(ticket),
       input.sandboxId,
@@ -57,7 +58,10 @@ export const createTerminalAttachTicket = async (
       input.auth.userId,
       input.auth.actorLabel,
       input.auth.authType,
-      expiresAt
+      expiresAt,
+      auth.apiKeyId ?? null,
+      auth.expiresAt ?? null,
+      auth.subject ?? null
     ]
   );
   return { kind: "ok", ticket, expiresAt, attachUrl: terminalAttachUrl(input.sandboxId, ticket) };
@@ -71,9 +75,12 @@ export const consumeTerminalAttachTicket = async (
   const query = dependencies.query ?? defaultQuery;
   const consumed = await query<{
     organizationId: string;
-    userId: string;
+    userId: string | null;
     actorLabel: string;
     authType: string;
+    apiKeyId: string | null;
+    authExpiresAt: Date | null;
+    subject: string | null;
   }>(
     `UPDATE terminal_attach_tickets
        SET used_at = now()
@@ -84,18 +91,20 @@ export const consumeTerminalAttachTicket = async (
      RETURNING organization_id::text AS "organizationId",
                user_id AS "userId",
                actor_label AS "actorLabel",
-               auth_type AS "authType"`,
+               auth_type AS "authType", api_key_id::text AS "apiKeyId",
+               auth_expires_at AS "authExpiresAt", subject`,
     [hashApiKey(input.ticket), input.sandboxId]
   );
   const row = consumed.rows[0];
   if (!row) return { kind: "invalid" };
-  return {
-    kind: "ok",
-    auth: {
-      organizationId: row.organizationId,
-      userId: row.userId,
-      actorLabel: row.actorLabel,
-      authType: normalizeAuthType(row.authType)
-    }
-  };
+  const identity = { organizationId: row.organizationId, actorLabel: row.actorLabel,
+    expiresAt: row.authExpiresAt?.toISOString() ?? null, subject: row.subject ?? undefined };
+  let candidate: AuthContext;
+  if (row.authType === "api_key" && row.apiKeyId && !row.userId) {
+    candidate = { ...identity, authType: "api_key", userId: null, apiKeyId: row.apiKeyId, scopes: [] };
+  } else if ((row.authType === "keycloak" || row.authType === "dev") && row.userId && !row.apiKeyId) {
+    candidate = { ...identity, authType: row.authType, userId: row.userId };
+  } else return { kind: "invalid" };
+  const auth = await revalidatePrincipal(candidate, query);
+  return auth && hasScope(auth, "sandboxes:write") ? { kind: "ok", auth } : { kind: "invalid" };
 };
