@@ -121,8 +121,9 @@ Verification performed locally:
 
 Public and technical documentation lives in [Authorization](../../authorization.md).
 Vault guides, integration docs, engineering guide and threat model now explain
-scoped automation and manual versus system resolution. No version bump, commit,
-push, npm publish or live deployment was performed. Existing untracked
+scoped automation and manual versus system resolution. At implementation
+acceptance, no version bump, commit, push, npm publish or live deployment had
+been performed. Existing untracked
 `docs/cot/` research is unrelated and untouched.
 
 Before rollout: back up the database/realm, add the API audience mapper to the
@@ -130,6 +131,12 @@ existing authorized Keycloak clients, verify a fresh token, then apply migration
 037 and deploy matching API/web/workers. Confirm public login/admin/member,
 terminal and real OpenSandbox workflows; rotate legacy integrations with
 explicit sensitive scopes where needed. Keep login/logout hostnames unchanged.
+
+**Subsequent delivery:** [authorization release](authorization-release.md)
+published rc.4 and applied the ordered upgrade to public k0s revision 28, with
+real Keycloak/OpenSandbox SDK/CLI and browser acceptance. See the
+[delivery receipt](../../release-notes/0.5.0-rc.4-delivery.md). The local-only
+verification table above records this implementation plan's original boundary.
 
 References: [JWT BCP](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.9),
 [Keycloak mapper contract](https://www.keycloak.org/admin-api/protocol-mappers).

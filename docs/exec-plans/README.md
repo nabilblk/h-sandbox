@@ -8,16 +8,20 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
-| [Authorization release](active/authorization-release.md) | Implementation locally verified; k0s and publication access checked | Publish rc.4, configure live audience, migrate/deploy, public acceptance and delivery receipt |
-| [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspace and live-output preview; rc.3 deployed to k0s with migration 036; matching npm SDK/CLI on `next` | Commands working-directory follow-up, fresh restricted OpenShift storage acceptance, complete template architecture checks, host and coherent DB/PVC recovery; unattended npm trusted publishing remains operational debt |
+| [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspace and live-output preview; subsequently upgraded to rc.4 on k0s with migration 037 and matching npm SDK/CLI on `next` | Commands working-directory follow-up, fresh restricted OpenShift storage acceptance, complete template architecture checks, registry headroom, host and coherent DB/PVC recovery; unattended npm trusted publishing remains operational debt |
 | [Real product demos](active/real-product-demo-remotion.md) | Public CLI, UI, SDK and browser-QA demos, tutorials and transcripts | Protected unattended agent-refresh credentials, CI environment and live acceptance |
 
 ## Recently Completed
 
+- [Authorization release](completed/authorization-release.md): rc.4 published to
+  Harbor/GitHub/npm `next`, audience configured before migration 037, final k0s
+  revision 28 with a separately published web correction. Real public role/key,
+  OpenSandbox SDK/CLI and browser acceptance passed; test resources cleaned.
+  See the [delivery receipt](../release-notes/0.5.0-rc.4-delivery.md).
 - [Authorization consolidation](completed/authorization-consolidation.md):
   scoped key principals, server role/scope policy, JWT API audience, live
   revocation and matching UI/docs. Local API/PostgreSQL, browser and SDK/CLI dev
-  conformance passed. Not deployed: the audience mapper must be configured first.
+  conformance passed. Subsequently published and deployed by the release above.
 - [Documentation redesign deployment](completed/documentation-redesign-deployment.md):
   web-only Harbor image deployed to public k0s revision 26, with public browser
   and OIDC acceptance. See the [delivery receipt](../release-notes/2026-09-08-documentation-redesign-delivery.md).
@@ -25,8 +29,8 @@ in [completed](completed/); unfinished work stays in [active](active/).
   public docs, rewritten vision, responsive diagrams, highlighted examples and
   desktop/mobile browser acceptance; subsequently deployed by the plan above.
 
-There are 31 plans in `completed/`, including the explicitly abandoned and
+There are 32 plans in `completed/`, including the explicitly abandoned and
 superseded OpenSandbox boundary plan. Neither active plan should be archived
 until its remaining required work is verified. See the
-[rc.3 delivery receipt](../release-notes/0.5.0-rc.3-delivery.md) for release evidence
-and the exact distinction between Harbor/GitHub delivery and npm availability.
+[rc.4 delivery receipt](../release-notes/0.5.0-rc.4-delivery.md) for release evidence
+and the exact distinction between this candidate and remaining stable gates.

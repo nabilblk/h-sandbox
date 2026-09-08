@@ -312,6 +312,13 @@ publication checkpoint below records its resolution.
 
 ## Tech Debt Incurred
 
+- During rc.4 delivery on September 8, Harbor's health endpoint stayed healthy
+  while its storage returned filesystem ENOSPC on uploads. Conservative GC
+  recovered 9573 MB of unreferenced data, with untagged artifact/tag deletion
+  disabled. Add storage/inode headroom alerts and a reviewed retention/GC policy;
+  read-only health is not evidence of publish readiness. The release-triggered
+  template workflow had eight upload failures and needs a separate retry after
+  capacity planning; no runtime template aliases were promoted.
 - Unattended npm trusted publishing still fails its OIDC token exchange. rc.3
   was published using restored local authentication and verified release
   archives; configure and validate CI authorization separately for future releases.
