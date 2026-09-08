@@ -221,7 +221,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build (validate Dockerfile, no push)
         uses: docker/build-push-action@v6
