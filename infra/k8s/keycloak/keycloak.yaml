@@ -288,20 +288,19 @@ data:
             <span class="hk-pulse"></span>
             Sandbox control plane
           </div>
-          <h1>Disposable runtimes, sealed on demand.</h1>
+          <h1>Your sandbox control plane.</h1>
           <p>Sign in to create sandboxes, inspect runtime output, rotate API keys, and route exposed ports from one sandbox control plane.</p>
           <div class="hk-terminal" aria-hidden="true">
             <div class="hk-terminal-bar">
               <span></span><span></span><span></span>
-              <b>sbx_jt29kf01x4 - login</b>
-              <i>running</i>
+              <b>Harakiri CLI</b>
+              <i>example</i>
             </div>
             <div class="hk-terminal-body">
               <code>$ harakiri create --template python-3.12-data</code>
-              <code class="muted">-&gt; provisioning microVM... 137ms</code>
-              <code class="muted">-&gt; sealed. id=sbx_jt29kf01x4</code>
-              <code>$ harakiri run --stdin agent.py</code>
-              <code class="ok">ok rmse=0.0418 - runtime=3.41s</code>
+              <code class="muted">Use the returned sandbox ID.</code>
+              <code>$ harakiri run "$SBX_ID" --cmd "python --version"</code>
+              <code>$ harakiri kill "$SBX_ID"</code>
             </div>
           </div>
         </section>

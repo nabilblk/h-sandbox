@@ -25,10 +25,11 @@ and coordination of fixes and disclosure. This contact was designated by the
 owner on September 9, 2026. There is no response-time SLA; if you have not
 received an acknowledgement, follow up in the same email thread.
 
-Do not open a public issue for a suspected vulnerability or paste credentials
-into a report. GitHub private vulnerability reporting is not currently offered;
-use email, including while the repository is private. Enable and test GitHub
-reporting notifications before advertising it as another reporting route.
+You can also use [GitHub's private vulnerability report form](https://github.com/nabilblk/h-sandbox/security/advisories/new).
+Private reporting was enabled and its public entry point verified on September
+9, 2026. Maintainer notification delivery has not yet been verified; use the
+email contact above as a fallback. Do not open a public issue for a suspected
+vulnerability or paste credentials into a report.
 
 Include:
 
@@ -48,7 +49,8 @@ credential rotation privately. Removing a string from Git does not revoke it.
 
 - Harakiri owns control-plane state: users, organizations, API keys, templates,
   builds, schedules, routes, usage, and audit events.
-- OpenSandbox owns sandbox runtime lifecycle and data-plane access.
+- The runtime provider implements sandbox execution and data-plane access.
+  OpenSandbox is the current adapter behind Harakiri's provider interface.
 - Harakiri must not use direct Kubernetes `pods/exec` or sandbox `pods/log` for
   normal runtime behavior.
 - Template registry credentials must not be returned by API responses or logged

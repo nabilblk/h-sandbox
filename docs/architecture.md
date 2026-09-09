@@ -1,10 +1,13 @@
 # Architecture
 
-Harakiri Sandbox is an open-source product and control plane around OpenSandbox.
+Harakiri Sandbox is a self-hosted sandbox control plane for agent applications.
 Applications own agent orchestration and task correctness; Harakiri owns the
-organization-scoped product contract and lifecycle coordination; OpenSandbox
-owns runtime execution. The public Vision and architecture article is maintained
-in `apps/web/src/vision-docs.tsx`. This document describes implementation details.
+organization-scoped product contract and lifecycle coordination; a runtime
+provider implements execution. OpenSandbox is the current real execution
+adapter, not the product identity. Additional providers or a first-party runtime
+are future options, not supported integrations today. The public Vision and
+architecture article is maintained in `apps/web/src/vision-docs.tsx`. This
+document describes implementation details of the current system.
 
 ## Components
 
@@ -16,7 +19,7 @@ in `apps/web/src/vision-docs.tsx`. This document describes implementation detail
   reservations. Retained workspace files live on operator-managed volumes, not
   in PostgreSQL; database backups alone do not preserve them.
 - Keycloak: OIDC identity provider for browser users, password setup, and email verification.
-- OpenSandbox: runtime provider for sandbox lifecycle.
+- Runtime provider: execution contract with OpenSandbox as the current adapter.
 - CLI: `harakiri` binary using the same `/v1` API as the dashboard.
 - Template builder: k0s worker deployment that consumes queued image-import and
   Dockerfile template build records, writes build logs, pushes Dockerfile images

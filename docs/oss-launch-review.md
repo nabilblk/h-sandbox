@@ -1,27 +1,32 @@
 # OSS Launch Review
 
-September 9, 2026. **Source publication authorized; safety closure and visibility change pending.**
+September 9, 2026. **Source is public; anonymous access and repository protections verified.**
 Initial baseline `3cac386fb4bc0ca2ef9c0f4ce9be8ab4141d75cb`. Reviewed changes are now
-committed/pushed through `e090f12`; earlier candidates were retained immutably and
-rc.8 with its separate docs web image is the delivered candidate. The
-[execution plan](exec-plans/active/oss-developer-preview-launch.md) owns remaining
-safety confirmation, deployment, publication and adoption gates.
+committed/pushed through `2e53944`; earlier candidates were retained immutably and
+rc.8 with its separate `docs.2` web image is the delivered candidate. The
+[execution plan](exec-plans/active/oss-developer-preview-launch.md) stays active
+for notification handoff, announcement approval and post-launch adoption.
 
 ## Current Delivery Checkpoint
 
-- The owner subsequently authorized the final source-publication step. The
-  repository is still private at this checkpoint. Scoped credential rotation
-  is now authorized and verified; see the [launch receipt](release-notes/2026-09-09-public-launch.md).
+- The owner-authorized source-publication step is complete. Anonymous clone,
+  all eight rc.8 release downloads/checksums and npm integrity passed after
+  opening. Scoped credential rotation is verified; see the
+  [launch receipt](release-notes/2026-09-09-public-launch.md).
   The 18 Vault rows were already erased tombstones, so no ciphertext required
   rewrapping. Identity persistence was corrected before restarting Keycloak. No
   social announcement has been posted. Repository description, homepage, topics
-  and Discussions are configured; source visibility is a separate operation.
-- The publication recheck fetched current remote heads/tags and scanned 938
+  and Discussions are configured. Private vulnerability reporting, secret scanning,
+  push protection and dependency alerts are enabled. Main requires an up-to-date
+  PR and eight checks, including for admins; publishing environments require
+  owner review and accept only main. Owner email/Watch notification setup remains
+  unverified, with the designated reporting email retained as a fallback.
+- The final publication recheck fetched current remote heads/tags and scanned 939
   candidate files and 64 refs with no unresolved source/history findings. Remote
-  inventory now covers six releases/26 assets, 201 Actions artifacts and 139
-  runs. All 26 release assets, 145 non-expired artifacts and 86 available run
+  inventory now covers six releases/26 assets, 206 Actions artifacts and 144
+  runs. All 26 release assets, 150 non-expired artifacts and 90 available run
   archives were downloaded and reviewed. Fifty-six expired artifacts and 53
-  unavailable run logs are excluded. The expanded 158.44 MB content scan flagged
+  unavailable run logs are excluded. The expanded content scan flagged
   21 occurrences of the source image tag `sha-792ac9c5f4bd`, including duplicate
   archive/extracted copies; each resolves to reviewed commit `792ac9c`. They are
   not authentication material. No remote logs/artifacts were deleted or blanket
@@ -33,9 +38,10 @@ safety confirmation, deployment, publication and adoption gates.
   the exact CLI version post-publish check pass. `latest` remains `0.4.0`.
   Trusted npm CI publication was denied; a clean-tag, authenticated local publish
   is the verified fallback, not proof that unattended publishing works.
-- Source CI for rc.8 and its docs correction passed. The latest local CLI suite has 77 passing tests,
+- Source CI for rc.8 and both docs corrections passed. The latest local CLI suite has 77 passing tests,
   including the new metadata-driven version check. Source/history scans remain
-  clean. All 68 web tests pass, including standalone/Helm documentation serving.
+  clean. All 69 web tests pass, including standalone/Helm documentation serving
+  and the current product-positioning checks.
   The candidate CI API suite has 315 passes and three conditional skips; the
   earlier fully migrated local database run covered those database cases. Do not
   describe candidate CI as a new zero-skip full-suite run. See the
@@ -68,28 +74,31 @@ safety confirmation, deployment, publication and adoption gates.
   and 50 high, none high/critical with an available fix in that database.
   Scanner inventories and operator disposition remain distinct
   from a claim of no vulnerabilities. No blanket CVE suppression was added.
-- The selected rc.8 API/docs web image layers were exported and inspected:
+- The original rc.8 API/`docs.1` web image layers were exported and inspected:
   24 compressed layers, 15,058 regular files and 42.33 MB of scanned text. Six
   hits match the previously reviewed source/compiled fixture pairs, loopback
   smoke credential and V8 identifier. No usable secret was identified. Directory,
   link and device entries were recorded, not followed. One plaintext dpkg
   metadata file had a misleading `.gz` name; its private scan copy was renamed
   without changing bytes so archive detection completed without scanner errors.
-- Lab revision 31 runs digest-pinned rc.8 API/worker images and the docs web
+- The lab now runs digest-pinned rc.8 API/worker images and the `docs.2` web
   correction. Public web/API/discovery return 200 with the correct issuer;
   35 hosted Markdown pages, JSON index, both LLM text indexes and missing-page
   404 checks pass. Desktop/mobile browser checks pass. Historical Nginx field
   ownership and a stale subPath mount needed scoped lab recovery; the fresh
   installation did not require these repairs. Secrets, SMTP and origins stayed
-  unchanged. The exact intervention sequence is retained in the receipt.
+  unchanged in that earlier delivery. The later coordinated credential rotation
+  and public-launch web deployment have their own receipt; do not restore old
+  Helm secrets independently. The exact intervention sequences are retained.
 
 The later scoped approval covered the human and recovery passwords, database,
 runtime connection and Vault wrapping key. All replacements are verified and
 delivered privately. The earlier private helper output exposure is remediated
 for these credentials; no secret values belong in this receipt or release assets.
-External receipt of the reporting inbox is still not claimed. A verified GitHub
-private-reporting route and repository protections are part of the source-opening
-step. Residual image advisories remain disclosed; no production risk waiver or
+External receipt of the reporting inbox is still not claimed. GitHub's private
+reporting entry point and repository protections are verified after opening;
+maintainer notification delivery is the outstanding operator handoff. Residual
+image advisories remain disclosed; no production risk waiver or
 social announcement was issued.
 
 The following sections retain the earlier investigation and its evidence;

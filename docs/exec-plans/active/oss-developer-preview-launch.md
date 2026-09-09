@@ -14,7 +14,7 @@ depend on completing every production-readiness feature. Equally, a preview
 label does not excuse exposed secrets, misleading controls, or an installation
 that requires maintainer credentials and private patches.
 
-Launch **Harakiri OSS Developer Preview** around its existing strength: an
+Launch **Harakiri OSS Developer Preview** around its existing strength: a
 sandbox control plane for running agents against private code and data,
 with explicit access policy, persistent working files, and coherent API, CLI,
 TypeScript SDK and dashboard workflows. This is a self-hosted developer preview,
@@ -125,8 +125,10 @@ three successful teams before the first announcement.
 
 - [x] Record the current source/distribution baseline and distinguish source
   launch, usable preview, announcement, adoption and production-support gates.
-- [ ] G1: No unresolved publication-blocking secret, private-data or rights
+- [x] G1 publication material: no unresolved publication-blocking secret, private-data or rights
   finding; the owner approves the exact publication scope.
+- [ ] G1 operational handoff: private report entry point is enabled/verified;
+  owner Watch/email notification receipt still needs confirmation.
 - [x] G2: An isolated installation uses downloadable artifacts and documented
   operator-owned configuration without maintainer credentials or private edits.
 - [x] G2: One declared architecture/profile passes the real OpenSandbox workflow
@@ -135,8 +137,10 @@ three successful teams before the first announcement.
   are represented honestly across API, UI, packages and public documentation.
 - [x] G3 evaluation: owner confirms independent evaluation complete; details
   are not available and are not attributed to this agent's runs.
-- [ ] G3 publication: public source/access verification and announcement remain
-  the final owner-approved step, separate from candidate artifact delivery.
+- [x] Public source/access verification: owner-authorized opening and anonymous
+  clone, license, release downloads and npm integrity verified September 9.
+- [ ] G3 announcement: approve the specific text/channel and monitored launch
+  window before posting; source publication is not a social announcement.
 - [ ] G4: Three independent teams complete the workflow, with opt-in evidence,
   support interventions and follow-up outcomes recorded.
 - [x] Record release/support ownership, residual risks, verification receipts
@@ -152,8 +156,10 @@ coherent preview, and clean native installation verification (points 1-3 of the
 launch assessment). This authorizes reviewed commits/pushes, a new immutable
 candidate on `next`, publishing protection, the owned lab upgrade and
 isolated acceptance resources. Preserve npm `latest` at `0.4.0`. Repository
-visibility, public-source opening and the announcement remain the final,
-separately approved step.
+visibility, public-source opening and the announcement were initially left as
+the final separately approved step. The subsequent Phase 6 approval authorized
+source opening and scoped credential rotation, now completed. Social posting
+still requires approval of its specific text/channel.
 
 The owner confirms independent evaluation is already complete. Record this as
 owner-reported acceptance, not a test run performed by this agent; do not make
@@ -163,16 +169,18 @@ required and will have its own receipt.
 
 - [x] Finish remaining publication-material review and configure verifiable
   publishing protections, documenting any GitHub plan limitations.
-- [ ] Close safety findings: scoped platform credential rotation/rewrap, reporting
-  inbox acknowledgement and operator disposition of residual image advisories.
+- [x] Close scoped platform credential findings: replacements verified and handed
+  off privately; all Vault rows were erased tombstones, not live rewrap subjects.
+- [ ] Confirm reporting notification/inbox receipt; retain explicit operator
+  disposition of residual image advisories before any production deployment.
 - [x] Commit and publish matching candidate images, chart, SDK/CLI and release notes;
   deploy the candidate without changing live identity, SMTP, data or origins.
 - [x] Run the published-artifact workflow in an isolated native installation,
   including persistence, upgrade/recovery and owned-resource cleanup.
 - [x] Independent evaluation confirmed complete by the owner, September 9.
 - [x] Final owner decision: source opening explicitly authorized on September 9.
-- [ ] Execute source opening after safety closure, verify anonymous access and
-  obtain approval for the specific announcement text/channel before posting.
+- [x] Execute source opening after credential/material review and verify anonymous access.
+- [ ] Obtain approval for the specific announcement text/channel before posting.
 
 Delivery checkpoint: rc.5 source/tag `792ac9c` and its API/web/chart are published;
 SDK/CLI rc.5 were published from a clean tagged checkout after trusted npm CI
@@ -190,7 +198,7 @@ require disposition; a raw severity is not proof of exploitable application
 behavior. In particular, Debian marks some remaining glibc/Perl findings as
 minor/no-DSA, and one Perl finding requires 32-bit builds.
 
-Additional lab-only fixture credentials were discovered in the master recovery,
+Historical pre-rotation checkpoint: additional lab-only fixture credentials were discovered in the master recovery,
 PostgreSQL and runtime connections. Scoped rotation approval was requested;
 these are not covered by the earlier human-password rotation. Do not claim that
 publication safety is complete or change these credentials without that approval.
@@ -516,14 +524,14 @@ one independent evaluation of the recommended path. Local dev-provider mocks,
 successful Helm rendering and an existing maintained lab are not substitutes.
 
 ### Phase 6: Controlled Publication and Announcement
-**Status**: In Progress; source opening and scoped credential remediation authorized
+**Status**: In Progress; source public and credentials rotated, announcement/notification handoff open
 
 The owner explicitly authorized making `nabilblk/h-sandbox` public and asked for
 the announcement channel and format. This supersedes the earlier requirement
-to leave point 5 unapproved. It does not establish that visibility changed or
-that publication-safety findings were remediated. The owner subsequently approved
+to leave point 5 unapproved. The owner subsequently approved
 rotating all owned lab passwords and platform secrets, with private delivery of
-the replacements. Keep the source private until that exposure is resolved.
+the replacements. Source stayed private until the credential exposure and
+publication-material findings were resolved, then opened on September 9.
 Personal npm, GitHub and Harbor account credentials are outside this operation.
 No social account posting is authorized by a request for channel advice.
 
@@ -543,37 +551,47 @@ Keycloak's previously ephemeral H2 database was recovered and verified in
 isolation, then moved to persistent storage. The owner handoff is outside Git.
 See the [operations receipt](../../release-notes/2026-09-09-public-launch.md).
 
-Publication recheck: 938 candidate files and 64 refs pass Gitleaks 8.30.1.
-All 26 release assets, 145 non-expired Actions artifacts and 86 available logs
+Final publication recheck: 939 tracked files and 64 refs pass Gitleaks 8.30.1.
+All 26 release assets, 150 non-expired Actions artifacts and 90 available logs
 were downloaded. Fifty-six expired artifacts and 53 unavailable logs remain
 explicit exclusions. The expanded scanner flagged 21 copies of one immutable
 API image tag; exact source-commit matching resolved them as non-secret metadata.
 No remote objects were deleted. The populated lab and its 35 documentation pages
-passed read-only HTTP checks again. The remaining credential operation is not
-implicitly recorded as completed by these scans.
+passed read-only HTTP checks again. Credential operations have their separate
+verification receipt above, not inferred from scanner results.
 
-- [ ] Review G1/G2/G3 separately with the owner. Confirm repository identity,
+Public checkpoint: anonymous clone and all rc.8 release checksums/npm integrity
+passed at 16:28 UTC. Repository protections were verified at 16:29 UTC: private
+reporting, secret scanning/push protection, dependency alerts, strict PR/check
+protection for main, approval for all external-contributor workflows, and
+owner-reviewed main-only publishing environments. The current token cannot
+manage Watch subscriptions. The owner was asked to enable All Activity/email;
+notification delivery is not claimed. Source CI passed eight checks, and the
+web-only `docs.2` image was published for both architectures and deployed. The
+new homepage/vision story is verified in browser and 35 public docs pass HTTP
+checks. Original rc.8 release assets and npm channels remain unchanged.
+
+- [x] Review G1/G2/G3 separately with the owner. Confirm repository identity,
   source/media scope, public artifacts, launch candidate, support ownership,
-  lab availability statement and announcement text. Recheck scans if refs/assets
-  changed after their earlier review.
-- [ ] Commit reviewed launch changes and obtain release/deployment approval for
+  lab availability statement; announcement text stays separately unapproved.
+  Rechecked scans after refs/assets changed.
+- [x] Commit reviewed launch changes and obtain release/deployment approval for
   a new candidate as needed. Verify code CI, exact package/image/chart outputs,
   fresh installs and hosted public-origin regression; keep stable tags unchanged
   unless independently approved against their production gates.
-- [ ] After explicit approval, change repository/public artifact visibility and
+- [x] After explicit approval, change repository/public artifact visibility and
   verify signed-out clone, source/license access, issue/contribution entry points,
   documentation, release downloads, npm and OCI pulls. Check repository rules
   and public-fork CI behavior after the visibility transition.
-- [ ] Set the approved repository description/topics and enable/verify private
-  security reporting and maintainer notifications. Source opening may occur at
-  G1 before broader announcement if the owner chooses that narrower action.
-  Description, homepage, topics and Discussions are configured. Private reporting,
-  notification verification and post-publication protection checks remain open.
+- [x] Set approved description/topics and enable/verify private security reporting
+  and post-publication protections. Description, homepage, topics and Discussions
+  are configured. This does not establish notification delivery.
+- [ ] Verify maintainer Watch/email settings and receipt before broader promotion.
 - [ ] Publish the owner-approved Developer Preview announcement: problem/audience,
   runtime-provider boundary, one tested workflow, install/docs links, preview limits
   and specific invitation for evaluator feedback. No invented users, performance
   comparison, production guarantee or competitor parity claim.
-- [ ] Start with relevant OpenSandbox/agent-platform developers and operators;
+- [ ] Start with relevant agent-application/platform developers and operators;
   follow each channel's rules and attribution requirements. Use real accounts
   and disclose maintainer affiliation. No unsolicited mass outreach or simulated
   community activity. Approval of this plan is not permission to send messages.
