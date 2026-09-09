@@ -44,7 +44,7 @@ export function createConfiguration({ webOrigin, apiOrigin, authOrigin, email })
       KEYCLOAK_ISSUER: issuer, KEYCLOAK_ISSUER_ALLOWLIST: issuer, KEYCLOAK_JWKS_URL: `${internalAuth}/realms/harakiri/protocol/openid-connect/certs`, KEYCLOAK_AUDIENCE: "harakiri-api",
       KEYCLOAK_ADMIN_BASE_URL: internalAuth, KEYCLOAK_ADMIN_REALM: "harakiri", KEYCLOAK_ADMIN_TOKEN_REALM: "harakiri", KEYCLOAK_ADMIN_CLIENT_ID: "harakiri-admin", KEYCLOAK_INVITATION_REDIRECT_URI: `${webOrigin}/#dashboard/sandboxes`,
       OPEN_SANDBOX_BASE_URL: `http://opensandbox-server.${namespace}.svc.cluster.local:80`, OPEN_SANDBOX_GATEWAY_URL: `http://opensandbox-ingress-gateway.${namespace}.svc.cluster.local:80`, OPEN_SANDBOX_ALLOW_FALLBACK: "0", OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "1",
-      SANDBOX_ROUTE_MODE: "opensandbox-gateway", SANDBOX_ROUTE_PUBLIC_SCHEME: new URL(apiOrigin).protocol.slice(0, -1),
+      SANDBOX_ROUTE_MODE: "opensandbox-gateway", SANDBOX_ROUTE_DEFAULT_ACCESS_MODE: "token", SANDBOX_ROUTE_PUBLIC_SCHEME: new URL(apiOrigin).protocol.slice(0, -1),
       TEMPLATE_BUILDER_NAMESPACE: namespace, TEMPLATE_RUNTIME_PULL_PREFLIGHT_NAMESPACE: runtimeNamespace, TEMPLATE_IMAGE_PREPULL_NAMESPACE: runtimeNamespace,
       TEMPLATE_IMAGE_ALLOW_REGISTRIES: "docker.io,registry-1.docker.io,ghcr.io,core.campus.clusterdiali.me", TEMPLATE_REGISTRY_CREDENTIAL_KEY: "", TEMPLATE_REGISTRY_RUNTIME_HOST: "", TEMPLATE_REGISTRY_PUSH_HOST: ""
     } };

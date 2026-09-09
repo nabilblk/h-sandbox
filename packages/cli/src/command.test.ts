@@ -146,6 +146,19 @@ const buildRow = (overrides: Record<string, unknown>) => ({
   ...overrides
 });
 
+test("CLI version matches its package metadata without calling the API", async () => {
+  const api = await startMockApi(() => ({ status: 500 }));
+  try {
+    const result = await runCli(["--version"], { api });
+    const metadata = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdout.trim(), metadata.version);
+    assert.equal(api.requests.length, 0);
+  } finally {
+    await api.close();
+  }
+});
+
 test("workspace CLI preserves public IDs and requires retained-storage acknowledgement", async () => {
   const api = await startMockApi(() => ({ body: { workspace: { id: "wsp_cli", status: "archived" } } }));
   try {

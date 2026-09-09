@@ -5,6 +5,18 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-09-v0-5-0-rc-7",
+    version: "v0.5.0-rc.7",
+    date: "September 9, 2026",
+    title: "Verified CLI versions and leaner web runtime",
+    items: [
+      "CLI --version now reads installed package metadata. Local and registry package smoke tests require the exact released version, preventing a stale hard-coded version from passing.",
+      "Removed unused Nginx image-processing and dynamic modules from the static web runtime after container scan review.",
+      "Defaulted the loopback evaluation profile to protected API-proxied routes and documented the separate DNS/ingress requirement for public wildcard routes.",
+      "Made the runtime conformance test use python3, which is available in the maintained OpenCode template without an optional python alias. Earlier candidate artifacts remain immutable."
+    ]
+  },
+  {
     id: "2026-09-09-v0-5-0-rc-6",
     version: "v0.5.0-rc.6",
     date: "September 9, 2026",

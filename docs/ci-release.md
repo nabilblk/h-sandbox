@@ -81,10 +81,10 @@ Run CI, inspect the diff and exclude secrets/private evidence. Commit and push
 reviewed source before creating its immutable tag:
 
 ```bash
-git tag -a v0.5.0-rc.6 -m 'Harakiri 0.5.0-rc.6'
-git push origin v0.5.0-rc.6
-gh workflow run release.yml --ref main -f release_ref=v0.5.0-rc.6 -f component=all
-gh workflow run npm-release.yml --ref main -f release_ref=v0.5.0-rc.6 -f tag=next
+git tag -a v0.5.0-rc.7 -m 'Harakiri 0.5.0-rc.7'
+git push origin v0.5.0-rc.7
+gh workflow run release.yml --ref main -f release_ref=v0.5.0-rc.7 -f component=all
+gh workflow run npm-release.yml --ref main -f release_ref=v0.5.0-rc.7 -f tag=next
 gh run list --limit 10
 ```
 
@@ -106,9 +106,9 @@ Publication is not permission to modify a live installation.
 ```bash
 npm view @h-sandbox/sdk dist-tags --json
 npm view @h-sandbox/cli dist-tags --json
-docker pull core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.6
-docker pull core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.6
-helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version 0.5.0-rc.6
+docker pull core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.7
+docker pull core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.7
+helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version 0.5.0-rc.7
 ```
 
 Repeat consumption with empty registry/npm configuration to prove anonymous

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { readFileSync } from "node:fs";
 import { registerAuthCommands } from "./commands/auth.js";
 import { registerConfigCommands } from "./commands/config.js";
 import { registerEgressCommands } from "./commands/egress.js";
@@ -12,11 +13,12 @@ import { registerVaultCommands } from "./commands/vault.js";
 import { registerWorkspaceCommands } from "./commands/workspaces.js";
 
 const program = new Command();
+const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
 program
   .name("harakiri")
   .description("Harakiri Sandbox CLI")
-  .version("0.5.0-rc.3")
+  .version(version)
   .addHelpText("after", `
 Examples:
   $ harakiri login --api-url https://sb-api.harakiri.io --api-key hk_live_...

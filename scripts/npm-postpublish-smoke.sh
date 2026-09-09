@@ -55,7 +55,11 @@ if npm ls --global --prefix "${CLI_PREFIX}" @harakiri/shared >/dev/null 2>&1; th
   echo "CLI install unexpectedly pulled @harakiri/shared" >&2
   exit 1
 fi
-"${CLI_PREFIX}/bin/harakiri" --version >/dev/null
+ACTUAL_VERSION="$("${CLI_PREFIX}/bin/harakiri" --version)"
+if [[ "${ACTUAL_VERSION}" != "${VERSION}" ]]; then
+  echo "CLI reports ${ACTUAL_VERSION}, expected published version ${VERSION}" >&2
+  exit 1
+fi
 "${CLI_PREFIX}/bin/harakiri" --help >/dev/null
 
 echo "npm post-publish smoke passed for ${VERSION}"

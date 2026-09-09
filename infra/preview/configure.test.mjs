@@ -10,6 +10,7 @@ test("preview config owns secrets and separates public issuer from internal JWKS
   const config = first["harakiri-values.json"].config;
   assert.equal(config.AUTH_DEV_ALLOW, "0");
   assert.equal(config.SEED_ON_BOOT, "0");
+  assert.equal(config.SANDBOX_ROUTE_DEFAULT_ACCESS_MODE, "token");
   assert.equal(config.KEYCLOAK_ISSUER_ALLOWLIST, "https://auth.example.test/realms/harakiri");
   assert.ok(config.KEYCLOAK_JWKS_URL.includes(".svc.cluster.local"));
   assert.ok(!JSON.stringify(first).includes("dev-opensandbox-key"));

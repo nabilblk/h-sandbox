@@ -8,12 +8,12 @@ settings or other keys. See [authorization and rotation](authorization.md).
 
 ## Workspace and Live Output Preview
 
-**Included in the recorded 0.5.0-rc.6 preview (`next`):** the following commands require the
+**Included in the recorded 0.5.0-rc.7 preview (`next`):** the following commands require the
 matching API. Stable npm 0.4.0 (`latest`) does not include them. Workspace
 allocation also requires operator opt-in.
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.6
+npm install -g @h-sandbox/cli@0.5.0-rc.7
 ```
 
 ```bash
@@ -39,7 +39,7 @@ API as the SDK and dashboard.
 ## Install
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.6
+npm install -g @h-sandbox/cli@0.5.0-rc.7
 harakiri --version
 ```
 

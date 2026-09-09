@@ -10,7 +10,7 @@ and [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 The published package installs a normal `harakiri` executable:
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.6
+npm install -g @h-sandbox/cli@0.5.0-rc.7
 harakiri --version
 ```
 

@@ -64,7 +64,7 @@ test("public SDK runtime conformance", {
     assert(["running", "idle"].includes(ready.sandbox.status));
 
     const run = await harakiri.runSandbox(sandboxId, {
-      command: "python - <<'PY'\nimport os\nprint('conformance:' + os.environ.get('HARAKIRI_CONFORMANCE', 'missing'))\nPY",
+      command: "python3 - <<'PY'\nimport os\nprint('conformance:' + os.environ.get('HARAKIRI_CONFORMANCE', 'missing'))\nPY",
       cwd: "/tmp",
       env: { HARAKIRI_CONFORMANCE: "ok" },
       timeoutMs: 30_000
@@ -100,7 +100,7 @@ test("public SDK runtime conformance", {
     assert(files.files.some((file) => file.path.endsWith("/renamed.txt")));
 
     const { command } = await harakiri.commands.start(sandboxId, {
-      command: `python -m http.server ${routePort} --bind 0.0.0.0`,
+      command: `python3 -m http.server ${routePort} --bind 0.0.0.0`,
       cwd: "/tmp/harakiri-conformance",
       detached: true
     });
