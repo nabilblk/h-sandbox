@@ -97,6 +97,9 @@ restored without restarting those services. The separate k0s VM was not restarte
 
 ## Rollback
 
+This section records the initial revision 34 delivery. For the subsequent
+sidebar correction, use the revision 35 boundary documented below.
+
 Revision 33 retains the previous web image and the current rotated credentials.
 Use this only before a later deployment changes the release:
 
@@ -107,3 +110,46 @@ helm --kubeconfig infra/k0s/harakiri.kubeconfig -n harakiri \
 
 Recheck the public web and OIDC redirect afterwards. No database rollback is
 needed for this web-only delivery; do not invoke the bootstrap installer.
+
+## Sidebar Default Correction
+
+Later on September 9, the user identified a layout regression: initializing
+wide mode to `true` had moved the vertical demo library beneath the player.
+The original desktop sidebar is now the default again. Wide mode remains an
+explicit toggle; the complete video frame, chapter guide, mobile layout and all
+five published films are unchanged.
+
+- Source: `cd545d14606542c4cb69093825564712a955a917`, merged through
+  [PR #27](https://github.com/nabilblk/h-sandbox/pull/27) after all eight required
+  checks and the additional demo verification passed.
+- Image: `core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.8-sidebar.cd545d1`.
+- Multi-platform index: `sha256:53fb396b69dac0cbde265a82069a5fcf98d7b849be957c9163c8c2fc273260d0`.
+- Public Helm release advanced from revision **34** to **35**, reusing the same
+  verified chart. Only the web image changed. Runtime configuration, the
+  application Secret hash, other Helm values and non-web deployment specs were
+  compared and confirmed unchanged.
+- Production entrypoint: `index-BsSWNaNG.js`; existing CSS is unchanged.
+- Verification: 71 web tests, 30 demo tests, both package typechecks,
+  documentation links, source/history secret scan and five-viewport browser
+  acceptance on both the local nginx image and the public site. Browser tests
+  now assert the default vertical menu geometry and both wide-mode transitions.
+  Public media hashes, MIME types, byte-range seeking and missing-media 404s pass.
+- A transient 502 was observed during tunnel handoff; repeat media acceptance
+  passed after recovery. Public web, API health and OIDC discovery returned 200.
+- Build source was an exact Git archive with preserved file modes. The image
+  carries the full source revision label, not a claim of CI image provenance.
+
+Private deployment and browser receipts remain ignored under
+`docs/artifacts/demos-sidebar-deploy-private/`. The
+[completed correction plan](../exec-plans/completed/demos-sidebar-default.md)
+records scope and acceptance. Existing browser tabs need a normal reload.
+
+Rollback for this correction, only while revision 35 remains the latest release:
+
+```sh
+helm --kubeconfig infra/k0s/harakiri.kubeconfig -n harakiri \
+  rollback harakiri 34 --wait=watcher --timeout=5m
+```
+
+This restores the previous wide-by-default web bundle without changing the
+current credentials. Recheck public web and OIDC after any rollback.
