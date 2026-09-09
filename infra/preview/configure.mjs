@@ -51,7 +51,10 @@ export function createConfiguration({ webOrigin, apiOrigin, authOrigin, email })
   const opensandbox = { global: {}, "opensandbox-controller": { namespaceOverride: namespace, controller: { image: { repository: "opensandbox/controller", tag: "v0.2.0" }, snapshot: { imageCommitterImage: "opensandbox/image-committer:v0.1.1" } } },
     "opensandbox-server": {
       namespaceOverride: namespace,
-      server: { replicaCount: 1, port: 8080, image: { repository: "opensandbox/server", tag: "v0.2.3" }, gateway: { enabled: true, host: "sandbox.localhost", gatewayRouteMode: "header", dataplaneNamespace: runtimeNamespace, providerType: "batchsandbox", image: { repository: "opensandbox/ingress", tag: "v1.0.10" } } },
+      server: { replicaCount: 1, port: 8080, image: { repository: "opensandbox/server", tag: "v0.2.3" },
+        resources: { requests: { cpu: "250m", memory: "256Mi" }, limits: { cpu: "1", memory: "1Gi" } },
+        gateway: { enabled: true, replicaCount: 1, host: "sandbox.localhost", gatewayRouteMode: "header", dataplaneNamespace: runtimeNamespace, providerType: "batchsandbox", image: { repository: "opensandbox/ingress", tag: "v1.0.10" },
+          resources: { requests: { cpu: "100m", memory: "128Mi" }, limits: { cpu: "1", memory: "512Mi" } } } },
       configToml: `[server]\nhost = "0.0.0.0"\nport = 8080\napi_key = "${passwords.runtime}"\n[log]\nlevel = "INFO"\n[runtime]\ntype = "kubernetes"\nexecd_image = "opensandbox/execd:v1.1.0"\n[kubernetes]\nnamespace = "${runtimeNamespace}"\ninformer_enabled = true\nworkload_provider = "batchsandbox"\nbatchsandbox_template_file = "/etc/opensandbox/example.batchsandbox-template.yaml"\n[egress]\nimage = "opensandbox/egress:v1.1.7"\nmode = "dns+nft"\n`
     } };
   return { "secrets.json": secrets, "harakiri-values.json": values, "opensandbox-values.json": opensandbox,

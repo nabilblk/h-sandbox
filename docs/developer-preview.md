@@ -8,8 +8,8 @@ separate gates in the [launch plan](exec-plans/active/oss-developer-preview-laun
 
 ## Select a Version
 
-The candidate being prepared is **0.5.0-rc.5**; follow its
-[current delivery receipt](release-notes/0.5.0-rc.5-delivery.md) before installing.
+The candidate being prepared is **0.5.0-rc.6**; follow its
+[current delivery receipt](release-notes/0.5.0-rc.6-delivery.md) before installing.
 The previous delivered candidate is **0.5.0-rc.4**. Its
 [delivery receipt](release-notes/0.5.0-rc.4-delivery.md) and
 [exact upgrade overlay](release-notes/0.5.0-rc.4-values.yaml): the web correction

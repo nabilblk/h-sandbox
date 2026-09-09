@@ -18,6 +18,11 @@ test("preview config owns secrets and separates public issuer from internal JWKS
   assert.equal(Buffer.from(api.CREDENTIAL_VAULT_KEY, "base64").length, 32);
   assert.ok(first["opensandbox-values.json"]["opensandbox-server"].configToml.includes(api.OPEN_SANDBOX_API_KEY));
   for (const component of ["opensandbox-controller", "opensandbox-server"]) assert.equal(first["opensandbox-values.json"][component].namespaceOverride, "harakiri-preview");
+  const server = first["opensandbox-values.json"]["opensandbox-server"].server;
+  assert.equal(server.replicaCount, 1);
+  assert.equal(server.gateway.replicaCount, 1);
+  assert.equal(server.resources.requests.memory, "256Mi");
+  assert.equal(server.gateway.resources.requests.memory, "128Mi");
   const realm = JSON.parse(secrets.find(s => s.metadata.name === "preview-realm").stringData["harakiri-realm.json"]);
   assert.deepEqual(realm.clients[0].redirectUris, ["https://app.example.test/*"]);
   assert.equal(realm.clients[0].directAccessGrantsEnabled, false);

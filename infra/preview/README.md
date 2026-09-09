@@ -19,13 +19,19 @@ The configuration helper creates files only. Installation uses ordinary
 | Identity | Keycloak `26.7.3`, browser PKCE, explicit API audience, operator-owned credentials |
 | Runtime chart | `opensandbox:0.2.2-harakiri.2` from Harbor |
 | Runtime images | server `v0.2.3`, controller `v0.2.0`, execd `v1.1.0`, ingress `v1.0.10`, egress `v1.1.7` |
-| Control plane and packages | `0.5.0-rc.5`; npm channel `next`, never implicit `latest` |
+| Control plane and packages | `0.5.0-rc.6`; npm channel `next`, never implicit `latest` |
 | Scope | Persistent files, commands, files/artifacts, scoped authorization and native egress |
 
 The listed hardware is a reference allocation, not a measured minimum or a
 concurrency guarantee. Image builds and larger agents require additional space
 and memory. The release receipt, not this configuration table, establishes which
 acceptance tests have passed. An arm64 test does not certify amd64 execution.
+
+This single-user evaluation runs one lifecycle server (256 MiB request / 1 GiB
+limit) and one gateway (128 MiB request / 512 MiB limit). The upstream defaults
+reserve 12 GiB for these services alone and leave insufficient room for a 4 GiB
+OpenCode sandbox on the reference node. These overrides are not production
+capacity recommendations; load-test and resize before increasing concurrency.
 
 ## 1. Select the Empty Cluster
 
@@ -101,7 +107,7 @@ mkdir -p preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox \
   --version 0.2.2-harakiri.2 --destination preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
-  --version 0.5.0-rc.5 --destination preview-charts
+  --version 0.5.0-rc.6 --destination preview-charts
 helm install preview-runtime preview-charts/opensandbox-0.2.2-harakiri.2.tgz \
   --namespace harakiri-preview \
   -f infra/preview/.private/opensandbox-values.json --wait --timeout 10m
@@ -122,7 +128,7 @@ under an unmodified restricted OpenShift SCC. Do not bypass that restriction.
 ## 5. Install Harakiri
 
 ```bash
-helm install harakiri preview-charts/harakiri-0.5.0-rc.5.tgz \
+helm install harakiri preview-charts/harakiri-0.5.0-rc.6.tgz \
   --namespace harakiri-preview \
   -f infra/preview/.private/harakiri-values.json --wait --timeout 10m
 kubectl -n harakiri-preview get pods
@@ -151,8 +157,8 @@ to `sb.harakiri.io` or a customer's public installation.
 Install exact published packages into a clean consumer directory:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.5
-npm install --global @h-sandbox/cli@0.5.0-rc.5
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.6
+npm install --global @h-sandbox/cli@0.5.0-rc.6
 harakiri --version
 export HARAKIRI_API_URL=http://127.0.0.1:28482
 harakiri login --help

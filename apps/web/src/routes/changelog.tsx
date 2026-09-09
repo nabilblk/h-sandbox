@@ -5,6 +5,18 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-09-v0-5-0-rc-6",
+    version: "v0.5.0-rc.6",
+    date: "September 9, 2026",
+    title: "Preview installation and container security follow-up",
+    items: [
+      "Apply distribution security updates when building API and web runtime images. Remove unused npm and Yarn from the API runtime; publishing now refreshes base images.",
+      "Correct the isolated evaluation profile's server and gateway resource requests, leaving room for native OpenCode sandboxes on the documented 16 GiB node.",
+      "Keep prior candidate artifacts immutable. SDK, CLI, chart and application versions remain aligned; stable npm latest is unchanged.",
+      "This remains a trusted-team developer preview. Container scan findings, installation evidence and remaining launch gates are recorded separately from feature claims."
+    ]
+  },
+  {
     id: "2026-09-09-v0-5-0-rc-5",
     version: "v0.5.0-rc.5",
     date: "September 9, 2026",

@@ -134,7 +134,7 @@ three successful teams before the first announcement.
 The owner approved completing publication safety, releasing/deploying the next
 coherent preview, and clean native installation verification (points 1-3 of the
 launch assessment). This authorizes reviewed commits/pushes, a new immutable
-`0.5.0-rc.5` candidate on `next`, publishing protection, the owned lab upgrade and
+candidate on `next`, publishing protection, the owned lab upgrade and
 isolated acceptance resources. Preserve npm `latest` at `0.4.0`. Repository
 visibility, public-source opening and the announcement remain the final,
 separately approved step.
@@ -147,12 +147,33 @@ required and will have its own receipt.
 
 - [ ] Finish remaining publication-material review and configure verifiable
   publishing protections, documenting any GitHub plan limitations.
-- [ ] Commit and publish matching rc.5 images, chart, SDK/CLI and release notes;
+- [ ] Commit and publish matching candidate images, chart, SDK/CLI and release notes;
   deploy the candidate without changing live identity, SMTP, data or origins.
 - [ ] Run the published-artifact workflow in an isolated native installation,
   including persistence, upgrade/recovery and owned-resource cleanup.
 - [x] Independent evaluation confirmed complete by the owner, September 9.
 - [ ] Final owner decision: public source/access verification and announcement.
+
+Delivery checkpoint: rc.5 source/tag `792ac9c` and its API/web/chart are published;
+SDK/CLI rc.5 were published from a clean tagged checkout after trusted npm CI
+returned a publish-permission error. Stable `latest` is still 0.4.0. Template
+workflow 34347806269 passed both architectures and both UID checks, including
+OpenCode; the earlier amd64 timeout remains recorded. Native rc.4 baseline
+login/onboarding, imported OpenCode, commands/files, published CLI, server smoke,
+workspace export and termination passed after correcting evaluation resource
+requests. A coordinated two-database, Secret and workspace archive is retained.
+
+Full image scans found inherited distribution/npm packages not covered by the
+clean workspace audit. rc.6 follows rc.5 without overwriting it, applying available
+distribution updates and removing unused runtime package managers. Scan findings
+require disposition; a raw severity is not proof of exploitable application
+behavior. In particular, Debian marks some remaining glibc/Perl findings as
+minor/no-DSA, and one Perl finding requires 32-bit builds.
+
+Additional lab-only fixture credentials were discovered in the master recovery,
+PostgreSQL and runtime connections. Scoped rotation approval was requested;
+these are not covered by the earlier human-password rotation. Do not claim that
+publication safety is complete or change these credentials without that approval.
 
 ### Phase 0: Scope and Planning Baseline
 **Status**: Complete

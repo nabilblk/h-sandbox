@@ -15,6 +15,10 @@ RUN pnpm --filter @harakiri/shared build && pnpm --filter @harakiri/api build
 FROM node:26-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
+# Apply distribution security fixes and omit package managers from the runtime.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules/npm /opt/yarn-* \
+ && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=build /app/node_modules node_modules
 COPY --from=build /app/package.json package.json
 COPY --from=build /app/db db
