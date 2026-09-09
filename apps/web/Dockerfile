@@ -22,7 +22,7 @@ COPY packages/sdk packages/sdk
 COPY apps/web apps/web
 RUN pnpm --filter @harakiri/shared build && pnpm --filter @h-sandbox/sdk build && pnpm --filter @harakiri/web build
 
-FROM nginx:1.29-alpine
+FROM nginx:1.31-alpine
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 # Regenerates /config.js from env at container start (runtime config) before nginx serves.
