@@ -1,9 +1,10 @@
 # OSS Developer Preview Announcement Kit
 
 September 9, 2026. **Draft for owner review. Nothing here has been posted.**
-The owner authorized source opening; actual publication remains conditional on
-the [launch safety checkpoint](../oss-launch-review.md). Do not publish the draft
-below while the repository is private or present it as a production release.
+The owner-authorized source opening is complete, with anonymous clone and release
+downloads verified on September 9. See the [launch checkpoint](../oss-launch-review.md).
+Specific announcement text/channel approval and maintainer notification setup
+remain open. Do not present source publication as a production release.
 
 ## Recommendation
 

@@ -20,13 +20,18 @@ The configuration helper creates files only. Installation uses ordinary
 | Runtime chart | `opensandbox:0.2.2-harakiri.2` from Harbor |
 | Runtime images | server `v0.2.3`, controller `v0.2.0`, execd `v1.1.0`, ingress `v1.0.10`, egress `v1.1.7` |
 | Control plane and packages | `0.5.0-rc.8`; npm channel `next`, never implicit `latest` |
-| Web documentation correction | `0.5.0-rc.8-docs.1`, pinned by the release overlay |
+| Web documentation and positioning correction | `0.5.0-rc.8-docs.2`, pinned by the public-launch overlay |
 | Scope | Persistent files, commands, files/artifacts, scoped authorization and native egress |
 
 The listed hardware is a reference allocation, not a measured minimum or a
 concurrency guarantee. Image builds and larger agents require additional space
 and memory. The release receipt, not this configuration table, establishes which
 acceptance tests have passed. An arm64 test does not certify amd64 execution.
+
+Use the [public-launch overlay](../../docs/release-notes/0.5.0-rc.8-public-values.yaml)
+for the current web image. The original rc.8 release attachments select `docs.1`
+and remain immutable. The [public-launch receipt](../../docs/release-notes/2026-09-09-public-launch.md)
+records the later web-only correction; API, chart and npm versions are unchanged.
 
 This single-user evaluation runs one lifecycle server (256 MiB request / 1 GiB
 limit) and one gateway (128 MiB request / 512 MiB limit). The upstream defaults
@@ -132,7 +137,7 @@ under an unmodified restricted OpenShift SCC. Do not bypass that restriction.
 helm install harakiri preview-charts/harakiri-0.5.0-rc.8.tgz \
   --namespace harakiri-preview \
   -f infra/preview/.private/harakiri-values.json \
-  -f docs/release-notes/0.5.0-rc.8-values.yaml --wait --timeout 10m
+  -f docs/release-notes/0.5.0-rc.8-public-values.yaml --wait --timeout 10m
 kubectl -n harakiri-preview get pods
 ```
 

@@ -14,7 +14,9 @@ future possibilities, not capabilities advertised by this preview.
 
 The current candidate is **0.5.0-rc.8**. Use its
 [delivery receipt](release-notes/0.5.0-rc.8-delivery.md) for the exact artifact
-coordinates, documentation image correction and acceptance scope. SDK/CLI `next`
+coordinates and acceptance scope. The later [public-launch receipt](release-notes/2026-09-09-public-launch.md)
+and [public-launch image overlay](release-notes/0.5.0-rc.8-public-values.yaml)
+select the separately published homepage/vision correction. SDK/CLI `next`
 points to rc.8; `latest` remains `0.4.0`. Do not use the older stable tag as a
 substitute for the scoped authorization release. Source changes are not
 automatically published or deployed.
@@ -23,10 +25,11 @@ The native reference cluster verified anonymous chart, image and npm access,
 operator-owned credentials, real runtime workflows and retained-file recovery.
 The receipt distinguishes fresh-install versions from subsequent upgrades and
 arm64 runtime execution from multiarch image builds. Both rc.8 npm tarballs
-matched registry SHA-512 integrity. The owner has authorized source publication;
-the [launch review](oss-launch-review.md) records the actual visibility checkpoint
-and remaining safety confirmations. Authorization is not proof that anonymous
-source access or a public announcement has happened.
+matched registry SHA-512 integrity. The repository became public on September 9,
+2026. Anonymous clone, license access and all eight rc.8 release downloads were
+verified after opening; the [launch review](oss-launch-review.md) records the
+checks and remaining operational limits. Source publication does not mean a
+social announcement or a stable release has happened.
 
 ## Operator Path
 

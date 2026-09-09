@@ -1,0 +1,12 @@
+# Non-secret public-launch overlay; preserve the installation's existing values.
+# Chart and API stay at rc.8. The web-only correction was built from 2e53944.
+# The original rc.8 release attachments and docs.1 overlay remain unchanged.
+image:
+  registry: core.campus.clusterdiali.me
+  repository: harakiri
+  api:
+    name: harakiri-api
+    tag: 0.5.0-rc.8@sha256:7651a3d3b2819adc40bc94acf896a0dc3b10523f1f17bace47937bcf5c2d2cb8
+  web:
+    name: harakiri-web
+    tag: 0.5.0-rc.8-docs.2@sha256:23409e446df6bd7e28d02d5476ac7e3f41bf98f635f353c58bc0410846b119a1
