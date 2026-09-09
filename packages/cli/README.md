@@ -2,28 +2,33 @@
 
 Command-line client for Harakiri Sandbox.
 
-Full command documentation lives in [docs/cli.md](../../docs/cli.md), with
-error handling guidance in [docs/errors.md](../../docs/errors.md).
+Read the public [command reference](https://sb.harakiri.io/#docs/cli-reference)
+and [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 
-## Install From This Repository
+## Install
 
 The published package installs a normal `harakiri` executable:
 
 ```bash
-npm install -g @h-sandbox/cli
+npm install -g @h-sandbox/cli@0.5.0-rc.5
 harakiri --version
 ```
 
-To test local package changes from this repository, build and install a local
-tarball:
+This pins the recorded Developer Preview; confirm the matching server with your
+operator. The older stable `latest` channel is `0.4.0`. Source changes after the
+rc.5 receipt are unreleased until a new candidate is published.
+
+## Build From Source
 
 Build and install the CLI as a normal executable instead of invoking
 `node packages/cli/dist/index.js` directly:
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
 pnpm cli:pack
-npm install -g ./dist-packages/h-sandbox-cli-0.3.0.tgz
+VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("packages/cli/package.json", "utf8")).version')"
+npm install -g "./dist-packages/h-sandbox-cli-${VERSION}.tgz"
 harakiri --version
 ```
 

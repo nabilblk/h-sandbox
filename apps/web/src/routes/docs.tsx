@@ -104,6 +104,7 @@ export const DocsRoute = ({ selectedId, go, profile, onSignIn, onSignOut, authSt
               <p className="docs-category">{group?.title ?? page.section}</p>
               <h1>{page.title}</h1>
               <p className="lede">{page.lede}</p>
+              <a href={`/docs/${page.id}.md`} className="docs-source-link"><Icon name="file" size={14} /> Markdown</a>
             </header>
             <details className="docs-inline-toc"><summary>On this page</summary><nav aria-label="Page sections">{toc}</nav></details>
             <div className="docs-content" key={page.id}>{page.body}</div>

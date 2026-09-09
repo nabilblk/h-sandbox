@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: harakiri
       POSTGRES_PASSWORD: harakiri
     ports:
-      - "${LOCAL_POSTGRES_PORT:-15432}:5432"
+      - "127.0.0.1:${LOCAL_POSTGRES_PORT:-15432}:5432"
     volumes:
       - harakiri-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +22,7 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     ports:
-      - "${LOCAL_KEYCLOAK_PORT:-8081}:8080"
+      - "127.0.0.1:${LOCAL_KEYCLOAK_PORT:-8081}:8080"
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import:ro
 

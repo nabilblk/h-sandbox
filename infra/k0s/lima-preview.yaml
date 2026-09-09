@@ -1,0 +1,23 @@
+arch: aarch64
+cpus: 8
+memory: 16GiB
+disk: 80GiB
+images:
+  - location: https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img
+    arch: aarch64
+portForwards:
+  - guestPort: 6443
+    hostPort: 16444
+    hostIP: 127.0.0.1
+  - guestPortRange: [1, 65535]
+    ignore: true
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eu
+      modprobe br_netfilter
+      modprobe overlay
+      sysctl -w net.bridge.bridge-nf-call-iptables=1
+      sysctl -w net.bridge.bridge-nf-call-ip6tables=1
+      sysctl -w net.ipv4.ip_forward=1

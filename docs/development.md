@@ -6,7 +6,7 @@ the `harakiri.io` DNS zone, or the public tunnel used by the maintainer lab.
 ## Prerequisites
 
 - Node.js 22 or newer
-- pnpm 11
+- pnpm 11.2.2 (the repository `packageManager` version)
 - Docker or another Compose-compatible runtime
 - kubectl, Helm, Lima, and k0s only when testing the full OpenSandbox-backed
   stack
@@ -19,7 +19,9 @@ SDK artifacts also consumed by the dashboard. Running separate build commands
 concurrently can remove `packages/sdk/dist` while another process is reading it.
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
 cp .env.example .env
 docker compose up -d postgres keycloak
 pnpm db:migrate
@@ -32,6 +34,10 @@ If `15432` or `8081` are already in use, override
 ports.
 
 The seeded local API key is:
+
+Use this only with the loopback-bound development stack. It is a public fixture,
+not a usable deployment secret. Seeding requires the dev runtime, dev auth and a
+non-production Node environment; it must never target a shared database.
 
 ```text
 hk_live_demo_lyra_labs_0000000000000000000000000000000000
@@ -124,17 +130,50 @@ pnpm build
 git diff --check
 ```
 
+## Database and Browser Checks
+
+Database-dependent tests are skipped unless both test URLs are set. Point these
+only at a disposable local test database, never a populated or shared instance:
+
+```bash
+# DATABASE_URL must already identify your disposable PostgreSQL database.
+pnpm db:migrate
+SANDBOX_TEST_DATABASE_URL="$DATABASE_URL" \
+  WORKSPACE_TEST_DATABASE_URL="$DATABASE_URL" pnpm test
+```
+
+The fixture-based browser suites need no live login or model credentials. Build
+workspace dependencies first and choose a free port; the runner refuses to
+reuse an unrelated server:
+
+```bash
+pnpm exec playwright install chromium
+HARAKIRI_E2E_MANAGED_SERVER=1 HARAKIRI_E2E_WEB_PORT=15174 \
+  pnpm exec playwright test tests/e2e/docs-experience.spec.ts \
+  tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts
+```
+
 ## CLI Development
 
 ```bash
 pnpm --filter @h-sandbox/cli build
 pnpm cli:pack
-npm install -g ./dist-packages/h-sandbox-cli-0.1.0.tgz
+VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("packages/cli/package.json", "utf8")).version')"
+npm install -g "./dist-packages/h-sandbox-cli-${VERSION}.tgz"
 harakiri login --api-url http://127.0.0.1:8080 --api-key hk_live_demo_lyra_labs_0000000000000000000000000000000000
 harakiri create --template python-3.12-data --name local-dev
 ```
 
 The installed binary and SDK use the same `/v1` API contracts as the web app.
+
+## Documentation Exports
+
+The web build generates `/llms.txt`, `/llms-full.txt`, `/docs/index.json` and
+`/docs/<page>.md` from the same React page inventory used in the browser. Run
+`pnpm --filter @harakiri/web docs:export` after editing content during an active
+dev session. Both CLI and TypeScript tabs are exported, without interactive
+copy controls. Generated files are ignored; edit the source pages instead.
+`docs-export.test.ts` verifies inventory coverage, tables, links and exact code.
 
 ## Full k0s/OpenSandbox Stack
 

@@ -61,7 +61,7 @@ wait_for_database
 
 pnpm --dir "${ROOT}" --filter @harakiri/api build
 pnpm --dir "${ROOT}" --filter @harakiri/api db:migrate
-pnpm --dir "${ROOT}" --filter @harakiri/api db:seed
+HARAKIRI_RUNTIME_PROVIDER=dev AUTH_DEV_ALLOW=1 pnpm --dir "${ROOT}" --filter @harakiri/api db:seed
 
 (
   cd "${ROOT}"

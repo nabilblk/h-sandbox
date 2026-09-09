@@ -36,9 +36,16 @@ acceptable behavior. Maintainers may remove, edit, or reject comments, commits,
 code, issues, and other contributions that are not aligned with this Code of
 Conduct.
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the maintainers. Reports will be reviewed and investigated promptly
-and fairly.
+Report abusive, harassing, or otherwise unacceptable behavior privately to
+[nabilblk@gmail.com](mailto:nabilblk@gmail.com), using the subject
+`[Harakiri Conduct] <short description>`. The repository maintainer,
+[@nabilblk](https://github.com/nabilblk), is responsible for reviewing reports
+and coordinating a response. Include only the context needed to investigate;
+do not publish private reports or personal information in public issues.
+
+There is no response-time SLA or independent appeals contact currently
+designated. Suspected security vulnerabilities should follow
+[SECURITY.md](SECURITY.md) instead.
 
 ## Attribution
 

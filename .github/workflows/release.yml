@@ -3,8 +3,7 @@ name: Release (Harbor)
 # Publishes the control-plane container images and the Helm chart to Harbor.
 #
 # Triggers:
-#   - pushing a SemVer tag (v1.2.3)         -> versioned release
-#   - manual run (workflow_dispatch)        -> ad-hoc build, optional custom tag
+#   - manual run from main with a reviewed version tag or commit
 #
 # Required configuration (Settings -> Secrets and variables -> Actions):
 #   Secrets:   HARBOR_USERNAME, HARBOR_PASSWORD   (use a Harbor robot account, not admin)
@@ -18,11 +17,12 @@ name: Release (Harbor)
 #          startup), so these are only used when a runtime value is empty.
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
   workflow_dispatch:
     inputs:
+      release_ref:
+        description: "Version tag or full commit SHA on main (empty uses workflow commit)"
+        required: false
+        default: ""
       image_tag:
         description: "Extra image tag to publish (e.g. a branch build). Optional."
         required: false
@@ -56,9 +56,44 @@ env:
   HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'harakiri' }}
 
 jobs:
+  validate:
+    if: github.ref == 'refs/heads/main' && github.repository == vars.RELEASE_REPOSITORY
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+      short_sha: ${{ steps.source.outputs.short_sha }}
+      version: ${{ steps.source.outputs.version }}
+      prerelease: ${{ steps.source.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Validate immutable source before publication credentials are available
+        id: source
+        env:
+          RELEASE_REPOSITORY: ${{ vars.RELEASE_REPOSITORY }}
+          RELEASE_SOURCE_REF: ${{ inputs.release_ref }}
+          RELEASE_IMAGE_TAG: ${{ inputs.image_tag }}
+          RELEASE_CHART_VERSION: ${{ inputs.chart_version }}
+          RELEASE_COMPONENT: ${{ inputs.component }}
+        run: node scripts/check-release-source.mjs
+      - name: Refuse existing or unverifiable candidate artifacts
+        env:
+          RELEASE_CHECK_ARTIFACTS: "1"
+          RELEASE_VERSION: ${{ steps.source.outputs.version }}
+          RELEASE_COMPONENT: ${{ inputs.component }}
+          RELEASE_IMAGE_TAG: ${{ inputs.image_tag }}
+        run: node scripts/check-release-artifacts.mjs
+
   images:
     name: Build & push ${{ matrix.component }} image
     runs-on: ubuntu-latest
+    needs: validate
     # Scope Harbor credentials to a protected environment for extra review/control.
     environment: harbor
     strategy:
@@ -66,16 +101,19 @@ jobs:
       matrix:
         component: ${{ fromJSON(inputs.component == 'web' && '["web"]' || inputs.component == 'api' && '["api"]' || '["api","web"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Log in to Harbor
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.HARBOR_REGISTRY }}
           username: ${{ secrets.HARBOR_USERNAME }}
@@ -83,15 +121,17 @@ jobs:
 
       - name: Image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/harakiri-${{ matrix.component }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,format=short
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+            type=raw,value=${{ needs.validate.outputs.version }},enable=${{ inputs.image_tag == '' }}
+            type=raw,value=sha-${{ needs.validate.outputs.short_sha }}
+            type=raw,value=latest,enable=${{ needs.validate.outputs.prerelease == 'false' && inputs.image_tag == '' }}
             type=raw,value=${{ inputs.image_tag }},enable=${{ inputs.image_tag != '' }}
+          labels: |
+            org.opencontainers.image.revision=${{ needs.validate.outputs.sha }}
+            org.opencontainers.image.version=${{ needs.validate.outputs.version }}
 
       - name: Compose web build args
         id: bargs
@@ -111,7 +151,7 @@ jobs:
           fi
 
       - name: Build & push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: apps/${{ matrix.component }}/Dockerfile
@@ -133,25 +173,23 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.component == 'all' || inputs.component == '' }}
     runs-on: ubuntu-latest
     environment: harbor
-    needs: images
+    needs: [validate, images]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
 
       - name: Resolve chart version
         id: ver
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
         run: |
-          if [ -n "${{ inputs.chart_version }}" ]; then
-            VER="${{ inputs.chart_version }}"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
-            VER="${GITHUB_REF_NAME#v}"
-          else
-            VER="0.0.0-dev.$(git rev-parse --short HEAD)"
-          fi
-          echo "version=$VER" >> "$GITHUB_OUTPUT"
-          echo "Chart version: $VER"
+          echo "version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "Chart version: $RELEASE_VERSION"
 
       - name: Lint chart
         run: helm lint infra/charts/harakiri

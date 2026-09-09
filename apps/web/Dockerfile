@@ -16,7 +16,7 @@ COPY apps/web/package.json apps/web/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/sdk/package.json packages/sdk/package.json
 RUN npm install -g pnpm@11.2.2 \
- && pnpm install --filter @harakiri/web... --frozen-lockfile=false
+ && pnpm install --filter @harakiri/web... --frozen-lockfile
 COPY packages/shared packages/shared
 COPY packages/sdk packages/sdk
 COPY apps/web apps/web

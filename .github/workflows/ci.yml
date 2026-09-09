@@ -6,13 +6,42 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
+  secrets:
+    name: Publishable source and history scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install verified scanner
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/gitleaks.tar.gz" \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/gitleaks-bin"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks-bin" gitleaks
+          echo "$RUNNER_TEMP/gitleaks-bin" >> "$GITHUB_PATH"
+      - name: Scan without printing or uploading secret-bearing findings
+        run: |
+          node --test scripts/check-secrets.test.mjs
+          node scripts/check-secrets.mjs --history
+
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
 
@@ -21,6 +50,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Audit workspace dependencies
+        run: pnpm audit --audit-level=high
 
       - name: Check OpenAPI document
         run: pnpm openapi:check
@@ -31,6 +63,9 @@ jobs:
       - name: Check documentation links
         run: pnpm docs:check
 
+      - name: Release source and channel guards
+        run: node --test scripts/check-release-source.test.mjs scripts/check-release-artifacts.test.mjs infra/scripts/check-local-deploy.test.mjs
+
       - name: Check examples
         run: pnpm examples:check
 
@@ -38,7 +73,7 @@ jobs:
         run: pnpm templates:check
 
       - name: Installation, template release and local supervision contracts
-        run: node --test OCP-install/harakiri-security/install-config.test.mjs infra/templates/release.test.mjs infra/scripts/env/harakiri/local-services.test.mjs
+        run: node --test OCP-install/harakiri-security/install-config.test.mjs infra/templates/release.test.mjs infra/scripts/env/harakiri/local-services.test.mjs infra/preview/configure.test.mjs
 
       - name: Shared tests
         run: pnpm --filter @harakiri/shared test
@@ -67,14 +102,41 @@ jobs:
       - name: API typecheck
         run: pnpm --filter @harakiri/api typecheck
 
+  browser:
+    name: Browser contracts (no live service credentials)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm and install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build interface dependencies
+        run: |
+          pnpm --filter @harakiri/shared build
+          pnpm --filter @h-sandbox/sdk build
+      - name: Install browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Verify documentation, authorization UI and preview states
+        env:
+          HARAKIRI_E2E_MANAGED_SERVER: "1"
+        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts
+
   chart:
     name: Helm chart
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
 
       - name: Lint chart
         run: |
@@ -150,9 +212,11 @@ jobs:
           --health-timeout 3s
           --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
 
@@ -177,9 +241,11 @@ jobs:
     name: Release dry run
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
 
@@ -190,7 +256,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
 
       - name: Dry-run npm package publishing
         run: pnpm publish:dry-run
@@ -218,13 +284,15 @@ jobs:
           - component: web
             dockerfile: apps/web/Dockerfile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build (validate Dockerfile, no push)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}

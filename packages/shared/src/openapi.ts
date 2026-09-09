@@ -1354,21 +1354,28 @@ const schemas: Record<string, JsonSchema> = {
   }, ["name", "registryHost"]),
   UsageSummary: objectSchema({
     sandboxesSpawned: integer,
-    computeHours: number,
-    avgColdStartMs: number,
-    avgRuntimeSeconds: number,
+    computeHours: { ...number, deprecated: true, description: "Unmeasured; zero is a numeric compatibility placeholder, not observed usage. Consult coverage." },
+    avgColdStartMs: { ...number, deprecated: true, description: "Unmeasured; template boot estimates are not observed cold starts. Consult coverage." },
+    avgRuntimeSeconds: { ...number, deprecated: true, description: "Unmeasured; zero is a numeric compatibility placeholder. Consult coverage." },
     concurrentNow: integer,
-    concurrentPeak: integer,
+    concurrentPeak: { ...integer, deprecated: true, description: "Unmeasured; zero is a compatibility placeholder, not an observed peak." },
     series: arrayOf(number),
     topTemplates: arrayOf(objectSchema({ label: string, value: number })),
-    statusBreakdown: arrayOf(objectSchema({ label: string, value: number }))
-  }),
+    statusBreakdown: arrayOf(objectSchema({ label: string, value: number })),
+    coverage: objectSchema({
+      source: { type: "string", enum: ["control_plane_records"] },
+      period: { type: "string", enum: ["retained_records"] },
+      observedAt: { type: "string", format: "date-time" },
+      unavailableMetrics: arrayOf({ type: "string", enum: ["computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentPeak", "series"] }),
+      concurrencyLimitEnforced: { type: "boolean", enum: [false] }
+    })
+  }, ["sandboxesSpawned", "computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentNow", "concurrentPeak", "series", "topTemplates", "statusBreakdown"]),
   OrganizationSettings: objectSchema({
     id: string,
     name: string,
     slug: string,
     idleTtlSeconds: integer,
-    maxConcurrency: integer,
+    maxConcurrency: { ...integer, description: "Configured target only. Concurrency admission is not enforced in this preview." },
     defaultTemplateId: nullableString,
     defaultEgressPolicy: ref("EgressPolicyInput"),
     egressAllowedPresets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),

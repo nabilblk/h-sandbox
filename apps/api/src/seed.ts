@@ -1,10 +1,13 @@
 import { hashApiKey } from "./crypto.js";
 import { closeDb, query } from "./db.js";
 import { migrate } from "./migrate.js";
+import { config } from "./config.js";
+import { assertDevelopmentSeedAllowed } from "./dev-seed-policy.js";
 
 export const localDevApiKey = "hk_live_demo_lyra_labs_0000000000000000000000000000000000";
 
 export const seed = async () => {
+  assertDevelopmentSeedAllowed({ ...config, nodeEnv: process.env.NODE_ENV });
   await migrate();
   const templates = await query<{ count: number }>("SELECT count(*)::int AS count FROM templates");
   const user = await query<{ id: string }>(

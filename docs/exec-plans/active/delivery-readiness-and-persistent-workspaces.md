@@ -24,6 +24,15 @@ further implementation time on it. Use Harakiri-owned fixtures and native
 OpenSandbox for all remaining acceptance. Optional existing runbook support does
 not make that separate project part of this plan.
 
+**Launch sequencing, September 8:** the owner selected the
+[OSS Developer Preview launch](oss-developer-preview-launch.md) as the next
+umbrella milestone. This plan still owns workdir, template, storage, OpenShift
+and recovery acceptance. Complete items used by the advertised preview path
+here; do not duplicate implementations. Full restricted OpenShift/coherent
+recovery acceptance remains necessary for those support claims, but is not a
+prerequisite to a narrower, honestly scoped source preview. No existing gate is
+marked complete or waived by changing the launch sequence.
+
 ## Success Criteria
 
 - [ ] A fresh single-namespace OpenShift installation uses versioned registry
@@ -173,9 +182,14 @@ beyond the retained provider log data.
       workspace status, archive warnings and streamed process output.
 - [x] Use existing UI components, honest empty/degraded/loading states, and
       browser testing across desktop/mobile. No hidden destructive defaults.
-- [ ] Initialize Commands working directory from the sandbox runtime metadata,
+- [x] Initialize Commands working directory from the sandbox runtime metadata,
       not always `/workspace`. Existing ephemeral Python images may not have
       that directory; explicitly selecting `/` passed the final browser smoke.
+      September 9 source follow-up uses `runtimeMetadata.workdir` with `/` as
+      fallback, preserves explicit edits and resets on sandbox changes. Unit
+      tests cover `/`, `/app`, `/workspace` and missing metadata; browser tests
+      verify actual submitted cwd and preservation after refresh. This fix is
+      not in the deployed rc.4 artifacts; new-candidate runtime acceptance remains.
 
 ### Phase 7: Documentation, Acceptance and Delivery
 **Status**: In Progress

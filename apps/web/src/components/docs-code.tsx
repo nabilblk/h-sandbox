@@ -1,4 +1,4 @@
-import { memo, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, memo, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createLowlight } from "lowlight";
 import bash from "highlight.js/lib/languages/bash";
 import typescript from "highlight.js/lib/languages/typescript";
@@ -62,12 +62,17 @@ export const CodeBlock = memo(function CodeBlock({ children: code, language, fil
 
 type CodeExample = { label: string; language: CodeLanguage; code: string; filename?: string };
 
+// Static documentation exports include every language, not just the visible tab.
+export const DocumentationExportContext = createContext(false);
+
 export function CodeTabs({ examples, label, value, onValueChange }: { examples: CodeExample[]; label: string; value?: string; onValueChange?: (value: string) => void }) {
   const id = useId();
+  const exporting = useContext(DocumentationExportContext);
   const [localSelected, setLocalSelected] = useState(0);
   const selected = value === undefined ? localSelected : Math.max(0, examples.findIndex((example) => example.label === value));
   const setSelected = (index: number) => { setLocalSelected(index); onValueChange?.(examples[index].label); };
   const tabs = useRef<HTMLDivElement>(null);
+  if (exporting) return <>{examples.map((example) => <div key={example.label}><h3>{example.label}</h3><CodeBlock language={example.language} filename={example.filename}>{example.code}</CodeBlock></div>)}</>;
   return <div className="doc-code-tabs">
     <div role="tablist" aria-label={label} ref={tabs} onKeyDown={(event) => {
       let next = selected;

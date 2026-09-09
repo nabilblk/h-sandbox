@@ -1,6 +1,6 @@
 {
   "name": "harakiri-sandbox",
-  "version": "0.5.0-rc.4",
+  "version": "0.5.0-rc.5",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
@@ -27,6 +27,7 @@
     "openapi:check": "pnpm --filter @harakiri/shared openapi:check",
     "credential-vault:check": "node scripts/check-credential-vault-boundary.mjs",
     "docs:check": "node scripts/check-doc-links.mjs",
+    "security:scan": "node scripts/check-secrets.mjs --history",
     "test": "pnpm -r --workspace-concurrency=1 test",
     "e2e": "playwright test tests/e2e/harakiri.spec.ts",
     "screenshots": "playwright test tests/e2e/screenshots.spec.ts",

@@ -30,11 +30,14 @@ env:
 
 jobs:
   mirror:
+    if: github.ref == 'refs/heads/main' && github.repository == vars.RELEASE_REPOSITORY
     name: Mirror pinned images
     runs-on: ubuntu-latest
     environment: harbor
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Install crane ${{ env.CRANE_VERSION }}
         run: |

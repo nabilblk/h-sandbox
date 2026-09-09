@@ -6,22 +6,40 @@ interfaces: API, CLI, SDK, and web UI.
 
 ## Development Setup
 
-Start with the generic local development path:
+Use Node.js 22 or newer and the exact pnpm version in `packageManager`.
+Core validation needs no cluster, private registry, model credentials or
+Remotion rendering license. Run commands sequentially:
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+pnpm typecheck
+pnpm test
+pnpm openapi:check
+pnpm docs:check
+```
+
+To run the app locally, add the development-only dependencies:
+
+```bash
 cp .env.example .env
 docker compose up -d postgres keycloak
 pnpm db:migrate
 pnpm db:seed
 pnpm --filter @harakiri/api test
 pnpm --filter @harakiri/web test
-pnpm --filter @harakiri/cli test
-pnpm --filter @harakiri/sdk test
+pnpm --filter @h-sandbox/cli test
+pnpm --filter @h-sandbox/sdk test
 ```
 
 For a full k0s/OpenSandbox stack, follow [docs/development.md](docs/development.md)
 and [docs/runbook.md](docs/runbook.md).
+
+Never forward the local development realm or its seed identities to public
+ingress. Development seeding refuses a non-dev runtime, disabled dev auth or
+`NODE_ENV=production`. This guard does not revoke identities created by older
+releases; operators must review and replace those separately.
 
 ## Architecture Rules
 
@@ -47,6 +65,9 @@ and [docs/runbook.md](docs/runbook.md).
 - [ ] Kubernetes or environment-specific changes stay out of core docs unless
       they apply to every deployment.
 - [ ] `git diff --check` passes.
+- [ ] No private environment, token, customer data or raw deployment evidence is
+      included. Stage intended new files and run `pnpm security:scan` with
+      Gitleaks 8.30.1. Review any scanner exception with the same rigor as code.
 
 ## Useful Commands
 
@@ -73,3 +94,18 @@ pnpm e2e
 Environment-specific harakiri.io checks live under
 `infra/scripts/env/harakiri/` and are not required for generic OSS
 contributions.
+
+## Focused Contributions
+
+- Documentation: run an existing tutorial against your installation, report
+  the exact versions and improve the first failing instruction. Do not send
+  credentials or private task output.
+- Runtime contracts: add a focused unsupported-capability or provider error
+  regression. Keep runtime execution behind `RuntimeProvider`.
+- Accessibility: add a keyboard/mobile regression to an existing Playwright
+  suite and fix the affected control using the current design components.
+
+Agree on larger behavior or contract changes in an issue before implementation.
+The maintainer must confirm a reviewer; no component ownership or response-time
+commitment is implied by this list. Optional demo production has separate
+third-party tooling requirements described in [third-party notices](THIRD_PARTY.md).

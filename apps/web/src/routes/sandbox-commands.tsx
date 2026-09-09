@@ -17,7 +17,8 @@ export function SandboxCommandsPane({ sandbox }: { sandbox: SandboxSummary }) {
   const [loading, setLoading] = useState(true);
   const [following, setFollowing] = useState(false);
   const [commandText, setCommandText] = useState("");
-  const [cwd, setCwd] = useState("/workspace");
+  const [editedCwd, setCwd] = useState<string>();
+  const cwd = editedCwd ?? sandbox.runtimeMetadata?.workdir ?? "/";
   const [busy, setBusy] = useState(false);
   const [confirmKill, setConfirmKill] = useState(false);
   const cursor = useRef<string | undefined>(undefined);

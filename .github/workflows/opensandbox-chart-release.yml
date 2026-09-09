@@ -11,14 +11,17 @@ concurrency:
   cancel-in-progress: false
 jobs:
   chart:
+    if: github.ref == 'refs/heads/main' && github.repository == vars.RELEASE_REPOSITORY
     runs-on: ubuntu-latest
     environment: harbor
     env:
       HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY || 'core.campus.clusterdiali.me' }}
       HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT || 'harakiri' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
       - run: helm lint infra/charts/opensandbox
       - run: helm package infra/charts/opensandbox --destination dist
       - name: Publish versioned chart

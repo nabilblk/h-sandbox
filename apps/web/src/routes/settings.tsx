@@ -77,8 +77,9 @@ export const SettingsRoute = ({ canManage = false }: { canManage?: boolean }) =>
           <div className="card-h">Sandbox defaults</div>
           <div className="settings-form-grid">
             <Field label="Idle TTL"><input className="input mono" type="number" value={org.idleTtlSeconds} onChange={(e) => setOrg({ ...org, idleTtlSeconds: Number(e.target.value) })} /></Field>
-            <Field label="Max concurrency"><input className="input mono" type="number" value={org.maxConcurrency} onChange={(e) => setOrg({ ...org, maxConcurrency: Number(e.target.value) })} /></Field>
+            <Field label="Concurrency target"><input className="input mono" aria-label="Concurrency target" aria-describedby="concurrency-boundary" type="number" min={1} value={org.maxConcurrency} onChange={(e) => setOrg({ ...org, maxConcurrency: Number(e.target.value) })} /></Field>
           </div>
+          <p id="concurrency-boundary" className="workspace-notice">Not enforced in this preview. This target does not prevent additional sandboxes from starting.</p>
         </section>
       </div>
       <section className="card settings-card outbound-card">

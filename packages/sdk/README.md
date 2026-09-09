@@ -4,20 +4,23 @@
 use Harakiri as an OSS sandbox provider. The SDK speaks to the Harakiri control
 plane only; callers should not depend on OpenSandbox or Kubernetes internals.
 
-The full integration guide is in [docs/sdk.md](../../docs/sdk.md), with
-capabilities in
-[docs/integrations/capabilities-and-limits.md](../../docs/integrations/capabilities-and-limits.md)
-and error handling in [docs/errors.md](../../docs/errors.md).
+Read the public [SDK guide](https://sb.harakiri.io/#docs/sdk-usage) and
+[error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
+Repository contributors can also read [the integration contract](../../docs/sdk.md).
 
 ## Install
 
 ```bash
-pnpm add @h-sandbox/sdk
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.5
 # or
-npm install @h-sandbox/sdk
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.5
 ```
 
-Configure the client with an API URL and an API key issued by Harakiri:
+This pins the recorded Developer Preview; confirm the matching server with your
+operator. The older stable `latest` channel is `0.4.0`. Source changes after the
+rc.5 receipt are unreleased until a new candidate is published.
+
+Configure the client with an API URL and a scoped, expiring key issued by Harakiri:
 
 ```ts
 import { HarakiriClient } from "@h-sandbox/sdk";

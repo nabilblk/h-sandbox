@@ -127,6 +127,35 @@ commands using credentials already attached to a shared runtime. Trusted
 reconciliation/resume maintains previously authorized bindings; source disable
 or deletion is the operation that revokes those bindings.
 
+### Exposed Human Credentials
+
+Handle an exposed bootstrap password in Keycloak, not by deleting the Harakiri
+organization or replacing its user record:
+
+1. Verify a separate recovery administrator and identify the exact realm/user.
+   Record the user's organization, roles and dependent integrations privately.
+2. Store a newly generated password in the operator's secret store, then use
+   Keycloak's user password reset operation. Do not reuse a documented fixture
+   or put the replacement in source, shell arguments, logs or support reports.
+3. Log out that user through the Keycloak Admin API. Verify online sessions and
+   separately inspect/remove that user's offline sessions, if any. Do not log
+   out the whole realm or change unrelated users under a single-user approval.
+4. Test old-password and old-refresh-token rejection, new login with the same
+   organization/role, and independent recovery. Leave issuer, audience,
+   redirects and SMTP configuration intact.
+5. Record the existing access token's expiration and test API denial after it.
+   Harakiri's offline JWT validation can still accept it before expiration.
+   Changing the password or Keycloak's not-before value does not make an
+   immediate JWT-denial guarantee at this API.
+6. Review API keys, route tokens and credential sources separately. They are
+   independent credentials; password rotation does not revoke them or undo
+   prior actions. Preserve evidence and scope any additional revocation.
+
+Use the [Keycloak user administration API](https://www.keycloak.org/docs-api/latest/rest-api/index.html#_users)
+for password reset, logout and session inventory. A production incident requiring
+immediate containment needs an explicit access-containment decision while
+previous tokens remain valid, not a claim that password rotation alone suffices.
+
 ## Operator Upgrade
 
 1. Back up PostgreSQL and export the current realm/client configuration. Inventory

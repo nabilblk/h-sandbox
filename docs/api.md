@@ -132,6 +132,18 @@ pnpm openapi:check
 - `POST /v1/org/members`
 - `DELETE /v1/org/members/:id`
 
+Usage represents retained control-plane records, not metered executions. In the
+unreleased preview correction, `coverage.source=control_plane_records`,
+`coverage.period=retained_records` and `coverage.observedAt` identify its scope.
+`coverage.unavailableMetrics` lists compute hours, cold starts, runtime duration,
+historical peak and history. Their legacy numeric fields are deprecated zero
+placeholders; `series` is empty. Do not interpret missing coverage from older
+servers as evidence of measured history. `concurrentNow` counts running records,
+not all pending/idle workloads or cluster capacity. `maxConcurrency` remains a
+configured, **unenforced** target; `coverage.concurrencyLimitEnforced=false` makes
+that boundary explicit. No atomic admission or billing claim is made.
+
+
 ## Sandbox Runtime Metadata
 
 `POST /v1/sandboxes`, `GET /v1/sandboxes`, and `GET /v1/sandboxes/:id` return

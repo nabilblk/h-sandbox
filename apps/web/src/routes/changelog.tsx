@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-09-v0-5-0-rc-5",
+    version: "v0.5.0-rc.5",
+    date: "September 9, 2026",
+    title: "Developer preview documentation and truthful usage",
+    items: [
+      "Replaced synthetic usage history with explicit availability metadata. The dashboard distinguishes retained record counts from unmeasured historical usage; concurrency remains an unenforced target.",
+      "Commands use the runtime working directory, preserve edits, and reset when switching sandboxes. Local seed data is guarded against production and native runtime configurations.",
+      "Added generated Markdown and language-complete documentation indexes, a developer preview guide, contributor checks and private reporting policies.",
+      "Updated vulnerable dependencies and pinned CI actions. Releases validate trusted-main source, matching package versions, immutable candidate artifacts and prerelease channels before publication.",
+      "Added an isolated native Kubernetes evaluation profile with operator-owned credentials, explicit OIDC origins and installation/recovery instructions. This remains a developer preview, not restricted OpenShift certification or a managed-service SLA."
+    ]
+  },
+  {
     id: "2026-09-08-v0-5-0-rc-4",
     version: "v0.5.0-rc.4",
     date: "September 8, 2026",

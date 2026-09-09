@@ -7,12 +7,12 @@ See [authorization, expiry and legacy migration](authorization.md).
 
 ## Workspace and Streaming Preview
 
-**Available in npm 0.5.0-rc.3 (`next`):** `client.workspaces`, `workspaceId` and
+**Included in the recorded 0.5.0-rc.5 preview (`next`):** `client.workspaces`, `workspaceId` and
 `client.commands.stream` require a matching operator-enabled API. Stable npm
 0.4.0 (`latest`) does not include them. Install the candidate explicitly:
 
 ```bash
-npm install @h-sandbox/sdk@0.5.0-rc.3
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.5
 ```
 
 See the [workspace and streaming guide](persistent-workspaces.md)
@@ -30,9 +30,9 @@ and provider-specific command transports.
 Install the public SDK from npm:
 
 ```bash
-pnpm add @h-sandbox/sdk
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.5
 # or
-npm install @h-sandbox/sdk
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.5
 ```
 
 ```ts

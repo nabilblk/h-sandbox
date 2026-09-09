@@ -112,7 +112,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
         </div>
         <div className="detail-body">
           {tab === "terminal" ? <TerminalPane sandbox={sandbox} /> : null}
-          {tab === "commands" ? <SandboxCommandsPane sandbox={sandbox} /> : null}
+          {tab === "commands" ? <SandboxCommandsPane key={sandbox.id} sandbox={sandbox} /> : null}
           {tab === "files" ? <FilesPane id={sandbox.id} /> : null}
           {tab === "logs" ? <LogsPane id={sandbox.id} /> : null}
           {tab === "metrics" ? <MetricsPane id={sandbox.id} /> : null}

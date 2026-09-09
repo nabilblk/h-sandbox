@@ -234,3 +234,4 @@
 @media (prefers-reduced-motion: reduce) {
   .docs-app * { scroll-behavior: auto; }
 }
+.docs-source-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }

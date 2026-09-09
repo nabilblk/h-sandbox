@@ -5,7 +5,7 @@ COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY db/migrations db/migrations
 RUN npm install -g pnpm@11.2.2 \
- && pnpm install --filter @harakiri/api... --frozen-lockfile=false
+ && pnpm install --filter @harakiri/api... --frozen-lockfile
 
 FROM deps AS build
 COPY packages/shared packages/shared

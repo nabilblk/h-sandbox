@@ -1,16 +1,27 @@
 # Harakiri Sandbox Runbook
 
+## Deployment Safety
+
+The legacy `pnpm deploy:k0s` script is a development-only bootstrap. It refuses
+public origins because it reapplies fixed dependency credentials. Public/lab
+upgrades use the [versioned release procedure](ci-release.md), preserving stored
+values and Secrets. For a separate native evaluation cluster use
+[the preview install guide](../infra/preview/README.md).
+
 ## Local Development
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
+pnpm build
+cp .env.example .env
 docker compose up -d postgres keycloak
 pnpm db:migrate
 pnpm db:seed
 pnpm dev
 ```
 
-The seeded API key is:
+The development-only seeded API key is public test data. Never use it on a
+shared or publicly exposed installation:
 
 ```text
 hk_live_demo_lyra_labs_0000000000000000000000000000000000
@@ -18,9 +29,13 @@ hk_live_demo_lyra_labs_0000000000000000000000000000000000
 
 Useful local URLs:
 
-- Web: `http://127.0.0.1:15173`
-- API: `http://127.0.0.1:18082`
-- Keycloak: `http://127.0.0.1:18084`
+- Web: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:8080`
+- Keycloak: `http://127.0.0.1:8081`
+
+The full-stack port-forward profile uses separate ports:
+
+- Web/API/Keycloak: `15173` / `18082` / `18084`
 - Mailpit: `http://127.0.0.1:18086`
 - OpenSandbox proxy: `http://127.0.0.1:18083`
 - OpenSandbox gateway: `http://127.0.0.1:18085`
@@ -263,10 +278,14 @@ pnpm smoke:route
 ## CLI
 
 ```bash
-pnpm --filter @harakiri/cli build
+pnpm --filter @h-sandbox/cli build
 pnpm cli:pack
-npm install -g ./dist-packages/harakiri-cli-0.1.0.tgz
-harakiri login --api-url http://127.0.0.1:18082 --api-key hk_live_demo_lyra_labs_0000000000000000000000000000000000
+VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("packages/cli/package.json", "utf8")).version')"
+npm install -g "./dist-packages/h-sandbox-cli-${VERSION}.tgz"
+# Use your own scoped key from this installation, not the dev fixture.
+read -r -s -p "Harakiri API key: " HARAKIRI_API_KEY
+export HARAKIRI_API_KEY
+harakiri login --api-url http://127.0.0.1:18082 --api-key "$HARAKIRI_API_KEY"
 harakiri create --template python-3.12-data
 harakiri run --stdin agent.py
 harakiri expose sbx_... --port 3000

@@ -3,15 +3,12 @@ import test from "node:test";
 import { getOrganizationSettings, updateOrganizationSettings } from "./services/org-settings.js";
 import { getUsageSummary } from "./services/usage.js";
 
-test("getUsageSummary aggregates counts, runtime totals, templates, and cold starts", async () => {
+test("getUsageSummary reports scoped record counts without manufacturing usage measurements", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const usage = await getUsageSummary(
     { organizationId: "org_usage" },
     {
-      averageTemplateBootMs: async (organizationId) => {
-        assert.equal(organizationId, "org_usage");
-        return 137;
-      },
+      now: () => new Date("2026-09-09T00:00:00Z"),
       query: async (text, params) => {
         calls.push({ text, params });
         if (text.includes("GROUP BY status")) {
@@ -29,25 +26,24 @@ test("getUsageSummary aggregates counts, runtime totals, templates, and cold sta
             rows: [{ label: "python-3.12", value: "5" }] as never[]
           };
         }
-        if (text.includes("avg_runtime_seconds")) {
-          return {
-            rowCount: 1,
-            rows: [{ compute_hours: "12.50", avg_runtime_seconds: "42.25" }] as never[]
-          };
-        }
         throw new Error(`unexpected query: ${text}`);
       }
     }
   );
 
-  assert.deepEqual(calls.map((call) => call.params), [["org_usage"], ["org_usage"], ["org_usage"]]);
+  assert.deepEqual(calls.map((call) => call.params), [["org_usage"], ["org_usage"]]);
   assert.equal(usage.sandboxesSpawned, 5);
   assert.equal(usage.concurrentNow, 3);
-  assert.equal(usage.concurrentPeak, 3);
-  assert.equal(usage.computeHours, 12.5);
-  assert.equal(usage.avgRuntimeSeconds, 42.25);
-  assert.equal(usage.avgColdStartMs, 137);
-  assert.equal(usage.series.length, 14 * 24);
+  assert.equal(usage.concurrentPeak, 0);
+  assert.equal(usage.computeHours, 0);
+  assert.equal(usage.avgRuntimeSeconds, 0);
+  assert.equal(usage.avgColdStartMs, 0);
+  assert.deepEqual(usage.series, []);
+  assert.deepEqual(usage.coverage, {
+    source: "control_plane_records", period: "retained_records", observedAt: "2026-09-09T00:00:00.000Z",
+    unavailableMetrics: ["computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentPeak", "series"],
+    concurrencyLimitEnforced: false
+  });
   assert.deepEqual(usage.topTemplates, [{ label: "python-3.12", value: 5 }]);
   assert.deepEqual(usage.statusBreakdown, [
     { label: "running", value: 3 },
@@ -55,19 +51,13 @@ test("getUsageSummary aggregates counts, runtime totals, templates, and cold sta
   ]);
 });
 
-test("getUsageSummary skips cold start lookup when there are no sandboxes", async () => {
+test("empty organizations still report unmeasured history, not a zero-usage observation", async () => {
   const usage = await getUsageSummary(
     { organizationId: "org_empty" },
     {
-      averageTemplateBootMs: async () => {
-        throw new Error("averageTemplateBootMs should not run");
-      },
       query: async (text) => {
         if (text.includes("GROUP BY status")) return { rowCount: 0, rows: [] as never[] };
         if (text.includes("GROUP BY template_id")) return { rowCount: 0, rows: [] as never[] };
-        if (text.includes("avg_runtime_seconds")) {
-          return { rowCount: 1, rows: [{ compute_hours: "0.00", avg_runtime_seconds: "0.00" }] as never[] };
-        }
         throw new Error(`unexpected query: ${text}`);
       }
     }
@@ -76,6 +66,8 @@ test("getUsageSummary skips cold start lookup when there are no sandboxes", asyn
   assert.equal(usage.sandboxesSpawned, 0);
   assert.equal(usage.avgColdStartMs, 0);
   assert.equal(usage.concurrentNow, 0);
+  assert.ok(usage.coverage?.unavailableMetrics.includes("series"));
+  assert.deepEqual(usage.series, []);
 });
 
 test("getOrganizationSettings selects organization-scoped settings", async () => {

@@ -20157,19 +20157,27 @@
             "type": "integer"
           },
           "computeHours": {
-            "type": "number"
+            "type": "number",
+            "deprecated": true,
+            "description": "Unmeasured; zero is a numeric compatibility placeholder, not observed usage. Consult coverage."
           },
           "avgColdStartMs": {
-            "type": "number"
+            "type": "number",
+            "deprecated": true,
+            "description": "Unmeasured; template boot estimates are not observed cold starts. Consult coverage."
           },
           "avgRuntimeSeconds": {
-            "type": "number"
+            "type": "number",
+            "deprecated": true,
+            "description": "Unmeasured; zero is a numeric compatibility placeholder. Consult coverage."
           },
           "concurrentNow": {
             "type": "integer"
           },
           "concurrentPeak": {
-            "type": "integer"
+            "type": "integer",
+            "deprecated": true,
+            "description": "Unmeasured; zero is a compatibility placeholder, not an observed peak."
           },
           "series": {
             "type": "array",
@@ -20214,6 +20222,54 @@
               ],
               "additionalProperties": false
             }
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "enum": [
+                  "control_plane_records"
+                ]
+              },
+              "period": {
+                "type": "string",
+                "enum": [
+                  "retained_records"
+                ]
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "unavailableMetrics": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "computeHours",
+                    "avgColdStartMs",
+                    "avgRuntimeSeconds",
+                    "concurrentPeak",
+                    "series"
+                  ]
+                }
+              },
+              "concurrencyLimitEnforced": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              }
+            },
+            "required": [
+              "source",
+              "period",
+              "observedAt",
+              "unavailableMetrics",
+              "concurrencyLimitEnforced"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
@@ -20245,7 +20301,8 @@
             "type": "integer"
           },
           "maxConcurrency": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Configured target only. Concurrency admission is not enforced in this preview."
           },
           "defaultTemplateId": {
             "type": [

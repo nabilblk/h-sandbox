@@ -1,119 +1,132 @@
-# Release CI — publishing images & the Helm chart to Harbor
+# Release CI
 
-The [`Release (Harbor)`](../.github/workflows/release.yml) workflow builds and
-publishes, on every `v*.*.*` tag (or a manual run):
+The release consists of matching API and web images, a Helm chart, and the
+TypeScript SDK and CLI. API, scheduler and template-builder share the API image.
+Candidates use npm `next`, without replacing stable `latest`. Published version
+tags and candidate artifacts are immutable.
 
-- `core.campus.clusterdiali.me/harakiri/harakiri-api:<version>`
-- `core.campus.clusterdiali.me/harakiri/harakiri-web:<version>`
-- `oci://core.campus.clusterdiali.me/harakiri/charts/harakiri:<version>` (Helm chart)
+## Publishing Boundary
 
-`scheduler` and `template-builder` reuse the **api** image (different command),
-so only two images are built.
+Publishing workflows run from `main` in the explicitly enabled repository.
+Set `RELEASE_REPOSITORY` to its full `owner/name`. Fork CI builds and tests
+without this variable, release secrets or access to the live cluster.
 
-## One-time setup
+The image/chart and npm workflows first resolve a version tag or full commit
+SHA in an unprivileged job. They verify the commit belongs to `origin/main`
+and all six package versions agree. Only then does a publishing job check out
+that SHA and enter its credential environment. A tag push alone does not publish.
 
-### 1. Harbor: project + robot account
+Configure the `harbor` and `npm` environments to permit only the `main` branch.
+Add required reviewers where the repository plan supports them. On September 9
+the private repository's plan rejected required reviewers: main-only environment
+restrictions and trusted-main workflow guards are active, **not a second-person
+approval rule**. Revisit reviewers when opening the repository.
+See [GitHub environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
 
-Create a Harbor **project** named `harakiri` (Projects → New Project). Then create
-a **robot account** scoped to that project with **push** permission on
-repositories and artifacts — do **not** use the `admin` account in CI.
+## Harbor
 
-> Projects → harakiri → Robot Accounts → New Robot Account → permissions:
-> Repository `push`/`pull`, Artifact `push`/`pull`, Helm Chart `push`/`read`.
-
-Copy the robot name (`robot$harakiri+ci`) and token.
-
-> [!WARNING]
-> The Harbor `admin` password was shared in plaintext while setting this up.
-> **Rotate it** and use the scoped robot account above for CI. Admin credentials
-> should never live in GitHub secrets.
-
-### 2. GitHub: secrets & variables
-
-Repo → Settings → Secrets and variables → Actions. The release jobs use a
-`harbor` **environment** — create it (Settings → Environments → `harbor`) and add
-the secrets there (so you can require reviewers on releases), or add them as repo
-secrets.
-
-Secrets (required):
+Use a project robot with repository `pull` and `push`, scoped to `harakiri`.
+Do not use administrator credentials or repository-wide secrets. Enter values
+through standard input, not command arguments or committed values:
 
 ```bash
-gh secret set HARBOR_USERNAME --env harbor --body 'robot$harakiri+ci'
-gh secret set HARBOR_PASSWORD --env harbor --body '<robot-token>'
+gh variable set RELEASE_REPOSITORY --body nabilblk/h-sandbox
+gh secret set HARBOR_USERNAME --env harbor
+gh secret set HARBOR_PASSWORD --env harbor
 ```
 
-Variables (optional — override the defaults baked into the web image and the
-registry/project names):
+The current release robot expires December 8, 2026. Renew before expiry and
+update both environment secrets together. The registry must present a trusted
+certificate. Anonymous reads are required for distribution and the candidate
+absence check: an unavailable or unauthorized registry fails the check, rather
+than being interpreted as empty.
+See [Harbor project robots](https://goharbor.io/docs/2.14.0/working-with-projects/project-configuration/create-robot-accounts/).
+
+| Artifact | Coordinate |
+| --- | --- |
+| API and workers | `core.campus.clusterdiali.me/harakiri/harakiri-api:<version>` |
+| Web and docs | `core.campus.clusterdiali.me/harakiri/harakiri-web:<version>` |
+| Control-plane chart | `oci://core.campus.clusterdiali.me/harakiri/charts/harakiri` |
+| Maintained runtime chart | `oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox` |
+
+`HARBOR_REGISTRY` and `HARBOR_PROJECT` repository variables override defaults.
+The web image reads `config.PUBLIC_*` from the chart-mounted `/config.js`.
+Always supply the installation's real browser/API/OIDC origins. Do not replace
+existing installation values with development loopback defaults during an
+upgrade. New origins require neither an image rebuild nor document-root writes.
+
+## npm Trusted Publishing
+
+Configure a GitHub Actions trusted publisher on **each package**:
+`@h-sandbox/sdk` and `@h-sandbox/cli`. Match the repository,
+`npm-release.yml` workflow filename and `npm` environment exactly. GitHub login
+or `npm whoami` does not prove the OIDC association works.
+
+The workflow uses Node 22 and pinned npm 11.19.1. Only the publishing job gets
+`id-token: write`. It checks and packs with pnpm, then publishes the verified
+archives, SDK first. Packing rewrites the CLI's `workspace:*` SDK dependency to
+the release version; publishing the raw workspace manifest is unsupported.
+
+Private source can use trusted publishing, but npm provenance requires public
+source. Provenance is enabled only when the source repository is public.
+See [npm trusted publishers](https://docs.npmjs.com/trusted-publishers/).
+If OIDC is unconfigured, stop and configure it or use an explicitly approved
+short-lived token from a clean checkout. Never silently add a broad token to CI
+or move the stable dist-tag to work around authentication.
+
+## Cut a Candidate
+
+Update all six versions, lockfile where needed, contracts and release notes.
+Run CI, inspect the diff and exclude secrets/private evidence. Commit and push
+reviewed source before creating its immutable tag:
 
 ```bash
-gh variable set HARBOR_REGISTRY --body 'core.campus.clusterdiali.me'
-gh variable set HARBOR_PROJECT  --body 'harakiri'
-gh variable set WEB_PUBLIC_API_URL          --body 'https://api.campus.clusterdiali.me'
-gh variable set WEB_PUBLIC_KEYCLOAK_URL     --body 'https://auth.campus.clusterdiali.me'
-gh variable set WEB_PUBLIC_KEYCLOAK_REALM   --body 'harakiri'
-gh variable set WEB_PUBLIC_KEYCLOAK_CLIENT_ID --body 'harakiri-web'
+git tag -a v0.5.0-rc.5 -m 'Harakiri 0.5.0-rc.5'
+git push origin v0.5.0-rc.5
+gh workflow run release.yml --ref main -f release_ref=v0.5.0-rc.5 -f component=all
+gh workflow run npm-release.yml --ref main -f release_ref=v0.5.0-rc.5 -f tag=next
+gh run list --limit 10
 ```
 
-> [!NOTE]
-> The web image is **runtime-configured**: the chart renders `/config.js` from
-> `config.PUBLIC_*` values and mounts it as a ConfigMap, so one published image
-> works in any environment without mutating the nginx document root. The
-> `WEB_PUBLIC_*` repo variables above are only optional build-time fallbacks
-> baked into the bundle; the chart path should set runtime values explicitly.
+The image workflow refuses an existing or unverifiable candidate API, web or
+chart version. It publishes version and source-SHA image tags; stable releases
+also receive `latest`. A single-image repair requires a new explicit image tag
+and `component=api` or `web`; it does not publish a product chart. After a
+partial full release, preserve its evidence and use a new candidate version,
+rather than rerunning over existing artifacts. Never move a release tag.
 
-### 3. Harbor TLS / CA
+Template releases run on reviewed `main` changes/manual dispatch, smoke each
+architecture, publish run-scoped tags and join their manifests. They do not
+promote Harakiri template aliases. The maintained OpenSandbox chart publisher
+compares existing content and refuses changes without a version bump.
+Publication is not permission to modify a live installation.
 
-If Harbor uses a private CA, the GitHub-hosted runner must trust it for
-`docker login`/`helm registry login` to succeed. Either install a publicly
-trusted cert on Harbor, or run the release on a self-hosted runner that trusts
-the CA.
-
-## Cutting a release
+## Verify and Deploy
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+npm view @h-sandbox/sdk dist-tags --json
+npm view @h-sandbox/cli dist-tags --json
+docker pull core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.5
+docker pull core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.5
+helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version 0.5.0-rc.5
 ```
 
-The workflow tags images `0.2.0`, `0.2`, `sha-<short>`, and `latest` (latest only
-for non-prerelease tags), and pushes a chart versioned `0.2.0`.
+Repeat consumption with empty registry/npm configuration to prove anonymous
+access. Record image index/platform digests, chart digest and npm integrity,
+then test the declared runtime architecture. A multi-platform manifest or build
+does not establish successful runtime behavior on both architectures.
 
-Manual build (e.g. from a branch, custom tag):
+Deploy with the [chart guide](../infra/charts/harakiri/README.md), preserving
+operator-owned configuration and secrets. Back up PostgreSQL, persistent
+storage and Vault encryption keys together. Verify browser login/logout,
+public OIDC discovery, authorization and real SDK/CLI execution afterward.
+A rollout alone is not acceptance.
 
-> Actions → Release (Harbor) → Run workflow → set `image_tag` / `chart_version`
-> / `platforms` (`linux/amd64,linux/arm64` for multi-arch).
+The legacy `pnpm deploy:k0s` and `env:harakiri:deploy-public` path applies
+development dependency manifests and fixed credentials. It now refuses public
+existing or requested origins. It is not the upgrade path for the public lab;
+use versioned Helm artifacts and preserved operator values instead.
 
-## Verify
-
-```bash
-# images
-docker pull core.campus.clusterdiali.me/harakiri/harakiri-api:0.2.0
-# chart
-helm registry login core.campus.clusterdiali.me
-helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version 0.2.0
-```
-
-Then deploy with [the chart](../infra/charts/harakiri/README.md).
-
-## Tagged npm Candidates
-
-The npm workflow can publish an immutable source tag using the current workflow
-definition. It publishes SDK before CLI and rejects prereleases targeting
-`latest`:
-
-```bash
-gh workflow run npm-release.yml --ref main \
-  -f release_ref=v0.5.0-rc.3 -f tag=next
-```
-
-The tagged checkout is detached, so pnpm's branch check is disabled only for the
-publish commands. Each package's `prepublishOnly` hook still checks that the
-worktree is clean, rebuilds it and validates the public package boundary. npm
-trusted-publisher authorization must be configured separately for both packages;
-a successful build or GitHub login does not grant npm publishing permission.
-
-## What CI validates on PRs
-
-The [`CI`](../.github/workflows/ci.yml) workflow `chart` and `images` jobs lint +
-render the chart and build both Dockerfiles (no push) on every PR, so packaging
-breakage is caught before a release.
+The [launch review](oss-launch-review.md) separates publication safety,
+artifact delivery, clean installation, independent evaluation and announcement.
+Repository visibility and announcement remain separate owner decisions.

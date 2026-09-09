@@ -1664,15 +1664,29 @@ export type RegistryCredentialResponse = {
 };
 
 export type UsageSummary = {
+  /** Counts retained sandbox records, including failed creates, not billable executions. */
   sandboxesSpawned: number;
+  /** @deprecated Unmeasured. Compatibility placeholder; consult coverage. */
   computeHours: number;
+  /** @deprecated Unmeasured. Template boot estimates are not observed cold starts. */
   avgColdStartMs: number;
+  /** @deprecated Unmeasured. Compatibility placeholder; consult coverage. */
   avgRuntimeSeconds: number;
+  /** Running records at observation time; not a provider-level capacity measurement. */
   concurrentNow: number;
+  /** @deprecated Unmeasured. Compatibility placeholder; consult coverage. */
   concurrentPeak: number;
   series: number[];
   topTemplates: Array<{ label: string; value: number }>;
   statusBreakdown: Array<{ label: string; value: number }>;
+  /** Absent on older servers. Do not interpret absence as measured history. */
+  coverage?: {
+    source: "control_plane_records";
+    period: "retained_records";
+    observedAt: string;
+    unavailableMetrics: Array<"computeHours" | "avgColdStartMs" | "avgRuntimeSeconds" | "concurrentPeak" | "series">;
+    concurrencyLimitEnforced: false;
+  };
 };
 
 export type OrganizationSettings = {
@@ -1680,6 +1694,7 @@ export type OrganizationSettings = {
   name: string;
   slug: string;
   idleTtlSeconds: number;
+  /** Configured target only. The preview does not enforce concurrency admission. */
   maxConcurrency: number;
   defaultTemplateId: string | null;
   defaultEgressPolicy: EgressPolicyInput;

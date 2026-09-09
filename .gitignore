@@ -18,3 +18,7 @@ OCP-install/charts/
 .kube/
 infra/k0s/*.kubeconfig
 infra/k0s/*.yaml.generated
+apps/web/public/docs/
+apps/web/public/llms.txt
+apps/web/public/llms-full.txt
+infra/preview/.private/

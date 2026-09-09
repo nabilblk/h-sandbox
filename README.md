@@ -11,6 +11,39 @@ builder is rootless BuildKit running as per-build Kubernetes Jobs. PostgreSQL is
 the control-plane datastore, and Keycloak-compatible OIDC is used for browser
 authentication.
 
+## Developer Preview
+
+Harakiri gives a trusted development team one API, CLI and TypeScript SDK for
+running tasks in disposable environments, inspecting their results and retaining
+working files when needed. Your application owns agent orchestration and output
+evaluation. OpenSandbox owns runtime execution; Harakiri owns access, policy,
+templates and product lifecycle.
+
+This is a **self-hosted Developer Preview**, not a hosted-service SLA or a
+hostile multi-tenant production guarantee. Start with the
+[preview scope and operator checklist](docs/developer-preview.md).
+Concurrency admission and historical usage metering are not implemented.
+Workspace persistence is not a backup; Vault and egress require an enforceable
+runtime profile. Restricted OpenShift support is not certified by Helm rendering.
+
+## Run Your First Task
+
+An operator provides your API URL and a scoped, expiring key. The last delivered
+candidate is `0.5.0-rc.5`; `latest` still selects the older `0.4.0` release. Pin
+the version compatible with your installation:
+
+```bash
+npm install -g @h-sandbox/cli@0.5.0-rc.5
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.5
+harakiri --version
+```
+
+Follow the [CLI/TypeScript quickstart](https://sb.harakiri.io/#docs/quickstart)
+to create a sandbox, run a checked Python command and clean up. It requires no
+LLM credentials. Then try [persistent workspaces](https://sb.harakiri.io/#docs/workspaces)
+or a [real OpenCode workflow](https://sb.harakiri.io/#demos).
+Publication and native installation results are recorded separately in the candidate receipt.
+
 ## Agent Demos
 
 The [Demos library](https://sb.harakiri.io/#demos) contains four independent
@@ -58,7 +91,9 @@ All public interface contracts should stay aligned through
 ## Quick Start For Contributors
 
 ```bash
-pnpm install
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
 cp .env.example .env
 docker compose up -d postgres keycloak
 pnpm db:migrate
@@ -79,8 +114,9 @@ pnpm conformance:dev
 
 Read [docs/development.md](docs/development.md) for the complete local
 development path. It does not require Cloudflare, a public DNS zone, or a real
-OpenSandbox deployment. The local Keycloak user is `lyra@k.ai` with password
-`harakiri-dev`.
+OpenSandbox deployment. Development seed identities are documented only for the
+loopback stack. Never expose them through public ingress or use them for a
+shared installation.
 
 ## Full k0s/OpenSandbox Stack
 

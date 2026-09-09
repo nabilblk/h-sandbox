@@ -8,12 +8,12 @@ settings or other keys. See [authorization and rotation](authorization.md).
 
 ## Workspace and Live Output Preview
 
-**Available in npm 0.5.0-rc.3 (`next`):** the following commands require the
+**Included in the recorded 0.5.0-rc.5 preview (`next`):** the following commands require the
 matching API. Stable npm 0.4.0 (`latest`) does not include them. Workspace
 allocation also requires operator opt-in.
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.3
+npm install -g @h-sandbox/cli@0.5.0-rc.5
 ```
 
 ```bash
@@ -39,7 +39,7 @@ API as the SDK and dashboard.
 ## Install
 
 ```bash
-npm install -g @h-sandbox/cli
+npm install -g @h-sandbox/cli@0.5.0-rc.5
 harakiri --version
 ```
 
@@ -47,7 +47,8 @@ For repository-local testing:
 
 ```bash
 pnpm cli:pack
-npm install -g ./dist-packages/h-sandbox-cli-*.tgz
+VERSION="$(node -p 'JSON.parse(require("fs").readFileSync("packages/cli/package.json", "utf8")).version')"
+npm install -g "./dist-packages/h-sandbox-cli-${VERSION}.tgz"
 harakiri --help
 ```
 

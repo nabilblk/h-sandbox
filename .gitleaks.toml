@@ -1,0 +1,64 @@
+title = "Harakiri source publication checks"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "harakiri-api-key"
+description = "Harakiri API key (including keys without an assignment context)"
+regex = '''\bhk_(?:live|test)_[A-Za-z0-9_-]{32,}\b'''
+keywords = ["hk_live_", "hk_test_"]
+  [[rules.allowlists]]
+  description = "Exact documented local-only seed, verified inactive on the public lab; guarded by the dev seed policy"
+  condition = "AND"
+  paths = ['''(^|/)(CLAUDE\.md|apps/api/src/seed\.ts|db/migrations/005_remove_seeded_control_plane_data\.sql|docs/(runbook|development|test-report)\.md|tests/conformance/dev-runtime-smoke\.sh|tests/e2e/harakiri\.spec\.ts)$''']
+  regexes = ['''^hk_live_demo_lyra_labs_0000000000000000000000000000000000$''']
+  [[rules.allowlists]]
+  description = "Exact browser fixture returned only by Playwright request interception"
+  condition = "AND"
+  paths = ['''(^|/)tests/e2e/authorization\.spec\.ts$''']
+  regexes = ['''^hk_live_ui_fixture_not_a_real_credential_abcd$''']
+  [[rules.allowlists]]
+  description = "Original static mockup explicitly ends in REDACTED; no stored key matches"
+  condition = "AND"
+  paths = ['''(^|/)sandbox_mockups/components/onboarding\.jsx$''']
+  regexes = ['''^hk_live_28fcf__c81ed_b0a4e_771b3_44a09_REDACTED$''']
+
+[[rules]]
+id = "generic-api-key"
+  [[rules.allowlists]]
+  description = "Route identifier, not an authentication credential"
+  condition = "AND"
+  paths = ['''(^|/)(apps/api/src/route-targets\.test\.ts|packages/cli/src/command\.test\.ts)$''']
+  regexes = ['''^sbx-route-5173$''']
+  [[rules.allowlists]]
+  description = "CLI syntax selecting stdin input; contains no key value"
+  condition = "AND"
+  paths = ['''(^|/)packages/cli/src/command\.test\.ts$''']
+  regexes = ['''^from-stdin=true$''']
+  [[rules.allowlists]]
+  description = "Recorded OpenAPI checksum, verified metadata rather than a credential"
+  condition = "AND"
+  paths = ['''(^|/)apps/demo-video/public/capture/capture\.json$''']
+  regexes = ['''^1383e9e011f000e77fbaca565821c91a497ae8c25d398dd64fe494561780ddff$''']
+  [[rules.allowlists]]
+  description = "Exact masked keys in historical static design mockups"
+  condition = "AND"
+  paths = ['''(^|/)sandbox_mockups/components/(onboarding|dashboard)\.jsx$''']
+  regexes = ['''^hk_live_28fcf__c81ed_b0a4e_771b3_44a09_REDACTED$''', '''^hk_live_28fcf__c81ed_b0a4e\.\.\.$''', '''^hk_live_28fcf\.\.\.c81ed$''', '''^hk_live_44a09\.\.\.771b3$''', '''^hk_test_991ab\.\.\.4c7d0$''']
+
+[[rules]]
+id = "curl-auth-header"
+  [[rules.allowlists]]
+  description = "Exact redaction unit-test sentinel"
+  condition = "AND"
+  paths = ['''(^|/)apps/api/src/redaction\.test\.ts$''']
+  regexes = ['''^hk_test_nested$''']
+
+[[rules]]
+id = "curl-auth-user"
+  [[rules.allowlists]]
+  description = "Loopback-only OpenCode smoke process, including its downloadable source copy"
+  condition = "AND"
+  paths = ['''(^|/)examples/templates/opencode/smoke\.sh$''', '''(^|/)apps/web/public/demos/agent-workflows\.zip!agent-workflows/opencode/smoke\.sh$''']
+  regexes = ['''^opencode:harakiri-smoke$''']

@@ -2,14 +2,29 @@
 
 ## Supported Versions
 
-The project is pre-1.0. Security fixes are applied to the main development
-branch until a release policy is published.
+The project is pre-1.0. The last delivered authorization candidate is
+`0.5.0-rc.4`; npm `latest` still points to `0.4.0`. Older versions do not include
+the consolidated authorization boundary. There is no published backport or
+response-time SLA. Fixes are developed on `main` and must be released as new,
+immutable versions before operators can rely on them.
+
+Use the [rc.4 upgrade order](docs/release-notes/0.5.0-rc.4.md) and
+[preview limits](docs/developer-preview.md). A preview is not permission to
+expose development identities or ignore security reports.
 
 ## Reporting A Vulnerability
 
-Do not open a public issue for a suspected vulnerability. Email the maintainers
-or use GitHub private vulnerability reporting when it is enabled for the
-repository.
+Email [nabilblk@gmail.com](mailto:nabilblk@gmail.com) with the subject
+`[Harakiri Security] <short description>`. The repository maintainer,
+[@nabilblk](https://github.com/nabilblk), owns initial triage, private follow-up
+and coordination of fixes and disclosure. This contact was designated by the
+owner on September 9, 2026. There is no response-time SLA; if you have not
+received an acknowledgement, follow up in the same email thread.
+
+Do not open a public issue for a suspected vulnerability or paste credentials
+into a report. GitHub private vulnerability reporting is not currently offered;
+use email, including while the repository is private. Enable and test GitHub
+reporting notifications before advertising it as another reporting route.
 
 Include:
 
@@ -20,6 +35,10 @@ Include:
 - expected impact
 - whether credentials, registry secrets, sandbox data, or route access are
   involved
+
+Send a minimal reproduction with synthetic data, not a database dump, full
+token, secret-bearing logs or customer repository. Coordinate disclosure and
+credential rotation privately. Removing a string from Git does not revoke it.
 
 ## Project Security Boundaries
 

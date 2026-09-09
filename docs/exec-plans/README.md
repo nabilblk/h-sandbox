@@ -1,6 +1,6 @@
 # Execution Plans
 
-Placement reviewed September 8, 2026. A deployed candidate is not evidence that
+Placement reviewed September 9, 2026. A deployed candidate is not evidence that
 all acceptance gates are complete. Historical completed and abandoned plans stay
 in [completed](completed/); unfinished work stays in [active](active/).
 
@@ -8,8 +8,14 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
-| [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspace and live-output preview; subsequently upgraded to rc.4 on k0s with migration 037 and matching npm SDK/CLI on `next` | Commands working-directory follow-up, fresh restricted OpenShift storage acceptance, complete template architecture checks, registry headroom, host and coherent DB/PVC recovery; unattended npm trusted publishing remains operational debt |
+| [OSS Developer Preview launch](active/oss-developer-preview-launch.md) | Unreleased source: truthful usage/capacity, workdir fix, docs exports, hardened checks, dependency remediation; clean contributor setup, 572 tests and 20 browser tests pass. September 9: approved live admin password/session remediation verified, reporting contact and initial triage assigned | Reporting receipt confirmation, release review/protection, remaining material review, fresh native install, new immutable release, approved opening/announcement and three-team adoption |
+| [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspace/live-output rc.4 on k0s with migration 037 and matching npm packages; Commands workdir source correction verified September 9 | Workdir candidate/native acceptance, fresh restricted OpenShift storage acceptance, complete template architecture checks, registry headroom, host and coherent DB/PVC recovery; unattended npm trusted publishing remains operational debt |
 | [Real product demos](active/real-product-demo-remotion.md) | Public CLI, UI, SDK and browser-QA demos, tutorials and transcripts | Protected unattended agent-refresh credentials, CI environment and live acceptance |
+
+The owner selected OSS Developer Preview as the next umbrella milestone. It
+reuses the other plans without waiving their unfinished production-support
+gates. Source publication, a usable preview, public announcement and independent
+adoption have separate acceptance; creating the plan does not change visibility.
 
 ## Recently Completed
 
@@ -30,7 +36,7 @@ in [completed](completed/); unfinished work stays in [active](active/).
   desktop/mobile browser acceptance; subsequently deployed by the plan above.
 
 There are 32 plans in `completed/`, including the explicitly abandoned and
-superseded OpenSandbox boundary plan. Neither active plan should be archived
+superseded OpenSandbox boundary plan. No active plan should be archived
 until its remaining required work is verified. See the
 [rc.4 delivery receipt](../release-notes/0.5.0-rc.4-delivery.md) for release evidence
 and the exact distinction between this candidate and remaining stable gates.
