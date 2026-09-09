@@ -8,20 +8,20 @@ separate gates in the [launch plan](exec-plans/active/oss-developer-preview-laun
 
 ## Select a Version
 
-The candidate being prepared is **0.5.0-rc.8**; follow its
-[current delivery receipt](release-notes/0.5.0-rc.8-delivery.md) before installing.
-The previous delivered candidate is **0.5.0-rc.4**. Its
-[delivery receipt](release-notes/0.5.0-rc.4-delivery.md) and
-[exact upgrade overlay](release-notes/0.5.0-rc.4-values.yaml): the web correction
-is a distinct image. SDK/CLI `next` points to rc.4; `latest` still points to
-`0.4.0`. Do not use the older stable tag as a substitute for the scoped
-authorization release. Changes in the working tree are not published artifacts.
+The current candidate is **0.5.0-rc.8**. Use its
+[delivery receipt](release-notes/0.5.0-rc.8-delivery.md) for the exact artifact
+coordinates, documentation image correction and acceptance scope. SDK/CLI `next`
+points to rc.8; `latest` remains `0.4.0`. Do not use the older stable tag as a
+substitute for the scoped authorization release. Source changes are not
+automatically published or deployed.
 
-The rc.4 chart was downloaded anonymously on September 9 with an empty Helm
-registry configuration. This verifies chart access, not all container layers,
-the OpenCode image or a clean installation. Both rc.4 npm tarballs also downloaded
-anonymously and matched registry integrity hashes. GitHub release assets remain private.
-Refer to the [launch review](oss-launch-review.md) for the exact verification scope.
+The native reference cluster verified anonymous chart, image and npm access,
+operator-owned credentials, real runtime workflows and retained-file recovery.
+The receipt distinguishes fresh-install versions from subsequent upgrades and
+arm64 runtime execution from multiarch image builds. Both rc.8 npm tarballs
+matched registry SHA-512 integrity. GitHub source/release assets remain private
+until the owner's final publication decision. See the
+[launch review](oss-launch-review.md) for remaining safety confirmations.
 
 ## Operator Path
 
@@ -63,8 +63,8 @@ Harakiri's API, never direct pod access. The private `@harakiri/shared` package
 is not a consumer dependency.
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.4
-npm install -g @h-sandbox/cli@0.5.0-rc.4
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
+npm install -g @h-sandbox/cli@0.5.0-rc.8
 harakiri --version
 ```
 

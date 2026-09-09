@@ -5,8 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
-    id: "2026-09-09-v0-5-0-rc-7",
+    id: "2026-09-09-v0-5-0-rc-8",
     version: "v0.5.0-rc.8",
+    date: "September 9, 2026",
+    title: "Documentation delivery through Helm",
+    items: [
+      "Corrected the Helm-mounted Nginx configuration to serve exported Markdown and JSON documentation with the right content types. Missing documentation returns 404 instead of the app shell.",
+      "Added a regression check for both standalone and Helm web configurations, including the plain-text documentation indexes.",
+      "Published matching SDK and CLI packages on next and verified their installed versions and clean-consumer behavior. Stable latest remains 0.4.0; this remains a developer preview."
+    ]
+  },
+  {
+    id: "2026-09-09-v0-5-0-rc-7",
+    version: "v0.5.0-rc.7",
     date: "September 9, 2026",
     title: "Verified CLI versions and leaner web runtime",
     items: [

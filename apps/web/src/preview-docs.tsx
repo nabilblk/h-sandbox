@@ -14,7 +14,7 @@ export const previewDocs: DocPage = {
     <CodeBlock language="bash">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
 npm install -g @h-sandbox/cli@0.5.0-rc.8
 harakiri --version`}</CodeBlock>
-    <p>For rc.5 installation and upgrade, use its <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.8-delivery.md">delivery receipt</a> and exact values overlay. Match the API, web, chart and package versions to the receipt. Source changes after that receipt are unreleased until a new candidate is published. Existing videos record the version shown in their evidence, not every later change.</p>
+    <p>For installation and upgrade, use the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.8-delivery.md">0.5.0-rc.8 delivery receipt</a> and its exact values overlay. Match each API, web, chart and package artifact to the receipt, including separately versioned documentation corrections. Source changes after the recorded artifacts are not automatically deployed. Existing videos record the version shown in their evidence, not every later change.</p>
     <h2>Runtime profiles</h2>
     <table><thead><tr><th>Profile</th><th>Evidence and limits</th></tr></thead><tbody>
       <tr><td>Kubernetes + native OpenSandbox</td><td>Use the versioned native installation receipt for the exact clean-install and workflow evidence. Independent evaluation has been confirmed by the owner. Architecture support requires a real workflow on the named architecture, not only a successful image build.</td></tr>
