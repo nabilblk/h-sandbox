@@ -15,11 +15,25 @@ label does not excuse exposed secrets, misleading controls, or an installation
 that requires maintainer credentials and private patches.
 
 Launch **Harakiri OSS Developer Preview** around its existing strength: an
-OpenSandbox control plane for running agents against private code and data,
+sandbox control plane for running agents against private code and data,
 with explicit access policy, persistent working files, and coherent API, CLI,
 TypeScript SDK and dashboard workflows. This is a self-hosted developer preview,
 not a managed-service SLA, a general agent framework, or certified multi-tenant
 production support.
+
+September 9 positioning clarification: Harakiri is the product and owns the
+sandbox control-plane contract. OpenSandbox is the current runtime adapter,
+not the product identity or a permanent runtime dependency. The provider
+interface permits future implementations; only the current adapter is supported
+for real execution today. Do not advertise unimplemented provider portability.
+
+September 9 credential authorization: rotate the owned Harakiri lab's human
+admin, Keycloak recovery, PostgreSQL, runtime connection and Vault wrapping
+credentials. Deliver replacements in an owner-only file outside Git and the
+Obsidian vault. Preserve identities, API keys, workloads, encrypted data, SMTP
+and public OIDC origins. This does not authorize changing personal npm, GitHub
+or Harbor accounts. Preflight found that the lab Keycloak H2 database has no
+persistent volume; preserve and verify that database before any pod replacement.
 
 The target outcome is three independent teams installing and completing a useful
 workflow, with second-week use and support interventions recorded. Source
@@ -502,16 +516,16 @@ one independent evaluation of the recommended path. Local dev-provider mocks,
 successful Helm rendering and an existing maintained lab are not substitutes.
 
 ### Phase 6: Controlled Publication and Announcement
-**Status**: In Progress; source opening authorized, credential-remediation approval pending
+**Status**: In Progress; source opening and scoped credential remediation authorized
 
 The owner explicitly authorized making `nabilblk/h-sandbox` public and asked for
 the announcement channel and format. This supersedes the earlier requirement
 to leave point 5 unapproved. It does not establish that visibility changed or
-that publication-safety findings were remediated. Scoped permission to rotate
-the four remaining lab credentials was requested before opening history. Keep
-the source private until that exposure is resolved, or the owner explicitly
-chooses a reviewed alternative. No social account posting is authorized by a
-request for channel advice.
+that publication-safety findings were remediated. The owner subsequently approved
+rotating all owned lab passwords and platform secrets, with private delivery of
+the replacements. Keep the source private until that exposure is resolved.
+Personal npm, GitHub and Harbor account credentials are outside this operation.
+No social account posting is authorized by a request for channel advice.
 
 Repository metadata and Discussions are configured. The
 [announcement kit](../../launch/oss-developer-preview-announcement.md) contains
@@ -519,6 +533,15 @@ the recommended sequence, owner-review draft, proof links and channel rules.
 Do not post its generated text to Hacker News; that channel requires the owner's
 own writing. Stable npm tags, existing release artifacts and application access
 remain unchanged.
+
+Credential checkpoint: all owned lab replacements were activated and verified
+at 16:13 UTC. New human/recovery logins survive Keycloak restart; old passwords,
+the old database password on the application network, and the old runtime API
+key are rejected. Vault's 18 rows were already deleted, with no payload to
+rewrap. Identity, membership, API-key and workspace inventories are preserved.
+Keycloak's previously ephemeral H2 database was recovered and verified in
+isolation, then moved to persistent storage. The owner handoff is outside Git.
+See the [operations receipt](../../release-notes/2026-09-09-public-launch.md).
 
 Publication recheck: 938 candidate files and 64 refs pass Gitleaks 8.30.1.
 All 26 release assets, 145 non-expired Actions artifacts and 86 available logs
@@ -547,7 +570,7 @@ implicitly recorded as completed by these scans.
   Description, homepage, topics and Discussions are configured. Private reporting,
   notification verification and post-publication protection checks remain open.
 - [ ] Publish the owner-approved Developer Preview announcement: problem/audience,
-  OpenSandbox boundary, one tested workflow, install/docs links, preview limits
+  runtime-provider boundary, one tested workflow, install/docs links, preview limits
   and specific invitation for evaluator feedback. No invented users, performance
   comparison, production guarantee or competitor parity claim.
 - [ ] Start with relevant OpenSandbox/agent-platform developers and operators;

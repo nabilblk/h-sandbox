@@ -10,52 +10,51 @@ export const LandingRoute = ({ go, profile, onSignIn, onSignOut, authStatus }: {
     <section className="hero">
       <div className="hero-inner">
         <div className="hero-eyebrow"><BrandMark size={12} /><span>Sandbox control plane for agent runtimes</span><Icon name="arrowR" size={11} /></div>
-        <h1 className="hero-h1">Disposable VMs<br />for code your agents<br /><span className="ink-red">should not be trusted</span> with.</h1>
-        <p className="hero-sub">Harakiri provisions sealed sandboxes, manages lifecycle, routes, schedules, and API keys, and gives teams a polished developer surface on top of OpenSandbox.</p>
+        <h1 className="hero-h1">Harakiri Sandbox.<br /><span className="ink-red">Your sandbox</span><br />control plane.</h1>
+        <p className="hero-sub">Give your agents a place to work. Manage environments, access, retained files and results through one API, SDK, CLI and dashboard. Self-hosted, open source, with runtime execution behind a provider interface.</p>
         <div className="hero-cta">
           <button className="btn btn-primary btn-lg" onClick={() => go("onboarding")}>Start building -&gt;</button>
           <button className="btn btn-lg" onClick={() => go("docs")}>Read the docs <Icon name="arrowR" size={12} /></button>
         </div>
         <div className="hero-meta">
-          <span><Icon name="check" size={12} /> Keycloak auth</span>
-          <span><Icon name="check" size={12} /> Sandbox control plane</span>
-          <span><Icon name="check" size={12} /> k0s deployable</span>
+          <span><Icon name="check" size={12} /> Apache-2.0</span>
+          <span><Icon name="check" size={12} /> Self-hosted</span>
+          <span><Icon name="check" size={12} /> Developer Preview</span>
         </div>
       </div>
       <HeroTerminal />
     </section>
     <section className="section">
       <div className="feat-grid">
-        <Feature icon="bolt" title="Fast lifecycle" body="Create, run, renew, route, and kill sandboxes through one control-plane API." />
-        <Feature icon="lock" title="Tenant scoped" body="Every API key and Keycloak session is tied to an organization boundary." />
+        <Feature icon="bolt" title="One lifecycle" body="Create, run, renew, route, and terminate sandboxes through one control-plane API." />
+        <Feature icon="lock" title="Explicit access" body="Organization permissions and scoped, expiring API keys define who can do what." />
         <Feature icon="terminal" title="CLI first" body="The same API powers the dashboard and the harakiri command-line workflow." />
-        <Feature icon="chart" title="Usage aware" body="Lifecycle events, metrics, and schedules are persisted for inspection." />
-        <Feature icon="globe" title="Routing records" body="Exposed ports are tracked and visible in the network tab." />
-        <Feature icon="box" title="OpenSandbox wrapper" body="Provider integration stays behind a small adapter for runtime portability." />
+        <Feature icon="folder" title="Retained work" body="Keep workspace files between disposable runtimes, with explicit attachment and release." />
+        <Feature icon="globe" title="Network policy" body="Manage preview routes and outbound access with capability-aware enforcement." />
+        <Feature icon="box" title="Provider boundary" body="OpenSandbox powers execution today. Runtime adapters stay behind the Harakiri contract." />
       </div>
     </section>
-    <section className="cta"><div className="cta-inner"><h2 className="cta-h">Your agent ships a bug. The sandbox dies.</h2><button className="btn btn-primary btn-lg" onClick={() => go("onboarding")}>Start building <Icon name="arrowR" size={12} /></button></div></section>
+    <section className="cta"><div className="cta-inner"><h2 className="cta-h">Run the task. Verify the result. Release the runtime.</h2><button className="btn btn-primary btn-lg" onClick={() => go("docs/quickstart")}>Run your first task <Icon name="arrowR" size={12} /></button></div></section>
   </div>
 );
 
 const HeroTerminal = () => (
   <div className="hero-canvas">
     <div className="hterm hterm-brand card">
-      <div className="hterm-bar"><span className="terminal-key">E</span><span className="hterm-title">TERMINAL BANNER</span><span className="pill live" style={{ marginLeft: "auto" }}><span className="dot" /> running</span></div>
+      <div className="hterm-bar"><span className="terminal-key">h.</span><span className="hterm-title">EXAMPLE WORKFLOW</span><a className="hterm-demo-link" href="#demos">Recorded demos</a></div>
       <div className="hterm-body">
         <div className="terminal-brand-banner"><BrandMark size={68} /></div>
         <div className="hterm-line">$ <em>harakiri</em> init</div>
-        <div className="hterm-line muted">-&gt; ok. sealed. ready.</div>
+        <div className="hterm-line muted">Connect to your installation.</div>
         <div className="hterm-line">$ <span className="blink">|</span></div>
         <div className="terminal-sep" />
         <div className="hterm-line">$ <em>harakiri</em> create --template python-3.12-data</div>
-        <div className="hterm-line muted">-&gt; provisioning microVM... <span className="num">137ms</span></div>
-        <div className="hterm-line muted">-&gt; sealed. id=<b>sbx_jt29kf01x4</b></div>
-        <div className="hterm-line">$ <em>harakiri</em> run --stdin agent.py</div>
-        <div className="hterm-line muted">&gt;&gt;&gt; reading market_data.csv (412kb)</div>
-        <div className="hterm-line muted">&gt;&gt;&gt; fitting model on 18,402 rows</div>
-        <div className="hterm-line"><span className="ok">ok</span> rmse=<span className="num">0.0418</span> - runtime=<span className="num">3.41s</span></div>
-        <div className="hterm-line muted">-&gt; sandbox terminated. disk zeroed.</div>
+        <div className="hterm-line muted">Use the returned sandbox ID below.</div>
+        <div className="hterm-line">$ <em>harakiri</em> run "$SBX_ID" \</div>
+        <div className="hterm-line">&nbsp;&nbsp;--cmd "python -c 'print(2 + 2)'"</div>
+        <div className="hterm-line"><span className="ok">4</span></div>
+        <div className="hterm-line">$ <em>harakiri</em> kill "$SBX_ID"</div>
+        <div className="hterm-line muted">Retain files separately when the next task needs them.</div>
         <div className="hterm-line">$ <span className="blink">|</span></div>
       </div>
     </div>

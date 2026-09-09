@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Harakiri Sandbox is an open-source control plane for disposable developer sandboxes on top of the OpenSandbox runtime. It owns the product surface (orgs, API keys, templates, builds, routes, schedules, usage, audit) while OpenSandbox owns the sandbox runtime. PostgreSQL is the datastore; Keycloak-compatible OIDC handles browser auth.
+Harakiri Sandbox is a self-hosted, open-source sandbox control plane for agent applications. It owns the product surface (orgs, API keys, templates, builds, routes, schedules, usage, audit and developer experience). Runtime execution is delegated through `RuntimeProvider`; OpenSandbox is the current real execution adapter, not the product identity. Future providers must implement and validate that contract; do not claim they already exist. PostgreSQL is the datastore; Keycloak-compatible OIDC handles browser auth.
 
 ## Workspace Layout & Package Names
 

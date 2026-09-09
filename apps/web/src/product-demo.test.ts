@@ -29,3 +29,13 @@ test("demos have public deep links and do not autoplay", () => {
   assert.match(html, /Video chapters/);
   assert.doesNotMatch(html, /autoPlay/);
 });
+
+test("landing presents the control plane without unverified runtime guarantees", () => {
+  const html = renderToStaticMarkup(createElement(LandingRoute, { go() {}, onSignIn() {}, onSignOut() {} }));
+  assert.match(html, /Harakiri Sandbox/);
+  assert.match(html, /control plane/);
+  assert.match(html, /provider interface/);
+  assert.match(html, /OpenSandbox powers execution today/);
+  assert.match(html, /EXAMPLE WORKFLOW/);
+  assert.doesNotMatch(html, /OpenSandbox wrapper|Disposable VMs|microVM|137ms|disk zeroed|rmse=/);
+});

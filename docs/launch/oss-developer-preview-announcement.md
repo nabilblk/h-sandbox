@@ -17,7 +17,7 @@ for integration feedback are more useful than an unsupported parity claim.
 | --- | --- | --- |
 | 1 | GitHub | Public repository, versioned prerelease, install guide, security policy and one maintainer announcement in Discussions after text approval |
 | 2 | LinkedIn | A personal maintainer post of roughly 150-220 words with a captioned 60-90 second real workflow excerpt; link directly to the repository and docs |
-| 3 | OpenSandbox community | A short technical introduction describing the control-plane boundary and inviting architecture/integration feedback; check the relevant category or ask moderators before posting |
+| 3 | Developer and platform-engineering communities | A concrete agent workflow and integration write-up; choose communities where the maintainer already participates and check their promotion rules |
 | 4 | Show HN | A hands-on submission written by the owner, linking the usable project, with the owner available to answer technical questions |
 
 These lengths and the sequence are recommendations, not platform requirements
@@ -27,16 +27,33 @@ Hunt and paid promotion until the first installation feedback is resolved.
 
 OpenSandbox has its own [Discussions](https://github.com/opensandbox-group/OpenSandbox/discussions)
 and community links in its [repository](https://github.com/opensandbox-group/OpenSandbox).
-Credit that runtime explicitly; Harakiri is not its replacement, an official
-OpenSandbox release or an endorsed integration unless the upstream team says so.
+Credit the current runtime in technical architecture discussions. This is an
+optional integration-feedback channel, not Harakiri's product category. Harakiri
+is not an official OpenSandbox release or an endorsed integration unless the
+upstream team says so.
+
+## Product Story
+
+**Harakiri Sandbox: the self-hosted sandbox control plane for agent applications.**
+
+Lead with the developer's workflow and the durable product contract: environments,
+access, templates, workspaces, observable commands, results and cleanup across
+API, TypeScript SDK, CLI and dashboard. Do not introduce Harakiri as an
+"OpenSandbox wrapper" or only a control plane for one runtime.
+
+Execution is delegated through `RuntimeProvider`. OpenSandbox is the current
+real execution adapter. Another provider or a future first-party runtime could
+implement that contract, but neither multiple supported adapters nor live
+cross-provider migration is available today. Keep that distinction explicit
+without making the current dependency the headline.
 
 ## Announcement Draft
 
 **Owner-review draft for LinkedIn or Harakiri's own GitHub Discussions, not HN.**
 Publish only after anonymous source/release access and safety checks pass.
 
-> I'm open-sourcing Harakiri Sandbox: a self-hosted control plane built on
-> OpenSandbox for teams integrating agent execution into their own products.
+> I'm open-sourcing Harakiri Sandbox: a self-hosted sandbox control plane for
+> teams building agent applications.
 >
 > The focus is the developer experience around the runtime: create an environment,
 > run a task, reconnect to its output, retrieve the result, and retain working files
@@ -44,8 +61,9 @@ Publish only after anonymous source/release access and safety checks pass.
 > control-plane API.
 >
 > Harakiri manages organizations, scoped API keys, templates, persistent workspaces
-> and supported network policy. OpenSandbox handles execution. Your application
-> still owns the agent, model selection and verification of its work.
+> and supported network policy. Execution sits behind a provider interface:
+> OpenSandbox is the current adapter, not the identity of the product. Your
+> application still owns the agent, model selection and verification of its work.
 >
 > The demo shows OpenCode doing actual coding work, followed by independent tests
 > of the result. A deterministic first task also works without any model account.
@@ -101,7 +119,7 @@ community engagement or requests for votes.
 
 Facts the owner can verify before writing:
 
-- Harakiri is the product/control-plane layer; OpenSandbox is the runtime.
+- Harakiri is the sandbox control plane; OpenSandbox is today's runtime adapter.
 - API, TypeScript SDK, CLI and dashboard are available in the current preview.
 - Exact install, validation and architecture boundaries are in the receipt.
 - Workspaces retain files, not processes or memory; they are not backups.

@@ -1,10 +1,14 @@
 # Developer Preview: Installation and Evaluation
 
-Harakiri is a self-hosted OpenSandbox control plane for trusted development
+Harakiri is a self-hosted sandbox control plane for trusted development
 teams. The current implementation is a Developer Preview, not an unlimited
 public execution service, managed-service SLA or certified hostile multi-tenant
 platform. Source opening, usable installation and broad announcement are
 separate gates in the [launch plan](exec-plans/active/oss-developer-preview-launch.md).
+
+Runtime execution sits behind a provider interface. OpenSandbox is the currently
+integrated execution provider; additional adapters or a first-party runtime are
+future possibilities, not capabilities advertised by this preview.
 
 ## Select a Version
 

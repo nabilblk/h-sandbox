@@ -72,30 +72,33 @@ Generated sandbox routes intentionally live one label below `harakiri.io` so
 the existing `*.harakiri.io` edge certificate covers them. Exact tunnel host
 rules for product services must stay above the wildcard sandbox rule.
 
-Deploy the generic k0s manifests with these environment overrides when this
-maintainer environment should be active:
+Use the [versioned Helm installation and upgrade guide](../../../preview/README.md)
+and the exact delivery receipt for this public lab. Preserve the current Secrets,
+Helm values, public origins and SMTP configuration. `pnpm deploy:k0s` and the
+legacy `env:harakiri:deploy-public` wrapper apply development fixtures and are
+now intentionally rejected when an existing or requested origin is public.
+Do not bypass `check-local-deploy.mjs` to redeploy the lab.
 
-```bash
-pnpm env:harakiri:deploy-public
-```
+### Credentials and Identity Persistence
 
-The wrapper exports the environment below and calls `infra/scripts/deploy-k0s.sh`.
-Use the explicit form when you need to override individual values:
+The September 9 launch rotation replaces the lab's human administrator,
+Keycloak recovery, PostgreSQL, runtime connection and Vault wrapping credentials.
+The owner-only handoff is under `~/.config/harakiri/private/`, outside Git and
+the public docs. Do not publish it, put its values in shell history, or restore
+old Helm values/Secrets independently of the matching database backup.
 
-```bash
-export HARAKIRI_PUBLIC_API_URL=https://sb-api.harakiri.io
-export HARAKIRI_PUBLIC_WEB_URL=https://sb.harakiri.io
-export HARAKIRI_PUBLIC_KEYCLOAK_URL=https://sb-auth.harakiri.io
-export HARAKIRI_SANDBOX_ROUTE_DOMAIN=harakiri.io
-export HARAKIRI_SANDBOX_ROUTE_SCHEME=https
-export HARAKIRI_KEYCLOAK_ISSUER_ALLOWLIST=http://keycloak.keycloak.svc.cluster.local:8080/realms/harakiri,http://127.0.0.1:18084/realms/harakiri,https://sb-auth.harakiri.io/realms/harakiri
-export SENDGRID_API_KEY=...
-pnpm deploy:k0s
-```
+Keycloak's lab H2 database now uses `keycloak/keycloak-data` and a single
+`Recreate` deployment. The previously ephemeral database was copied, recovered
+in an isolated instance and checked for matching realms, users, roles, clients
+and signing keys before cutover. This lab repair is not a production H2 or HA
+recommendation. New shared installations should use the PostgreSQL-backed
+Keycloak profile in the versioned install guide.
 
-When `SENDGRID_API_KEY` is present, `deploy-public.sh` configures Keycloak SMTP
-with SendGrid, `no-reply@harakiri.io`, STARTTLS, and SMTP debug disabled. If the
-variable is absent, the wrapper leaves SMTP untouched.
+Never mount an empty volume over an existing H2 directory and assume the data
+was migrated. Preserve and verify the original database first. The public lab's
+import ConfigMap has no development users; the source development manifest still
+has loopback-only fixtures. Do not apply that whole manifest to the public lab.
+The live SMTP settings remain separate from password rotation.
 
 ## DNS And TLS
 

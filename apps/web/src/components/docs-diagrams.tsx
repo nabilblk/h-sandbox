@@ -23,15 +23,15 @@ export function ArchitectureDiagram() {
         </dl>
         <div className="diagram-dependencies"><span><strong>Keycloak</strong> identity verification</span><span><strong>PostgreSQL</strong> product metadata</span></div>
       </div>
-      <Connector>RuntimeProvider contract / OpenSandbox APIs</Connector>
+      <Connector>RuntimeProvider contract</Connector>
       <div className="diagram-node diagram-runtime" data-diagram-node>
-        <div className="diagram-node-heading"><Icon name="box" size={19} /><strong>OpenSandbox</strong><span>Runtime execution</span></div>
+        <div className="diagram-node-heading"><Icon name="box" size={19} /><strong>Runtime provider</strong><span>OpenSandbox adapter today</span></div>
         <div className="diagram-runtime-detail"><span>Sandbox lifecycle</span><span>Commands and filesystem</span><span>Network enforcement</span></div>
         <div className="diagram-runtime-foot"><span>Isolated sandbox processes</span><span>Optional workspace volume</span></div>
       </div>
       <div className="diagram-foundation"><Icon name="settings" /><span><strong>Operator-managed infrastructure</strong> Kubernetes, registry, network and storage</span></div>
     </div>
-    <figcaption>Harakiri delegates runtime execution to OpenSandbox. PostgreSQL stores product state; workspace volumes store retained files. Application integrations never need sandbox pod access.</figcaption>
+    <figcaption>Harakiri owns the control-plane contract. The current runtime adapter uses OpenSandbox; additional adapters are not yet supported. PostgreSQL stores product state; workspace volumes store retained files. Applications never need sandbox pod access.</figcaption>
   </figure>;
 }
 

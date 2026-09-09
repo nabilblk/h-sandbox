@@ -10,8 +10,10 @@ safety confirmation, deployment, publication and adoption gates.
 ## Current Delivery Checkpoint
 
 - The owner subsequently authorized the final source-publication step. The
-  repository is still private at this checkpoint: scoped credential rotation
-  and data-preserving Vault rewrap were requested before exposing history. No
+  repository is still private at this checkpoint. Scoped credential rotation
+  is now authorized and verified; see the [launch receipt](release-notes/2026-09-09-public-launch.md).
+  The 18 Vault rows were already erased tombstones, so no ciphertext required
+  rewrapping. Identity persistence was corrected before restarting Keycloak. No
   social announcement has been posted. Repository description, homepage, topics
   and Discussions are configured; source visibility is a separate operation.
 - The publication recheck fetched current remote heads/tags and scanned 938
@@ -81,16 +83,14 @@ safety confirmation, deployment, publication and adoption gates.
   installation did not require these repairs. Secrets, SMTP and origins stayed
   unchanged. The exact intervention sequence is retained in the receipt.
 
-Safety remains open: external receipt/monitoring of the approved reporting inbox,
-and scoped permission to replace additional lab platform credentials (Keycloak
-master recovery, PostgreSQL, OpenSandbox connection and Vault encryption key).
-A private preflight command failure echoed Secret data into the session's tool
-output before its error handler was corrected. The Vault key therefore needs a
-verified, data-preserving rewrap, not blind replacement. No secret value belongs
-in this receipt or release assets. These operations were not performed under the
-earlier human-only approval. Do not mark G1 complete based on the human-password
-fix alone. Residual image advisories also require operator review before broader
-exposure; no risk waiver or announcement was issued.
+The later scoped approval covered the human and recovery passwords, database,
+runtime connection and Vault wrapping key. All replacements are verified and
+delivered privately. The earlier private helper output exposure is remediated
+for these credentials; no secret values belong in this receipt or release assets.
+External receipt of the reporting inbox is still not claimed. A verified GitHub
+private-reporting route and repository protections are part of the source-opening
+step. Residual image advisories remain disclosed; no production risk waiver or
+social announcement was issued.
 
 The following sections retain the earlier investigation and its evidence;
 current delivery status is maintained above and in the versioned receipts.

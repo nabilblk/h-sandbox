@@ -884,6 +884,18 @@ spec:
       port: 8025
       targetPort: 8025
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-data
+  namespace: keycloak
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -891,6 +903,8 @@ metadata:
   namespace: keycloak
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: keycloak
@@ -899,6 +913,8 @@ spec:
       labels:
         app: keycloak
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:26.4
@@ -916,6 +932,8 @@ spec:
           ports:
             - containerPort: 8080
           volumeMounts:
+            - name: identity-data
+              mountPath: /opt/keycloak/data/h2
             - name: realm
               mountPath: /opt/keycloak/data/import
             - name: harakiri-theme
@@ -927,6 +945,9 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 10
       volumes:
+        - name: identity-data
+          persistentVolumeClaim:
+            claimName: keycloak-data
         - name: realm
           configMap:
             name: keycloak-realm

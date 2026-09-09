@@ -5,12 +5,19 @@
 [Installation](infra/preview/README.md) |
 [Discussions](https://github.com/nabilblk/h-sandbox/discussions)
 
-Harakiri Sandbox is an open-source control plane for disposable developer
-sandboxes on top of [OpenSandbox](https://github.com/opensandbox-group/OpenSandbox).
-It provides the product surface around a
-runtime provider: API keys, organization state, template builds, routes,
-scheduling, usage, audit events, a web dashboard, an SDK, and the `harakiri`
-CLI.
+**The self-hosted sandbox control plane for agent applications.**
+
+Harakiri turns sandbox infrastructure into a consistent developer experience:
+prepare an environment, run work, inspect the result and release the runtime.
+Organizations, scoped API keys, templates, persistent workspaces, routes and
+access policy share one contract across the API, TypeScript SDK, CLI and dashboard.
+
+The control plane is the product; runtime execution is a provider responsibility.
+The current execution adapter uses
+[OpenSandbox](https://github.com/opensandbox-group/OpenSandbox). The architecture
+allows other providers, including a future Harakiri runtime, without making one
+provider the product identity. Those alternatives are a direction, not available
+integrations today. See the [vision and architecture](https://sb.harakiri.io/#docs/vision-architecture).
 
 The default runtime provider is OpenSandbox. The default Dockerfile template
 builder is rootless BuildKit running as per-build Kubernetes Jobs. PostgreSQL is
@@ -22,8 +29,8 @@ authentication.
 Harakiri gives a trusted development team one API, CLI and TypeScript SDK for
 running tasks in disposable environments, inspecting their results and retaining
 working files when needed. Your application owns agent orchestration and output
-evaluation. OpenSandbox owns runtime execution; Harakiri owns access, policy,
-templates and product lifecycle.
+evaluation. The runtime provider executes the workload; Harakiri owns access,
+policy, templates and product lifecycle.
 
 This is a **self-hosted Developer Preview**, not a hosted-service SLA or a
 hostile multi-tenant production guarantee. Start with the
