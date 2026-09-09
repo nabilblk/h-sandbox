@@ -38,8 +38,8 @@ test('the full-frame UI tour has an external guide and is the default demo', () 
   assert.deepEqual(demos[0].chapters, uiProductTourChapters);
   assert.equal(demos.length, 5);
   const html = renderToStaticMarkup(createElement(DemosRoute, { go() {} }));
-  assert.match(html, /demo-library-wide/);
-  assert.match(html, /aria-label="Wide player"/);
+  assert.doesNotMatch(html, /demo-library-wide/);
+  assert.match(html, /aria-label="Wide player"[^>]+aria-pressed="false"/);
   assert.match(html, /Current chapter guide/);
   assert.match(html, /Observed outcome/);
   assert.match(html, /aria-label="Next chapter"/);

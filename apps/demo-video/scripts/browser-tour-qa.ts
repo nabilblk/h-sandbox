@@ -24,6 +24,20 @@ try {
     await page.goto(base + '/#demos/ui-product-tour');
     const video = page.locator('video');
     await expect(video).toBeVisible();
+    await expect(page.locator('.demo-library')).not.toHaveClass(/demo-library-wide/);
+    const wideToggle = page.getByRole('button', { name: 'Wide player', exact: true });
+    if (width > 760) {
+      await expect(wideToggle).toHaveAttribute('aria-pressed', 'false');
+      const index = await page.locator('.demo-library-index').boundingBox();
+      const player = await page.locator('.product-demo-section').boundingBox();
+      assert.ok(index && player && index.x + index.width < player.x, `${name}: library must start beside the player`);
+      const items = await page.locator('.demo-library-item').all();
+      for (let i = 1; i < items.length; i++) {
+        const previous = (await items[i - 1]!.boundingBox())!;
+        const current = (await items[i]!.boundingBox())!;
+        assert.ok(Math.abs(current.x - previous.x) <= 1 && current.y > previous.y + previous.height, `${name}: demo menu must be vertical`);
+      }
+    }
     await expect.poll(() => video.evaluate((v: HTMLVideoElement) => Number.isFinite(v.duration))).toBe(true);
     const metadata = await video.evaluate((v: HTMLVideoElement) => ({ width: v.videoWidth, height: v.videoHeight, duration: v.duration, paused: v.paused, fit: getComputedStyle(v).objectFit }));
     assert.deepEqual(metadata, { width: 1920, height: 1080, duration: uiProductTourSeconds, paused: true, fit: 'contain' });
@@ -60,10 +74,17 @@ try {
       await expect.poll(() => page.evaluate(() => document.fullscreenElement?.tagName)).toBe('VIDEO');
       await page.screenshot({ path: join(output, 'native-fullscreen.png') });
       await page.evaluate(() => document.exitFullscreen());
-      await page.getByRole('button', { name: 'Wide player', exact: true }).click();
-      await expect(page.locator('.demo-library')).not.toHaveClass(/demo-library-wide/);
       await page.screenshot({ path: join(output, 'side-by-side-library.png'), fullPage: true });
-      await page.getByRole('button', { name: 'Wide player', exact: true }).click();
+      await wideToggle.click();
+      await expect(wideToggle).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('.demo-library')).toHaveClass(/demo-library-wide/);
+      const index = (await page.locator('.demo-library-index').boundingBox())!;
+      const player = (await page.locator('.product-demo-section').boundingBox())!;
+      assert.ok(index.y >= player.y + player.height, 'Wide mode must place the library below the player');
+      await page.screenshot({ path: join(output, 'wide-player-library.png'), fullPage: true });
+      await wideToggle.click();
+      await expect(wideToggle).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.locator('.demo-library')).not.toHaveClass(/demo-library-wide/);
     }
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name}: horizontal overflow`);
     for (const el of await page.locator('.demo-library a, .demo-library button').all()) {
@@ -92,6 +113,6 @@ try {
   await expect(fallback.locator('video')).toHaveAttribute('controls', '');
   await expect(fallback.getByRole('heading', { name: 'Prove the files survived', exact: true })).toBeVisible();
   await noJs.close();
-  await writeJson(join(output, 'result.json'), { checkedAt: new Date().toISOString(), results, nativeFullscreen: true, wideToggle: true, captions: true, fallback: true, noJs: true, homepageUnchanged: true });
-  console.log('Tour browser QA passed: five viewports, decoded pixels, guide/chapters, captions, fullscreen, width toggle and fallbacks.');
+  await writeJson(join(output, 'result.json'), { checkedAt: new Date().toISOString(), results, defaultVerticalLibrary: true, nativeFullscreen: true, wideToggle: true, captions: true, fallback: true, noJs: true, homepageUnchanged: true });
+  console.log('Tour browser QA passed: five viewports, default vertical library, decoded pixels, guide/chapters, captions, fullscreen, width toggle and fallbacks.');
 } finally { await browser.close(); }
