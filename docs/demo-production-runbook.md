@@ -119,6 +119,12 @@ before the next commit. A rendered/local preview is not a public deployment. A
 web-only deployment is a separate operation; API, Keycloak and npm releases are
 not needed to distribute the tour.
 
+For a local build from `git archive`, extract with preserved archive permissions
+(`tar -xpf`) inside the private build directory. A restrictive outer umask must
+not make copied public files unreadable by nginx. Run `server:qa` against the
+actual container before rollout, not only against Vite. See the
+[first public tour delivery](release-notes/2026-09-09-ui-product-tour-delivery.md).
+
 ### Known Diagnostic Boundary
 
 The current access-test endpoint labels a missing curl/wget/Python probe as
