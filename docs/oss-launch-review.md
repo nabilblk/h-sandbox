@@ -1,17 +1,32 @@
 # OSS Launch Review
 
-September 9, 2026. **In progress; source publication is not approved.**
+September 9, 2026. **Source publication authorized; safety closure and visibility change pending.**
 Initial baseline `3cac386fb4bc0ca2ef9c0f4ce9be8ab4141d75cb`. Reviewed changes are now
-committed/pushed through `0c1db0c`; earlier candidates were retained immutably and
+committed/pushed through `e090f12`; earlier candidates were retained immutably and
 rc.8 with its separate docs web image is the delivered candidate. The
 [execution plan](exec-plans/active/oss-developer-preview-launch.md) owns remaining
 safety confirmation, deployment, publication and adoption gates.
 
 ## Current Delivery Checkpoint
 
+- The owner subsequently authorized the final source-publication step. The
+  repository is still private at this checkpoint: scoped credential rotation
+  and data-preserving Vault rewrap were requested before exposing history. No
+  social announcement has been posted. Repository description, homepage, topics
+  and Discussions are configured; source visibility is a separate operation.
+- The publication recheck fetched current remote heads/tags and scanned 938
+  candidate files and 64 refs with no unresolved source/history findings. Remote
+  inventory now covers six releases/26 assets, 201 Actions artifacts and 139
+  runs. All 26 release assets, 145 non-expired artifacts and 86 available run
+  archives were downloaded and reviewed. Fifty-six expired artifacts and 53
+  unavailable run logs are excluded. The expanded 158.44 MB content scan flagged
+  21 occurrences of the source image tag `sha-792ac9c5f4bd`, including duplicate
+  archive/extracted copies; each resolves to reviewed commit `792ac9c`. They are
+  not authentication material. No remote logs/artifacts were deleted or blanket
+  scanner exception added. Newly generated material still needs its own check.
 - Owner-authorized points 1-3 cover safety, candidate delivery and isolated
   native verification. Independent evaluation is owner-confirmed complete.
-  Public source opening and announcement remain the last, separately approved step.
+  Those delivery results do not by themselves close the remaining safety items.
 - SDK/CLI `0.5.0-rc.8` are published on `next`. Anonymous consumer installation and
   the exact CLI version post-publish check pass. `latest` remains `0.4.0`.
   Trusted npm CI publication was denied; a clean-tag, authenticated local publish

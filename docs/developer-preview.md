@@ -19,9 +19,10 @@ The native reference cluster verified anonymous chart, image and npm access,
 operator-owned credentials, real runtime workflows and retained-file recovery.
 The receipt distinguishes fresh-install versions from subsequent upgrades and
 arm64 runtime execution from multiarch image builds. Both rc.8 npm tarballs
-matched registry SHA-512 integrity. GitHub source/release assets remain private
-until the owner's final publication decision. See the
-[launch review](oss-launch-review.md) for remaining safety confirmations.
+matched registry SHA-512 integrity. The owner has authorized source publication;
+the [launch review](oss-launch-review.md) records the actual visibility checkpoint
+and remaining safety confirmations. Authorization is not proof that anonymous
+source access or a public announcement has happened.
 
 ## Operator Path
 
@@ -99,7 +100,7 @@ task times separately without assuming a predetermined time-to-first-task.
 | Restricted OpenShift | No SCC modifications are promised. Vault/mutable egress requiring `NET_ADMIN` are unsupported; full restricted-profile acceptance remains pending |
 | Artifacts | Exact receipts and checksums, not blanket provenance/signature or vulnerability-free claims |
 
-The unreleased usage correction adds `coverage` and empty `series` to
+The usage correction shipped in the current candidate adds `coverage` and empty `series` to
 `GET /v1/usage`. Deprecated numeric fields stay zero for compatibility; consult
 `coverage.unavailableMetrics` before rendering them. Missing coverage on older
 servers does not establish accurate history. See [API semantics](api.md).

@@ -156,7 +156,9 @@ required and will have its own receipt.
 - [x] Run the published-artifact workflow in an isolated native installation,
   including persistence, upgrade/recovery and owned-resource cleanup.
 - [x] Independent evaluation confirmed complete by the owner, September 9.
-- [ ] Final owner decision: public source/access verification and announcement.
+- [x] Final owner decision: source opening explicitly authorized on September 9.
+- [ ] Execute source opening after safety closure, verify anonymous access and
+  obtain approval for the specific announcement text/channel before posting.
 
 Delivery checkpoint: rc.5 source/tag `792ac9c` and its API/web/chart are published;
 SDK/CLI rc.5 were published from a clean tagged checkout after trusted npm CI
@@ -500,7 +502,32 @@ one independent evaluation of the recommended path. Local dev-provider mocks,
 successful Helm rendering and an existing maintained lab are not substitutes.
 
 ### Phase 6: Controlled Publication and Announcement
-**Status**: Not Started
+**Status**: In Progress; source opening authorized, credential-remediation approval pending
+
+The owner explicitly authorized making `nabilblk/h-sandbox` public and asked for
+the announcement channel and format. This supersedes the earlier requirement
+to leave point 5 unapproved. It does not establish that visibility changed or
+that publication-safety findings were remediated. Scoped permission to rotate
+the four remaining lab credentials was requested before opening history. Keep
+the source private until that exposure is resolved, or the owner explicitly
+chooses a reviewed alternative. No social account posting is authorized by a
+request for channel advice.
+
+Repository metadata and Discussions are configured. The
+[announcement kit](../../launch/oss-developer-preview-announcement.md) contains
+the recommended sequence, owner-review draft, proof links and channel rules.
+Do not post its generated text to Hacker News; that channel requires the owner's
+own writing. Stable npm tags, existing release artifacts and application access
+remain unchanged.
+
+Publication recheck: 938 candidate files and 64 refs pass Gitleaks 8.30.1.
+All 26 release assets, 145 non-expired Actions artifacts and 86 available logs
+were downloaded. Fifty-six expired artifacts and 53 unavailable logs remain
+explicit exclusions. The expanded scanner flagged 21 copies of one immutable
+API image tag; exact source-commit matching resolved them as non-secret metadata.
+No remote objects were deleted. The populated lab and its 35 documentation pages
+passed read-only HTTP checks again. The remaining credential operation is not
+implicitly recorded as completed by these scans.
 
 - [ ] Review G1/G2/G3 separately with the owner. Confirm repository identity,
   source/media scope, public artifacts, launch candidate, support ownership,
@@ -517,6 +544,8 @@ successful Helm rendering and an existing maintained lab are not substitutes.
 - [ ] Set the approved repository description/topics and enable/verify private
   security reporting and maintainer notifications. Source opening may occur at
   G1 before broader announcement if the owner chooses that narrower action.
+  Description, homepage, topics and Discussions are configured. Private reporting,
+  notification verification and post-publication protection checks remain open.
 - [ ] Publish the owner-approved Developer Preview announcement: problem/audience,
   OpenSandbox boundary, one tested workflow, install/docs links, preview limits
   and specific invitation for evaluator feedback. No invented users, performance

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup and integration questions
+    url: https://github.com/nabilblk/h-sandbox/discussions/categories/q-a
+    about: Ask about installation, SDK or CLI usage with sanitized configuration and exact versions.
+  - name: Private security report
+    url: https://github.com/nabilblk/h-sandbox/security/policy
+    about: Follow the security policy to contact the maintainer privately. Do not disclose vulnerabilities or credentials in public issues.
+  - name: Developer and operator documentation
+    url: https://sb.harakiri.io/#docs
+    about: Start with the versioned installation guide, quickstart and supported preview boundaries.

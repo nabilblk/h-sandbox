@@ -1,7 +1,13 @@
 # Harakiri Sandbox
 
+[Documentation](https://sb.harakiri.io/#docs) |
+[Demos](https://sb.harakiri.io/#demos) |
+[Installation](infra/preview/README.md) |
+[Discussions](https://github.com/nabilblk/h-sandbox/discussions)
+
 Harakiri Sandbox is an open-source control plane for disposable developer
-sandboxes on top of OpenSandbox. It provides the product surface around a
+sandboxes on top of [OpenSandbox](https://github.com/opensandbox-group/OpenSandbox).
+It provides the product surface around a
 runtime provider: API keys, organization state, template builds, routes,
 scheduling, usage, audit events, a web dashboard, an SDK, and the `harakiri`
 CLI.
@@ -25,6 +31,20 @@ hostile multi-tenant production guarantee. Start with the
 Concurrency admission and historical usage metering are not implemented.
 Workspace persistence is not a backup; Vault and egress require an enforceable
 runtime profile. Restricted OpenShift support is not certified by Helm rendering.
+
+Operators start with the [versioned Kubernetes installation](infra/preview/README.md).
+Developers with an existing installation start with the task below. Contributors
+can use the [runtime-free local setup](#quick-start-for-contributors); its fixtures
+are not real sandbox isolation.
+
+## Community and Support
+
+Use [Discussions](https://github.com/nabilblk/h-sandbox/discussions) for setup
+questions, design feedback and integration experiences. Report reproducible bugs
+through the [issue templates](https://github.com/nabilblk/h-sandbox/issues/new/choose).
+For suspected vulnerabilities, follow [SECURITY.md](SECURITY.md) privately,
+not a public issue or discussion. The maintainer is
+[@nabilblk](https://github.com/nabilblk); there is no support-response SLA.
 
 ## Run Your First Task
 

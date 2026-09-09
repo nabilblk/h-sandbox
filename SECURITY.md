@@ -2,15 +2,19 @@
 
 ## Supported Versions
 
-The project is pre-1.0. The last delivered authorization candidate is
-`0.5.0-rc.4`; npm `latest` still points to `0.4.0`. Older versions do not include
-the consolidated authorization boundary. There is no published backport or
-response-time SLA. Fixes are developed on `main` and must be released as new,
-immutable versions before operators can rely on them.
+The project is pre-1.0. The current delivered candidate is `0.5.0-rc.8` on npm
+`next`; npm `latest` still points to `0.4.0`. The consolidated authorization
+boundary first shipped in `0.5.0-rc.4` and is retained in rc.8. Do not use the
+older stable channel as a substitute for the current preview. There is no
+published backport or response-time SLA. Fixes are developed on `main` and must
+be released as new, immutable versions before operators can rely on them.
 
-Use the [rc.4 upgrade order](docs/release-notes/0.5.0-rc.4.md) and
-[preview limits](docs/developer-preview.md). A preview is not permission to
-expose development identities or ignore security reports.
+Use the [rc.8 delivery and image-scan receipt](docs/release-notes/0.5.0-rc.8-delivery.md),
+the [authorization upgrade order](docs/release-notes/0.5.0-rc.4.md) when upgrading
+from older versions, and the [preview limits](docs/developer-preview.md).
+Inherited distribution advisories remain open; published source and a passing
+JavaScript dependency audit do not establish vulnerability-free images. A
+preview is not permission to expose development identities or ignore reports.
 
 ## Reporting A Vulnerability
 
