@@ -113,17 +113,19 @@ three successful teams before the first announcement.
   launch, usable preview, announcement, adoption and production-support gates.
 - [ ] G1: No unresolved publication-blocking secret, private-data or rights
   finding; the owner approves the exact publication scope.
-- [ ] G2: An isolated installation uses downloadable artifacts and documented
+- [x] G2: An isolated installation uses downloadable artifacts and documented
   operator-owned configuration without maintainer credentials or private edits.
-- [ ] G2: One declared architecture/profile passes the real OpenSandbox workflow
+- [x] G2: One declared architecture/profile passes the real OpenSandbox workflow
   with published SDK/CLI; contributor tests work without live service secrets.
-- [ ] G2: Usage, concurrency, permissions, persistence and runtime limitations
+- [x] G2: Usage, concurrency, permissions, persistence and runtime limitations
   are represented honestly across API, UI, packages and public documentation.
-- [ ] G3: An independent evaluator completes installation and workflow; the
-  reviewed preview is published and announced only after owner approval.
+- [x] G3 evaluation: owner confirms independent evaluation complete; details
+  are not available and are not attributed to this agent's runs.
+- [ ] G3 publication: public source/access verification and announcement remain
+  the final owner-approved step, separate from candidate artifact delivery.
 - [ ] G4: Three independent teams complete the workflow, with opt-in evidence,
   support interventions and follow-up outcomes recorded.
-- [ ] Record release/support ownership, residual risks, verification receipts
+- [x] Record release/support ownership, residual risks, verification receipts
   and a prioritized next milestone; archive only on actual completion or an
   explicitly documented decision to abandon/re-scope.
 
@@ -145,11 +147,13 @@ the release wait for a second independent evaluation or invent its environment,
 version or results. Technical clean-install verification in this plan remains
 required and will have its own receipt.
 
-- [ ] Finish remaining publication-material review and configure verifiable
+- [x] Finish remaining publication-material review and configure verifiable
   publishing protections, documenting any GitHub plan limitations.
-- [ ] Commit and publish matching candidate images, chart, SDK/CLI and release notes;
+- [ ] Close safety findings: scoped platform credential rotation/rewrap, reporting
+  inbox acknowledgement and operator disposition of residual image advisories.
+- [x] Commit and publish matching candidate images, chart, SDK/CLI and release notes;
   deploy the candidate without changing live identity, SMTP, data or origins.
-- [ ] Run the published-artifact workflow in an isolated native installation,
+- [x] Run the published-artifact workflow in an isolated native installation,
   including persistence, upgrade/recovery and owned-resource cleanup.
 - [x] Independent evaluation confirmed complete by the owner, September 9.
 - [ ] Final owner decision: public source/access verification and announcement.
@@ -184,6 +188,17 @@ that the Helm-mounted Nginx configuration had not inherited the standalone docs
 locations. rc.8 corrects this chart-only behavioral defect with a source regression
 test covering both configurations, retaining immutable rc.7 artifacts. No broad
 publication or risk acceptance is implied by a successful lab rollout.
+
+Final authorized-delivery checkpoint: rc.8 core artifacts and the distinct docs
+web correction are published; source CI, Harbor workflows and npm consumer checks
+passed. Native rc.8 conformance and retained-workspace reattachment passed. The
+populated lab is at revision 31 with public health, OIDC, 35 Markdown pages,
+indexes and 404 behavior verified. Both fixture releases/namespaces and the VM
+were removed after evidence retention. The versioned receipt records the lab's
+historical Nginx field-conflict/subPath recovery, unavailable free model, scanner
+scope and all observed interventions. Independent evaluation is owner-confirmed.
+G1 still requires platform credential rotation/rewrap, inbox acknowledgement and
+residual-risk review; the final public-opening/announcement decision stays last.
 
 ### Phase 0: Scope and Planning Baseline
 **Status**: Complete
@@ -237,11 +252,11 @@ dependency audit found 28 advisories (18 high). Compatible updates and bounded
 security overrides now pass the full audit with zero known advisories, including
 optional demo tooling. No deployed image is claimed patched by a lockfile change.
 
-- [ ] Inventory the intended public surface: all relevant Git refs/history,
+- [x] Inventory the intended public surface: all relevant Git refs/history,
   historical configuration, vendored sources, docs/screenshots/media, LFS and
   release assets, workflow logs/artifacts, package contents and container layers.
   Check ignored material only for accidental inclusion in an archive/image.
-- [ ] Run a maintained secret scanner against history and the publishable tree;
+- [x] Run a maintained secret scanner against history and the publishable tree;
   manually review hits and binary/media material the scanner cannot establish.
   Record tool/version, refs examined, exclusions and unresolved findings. Keep
   raw output private and redacted in any shareable receipt.
@@ -255,15 +270,19 @@ optional demo tooling. No deployed image is claimed patched by a lockfile change
   Scope: the confirmed development human administrator on the owned public lab.
   Other live secrets remain unchanged; future findings from the remaining
   material review require their own scoped remediation.
-- [ ] If private material needs history or remote-artifact removal, propose the
+- [x] If private material needs history or remote-artifact removal, propose the
   exact objects, backup/coordination steps and effects on immutable release
   references. Do not rewrite or erase evidence automatically. Rescan the final
-  proposed public refs and preserve a sanitized remediation record.
-- [ ] Review Apache-2.0 source/package declarations, vendored OpenSandbox notices,
+  proposed public refs and preserve a sanitized remediation record. No history
+  rewrite or remote deletion is indicated by reviewed artifact content; live
+  credential remediation remains separately open. Expired/410 content is excluded.
+- [x] Review Apache-2.0 source/package declarations, vendored OpenSandbox notices,
   dependency redistribution, fonts, demo media and third-party tooling. Resolve
   GitHub's `Other` license classification without inventing replacement terms.
   The maintainer's Remotion eligibility does not establish every contributor's
   rendering rights; distinguish core use from optional demo production.
+  GitHub now identifies Apache License 2.0. Scope and retained notices are
+  recorded in THIRD_PARTY.md; this is not a legal certification.
 - [x] Review public-fork CI: no untrusted contribution receives release secrets,
   privileged environments, unsafe artifact execution or shared cluster access.
   Use least-privilege workflow permissions and reviewed/pinned dependencies;
@@ -293,43 +312,47 @@ GitHub documents [visibility effects](https://docs.github.com/en/repositories/ma
 and [private reporting](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository).
 
 ### Phase 2: One Reproducible Distribution and Install Path
-**Status**: In Progress
+**Status**: Complete for the scoped native preview; upstream scan limits disclosed
 
 An empty registry configuration successfully downloaded the rc.4 Helm chart and
 read the API image's multi-architecture manifest. Chart digest matches the rc.4
 receipt. Anonymous rc.4 SDK/CLI tarball downloads also matched registry integrity.
-Image layers, a fresh installation and template readiness are not yet
-verified; no artifacts, cluster resources or distribution visibility were changed.
+That was the initial read-only checkpoint. Final artifact, native install,
+upgrade/recovery, cleanup and lab rollout evidence is now recorded in
+[the rc.8 receipt](../../release-notes/0.5.0-rc.8-delivery.md). No source visibility
+or stable channel change occurred.
 
-- [ ] Select one named preview environment and record Kubernetes, OpenSandbox,
+- [x] Select one named preview environment and record Kubernetes, OpenSandbox,
   Keycloak, PostgreSQL, chart, API/web/worker and flagship template versions,
   architecture, storage, ingress/TLS, privilege and minimum resource prerequisites.
   Reuse the existing release-manifest/Helm patterns; do not add a second installer.
-- [ ] Verify image/chart/template pulls in a fresh environment with empty registry
+- [x] Verify image/chart/template pulls in a fresh environment with empty registry
   and npm credential stores. Distinguish public artifact downloads from the
   operator's own database, OIDC and scoped Harakiri credentials.
-- [ ] Decide the public artifact endpoint from evidence. Retain Harbor for
+- [x] Decide the public artifact endpoint from evidence. Retain Harbor for
   internal/customer mirroring. If anonymous Harbor distribution or availability
   is unsuitable, add an owner-approved public OCI mirror through the existing
   workflow, preserving digests and documenting access/retention. Do not silently
   assume Harbor is already public or migrate every consumer to another registry.
-- [ ] Produce one versioned bill of materials and copyable verification commands
+- [x] Produce one versioned bill of materials and copyable verification commands
   for images, chart archives, template and npm packages. Inspect tarballs/image
   contents, retain checksums and record source/workflow references. Generate and
   review an SBOM/dependency vulnerability report for the advertised bundle;
   document risk dispositions and any unsigned/provenance limitations explicitly.
-- [ ] Validate a maintainer-triggered, protected release end to end. Fix unattended
+  Receipt scope is the selected arm64 API/web SBOMs, with runtime/template and
+  amd64 scan coverage explicitly left open; do not infer full-bundle clearance.
+- [x] Validate a maintainer-triggered, protected release end to end. Fix unattended
   npm publishing where possible; a reproducible approved manual fallback is
   acceptable for this preview if labeled honestly and tested. Preserve private
   root/shared packages, immutable tags and candidate-versus-stable separation.
-- [ ] Resolve registry storage headroom before retrying the required OpenCode
+- [x] Resolve registry storage headroom before retrying the required OpenCode
   architecture jobs. Publish/promote only verified template artifacts. Complete
   both architecture checks for any multiarch claim, not only a successful build.
-- [ ] Correct install defaults to the tested bundle, explicit public OIDC
+- [x] Correct install defaults to the tested bundle, explicit public OIDC
   issuer/audience/redirects and newly generated bootstrap secrets. No development
   identity, localhost public redirect, in-place web image write, hidden source
   chart fallback or rollout-restart repair in the documented operator path.
-- [ ] Perform fresh install, a documented upgrade with an existing workspace,
+- [x] Perform fresh install, a documented upgrade with an existing workspace,
   and uninstall of only the test release. Distinguish logical archive from
   physical PVC retention/reclamation; verify admin login and a native runtime.
   A backup catalog check does not prove coherent database/PVC recovery.
@@ -340,7 +363,7 @@ historical template catalog and restricted OpenShift certification are not gates
 for a narrower advertised Kubernetes preview.
 
 ### Phase 3: Accurate Preview Behavior
-**Status**: In Progress
+**Status**: Complete for the selected preview profile
 
 - [x] Remove the generated 336-point usage history and false historical peak.
   Show unknown/insufficient-history states, not zero or repeated current values.
@@ -362,7 +385,7 @@ for a narrower advertised Kubernetes preview.
 - [x] Verify authorization remains server-enforced: member/admin/key boundaries,
   credential audience, scope composition, revocation, expiry, tenant separation
   and denial behavior. Keep human public redirects and PKCE flow unchanged.
-- [ ] Reconcile capability states with the selected environment. Disable/reject
+- [x] Reconcile capability states with the selected environment. Disable/reject
   unsupported Vault/egress operations clearly, especially on restricted OpenShift;
   a request for `NET_ADMIN` is not a no-SCC-change solution. Keep storage and
   credential-revocation limitations visible before users depend on them.
@@ -397,7 +420,7 @@ and correctness work on the existing design, not a new docs framework.
 - [x] Add one navigation path for operators and one for developers. Keep Concepts
   separate from Tutorials and Operations; link the installed-version/support
   matrix, security guidance and downgrade/upgrade caveats near prerequisites.
-- [ ] Reconcile public site, repository guides, package READMEs and release notes
+- [x] Reconcile public site, repository guides, package READMEs and release notes
   against the exact launch bill of materials. Explain the older stable channel
   and recommend an explicit tested preview version, not whichever `latest` wins.
   A new launch fix gets a new candidate; never overwrite rc.4 artifacts.
@@ -412,7 +435,7 @@ and correctness work on the existing design, not a new docs framework.
 - [ ] Complete SECURITY with a tested contact, named triage responsibility,
   supported-version guidance and confidentiality instructions. Align code of
   conduct reporting and maintenance expectations; no invented response-time SLA.
-- [ ] Refine existing issue/PR templates and a small contributor backlog with
+- [x] Refine existing issue/PR templates and a small contributor backlog with
   reproducible tasks, scope boundaries and tests. Record ownership for runtime
   providers, API/contracts, web/docs and release operations using actual people
   who accept that responsibility, not fabricated maintainers.
@@ -434,13 +457,13 @@ and correctness work on the existing design, not a new docs framework.
 | Public evaluator | Preview support page, release notes, demo/tutorial library, canonical Markdown/index | Accurate availability claims with a runnable flagship example |
 
 ### Phase 5: Fresh-Environment and Independent Acceptance
-**Status**: Not Started
+**Status**: Authorized native acceptance complete; broader live member rerun remains open
 
-- [ ] Extend existing conformance/examples instead of introducing a generic test
+- [x] Extend existing conformance/examples instead of introducing a generic test
   orchestration product. Use a new HOME/cache/credentials directory and a clean
   checkout or download. Pass the evaluator's own kubeconfig explicitly; do not
   inherit maintainer `.env`, Docker auth, kubeconfig or installed CLI state.
-- [ ] Prove the following deterministic flow with published SDK/CLI and real
+- [x] Prove the following deterministic flow with published SDK/CLI and real
   OpenSandbox: authenticate, discover capabilities, allocate a workspace, create
   a sandbox, seed a small repository fixture, run tests, observe/reconnect output,
   retrieve an artifact or protected preview, terminate, attach the same workspace
@@ -448,24 +471,27 @@ and correctness work on the existing design, not a new docs framework.
 - [ ] Repeat the important paths through the UI and CLI, including member-scoped
   key creation, permission denial, key revocation, public OIDC callback and
   expiry. Check API/UI results agree rather than using screenshots alone.
-- [ ] Run the flagship OpenCode coding task and independently test its output.
+  This campaign verified live operator onboarding, image import, read-only key
+  denial/revocation and native CLI attach. Member ownership/expiry/tenant boundaries
+  have automated coverage; a new live human-member browser flow was not repeated.
+- [x] Run the flagship OpenCode coding task and independently test its output.
   Check available free-model choices at execution time; do not promise perpetual
   free access. Separate platform failures from unavailable models or poor output.
   Keep deterministic conformance mandatory even when the optional model run fails.
-- [ ] Test missing prerequisites, unsupported runtime features, failed creates,
+- [x] Test missing prerequisites, unsupported runtime features, failed creates,
   reconnect, nondefault workdir and cleanup. Until admission exists, report
   concurrency as unenforced; do not label a non-test as successful quota rejection.
-- [ ] Ask one independent operator/developer to follow only the versioned docs.
+- [x] Ask one independent operator/developer to follow only the versioned docs.
   Access to an intentionally private preview may be owner-approved, but no
   maintainer credential or unrecorded workaround counts as self-service success.
   The owner reported this evaluation complete on September 9. Its details are
   not available in the repository; this is an accepted owner report, not agent-
   verified fresh-install evidence. No repeat independent evaluation is required
   for the currently approved points 1-3.
-- [ ] Record every intervention and repeat after fixing blocking instructions or
+- [x] Record every intervention and repeat after fixing blocking instructions or
   code. Measure prerequisite/setup/task times separately; report observations,
   not a predetermined time-to-first-task claim.
-- [ ] Publish a sanitized G2/G3 receipt with environment, source/artifact digests,
+- [x] Publish a sanitized G2/G3 receipt with environment, source/artifact digests,
   commands, test outcomes, cleanup and remaining limits. Keep raw credentials,
   organization data and full command output out of public evidence.
 

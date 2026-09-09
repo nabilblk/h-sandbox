@@ -1,0 +1,11 @@
+# Non-secret artifact overlay; combine with your installation's existing values.
+# Chart: harakiri 0.5.0-rc.8. The web documentation correction is a separate image.
+image:
+  registry: core.campus.clusterdiali.me
+  repository: harakiri
+  api:
+    name: harakiri-api
+    tag: 0.5.0-rc.8@sha256:7651a3d3b2819adc40bc94acf896a0dc3b10523f1f17bace47937bcf5c2d2cb8
+  web:
+    name: harakiri-web
+    tag: 0.5.0-rc.8-docs.1@sha256:9684227dcdac3b715a3656c4ee66b569717c038fbb228401b7648e524723b3e0

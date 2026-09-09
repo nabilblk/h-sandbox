@@ -1,9 +1,84 @@
 # OSS Launch Review
 
 September 9, 2026. **In progress; source publication is not approved.**
-Baseline `3cac386fb4bc0ca2ef9c0f4ce9be8ab4141d75cb`. Local implementation changes
-are unreleased. The [execution plan](exec-plans/active/oss-developer-preview-launch.md)
-owns the remaining work.
+Initial baseline `3cac386fb4bc0ca2ef9c0f4ce9be8ab4141d75cb`. Reviewed changes are now
+committed/pushed through `0c1db0c`; earlier candidates were retained immutably and
+rc.8 with its separate docs web image is the delivered candidate. The
+[execution plan](exec-plans/active/oss-developer-preview-launch.md) owns remaining
+safety confirmation, deployment, publication and adoption gates.
+
+## Current Delivery Checkpoint
+
+- Owner-authorized points 1-3 cover safety, candidate delivery and isolated
+  native verification. Independent evaluation is owner-confirmed complete.
+  Public source opening and announcement remain the last, separately approved step.
+- SDK/CLI `0.5.0-rc.8` are published on `next`. Anonymous consumer installation and
+  the exact CLI version post-publish check pass. `latest` remains `0.4.0`.
+  Trusted npm CI publication was denied; a clean-tag, authenticated local publish
+  is the verified fallback, not proof that unattended publishing works.
+- Source CI for rc.8 and its docs correction passed. The latest local CLI suite has 77 passing tests,
+  including the new metadata-driven version check. Source/history scans remain
+  clean. All 68 web tests pass, including standalone/Helm documentation serving.
+  The candidate CI API suite has 315 passes and three conditional skips; the
+  earlier fully migrated local database run covered those database cases. Do not
+  describe candidate CI as a new zero-skip full-suite run. See the
+  [delivery receipt](release-notes/0.5.0-rc.8-delivery.md) for exact artifacts.
+- A separate k0s/arm64 cluster used fresh random operator/realm/runtime/database
+  credentials. Native OpenCode template import, commands, files/artifacts,
+  CLI execution, token-route fetch and denial, metrics, mutable egress and cleanup
+  passed through published SDK/CLI. Fresh rc.7 application namespaces then
+  upgraded to rc.8; the published rc.8 SDK conformance and retained-checkpoint
+  reattachment passed. Public wildcard DNS/ingress is deliberately
+  outside the loopback profile; protected API-proxied routes are the default.
+- Workspace files survived the rc.4 to rc.5 upgrade. Both databases were then
+  restored into new databases from a quiesced backup; the detached owned PVC was
+  cleared and restored from its matching archive. SDK checkpoint reattachment,
+  browser sign-in and workspace browsing passed. No sandbox pod exec was used.
+  This does not certify HA/CSI disaster recovery or encrypted Vault-row recovery.
+- The failed initial capacity attempt, missing optional `python` alias,
+  unconfigured public wildcard route and stale CLI version were retained in
+  evidence. Values, portable test commands, route guidance and CLI checks were
+  corrected before final acceptance; successful reruns do not erase failures.
+- The published CLI attached to a native PTY, executed a marker in `/workspace`
+  and exited. OpenCode's advertised DeepSeek free model was unavailable; its
+  zero CLI exit did not pass acceptance. `opencode/mimo-v2.5-free` corrected a
+  seeded JavaScript defect; three original tests passed on independent rerun,
+  with the acceptance file unchanged. This optional model run used rc.7.
+- Full arm64 image scans found vulnerabilities outside the clean JavaScript
+  audit. Distribution updates and unused-package removal eliminated all API npm
+  findings and all web high/critical findings. The selected docs web image has five
+  medium matches; API rc.8 has 211 distribution matches, including seven critical
+  and 50 high, none high/critical with an available fix in that database.
+  Scanner inventories and operator disposition remain distinct
+  from a claim of no vulnerabilities. No blanket CVE suppression was added.
+- The selected rc.8 API/docs web image layers were exported and inspected:
+  24 compressed layers, 15,058 regular files and 42.33 MB of scanned text. Six
+  hits match the previously reviewed source/compiled fixture pairs, loopback
+  smoke credential and V8 identifier. No usable secret was identified. Directory,
+  link and device entries were recorded, not followed. One plaintext dpkg
+  metadata file had a misleading `.gz` name; its private scan copy was renamed
+  without changing bytes so archive detection completed without scanner errors.
+- Lab revision 31 runs digest-pinned rc.8 API/worker images and the docs web
+  correction. Public web/API/discovery return 200 with the correct issuer;
+  35 hosted Markdown pages, JSON index, both LLM text indexes and missing-page
+  404 checks pass. Desktop/mobile browser checks pass. Historical Nginx field
+  ownership and a stale subPath mount needed scoped lab recovery; the fresh
+  installation did not require these repairs. Secrets, SMTP and origins stayed
+  unchanged. The exact intervention sequence is retained in the receipt.
+
+Safety remains open: external receipt/monitoring of the approved reporting inbox,
+and scoped permission to replace additional lab platform credentials (Keycloak
+master recovery, PostgreSQL, OpenSandbox connection and Vault encryption key).
+A private preflight command failure echoed Secret data into the session's tool
+output before its error handler was corrected. The Vault key therefore needs a
+verified, data-preserving rewrap, not blind replacement. No secret value belongs
+in this receipt or release assets. These operations were not performed under the
+earlier human-only approval. Do not mark G1 complete based on the human-password
+fix alone. Residual image advisories also require operator review before broader
+exposure; no risk waiver or announcement was issued.
+
+The following sections retain the earlier investigation and its evidence;
+current delivery status is maintained above and in the versioned receipts.
 
 ## Publication Safety
 
@@ -36,7 +111,8 @@ owns the remaining work.
   is not claimed reviewed. No remote evidence was removed. The local review
   also covered 41 raster images and 261 frames sampled every five seconds from
   18 videos, with successful OCR and zero secret-scanner findings. Sampling does
-  not inspect every frame. Container-layer review remains separate.
+  not inspect every frame. Selected candidate container-layer review is recorded
+  in the current checkpoint above, separately from the historical source scan.
 - Canonical Apache-2.0 license text and existing contributor copyright are
   retained in root and npm packages. [Third-party review](../THIRD_PARTY.md)
   identifies optional media/dependency terms still needing disposition.

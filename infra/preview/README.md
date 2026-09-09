@@ -20,6 +20,7 @@ The configuration helper creates files only. Installation uses ordinary
 | Runtime chart | `opensandbox:0.2.2-harakiri.2` from Harbor |
 | Runtime images | server `v0.2.3`, controller `v0.2.0`, execd `v1.1.0`, ingress `v1.0.10`, egress `v1.1.7` |
 | Control plane and packages | `0.5.0-rc.8`; npm channel `next`, never implicit `latest` |
+| Web documentation correction | `0.5.0-rc.8-docs.1`, pinned by the release overlay |
 | Scope | Persistent files, commands, files/artifacts, scoped authorization and native egress |
 
 The listed hardware is a reference allocation, not a measured minimum or a
@@ -130,7 +131,8 @@ under an unmodified restricted OpenShift SCC. Do not bypass that restriction.
 ```bash
 helm install harakiri preview-charts/harakiri-0.5.0-rc.8.tgz \
   --namespace harakiri-preview \
-  -f infra/preview/.private/harakiri-values.json --wait --timeout 10m
+  -f infra/preview/.private/harakiri-values.json \
+  -f docs/release-notes/0.5.0-rc.8-values.yaml --wait --timeout 10m
 kubectl -n harakiri-preview get pods
 ```
 
@@ -188,7 +190,11 @@ For an upgrade, preserve the generated configuration and take a coordinated
 backup first. Quiesce API writes, terminate/release test sandboxes through
 Harakiri, stop scheduler/builder workers, and follow the selected release's
 migration order. Use the downloaded candidate chart with `helm upgrade` and the
-same values; do not regenerate credentials or replace origins.
+same values and versioned artifact overlay; do not regenerate credentials or
+replace origins. `kubectl port-forward` connections end when their selected pod
+is replaced. Restart the three forwarding commands after the upgrade and check
+their local health endpoints before running the acceptance workflow. This is a
+local access step, not a deployment repair or runtime fallback.
 
 Recovery needs both PostgreSQL databases, operator Secrets/Vault keys and the
 workspace volumes from the same quiesced point. A successful `pg_dump` alone
