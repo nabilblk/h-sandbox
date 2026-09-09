@@ -1,0 +1,1127 @@
+{
+  "schemaVersion": 1,
+  "id": "ui-product-tour",
+  "capturedAt": "2026-09-09T17:49:35.776Z",
+  "sourceRevision": "a34f7150f3166459ad53d6c2b9dee7fc31b6471b",
+  "sourceFiles": {
+    "apps/web/public/config.js": "b16f70aee529f1610c4dced79a98543fb15b3b21619179fcfb300027902ec082",
+    "apps/web/src/agent-demo-tutorials.ts": "af5a42d91e42ee803411ee8089ad3e48f92d2b5a43b4880872f5440693129823",
+    "apps/web/src/api-client/account.ts": "550206c06d1d03e09edcc6cd3536e14c06b93dc2b663a2f0f62148a05dc0d0d8",
+    "apps/web/src/api-client/api-keys.ts": "085c64ee172ac8721007a532226aa6d5fd6f4e073e3118fbdd25f1fe9fbccfb0",
+    "apps/web/src/api-client/members.ts": "fc637056ba239fc20ce4aa640cfa89a15f8a0ba162445f47d21b58a85c211439",
+    "apps/web/src/api-client/request.ts": "d71e889882050dd0c6bf081742a8fe77512799f7af3b19a0eb5ff9f3cdc3dc3e",
+    "apps/web/src/api-client/sandboxes.ts": "93de0e29be8529af6da2b2711857241e728272e6db312c7f626e158fbf5c7177",
+    "apps/web/src/api-client/settings.ts": "ea7fa0e7e96162147a80bdc1779bf452a3270b7741fee682a8c6fd793fa1a313",
+    "apps/web/src/api-client/templates.ts": "1d49b954c735780208f1b9101dbd4f3219f3b4563e4b4fbb697a340d74a4f598",
+    "apps/web/src/api-client/usage.ts": "0b33998cfcf5076f4c819951244136f2b395c16303bcd6b4d87192070a2451f5",
+    "apps/web/src/api-client/vault.ts": "481fa864faeb07c4c4ddd64632a5babf67b6f9d7d4be33d1ed1f97d8a6f1f333",
+    "apps/web/src/api-client/workspaces.ts": "49e2ce666b99a0f2fd431ea5dd5c7efa1f47699a8a9e38e5469aeedb696de7fe",
+    "apps/web/src/api.ts": "f634074bc7b6036f7d03b1c30dff51978a49b3925a6316b196a8c050022c6918",
+    "apps/web/src/auth.test.ts": "6a7103cb5bd7536bcee26bc177fdd90758e4f75287759cf5f87f9688512a78b3",
+    "apps/web/src/auth.ts": "f89a4bc12b270bd3a41cd543a02b9c8a1b477fbc7b59ca854fdbc9a9a6018de7",
+    "apps/web/src/authorization-docs.tsx": "0cc2a070258e72d916960c1f054877142f48883466ed472afdb20329deb7d00d",
+    "apps/web/src/browser-demo-walkthrough.ts": "41efbb82ca78c3647b87f8de59678a13b57bace27d48bf89c8dbe00e8fe21f3b",
+    "apps/web/src/changelog-route.test.ts": "86b93d1bb76b751bee504ca08429e916ffbb62508d4badec7e170191e199d6df",
+    "apps/web/src/cli-demo-walkthrough.ts": "bc08fc1f5779b78d80e1ec449c1e3d9ce6d1fccab133dceaba2c394f82458dae",
+    "apps/web/src/components/account-menu.tsx": "3d6ec504a0cb616232be1441fc9ee77a993ec3490b2cb303860749fe557d1905",
+    "apps/web/src/components/brand.tsx": "490ca5d985b85a6c7cb92a1beee4f0e1fba556a4baaacbae19cee55053a0abae",
+    "apps/web/src/components/dialog.tsx": "4af4c403bd30db6fe9fa38f720bdb0f5710cfbafe0af19c4e2b03b70967d4b8a",
+    "apps/web/src/components/docs-code.tsx": "fda93df23c2f360c5772f8b2d177b5211760650b40238e4aadf93dd96b9f5497",
+    "apps/web/src/components/docs-diagrams.tsx": "56310c435ce05a2b6caf6e4dee91177e0f933bf3dedddef60fb0ee5568a42a24",
+    "apps/web/src/components/egress-mode-picker.tsx": "6715c570171631985879adf22425e35d70155602d226c67a200153ccbf5ecc80",
+    "apps/web/src/components/icon.tsx": "6a2c4090beeeca16d5966097f056483a5214b889aca7986a5ec48db85a2c9bba",
+    "apps/web/src/components/product-demo.tsx": "a2a28ebcca335a82f7081606df6afa6bad808ab7e80c20aadd2f50d7d9537df6",
+    "apps/web/src/components/top-nav.tsx": "9422f5a47874906056a4d8886e787e2722392b96b097a348215c031b63279351",
+    "apps/web/src/components/ui.tsx": "4766c2f24c4db58fd7480e20edb6160a29683a75613663a08cfb854a97fc8809",
+    "apps/web/src/dashboard-routes.test.ts": "709a0f8db4ce74502d03f6abd33b8d9b802649bd274b28d1babc4a8f40e679f3",
+    "apps/web/src/dashboard-shell-route.test.ts": "a8fcb6655091ba9c553ce0253ddf370f8a326d85b6f12987ffad89b0ed38a491",
+    "apps/web/src/demo-catalog.ts": "d9df3c76e804c161bdba929f59330e53e8daa552a9e90dac79428c8e48fb1f96",
+    "apps/web/src/demo-tutorial.ts": "70a2b559259a969b0c4fdce368942320f7fc0d3b045cf2827198e3929eee4424",
+    "apps/web/src/demo-walkthrough.ts": "fc86cd587a861c0bf74ac0a217c36d8177a9a014a450373844aa06c97871eaaa",
+    "apps/web/src/docs-content.test.ts": "9c2a818ad99905dcd3cbc13a49770da818174e60a0092370634b758955ed95a0",
+    "apps/web/src/docs-content.tsx": "2ba56c515bdf608cbb0779620916c275733ad6324811cc04e36c73257f61cd99",
+    "apps/web/src/docs-experience.test.ts": "15aa7631e18721b249b43324b2d64788d9e92af5c17a04e6ca88a833974a92b9",
+    "apps/web/src/docs-export.test.ts": "08688d5f7a7abbc70b4d52aecdd9061a7e67cf37ee2e93854941dfd01df6a5f5",
+    "apps/web/src/docs-export.tsx": "7d5a79067b55f4a5a5686f570022cc1cfccaa69b384ae70df48485ef2bce2b6e",
+    "apps/web/src/docs-navigation.ts": "32f947e0adcd88ff0cfe27f80eaf1a146bb2f7fab3bdfcccf6f1c1fd5e0ff143",
+    "apps/web/src/docs-route.test.ts": "6679bb92dff9d17791f0e710679ff9a233847c865609026574c143538eae3abe",
+    "apps/web/src/docs-selection.ts": "99669810b71784aa5a6739870bdf8cb6ac23105ed34f82c7b2e78da210bde8d6",
+    "apps/web/src/format.ts": "9871697a0ea52109bed5c77ee2a7910542e4dfe19c28a1c516d9c49cbe72cffc",
+    "apps/web/src/getting-started-docs.tsx": "92fdfe38dc242bf1104ea8005865edd2e3a5ce3a887e1833c1bd54557bab40b8",
+    "apps/web/src/main.tsx": "8e15aa903e4f59720e833fe04a9b8e37096b7ce39dca2889633a17fc9cf7c3b2",
+    "apps/web/src/onboarding-route.test.ts": "6285b7229be8000391a364791fe7d5fb7661255de28168a9659b538a8adb2c6d",
+    "apps/web/src/preview-docs.tsx": "5489b76db2425aaf844e6c28ad17335943d80bfdea2215bd222cf045abc91501",
+    "apps/web/src/product-demo.test.ts": "f6dc2fc93571f30348c4c442202a5c2ed0684e16502893f40b20a5782f309022",
+    "apps/web/src/request.test.ts": "b98187f3418119760884f2f29dfc1b2eff76886b16c75bf059ad1a57797e11e0",
+    "apps/web/src/routes/api-keys.tsx": "ac6241c7e3c4ec1f56066abf4556d14a39572edf5ed900ddb51d13c869161179",
+    "apps/web/src/routes/changelog.tsx": "e9ad7489a55b5a4971ba8c16c0008bb332b80d055991a166eee7a8057e6510a8",
+    "apps/web/src/routes/credential-profile-fields.tsx": "aa7d12b9c9b403f4d03daf3da424a2b4a75877f7712cf3f70f6c4bb1b706e89d",
+    "apps/web/src/routes/dashboard-shell.tsx": "6e1180874332f1a4235d5d6f61b3bdf62691a502e50280a024aa56666a67fe12",
+    "apps/web/src/routes/demos.tsx": "68bdd4eaccbcadc98b82e60cad41e27c8f88d71745c50e91938c778b7dc70db2",
+    "apps/web/src/routes/docs.tsx": "0af3624bfa925aa54dc236cc7c3797cfc906dc867d641d63d4358a2c2785b676",
+    "apps/web/src/routes/landing.tsx": "cbbac9aeb7ca5b1d8f1692a4b8d6d61faaad4b85bb9e4db8d18ea90345331f46",
+    "apps/web/src/routes/members.tsx": "73896d7d68dda276cc584397dca296e175302871f4eb22027587b8a0037004d5",
+    "apps/web/src/routes/onboarding.tsx": "952e8a2e008678ccb8a777464898159565837534ba325619375dde221daf538f",
+    "apps/web/src/routes/sandbox-commands.tsx": "c0218309f3b14daa9b08c3c204a83127690c6988191a2be476c9115374543fa4",
+    "apps/web/src/routes/sandbox-detail.tsx": "ff3e0345aae2bd5dd05a973d05511292de41e4a6cb896e3a4c50d254644db748",
+    "apps/web/src/routes/sandbox-vault.tsx": "8524e0f30c01adb28831bc97c7953577d9635e257bca2cc3b3c31026beef69c8",
+    "apps/web/src/routes/sandboxes.tsx": "100f22efb6c5e386ec7ea755d3c1bf375d014547f679e6e62e67fd7a595c62b6",
+    "apps/web/src/routes/settings.tsx": "6e652de5186cb05751051f0113ab75c13c9454aca9d34b9e67d4939e34ca908e",
+    "apps/web/src/routes/templates.tsx": "23c37dae5ea19a23cd0dd7535526cfcb29c93c721a9a9259ab75c899d0a670f5",
+    "apps/web/src/routes/types.ts": "23751f836fa54d6477b3069d8de325a937ed8ecf81cb0c0d1b3de06cfed76483",
+    "apps/web/src/routes/usage.tsx": "c08ac74023bac7a12d066808519ee45a5527937a9fea616c45d1ad25fd54e0d1",
+    "apps/web/src/routes/vault-audit.tsx": "b8a4cdcf0507d161bba19cbc2e1ae64ad23b57f9ed89017b88caacd9f3e2486d",
+    "apps/web/src/routes/vault-dynamic-issuers.tsx": "c78fad708a8389e442a4ea2a1b5a04ef85a4f902134caaaa9cbf945c75260f88",
+    "apps/web/src/routes/vault-external-references.tsx": "79ddf14e0733ca9ee1e3d095835e6b56c1c85b59eba6367c7fc9472c58a25650",
+    "apps/web/src/routes/vault.tsx": "6ae9583bc98199961dea6ba1bd1b95434c8bffbc88d4a71fa9f15d5b8a132dda",
+    "apps/web/src/routes/workspaces.tsx": "a91c3b0a9dcb7fc22f9bada308022ca7616658ef760598cc45d403b69d6ba242",
+    "apps/web/src/routing.test.ts": "2177a1097b5156557d4b1b2eb53a94cc51ebbe3b3500ee319346311033822054",
+    "apps/web/src/routing.ts": "3b244316064b516a52d7b572fce3433c0bff92f3ff31978fea75c11f130b7145",
+    "apps/web/src/runtime-config.ts": "8400b83aa40d7bb16e69ecee228eacc82f36968140f3306ec7d867ba56ff101e",
+    "apps/web/src/sandbox-create-credentials.test.ts": "9a0d09b3604822d7963fe6294b900c11d2efe6a4fdf245ee1da2f260155d41cc",
+    "apps/web/src/sandbox-detail-route.test.ts": "d078ffbb9cee92c4c488260116478e0fd92b6344ee09271874cee861937f7160",
+    "apps/web/src/sandboxes-route.test.ts": "3b785f2584f796a1e15babe46e32a217ea9f9f0e7dd8153aeb72d6c65b70312d",
+    "apps/web/src/sdk-demo-walkthrough.ts": "0345bcdcb5dc7504ccae51326399cf032cd568a50acc8b685b26ba6588b03c58",
+    "apps/web/src/smoke.test.ts": "967ad696327bc113aa2294cf566094f206ef46b6de7b19f6590e25a44f807271",
+    "apps/web/src/styles-app.css": "efad812e64ad38ab83faa23862d74f75c69cdb9539297d2d27959ab5450e14cc",
+    "apps/web/src/styles-demos.css": "209c8a3ed5168451df3dd11466f343f34ac3e6811227c823dbc4187439ee5364",
+    "apps/web/src/styles-docs.css": "8fe8e21e31b4a86a224ee430126ae73491dfad3b997b68209bffe2ee532ca947",
+    "apps/web/src/styles-landing.css": "c150f604aa06c900fd11915e0493d50c54cdb4a53cf33f998a16eb906bae14d8",
+    "apps/web/src/styles-workspaces.css": "388b38e5424b166c9dba2c6543429ba83407ab9e9273b860df508f6603cdfd9a",
+    "apps/web/src/styles.css": "19f519ef989a5b78ec1b5928ebcaf15dca6df25e5f694d4b5a00a07edc41c52a",
+    "apps/web/src/templates-route.test.ts": "aafe06391a5417f8a26db81368214a98ec15b1c87087e6abf71d6f94072bc1ce",
+    "apps/web/src/turndown-plugin-gfm.d.ts": "1373510af7dc5b28cbcc22cfaecbd1e11b753cce4620bbd3123a782fc8a434fb",
+    "apps/web/src/ui-demo-walkthrough.ts": "e951729705ed43f577b74823d7a556cfb6a5b4ef8a38d0f069866fb168593b2b",
+    "apps/web/src/usage-route.test.ts": "ca3b6ae9baecc2e57ab2389677a50c5659630d751165bf364dad3c8973c29901",
+    "apps/web/src/vision-docs.tsx": "63be1d89f2e1e2a99eac2177f7c15cc5e0acdec825ec4cc719242a209ab2aae4",
+    "apps/web/src/workspace-docs.tsx": "9686a64e8b73bbe15f036050ecb5cf440ebf9773d4feb886d8dbcb4b30f0e047",
+    "apps/web/src/workspace-operations-docs.tsx": "7ded4bc3bebe237db8917b8b0437d0b16178261dc92062c54fb398193d449cc1",
+    "apps/web/src/workspace-reference-docs.tsx": "32b0b9522fe47cee27d1e5e784e0cd0ad485654adb0291a682e531cda173805c",
+    "apps/web/src/workspace-tutorial-docs.tsx": "3984f8ce575c349efe74f76a7751c63b20c72644d2eaf483d367110f641b73d9",
+    "apps/web/src/workspace.ts": "ac145d7b7417146d103bede6ebfb458b49851cabc586b6fd3824a494c2c25856",
+    "apps/web/src/ui-product-tour.ts": "4fe1ee0893fe3aa53bb1e2041d87a664b5fbad50903606be68785d7f5ae3345c",
+    "apps/demo-video/scripts/capture-ui-tour.ts": "f9675ab9fa785583cf2c3dd9d5258d5e8a754bdaa1df6a50dda811f107ef81e8",
+    "apps/demo-video/scripts/full-frame-clip.ts": "5a6319550d4d9a9f9a37cbd556bfe06c1c178bdb351ce50d7a7d2465fbd859c4"
+  },
+  "appOrigin": "https://sb.harakiri.io",
+  "frontend": "local-source-preview-against-live-api",
+  "apiOrigin": "https://sb-api.harakiri.io",
+  "previewOrigin": "https://283ab5d6-da62-4dca-85a6-2e7ace3efcd5-3000.harakiri.io",
+  "viewport": {
+    "width": 1920,
+    "height": 1080,
+    "deviceScaleFactor": 1,
+    "browserZoom": 1
+  },
+  "fixtureHashes": {
+    "README.md": "a891895f3a92ac2b8ac434eb2da0ce55744bad454ffcb1b15bc2283adf859210",
+    "check.mjs": "506ab3abcac4170a9235a05872ca52b7150b44dffb9efd7c64f1e3ce71201711",
+    "server.mjs": "071d53c61df337108377526b0a956fdacc7c00b45ee97160391537fa746fb09e",
+    "prepare-tools.sh": "bc45b4860c11b92a4f69850e5e5e0c756bcdd0dff97379b458dc3831ec6a642a"
+  },
+  "reportSha256": "88318b8ec9d3da603d2eeedef2c4ff0bf0c6c40837d1edec45303911de703740",
+  "replacementVerified": true,
+  "networkProof": {
+    "baselineReachable": true,
+    "allowedReachable": true,
+    "unlistedDenied": true
+  },
+  "cleanup": {
+    "runtimesTerminated": 2,
+    "routesInactive": true,
+    "workspace": "archived-files-retained",
+    "captureKeyRevoked": true
+  },
+  "clips": [
+    {
+      "id": "orientation",
+      "file": "orientation.mp4",
+      "sha256": "7ee289ca1e763b960fb236445159bf566a27db41eb224ea09819a022daa1eaa1",
+      "seconds": 12,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 4,
+        "startedAt": "2026-09-09T17:43:21.815Z",
+        "endedAt": "2026-09-09T17:43:33.815Z"
+      },
+      "pointer": [
+        {
+          "at": 1.3945197079999998,
+          "x": 119.5,
+          "y": 148.296875,
+          "click": false
+        },
+        {
+          "at": 1.7188386249999994,
+          "x": 119.5,
+          "y": 148.296875,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "templates",
+      "file": "templates.mp4",
+      "sha256": "ba3bf725fa942a537f81a9f0ebfdba4f315fd22010c0939975d655a3558b0fe8",
+      "seconds": 18,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 53,
+        "startedAt": "2026-09-09T17:43:34.498Z",
+        "endedAt": "2026-09-09T17:43:52.498Z"
+      },
+      "pointer": [
+        {
+          "at": 0.17124983400000018,
+          "x": 119.5,
+          "y": 182.796875,
+          "click": false
+        },
+        {
+          "at": 0.6032746250000001,
+          "x": 119.5,
+          "y": 182.796875,
+          "click": true
+        },
+        {
+          "at": 0.7849254170000004,
+          "x": 467,
+          "y": 200,
+          "click": false
+        },
+        {
+          "at": 1.1082867920000008,
+          "x": 467,
+          "y": 200,
+          "click": true
+        },
+        {
+          "at": 3.372684041999999,
+          "x": 883,
+          "y": 302,
+          "click": false
+        },
+        {
+          "at": 3.707552583999999,
+          "x": 883,
+          "y": 302,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "workspace",
+      "file": "workspace.mp4",
+      "sha256": "c7d6d13c13b8248c3b7daf41422fa40e5e5fd387742c3ba0837ebe049a171eb9",
+      "seconds": 18,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 72,
+        "startedAt": "2026-09-09T17:43:53.506Z",
+        "endedAt": "2026-09-09T17:44:11.506Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1682626670000027,
+          "x": 119.5,
+          "y": 217.296875,
+          "click": false
+        },
+        {
+          "at": 0.525534083999999,
+          "x": 119.5,
+          "y": 217.296875,
+          "click": true
+        },
+        {
+          "at": 0.701982084000003,
+          "x": 1819.4453125,
+          "y": 109,
+          "click": false
+        },
+        {
+          "at": 1.0339026670000022,
+          "x": 1819.4453125,
+          "y": 109,
+          "click": true
+        },
+        {
+          "at": 1.2232379589999982,
+          "x": 960,
+          "y": 526.5,
+          "click": false
+        },
+        {
+          "at": 1.5459455420000012,
+          "x": 960,
+          "y": 526.5,
+          "click": true
+        },
+        {
+          "at": 2.289053417000003,
+          "x": 1110.3671875,
+          "y": 645.5,
+          "click": false
+        },
+        {
+          "at": 2.649508416999997,
+          "x": 1110.3671875,
+          "y": 645.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "launch",
+      "file": "launch.mp4",
+      "sha256": "da4683f68c6c1d8c46894cd41d22ab163ec650025ecd402d2f3ca8456503fde5",
+      "seconds": 22,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 303,
+        "startedAt": "2026-09-09T17:44:12.459Z",
+        "endedAt": "2026-09-09T17:44:34.459Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1705648749999964,
+          "x": 1613.09375,
+          "y": 301.75,
+          "click": false
+        },
+        {
+          "at": 0.525481915999997,
+          "x": 1613.09375,
+          "y": 301.75,
+          "click": true
+        },
+        {
+          "at": 1.535185249999995,
+          "x": 960,
+          "y": 134,
+          "click": false
+        },
+        {
+          "at": 1.854541624999998,
+          "x": 960,
+          "y": 134,
+          "click": true
+        },
+        {
+          "at": 2.197854957999996,
+          "x": 960,
+          "y": 227.25,
+          "click": false
+        },
+        {
+          "at": 2.5208027909999946,
+          "x": 960,
+          "y": 227.25,
+          "click": true
+        },
+        {
+          "at": 3.476354874999997,
+          "x": 777.5,
+          "y": 319.75,
+          "click": false
+        },
+        {
+          "at": 3.8009372499999956,
+          "x": 777.5,
+          "y": 319.75,
+          "click": true
+        },
+        {
+          "at": 6.132713707999995,
+          "x": 1248.1875,
+          "y": 1035,
+          "click": false
+        },
+        {
+          "at": 6.4764548329999965,
+          "x": 1248.1875,
+          "y": 1035,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "terminal",
+      "file": "terminal.mp4",
+      "sha256": "d10ed1e3c4c38607053cbeb5d946152d5addb1aaf7ba5a1521fd61c0bfcbb5ea",
+      "seconds": 18,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 129,
+        "startedAt": "2026-09-09T17:44:35.932Z",
+        "endedAt": "2026-09-09T17:44:53.932Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1850531250000058,
+          "x": 1060,
+          "y": 317.375,
+          "click": false
+        },
+        {
+          "at": 0.5078425410000055,
+          "x": 1060,
+          "y": 317.375,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "file": "tools.mp4",
+      "sha256": "4199bb44d4b68785b62f850dc97a32dd254209c7fee39b4699414beb9ca94088",
+      "seconds": 24,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 79,
+        "startedAt": "2026-09-09T17:44:59.554Z",
+        "endedAt": "2026-09-09T17:45:23.554Z"
+      },
+      "pointer": [
+        {
+          "at": 0.18554116700000303,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.5430658750000003,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 0.7191667920000037,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.0414062080000004,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 1.5994377079999977,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.9229213330000057,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 2.801386333000002,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 3.1549361250000074,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "file": "files.mp4",
+      "sha256": "28f7039c805745ebe7a125bfb98f3a9b214584f1f0c05a7005cbf7a99a8b0bc5",
+      "seconds": 16,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 20,
+        "startedAt": "2026-09-09T17:45:26.072Z",
+        "endedAt": "2026-09-09T17:45:42.072Z"
+      },
+      "pointer": [
+        {
+          "at": 0.17047125000000232,
+          "x": 533.9140625,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.5255342500000115,
+          "x": 533.9140625,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 1.99590625,
+          "x": 1080,
+          "y": 637.9375,
+          "click": false
+        },
+        {
+          "at": 2.3528407910000095,
+          "x": 1080,
+          "y": 637.9375,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "commands",
+      "file": "commands.mp4",
+      "sha256": "7451bc5fda9e9112678fbfd362ce2ef54ed511a0ce944948129e3d6cf000ee41",
+      "seconds": 28,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 73,
+        "startedAt": "2026-09-09T17:45:42.983Z",
+        "endedAt": "2026-09-09T17:46:10.983Z"
+      },
+      "pointer": [
+        {
+          "at": 0.17357024999998977,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.5281129579999834,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 0.7067668329999723,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.0300462079999853,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 1.5869107079999814,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.9099452499999898,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 2.614424915999989,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 2.941719415999978,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "reconnect",
+      "file": "reconnect.mp4",
+      "sha256": "3f358775236b01c1911285088e90f0a4677d4485de324ca24c57c5096a3c98cb",
+      "seconds": 16,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 25,
+        "startedAt": "2026-09-09T17:46:13.582Z",
+        "endedAt": "2026-09-09T17:46:29.582Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1689968339999905,
+          "x": 533.9140625,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.5284915419999743,
+          "x": 533.9140625,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 1.5425660839999908,
+          "x": 1080,
+          "y": 637.9375,
+          "click": false
+        },
+        {
+          "at": 2.0847300419999812,
+          "x": 1080,
+          "y": 637.9375,
+          "click": true
+        },
+        {
+          "at": 4.557094499999978,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 4.911345124999992,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 5.27736275,
+          "x": 385.5,
+          "y": 272.75,
+          "click": false
+        },
+        {
+          "at": 5.624325708999997,
+          "x": 385.5,
+          "y": 272.75,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "server",
+      "file": "server.mp4",
+      "sha256": "8ce90dabd5280479fddb6566b39b1da568b0b7e6bff4b80d57caf4c5051c6e39",
+      "seconds": 18,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 67,
+        "startedAt": "2026-09-09T17:46:30.508Z",
+        "endedAt": "2026-09-09T17:46:48.508Z"
+      },
+      "pointer": [
+        {
+          "at": 0.17237408300000243,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.49602362500000163,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 0.6783588330000057,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.0020638749999926,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 1.5729906670000056,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.8965140830000164,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 2.653590541999991,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 2.9839958329999936,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "preview",
+      "file": "preview.mp4",
+      "sha256": "8ff4e782356af7b82ad6d8b64df33dc657ceca44f2bc2e5486e589df69ba4340",
+      "seconds": 20,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 56,
+        "startedAt": "2026-09-09T17:46:49.462Z",
+        "endedAt": "2026-09-09T17:47:09.462Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1719385840000177,
+          "x": 809.515625,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.5386265840000124,
+          "x": 809.515625,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 0.7193107500000042,
+          "x": 1408.5,
+          "y": 148.5,
+          "click": false
+        },
+        {
+          "at": 1.0291800840000214,
+          "x": 1408.5,
+          "y": 148.5,
+          "click": true
+        },
+        {
+          "at": 1.2125343750000175,
+          "x": 1825.2109375,
+          "y": 151.5,
+          "click": false
+        },
+        {
+          "at": 1.550951792000007,
+          "x": 1825.2109375,
+          "y": 151.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "egress",
+      "file": "egress.mp4",
+      "sha256": "01452f67f557efc416aab2f5d69ec75101694531466dfe4864dfa43a5608a78a",
+      "seconds": 28,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 162,
+        "startedAt": "2026-09-09T17:47:11.965Z",
+        "endedAt": "2026-09-09T17:47:39.965Z"
+      },
+      "pointer": [
+        {
+          "at": 0.2231180409999797,
+          "x": 546.953125,
+          "y": 530,
+          "click": false
+        },
+        {
+          "at": 0.5653937499999884,
+          "x": 546.953125,
+          "y": 530,
+          "click": true
+        },
+        {
+          "at": 0.743190540999989,
+          "x": 816.9140625,
+          "y": 620.5,
+          "click": false
+        },
+        {
+          "at": 1.1010503329999919,
+          "x": 816.9140625,
+          "y": 620.5,
+          "click": true
+        },
+        {
+          "at": 1.27771516599998,
+          "x": 590.859375,
+          "y": 843.25,
+          "click": false
+        },
+        {
+          "at": 1.6002402500000026,
+          "x": 590.859375,
+          "y": 843.25,
+          "click": true
+        },
+        {
+          "at": 2.877407833000005,
+          "x": 950.8046875,
+          "y": 822.75,
+          "click": false
+        },
+        {
+          "at": 3.2212936659999833,
+          "x": 950.8046875,
+          "y": 822.75,
+          "click": true
+        },
+        {
+          "at": 6.812828791000007,
+          "x": 590.859375,
+          "y": 782.25,
+          "click": false
+        },
+        {
+          "at": 7.139031124999979,
+          "x": 590.859375,
+          "y": 782.25,
+          "click": true
+        },
+        {
+          "at": 8.092508875,
+          "x": 950.8046875,
+          "y": 779.25,
+          "click": false
+        },
+        {
+          "at": 8.445929582999991,
+          "x": 950.8046875,
+          "y": 779.25,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "inspect",
+      "file": "inspect.mp4",
+      "sha256": "46fde4d855ded95063732167add8b2e06428b618c4fca7036f2cd99de7e19ebc",
+      "seconds": 18,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 18,
+        "startedAt": "2026-09-09T17:47:41.549Z",
+        "endedAt": "2026-09-09T17:47:59.549Z"
+      },
+      "pointer": [
+        {
+          "at": 0.16999775000003864,
+          "x": 628,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.517211042000039,
+          "x": 628,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 3.1975105000000332,
+          "x": 712.953125,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 3.550304417000036,
+          "x": 712.953125,
+          "y": 76.25,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "release",
+      "file": "release.mp4",
+      "sha256": "d0de7c1339bc1ddea26e64b8d4154a318997f461073e0a2e6d2e2cea581dc513",
+      "seconds": 14,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 30,
+        "startedAt": "2026-09-09T17:48:00.488Z",
+        "endedAt": "2026-09-09T17:48:14.488Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1733128339999821,
+          "x": 1867.0078125,
+          "y": 27.5,
+          "click": false
+        },
+        {
+          "at": 0.5189405000000261,
+          "x": 1867.0078125,
+          "y": 27.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "replacement",
+      "file": "replacement.mp4",
+      "sha256": "d6ccfe6bd9188b674fb324478824afa5db49b3337698ea92634d3e9ab6463346",
+      "seconds": 22,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 247,
+        "startedAt": "2026-09-09T17:48:15.669Z",
+        "endedAt": "2026-09-09T17:48:37.669Z"
+      },
+      "pointer": [
+        {
+          "at": 0.17183837500005028,
+          "x": 1613.09375,
+          "y": 301.75,
+          "click": false
+        },
+        {
+          "at": 0.5207580410000519,
+          "x": 1613.09375,
+          "y": 301.75,
+          "click": true
+        },
+        {
+          "at": 1.530390041000035,
+          "x": 960,
+          "y": 134,
+          "click": false
+        },
+        {
+          "at": 1.855385083000001,
+          "x": 960,
+          "y": 134,
+          "click": true
+        },
+        {
+          "at": 2.252104166000034,
+          "x": 960,
+          "y": 227.25,
+          "click": false
+        },
+        {
+          "at": 2.5756388330000335,
+          "x": 960,
+          "y": 227.25,
+          "click": true
+        },
+        {
+          "at": 3.5265634580000187,
+          "x": 777.5,
+          "y": 319.75,
+          "click": false
+        },
+        {
+          "at": 3.841063833000022,
+          "x": 777.5,
+          "y": 319.75,
+          "click": true
+        },
+        {
+          "at": 6.013814958000032,
+          "x": 1248.1875,
+          "y": 1035,
+          "click": false
+        },
+        {
+          "at": 6.353746041000006,
+          "x": 1248.1875,
+          "y": 1035,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "verify",
+      "file": "verify.mp4",
+      "sha256": "7497e5b3c00aa2a0e7d516a97f66054ff8b0a154a0fc5e3c38be9e11ba57782e",
+      "seconds": 22,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 219,
+        "startedAt": "2026-09-09T17:48:39.009Z",
+        "endedAt": "2026-09-09T17:49:01.009Z"
+      },
+      "pointer": [
+        {
+          "at": 0.1860445840000175,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": false
+        },
+        {
+          "at": 0.5544786670000176,
+          "x": 420.03125,
+          "y": 76.25,
+          "click": true
+        },
+        {
+          "at": 0.7327874590000137,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.0559763750000275,
+          "x": 1703.875,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 1.613141042000032,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 1.9360198340000352,
+          "x": 920.9375,
+          "y": 157.5,
+          "click": true
+        },
+        {
+          "at": 8.029177417,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": false
+        },
+        {
+          "at": 8.35527466699999,
+          "x": 1862.9375,
+          "y": 157.5,
+          "click": true
+        }
+      ]
+    },
+    {
+      "id": "cleanup",
+      "file": "cleanup.mp4",
+      "sha256": "da37bbecf0f7ee1ca42e3eced6dfe49d1939e70afbd1f62984689334c1cdd9ca",
+      "seconds": 20,
+      "width": 1920,
+      "height": 1080,
+      "crop": "none",
+      "speed": 1,
+      "recording": {
+        "source": "cdp-screencast",
+        "frameCount": 59,
+        "startedAt": "2026-09-09T17:49:13.249Z",
+        "endedAt": "2026-09-09T17:49:33.249Z"
+      },
+      "pointer": [
+        {
+          "at": 0.172443459000031,
+          "x": 811.5546875,
+          "y": 41.5,
+          "click": false
+        },
+        {
+          "at": 0.5302437090000022,
+          "x": 811.5546875,
+          "y": 41.5,
+          "click": true
+        },
+        {
+          "at": 0.9862621669999789,
+          "x": 1719.1875,
+          "y": 301.75,
+          "click": false
+        },
+        {
+          "at": 1.3036166669999947,
+          "x": 1719.1875,
+          "y": 301.75,
+          "click": true
+        },
+        {
+          "at": 3.680070500000031,
+          "x": 1097.3359375,
+          "y": 633.5,
+          "click": false
+        },
+        {
+          "at": 4.0117635840000005,
+          "x": 1097.3359375,
+          "y": 633.5,
+          "click": true
+        },
+        {
+          "at": 4.192530375000032,
+          "x": 703,
+          "y": 182,
+          "click": false
+        },
+        {
+          "at": 4.510751083999988,
+          "x": 703,
+          "y": 182,
+          "click": true
+        }
+      ]
+    }
+  ]
+}

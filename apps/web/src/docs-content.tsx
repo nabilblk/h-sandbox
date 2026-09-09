@@ -10,6 +10,7 @@ import { workspaceDocs } from "./workspace-docs";
 import { workspaceTutorialDocs } from "./workspace-tutorial-docs";
 import { workspaceReferenceDocs } from "./workspace-reference-docs";
 import { workspaceOperationsDocs } from "./workspace-operations-docs";
+import { uiProductTourDocs } from "./ui-product-tour-docs";
 
 export type DocPage = {
   id: string;
@@ -46,6 +47,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 export const docPages: DocPage[] = [
   previewDocs,
   overviewDocs,
+  uiProductTourDocs,
   authorizationDocs,
   ...agentDemoTutorials.map((tutorial): DocPage => ({
     id: tutorial.id, section: "Agent demos", title: tutorial.title, lede: tutorial.lede,

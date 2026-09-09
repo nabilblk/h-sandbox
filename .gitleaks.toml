@@ -42,6 +42,19 @@ id = "generic-api-key"
   paths = ['''(^|/)apps/demo-video/public/capture/capture\.json$''']
   regexes = ['''^1383e9e011f000e77fbaca565821c91a497ae8c25d398dd64fe494561780ddff$''']
   [[rules.allowlists]]
+  description = "Exact September 9 UI-tour source SHA-256 checksums, recomputed from the named frontend files; not API credentials"
+  condition = "AND"
+  paths = ['''(^|/)(apps/demo-video/public/ui-product-tour/tour\.json|apps/web/public/demos/ui-product-tour/provenance\.json)$''']
+  regexes = [
+    '''^085c64ee172ac8721007a532226aa6d5fd6f4e073e3118fbdd25f1fe9fbccfb0$''',
+    '''^f634074bc7b6036f7d03b1c30dff51978a49b3925a6316b196a8c050022c6918$''',
+    '''^6a7103cb5bd7536bcee26bc177fdd90758e4f75287759cf5f87f9688512a78b3$''',
+    '''^f89a4bc12b270bd3a41cd543a02b9c8a1b477fbc7b59ca854fdbc9a9a6018de7$''',
+    '''^ac6241c7e3c4ec1f56066abf4556d14a39572edf5ed900ddb51d13c869161179$''',
+    '''^aa7d12b9c9b403f4d03daf3da424a2b4a75877f7712cf3f70f6c4bb1b706e89d$''',
+    '''^9a0d09b3604822d7963fe6294b900c11d2efe6a4fdf245ee1da2f260155d41cc$''',
+  ]
+  [[rules.allowlists]]
   description = "Exact masked keys in historical static design mockups"
   condition = "AND"
   paths = ['''(^|/)sandbox_mockups/components/(onboarding|dashboard)\.jsx$''']

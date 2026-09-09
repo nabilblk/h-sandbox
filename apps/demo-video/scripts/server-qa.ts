@@ -22,7 +22,8 @@ for (const demo of demos) {
     const response = await fetch(new URL(path, base));
     assert.equal(response.status, 200, path);
     const filename = new URL(path, base).pathname.split('/').at(-1)!;
-    assert.equal(sha256(Buffer.from(await response.arrayBuffer())), expected.files[filename], `Stale public asset: ${path}`);
+    const hash = typeof expected.files[filename] === 'string' ? expected.files[filename] : expected.files[filename].sha256;
+    assert.equal(sha256(Buffer.from(await response.arrayBuffer())), hash, `Stale public asset: ${path}`);
   }
   for (const [path, type] of [[demo.video, 'video/mp4'], [demo.poster, 'image/webp'], [demo.captions, 'text/vtt'], [demo.transcript, 'text/markdown'], [demo.provenance, 'application/json'], [`/demos/${demo.id}/tutorial.html`, 'text/html']]) {
     const response = await fetch(new URL(path!, base), { method: 'HEAD' });
@@ -37,8 +38,11 @@ for (const demo of demos) {
 }
 assert.equal((await fetch(new URL('/demos/missing/video.mp4', base))).status, 404);
 assert.equal((await fetch(new URL('/demos/agent-workflows.zip', base), { method: 'HEAD' })).status, 200);
-const sourceBundle = await fetch(new URL(demos[0]!.source, base));
-assert.equal(sha256(Buffer.from(await sourceBundle.arrayBuffer())), await fileHash(join(root, 'apps/web/public/demos/agent-workflows.zip')));
+for (const source of new Set(demos.map(demo => demo.source))) {
+  const url = new URL(source, base);
+  const sourceBundle = await fetch(url);
+  assert.equal(sha256(Buffer.from(await sourceBundle.arrayBuffer())), await fileHash(join(root, 'apps/web/public', url.pathname)));
+}
 for (const [path, type] of [
   ['/demo/harakiri-product-demo.mp4', 'video/mp4'],
   ['/demo/harakiri-hero-loop.mp4', 'video/mp4'],

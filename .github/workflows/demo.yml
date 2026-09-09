@@ -31,6 +31,7 @@ jobs:
           pnpm --filter @harakiri/demo-video exec remotion still src/index.ts sdk-agent-report out/ci-sdk.png --frame=1500 --scale=0.5
           pnpm --filter @harakiri/demo-video exec remotion still src/index.ts ui-agent-app out/ci-ui.png --frame=120 --scale=0.5
           pnpm --filter @harakiri/demo-video exec remotion still src/index.ts browser-agent-qa out/ci-browser.png --frame=7500 --scale=0.5
+          pnpm --filter @harakiri/demo-video exec remotion still src/index.ts ui-product-tour out/ci-ui-tour.png --frame=4200 --scale=0.5
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: vars.REMOTION_RENDER_ENABLED == 'true'
         with:

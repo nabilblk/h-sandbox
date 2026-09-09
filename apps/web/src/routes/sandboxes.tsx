@@ -369,7 +369,7 @@ export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { on
           <Field label="Name (optional)" hint="A label for your own reference">
             <input className="input" placeholder="agent-eval-runner" value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
-          <SandboxResourceFields ttlSeconds={ttlSeconds} onTtlChange={setTtlSeconds} />
+          <SandboxResourceFields ttlSeconds={ttlSeconds} onTtlChange={setTtlSeconds} template={selectedTemplate} />
           <Field label="Persistent workspace">
             <select className="input" aria-label="Persistent workspace" disabled={!workspaces?.policy.available || loading} value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)}>
               <option value="">None (ephemeral files)</option>
@@ -398,7 +398,7 @@ export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { on
             <textarea className="input mono sandbox-env-input" spellCheck={false} placeholder="HARAKIRI_ENV=dev" value={envText} onChange={(event) => setEnvText(event.target.value)} />
           </Field>
           {error ? <div className="build-inline-alert"><span>{error}</span></div> : null}
-          <div className="cost-est"><span style={{ color: "var(--muted)" }}>Cold start</span><span className="num">~142ms - idle TTL {ttlSeconds}s</span></div>
+          <div className="cost-est"><span style={{ color: "var(--muted)" }}>Sandbox lifetime</span><span className="num">{ttlSeconds}s</span></div>
         </div>
         <div className="modal-foot">
           <button className="btn" onClick={onClose}>Cancel</button>
@@ -431,13 +431,13 @@ const TemplateField = ({
   </Field>
 );
 
-const SandboxResourceFields = ({ ttlSeconds, onTtlChange }: { ttlSeconds: number; onTtlChange: (value: number) => void }) => (
+export const SandboxResourceFields = ({ ttlSeconds, onTtlChange, template }: { ttlSeconds: number; onTtlChange: (value: number) => void; template?: Pick<Template, "cpuCount" | "memoryMb"> }) => (
   <div className="sandbox-create-split">
-    <Field label="Idle TTL">
-      <input className="input mono" type="number" value={ttlSeconds} onChange={(event) => onTtlChange(Number(event.target.value))} />
+    <Field label="Lifetime (seconds)">
+      <input className="input mono" aria-label="Lifetime (seconds)" type="number" min={1} step={1} value={ttlSeconds} onChange={(event) => onTtlChange(Number(event.target.value))} />
     </Field>
-    <Field label="Resources">
-      <select className="input"><option>Template default</option><option>2 vCPU - 2 GiB</option><option>4 vCPU - 4 GiB</option></select>
+    <Field label="Template resources">
+      <input className="input" aria-label="Template resources" readOnly value={template ? `${template.cpuCount} vCPU / ${template.memoryMb.toLocaleString()} MB` : "Loading..."} />
     </Field>
   </div>
 );

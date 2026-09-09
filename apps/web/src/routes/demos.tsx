@@ -7,12 +7,13 @@ import { setDocsPageSelection } from "../docs-selection";
 
 export const DemosRoute = ({ selectedId, ...navigation }: TopNavProps & { selectedId?: string }) => {
   const [surface, setSurface] = useState<"All" | Demo["surface"]>("All");
+  const [wide, setWide] = useState(true);
   const selected = selectedId ? demos.find((demo) => demo.id === selectedId) : demos[0];
   const visible = demos.filter((demo) => surface === "All" || demo.surface === surface);
   return <div className="app">
     <TopNav {...navigation} active="demos" />
-    <main className="demo-library">
-      <header className="demo-library-heading"><h1>Demos</h1><span>{demos.length} workflows</span></header>
+    <main className={`demo-library ${wide ? 'demo-library-wide' : ''}`}>
+      <header className="demo-library-heading"><h1>Demos</h1><span>{demos.length} walkthroughs</span><button className="btn btn-ghost btn-sm demo-width-toggle" aria-label="Wide player" title={wide ? 'Show side-by-side library' : 'Expand player width'} aria-pressed={wide} onClick={() => setWide(!wide)}><Icon name="snapshot" size={18} /></button></header>
       <div className="demo-library-layout">
         <aside className="demo-library-index" aria-label="Demo library">
           <div className="demo-filters" role="group" aria-label="Filter demos">
