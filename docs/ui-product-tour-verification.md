@@ -3,6 +3,11 @@
 Date: 2026-09-09. Delivery: source, rendered media and local website preview.
 No production deployment, package release or Git publication is implied.
 
+Subsequent delivery: the tour was committed and deployed to the public k0s lab
+later the same day. See the [public deployment receipt](release-notes/2026-09-09-ui-product-tour-delivery.md)
+for source/image identity, public browser verification and rollback. The checks
+below describe recording/source acceptance, not a second runtime capture.
+
 ## Deliverable
 
 The default Demos entry is a 5m34s UI tour with 17 chapters. The separate

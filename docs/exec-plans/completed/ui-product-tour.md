@@ -91,6 +91,11 @@ See the [acceptance report](../../ui-product-tour-verification.md) and
 Local review: http://127.0.0.1:19497/#demos/ui-product-tour. Not deployed, committed,
 pushed or released by this task. The owner can review before public distribution.
 
+Follow-up: the owner requested publication after local review. The
+[deployment plan](ui-product-tour-deployment.md) and
+[delivery receipt](../../release-notes/2026-09-09-ui-product-tour-delivery.md)
+record the subsequent commit and verified public web deployment.
+
 ## Findings During Capture
 
 - Removed fabricated `142ms` cold-start, unused resource selector, fixed `4 seats`
