@@ -7,7 +7,7 @@ import { setDocsPageSelection } from "../docs-selection";
 
 export const DemosRoute = ({ selectedId, ...navigation }: TopNavProps & { selectedId?: string }) => {
   const [surface, setSurface] = useState<"All" | Demo["surface"]>("All");
-  const [wide, setWide] = useState(true);
+  const [wide, setWide] = useState(false);
   const selected = selectedId ? demos.find((demo) => demo.id === selectedId) : demos[0];
   const visible = demos.filter((demo) => surface === "All" || demo.surface === surface);
   return <div className="app">
