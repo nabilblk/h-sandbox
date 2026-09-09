@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { writeDemoIndex } from './demo-index.js';
 import { copyFile, mkdir, readFile, writeFile, chmod, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
@@ -60,4 +61,4 @@ const dockerfile = await readFile(join(bundle, 'agent-workflows/opencode/Dockerf
 assert.deepEqual(dockerfile.split('\n').filter((line) => /^COPY /m.test(line)), ['COPY smoke.sh /usr/local/bin/harakiri-opencode-smoke'], 'Update the source allowlist when template COPY instructions change');
 await rm(join(publicDir, 'agent-workflows.zip'), { force: true });
 await exec('zip', ['-q', '-r', join(publicDir, 'agent-workflows.zip'), 'agent-workflows'], { cwd: bundle });
-await writeFile(join(publicDir, 'index.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harakiri agent demos</title><main><h1>Agent demos</h1><ul>' + agentDemoTutorials.map((tutorial) => `<li><a href="${tutorial.id}/tutorial.html?v=20260905-four-workflows-1">${escape(tutorial.title)}</a></li>`).join('') + '</ul><a href="/#demos">Interactive demo library</a></main></html>\n');
+await writeDemoIndex();

@@ -3,7 +3,7 @@
 ## Scope
 
 The public Demos library is separate from the original homepage. It contains
-four real OpenCode stories: CLI invoice repair, dashboard app creation,
+the full-frame UI product tour plus four real OpenCode stories: CLI invoice repair, dashboard app creation,
 SDK report generation and agent-written browser QA. The former 68-second infrastructure tour remains a
 historical example in /demo, not the homepage or main demo catalog.
 
@@ -15,6 +15,117 @@ Check https://www.remotion.dev/docs/license before changing the producing entity
 All runtime operations use public Harakiri contracts. Docker is only a clean
 local npm consumer. No Kubernetes exec, provider credentials, customer projects,
 paid-model fallback, or private reasoning traces belong in published material.
+
+## Full-Frame UI Product Tour
+
+See the [September 9 acceptance report](ui-product-tour-verification.md) for the
+actual recording, browser checks, artifact hash and local/public delivery boundary.
+
+The UI product tour is a separate Remotion composition, `ui-product-tour`. Its
+17 chapters (5m34s) follow a deterministic release-check project, not an AI model
+benchmark. It preserves every pixel of the 1920x1080 application viewport at
+device scale 1 and browser zoom 1. Browser chrome is not part of the recording.
+There are no panel crops, zooms, speed changes, synthetic UI, narration or music.
+Small pointer rings replay actual input positions. The synchronized guide stays
+outside the video. Native captions are optional; native fullscreen remains available.
+
+The story is maintained in `apps/web/src/ui-product-tour.ts`. The same timeline
+drives capture durations, composition, website chapters, captions and written
+documentation. The existing four films are not rerendered by this pipeline.
+
+### Capture Prerequisites
+
+- An isolated organization with no active runtimes or workspaces and a unique
+  `release-checks` workspace name. Archived workspaces retain their names; use a
+  fresh recording organization after a discarded attempt.
+- A non-platform-admin recording user with organization-admin access. Do not
+  record the owner's workspace, login form, member addresses or API-key values.
+- A short-lived organization key with `sandboxes:read`, `sandboxes:write`,
+  `templates:read`, `workspaces:read`, `workspaces:write`, and `org:read`.
+- A ready `node-20` template, 1 CPU / 1 GiB RAM, plus configured persistent
+  storage, public preview routing and mutable egress enforcement. This recording
+  uses the current OpenSandbox adapter through Harakiri, not Kubernetes exec.
+- A local source preview with explicit public API/OIDC configuration. Never
+  deploy a local OIDC origin. Captures identify the local-preview/live-API setup,
+  source revision and actual frontend file hashes in their public provenance.
+- The minimal Node image lacks curl, wget and Python. The included
+  `prepare-tools.sh` installs curl and certificate roots through Commands while
+  Internet access is enabled. Full package logs remain in `/tmp/tour-packages.log`.
+  A prepared non-root deployment should include these tools in its image instead
+  of granting privilege or changing OpenShift SCC for this demonstration.
+
+Provide an owner-readable JSON credential file (mode 0600), outside Git, with
+`web`, `api`, `username`, `password`, `organizationId`, `apiKey`, `apiKeyId` and
+`expiresAt`. Populate values from your secret manager. The capture uses browser
+OIDC login and checks the current identity/organization before recording. No
+recording-specific Keycloak user creation or admin credentials are required by
+the committed script.
+
+```sh
+export HARAKIRI_DEMO_IDENTITY=/absolute/private/path/to/recording-identity.json
+pnpm --filter @harakiri/demo-video capture:tour
+```
+
+Raw evidence remains under ignored `docs/artifacts/demo/ui-product-tour/`.
+Each run keeps a private inventory and diagnostics. Only a completed run writes
+`tour.json` and updates `latest.json`. On failure, cleanup terminates the owned
+runtimes, archives released storage, and revokes the capture key. A machine crash
+or forced process termination may need manual recovery using the exact IDs in
+`private-inventory.json`. Never run broad namespace or organization cleanup.
+
+The capture verifies command exit codes, the live HTTP preview, permitted and
+unlisted destinations after a known reachable baseline, two distinct runtime IDs,
+and identical report bytes across workspace reuse. Both runtimes and the preview
+must be inactive. Workspace archive **retains files and allocation**; it is not
+physical deletion. Fixture files are uploaded through the file API between the
+terminal and tools chapters, explicitly disclosed in the guide.
+
+### Review, Render and Verify
+
+Review the complete private source footage and screenshots first. Continuous DOM
+privacy checks reject sensitive content during capture; normalize only invisible
+terminal control characters, never redact secrets and then declare a frame safe.
+The publication command copies only schema-approved clips and the evidence manifest.
+
+```sh
+pnpm --filter @harakiri/demo-video prepare:tour --reviewed
+pnpm --filter @harakiri/demo-video render:tour
+pnpm --filter @harakiri/demo-video verify:tour
+pnpm --filter @harakiri/demo-video browser:tour http://127.0.0.1:19497
+pnpm --filter @harakiri/web build
+```
+
+The renderer writes the MP4, WebP poster, VTT, transcript, standalone no-JavaScript
+tutorial, source ZIP and provenance into `apps/web/public/demos/ui-product-tour/`.
+It also refreshes the static demo index. Public docs include a Getting Started
+page, Markdown export and machine-readable inventory. The landing page remains
+unchanged. No Remotion code is added to the browser bundle.
+
+Verification checks source/output hashes, cleanup evidence, normal-speed full
+viewport dimensions, exact timing, caption/tutorial drift, source archive contents,
+and OCR/pixel checks on chapter starts, middles and ends. Browser QA additionally
+checks decoded video pixels, five viewport sizes, guide synchronization, chapter
+seeking, captions, native fullscreen, wide-player toggle and failure/no-JS states.
+OCR is sampled verification, not proof that every frame has been manually audited.
+Keep the private verification results separate from public media.
+
+Run the repository secret scan before publication and include new, not-yet-tracked
+tour files in the candidate inventory. Source hashes next to auth-related paths
+can trigger generic-key rules. Recompute each flagged file checksum before adding
+an exact value-and-manifest-path exception; never exclude the manifest wholesale.
+
+The source file hashes describe the recorded application, including local edits
+before the next commit. A rendered/local preview is not a public deployment. A
+web-only deployment is a separate operation; API, Keycloak and npm releases are
+not needed to distribute the tour.
+
+### Known Diagnostic Boundary
+
+The current access-test endpoint labels a missing curl/wget/Python probe as
+`blocked_or_unreachable`. The capture detected this, inspected the real response
+through Harakiri, and added the explicit tools prerequisite above. Do not infer
+network denial from that label alone. Distinguishing missing tools in the API/UI
+is a follow-up product diagnostic improvement, not a reason to bypass the provider.
 
 ## Prerequisites
 

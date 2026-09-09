@@ -3,6 +3,7 @@ import { cliDemoSteps } from './cli-demo-walkthrough';
 import { uiDemoSteps } from './ui-demo-walkthrough';
 import { browserDemoSteps } from './browser-demo-walkthrough';
 import { walkthroughTiming } from './demo-walkthrough';
+import { uiProductTourChapters, uiProductTourSeconds } from './ui-product-tour';
 
 export type Demo = {
   id: string;
@@ -17,7 +18,7 @@ export type Demo = {
   provenance: string;
   tutorialId: string;
   source: string;
-  chapters: { start: number; title: string }[];
+  chapters: { start: number; title: string; guide?: string; outcome?: string }[];
 };
 
 const entries = [
@@ -35,7 +36,7 @@ const entries = [
     ...walkthroughTiming(browserDemoSteps) },
 ];
 
-export const demos: Demo[] = entries.map((entry) => {
+const workflows: Demo[] = entries.map((entry) => {
   const revision = '?v=20260905-four-workflows-1';
   const asset = (name: string) => `/demos/${entry.id}/${name}${revision}`;
   return {
@@ -45,3 +46,13 @@ export const demos: Demo[] = entries.map((entry) => {
     source: '/demos/agent-workflows.zip?v=20260905-four-workflows-1',
   };
 });
+
+const tourAsset = (name: string) => `/demos/ui-product-tour/${name}?v=20260909-full-frame-1`;
+export const demos: Demo[] = [{
+  id: 'ui-product-tour', title: 'Harakiri Sandbox: the UI tour', surface: 'UI',
+  summary: 'One project from launch to cleanup: templates, terminal, tracked commands, files, previews, outbound policy, diagnostics, and persistent workspace reuse.',
+  seconds: uiProductTourSeconds, chapters: uiProductTourChapters,
+  video: tourAsset('video.mp4'), poster: tourAsset('poster.webp'), captions: tourAsset('captions.vtt'),
+  transcript: tourAsset('transcript.md'), provenance: tourAsset('provenance.json'),
+  tutorialId: 'ui-product-tour', source: tourAsset('example-source.zip'),
+}, ...workflows];

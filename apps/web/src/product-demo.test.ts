@@ -7,6 +7,8 @@ import { ProductDemo } from "./components/product-demo.js";
 import { LandingRoute } from "./routes/landing.js";
 import { DemosRoute } from "./routes/demos.js";
 import { isPublicRoute, routeFromHash } from "./routing.js";
+import { demos } from './demo-catalog.js';
+import { uiProductTourChapters, uiProductTourSeconds } from './ui-product-tour.js';
 
 test("full demo uses native controls, captions and transcript", () => {
   const html = renderToStaticMarkup(createElement(ProductDemo, { onTutorial() {} }));
@@ -28,6 +30,22 @@ test("demos have public deep links and do not autoplay", () => {
   assert.match(html, /Demo library/);
   assert.match(html, /Video chapters/);
   assert.doesNotMatch(html, /autoPlay/);
+});
+
+test('the full-frame UI tour has an external guide and is the default demo', () => {
+  assert.equal(demos[0].id, 'ui-product-tour');
+  assert.equal(demos[0].seconds, uiProductTourSeconds);
+  assert.deepEqual(demos[0].chapters, uiProductTourChapters);
+  assert.equal(demos.length, 5);
+  const html = renderToStaticMarkup(createElement(DemosRoute, { go() {} }));
+  assert.match(html, /demo-library-wide/);
+  assert.match(html, /aria-label="Wide player"/);
+  assert.match(html, /Current chapter guide/);
+  assert.match(html, /Observed outcome/);
+  assert.match(html, /aria-label="Next chapter"/);
+  assert.ok(html.indexOf('demo-guide') > html.indexOf('</video>'));
+  assert.match(readFileSync(new URL('./styles-demos.css', import.meta.url), 'utf8'), /video[^}]+object-fit: contain/);
+  assert.match(html, /#demos\/sdk-agent-report/);
 });
 
 test("landing presents the control plane without unverified runtime guarantees", () => {

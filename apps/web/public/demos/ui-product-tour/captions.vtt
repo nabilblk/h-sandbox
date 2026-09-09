@@ -1,0 +1,229 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:02.400 line:92% position:50% size:90% align:center
+Harakiri is a self-hosted sandbox control plane for agent applications.
+
+00:00:02.400 --> 00:00:04.800 line:92% position:50% size:90% align:center
+This is the real dashboard, at normal browser zoom. Follow a
+
+00:00:04.800 --> 00:00:07.200 line:92% position:50% size:90% align:center
+release-check project from environment selection to verified cleanup.
+
+00:00:07.200 --> 00:00:09.600 line:92% position:50% size:90% align:center
+The example is deterministic: no model account or AI-generated output is
+
+00:00:09.600 --> 00:00:12.000 line:92% position:50% size:90% align:center
+needed.
+
+00:00:12.000 --> 00:00:16.500 line:92% position:50% size:90% align:center
+Templates describe the environment your work runs in. Compare CPU,
+
+00:00:16.500 --> 00:00:21.000 line:92% position:50% size:90% align:center
+memory, visibility and readiness before launching. This project uses
+
+00:00:21.000 --> 00:00:25.500 line:92% position:50% size:90% align:center
+Node 20, with one CPU and 1 GiB of memory. Other agent-specific examples
+
+00:00:25.500 --> 00:00:30.000 line:92% position:50% size:90% align:center
+live in the demo library; this tour focuses on the control plane itself.
+
+00:00:30.000 --> 00:00:34.500 line:92% position:50% size:90% align:center
+A workspace is persistent project storage, not another running sandbox.
+
+00:00:34.500 --> 00:00:39.000 line:92% position:50% size:90% align:center
+Create release-checks once. Its files will be mounted at /workspace when
+
+00:00:39.000 --> 00:00:43.500 line:92% position:50% size:90% align:center
+a sandbox attaches. This installation allocates 1 GiB; storage size and
+
+00:00:43.500 --> 00:00:48.000 line:92% position:50% size:90% align:center
+availability depend on the operator configuration.
+
+00:00:48.000 --> 00:00:53.500 line:92% position:50% size:90% align:center
+Create a sandbox from the workspace. Choose Node 20, name the runtime
+
+00:00:53.500 --> 00:00:59.000 line:92% position:50% size:90% align:center
+release-checks-01, and set a 30-minute lifetime for recording. Resources
+
+00:00:59.000 --> 00:01:04.500 line:92% position:50% size:90% align:center
+come from the template. Internet access starts enabled. Provisioning may
+
+00:01:04.500 --> 00:01:10.000 line:92% position:50% size:90% align:center
+take longer than shown: only waiting between chapters is removed.
+
+00:01:10.000 --> 00:01:14.500 line:92% position:50% size:90% align:center
+The sandbox detail view keeps status, lifetime, template and workspace
+
+00:01:14.500 --> 00:01:19.000 line:92% position:50% size:90% align:center
+together. Terminal connects through Harakiri. Run pwd and node --version
+
+00:01:19.000 --> 00:01:23.500 line:92% position:50% size:90% align:center
+to inspect the actual environment. Commands and outputs in this film are
+
+00:01:23.500 --> 00:01:28.000 line:92% position:50% size:90% align:center
+executed, not reconstructed. There is no Kubernetes exec fallback.
+
+00:01:28.000 --> 00:01:32.000 line:92% position:50% size:90% align:center
+The example files were uploaded through the file API between chapters.
+
+00:01:32.000 --> 00:01:36.000 line:92% position:50% size:90% align:center
+This minimal Node image needs curl and certificate roots for the
+
+00:01:36.000 --> 00:01:40.000 line:92% position:50% size:90% align:center
+built-in access test. Run the included prepare-tools.sh through Commands
+
+00:01:40.000 --> 00:01:44.000 line:92% position:50% size:90% align:center
+while Internet access is enabled. Package output is retained in
+
+00:01:44.000 --> 00:01:48.000 line:92% position:50% size:90% align:center
+/tmp/tour-packages.log. A prepared team template can include these tools
+
+00:01:48.000 --> 00:01:52.000 line:92% position:50% size:90% align:center
+already.
+
+00:01:52.000 --> 00:01:56.000 line:92% position:50% size:90% align:center
+The four small example files are included with this tour. Filesystem
+
+00:01:56.000 --> 00:02:00.000 line:92% position:50% size:90% align:center
+shows the runtime directory listing, sizes and paths. Open /workspace to
+
+00:02:00.000 --> 00:02:04.000 line:92% position:50% size:90% align:center
+inspect the project. This view is a browser, not an in-browser code
+
+00:02:04.000 --> 00:02:08.000 line:92% position:50% size:90% align:center
+editor. The release check will create a report alongside these files.
+
+00:02:08.000 --> 00:02:13.600 line:92% position:50% size:90% align:center
+Use Commands for tracked work. Set the working directory explicitly and
+
+00:02:13.600 --> 00:02:19.200 line:92% position:50% size:90% align:center
+run node check.mjs. The script validates three release checks and writes
+
+00:02:19.200 --> 00:02:24.800 line:92% position:50% size:90% align:center
+report.json. Output arrives while the command runs, and the exit code
+
+00:02:24.800 --> 00:02:30.400 line:92% position:50% size:90% align:center
+makes completion explicit. This is a deterministic test fixture, not an
+
+00:02:30.400 --> 00:02:36.000 line:92% position:50% size:90% align:center
+agent benchmark.
+
+00:02:36.000 --> 00:02:40.000 line:92% position:50% size:90% align:center
+Move to Filesystem to see the new report, then return to Commands and
+
+00:02:40.000 --> 00:02:44.000 line:92% position:50% size:90% align:center
+select the same run. Its output can be followed again without starting
+
+00:02:44.000 --> 00:02:48.000 line:92% position:50% size:90% align:center
+duplicate work. Command history belongs to the runtime; it is not a
+
+00:02:48.000 --> 00:02:52.000 line:92% position:50% size:90% align:center
+promise of permanent log retention after that runtime is deleted.
+
+00:02:52.000 --> 00:02:56.500 line:92% position:50% size:90% align:center
+Start node server.mjs from Commands. It serves the report on port 3000
+
+00:02:56.500 --> 00:03:01.000 line:92% position:50% size:90% align:center
+and binds to all sandbox interfaces. The process continues when you move
+
+00:03:01.000 --> 00:03:05.500 line:92% position:50% size:90% align:center
+to another tab. The UI gives tracked commands a five-minute command
+
+00:03:05.500 --> 00:03:10.000 line:92% position:50% size:90% align:center
+timeout, so this preview is deliberately short-lived.
+
+00:03:10.000 --> 00:03:14.000 line:92% position:50% size:90% align:center
+In Network, expose port 3000 as a Public route and open the resulting
+
+00:03:14.000 --> 00:03:18.000 line:92% position:50% size:90% align:center
+URL. This example contains only synthetic release-check results. Public
+
+00:03:18.000 --> 00:03:22.000 line:92% position:50% size:90% align:center
+means anyone with the URL can visit it; use Token access for a protected
+
+00:03:22.000 --> 00:03:26.000 line:92% position:50% size:90% align:center
+service. The preview below is the actual running server, not a
+
+00:03:26.000 --> 00:03:30.000 line:92% position:50% size:90% align:center
+screenshot mockup.
+
+00:03:30.000 --> 00:03:35.600 line:92% position:50% size:90% align:center
+Inbound previews and outbound policy solve different problems. Select
+
+00:03:35.600 --> 00:03:41.200 line:92% position:50% size:90% align:center
+the Node packages preset. The package registry is reachable; example.com
+
+00:03:41.200 --> 00:03:46.800 line:92% position:50% size:90% align:center
+is not after the restriction. The capture verified that example.com was
+
+00:03:46.800 --> 00:03:52.400 line:92% position:50% size:90% align:center
+reachable before the change. Counters represent rules, not traffic
+
+00:03:52.400 --> 00:03:58.000 line:92% position:50% size:90% align:center
+totals. These tests execute inside the sandbox.
+
+00:03:58.000 --> 00:04:01.600 line:92% position:50% size:90% align:center
+Logs and Metrics keep runtime diagnostics near the work. Inspect
+
+00:04:01.600 --> 00:04:05.200 line:92% position:50% size:90% align:center
+lifecycle entries, then the current CPU and memory snapshot. These are
+
+00:04:05.200 --> 00:04:08.800 line:92% position:50% size:90% align:center
+operational observations, not historical billing data or an
+
+00:04:08.800 --> 00:04:12.400 line:92% position:50% size:90% align:center
+agent-reasoning trace. Provider capabilities determine which additional
+
+00:04:12.400 --> 00:04:16.000 line:92% position:50% size:90% align:center
+runtime measurements are available.
+
+00:04:16.000 --> 00:04:19.500 line:92% position:50% size:90% align:center
+Kill terminates this sandbox and its preview route. It does not erase a
+
+00:04:19.500 --> 00:04:23.000 line:92% position:50% size:90% align:center
+persistent workspace. Wait for the workspace to finish releasing before
+
+00:04:23.000 --> 00:04:26.500 line:92% position:50% size:90% align:center
+reusing it. The next chapter begins after that release has completed; no
+
+00:04:26.500 --> 00:04:30.000 line:92% position:50% size:90% align:center
+concurrent writer or instant handoff is implied.
+
+00:04:30.000 --> 00:04:35.500 line:92% position:50% size:90% align:center
+Return to Workspaces and create release-checks-02 from the same storage.
+
+00:04:35.500 --> 00:04:41.000 line:92% position:50% size:90% align:center
+Choose Node 20 again. This is a new sandbox, not a resumed process or a
+
+00:04:41.000 --> 00:04:46.500 line:92% position:50% size:90% align:center
+VM snapshot. The project files are retained; processes, open connections
+
+00:04:46.500 --> 00:04:52.000 line:92% position:50% size:90% align:center
+and command history are not carried over.
+
+00:04:52.000 --> 00:04:57.500 line:92% position:50% size:90% align:center
+In the replacement sandbox, run the report verification command from
+
+00:04:57.500 --> 00:05:03.000 line:92% position:50% size:90% align:center
+/workspace. It reads the existing report.json and verifies that all
+
+00:05:03.000 --> 00:05:08.500 line:92% position:50% size:90% align:center
+three checks passed. The capture also compares the report bytes across
+
+00:05:08.500 --> 00:05:14.000 line:92% position:50% size:90% align:center
+both runtimes. Nothing regenerates the report during this verification.
+
+00:05:14.000 --> 00:05:18.000 line:92% position:50% size:90% align:center
+Terminate the replacement runtime and archive the workspace. The archive
+
+00:05:18.000 --> 00:05:22.000 line:92% position:50% size:90% align:center
+dialog explicitly retains its files and storage allocation; physical
+
+00:05:22.000 --> 00:05:26.000 line:92% position:50% size:90% align:center
+deletion is an operator action. Both runtimes and the preview are now
+
+00:05:26.000 --> 00:05:30.000 line:92% position:50% size:90% align:center
+inactive. Continue with the CLI, SDK and OpenCode demos for real agent
+
+00:05:30.000 --> 00:05:34.000 line:92% position:50% size:90% align:center
+workflows on the same control plane.
