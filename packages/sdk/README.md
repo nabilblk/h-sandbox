@@ -11,9 +11,9 @@ Repository contributors can also read [the integration contract](../../docs/sdk.
 ## Install
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.7
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.8
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.7
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
 ```
 
 This pins the recorded Developer Preview; confirm the matching server with your

@@ -175,6 +175,16 @@ PostgreSQL and runtime connections. Scoped rotation approval was requested;
 these are not covered by the earlier human-password rotation. Do not claim that
 publication safety is complete or change these credentials without that approval.
 
+rc.7 checkpoint: matching packages/images/chart published; clean consumer checks,
+source CI and Harbor CI passed. Fresh application namespaces with newly generated
+operator credentials passed onboarding, OpenCode image import, native commands,
+files/artifacts, CLI execution and workspace release. The existing lab reached
+revision 29, preserving live secrets and origins. Direct HTTP checks then found
+that the Helm-mounted Nginx configuration had not inherited the standalone docs
+locations. rc.8 corrects this chart-only behavioral defect with a source regression
+test covering both configurations, retaining immutable rc.7 artifacts. No broad
+publication or risk acceptance is implied by a successful lab rollout.
+
 ### Phase 0: Scope and Planning Baseline
 **Status**: Complete
 

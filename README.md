@@ -29,12 +29,12 @@ runtime profile. Restricted OpenShift support is not certified by Helm rendering
 ## Run Your First Task
 
 An operator provides your API URL and a scoped, expiring key. The last delivered
-candidate is `0.5.0-rc.7`; `latest` still selects the older `0.4.0` release. Pin
+candidate is `0.5.0-rc.8`; `latest` still selects the older `0.4.0` release. Pin
 the version compatible with your installation:
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.7
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.7
+npm install -g @h-sandbox/cli@0.5.0-rc.8
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
 harakiri --version
 ```
 

@@ -19,7 +19,7 @@ The configuration helper creates files only. Installation uses ordinary
 | Identity | Keycloak `26.7.3`, browser PKCE, explicit API audience, operator-owned credentials |
 | Runtime chart | `opensandbox:0.2.2-harakiri.2` from Harbor |
 | Runtime images | server `v0.2.3`, controller `v0.2.0`, execd `v1.1.0`, ingress `v1.0.10`, egress `v1.1.7` |
-| Control plane and packages | `0.5.0-rc.7`; npm channel `next`, never implicit `latest` |
+| Control plane and packages | `0.5.0-rc.8`; npm channel `next`, never implicit `latest` |
 | Scope | Persistent files, commands, files/artifacts, scoped authorization and native egress |
 
 The listed hardware is a reference allocation, not a measured minimum or a
@@ -107,7 +107,7 @@ mkdir -p preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox \
   --version 0.2.2-harakiri.2 --destination preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
-  --version 0.5.0-rc.7 --destination preview-charts
+  --version 0.5.0-rc.8 --destination preview-charts
 helm install preview-runtime preview-charts/opensandbox-0.2.2-harakiri.2.tgz \
   --namespace harakiri-preview \
   -f infra/preview/.private/opensandbox-values.json --wait --timeout 10m
@@ -128,7 +128,7 @@ under an unmodified restricted OpenShift SCC. Do not bypass that restriction.
 ## 5. Install Harakiri
 
 ```bash
-helm install harakiri preview-charts/harakiri-0.5.0-rc.7.tgz \
+helm install harakiri preview-charts/harakiri-0.5.0-rc.8.tgz \
   --namespace harakiri-preview \
   -f infra/preview/.private/harakiri-values.json --wait --timeout 10m
 kubectl -n harakiri-preview get pods
@@ -157,8 +157,8 @@ to `sb.harakiri.io` or a customer's public installation.
 Install exact published packages into a clean consumer directory:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.7
-npm install --global @h-sandbox/cli@0.5.0-rc.7
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
+npm install --global @h-sandbox/cli@0.5.0-rc.8
 harakiri --version
 export HARAKIRI_API_URL=http://127.0.0.1:28482
 harakiri login --help

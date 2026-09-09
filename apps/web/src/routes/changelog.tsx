@@ -6,7 +6,7 @@ import type { GoToRoute } from "./types";
 const entries = [
   {
     id: "2026-09-09-v0-5-0-rc-7",
-    version: "v0.5.0-rc.7",
+    version: "v0.5.0-rc.8",
     date: "September 9, 2026",
     title: "Verified CLI versions and leaner web runtime",
     items: [

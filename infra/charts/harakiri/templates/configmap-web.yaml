@@ -60,6 +60,18 @@ data:
           add_header Cache-Control "public, max-age=31536000, immutable" always;
         }
 
+        location /docs/ {
+          types { text/markdown md; application/json json; }
+          add_header Cache-Control "no-cache" always;
+          try_files $uri =404;
+        }
+
+        location ~ ^/llms(?:-full)?\.txt$ {
+          default_type text/plain;
+          add_header Cache-Control "no-cache" always;
+          try_files $uri =404;
+        }
+
         location ~ ^/demos?/ {
           types {
             video/mp4 mp4;

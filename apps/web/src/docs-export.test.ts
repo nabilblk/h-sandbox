@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import fs from "node:fs";
 import { documentationAssets, renderDocMarkdown } from "./docs-export.js";
 import { docPages } from "./docs-content.js";
 import { quickstartCli, quickstartTypeScript } from "./getting-started-docs.js";
+
+test("standalone and Helm web configs serve real documentation, not the SPA fallback", () => {
+  for (const relativePath of ["../nginx.conf", "../../../infra/charts/harakiri/templates/configmap-web.yaml"]) {
+    const config = fs.readFileSync(new URL(relativePath, import.meta.url), "utf8");
+    assert.match(config, /location \/docs\/ \{\s*types \{ text\/markdown md; application\/json json; \}\s*add_header Cache-Control "no-cache" always;\s*try_files \$uri =404;/);
+    assert.ok(config.includes("location ~ ^/llms(?:-full)?\\.txt$ {"));
+    assert.match(config, /default_type text\/plain;\s*add_header Cache-Control "no-cache" always;\s*try_files \$uri =404;/);
+  }
+});
 
 test("every navigable page has actual Markdown and an inventory entry", () => {
   const assets = documentationAssets();

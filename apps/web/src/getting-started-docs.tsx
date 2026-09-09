@@ -73,7 +73,7 @@ export const overviewDocs: DocPage = {
     <p><a href="#demos">Watch the recorded workflows</a>, or follow <a href="#docs/persistent-workspaces">the workspace tutorial</a> to reuse files across sandbox lifetimes.</p>
     <h2>Integrate and operate</h2>
     <p>Use the <a href="#docs/api-reference">API reference</a> and <a href="#docs/cli-reference">CLI reference</a> for exact operations. Operators should also read <a href="#docs/workspace-operations">storage operations</a> and <a href="#docs/errors-troubleshooting">error handling</a>.</p>
-    <aside className="docs-notice"><p><strong>Choose your release deliberately.</strong> The recorded Developer Preview is <code>0.5.0-rc.7</code> on npm <code>next</code>, with matching server requirements. The older <code>latest</code> channel is 0.4.0. Check <a href="#docs/developer-preview">preview scope and prerequisites</a>; source changes are not available until a new candidate is published.</p><p><a href="#changelog">Read the release notes</a></p></aside>
+    <aside className="docs-notice"><p><strong>Choose your release deliberately.</strong> The recorded Developer Preview is <code>0.5.0-rc.8</code> on npm <code>next</code>, with matching server requirements. The older <code>latest</code> channel is 0.4.0. Check <a href="#docs/developer-preview">preview scope and prerequisites</a>; source changes are not available until a new candidate is published.</p><p><a href="#changelog">Read the release notes</a></p></aside>
   </>
 };
 
@@ -82,18 +82,18 @@ const QuickstartBody = () => {
   return <>
     <h2>Before you start</h2>
     <ul><li>A running Harakiri deployment, its API URL and an organization API key from the dashboard's <strong>API keys</strong> page.</li><li>A ready <code>python-3.12-data</code> template. Ask your operator for an equivalent Python template if the catalog differs.</li><li>Node.js 20 or newer on your machine. The shell example uses Bash. Python runs inside the sandbox, not on your machine.</li></ul>
-    <p>The examples below pin <code>0.5.0-rc.7</code>, the recorded Developer Preview. Confirm your operator runs the matching API. Unversioned installs still select the older <code>0.4.0</code> stable channel. Review <a href="#docs/developer-preview">version and runtime limits</a> first.</p>
+    <p>The examples below pin <code>0.5.0-rc.8</code>, the recorded Developer Preview. Confirm your operator runs the matching API. Unversioned installs still select the older <code>0.4.0</code> stable channel. Review <a href="#docs/developer-preview">version and runtime limits</a> first.</p>
     <h2>Install and authenticate</h2>
     <p>Set <code>HARAKIRI_API_URL</code> to your deployment's control-plane API, not the dashboard URL. Provide <code>HARAKIRI_API_KEY</code> privately through your shell or secret manager. Keep that key on the caller's machine, out of sandbox files and source control.</p>
     <CodeBlock language="bash">{`export HARAKIRI_API_URL="https://sb-api.harakiri.io"
 # HARAKIRI_API_KEY must already be set privately.`}</CodeBlock>
     <CodeTabs label="Install method" value={method} onValueChange={setMethod} examples={[
-      { label: "CLI", language: "bash", code: `npm install -g @h-sandbox/cli@0.5.0-rc.7
+      { label: "CLI", language: "bash", code: `npm install -g @h-sandbox/cli@0.5.0-rc.8
 harakiri login --api-url "$HARAKIRI_API_URL"
 harakiri template list` },
       { label: "TypeScript", language: "bash", code: `# In a new example directory:
 npm init -y
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.7
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
 npm install --save-dev tsx typescript @types/node` }
     ]} />
     <p>The CLI reads <code>HARAKIRI_API_KEY</code> and stores the connection in its local configuration. It reports a missing-key error if the variable is not set. The SDK reads the same environment variables directly.</p>

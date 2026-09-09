@@ -10,11 +10,11 @@ export const previewDocs: DocPage = {
     <p><strong>Developers:</strong> obtain an API URL and a scoped, expiring key from your operator. Follow <a href="#docs/quickstart">the deterministic quickstart</a>, then add <a href="#docs/workspaces">retained files</a> or <a href="#docs/opencode-template">OpenCode</a>. An agent or model-provider account is not required for the first task.</p>
     <p><strong>Operators:</strong> begin with the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/developer-preview.md">installation and evaluation checklist</a>. Review dependencies, image digests, storage and runtime privileges before deploying. Repository access and anonymous artifact availability are separate gates; do not assume an internal Harbor URL is a public download.</p>
     <h2>Version and distribution</h2>
-    <p>The latest candidate targeted by this guide is <code>0.5.0-rc.7</code>. SDK and CLI packages are on the <code>next</code> channel; <code>latest</code> still identifies the older <code>0.4.0</code> release. Pin the version agreed with your operator instead of mixing channels.</p>
-    <CodeBlock language="bash">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.7
-npm install -g @h-sandbox/cli@0.5.0-rc.7
+    <p>The latest candidate targeted by this guide is <code>0.5.0-rc.8</code>. SDK and CLI packages are on the <code>next</code> channel; <code>latest</code> still identifies the older <code>0.4.0</code> release. Pin the version agreed with your operator instead of mixing channels.</p>
+    <CodeBlock language="bash">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
+npm install -g @h-sandbox/cli@0.5.0-rc.8
 harakiri --version`}</CodeBlock>
-    <p>For rc.5 installation and upgrade, use its <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.7-delivery.md">delivery receipt</a> and exact values overlay. Match the API, web, chart and package versions to the receipt. Source changes after that receipt are unreleased until a new candidate is published. Existing videos record the version shown in their evidence, not every later change.</p>
+    <p>For rc.5 installation and upgrade, use its <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.8-delivery.md">delivery receipt</a> and exact values overlay. Match the API, web, chart and package versions to the receipt. Source changes after that receipt are unreleased until a new candidate is published. Existing videos record the version shown in their evidence, not every later change.</p>
     <h2>Runtime profiles</h2>
     <table><thead><tr><th>Profile</th><th>Evidence and limits</th></tr></thead><tbody>
       <tr><td>Kubernetes + native OpenSandbox</td><td>Use the versioned native installation receipt for the exact clean-install and workflow evidence. Independent evaluation has been confirmed by the owner. Architecture support requires a real workflow on the named architecture, not only a successful image build.</td></tr>
