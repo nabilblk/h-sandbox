@@ -1,14 +1,16 @@
-# Harakiri on OpenShift - elevated lab quickstart
+# Harakiri on OpenShift - Legacy Elevated Lab Scripts
 
-> Customer install path: use [`OCP-install/`](../../OCP-install/README.md).
-> That package is a manual restricted-SCC install and does not create or grant
-> any SCC. The script in this folder is only for lab clusters where elevated SCC
-> grants are explicitly acceptable.
+> These are environment-specific historical lab scripts, not the standalone OSS
+> installation contract. They create/grant elevated SCCs and must not be used
+> where the platform prohibits that. Start with the
+> [standalone OpenShift prerequisites](../../docs/install-openshift.md).
+> Customer composition has moved out; see the
+> [separation notice](../../docs/customer-deployment-separation.md).
 
-One script. It deploys the whole platform onto an OpenShift cluster (CRC or real),
-pulling images from your Harbor mirror. The verbose, explain-every-step reference
-is [`docs/install-openshift.md`](../../docs/install-openshift.md) — use that only
-if something here fails.
+The behavior and commands below describe the existing elevated lab helper, not
+a newly validated installation path. It is not a fallback for restricted-mode
+failures. No lab script, default version or running environment was changed by
+the customer-package extraction.
 
 ## Prerequisites
 

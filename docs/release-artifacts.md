@@ -56,10 +56,13 @@ and preserves digests.
 | `docker.io/moby/buildkit:rootless` | `core.campus.clusterdiali.me/harakiri/mirror/buildkit:rootless` |
 | `gcr.io/kaniko-project/executor:v1.24.0` | `core.campus.clusterdiali.me/harakiri/mirror/kaniko-executor:v1.24.0` |
 
-The OpenSandbox Helm chart is mirrored separately:
+The unchanged upstream OpenSandbox Helm chart can be mirrored separately with
+the generic helper. Set registry credentials in a private operator environment:
 
 ```bash
-OCP-install/mirror-opensandbox-chart.sh
+CLIENT_REGISTRY_URL=https://registry.example.com \
+HARBOR_PROJECT=harakiri \
+infra/mirror/mirror-opensandbox-chart.sh
 ```
 
 Default chart source:
@@ -68,18 +71,20 @@ Default chart source:
 https://github.com/opensandbox-group/OpenSandbox/releases/download/helm/opensandbox/0.2.2/opensandbox-0.2.2.tgz
 ```
 
-Default Harbor chart coordinate:
+Destination chart coordinate for that example:
 
 ```text
-oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox --version 0.2.2
+oci://registry.example.com/harakiri/charts/opensandbox --version 0.2.2
 ```
 
-The staged restricted OpenShift installer uses the maintained
+The native reference and non-root configuration use the maintained
 `0.2.2-harakiri.2` distribution instead, with a configurable server container
 port and included upstream license. Its Harbor manifest digest is
 `sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34`.
 The unchanged upstream chart remains available for provenance. See
 [distribution notes](../infra/charts/opensandbox/HARAKIRI.md).
+Copy that maintained chart with `helm pull` and `helm push` as described in the
+[air-gap guide](airgap.md); the upstream mirror helper is not its release job.
 
 ## Template Images
 
@@ -95,30 +100,24 @@ docker buildx build \
   examples/templates/open-agents-dev
 ```
 
-The OpenShift test package has validated this imported template image:
+A historical June OpenShift integration test used this imported template image:
 
 ```text
 core.campus.clusterdiali.me/harakiri/templates/open-agents-dev@sha256:fd71e2b7610f81260755ccb86ee60a119ce14816016a4870ef9820a8b4255070
 ```
 
-Template publishing now has a dedicated source workflow. Its first remote run,
-multiarch candidate manifests and runtime acceptance are still pending. See
-[template image releases](template-release.md). The June digest above is historical
-evidence, not acceptance of the latest template sources.
+The September 9 [template workflow](https://github.com/nabilblk/h-sandbox/actions/runs/34347806269)
+passed all 12 architecture checks and six manifest jobs. Native acceptance is
+separate; the [rc.8 receipt](release-notes/0.5.0-rc.8-delivery.md) records its exact
+arm64 boundary. See [template image releases](template-release.md). The June
+digest above is historical evidence, not acceptance of the latest sources.
 
-## Optional Integration Artifacts
+## Consumer Applications
 
-BackgroundAgent is not built from this repository. The OpenShift example can
-install it from:
-
-```text
-oci://core.campus.clusterdiali.me/harakiri/background-agents/charts/harakiri
-core.campus.clusterdiali.me/harakiri/background-agents/harakiri-web:<version>
-```
-
-Keep these coordinates in the same Harbor project for customer handoff
-simplicity, but treat them as integration artifacts owned by the BackgroundAgent
-project.
+Applications using Harakiri own their charts, images, dependencies and tested
+version combinations. They are not part of the Harakiri release inventory.
+A customer may mirror both products into one registry project, but that does
+not couple their OSS release pipelines or require installing the other product.
 
 ## Release Checklist
 

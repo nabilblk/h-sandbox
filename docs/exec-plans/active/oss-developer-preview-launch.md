@@ -2,9 +2,30 @@
 
 **Created**: 2026-09-08
 **Author**: Codex
-**Status**: In Progress
+**Status**: In Progress - public launch delivered; operating handoff and adoption follow-up remain
 **Priority**: {P0-P3}; owner selected this as the next milestone, numerical priority not assigned
 **Estimated effort**: Multiple engineering sessions plus independent evaluation; refine after publication audit
+
+## Current Checkpoint: September 10
+
+The owner reports that the LinkedIn and X announcements are published and
+reception is positive. Record this as owner-reported publication, not an agent
+post or a measured adoption result. Post URLs, exact publication timestamps,
+audience counts and consented second-week outcomes were not supplied. The prior
+owner-confirmed independent evaluation stays accepted; do not restart that gate.
+
+Source publication, the named rc.8 native preview, credential handoff,
+documentation and the complete-frame UI tour are delivered. Remaining work is
+notification/mailbox receipt, the broader live member acceptance matrix and G4
+adoption outcomes. Keep this plan active for those items, not for publication
+tasks already completed. Atomic admission and actual usage history remain engineering
+follow-ups: truthful disclosure shipped, enforcement/metering did not.
+
+See the [current plan inventory](../README.md),
+[rc.8 receipt](../../release-notes/0.5.0-rc.8-delivery.md),
+[public-source receipt](../../release-notes/2026-09-09-public-launch.md) and
+[UI tour/sidebar receipt](../../release-notes/2026-09-09-ui-product-tour-delivery.md).
+This documentation update performs no deployment, release, mail test or outreach.
 
 ## Context
 
@@ -139,8 +160,10 @@ three successful teams before the first announcement.
   are not available and are not attributed to this agent's runs.
 - [x] Public source/access verification: owner-authorized opening and anonymous
   clone, license, release downloads and npm integrity verified September 9.
-- [ ] G3 announcement: approve the specific text/channel and monitored launch
-  window before posting; source publication is not a social announcement.
+- [x] G3 publication: owner reports LinkedIn/X announcements complete, confirmed
+  September 10. No exact post content, URLs or engagement figures are inferred.
+- [ ] G3 operating handoff: verify notification receipt and monitored support;
+  publication alone does not establish that these duties were completed.
 - [ ] G4: Three independent teams complete the workflow, with opt-in evidence,
   support interventions and follow-up outcomes recorded.
 - [x] Record release/support ownership, residual risks, verification receipts
@@ -158,7 +181,8 @@ candidate on `next`, publishing protection, the owned lab upgrade and
 isolated acceptance resources. Preserve npm `latest` at `0.4.0`. Repository
 visibility, public-source opening and the announcement were initially left as
 the final separately approved step. The subsequent Phase 6 approval authorized
-source opening and scoped credential rotation, now completed. Social posting
+source opening and scoped credential rotation, now completed. The owner later
+reported LinkedIn/X publication complete; additional assistant-led social posting
 still requires approval of its specific text/channel.
 
 The owner confirms independent evaluation is already complete. Record this as
@@ -180,7 +204,8 @@ required and will have its own receipt.
 - [x] Independent evaluation confirmed complete by the owner, September 9.
 - [x] Final owner decision: source opening explicitly authorized on September 9.
 - [x] Execute source opening after credential/material review and verify anonymous access.
-- [ ] Obtain approval for the specific announcement text/channel before posting.
+- [x] Record owner-reported LinkedIn/X publication after the social-copy work;
+  no assistant posting, exact final text or monitored launch window is claimed.
 
 Delivery checkpoint: rc.5 source/tag `792ac9c` and its API/web/chart are published;
 SDK/CLI rc.5 were published from a clean tagged checkout after trusted npm CI
@@ -326,7 +351,9 @@ optional demo tooling. No deployed image is claimed patched by a lockfile change
     test is still needed. Do not change SMTP to satisfy a docs-only contact edit.
 - [x] Produce a sanitized G1 checklist with remaining risks in
   [the launch review](../../oss-launch-review.md).
-- [ ] Obtain owner approval of the completed G1 checklist and publication scope.
+- [x] Obtain owner approval of the reviewed publication scope and credential
+  remediation, acted on September 9. Notification receipt remains separately
+  open; this does not turn the operating handoff into a completed test.
 
 **Exit evidence:** a scoped publication review, not a generic scanner-green claim.
 Unresolved usable secrets or confidential material block publication. Public
@@ -524,7 +551,7 @@ one independent evaluation of the recommended path. Local dev-provider mocks,
 successful Helm rendering and an existing maintained lab are not substitutes.
 
 ### Phase 6: Controlled Publication and Announcement
-**Status**: In Progress; source public and credentials rotated, announcement/notification handoff open
+**Status**: Publication complete (owner-reported social posts); notification/support handoff open
 
 The owner explicitly authorized making `nabilblk/h-sandbox` public and asked for
 the announcement channel and format. This supersedes the earlier requirement
@@ -573,7 +600,7 @@ checks. Original rc.8 release assets and npm channels remain unchanged.
 
 - [x] Review G1/G2/G3 separately with the owner. Confirm repository identity,
   source/media scope, public artifacts, launch candidate, support ownership,
-  lab availability statement; announcement text stays separately unapproved.
+  lab availability statement. Social publication was subsequently owner-reported.
   Rechecked scans after refs/assets changed.
 - [x] Commit reviewed launch changes and obtain release/deployment approval for
   a new candidate as needed. Verify code CI, exact package/image/chart outputs,
@@ -587,14 +614,12 @@ checks. Original rc.8 release assets and npm channels remain unchanged.
   and post-publication protections. Description, homepage, topics and Discussions
   are configured. This does not establish notification delivery.
 - [ ] Verify maintainer Watch/email settings and receipt before broader promotion.
-- [ ] Publish the owner-approved Developer Preview announcement: problem/audience,
-  runtime-provider boundary, one tested workflow, install/docs links, preview limits
-  and specific invitation for evaluator feedback. No invented users, performance
-  comparison, production guarantee or competitor parity claim.
-- [ ] Start with relevant agent-application/platform developers and operators;
-  follow each channel's rules and attribution requirements. Use real accounts
-  and disclose maintainer affiliation. No unsolicited mass outreach or simulated
-  community activity. Approval of this plan is not permission to send messages.
+- [x] Record the owner's LinkedIn/X publication report and positive reception.
+  The launch draft is not asserted to be the exact published text. No invented
+  users, performance figures, independent endorsement or production claim.
+- [ ] Capture actionable incoming developer/operator feedback with consent and
+  sanitized reproduction details. Additional channels require their own review;
+  no unsolicited mass outreach or simulated community activity.
 - [ ] Keep a monitored launch window and a correction/incident procedure. If an
   artifact or setup fails, pause promotion, publish accurate guidance and fix
   forward with immutable versions. Re-privatizing a repo cannot recall forks.

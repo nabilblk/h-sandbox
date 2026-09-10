@@ -1,9 +1,41 @@
 # Test Report
 
 Date: 2026-05-23
-Last updated: 2026-09-05
+Last updated: 2026-09-10
 
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
+
+Cluster targets and deployment results below are historical receipts, not a
+current health check. The September 10 extraction did not access Kubernetes.
+
+## 2026-09-10 Customer Deployment Extraction
+
+The [customer package](customer-deployment-separation.md) is preserved in a
+separate private repository at `ccff7eac6a57f8bc911adbdbfe2dbf290203911d`.
+Its implementation/manifests/default versions are unchanged; twelve preserved
+source/license files match the original SHA-256 inventory. Only tracked source
+was transferred, without generated state or credentials.
+
+- All 11 customer tests passed locally, from an independent clean clone and in
+  [private CI](https://github.com/nabilblk/harakiri-deployments/actions/runs/34472934232).
+  The tests need no sibling checkout or service credentials.
+- All 12 focused OSS installation, realm, mirroring, template and supervision
+  checks passed. The mirroring tests use a local fake Helm executable; no
+  registry write or deployment was performed.
+- Helm `4.2.0` lint passed for Harakiri, its existing OpenShift values and the
+  maintained runtime chart. The new standalone guide's values rendered nine
+  resources: four non-root deployments, no SCC/RBAC grants or rendered Secrets,
+  exact public OIDC origins and matching route service port names.
+- YAML parsing, documentation links, shell syntax and `git diff --check` passed.
+  Gitleaks `8.30.1` found no leaks in the private package or scoped changed OSS
+  files. Unrelated ignored material was not scanned or transferred.
+- The three original ignored local files retained their paths, inodes, sizes
+  and modification times. Their contents were not read or regenerated.
+
+No product-runtime/browser acceptance, fresh OpenShift installation, SCC change,
+credential rotation, release or deployment was attempted. `oc` is not installed
+on this shell's PATH. Historical customer installation gaps below remain open
+in the customer track, not an OSS release gate. No Brain files were accessed.
 
 ## Deployed URLs
 
@@ -16,7 +48,7 @@ Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 - OpenSandbox proxy: `http://127.0.0.1:18083`
 - OpenSandbox gateway: `http://127.0.0.1:18085`
 
-## 2026-09-05 Detailed CLI/UI And Browser QA: Deployed (Latest)
+## 2026-09-05 Detailed CLI/UI And Browser QA: Deployed
 
 The public library at https://sb.harakiri.io/#demos now contains four detailed
 walkthroughs. The original homepage remains unchanged and downloads no video.

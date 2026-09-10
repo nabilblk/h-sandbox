@@ -15,7 +15,7 @@ require_command() {
   }
 }
 
-: "${CLIENT_REGISTRY_URL:=https://core.campus.clusterdiali.me/}"
+: "${CLIENT_REGISTRY_URL:?set the destination registry origin}"
 : "${CLIENT_REGISTRY_USERNAME:?set CLIENT_REGISTRY_USERNAME}"
 : "${CLIENT_REGISTRY_PASSWORD:?set CLIENT_REGISTRY_PASSWORD}"
 : "${HARBOR_PROJECT:=harakiri}"

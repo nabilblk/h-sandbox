@@ -6,6 +6,54 @@
 **Priority**: P0
 **Estimated effort**: Multiple engineering sessions; acceptance gates determine completion
 
+## Current Checkpoint: September 10
+
+This plan remains active for **remaining acceptance**, not missing workspace
+implementation. The published candidate is rc.8 (`npm next`; `latest` remains
+0.4.0). The [rc.8 receipt](../../release-notes/0.5.0-rc.8-delivery.md) records an
+isolated arm64 native install/upgrade, retained-workspace workflow and coordinated
+database/volume restore. Commands workdir is corrected in that candidate.
+The [September 9 template workflow](https://github.com/nabilblk/h-sandbox/actions/runs/34347806269)
+passed all 12 architecture jobs and six manifest jobs, including OpenCode amd64.
+Do not retry the historical failed build as if it were the current outcome.
+
+Remaining OSS gates are native amd64 acceptance for advertised support,
+the unproved cells of the workspace/stream/member matrix, provider-state-loss
+Vault repair, recovery with real encrypted records and matching keys, documented
+rollback and host/login recovery. Existing template publication does not certify
+every catalog import/promotion or runtime profile. Single-node database/file
+restore does not certify HA/CSI or encrypted Vault recovery.
+
+Unattended npm publication, registry headroom monitoring and broader artifact
+verification remain release/operations debt. The last documented lab revision is
+35 after the [web-only tour/sidebar delivery](../../release-notes/2026-09-09-ui-product-tour-delivery.md);
+no cluster state or native workflow was rechecked in this planning session.
+Preserve the no-SCC-change and Harakiri-only boundaries. The September 10 backlog
+review does not authorize executing these gates, deployment or a stable release.
+
+## Owner Scope Correction: Customer Bundle vs OSS
+
+Later on September 10 the owner clarified that `OCP-install/` is the specific
+client datacenter bundle, including Sandbox, BackgroundAgent and a pinned
+combined version set. It is excluded from this plan's current OSS exit criteria.
+Customer delivery remains a separate workstream; its tasks are not claimed
+complete, and its versions or schedule do not gate OSS releases or Python.
+
+Use standalone Harakiri artifacts, operator configuration and Harakiri-only
+conformance for OSS acceptance. Generic restricted OpenShift support is an
+optional, separately selected profile, not an automatic requirement inherited
+from the client package. Preserve truthful UID/storage/enforcement limitations
+without installing or repairing that customer's stack.
+
+The historical OpenShift requirements below explain earlier work. Where they
+refer to the customer bundle, they are superseded by this scope decision.
+The initial planning correction changed no installer. The owner subsequently
+approved [customer package extraction](../completed/customer-deployment-extraction.md):
+the preserved implementation now lives in a private deployment repository,
+with its own CI, and public installation documentation is standalone. This does
+not validate the old customer versions or certify restricted OpenShift. No
+running installation or Brain file was accessed as part of extraction.
+
 ## Context
 
 The maintainer approved roadmap recommendation 1 (delivery gaps) and Phase 2B
@@ -24,21 +72,27 @@ further implementation time on it. Use Harakiri-owned fixtures and native
 OpenSandbox for all remaining acceptance. Optional existing runbook support does
 not make that separate project part of this plan.
 
-**Launch sequencing, September 8:** the owner selected the
+**Historical launch sequencing, September 8:** the owner selected the
 [OSS Developer Preview launch](oss-developer-preview-launch.md) as the next
 umbrella milestone. This plan still owns workdir, template, storage, OpenShift
 and recovery acceptance. Complete items used by the advertised preview path
 here; do not duplicate implementations. Full restricted OpenShift/coherent
 recovery acceptance remains necessary for those support claims, but is not a
 prerequisite to a narrower, honestly scoped source preview. No existing gate is
-marked complete or waived by changing the launch sequence.
+marked complete or waived by changing the launch sequence. The later September
+10 owner decision explicitly separates customer OCP scope; it is not a claim
+that restricted OpenShift was validated.
 
 ## Success Criteria
 
-- [ ] A fresh single-namespace OpenShift installation uses versioned registry
-      images and local chart archives, without source-chart fallback, SCC
-      changes, manual patches, or restart-to-repair steps.
-- [ ] Existing template images have a protected build/publish workflow,
+- [x] A named standalone Kubernetes/arm64 installation uses published artifacts
+      and operator-owned configuration; see the rc.8 install/upgrade receipt.
+      September 10 scope replaces the customer OpenShift criterion, not its
+      validation result. Restricted OpenShift is not certified by this check.
+- [x] Separate standalone OSS documentation entry points from the version-specific
+      OCP-install/BackgroundAgent integration bundle; retain customer references
+      as clearly labeled integration material, not canonical OSS prerequisites.
+- [x] Existing template images have a protected build/publish workflow,
       architecture-aware smoke checks, immutable coordinates, and operator docs.
 - [ ] The public lab origins recover after process/pod replacement and user
       login; service supervision is documented without claiming availability
@@ -91,7 +145,7 @@ beyond the retained provider log data.
 ## Phases
 
 ### Phase 1: Delivery Contract and Clean Installation
-**Status**: In Progress
+**Status**: Standalone native baseline and OSS/customer docs separation delivered; remaining input/rerun checks unverified
 
 - [x] Inventory installer, workflows, existing host supervision and cluster state.
 - [x] Record a declarative release/template manifest and validate artifact inputs.
@@ -102,16 +156,25 @@ beyond the retained provider log data.
       remove rollout-restart repair and permissive health-test failures.
 - [x] Keep generated credentials private; bootstrap Keycloak material containing
       credentials must not be stored in a ConfigMap or exposed in process output.
-- [ ] Test invalid inputs, missing charts, reruns, restricted manifests and
-      fail-closed verification. Run clean local OpenShift acceptance.
+- [x] Record the standalone arm64 native install/upgrade and fail-closed
+      prerequisite checks from the rc.8 receipt, separate from client OCP evidence.
+- [x] Separate public OSS documentation and CI from customer bundle instructions;
+      preserve the customer installer in its independently verified private repo.
+- [ ] Reconcile remaining standalone input/chart/rerun checks. Clean client
+      OpenShift acceptance belongs to its separate delivery workstream.
 
 ### Phase 2: Template Artifacts and Public Recovery
 **Status**: In Progress
 
-- [ ] Add protected template release workflow for existing template sources;
+- [x] Add protected template release workflow for existing template sources;
       test non-root/arbitrary-UID runtime compatibility without paid model calls.
-- [ ] Publish candidate images, capture manifest digests, import and smoke via
-      Harakiri. Do not silently promote an untested template alias.
+- [x] Publish all six existing profile manifests after both architecture/UID
+      jobs pass; September 9 workflow 34347806269 supersedes the earlier failure.
+- [x] Import and smoke the flagship OpenCode image through native Harakiri;
+      see the rc.8 receipt for the exact digest and arm64 execution boundary.
+- [ ] Complete catalog-wide native import/promotion acceptance for any additional
+      aliases advertised as ready. Do not silently promote an untested alias or
+      infer native amd64/OpenShift support from image build/UID checks.
 - [x] Add independently supervised named tunnel and individual origin forwards,
       with bounded logs, conflict checks, uninstall and status commands.
 - [x] Preserve unrelated launch agents and existing tunnel configuration.
@@ -119,12 +182,13 @@ beyond the retained provider log data.
       public web/API/OIDC URLs remain public.
 
 ### Phase 3: Workspace Architecture and Provider Spike
-**Status**: In Progress; k0s native acceptance passed, restricted OpenShift pending
+**Status**: Complete for the recorded k0s profile; optional OpenShift is outside this OSS gate
 
 - [x] ADR: workspace is organization-owned persistent storage, not a sandbox,
       snapshot, Git checkout, Keycloak workspace, or credential store.
-- [ ] Verify native PVC first-create/reuse on pinned OpenSandbox using two
-      sandboxes; measure permission behavior on k0s and restricted OpenShift.
+- [x] Verify native PVC first-create/reuse on pinned OpenSandbox using two
+      sandboxes on the recorded k0s profile. The scoped receipt does not prove
+      arbitrary-UID/storage behavior on a separately selected OpenShift profile.
 - [x] Choose conservative configured storage profiles, generated private claim
       names, dedicated storage per workspace, and exclusive sandbox attachment.
 - [x] Define logical archive/retention and operator physical reclamation where
@@ -172,7 +236,7 @@ beyond the retained provider log data.
       cancellation, command failure, sandbox termination and slow consumers.
 
 ### Phase 6: SDK, CLI and Dashboard
-**Status**: Source delivered in rc.2; acceptance follow-up remains
+**Status**: Delivered through rc.8; broader profile/member acceptance remains
 
 - [x] Add typed workspace helpers and abortable command async iteration without
       duplicating control-plane behavior in clients.
@@ -188,8 +252,9 @@ beyond the retained provider log data.
       September 9 source follow-up uses `runtimeMetadata.workdir` with `/` as
       fallback, preserves explicit edits and resets on sandbox changes. Unit
       tests cover `/`, `/app`, `/workspace` and missing metadata; browser tests
-      verify actual submitted cwd and preservation after refresh. This fix is
-      not in the deployed rc.4 artifacts; new-candidate runtime acceptance remains.
+      verify actual submitted cwd and preservation after refresh. The fix was
+      absent from rc.4 but is included in the rc.8 delivery. Do not schedule
+      the already delivered correction again as a missing feature.
 
 ### Phase 7: Documentation, Acceptance and Delivery
 **Status**: In Progress
@@ -268,6 +333,8 @@ artifact was changed. See the [deployment receipt](../../release-notes/0.5.0-rc.
 | 2026-09-07 | Fail closed after an unconfirmed workspace provider request. | Retrying native creates can duplicate runtimes and concurrently mount storage. Durable per-attachment markers require operator recovery for ambiguity. | Blindly retry provision or silently recreate missing storage. |
 | 2026-09-07 | Release template manifests only after both native architectures pass. | A successful arm64 build is not evidence for amd64 or arbitrary-UID compatibility. | Publish all tags before acceptance or use an untested alias. |
 | 2026-09-07 | BackgroundAgent is outside implementation and acceptance scope. | Maintainer explicitly requested keeping that project's complexity out of sandbox work. | Couple Harakiri delivery to an external application's deployment. |
+| 2026-09-10 | Exclude the version-specific OCP-install customer bundle from OSS gates; generic OpenShift support is optional and separately selected. | Owner clarified that combined Sandbox/BackgroundAgent datacenter delivery is not the OSS product backlog. Reusable defects still need Harakiri-only reproductions. | Make client-stack delivery block OSS/Python or declare untested OpenShift support complete. |
+| 2026-09-10 | Extract customer composition into its own private repository, preserving behavior and local state. | Owner approved implementation of the repository split after brainstorming; public docs and CI must not depend on client delivery. | Rename the folder as an OSS example, rewrite the installer, or run a customer upgrade during extraction. |
 | 2026-09-07 | Release and deploy a `0.5.0` candidate after explicit maintainer request. | Enable testing on validated k0s without misrepresenting pending clean OpenShift and template gates. Planned npm channel is `next`, not `latest`; source visibility and BackgroundAgent remain unchanged. | Declare stable readiness prematurely or block the independently validated lab deployment. |
 | 2026-09-07 | Supersede rc.1 with rc.2 before npm publication; keep stable gates open. | Live CLI checks found JSON/config defects, fixed and retested in rc.2. Final acceptance also exposed an existing TTL renewal/scheduler defect, now explicitly documented as a stable blocker. | Overwrite immutable tags, or describe a candidate as production-ready. |
 
@@ -331,8 +398,9 @@ publication checkpoint below records its resolution.
   recovered 9573 MB of unreferenced data, with untagged artifact/tag deletion
   disabled. Add storage/inode headroom alerts and a reviewed retention/GC policy;
   read-only health is not evidence of publish readiness. The release-triggered
-  template workflow had eight upload failures and needs a separate retry after
-  capacity planning; no runtime template aliases were promoted.
+  template workflow had eight upload failures. The September 9 retry subsequently
+  passed all architecture/manifest jobs; ongoing headroom alerts remain open.
+  That successful publication alone does not promote runtime template aliases.
 - Unattended npm trusted publishing still fails its OIDC token exchange. rc.3
   was published using restored local authentication and verified release
   archives; configure and validate CI authorization separately for future releases.
@@ -341,14 +409,15 @@ publication checkpoint below records its resolution.
 - Detached event streams poll retained provider logs, not a durable event store.
   Replay is limited to provider retention. Snapshot/restore with a persistent
   workspace is rejected. Pause/resume with exclusive ownership passed on k0s;
-  restricted OpenShift storage ownership acceptance is still pending.
-- Colima has only approximately 2.6 GiB free after removing this session's own
-  build artifacts. Existing containers, images and volumes were preserved.
-  CI passed 11 template architecture jobs; OpenCode amd64 arbitrary UID and
-  combined template publication/import/promotion remain pending.
-- Renewal changes the sandbox/provider expiry without updating the original
-  idle schedule. The scheduler must coordinate with the authoritative current
-  deadline and renewal operations before stable promotion.
+  restricted OpenShift storage ownership remains unverified, but is not a gate
+  for the standalone OSS path after the September 10 scope decision.
+- The earlier Colima headroom observation is historical, not current capacity
+  evidence. OpenCode amd64 and combined manifest publication later passed.
+  Remaining native profile/catalog acceptance is tracked above; existing host
+  workloads must not be removed to manufacture test headroom.
+- The renewal/idle-schedule defect was corrected in rc.3 and retained in rc.8.
+  Preserve the migration/rollback constraint and settle old stable-version
+  maintenance guidance before promotion; do not list the delivered fix as absent.
 
 ## Initial Source Verification Checkpoint
 
@@ -466,25 +535,24 @@ blocker, and the parent plan stays active for the stable acceptance below.
 
 #### Stable Acceptance Still Open
 
-In progress. Phase 2B is deployed to the public k0s lab as `0.5.0-rc.3`, Helm
-revision 25, with migration 036 and matching digest-pinned images. Source CI and
-Harbor release passed. Matching SDK/CLI archives are attached to the GitHub
-prerelease and published to npm `next` with registry consumer verification.
-npm `latest` stays
-at 0.4.0. The OpenSandbox compatibility chart is separately mirrored in Harbor.
-Do not archive this plan while stable acceptance gates remain.
+Updated September 10. rc.3/revision 25 above is historical. The current published
+candidate is rc.8, with the later documented web-only lab revision 35. Native
+arm64 install/upgrade/file recovery, workdir correction and all template build
+architecture checks have delivery evidence. Stable npm remains 0.4.0.
 
-Next acceptance is Harakiri-only: Commands default working-directory correction,
-fresh restricted OpenShift storage/mount checks, complete template architecture
-release checks, and host/rollback recovery validation. No
-BackgroundAgent install is needed to complete these gates. Preserve the existing
-populated CRC namespace and its data.
+Keep this plan active for the explicitly unproved standalone OSS profile, catalog, matrix,
+encrypted-state/identity recovery and operator restart/rollback gates in the
+current checkpoint. Reconcile existing source/database/native tests before
+rerunning a whole phase or claiming a complete matrix. No BackgroundAgent
+installation, customer OCP bundle delivery, shared-namespace cleanup, SCC change
+or incidental runtime upgrade is part of OSS acceptance. Generic OpenShift
+support would require separate selection and evidence, not this client's stack.
 
-CRC currently runs OpenSandbox server `v0.1.14` and controller `v0.1.0`, while
-Phase 2B acceptance targets server `v0.2.3` with the current native volume contract.
-Do not count checks against this older installation as proof of the new contract,
-or upgrade shared runtime dependencies as a side effect of client-project testing.
+The older CRC server `v0.1.14` / controller `v0.1.0` observation is historical,
+not a fresh cluster inspection. The native preview receipt targets server
+`v0.2.3`; inspect and pin the selected environment when acceptance is authorized.
 
-See the [rc.3 delivery receipt](../../release-notes/0.5.0-rc.3-delivery.md) and
-[plan inventory](../README.md). Both active plans still contain required work;
-the existing 28 completed/abandoned plans are already in the correct archive.
+See the [rc.8 receipt](../../release-notes/0.5.0-rc.8-delivery.md) and
+[plan inventory](../README.md). Archive only after remaining required work is
+verified or explicitly re-scoped by the owner, not simply because the preview
+was announced.

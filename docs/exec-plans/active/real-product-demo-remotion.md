@@ -6,6 +6,21 @@
 **Status**: In Progress
 **Priority**: P1
 
+## September 10 Planning Checkpoint
+
+The four agent films are delivered. A separate completed
+[full-frame UI tour plan](../completed/ui-product-tour.md) added the fifth film;
+the [public delivery receipt](../../release-notes/2026-09-09-ui-product-tour-delivery.md)
+also records restoration of the vertical demo menu. These are not missing
+deliverables and do not need another redesign for the post-launch backlog.
+
+This plan stays active only for its protected unattended capture/refresh
+configuration and real CI acceptance. That maintenance work is lower priority
+than capacity and release/profile reliability; it does not gate Python or
+continued use of the published films. Free-model availability and live capture
+were not rechecked during this planning session. No new capture or rendering
+is authorized by the backlog update.
+
 ## Context And Direction
 
 The initial CLI-to-preview video proved the live capture pipeline, but the

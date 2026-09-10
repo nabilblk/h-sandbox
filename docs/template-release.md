@@ -52,18 +52,21 @@ Do not reuse a released tag for a new build.
 1. Import the digest through Harakiri template image import with a candidate name.
 2. Create a sandbox through the public API/SDK/CLI, execute the template smoke
    command, verify files and an HTTP route when supported, and confirm termination.
-3. Repeat on each supported cluster profile, including restricted OpenShift and
-   workspace volume ownership. Docker-only smoke does not test these boundaries.
+3. Repeat on each profile actually advertised as supported, including workspace
+   volume ownership. Restricted OpenShift requires separate native acceptance
+   if selected; a customer stack is not a generic template release gate.
 4. Record the Harakiri version, template digest, cluster profile and result.
 5. Promote the tested version/alias explicitly. Keep the previous digest for rollback.
 
 ## Current Evidence
 
-September 7, 2026: base Linux and Python data passed local arm64 root/arbitrary-UID
-smokes. The new workflow has not yet run remotely. The other four templates,
-amd64 images, final manifest publication and runtime promotion remain release
-gates. The historical June open-agents-dev digest in the OpenShift runbook is
-not evidence for these new Dockerfile revisions.
+September 9, 2026: [workflow 34347806269](https://github.com/nabilblk/h-sandbox/actions/runs/34347806269)
+passed all 12 architecture jobs and six manifest jobs. The earlier September 7
+local checks are no longer the latest publication result. Native runtime
+acceptance/promotion is still distinct from image checks; see the
+[rc.8 receipt](release-notes/0.5.0-rc.8-delivery.md) for the demonstrated arm64 scope.
+The historical June open-agents-dev digest is not evidence for later Dockerfile
+revisions or generic restricted OpenShift support.
 
 See [release artifacts](release-artifacts.md), [runtime contract](template-runtime-contract.md),
-and [the staged OpenShift runbook](../OCP-install/harakiri-security/README.md).
+and [standalone OpenShift prerequisites](install-openshift.md).
