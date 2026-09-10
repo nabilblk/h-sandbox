@@ -6,7 +6,33 @@ Last updated: 2026-09-10
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 Cluster targets and deployment results below are historical receipts, not a
-current health check. Neither September 10 documentation task accessed Kubernetes.
+current health check. Installation authoring and customer extraction did not
+access Kubernetes; the separate web-only delivery below did.
+
+## 2026-09-10 Kubernetes Documentation Delivery
+
+The installation guide is deployed at public Helm revision 36. The
+[delivery receipt](release-notes/2026-09-10-kubernetes-docs-delivery.md) records
+the source commit, protected CI publication, multi-platform image digests,
+same-chart image-only guard, local/public acceptance and scoped rollback.
+
+- All eight required PR checks and additional demo verification passed.
+- All seven documentation browser tests passed on the published nginx image
+  and public site, including every page at 1440/390/320px. Desktop/mobile
+  screenshots were reviewed; exact documentation exports and demo-media checks
+  also passed.
+- API health, web and OIDC discovery returned 200. Browser sign-in retained
+  public auth/callback origins and PKCE S256; no account login or SMTP test.
+- Configuration, Secret hash, non-web deployment specifications and all other
+  Helm values were unchanged. A single observed tunnel-handoff 502 recovered
+  automatically.
+- Initial local browser attempts failed because the nginx preview could not
+  create temporary directories on Colima's full Docker data volume. Retesting
+  the same image with a read-only root and tmpfs passed. The preview container
+  was removed; no shared Docker pruning or VM restart was performed.
+
+No new native sandbox task, chart/npm release, credential rotation, customer
+installation or Brain access was part of this delivery.
 
 ## 2026-09-10 Kubernetes Installation Documentation
 

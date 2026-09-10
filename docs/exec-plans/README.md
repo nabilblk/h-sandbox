@@ -8,7 +8,6 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
-| [Kubernetes documentation deployment](active/kubernetes-docs-deployment.md) | Installation article and local verification | Protected source merge, web-only image publication/deployment and public acceptance |
 | [OSS Developer Preview launch](active/oss-developer-preview-launch.md) | Public source, reviewed credentials/material, protected release entry points, rc.8 native arm64 install/upgrade/file recovery, truthful preview, docs exports; independent evaluation and LinkedIn/X publication owner-reported complete | Security-report notification receipt, broader live member acceptance, consented three-team and second-week outcomes; no duplicate prelaunch evaluation |
 | [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspaces/live commands and workdir correction in rc.8; standalone arm64 native acceptance and coordinated database/file-volume restore; all six template architecture/manifest pipelines passed September 9; customer package/docs separated September 10 | Native amd64 for advertised support, remaining catalog/matrix coverage, real encrypted Vault recovery/provider-loss repair, host/rollback validation; customer OCP bundle excluded |
 | [Real product demos](active/real-product-demo-remotion.md) | Four agent workflow films plus separately completed full-frame UI tour; public tutorials/transcripts, restored vertical menu | Protected unattended agent-refresh credentials, CI environment and live acceptance; lower priority than core product reliability |
@@ -17,8 +16,9 @@ The OSS launch has happened; it is no longer the next unstarted milestone.
 The owner reports positive reception, not measured repeat adoption. Existing
 plans remain active for their actual unfinished gates, not because source or
 packages are unpublished. Current npm `next` is rc.8; `latest` is still 0.4.0.
-The last documented lab revision is 35 after a web-only tour/sidebar correction;
-this planning review did not recheck cluster state.
+The latest [documented lab delivery](../release-notes/2026-09-10-kubernetes-docs-delivery.md)
+is revision 36 after a web-only Kubernetes documentation update. That delivery
+checked the live site and preserved the backend; it is not fresh-install evidence.
 
 ## Customer Delivery Boundary
 
@@ -45,9 +45,9 @@ Keep one engineering plan in execution at a time:
 1. Close small reporting/support handoffs, retain the accepted independent
    evaluation, and turn consented launch feedback into reproducible issues.
    Settle safe old-stable versus candidate upgrade/maintenance guidance.
-   Publish the newly implemented [Kubernetes installation guide](../install-kubernetes.md)
-   so new operators have a visible, complete entry point; local documentation
-   verification is not a fresh-install or deployed-page claim.
+   The [Kubernetes installation guide](../install-kubernetes.md) is now public;
+   use operator feedback to improve it. Documentation/browser acceptance is not
+   a fresh-install certification.
 2. Plan atomic organization capacity admission across create, asynchronous
    provision, restore, resume, retries and uncertain cleanup. The shipped
    `concurrencyLimitEnforced: false` disclosure is not enforcement. Require
@@ -72,10 +72,15 @@ real execution adapter, not its product identity.
 
 ## Recently Completed
 
+- [Kubernetes documentation deployment](completed/kubernetes-docs-deployment.md):
+  protected source merge, CI web-image publication, guarded image-only Helm
+  revision 36, live documentation/media/browser/OIDC acceptance and receipt.
+  Credentials, public origins and non-web workloads unchanged.
 - [Kubernetes installation documentation](completed/kubernetes-installation-docs.md):
   North Star/source assessment, visible Self-hosting page and operator entry
   points, corrected stale chart instructions, generated Markdown and browser
-  acceptance. Source changes only; no installation, deployment or Brain edits.
+  acceptance. Authoring involved no installation, deployment or Brain edits;
+  the separate delivery above subsequently published the page.
 - [Customer deployment extraction](completed/customer-deployment-extraction.md):
   preserved source published in a private repository, independent CI and
   clean-clone acceptance, OSS guides/tooling/tests separated, legacy local state
