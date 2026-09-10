@@ -1,5 +1,10 @@
 # Native Kubernetes Evaluation
 
+For the complete reader-facing journey, use
+[Install on Kubernetes](../../docs/install-kubernetes.md), also available under
+**Self-hosting** in the [public docs](https://sb.harakiri.io/#docs/install-kubernetes).
+This file maintains the underlying reference profile and its operator commands.
+
 This reference profile installs Harakiri and OpenSandbox in an **empty,
 operator-owned Kubernetes cluster**. Do not install a second OpenSandbox
 controller in the populated lab: its CRDs and controller permissions are

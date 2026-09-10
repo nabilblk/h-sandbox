@@ -1,5 +1,31 @@
 import { expect, test } from "@playwright/test";
 
+test("Kubernetes installation is discoverable and exports the exact operator commands", async ({ page, request }) => {
+  await page.goto("/#docs/overview");
+  await page.locator('article .docs-start-link[href="#docs/install-kubernetes"]').click();
+  await expect(page.getByRole("heading", { name: "Install on Kubernetes", exact: true })).toBeVisible();
+  await expect(page.locator('.docs-side a[href="#docs/install-kubernetes"]')).toHaveAttribute("aria-current", "page");
+  const source = await page.locator('.doc-code').filter({ hasText: "Download operator files" }).locator("pre code").textContent();
+  expect(source).toContain("git checkout --detach");
+  await page.getByRole("searchbox", { name: "Search documentation" }).fill("k8s helm");
+  await page.getByRole("region", { name: "Documentation search results" }).getByRole("link", { name: /Install on Kubernetes/ }).click();
+  await expect(page).toHaveURL(/#docs\/install-kubernetes$/);
+  const response = await request.get("/docs/install-kubernetes.md");
+  expect(response.ok()).toBe(true);
+  const markdown = await response.text();
+  expect(markdown).toContain(source!);
+  expect(markdown).toContain("node install-check.mjs");
+  expect(markdown).toContain("Native amd64 acceptance is still pending");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#docs/overview");
+  await page.getByLabel("Browse docs").selectOption("install-kubernetes");
+  await expect(page).toHaveURL(/#docs\/install-kubernetes$/);
+  await page.locator(".docs-inline-toc summary").click();
+  await page.getByRole("navigation", { name: "Page sections" }).getByRole("link", { name: "Connect and sign in", exact: true }).click();
+  await expect(page.locator("#connect-and-sign-in")).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
 test("docs search, reading progression and section links preserve navigation", async ({ page }) => {
   await page.goto("/#docs/overview");
   await expect(page.getByRole("heading", { name: "Harakiri documentation", exact: true })).toBeVisible();

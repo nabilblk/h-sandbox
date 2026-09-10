@@ -6,7 +6,40 @@ Last updated: 2026-09-10
 Target cluster: `harakiri-k0s` via `infra/k0s/harakiri.kubeconfig`.
 
 Cluster targets and deployment results below are historical receipts, not a
-current health check. The September 10 extraction did not access Kubernetes.
+current health check. Neither September 10 documentation task accessed Kubernetes.
+
+## 2026-09-10 Kubernetes Installation Documentation
+
+The public site was inspected read-only and lacked an operator installation
+entry. The working tree now contains [Install on Kubernetes](install-kubernetes.md),
+with Self-hosting navigation, overview/quickstart links, highlighted commands,
+generated Markdown/LLM exports and aligned repository entry points.
+
+- All 76 web tests, five configuration/deployment-boundary tests, web typecheck,
+  build, documentation link checks and diff checks passed.
+- All seven Playwright documentation tests passed against the built local web
+  preview: all pages at 1440/390/320px, installation navigation/search, mobile
+  section links, copying and exact Markdown code. Agent-browser screenshots of
+  desktop overview/installation and mobile text/code/tables were reviewed.
+- Both published charts were pulled with an empty registry configuration. OCI
+  digests matched the rc.8 receipt: Harakiri `87e9c225...c6c4d`, runtime
+  `b93f5155...d04a34`. Comparisons used the full values, not these short labels.
+- Helm 4.2.0 lint passed for both downloaded archives. Rendering with the
+  reference generator and digest-pinned public overlay produced 15 control-plane
+  and 20 runtime resources. Seven dependency resources parsed. Checks covered
+  public issuer, API audience, dev auth/seed disabled, image digests, runtime
+  namespaces and all three forwarded Service ports. Secret values stayed in
+  process memory and were not printed or applied.
+- The first browser invocation failed because the background local preview had
+  exited. Starting the managed preview and checking HTTP 200 fixed the test
+  prerequisite; all seven tests then passed twice. Existing Vite bundle-size,
+  Helm umbrella/global and icon warnings were not treated as runtime acceptance.
+
+This did not reinstall Kubernetes, run a native sandbox task, change credentials,
+deploy the page or publish a package. The new first-task example received syntax,
+contract-shape and cleanup assertions, not a new live execution receipt. Existing
+arm64 delivery evidence is linked with its limitations. Only the explicitly
+permitted September 1 North Star note was read in Brain; no vault file was edited.
 
 ## 2026-09-10 Customer Deployment Extraction
 

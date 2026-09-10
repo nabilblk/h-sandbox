@@ -53,6 +53,7 @@
 
 ## Operators
 
+- [Install on Kubernetes](install-kubernetes.md) - start here for the complete operator journey
 - [Standalone native Kubernetes evaluation](../infra/preview/README.md)
 - [Harakiri control-plane chart](../infra/charts/harakiri/README.md)
 - [Runbook](runbook.md)

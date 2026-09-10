@@ -55,6 +55,7 @@ export const overviewDocs: DocPage = {
     <h2>Start with a working sandbox</h2>
     <p>The quickstart creates a Python sandbox, runs a checked command and cleans up. No agent framework or model-provider key is required.</p>
     <a className="docs-start-link" href="#docs/quickstart"><span><strong>Run your first task</strong><small>CLI or TypeScript SDK / no model credentials</small></span><Icon name="arrowR" size={20} /></a>
+    <a className="docs-start-link" href="#docs/install-kubernetes"><span><strong>Install on Kubernetes</strong><small>Operator guide / dependencies, Helm, sign-in and a verified first task</small></span><Icon name="arrowR" size={20} /></a>
     <div className="docs-start-context"><a href="#docs/vision-architecture">Why Harakiri exists<Icon name="arrowR" /></a><a href="#docs/sdk-cli">Install and connect<Icon name="arrowR" /></a></div>
     <h2>Understand the building blocks</h2>
     <dl className="docs-concept-map">
@@ -72,7 +73,7 @@ export const overviewDocs: DocPage = {
     </ul>
     <p><a href="#demos">Watch the recorded workflows</a>, or follow <a href="#docs/persistent-workspaces">the workspace tutorial</a> to reuse files across sandbox lifetimes.</p>
     <h2>Integrate and operate</h2>
-    <p>Use the <a href="#docs/api-reference">API reference</a> and <a href="#docs/cli-reference">CLI reference</a> for exact operations. Operators should also read <a href="#docs/workspace-operations">storage operations</a> and <a href="#docs/errors-troubleshooting">error handling</a>.</p>
+    <p>Use the <a href="#docs/api-reference">API reference</a> and <a href="#docs/cli-reference">CLI reference</a> for exact operations. Operators start with <a href="#docs/install-kubernetes">Kubernetes installation</a>, then <a href="#docs/workspace-operations">storage operations</a> and <a href="#docs/errors-troubleshooting">error handling</a>.</p>
     <aside className="docs-notice"><p><strong>Choose your release deliberately.</strong> The recorded Developer Preview is <code>0.5.0-rc.8</code> on npm <code>next</code>, with matching server requirements. The older <code>latest</code> channel is 0.4.0. Check <a href="#docs/developer-preview">preview scope and prerequisites</a>; source changes are not available until a new candidate is published.</p><p><a href="#changelog">Read the release notes</a></p></aside>
   </>
 };
@@ -81,6 +82,7 @@ const QuickstartBody = () => {
   const [method, setMethod] = useState("CLI");
   return <>
     <h2>Before you start</h2>
+    <p>No deployment yet? Follow <a href="#docs/install-kubernetes">Install on Kubernetes</a> first. Installing the SDK or CLI does not install the server or runtime.</p>
     <ul><li>A running Harakiri deployment, its API URL and an organization API key from the dashboard's <strong>API keys</strong> page.</li><li>A ready <code>python-3.12-data</code> template. Ask your operator for an equivalent Python template if the catalog differs.</li><li>Node.js 20 or newer on your machine. The shell example uses Bash. Python runs inside the sandbox, not on your machine.</li></ul>
     <p>The examples below pin <code>0.5.0-rc.8</code>, the recorded Developer Preview. Confirm your operator runs the matching API. Unversioned installs still select the older <code>0.4.0</code> stable channel. Review <a href="#docs/developer-preview">version and runtime limits</a> first.</p>
     <h2>Install and authenticate</h2>
