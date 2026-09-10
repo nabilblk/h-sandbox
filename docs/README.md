@@ -53,11 +53,13 @@
 
 ## Operators
 
+- [Standalone native Kubernetes evaluation](../infra/preview/README.md)
+- [Harakiri control-plane chart](../infra/charts/harakiri/README.md)
 - [Runbook](runbook.md)
 - [Release artifacts](release-artifacts.md)
 - [Template image releases](template-release.md)
 - [Persistent workspace operations](persistent-workspace-operations.md)
-- [OpenShift install](install-openshift.md)
+- [Standalone OpenShift prerequisites and profile limits](install-openshift.md)
 - [Air-gapped deployment](airgap.md)
 - [Outbound access](egress-control.md)
 - [Credential Vault](credential-vault.md)
@@ -71,6 +73,7 @@
 ## Example Environments
 
 - [harakiri.io environment scripts](../infra/scripts/env/harakiri/README.md)
+- [Customer deployment package separation](customer-deployment-separation.md)
 
 The harakiri.io scripts are examples for one maintainer environment. They are
 not required for generic local development or a portable OSS deployment.

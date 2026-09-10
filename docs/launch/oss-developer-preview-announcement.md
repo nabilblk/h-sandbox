@@ -1,12 +1,17 @@
 # OSS Developer Preview Announcement Kit
 
-September 9, 2026. **Draft for owner review. Nothing here has been posted.**
+September 9 draft; publication status updated September 10, 2026.
+**The owner reports that LinkedIn and X posts are published and reception is
+positive.** Their exact final text, URLs and engagement figures were not supplied;
+the historical draft below is not asserted to be the published copy.
 The owner-authorized source opening is complete, with anonymous clone and release
 downloads verified on September 9. See the [launch checkpoint](../oss-launch-review.md).
-Specific announcement text/channel approval and maintainer notification setup
-remain open. Do not present source publication as a production release.
+Maintainer notification receipt and post-launch adoption follow-up remain open
+in the [launch plan](../exec-plans/active/oss-developer-preview-launch.md).
+Additional posting requires specific approval. Do not present publication as a
+production release or independent-use measurement.
 
-## Recommendation
+## Original Channel Recommendation
 
 Use a staged technical launch, with GitHub as the canonical reference and
 **LinkedIn as the first external announcement**. The intended first users are
@@ -48,7 +53,7 @@ implement that contract, but neither multiple supported adapters nor live
 cross-provider migration is available today. Keep that distinction explicit
 without making the current dependency the headline.
 
-## Announcement Draft
+## Historical Announcement Draft
 
 **Owner-review draft for LinkedIn or Harakiri's own GitHub Discussions, not HN.**
 Publish only after anonymous source/release access and safety checks pass.

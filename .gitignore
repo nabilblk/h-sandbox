@@ -14,7 +14,8 @@ test-results/
 tmp/
 docs/artifacts/*
 !docs/artifacts/.gitkeep
-OCP-install/charts/
+# Customer source moved out; keep any original local credentials/state ignored.
+/OCP-install/
 .kube/
 infra/k0s/*.kubeconfig
 infra/k0s/*.yaml.generated
