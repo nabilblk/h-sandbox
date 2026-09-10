@@ -5,9 +5,11 @@ scheduler, template-build worker, and the in-cluster template registry.
 
 > [!IMPORTANT]
 > This chart deploys only the Harakiri components. **PostgreSQL, Keycloak, and
-> OpenSandbox are prerequisites** you run separately (see `infra/k8s/` and
-> `docs/`). Point `config.DATABASE_URL`/`KEYCLOAK_*`/`OPEN_SANDBOX_*` and the
-> Secret values at your instances.
+> the selected runtime provider are prerequisites** you run separately.
+> OpenSandbox is the current integrated provider. Supply `DATABASE_URL` and
+> other credentials through `secret.existingSecret`; configure public identity
+> and runtime endpoints explicitly. This chart is not a complete installation
+> by itself.
 
 See [`docs/release-artifacts.md`](../../../docs/release-artifacts.md) for the
 image, chart, npm, OpenSandbox, and template artifact map used by release
@@ -15,50 +17,28 @@ handoffs.
 
 ## Install
 
-```bash
-# 1. Authenticate Helm to Harbor (one-time, for OCI pulls).
-helm registry login core.campus.clusterdiali.me
+Start with [Install on Kubernetes](../../../docs/install-kubernetes.md). The
+full guide covers database/identity setup, private configuration, the two
+published Helm charts, browser sign-in and a model-free native SDK check.
+The [reference profile](../../preview/README.md) supplies tested operator inputs;
+do not install raw development defaults on a public cluster.
 
-# 2. Create the namespace.
-kubectl create namespace harakiri
+The recorded candidate is `0.5.0-rc.8`, paired with the
+[public-launch image overlay](../../../docs/release-notes/0.5.0-rc.8-public-values.yaml).
+Anonymous reads of those published Harbor artifacts require no registry login.
+Private mirrors need their own scoped read identity. Compare the chart's full
+OCI digest with the [release receipt](../../../docs/release-notes/0.5.0-rc.8-delivery.md).
 
-# 3. Provide secrets out-of-band (recommended over putting them in values).
-kubectl -n harakiri create secret generic harakiri-api \
-  --from-literal=DATABASE_URL='postgres://harakiri:CHANGEME@harakiri-postgres.harakiri.svc.cluster.local:5432/harakiri' \
-  --from-literal=OPEN_SANDBOX_API_KEY='CHANGEME' \
-  --from-literal=KEYCLOAK_ADMIN_USERNAME='admin' \
-  --from-literal=KEYCLOAK_ADMIN_PASSWORD='CHANGEME'
+For existing infrastructure, review [values.yaml](values.yaml) and supply your
+own namespace, database, realm and runtime settings. Use a realm-scoped service
+account rather than a Keycloak master password. Keep dev authentication/seed
+accounts disabled, set the expected API audience, and align public origins,
+issuer, browser redirects and logout URLs. The web/API ingress values do not
+configure Keycloak ingress, wildcard sandbox routes, DNS or certificates for you.
 
-# 4. Install from Harbor (OCI). Release name `harakiri` is recommended so the
-#    in-cluster service DNS names line up with the bundled config defaults.
-helm install harakiri oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
-  --version 0.1.0 \
-  --namespace harakiri \
-  --set secret.existingSecret=harakiri-api \
-  -f my-values.yaml
-```
-
-A minimal `my-values.yaml` for a real environment overrides the public URLs:
-
-```yaml
-config:
-  PUBLIC_API_URL: "https://api.campus.clusterdiali.me"
-  PUBLIC_WEB_URL: "https://app.campus.clusterdiali.me"
-  PUBLIC_KEYCLOAK_URL: "https://auth.campus.clusterdiali.me"
-  SANDBOX_ROUTE_BASE_DOMAIN: "sbx.campus.clusterdiali.me"
-  KEYCLOAK_ISSUER: "https://auth.campus.clusterdiali.me/realms/harakiri"
-  KEYCLOAK_JWKS_URL: "https://auth.campus.clusterdiali.me/realms/harakiri/protocol/openid-connect/certs"
-  KEYCLOAK_ISSUER_ALLOWLIST: "https://auth.campus.clusterdiali.me/realms/harakiri"
-
-ingress:
-  enabled: true
-  className: nginx
-  web: { host: app.campus.clusterdiali.me }
-  api: { host: api.campus.clusterdiali.me }
-  tls:
-    - hosts: [app.campus.clusterdiali.me, api.campus.clusterdiali.me]
-      secretName: harakiri-tls
-```
+The native reference is single-node Linux/arm64 evaluation. Do not infer
+restricted OpenShift, native amd64, HA or production acceptance from chart
+rendering or image architecture availability.
 
 ## Images
 
@@ -210,8 +190,8 @@ This chart adds resource limits, a dedicated ServiceAccount, and config/secret
 checksums (rolling restart on change) on top of the raw `infra/k8s` manifests.
 Still TODO before a production deployment (tracked in the security audit):
 
-- **HA:** `scheduler.replicas` must stay `1` (no leader election yet). Run the
-  API at `replicas >= 2` behind the Service; add a PodDisruptionBudget.
+- **HA:** the reference is single-node and not HA-certified. Keep the scheduler
+  at one replica; review coordination, storage and recovery before scaling.
 - **Pod security:** set `podSecurityContext`/`securityContext`
   (`runAsNonRoot: true`, `seccompProfile: RuntimeDefault`, drop capabilities).
 - **Secrets:** prefer `existingSecret` backed by an external secrets manager.
@@ -220,9 +200,13 @@ Still TODO before a production deployment (tracked in the security audit):
 
 ## Upgrade
 
-```bash
-helm upgrade harakiri oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
-  --version <new> -n harakiri --reuse-values
-```
+Follow the target release's migration order and use its downloaded chart with
+your preserved operator values and matching versioned image overlay. Do not
+regenerate passwords, change public origins accidentally or rely on
+`--reuse-values` instead of reviewing new configuration requirements.
 
-`AUTO_MIGRATE=1` (default) runs DB migrations on API start.
+`AUTO_MIGRATE=1` runs database migrations on API start. Take and test coordinated
+database, Secret/keyring and workspace-volume backups first. An image rollback
+alone does not undo a migration. See
+[persistent workspace operations](../../../docs/persistent-workspace-operations.md)
+and [Vault operations](../../../docs/credential-vault-operations.md).

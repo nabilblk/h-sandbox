@@ -2,7 +2,7 @@
 
 [Documentation](https://sb.harakiri.io/#docs) |
 [Demos](https://sb.harakiri.io/#demos) |
-[Installation](infra/preview/README.md) |
+[Installation](docs/install-kubernetes.md) |
 [Discussions](https://github.com/nabilblk/h-sandbox/discussions)
 
 **The self-hosted sandbox control plane for agent applications.**
@@ -39,7 +39,8 @@ Concurrency admission and historical usage metering are not implemented.
 Workspace persistence is not a backup; Vault and egress require an enforceable
 runtime profile. Restricted OpenShift support is not certified by Helm rendering.
 
-Operators start with the [versioned Kubernetes installation](infra/preview/README.md).
+Operators start with [Install on Kubernetes](docs/install-kubernetes.md), also
+available in the public documentation under **Self-hosting**.
 Developers with an existing installation start with the task below. Contributors
 can use the [runtime-free local setup](#quick-start-for-contributors); its fixtures
 are not real sandbox isolation.

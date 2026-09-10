@@ -2,6 +2,7 @@ import type React from "react";
 import { CodeBlock } from "./components/docs-code";
 import { visionDocs } from "./vision-docs";
 import { previewDocs } from "./preview-docs";
+import { kubernetesInstallDocs } from "./kubernetes-install-docs";
 import { authorizationDocs } from "./authorization-docs";
 import { overviewDocs, quickstartDocs } from "./getting-started-docs";
 import { demoTutorialSections } from "./demo-tutorial";
@@ -46,6 +47,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 
 export const docPages: DocPage[] = [
   previewDocs,
+  kubernetesInstallDocs,
   overviewDocs,
   uiProductTourDocs,
   authorizationDocs,

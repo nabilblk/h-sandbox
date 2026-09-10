@@ -8,7 +8,7 @@ export const previewDocs: DocPage = {
   body: <>
     <h2>Choose your path</h2>
     <p><strong>Developers:</strong> obtain an API URL and a scoped, expiring key from your operator. Follow <a href="#docs/quickstart">the deterministic quickstart</a>, then add <a href="#docs/workspaces">retained files</a> or <a href="#docs/opencode-template">OpenCode</a>. An agent or model-provider account is not required for the first task.</p>
-    <p><strong>Operators:</strong> begin with the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/developer-preview.md">installation and evaluation checklist</a>. Review dependencies, image digests, storage and runtime privileges before deploying. Repository access and anonymous artifact availability are separate gates; do not assume an internal Harbor URL is a public download.</p>
+    <p><strong>Operators:</strong> begin with <a href="#docs/install-kubernetes">Install on Kubernetes</a> for the complete reference path: dependencies, configuration, two Helm charts, sign-in and a checked native task. Review image digests, storage and runtime privileges before deploying. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/developer-preview.md">evaluation checklist</a> distinguishes installation checks from production guarantees.</p>
     <h2>Version and distribution</h2>
     <p>The latest candidate targeted by this guide is <code>0.5.0-rc.8</code>. SDK and CLI packages are on the <code>next</code> channel; <code>latest</code> still identifies the older <code>0.4.0</code> release. Pin the version agreed with your operator instead of mixing channels.</p>
     <CodeBlock language="bash">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8

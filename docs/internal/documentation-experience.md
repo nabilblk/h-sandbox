@@ -7,6 +7,7 @@ tree. It starts with a working task and progressively introduces the contracts
 that task depends on:
 
 1. **Getting started:** overview, quickstart, vision and architecture, installation.
+   **Self-hosting** follows with a dedicated Kubernetes installation path for operators.
 2. **Concepts:** retained workspaces and the security model.
 3. **Sandbox guides:** lifecycle, commands, files, routes, outbound access and credentials.
 4. **Templates:** prepare, build, version and use an execution environment.
@@ -26,6 +27,7 @@ Existing `#docs/<page-id>` URLs remain valid. Section permalinks use
 | --- | --- |
 | Page registry and established guides | `apps/web/src/docs-content.tsx` |
 | Overview and checked quickstart | `apps/web/src/getting-started-docs.tsx` |
+| Kubernetes installation and model-free acceptance example | `apps/web/src/kubernetes-install-docs.tsx`; repository entry point `docs/install-kubernetes.md` |
 | Vision narrative | `apps/web/src/vision-docs.tsx` |
 | Responsive architecture and lifecycle figures | `apps/web/src/components/docs-diagrams.tsx` |
 | Editorial order and local search | `apps/web/src/docs-navigation.ts` |
