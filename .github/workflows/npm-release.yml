@@ -3,6 +3,11 @@ name: NPM Release
 on:
   workflow_dispatch:
     inputs:
+      verify_only:
+        description: "Verify GitHub-to-npm trust without publishing or changing dist-tags"
+        type: boolean
+        default: false
+        required: true
       tag:
         description: "npm dist-tag"
         default: "next"
@@ -43,7 +48,27 @@ jobs:
           RELEASE_DIST_TAG: ${{ inputs.tag }}
         run: node scripts/check-release-source.mjs
 
+  verify-trust:
+    if: ${{ inputs.verify_only }}
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          ref: ${{ needs.validate.outputs.sha }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Verify package-scoped OIDC exchanges without publishing
+        run: node scripts/verify-npm-trust.mjs
+
   publish:
+    if: ${{ !inputs.verify_only }}
     needs: validate
     runs-on: ubuntu-latest
     environment: npm

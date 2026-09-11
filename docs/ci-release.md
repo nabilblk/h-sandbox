@@ -62,8 +62,9 @@ Configure a GitHub Actions trusted publisher on **each package**:
 `npm-release.yml` workflow filename and `npm` environment exactly. GitHub login
 or `npm whoami` does not prove the OIDC association works.
 
-The workflow uses Node 22 and pinned npm 11.19.1. Only the publishing job gets
-`id-token: write`. It checks and packs with pnpm, then publishes the verified
+The workflow uses Node 22 and pinned npm 11.19.1. Only the protected publishing
+and trust-verification jobs get `id-token: write`. Publishing checks and packs
+with pnpm, then publishes the verified
 archives, SDK first. Packing rewrites the CLI's `workspace:*` SDK dependency to
 the release version; publishing the raw workspace manifest is unsupported.
 
@@ -73,6 +74,29 @@ See [npm trusted publishers](https://docs.npmjs.com/trusted-publishers/).
 If OIDC is unconfigured, stop and configure it or use an explicitly approved
 short-lived token from a clean checkout. Never silently add a broad token to CI
 or move the stable dist-tag to work around authentication.
+
+### Verify Trust Without Publishing
+
+After saving both package publishers, run this from reviewed `main`:
+
+```bash
+gh workflow run npm-release.yml --ref main -f verify_only=true
+gh run list --workflow npm-release.yml --limit 3
+```
+
+Approve the `npm` environment when required. Verification uses the same
+workflow identity and environment as publishing, but the publishing job is
+skipped entirely. It requests a GitHub identity for audience
+`npm:registry.npmjs.org` and calls the official package-scoped
+[npm OIDC exchange endpoint](https://api-docs.npmjs.com/) for both packages.
+The short-lived exchange tokens are neither printed, persisted nor used for
+package writes. Versions, archives and dist-tags remain unchanged.
+
+A successful exchange proves GitHub-to-npm authentication, not successful
+publication or that direct publishing is allowed instead of staging only.
+Verify those with the actual candidate workflow after the release gates pass.
+A local `npm trust list` 403 can reflect local token restrictions; it does not
+by itself disprove a package publisher configured in the npm website.
 
 ## Cut a Candidate
 

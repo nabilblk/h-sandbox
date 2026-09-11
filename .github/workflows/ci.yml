@@ -74,7 +74,7 @@ jobs:
         run: pnpm docs:check
 
       - name: Release source and channel guards
-        run: node --test scripts/check-release-source.test.mjs scripts/check-release-artifacts.test.mjs infra/scripts/check-local-deploy.test.mjs
+        run: node --test scripts/check-release-source.test.mjs scripts/check-release-artifacts.test.mjs scripts/verify-npm-trust.test.mjs infra/scripts/check-local-deploy.test.mjs
 
       - name: Check examples
         run: pnpm examples:check
