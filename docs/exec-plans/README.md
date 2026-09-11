@@ -8,7 +8,7 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
-| [Organization capacity admission](active/organization-capacity-admission.md) | Ledger/effects, API/SDK/CLI/UI, recovery and docs; public lab revision 38; required 157-check PostgreSQL gate; [isolated migration and compatible-image rollback](../operations/execution-capacity-install-acceptance.md) with native workspace retention | Cold-start readiness finding, Harbor physical headroom, npm trusted publishing, matching candidate/install proof and optional native lifecycle matrix; no new package release |
+| [Organization capacity admission](active/organization-capacity-admission.md) | Ledger/effects, API/SDK/CLI/UI, recovery and docs; public lab revision 38; required 157-check PostgreSQL gate; [isolated migration and compatible-image rollback](../operations/execution-capacity-install-acceptance.md) with native workspace retention; protected npm OIDC exchanges verified for SDK and CLI | Cold-start readiness finding, Harbor physical headroom, actual candidate publication/install proof and optional native lifecycle matrix; no new package release |
 | [OSS Developer Preview launch](active/oss-developer-preview-launch.md) | Public source, reviewed credentials/material, protected release entry points, rc.8 native arm64 install/upgrade/file recovery, truthful preview, docs exports; independent evaluation and LinkedIn/X publication owner-reported complete | Security-report notification receipt, broader live member acceptance, consented three-team and second-week outcomes; no duplicate prelaunch evaluation |
 | [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspaces/live commands and workdir correction in rc.8; standalone arm64 native acceptance and coordinated database/file-volume restore; all six template architecture/manifest pipelines passed September 9; customer package/docs separated September 10 | Native amd64 for advertised support, remaining catalog/matrix coverage, real encrypted Vault recovery/provider-loss repair, host/rollback validation; customer OCP bundle excluded |
 | [Real product demos](active/real-product-demo-remotion.md) | Four agent workflow films plus separately completed full-frame UI tour; public tutorials/transcripts, restored vertical menu | Protected unattended agent-refresh credentials, CI environment and live acceptance; lower priority than core product reliability |
@@ -24,6 +24,9 @@ new npm/chart release. A separate fresh rc.8 installation and capacity-image
 upgrade/rollback now have [evidence](../operations/execution-capacity-install-acceptance.md),
 including a cold-start failure that must not be hidden by its successful retry.
 Release closure is still in progress; packages and public lab were unchanged.
+Both npm package OIDC exchanges now pass in the protected GitHub workflow.
+This closes the authentication configuration check, not actual publication or
+the remaining runtime/install acceptance gates.
 
 ## Customer Delivery Boundary
 
@@ -66,7 +69,7 @@ recommendations. Keep one engineering plan in execution at a time:
    now-passing image architecture jobs; retain narrower recovery evidence.
    Customer OCP/BackgroundAgent acceptance is not required for this milestone.
 4. Replace unavailable history with actual bounded observations, not billing.
-   Configure and prove npm trusted publishing, broader artifact verification,
+   Complete actual npm publication after the verified OIDC exchanges, broader artifact verification,
    registry headroom monitoring and an explicitly scoped stable-release path.
 5. Make a focused Python SDK the next major integration capability once the
    capacity contract, one supported distribution path and concrete adopter need

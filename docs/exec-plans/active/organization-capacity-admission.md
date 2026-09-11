@@ -945,7 +945,7 @@ that the owner's GitHub publisher settings failed. Verify using the real protect
   owner `nabilblk`, repository `h-sandbox` and environment `npm`.
 - [x] Add and test a verification-only workflow mode with no package or dist-tag
   writes; keep its credential boundary identical to publication.
-- [ ] Run the protected GitHub OIDC exchange against both npm packages and
+- [x] Run the protected GitHub OIDC exchange against both npm packages and
   record the actual result separately from full publication acceptance.
 
 No version bump or publication is part of this authentication check. Harbor
@@ -961,3 +961,18 @@ the checker to validate the successful response's non-empty `token`, matching
 the [npm CLI exchange contract](https://github.com/npm/cli/blob/v11.19.1/lib/utils/oidc.js),
 before rerunning both package exchanges. This is a checker defect, not evidence
 that the owner misconfigured npm. No tokens were printed or retained.
+
+PR #37 passed all eight required checks and merged as `ebc8bb1`. Corrected run
+[34599562524](https://github.com/nabilblk/h-sandbox/actions/runs/34599562524)
+passed both the SDK and CLI package-scoped exchanges under the unchanged `npm`
+environment approval rule; the publishing job was skipped. Nine focused
+release/trust tests pass. The exchanged credentials were not printed, retained
+or used for package writes. A registry read afterward confirmed both packages
+remain `next=0.5.0-rc.8`, `latest=0.4.0`.
+
+The owner no longer needs to supply an npm token or repeat publisher setup.
+Authentication is proven; direct publication and coherent candidate acceptance
+still require the real release. Harbor host/cluster access remains outstanding,
+and the cold-start readiness bug remains engineering work on Harakiri, not an
+owner-configuration task. No runtime code, live deployment or Brain files were
+changed by this authentication follow-up.
