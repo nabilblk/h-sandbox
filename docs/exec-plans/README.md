@@ -17,9 +17,10 @@ The OSS launch has happened; it is no longer the next unstarted milestone.
 The owner reports positive reception, not measured repeat adoption. Existing
 plans remain active for their actual unfinished gates, not because source or
 packages are unpublished. Current npm `next` is rc.8; `latest` is still 0.4.0.
-The latest [documented lab delivery](../release-notes/2026-09-10-kubernetes-docs-delivery.md)
-is revision 36 after a web-only Kubernetes documentation update. That delivery
-checked the live site and preserved the backend; it is not fresh-install evidence.
+The latest [documented lab delivery](../release-notes/2026-09-11-capacity-delivery.md)
+is revision 38 with execution capacity admission and matching web/API images.
+It preserved operator configuration and passed live acceptance; it is not a
+new npm/chart release or fresh-install evidence. Release closure is in progress.
 
 ## Customer Delivery Boundary
 

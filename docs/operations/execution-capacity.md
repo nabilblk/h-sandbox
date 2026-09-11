@@ -158,13 +158,22 @@ lock at READ COMMITTED. Provider I/O never holds that organization lock.
 ```bash
 CAPACITY_TEST_REQUIRED=1 \
 SANDBOX_TEST_DATABASE_URL=postgres://test-user@127.0.0.1:5432/test-db \
-pnpm --filter @harakiri/api exec tsx --test src/organization-capacity.test.ts
+pnpm --filter @harakiri/api exec node --test --test-concurrency=1 --import tsx \
+  src/organization-capacity.test.ts src/capacity-faults.test.ts
 ```
 
 Use a disposable PostgreSQL database. Tests use isolated schemas and real
 competing connections, not mocked SQL for the admission proof. CI requires this
 suite and fails if its database is absent. The ordinary unit test command skips
-the native test unless explicitly opted in.
+database suites without a test URL and the native test unless explicitly opted
+in. Suite files run sequentially because their isolated-schema migrations share
+PostgreSQL's extension catalog; contention scenarios still use independent,
+concurrent database connections inside each suite.
+
+The [fault-injection receipt](execution-capacity-fault-acceptance.md) covers
+write/commit failures, credential cleanup and real caller disconnects. A lost
+delete-dispatch acknowledgement deliberately remains held until runtime absence
+is confirmed; these tests do not promise automatic retry of every unknown effect.
 
 For native acceptance, install `pg_dump` and `pg_restore` matching the test
 PostgreSQL major version. Supply the provider API credential privately. Use a
