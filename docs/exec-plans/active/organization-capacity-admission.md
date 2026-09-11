@@ -933,3 +933,21 @@ the current token's trust query returned 403. No new version/tag/channel was
 published. Local Colima storage was full, so a rootless builder in the disposable
 cluster was used without pruning or restarting other projects. Keep this plan
 active until the named gates are actually closed.
+
+### npm Trust Confirmation, 2026-09-11
+
+The owner confirmed that both package-side trusted publishers were configured.
+Local inspection still returns 403 with the existing token; this is not evidence
+that the owner's GitHub publisher settings failed. Verify using the real protected
+`npm-release.yml` identity without publishing an unfinished candidate.
+
+- [x] Record owner confirmation and check that the workflow still matches
+  owner `nabilblk`, repository `h-sandbox` and environment `npm`.
+- [x] Add and test a verification-only workflow mode with no package or dist-tag
+  writes; keep its credential boundary identical to publication.
+- [ ] Run the protected GitHub OIDC exchange against both npm packages and
+  record the actual result separately from full publication acceptance.
+
+No version bump or publication is part of this authentication check. Harbor
+physical storage access, the cold-start readiness fix and coherent candidate
+installation/upgrade remain separate release gates.
