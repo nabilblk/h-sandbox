@@ -106,14 +106,16 @@ and read-only backup pods were used only for operator work.
    values from its volumes API. Filesystem/inode headroom and a durable expansion
    or monitoring policy still require operator access. No artifact deletion was
    performed in this work.
-2. **Unattended npm publishing.** Local authentication succeeds, but
-   `npm trust list @h-sandbox/sdk --json` with npm 11.19.1 returns 403. Earlier
-   protected npm workflows failed at publication; local token success is not
-   trusted-publisher proof. Configure both packages for owner `nabilblk`, repo
-   `h-sandbox`, workflow `npm-release.yml`, environment `npm`, with publishing
-   allowed; then prove the protected workflow. See
-   [npm trusted publishing](https://docs.npmjs.com/trusted-publishers/) and
-   [npm trust requirements](https://docs.npmjs.com/cli/v12/commands/npm-trust/).
+2. **Unattended npm publication.** GitHub-to-npm authentication is now verified
+   for both packages after the owner configured their trusted publishers.
+   Protected verification-only run
+   [34599562524](https://github.com/nabilblk/h-sandbox/actions/runs/34599562524)
+   successfully exchanged both package-scoped identities from reviewed source
+   `ebc8bb1`, workflow `npm-release.yml`, environment `npm`. Publication was
+   skipped; no package versions or dist-tags changed. Local `npm trust list`
+   still returns 403 with the existing token, which does not invalidate that
+   live OIDC proof. Direct publication permission and actual candidate delivery
+   remain to be tested. See the [verification procedure](../ci-release.md#verify-trust-without-publishing).
 3. **Cold-start readiness.** The failure above needs an explicit outcome before
    presenting the installation's first task as reliably ready.
 4. **Coherent candidate and consumption.** No new version/tag was selected or
@@ -153,3 +155,19 @@ The updated guide was inspected at 1440px and 390px with browser screenshots and
 no page overflow. Public web, hosted installation Markdown, API health and OIDC
 discovery returned HTTP 200; the issuer remained the public sb-auth origin.
 These additional guide changes have not been deployed as a new web image.
+
+## npm Authentication Follow-Up, 2026-09-11
+
+PR #36 added a verification-only mode to the existing protected npm workflow;
+PR #37 aligned its response validation with npm CLI 11.19.1. Both passed all
+eight required CI checks. The first live attempt returned HTTP 201 for the SDK
+but the checker incorrectly required auxiliary response metadata. That checker
+failure is retained as run 34598935295, not attributed to owner configuration.
+The corrected run linked above passed SDK and CLI exchanges without printing,
+persisting or using the exchange tokens for package writes. Nine focused tests
+cover the verifier and release guards. Both npm channels were checked afterward:
+`next=0.5.0-rc.8`, `latest=0.4.0`.
+
+This follow-up changed release tooling/documentation only. Runtime readiness,
+Harbor storage and the public platform deployment were not changed. The active
+capacity plan remains open for those release gates and actual artifact acceptance.
