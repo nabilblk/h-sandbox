@@ -246,6 +246,7 @@ test("HarakiriClient sends create-time sandbox credentials", async () => {
       calls.push({ url: String(url), body: String(init?.body ?? "") });
       return Response.json({
         sandbox: sandboxSummary({ id: "sbx_vault", status: "running" }),
+        readiness: { status: "ready", checkedAt: new Date().toISOString() },
         credentialAttachments: [{
           id: "sca_1",
           sandboxId: "sbx_vault",
@@ -317,6 +318,7 @@ test("HarakiriClient sends create-time stored credential references", async () =
       calls.push({ url: String(url), body: String(init?.body ?? "") });
       return Response.json({
         sandbox: sandboxSummary({ id: "sbx_stored_vault", status: "running" }),
+        readiness: { status: "ready", checkedAt: new Date().toISOString() },
         credentialAttachments: [{
           id: "sca_1",
           sandboxId: "sbx_stored_vault",
@@ -375,6 +377,7 @@ test("HarakiriClient sends template slot credential mappings", async () => {
       calls.push({ url: String(url), body: String(init?.body ?? "") });
       return Response.json({
         sandbox: sandboxSummary({ id: "sbx_slot_vault", status: "running" }),
+        readiness: { status: "ready", checkedAt: new Date().toISOString() },
         credentialAttachments: []
       });
     }
@@ -489,7 +492,7 @@ test("HarakiriClient can create a sandbox from a snapshot without a template def
     apiKey: "hk_live_test",
     fetch: async (url, init) => {
       calls.push({ url: String(url), body: String(init?.body ?? "") });
-      return Response.json({ sandbox: sandboxSummary({ id: "sbx_restore", status: "running" }) });
+      return Response.json({ sandbox: sandboxSummary({ id: "sbx_restore", status: "running" }), readiness: { status: "ready", checkedAt: new Date().toISOString() } });
     }
   });
 
@@ -518,8 +521,8 @@ test("HarakiriClient bootstraps Git sources through command APIs", async () => {
           status: "pending"
         }, { status: 202 });
       }
-      if (path.endsWith("/v1/sandboxes/sbx_git") && !path.endsWith("/run")) {
-        return Response.json({ sandbox: sandboxSummary({ id: "sbx_git", status: "running" }) });
+      if (path.endsWith("/v1/sandboxes/sbx_git/readiness")) {
+        return Response.json({ sandbox: sandboxSummary({ id: "sbx_git", status: "running" }), readiness: { status: "ready", checkedAt: new Date().toISOString() } });
       }
       if (path.endsWith("/v1/sandboxes/sbx_git/run")) {
         const body = JSON.parse(String(init?.body ?? "{}"));
@@ -562,6 +565,8 @@ test("HarakiriClient bootstraps Git sources through command APIs", async () => {
 
   assert.equal(result.sandbox.status, "running");
   assert.equal(result.sandbox.source?.status, "ready");
+  assert.equal(result.status, "created");
+  assert.equal(result.readiness?.status, "ready");
   const createBody = JSON.parse(calls[0].body ?? "{}");
   assert.deepEqual(createBody.source, {
     type: "git",
@@ -816,6 +821,7 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
       if (path.endsWith("/v1/sandboxes/sbx_obj/resume")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "running" }) });
       if (path.endsWith("/v1/sandboxes/sbx_obj/snapshots")) return Response.json({ snapshot: snapshotSummary({ id: "snp_obj", sourceSandboxId: "sbx_obj" }) }, { status: 201 });
       if (path.endsWith("/v1/sandboxes/sbx_obj")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "running" }) });
+      if (path.endsWith("/v1/sandboxes/sbx_obj/readiness")) return Response.json({ sandbox: sandboxSummary({ id: "sbx_obj", status: "running" }), readiness: { status: "ready", checkedAt: new Date().toISOString() } });
       if (path.endsWith("/renew")) return Response.json({ ok: true });
       if (path.endsWith("/run")) return Response.json({ result: { sandboxId: "sbx_obj", command: "pwd", stdout: "/workspace\n", stderr: "", exitCode: 0, durationMs: 5 } });
       if (path.endsWith("/commands")) return Response.json(init?.method === "POST" ? { command } : { commands: [command] });
@@ -1702,24 +1708,24 @@ test("HarakiriClient exposes sandbox file operation helpers", async () => {
   assert.deepEqual(JSON.parse(calls[3].body ?? "{}"), { path: "/workspace/file.txt", contentBase64: "b2s=", sizeBytes: 2 });
 });
 
-test("HarakiriClient waits for sandbox readiness", async () => {
-  const statuses = ["pending", "running"];
+test("HarakiriClient waits for execution readiness even when lifecycle is already running", async () => {
+  const states = ["starting", "starting", "ready"];
+  let probes = 0;
   const client = new HarakiriClient({
     apiUrl: "http://harakiri.local",
     apiKey: "hk_live_test",
-    fetch: async () => Response.json({
-      sandbox: {
-        id: "sbx_wait",
-        name: "wait",
-        template: "python-3.12",
-        status: statuses.shift() ?? "running"
-      }
-    })
+    fetch: async (url, init) => {
+      assert.match(String(url), /\/sbx_wait\/readiness$/);
+      assert.ok(init?.signal);
+      probes++;
+      return Response.json({ sandbox: sandboxSummary({ id: "sbx_wait" }), readiness: { status: states.shift(), checkedAt: new Date().toISOString() } });
+    }
   });
 
   const result = await client.waitForSandbox("sbx_wait", { intervalMs: 1, timeoutMs: 100 });
 
   assert.equal(result.sandbox.status, "running");
+  assert.equal(probes, 3);
 });
 
 test("HarakiriClient exposes developer-facing outbound access aliases", async () => {

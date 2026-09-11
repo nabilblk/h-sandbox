@@ -5,9 +5,9 @@ the CLI. Writes followed by polling normally need both read and write scopes.
 `listApiKeys()` requires human OIDC authentication, not a runtime key.
 See [authorization, expiry and legacy migration](authorization.md).
 
-## Upcoming Execution Capacity Admission
+## Execution Capacity Admission
 
-**Unreleased, migration 038.** `client.capacity()` reads organization execution
+**Since 0.5.0-rc.9, migration 038.** `client.capacity()` reads organization execution
 slots; keys need `org:read`. Inspect `HarakiriApiError.code` for
 `organization_capacity_exceeded` (409), `organization_capacity_unavailable` (503),
 `sandbox_transition_in_progress` (409) and `idempotency_conflict` (409).
@@ -16,8 +16,16 @@ persist an explicit key with the job for retries across restarts. Delete
 acknowledgement is not terminal-state confirmation: refresh the sandbox and
 poll capacity. Counts are null, not zero, when inventory is unverified.
 The [runnable tutorial](../examples/sdk-execution-capacity/README.md) verifies
-limit-one admission, conflict, cleanup and retry. The pinned rc.8 package below
-does not include this feature.
+limit-one admission, conflict, cleanup and retry. Use matching API/SDK versions.
+
+## Execution Readiness
+
+API/SDK rc.9 separates execution health from lifecycle state. Default creation
+and `waitForSandbox(id)` require the runtime execution service to be ready.
+After `wait:false`, an explicit create wait budget, or resume, persist the ID
+and wait before submitting the first task. A timeout or cancelled wait does not
+terminate the sandbox, renew its TTL or release capacity. Commands and writes
+are not replayed. See the [full readiness contract](operations/execution-readiness.md).
 
 ## Workspace and Streaming Preview
 
@@ -26,7 +34,7 @@ does not include this feature.
 0.4.0 (`latest`) does not include them. Install the candidate explicitly:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
 ```
 
 See the [workspace and streaming guide](persistent-workspaces.md)
@@ -44,9 +52,9 @@ and provider-specific command transports.
 Install the public SDK from npm:
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.8
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.9
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
 ```
 
 ```ts

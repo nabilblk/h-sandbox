@@ -2662,6 +2662,126 @@
         }
       }
     },
+    "/v1/sandboxes/{id}/readiness": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Sandboxes"
+        ],
+        "summary": "Observe execution-service readiness",
+        "description": "Read-only, uncached health observation. Lifecycle running alone does not establish readiness. This does not check user applications or free an execution slot on failure. Requires sandboxes:read.",
+        "operationId": "getSandboxReadiness",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Readiness observation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SandboxReadinessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Execution capacity uses 409.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/sandboxes/{id}/source": {
       "patch": {
         "security": [
@@ -16023,10 +16143,12 @@
             "type": "string"
           },
           "wait": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Defaults to true: wait for execution-service readiness. false accepts provisioning asynchronously."
           },
           "waitTimeoutMs": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Maximum create wait in milliseconds. An exhausted wait returns HTTP 202 with the accepted sandbox ID; it does not cancel or recreate it."
           }
         },
         "required": [],
@@ -16037,6 +16159,9 @@
         "properties": {
           "sandbox": {
             "$ref": "#/components/schemas/SandboxSummary"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/SandboxReadiness"
           },
           "credentialAttachments": {
             "type": "array",
@@ -16087,6 +16212,46 @@
         },
         "required": [
           "sandbox"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxReadiness": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "starting",
+              "unavailable",
+              "not_running",
+              "unsupported"
+            ]
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "status",
+          "checkedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxReadinessResponse": {
+        "type": "object",
+        "properties": {
+          "sandbox": {
+            "$ref": "#/components/schemas/SandboxSummary"
+          },
+          "readiness": {
+            "$ref": "#/components/schemas/SandboxReadiness"
+          }
+        },
+        "required": [
+          "sandbox",
+          "readiness"
         ],
         "additionalProperties": false
       },

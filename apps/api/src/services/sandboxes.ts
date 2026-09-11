@@ -340,11 +340,17 @@ const sandboxTemplateMetadata = (template: RuntimeTemplate) => ({
   routePolicy: routePolicySummary()
 });
 
-const waitFor = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T | "timeout"> =>
-  Promise.race([
-    promise,
-    new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), timeoutMs))
-  ]);
+const waitFor = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T | "timeout"> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), timeoutMs); })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const uniqueValues = (values: string[]) => [...new Set(values)];
 
@@ -714,6 +720,7 @@ export const createSandbox = async (
     dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
   }
 ): Promise<CreateSandboxResult> => {
+  const waitDeadline = input.waitTimeoutMs === undefined ? undefined : Date.now() + input.waitTimeoutMs;
   const query = dependencies.query ?? defaultQuery;
   const transaction = dependencies.transaction ?? defaultTransaction;
   const idFactory = dependencies.idFactory ?? makeId;
@@ -918,7 +925,7 @@ export const createSandbox = async (
   })();
   if (input.waitTimeoutMs !== undefined) {
     void provisionPromise.catch(() => undefined);
-    const waited = await waitFor(provisionPromise, input.waitTimeoutMs);
+    const waited = await waitFor(provisionPromise, Math.max(0, waitDeadline! - Date.now()));
     if (waited === "timeout") return existingResult(activeOperation);
     return waited;
   }

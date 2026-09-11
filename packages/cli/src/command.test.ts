@@ -513,6 +513,7 @@ test("create command can restore from a snapshot", async () => {
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_restore",
             name: "restored",
@@ -537,6 +538,28 @@ test("create command can restore from a snapshot", async () => {
   } finally {
     await api.close();
   }
+});
+
+test("create waits for execution health and stops displaying an already completed queue state", async () => {
+  let probes = 0;
+  const api = await startMockApi(request => {
+    const sandbox = { id: "sbx_cold", name: "cold-start", status: "running", template: "python-3.12" };
+    if (request.path === "/v1/sandboxes" && request.method === "POST") return { status: 202, body: {
+      sandbox, status: "pending", operation: { id: "op_start", state: "running" }
+    } };
+    if (request.path === "/v1/sandboxes/sbx_cold/readiness" && request.method === "GET") return { body: {
+      sandbox, readiness: { status: ++probes >= 2 ? "ready" : "starting", checkedAt: new Date().toISOString() }
+    } };
+    return { status: 404, body: { error: "unexpected" } };
+  });
+  try {
+    const result = await runCli(["create", "--template", "python-3.12"], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    assert.equal(probes, 2);
+    assert.equal(api.requests.filter(request => request.method === "POST").length, 1);
+    assert.match(result.stdout, /sbx_cold/);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /queued\./);
+  } finally { await api.close(); }
 });
 
 test("snapshot commands create, list, inspect, and delete snapshots", async () => {
@@ -918,6 +941,7 @@ test("create command sends repeated env flags in the sandbox payload", async () 
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_env",
             name: "env-runner",
@@ -987,6 +1011,7 @@ test("create command sends create-time credentials without printing secrets", as
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_create_vault",
             name: "vault-runner",
@@ -1066,6 +1091,7 @@ test("create command sends create-time stored credential references", async () =
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_create_stored",
             name: "stored-vault-runner",
@@ -1113,6 +1139,7 @@ test("create command sends template slot credential mappings", async () => {
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_slot_vault",
             name: "slot-vault-runner",
@@ -1162,6 +1189,7 @@ test("create command expands provider preset credentials", async () => {
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_preset_vault",
             name: "preset-vault",
@@ -1229,6 +1257,7 @@ test("create command reads one create-time credential from stdin", async () => {
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_stdin_vault",
             name: "stdin-vault",
@@ -1297,6 +1326,7 @@ test("create command bootstraps Git sources without sending secrets in command t
       return {
         status: 201,
         body: {
+          readiness: { status: "ready", checkedAt: new Date().toISOString() },
           sandbox: {
             id: "sbx_git_cli",
             name: "git-runner",
@@ -1620,8 +1650,8 @@ ready_command = "python --version"
         }
       };
     }
-    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_smoke") {
-      return { body: { sandbox: { id: "sbx_smoke", name: "smoke", template: "python-3.12", status: "running" } } };
+    if (request.method === "GET" && request.path === "/v1/sandboxes/sbx_smoke/readiness") {
+      return { body: { sandbox: { id: "sbx_smoke", name: "smoke", template: "python-3.12", status: "running" }, readiness: { status: "ready", checkedAt: new Date().toISOString() } } };
     }
     if (request.method === "POST" && request.path === "/v1/sandboxes/sbx_smoke/run") {
       return { body: { result: { sandboxId: "sbx_smoke", command: "python --version", stdout: "Python 3.12.0\n", stderr: "", exitCode: 0, durationMs: 12 } } };

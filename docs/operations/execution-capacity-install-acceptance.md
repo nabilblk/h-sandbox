@@ -116,8 +116,11 @@ and read-only backup pods were used only for operator work.
    still returns 403 with the existing token, which does not invalidate that
    live OIDC proof. Direct publication permission and actual candidate delivery
    remain to be tested. See the [verification procedure](../ci-release.md#verify-trust-without-publishing).
-3. **Cold-start readiness.** The failure above needs an explicit outcome before
-   presenting the installation's first task as reliably ready.
+3. **Cold-start readiness: source fix verified.** The
+   [readiness follow-up](execution-readiness.md) separates execution health from
+   lifecycle and passed six fresh-runtime tests without mutation retries.
+   Delivery of the matching API/SDK/CLI remains part of the candidate gate below;
+   the original rc.8 failure above is retained as historical evidence.
 4. **Coherent candidate and consumption.** No new version/tag was selected or
    published. A matching SDK/CLI/images/chart candidate, anonymous consumption
    and installation of that actual bundle remain unverified. npm `next` stays

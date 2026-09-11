@@ -413,6 +413,7 @@ export type CreateSandboxBody = {
 
 export type CreateSandboxResponse = {
   sandbox: SandboxSummary;
+  readiness?: SandboxReadiness;
   credentialAttachments?: SandboxCredentialAttachmentSummary[];
   operation?: SandboxOperationSummary;
   status?: "created" | "pending";
@@ -425,6 +426,15 @@ export type SandboxesResponse = {
 
 export type SandboxResponse = {
   sandbox: SandboxSummary;
+};
+
+export type SandboxReadiness = {
+  status: "ready" | "starting" | "unavailable" | "not_running" | "unsupported";
+  checkedAt: string;
+};
+
+export type SandboxReadinessResponse = SandboxResponse & {
+  readiness: SandboxReadiness;
 };
 
 export type SandboxSourceResponse = {

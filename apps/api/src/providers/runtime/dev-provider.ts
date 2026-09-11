@@ -192,6 +192,12 @@ export class InMemoryRuntimeProvider implements RuntimeProvider {
     return this.sandboxes.get(ref.providerSandboxId) ?? null;
   }
 
+  async isReady(ref: RuntimeSandboxRef, signal: AbortSignal): Promise<boolean> {
+    signal.throwIfAborted();
+    const sandbox = await this.get(ref);
+    return sandbox?.state === "running" || sandbox?.state === "idle";
+  }
+
   async delete(ref: RuntimeSandboxRef): Promise<void> {
     const sandbox = this.sandboxes.get(ref.providerSandboxId);
     if (!sandbox) return;

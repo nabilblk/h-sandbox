@@ -24,8 +24,8 @@ The configuration helper creates files only. Installation uses ordinary
 | Identity | Keycloak `26.7.3`, browser PKCE, explicit API audience, operator-owned credentials |
 | Runtime chart | `opensandbox:0.2.2-harakiri.2` from Harbor |
 | Runtime images | server `v0.2.3`, controller `v0.2.0`, execd `v1.1.0`, ingress `v1.0.10`, egress `v1.1.7` |
-| Control plane and packages | `0.5.0-rc.8`; npm channel `next`, never implicit `latest` |
-| Web documentation and positioning correction | `0.5.0-rc.8-docs.2`, pinned by the public-launch overlay |
+| Control plane and packages | `0.5.0-rc.9`; npm channel `next`, never implicit `latest` |
+| Web | Matching `0.5.0-rc.9` image; no older documentation overlay |
 | Scope | Persistent files, commands, files/artifacts, scoped authorization and native egress |
 
 The listed hardware is a reference allocation, not a measured minimum or a
@@ -33,10 +33,9 @@ concurrency guarantee. Image builds and larger agents require additional space
 and memory. The release receipt, not this configuration table, establishes which
 acceptance tests have passed. An arm64 test does not certify amd64 execution.
 
-Use the [public-launch overlay](../../docs/release-notes/0.5.0-rc.8-public-values.yaml)
-for the current web image. The original rc.8 release attachments select `docs.1`
-and remain immutable. The [public-launch receipt](../../docs/release-notes/2026-09-09-public-launch.md)
-records the later web-only correction; API, chart and npm versions are unchanged.
+Use the [rc.9 release notes](../../docs/release-notes/0.5.0-rc.9.md) and attached
+artifact receipt. The chart selects matching versioned API/web images. Earlier
+rc.8 artifacts remain immutable; do not apply their image overlays to rc.9.
 
 This single-user evaluation runs one lifecycle server (256 MiB request / 1 GiB
 limit) and one gateway (128 MiB request / 512 MiB limit). The upstream defaults
@@ -118,7 +117,7 @@ mkdir -p preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox \
   --version 0.2.2-harakiri.2 --destination preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
-  --version 0.5.0-rc.8 --destination preview-charts
+  --version 0.5.0-rc.9 --destination preview-charts
 helm install preview-runtime preview-charts/opensandbox-0.2.2-harakiri.2.tgz \
   --namespace harakiri-preview \
   -f infra/preview/.private/opensandbox-values.json --wait --timeout 10m
@@ -139,10 +138,9 @@ under an unmodified restricted OpenShift SCC. Do not bypass that restriction.
 ## 5. Install Harakiri
 
 ```bash
-helm install harakiri preview-charts/harakiri-0.5.0-rc.8.tgz \
+helm install harakiri preview-charts/harakiri-0.5.0-rc.9.tgz \
   --namespace harakiri-preview \
-  -f infra/preview/.private/harakiri-values.json \
-  -f docs/release-notes/0.5.0-rc.8-public-values.yaml --wait --timeout 10m
+  -f infra/preview/.private/harakiri-values.json --wait --timeout 10m
 kubectl -n harakiri-preview get pods
 ```
 
@@ -169,8 +167,8 @@ to `sb.harakiri.io` or a customer's public installation.
 Install exact published packages into a clean consumer directory:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
-npm install --global @h-sandbox/cli@0.5.0-rc.8
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
+npm install --global @h-sandbox/cli@0.5.0-rc.9
 harakiri --version
 export HARAKIRI_API_URL=http://127.0.0.1:28482
 harakiri login --help
@@ -218,9 +216,10 @@ Published rc.8 predates that protocol and is not a compatible rollback target.
 The [September 11 isolated rehearsal](../../docs/operations/execution-capacity-install-acceptance.md)
 records migration and compatible-image rollback, along with a cold-start failure:
 the first file request briefly returned 502 after lifecycle status became running.
-Retain the accepted sandbox ID and diagnose with a read-only operation; do not
-blindly repeat sandbox creation or a command with an unknown outcome. A later
-successful retry is not proof that this readiness issue has been fixed.
+The rc.9 API and SDK gate the first task on execution-service health. Retain
+the accepted sandbox ID on timeout and continue its readiness wait; do not
+blindly repeat sandbox creation or a command with an unknown outcome. See the
+[readiness contract and native evidence](../../docs/operations/execution-readiness.md).
 
 After evidence and backups are secured, remove only this fixture's releases:
 

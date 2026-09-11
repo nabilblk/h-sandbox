@@ -459,11 +459,12 @@ const schemas: Record<string, JsonSchema> = {
     credentials: arrayOf(ref("AttachSandboxCredentialBody")),
     credentialMappings: arrayOf(ref("TemplateCredentialSlotMappingBody")),
     idempotencyKey: string,
-    wait: boolean,
-    waitTimeoutMs: integer
+    wait: { ...boolean, description: "Defaults to true: wait for execution-service readiness. false accepts provisioning asynchronously." },
+    waitTimeoutMs: { ...integer, description: "Maximum create wait in milliseconds. An exhausted wait returns HTTP 202 with the accepted sandbox ID; it does not cancel or recreate it." }
   }, []),
   CreateSandboxResponse: objectSchema({
     sandbox: ref("SandboxSummary"),
+    readiness: ref("SandboxReadiness"),
     credentialAttachments: arrayOf(ref("SandboxCredentialAttachmentSummary")),
     operation: ref("SandboxOperationSummary"),
     status: { type: "string", enum: ["created", "pending"] },
@@ -471,6 +472,11 @@ const schemas: Record<string, JsonSchema> = {
   }, ["sandbox"]),
   SandboxesResponse: objectSchema({ sandboxes: arrayOf(ref("SandboxSummary")) }),
   SandboxResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
+  SandboxReadiness: objectSchema({
+    status: { type: "string", enum: ["ready", "starting", "unavailable", "not_running", "unsupported"] },
+    checkedAt: dateTime
+  }),
+  SandboxReadinessResponse: objectSchema({ sandbox: ref("SandboxSummary"), readiness: ref("SandboxReadiness") }),
   SandboxSourceResponse: objectSchema({ sandbox: ref("SandboxSummary") }),
   SandboxSnapshotSummary: objectSchema({
     id: string,
@@ -1615,6 +1621,9 @@ export const openApiDocument = {
     "/v1/sandboxes/{id}": {
       get: secured({ tags: ["Sandboxes"], summary: "Get a sandbox", operationId: "getSandbox", parameters: [pathId], responses: { ...ok("Sandbox", ref("SandboxResponse")), ...authErrorResponses } }),
       delete: secured({ tags: ["Sandboxes"], summary: "Request sandbox deletion", description: "Acceptance does not prove runtime absence. Poll the sandbox and organization capacity until cleanup is confirmed.", operationId: "deleteSandbox", parameters: [pathId], responses: { ...noContent("Deletion accepted"), ...authErrorResponses, ...capacityErrorResponses } })
+    },
+    "/v1/sandboxes/{id}/readiness": {
+      get: secured({ tags: ["Sandboxes"], summary: "Observe execution-service readiness", description: "Read-only, uncached health observation. Lifecycle running alone does not establish readiness. This does not check user applications or free an execution slot on failure. Requires sandboxes:read.", operationId: "getSandboxReadiness", parameters: [pathId], responses: { ...ok("Readiness observation", ref("SandboxReadinessResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/source": {
       patch: secured({ tags: ["Sandboxes"], summary: "Update sandbox source provenance", operationId: "updateSandboxSource", parameters: [pathId], requestBody: jsonBody(ref("PatchSandboxSourceBody")), responses: { ...ok("Sandbox source", ref("SandboxSourceResponse")), ...authErrorResponses } })

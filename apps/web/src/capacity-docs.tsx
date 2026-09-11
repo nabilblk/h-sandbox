@@ -9,7 +9,7 @@ export const capacityDocs: DocPage = {
   toc: ["Availability", "What a slot counts", "Admission and recovery", "Inspect capacity", "Handle a full organization", "Change the limit", "Operator recovery"],
   body: <>
     <section><h2>Availability</h2>
-      <aside className="docs-notice"><p><strong>Unreleased.</strong> Requires migration 038 and matching API, scheduler, SDK and CLI builds. Published 0.5.0-rc.8 does not include this feature. Existing organizations remain closed to new execution until an operator completes inventory activation.</p></aside>
+      <aside className="docs-notice"><p><strong>Available in 0.5.0-rc.9.</strong> Requires migration 038 and matching API, scheduler, SDK and CLI builds. Older 0.5.0-rc.8 does not include this feature. Existing organizations remain closed to new execution until an operator completes inventory activation.</p></aside>
       <p>The capacity endpoint is the authority. A missing endpoint on an older server does not mean zero use. The dashboard keeps the last observation visible when refresh fails.</p>
     </section>
     <section><h2>What a slot counts</h2>

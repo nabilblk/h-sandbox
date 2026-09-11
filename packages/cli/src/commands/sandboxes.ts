@@ -310,7 +310,7 @@ export const registerSandboxCommands = (program: Command) => {
       const result = await client.createSandbox(body);
       const config = await loadConfig();
       await saveConfig({ ...config, lastSandboxId: result.sandbox.id });
-      if (result.status === "pending" || result.operation?.state === "queued" || result.operation?.state === "running") {
+      if (result.readiness?.status !== "ready" && (result.status === "pending" || result.operation?.state === "queued" || result.operation?.state === "running")) {
         printProgress(`queued. id=${result.sandbox.id}${result.operation ? ` operation=${result.operation.id}` : ""}`);
         console.log(result.sandbox.id);
         printProgress(`accepted in ${Date.now() - started}ms`);

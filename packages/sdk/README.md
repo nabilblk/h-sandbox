@@ -10,9 +10,9 @@ Repository contributors can also read [the integration contract](../../docs/sdk.
 
 ## Install
 
-### Upcoming Execution Capacity Support
+### Execution Capacity
 
-Unreleased, migration 038; not in the pinned package below. `client.capacity()`
+Included in 0.5.0-rc.9; requires matching server migration 038. `client.capacity()`
 reads organization execution slots with `org:read`. Full admission returns
 `409 organization_capacity_exceeded`; unverified inventory returns
 `503 organization_capacity_unavailable`. Inspect `HarakiriApiError.details.capacity`
@@ -24,14 +24,14 @@ use `sandbox.refresh()` and capacity reads for confirmation. See the
 and [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.8
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.9
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
 ```
 
 This pins the recorded Developer Preview; confirm the matching server with your
-operator. The older stable `latest` channel is `0.4.0`. Source changes after the
-rc.5 receipt are unreleased until a new candidate is published.
+operator. The older stable `latest` channel is `0.4.0`. Use the `next` candidate
+channel or pin this version; do not pair readiness-aware clients with rc.8 APIs.
 
 Configure the client with an API URL and a scoped, expiring key issued by Harakiri:
 
@@ -49,6 +49,34 @@ The SDK is self-contained. Public applications should import only from
 part of the npm installation contract.
 
 ## Sandbox Object
+
+### Execution Readiness
+
+This contract requires API and SDK 0.5.0-rc.9 or newer; older
+`0.5.0-rc.8` waits for lifecycle state only. A `running` record is not proof that
+the execution service accepts connections.
+
+Default `createSandbox()` and `sandboxes.create()` wait for execution readiness.
+With `wait:false` or an explicit `waitTimeoutMs`, persist the returned sandbox ID
+and call `waitForSandbox(id)` or `sandbox.wait()` before commands or file writes.
+HTTP creation can return `202` with an accepted sandbox even when its lifecycle
+is already `running`. The wait does not create a replacement or replay mutations.
+
+`getSandboxReadiness(id)` / `sandboxes.readiness(id)` returns `{ sandbox,
+readiness: { status, checkedAt } }`. Status is `ready`, `starting`, `unavailable`,
+`not_running`, or `unsupported`. It requires `sandboxes:read`. Ordinary
+`getSandbox()`, reconnect and refresh remain inventory reads.
+
+`waitForSandbox(id, { timeoutMs: 120_000, signal })` bounds both polling and
+in-flight health requests. The default timeout is 60 seconds. A
+`HarakiriWaitTimeoutError` retains `id` and `lastStatus`; keep waiting on that ID
+or explicitly clean it up. Cancellation only stops the wait. Neither a failed
+probe nor a timeout frees capacity or renews TTL. Non-executing status waits,
+such as `{ statuses: ["terminated"] }`, remain lifecycle-only.
+
+Execution health is point-in-time, not application/route readiness or a guarantee
+against later failures. Workload commands and file writes are not automatically
+retried. After resume, call `sandbox.wait()` before submitting more work.
 
 New integrations should prefer the high-level `HarakiriSandbox` object when a
 workflow owns one sandbox at a time. It wraps the sandbox ID, keeps the latest

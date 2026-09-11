@@ -1,6 +1,6 @@
 # Execution Capacity Operations
 
-Status: unreleased implementation, migration 038. Published 0.5.0-rc.8 does not
+Status: included in 0.5.0-rc.9, migration 038. Older 0.5.0-rc.8 does not
 implement this protocol. Do not deploy mixed old/new API and scheduler writers.
 The [public concept](https://sb.harakiri.io/#docs/execution-capacity) describes
 developer behavior once the matching documentation is deployed.
