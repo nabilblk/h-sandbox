@@ -951,3 +951,13 @@ that the owner's GitHub publisher settings failed. Verify using the real protect
 No version bump or publication is part of this authentication check. Harbor
 physical storage access, the cold-start readiness fix and coherent candidate
 installation/upgrade remain separate release gates.
+
+PR #36 passed all eight required checks and merged as `2092d6c`. Verification
+run [34598935295](https://github.com/nabilblk/h-sandbox/actions/runs/34598935295)
+entered the protected `npm` environment and skipped publication. The SDK exchange
+returned HTTP 201, but the first checker required auxiliary response fields from
+an API documentation example that npm's actual CLI does not require. Correct
+the checker to validate the successful response's non-empty `token`, matching
+the [npm CLI exchange contract](https://github.com/npm/cli/blob/v11.19.1/lib/utils/oidc.js),
+before rerunning both package exchanges. This is a checker defect, not evidence
+that the owner misconfigured npm. No tokens were printed or retained.

@@ -41,9 +41,9 @@ export async function verifyNpmTrust({ env = process.env, fetchImpl = fetch, log
       { method: "POST", headers: { authorization: `Bearer ${identity.value}` } },
       201, `npm OIDC exchange for ${name}`
     );
-    if (result?.token_type !== "oidc" || typeof result.token !== "string" || !result.token.trim() ||
-        !Number.isFinite(Date.parse(result.expires)) || Date.parse(result.expires) <= Date.now()) {
-      throw new VerificationError(`npm did not return a valid short-lived exchange token for ${name}.`);
+    // Match npm CLI's exchange contract; auxiliary metadata is not required.
+    if (typeof result?.token !== "string" || !result.token.trim()) {
+      throw new VerificationError(`npm did not return an exchange token for ${name}.`);
     }
     // Never print, persist or use the exchanged token to mutate a package.
     verified.push(name);
