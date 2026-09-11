@@ -67,6 +67,8 @@ test("admin saves settings; scoped key creation, clipboard and confirmed revocat
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const state = await setup(page, "admin");
   await page.goto("/#dashboard/settings");
+  await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+  await page.locator(".settings-form-grid input").first().fill("Renamed organization");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Settings saved.");
   expect(state.patches).toBe(1);

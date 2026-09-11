@@ -16,6 +16,7 @@ async function setup(page: Page) {
     organization, membership: { role: "member" }, capabilities: { canManageSettings: false, canManageMembers: false, canManageCredentialSecrets: false }
   } }));
   await page.route("**/v1/org/settings", (route) => route.fulfill({ json: { organization } }));
+  await page.route("**/v1/org/capacity", (route) => route.fulfill({ status: 404, json: { error: "not_found" } }));
 }
 
 for (const width of [1440, 390, 320]) test(`usage loading, failure, retry and empty states fit ${width}px`, async ({ page }) => {
@@ -37,7 +38,7 @@ for (const width of [1440, 390, 320]) test(`usage loading, failure, retry and em
     } });
   });
   await page.goto("/#dashboard/metrics");
-  await expect(page.getByRole("status")).toHaveText("Loading usage...");
+  await expect(page.locator(".usage-page > [role='status']")).toHaveText("Loading usage...");
   await expect(page.getByRole("button", { name: "Refreshing" })).toBeDisabled();
   release();
   await expect(page.getByRole("alert")).toContainText("Usage temporarily unavailable");
@@ -45,7 +46,8 @@ for (const width of [1440, 390, 320]) test(`usage loading, failure, retry and em
   mode = "loaded";
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.locator(".usage-totals dd")).toHaveText(["7", "5", "2"]);
-  await expect(page.locator(".usage-history")).toContainText("not enforced");
+  await expect(page.locator(".usage-history")).toContainText("not measured");
+  await expect(page.getByRole("region", { name: "Execution capacity" })).toContainText("unavailable on this server");
   await expect(page.locator(".usage-history svg")).toHaveCount(0);
   await expect(page.locator(".usage-page")).not.toContainText("99999");
   mode = "failed";

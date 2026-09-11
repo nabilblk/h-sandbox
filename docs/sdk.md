@@ -5,6 +5,20 @@ the CLI. Writes followed by polling normally need both read and write scopes.
 `listApiKeys()` requires human OIDC authentication, not a runtime key.
 See [authorization, expiry and legacy migration](authorization.md).
 
+## Upcoming Execution Capacity Admission
+
+**Unreleased, migration 038.** `client.capacity()` reads organization execution
+slots; keys need `org:read`. Inspect `HarakiriApiError.code` for
+`organization_capacity_exceeded` (409), `organization_capacity_unavailable` (503),
+`sandbox_transition_in_progress` (409) and `idempotency_conflict` (409).
+No automatic retry is performed. Create and resume accept `idempotencyKey`;
+persist an explicit key with the job for retries across restarts. Delete
+acknowledgement is not terminal-state confirmation: refresh the sandbox and
+poll capacity. Counts are null, not zero, when inventory is unverified.
+The [runnable tutorial](../examples/sdk-execution-capacity/README.md) verifies
+limit-one admission, conflict, cleanup and retry. The pinned rc.8 package below
+does not include this feature.
+
 ## Workspace and Streaming Preview
 
 **Included in the recorded 0.5.0-rc.8 preview (`next`):** `client.workspaces`, `workspaceId` and

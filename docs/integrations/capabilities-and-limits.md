@@ -55,6 +55,14 @@ See [workspace limits and acceptance](../persistent-workspaces.md).
 
 ## Limits To Read From Configuration
 
+**Unreleased, migration 038:** organization `maxConcurrency` is enforced through
+atomic execution reservations. `GET /v1/org/capacity` reports known counts or
+explicit unknown inventory. Create/restore/resume may return
+`409 organization_capacity_exceeded` or `503 organization_capacity_unavailable`.
+Use stable idempotency keys; do not retry in a tight loop. This is separate from
+CPU, RAM and storage sizing. Published 0.5.0-rc.8 does not enforce this setting.
+See the [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
+
 - `SANDBOX_MAX_ROUTES_PER_SANDBOX`
 - `SANDBOX_MAX_ROUTES_PER_ORG`
 - `SANDBOX_FILE_ARTIFACT_MAX_BYTES`

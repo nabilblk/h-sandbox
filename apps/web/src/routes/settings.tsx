@@ -6,6 +6,8 @@ import {
   type OrganizationSettings
 } from "@harakiri/shared";
 import { api } from "../api";
+import { ApiResponseError } from "../api-client/request";
+import { CapacitySummary, changedSettings, useOrganizationCapacity } from "../capacity";
 import { EgressModePicker } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
@@ -25,21 +27,30 @@ const defaultSettings: OrganizationSettings = {
 
 export const SettingsRoute = ({ canManage = false }: { canManage?: boolean }) => {
   const [org, setOrg] = useState<OrganizationSettings>(defaultSettings);
+  const [baseline, setBaseline] = useState<OrganizationSettings>(defaultSettings);
+  const capacity = useOrganizationCapacity();
+  const [conflict, setConflict] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { api.settings().then((r) => { setOrg(r.organization); setLoaded(true); }).catch((e) => setError(e instanceof Error ? e.message : "Unable to load settings.")); }, []);
+  const load = () => api.settings().then((r) => { setOrg(r.organization); setBaseline(r.organization); setLoaded(true); setError(""); setConflict(false); }).catch((e) => setError(e instanceof Error ? e.message : "Unable to load settings."));
+  useEffect(() => { void load(); }, []);
+  const patch = changedSettings(org, baseline);
+  const dirty = Object.keys(patch).length > 0;
   const save = async () => {
-    if (!canManage || !loaded || saving) return;
+    if (!canManage || !loaded || saving || !dirty || conflict) return;
     setSaving(true);
     setNotice("");
     setError("");
     try {
-      const updated = await api.updateSettings({ ...org });
+      const updated = await api.updateSettings(patch);
       setOrg(updated.organization);
+      setBaseline(updated.organization);
+      void capacity.refresh();
       setNotice("Settings saved.");
     } catch (e) {
+      setConflict(e instanceof ApiResponseError && e.code === "organization_capacity_settings_conflict");
       setError(e instanceof Error ? e.message : "Unable to save settings.");
     } finally {
       setSaving(false);
@@ -59,9 +70,11 @@ export const SettingsRoute = ({ canManage = false }: { canManage?: boolean }) =>
           <h1 className="page-h">Settings</h1>
           <div className="page-sub"><span style={{ color: "var(--muted)" }}>Workspace controls and sandbox defaults.</span></div>
         </div>
-        {canManage ? <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || !loaded}>{saving ? <><span className="spinner" /> Saving</> : "Save"}</button> : null}
+        {canManage ? <button className="btn btn-primary btn-sm" onClick={save} disabled={saving || !loaded || !dirty || conflict || !Number.isInteger(org.maxConcurrency) || org.maxConcurrency < 1 || org.maxConcurrency > 10000}>{saving ? <><span className="spinner" /> Saving</> : "Save"}</button> : null}
       </div>
       {error ? <div role="alert" className="build-inline-alert">{error}</div> : null}
+      {conflict ? <button className="btn btn-sm" onClick={() => void load()}><Icon name="refresh" /> Reload settings</button> : null}
+      <CapacitySummary state={capacity} canManage={canManage} />
       {!canManage ? <div className="workspace-notice">Read-only. Organization settings are managed by admins.</div> : null}
       {notice ? <div role="status" className="settings-notice">{notice}</div> : null}
       <fieldset className="settings-fields" disabled={!canManage || !loaded || saving} aria-label="Organization settings">
@@ -77,9 +90,9 @@ export const SettingsRoute = ({ canManage = false }: { canManage?: boolean }) =>
           <div className="card-h">Sandbox defaults</div>
           <div className="settings-form-grid">
             <Field label="Idle TTL"><input className="input mono" type="number" value={org.idleTtlSeconds} onChange={(e) => setOrg({ ...org, idleTtlSeconds: Number(e.target.value) })} /></Field>
-            <Field label="Concurrency target"><input className="input mono" aria-label="Concurrency target" aria-describedby="concurrency-boundary" type="number" min={1} value={org.maxConcurrency} onChange={(e) => setOrg({ ...org, maxConcurrency: Number(e.target.value) })} /></Field>
+            <Field label="Execution slot limit"><input className="input mono" aria-label="Execution slot limit" aria-describedby="concurrency-boundary" type="number" min={1} max={10000} step={1} disabled={!Number.isInteger(org.capacityRevision)} value={org.maxConcurrency} onChange={(e) => setOrg({ ...org, maxConcurrency: Number(e.target.value) })} /></Field>
           </div>
-          <p id="concurrency-boundary" className="workspace-notice">Not enforced in this preview. This target does not prevent additional sandboxes from starting.</p>
+          <p id="concurrency-boundary" className="workspace-notice">{!Number.isInteger(org.capacityRevision) ? "Limit editing requires a server with capacity admission support." : capacity.capacity?.inUse !== null && capacity.capacity?.inUse !== undefined && org.maxConcurrency < capacity.capacity.inUse ? `${capacity.capacity.inUse} slots are currently occupied. Existing work will continue; new execution must wait until usage falls below ${org.maxConcurrency}.` : "Applies to new execution across the organization. Existing work is never stopped when this limit is lowered."}</p>
         </section>
       </div>
       <section className="card settings-card outbound-card">

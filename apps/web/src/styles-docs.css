@@ -235,3 +235,6 @@
   .docs-app * { scroll-behavior: auto; }
 }
 .docs-source-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+@media (max-width: 540px) {
+  .docs-app .topnav .account-trigger-label { display: none; }
+}

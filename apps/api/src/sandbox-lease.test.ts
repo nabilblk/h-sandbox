@@ -14,6 +14,8 @@ import { claimSandboxOperationById, enqueueSandboxOperation, failSandboxOperatio
 import { executeSandboxOperation } from "./services/sandbox-operation-worker.js";
 import { pauseSandbox } from "./services/sandbox-lifecycle.js";
 import { registerSandboxRoutes } from "./routes/sandboxes.js";
+import { CapacityError } from "./services/organization-capacity.js";
+import { reconcileSandboxCapacity } from "./services/sandbox-capacity-reconciler.js";
 
 const gate = () => {
   let release!: () => void;
@@ -46,6 +48,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
   const renewed: string[] = [];
   const runtimeProvider = {
     ...openSandboxRuntimeProvider,
+    capabilities: { ...openSandboxRuntimeProvider.capabilities, authoritativeLifecycle: true, pauseStopsExecution: true },
     get: async (ref: { providerSandboxId: string }) => native.get(ref.providerSandboxId) ?? null,
     delete: async (ref: { providerSandboxId: string }) => { deleted.push(ref.providerSandboxId); native.delete(ref.providerSandboxId); },
     renew: async (ref: { providerSandboxId: string }, input: { expiresAt: string }) => {
@@ -62,6 +65,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
        VALUES ($1, $2, $3, $1, 'lease test', $1, $4, 60, $5, $5)`, [sandboxId, organizationId, template, status, expiresAt]
     );
     await query("INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at) VALUES ($1, $2, 'idle_ttl', $3)", [sandboxId, organizationId, expiresAt]);
+    await query("INSERT INTO sandbox_capacity_reservations(organization_id,sandbox_id,generation,phase) VALUES ($1,$2,1,'active')", [organizationId, sandboxId]);
     native.set(sandboxId, { provider: "opensandbox", providerSandboxId: sandboxId, state: status, expiresAt });
     return { sandboxId, organizationId };
   };
@@ -85,7 +89,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
       assert.ok(!deleted.includes(input.sandboxId));
     });
 
-    await t.test("a renewal holding the lock wins against an already-selected expiration", async () => {
+    await t.test("a renewal effect fences an already-selected expiration without holding locks over I/O", async () => {
       const input = await create();
       const entered = gate(); const release = gate();
       const renewing = renewSandboxLease(input, { ...dependencies, runtimeProvider: {
@@ -95,13 +99,13 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
       await entered.promise;
       let finished = false;
       const expiring = reconcileSandboxLease({ ...input, expire: true }, dependencies).finally(() => { finished = true; });
-      try { await delay(30); assert.equal(finished, false); } finally { release.release(); }
+      try { await expiring; assert.equal(finished, true); } finally { release.release(); }
       await Promise.all([renewing, expiring]);
       assert.ok(!deleted.includes(input.sandboxId));
       assert.equal((await read(input.sandboxId)).status, "running");
     });
 
-    await t.test("expiration holding the lock wins and late renewal cannot resurrect it", async () => {
+    await t.test("an expiration effect fences late renewal without resurrecting execution", async () => {
       const input = await create();
       const entered = gate(); const release = gate();
       const expiring = reconcileSandboxLease({ ...input, expire: true }, { ...dependencies, runtimeProvider: {
@@ -109,7 +113,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
         delete: async (ref) => { entered.release(); await release.promise; await runtimeProvider.delete(ref); }
       } });
       await entered.promise;
-      const renewing = assert.rejects(renewSandboxLease(input, dependencies), (error) => error instanceof SandboxLeaseError && error.code === "sandbox_not_running");
+      const renewing = assert.rejects(renewSandboxLease(input, dependencies), (error) => (error instanceof CapacityError && error.code === "sandbox_transition_in_progress") || (error instanceof SandboxLeaseError && error.code === "sandbox_not_running"));
       release.release();
       await Promise.all([expiring, renewing]);
       assert.equal((await read(input.sandboxId)).status, "terminated");
@@ -122,7 +126,8 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
       await Promise.all([1, 2, 3].map(() => reconcileSandboxLease({ ...input, expire: true }, dependencies)));
       assert.equal(deleted.filter((id) => id === input.sandboxId).length, 1);
       assert.equal((await query("SELECT 1 FROM sandbox_schedules WHERE sandbox_id = $1 AND completed_at IS NULL", [input.sandboxId])).rows.length, 0);
-      assert.equal((await query("SELECT 1 FROM sandbox_events WHERE sandbox_id = $1 AND type = 'ttl'", [input.sandboxId])).rows.length, 1);
+      assert.equal((await query("SELECT 1 FROM sandbox_capacity_reservations WHERE sandbox_id=$1 AND released_at IS NOT NULL", [input.sandboxId])).rows.length, 1);
+      assert.equal((await query("SELECT 1 FROM sandbox_events WHERE sandbox_id=$1 AND type='terminated' AND metadata->>'reason'='ttl_expired'", [input.sandboxId])).rows.length, 1);
     });
 
     await t.test("provider renewal failure never advances the reported deadline", async () => {
@@ -142,7 +147,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
         return tx(text, params);
       })) }), /database write failed/);
       assert.deepEqual(await read(input.sandboxId), before);
-      await reconcileSandboxLease({ ...input, expire: true }, dependencies);
+      await reconcileSandboxCapacity({ ...dependencies, organizationId, staleAfterMs: 0 });
       const after = await read(input.sandboxId);
       assert.equal(after.status, "running");
       assert.equal(after.run_at.toISOString(), native.get(input.sandboxId)!.expiresAt);
@@ -248,7 +253,7 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
         ...dependencies, query: racingQuery, recordAudit: async () => undefined,
         runtimeProvider: { ...runtimeProvider, pause: async () => { providerPaused = true; return native.get(input.sandboxId)!; } }
       });
-      assert.equal(result.kind, "runtime_provider_failed");
+      assert.equal(result.kind, "sandbox_invalid_state");
       assert.equal(providerPaused, false);
       assert.equal((await read(input.sandboxId)).status, "terminated");
     });
@@ -265,6 +270,8 @@ test("PostgreSQL coordinates sandbox renewal, activity and expiration", {
       assert.ok(deleted.includes(input.sandboxId));
     });
   } finally {
+    await query("DELETE FROM sandbox_runtime_effects WHERE organization_id=$1", [organizationId]);
+    await query("DELETE FROM sandbox_capacity_reservations WHERE organization_id=$1", [organizationId]);
     await query("DELETE FROM sandboxes WHERE organization_id = $1", [organizationId]);
     await query("DELETE FROM organizations WHERE id = $1", [organizationId]);
     await query("DELETE FROM templates WHERE id = $1", [template]);

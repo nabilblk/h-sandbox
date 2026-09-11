@@ -12,7 +12,7 @@ add("GET", ["/v1/me"], { humanOnly: true });
 add("POST", ["/v1/me/onboarding/complete"], { humanOnly: true });
 for (const method of ["GET", "POST"]) add(method, ["/v1/api-keys"], { humanOnly: true });
 add("DELETE", ["/v1/api-keys/:id"], { humanOnly: true });
-add("GET", ["/v1/org/settings", "/v1/usage"], { scopes: ["org:read"] });
+add("GET", ["/v1/org/settings", "/v1/org/capacity", "/v1/usage"], { scopes: ["org:read"] });
 add("PATCH", ["/v1/org/settings"], { humanOnly: true, adminOnly: true });
 add("GET", ["/v1/org/members"], { humanOnly: true, adminOnly: true });
 add("POST", ["/v1/org/members", "/v1/org/invitations", "/v1/org/invitations/:id/resend", "/v1/org/invitations/:id/cancel"], { humanOnly: true, adminOnly: true });

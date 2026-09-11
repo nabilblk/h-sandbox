@@ -67,7 +67,7 @@ export const DashboardShellRoute = ({
       </aside>
       <main className="dash-main">
         <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm" onClick={() => go("docs")} title="Open documentation" aria-label="Open documentation"><Icon name="book" size={13} /></button><AccountMenu compact profile={profile} workspace={org.slug} avatarLabel={orgInitial} onSignOut={onSignOut} /></div></div>
-        {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} /> : null}
+        {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} canManage={account?.capabilities.canManageSettings === true} /> : null}
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
         {sub === "workspaces" ? <WorkspacesRoute openSandbox={openSandbox} /> : null}
         {sub === "vault" && account && !canManageCredentialSecrets ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Credential Vault management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}

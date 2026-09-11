@@ -3,6 +3,7 @@ import { CodeBlock } from "./components/docs-code";
 import { visionDocs } from "./vision-docs";
 import { previewDocs } from "./preview-docs";
 import { kubernetesInstallDocs } from "./kubernetes-install-docs";
+import { capacityDocs } from "./capacity-docs";
 import { authorizationDocs } from "./authorization-docs";
 import { overviewDocs, quickstartDocs } from "./getting-started-docs";
 import { demoTutorialSections } from "./demo-tutorial";
@@ -48,6 +49,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 export const docPages: DocPage[] = [
   previewDocs,
   kubernetesInstallDocs,
+  capacityDocs,
   overviewDocs,
   uiProductTourDocs,
   authorizationDocs,
@@ -356,6 +358,7 @@ try {
         <h2>Configure</h2>
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</CodeBlock>
         <p>The CLI resolves explicit flags first, then environment variables, then saved config. Browser sign-in remains Keycloak-owned; CLI automation uses API keys.</p>
+        <p><strong>Upcoming:</strong> matching capacity-aware builds add <code>harakiri capacity --json</code> and explicit create/resume retry keys. Published rc.8 does not include this feature. See <a href="#docs/execution-capacity">execution capacity</a> for the contract and runnable tutorial.</p>
         <h2>Lifecycle</h2>
         <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri status sbx_... --json\nharakiri renew sbx_...\nharakiri capabilities\nharakiri kill sbx_...`}</CodeBlock>
         <h2>Processes</h2>
@@ -832,6 +835,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <p>The SDK maps common responses to typed errors such as <code>{"HarakiriAuthenticationError"}</code>, <code>{"HarakiriValidationError"}</code>, <code>{"HarakiriNotFoundError"}</code>, <code>{"HarakiriProviderUnavailableError"}</code>, <code>{"HarakiriUnsupportedCapabilityError"}</code>, and <code>{"HarakiriCommandEndedError"}</code>.</p>
         <h2>Retry</h2>
         <p>Retry idempotent creates, waits, route readiness, and provider-unavailable reads with backoff. Do not blindly retry validation errors, auth failures, terminated sandboxes, resource-limit failures, or artifact checksum mismatches.</p>
+        <p>In the upcoming capacity-aware release, <code>409 organization_capacity_exceeded</code> requires an available execution slot before a new intent can be admitted. <code>503 organization_capacity_unavailable</code> requires inventory recovery, not a hot retry loop. An unchanged already-accepted intent can be retried with its original key, even at full capacity. See <a href="#docs/execution-capacity">execution capacity</a> for settings conflicts, unknown counts and operator recovery. These errors are not part of published rc.8.</p>
         <h2>Common fixes</h2>
         <p><code>{"sandbox_file_artifact_checksum_mismatch"}</code> means the caller must recompute <code>{"sha256"}</code> over raw bytes. <code>{"route_proxy_upstream_unreachable"}</code> usually means the server is not listening on <code>{"0.0.0.0"}</code> or the wrong port was exposed. <code>{"git_network_access_failed"}</code> usually needs the <code>{"git-hosting"}</code> egress preset or explicit host allow rules. <code>{"template_not_ready"}</code> requires a successful digest-pinned template build.</p>
         <h2>Boundary</h2>
@@ -856,6 +860,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <h2>Authentication</h2>
         <p>Resource operations accept an organization-scoped API key in <code>x-api-key</code> or a valid Keycloak bearer token. Keep API keys on the trusted caller, not in frontend bundles or sandbox files. The organization comes from the authenticated identity.</p>
         <p>Start with <a href="#docs/quickstart">the quickstart</a> for connection setup, <a href="#docs/security-model">the security model</a> for access boundaries, and <a href="#docs/errors-troubleshooting">errors and troubleshooting</a> for failures. Workspace operations have a dedicated <a href="#docs/workspace-reference">API, SDK and CLI reference</a>.</p>
+        <p><strong>Upcoming, not in published rc.8:</strong> <code>GET /v1/org/capacity</code> requires <code>org:read</code> and returns execution reservations for the authenticated organization. The <a href="#docs/execution-capacity">capacity reference</a> covers counting, idempotency and revision-checked limit edits.</p>
         <h2>Templates</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>

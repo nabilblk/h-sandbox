@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { UsageSummary } from "@harakiri/shared";
 import { api } from "../api";
 import { Icon } from "../components/icon";
+import { CapacitySummary, useOrganizationCapacity } from "../capacity";
 
 export function UsageContent({ usage }: { usage: UsageSummary | null }) {
   const count = (status: string) => usage?.statusBreakdown.find((row) => row.label === status)?.value ?? 0;
@@ -14,7 +15,7 @@ export function UsageContent({ usage }: { usage: UsageSummary | null }) {
     <section className="usage-history" aria-labelledby="usage-history-title">
       <div><h2 id="usage-history-title">Concurrent sandboxes</h2><span className="tag">History unavailable</span></div>
       <p>Historical concurrency, peak usage, compute hours, cold starts and runtime duration are not measured in this preview.</p>
-      <p className="muted">Concurrency targets are not enforced. These counts are not resource quotas or billing measurements.</p>
+      <p className="muted">Execution slots are counted separately from running records. Neither measures CPU, memory or billable usage.</p>
     </section>
     {usage ? <div className="usage-breakdowns">
       <section><h2>Recorded states</h2><dl>{usage.statusBreakdown.map((row) => <div key={row.label}><dt>{row.label}</dt><dd>{row.value.toLocaleString()}</dd></div>)}</dl>{!usage.statusBreakdown.length ? <p className="muted">No sandbox records.</p> : null}</section>
@@ -24,6 +25,7 @@ export function UsageContent({ usage }: { usage: UsageSummary | null }) {
 }
 
 export const UsageRoute = () => {
+  const capacity = useOrganizationCapacity();
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,7 @@ export const UsageRoute = () => {
     </div>
     {error ? <div className="build-inline-alert" role="alert">{error}{usage ? " Showing the last successful response." : ""}</div> : null}
     <p className="workspace-notice" role="status">{loading ? "Loading usage..." : usage?.coverage ? `Observed ${new Date(usage.coverage.observedAt).toLocaleString()}` : usage ? "Snapshot loaded. Observation time unavailable on this server." : "No usage snapshot available."}</p>
+    <CapacitySummary state={capacity} />
     <div aria-busy={loading}><UsageContent usage={usage} /></div>
   </div>;
 };

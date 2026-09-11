@@ -11,6 +11,7 @@ import {
 import WebSocket, { type RawData } from "ws";
 import { registerRoutes as registerDefaultRoutes } from "./routes.js";
 import type { Transaction } from "./db.js";
+import { capacityFixture } from "./test-support/capacity-fixture.js";
 import { hashApiKey } from "./crypto.js";
 import type {
   RuntimeCredentialVaultApplyInput,
@@ -19,11 +20,11 @@ import type {
   RuntimeRunInput
 } from "./providers/runtime/provider.js";
 
-const leaseTransaction: Transaction = (fn) => fn(async (text) => {
+const leaseTransaction: Transaction = capacityFixture(async (text) => {
   if (text.includes("FOR UPDATE")) return { rows: [{ opensandbox_id: "fake_provider", ttl_seconds: 300, status: "running", expires_at: null, provider_expires_at: null }] as never[] };
   if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
   return { rows: [], rowCount: 1 };
-});
+}, { sandboxId: "sbx_route", organizationId: "org_route", providerId: "fake_provider", status: "running" }).transaction;
 const registerRoutes = (app: Parameters<typeof registerDefaultRoutes>[0], dependencies: Parameters<typeof registerDefaultRoutes>[1] = {}) =>
   registerDefaultRoutes(app, { transaction: leaseTransaction, ...dependencies,
     ...(dependencies.query ? { query: async (text, params) => {

@@ -184,6 +184,8 @@ export const claimSandboxOperationById = async (
      WHERE id = $1
        AND state IN ('queued', 'failed')
        AND attempts < $2
+       AND (request->>'dispatchReady') IS DISTINCT FROM 'false'
+       AND NOT EXISTS (SELECT 1 FROM sandbox_runtime_effects e WHERE e.operation_id=sandbox_operations.id AND e.settled_at IS NULL)
        ${kindClause}
      RETURNING id, organization_id AS "organizationId", sandbox_id AS "sandboxId",
                kind, state, idempotency_key AS "idempotencyKey", request, result,
@@ -212,6 +214,9 @@ export const claimNextSandboxOperation = async (
        SELECT id
        FROM sandbox_operations
        WHERE state = 'queued'
+         AND (request->>'nonReplayable') IS DISTINCT FROM 'true'
+         AND (request->>'dispatchReady') IS DISTINCT FROM 'false'
+         AND NOT EXISTS (SELECT 1 FROM sandbox_runtime_effects e WHERE e.operation_id=sandbox_operations.id AND e.settled_at IS NULL)
          AND attempts < $1
          AND (locked_at IS NULL OR locked_at < now() - ($2::double precision * interval '1 millisecond'))
          ${kindClause}
@@ -265,6 +270,7 @@ export const claimStaleRunningSandboxOperation = async (
        SELECT id
        FROM sandbox_operations
        WHERE state = 'running'
+         AND NOT EXISTS (SELECT 1 FROM sandbox_runtime_effects e WHERE e.operation_id=sandbox_operations.id AND e.settled_at IS NULL)
          AND locked_at < now() - ($1::double precision * interval '1 millisecond')
          ${kindClause}
        ORDER BY locked_at ASC
@@ -297,23 +303,25 @@ export const claimStaleRunningSandboxOperation = async (
 };
 
 export const completeSandboxOperation = async (
-  input: { operationId: string; result?: Record<string, unknown> },
+  input: { operationId: string; result?: Record<string, unknown>; expectedAttempts?: number; reconciled?: boolean },
   query: Query = defaultQuery
 ) => {
   const completed = await query<SandboxOperation>(
     `UPDATE sandbox_operations
      SET state = 'succeeded',
+         error = NULL,
          result = $2::jsonb,
          completed_at = now(),
          locked_at = NULL,
          updated_at = now()
      WHERE id = $1
+       AND ($3::int IS NULL OR ((state = 'running' OR ($4::boolean AND state = 'failed')) AND attempts = $3))
      RETURNING id, organization_id AS "organizationId", sandbox_id AS "sandboxId",
                kind, state, idempotency_key AS "idempotencyKey", request, result,
                error, attempts, locked_at AS "lockedAt", started_at AS "startedAt",
                completed_at AS "completedAt", created_at AS "createdAt",
                updated_at AS "updatedAt"`,
-    [input.operationId, JSON.stringify(input.result ?? {})]
+    [input.operationId, JSON.stringify(input.result ?? {}), input.expectedAttempts ?? null, input.reconciled ?? false]
   );
   return completed.rows[0] ?? null;
 };
@@ -357,6 +365,7 @@ export const requeueSandboxOperation = async (
      WHERE id = $1
        AND state = 'running'
        AND ($4::int IS NULL OR attempts = $4)
+       AND NOT EXISTS (SELECT 1 FROM sandbox_runtime_effects e WHERE e.operation_id=sandbox_operations.id AND e.settled_at IS NULL)
      RETURNING id, organization_id AS "organizationId", sandbox_id AS "sandboxId",
                kind, state, idempotency_key AS "idempotencyKey", request, result,
                error, attempts, locked_at AS "lockedAt", started_at AS "startedAt",
@@ -386,6 +395,7 @@ export const cleanupStaleSandboxOperations = async (
          error = COALESCE(error, 'operation lease expired'),
          updated_at = now()
      WHERE state = 'running'
+       AND NOT EXISTS (SELECT 1 FROM sandbox_runtime_effects e WHERE e.operation_id=sandbox_operations.id AND e.settled_at IS NULL)
        AND locked_at < now() - ($2::double precision * interval '1 millisecond')
        AND attempts < $1
        ${kindClause}`,
@@ -399,6 +409,7 @@ export const cleanupStaleSandboxOperations = async (
          error = COALESCE(error, 'operation attempt limit exceeded after stale lease'),
          updated_at = now()
      WHERE state = 'running'
+       AND NOT EXISTS (SELECT 1 FROM sandbox_runtime_effects e WHERE e.operation_id=sandbox_operations.id AND e.settled_at IS NULL)
        AND locked_at < now() - ($2::double precision * interval '1 millisecond')
        AND attempts >= $1
        ${kindClause}`,

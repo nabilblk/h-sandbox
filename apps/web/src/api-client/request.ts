@@ -1,4 +1,4 @@
-import { formatApiErrorResponse } from "@harakiri/shared";
+import { formatApiErrorResponse, parseApiErrorResponse, type ApiErrorResponse } from "@harakiri/shared";
 import { auth, AuthSessionExpiredError, type AuthSession } from "../auth";
 import { env } from "../runtime-config";
 
@@ -11,11 +11,12 @@ const sessionExpiredMessage = "Session expired. Sign in again to continue.";
 const apiUnavailableMessage = `Unable to reach Harakiri API at ${API_URL}. Check the tunnel or port-forward, then refresh.`;
 const authUnavailableMessage = "Unable to reach Keycloak. Check the auth tunnel or port-forward, then sign in again.";
 
-class ApiResponseError extends Error {
-  constructor(readonly status: number, message: string) {
+export class ApiResponseError extends Error {
+  constructor(readonly status: number, message: string, readonly details: ApiErrorResponse | null = null) {
     super(message);
     this.name = "ApiResponseError";
   }
+  get code() { return this.details?.error; }
 }
 
 const isNetworkError = (error: unknown) =>
@@ -34,6 +35,8 @@ const fetchWithRetry = async (url: string, init: RequestInit) => {
     return await fetch(url, init);
   } catch (error) {
     if (!isNetworkError(error)) throw error;
+    const method = (init.method ?? "GET").toUpperCase();
+    if (!["GET", "HEAD"].includes(method) && !new Headers(init.headers).has("Idempotency-Key")) throw new Error(apiUnavailableMessage);
     await sleep(250);
     try {
       return await fetch(url, init);
@@ -56,7 +59,12 @@ export const createResponseRequester = (session: AuthSession = auth) => {
       ...init,
       headers
     });
-    if (!response.ok) throw new ApiResponseError(response.status, formatApiErrorResponse(response.status, await response.text()));
+    if (!response.ok) {
+      const body = await response.text();
+      const details = parseApiErrorResponse(body);
+      throw new ApiResponseError(response.status, details?.message ?? formatApiErrorResponse(response.status, body), details);
+    }
+    if (typeof window !== "undefined" && init.method && init.method !== "GET" && /^\/v1\/(sandboxes|org\/settings)/.test(path)) window.dispatchEvent(new Event("harakiri:capacity-changed"));
     return response;
   };
 

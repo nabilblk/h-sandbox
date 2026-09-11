@@ -81,6 +81,35 @@ test("server policy rejects member administration, key delegation and unrecogniz
   } finally { await app.close(); }
 });
 
+test("capacity is tenant-scoped, member-readable and requires org:read on API keys", async () => {
+  const app = Fastify();
+  let principal: AuthContext | null = user;
+  const observedOrganizations: unknown[] = [];
+  await registerRoutes(app, {
+    requireAuth: async (request, reply) => { if (!principal) { reply.code(401).send({ error: "unauthorized" }); return; } request.auth = principal; },
+    query: async (sql, params) => {
+      assert.match(sql, /SELECT o.max_concurrency/);
+      observedOrganizations.push(params?.[0]);
+      return result({ max_concurrency: 2, capacity_state: "enforced", capacity_revision: 1, reserved: 1, active: 1, releasing: 0, uncertain: 0, observed_at: new Date() });
+    }
+  });
+  try {
+    const read = await app.inject("/v1/org/capacity?organizationId=attacker-supplied");
+    assert.equal(read.statusCode, 200);
+    assert.equal(read.json().capacity.inUse, 2);
+    assert.deepEqual(observedOrganizations, ["org"]);
+    principal = { ...key, scopes: ["sandboxes:read"] };
+    assert.equal((await app.inject("/v1/org/capacity")).statusCode, 403);
+    assert.equal(observedOrganizations.length, 1);
+    principal = { ...key, organizationId: "another-org", scopes: ["org:read"] };
+    assert.equal((await app.inject("/v1/org/capacity")).statusCode, 200);
+    assert.equal(observedOrganizations.at(-1), "another-org");
+    principal = null;
+    assert.equal((await app.inject("/v1/org/capacity")).statusCode, 401);
+    assert.equal(observedOrganizations.length, 2);
+  } finally { await app.close(); }
+});
+
 test("key identity never borrows a user; creator demotion, expiry and org changes limit access", async () => {
   const read = (patch = {}) => readApiKeyPrincipal({ id: "key", organizationId: "org" }, async () => result({ ...keyRow, ...patch }));
   const principal = await read();

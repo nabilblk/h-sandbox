@@ -10,6 +10,19 @@ Repository contributors can also read [the integration contract](../../docs/sdk.
 
 ## Install
 
+### Upcoming Execution Capacity Support
+
+Unreleased, migration 038; not in the pinned package below. `client.capacity()`
+reads organization execution slots with `org:read`. Full admission returns
+`409 organization_capacity_exceeded`; unverified inventory returns
+`503 organization_capacity_unavailable`. Inspect `HarakiriApiError.details.capacity`
+and never hot-loop retries. Create generates one key per invocation; supply
+`idempotencyKey` for retries across restarts. Resume accepts the same option.
+`sandbox.kill()` no longer fabricates a terminated status from acknowledgement;
+use `sandbox.refresh()` and capacity reads for confirmation. See the
+[runnable capacity tutorial](https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-execution-capacity)
+and [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
+
 ```bash
 pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.8
 # or

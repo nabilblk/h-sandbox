@@ -17,6 +17,7 @@ import {
   type UsageSummary
 } from "@harakiri/shared";
 import { api } from "../api";
+import { CapacitySummary, useIntentKeys, useOrganizationCapacity } from "../capacity";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
 import { formatBytes, formatDateTime } from "../format";
@@ -700,6 +701,9 @@ await client.runSandbox(sandbox.id, { command: "python --version" });`;
 type TemplateDetailTab = "overview" | "versions" | "egress" | "config" | "runs";
 
 export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
+  const capacity = useOrganizationCapacity();
+  const intentKeys = useIntentKeys();
+  const [createError, setCreateError] = useState("");
   const [tab, setTab] = useState<"list" | "builds">("list");
   const [templates, setTemplates] = useState<Template[]>(TEMPLATES);
   const [templateTotal, setTemplateTotal] = useState(TEMPLATES.length);
@@ -843,9 +847,13 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
 
   const createFromTemplate = async (templateId: string) => {
     setBusy(`use:${templateId}`);
+    setCreateError("");
     try {
-      const result = await api.createSandbox({ template: templateId, ttlSeconds: 300, name: `${templateId}-runner` });
+      const result = await api.createSandbox({ template: templateId, ttlSeconds: 300, name: `${templateId}-runner`, idempotencyKey: intentKeys.forIntent({ templateId }) });
       openSandbox(result.sandbox.id);
+    } catch (error) {
+      capacity.acceptError(error);
+      setCreateError(error instanceof Error ? error.message : "Sandbox creation failed.");
     } finally {
       setBusy(null);
     }
@@ -947,11 +955,13 @@ export const TemplatesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
           <button className="btn btn-ghost btn-sm" onClick={() => { loadTemplates(); loadBuilds(); void api.usage().then(setUsage); }}><Icon name="refresh" size={12} /> Refresh</button>
           <button className="btn btn-primary btn-sm" onClick={() => setShowNewTemplate(true)}><Icon name="plus" size={12} /> New template</button>
           <span className="pill live"><span className="dot" /> live</span>
-          <span className="num">{usage?.concurrentNow ?? 0}</span>
+          <span className="num">{usage?.concurrentNow ?? "-"}</span>
           <span className="tmpl-live-label">concurrent sandboxes</span>
         </div>
       </div>
 
+      {createError ? <div className="build-inline-alert" role="alert">{createError}</div> : null}
+      <CapacitySummary state={capacity} />
       {tab === "list" ? (
         <>
           <div className="tmpl-toolbar">

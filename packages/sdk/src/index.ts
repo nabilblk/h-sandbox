@@ -1,5 +1,7 @@
 import { observeCommandStream, type CommandStreamOptions } from "./command-stream.js";
 import type { WorkspaceResponse, WorkspacesResponse, CreateWorkspaceBody } from "./workspaces.js";
+import type { OrganizationCapacityResponse } from "./protocol.js";
+export type { OrganizationCapacity, OrganizationCapacityResponse } from "./protocol.js";
 export { readCommandEvents, observeCommandStream, CommandStreamError, type CommandStreamOptions } from "./command-stream.js";
 export type { WorkspaceSummary, WorkspacePolicy, CreateWorkspaceBody, WorkspacesResponse, WorkspaceResponse } from "./workspaces.js";
 export type { SandboxCommandEvent } from "./command-events.js";
@@ -1218,7 +1220,8 @@ export class HarakiriSandbox {
 
   async kill() {
     const result = await this.client.killSandbox(this.id);
-    this.current = { ...this.current, status: "terminated" };
+    // A delete acknowledgement is not evidence that execution has stopped.
+    if (this.current.status !== "terminated") this.current = { ...this.current, capacityPhase: "releasing" };
     return result;
   }
 
@@ -1228,8 +1231,8 @@ export class HarakiriSandbox {
     return this;
   }
 
-  async resume() {
-    const result = await this.client.resumeSandbox(this.id);
+  async resume(options: { idempotencyKey?: string } = {}) {
+    const result = await this.client.resumeSandbox(this.id, options);
     this.current = result.sandbox;
     return this;
   }
@@ -1520,7 +1523,7 @@ export class HarakiriClient {
     renew: (id: string) => this.renewSandbox(id),
     kill: (id: string) => this.killSandbox(id),
     pause: (id: string) => this.pauseSandbox(id),
-    resume: (id: string) => this.resumeSandbox(id),
+    resume: (id: string, options?: { idempotencyKey?: string }) => this.resumeSandbox(id, options),
     snapshot: (id: string, input: CreateSandboxSnapshotInput = {}) => this.createSnapshot(id, input)
   };
 
@@ -1631,6 +1634,10 @@ export class HarakiriClient {
     return this.request<SandboxesResponse>(`/v1/sandboxes${params}`);
   }
 
+  capacity() {
+    return this.request<OrganizationCapacityResponse>("/v1/org/capacity");
+  }
+
   async createSandbox(input: CreateSandboxInput = {}) {
     const { source, cleanupOnSourceError, ...createInput } = input;
     const createCredentialCount = (createInput.credentials?.length ?? 0) + (createInput.credentialMappings?.length ?? 0);
@@ -1659,7 +1666,7 @@ export class HarakiriClient {
         source: source?.type === "git" ? gitSourceForApi(source) : undefined,
         credentials: createInput.credentials,
         credentialMappings: createInput.credentialMappings,
-        idempotencyKey: createInput.idempotencyKey,
+        idempotencyKey: createInput.idempotencyKey ?? globalThis.crypto.randomUUID(),
         wait: createInput.wait,
         waitTimeoutMs: createInput.waitTimeoutMs
       })
@@ -1751,8 +1758,10 @@ export class HarakiriClient {
     return this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/pause`, { method: "POST" });
   }
 
-  resumeSandbox(id: string) {
-    return this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/resume`, { method: "POST" });
+  resumeSandbox(id: string, options: { idempotencyKey?: string } = {}) {
+    return this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/resume`, {
+      method: "POST", headers: { "Idempotency-Key": options.idempotencyKey ?? globalThis.crypto.randomUUID() }
+    });
   }
 
   createSnapshot(id: string, input: CreateSandboxSnapshotInput = {}) {

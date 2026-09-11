@@ -29,10 +29,12 @@ import { request, requestResponse } from "./request";
 export const sandboxesApi = {
   sandboxes: (params = "") => request<SandboxesResponse>(`/v1/sandboxes${params}`),
   sandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}`),
-  createSandbox: (body: CreateSandboxBody) =>
-    request<CreateSandboxResponse>("/v1/sandboxes", { method: "POST", body: JSON.stringify(body) }),
+  createSandbox: (body: CreateSandboxBody) => {
+    const idempotencyKey = body.idempotencyKey ?? crypto.randomUUID();
+    return request<CreateSandboxResponse>("/v1/sandboxes", { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify({ ...body, idempotencyKey }) });
+  },
   pauseSandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}/pause`, { method: "POST" }),
-  resumeSandbox: (id: string) => request<SandboxResponse>(`/v1/sandboxes/${id}/resume`, { method: "POST" }),
+  resumeSandbox: (id: string, idempotencyKey: string = crypto.randomUUID()) => request<SandboxResponse>(`/v1/sandboxes/${id}/resume`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey } }),
   renewSandbox: (id: string) => request<OkResponse>(`/v1/sandboxes/${id}/renew`, { method: "POST" }),
   killSandbox: (id: string) => request<OkResponse>(`/v1/sandboxes/${id}`, { method: "DELETE" }),
   createSnapshot: (id: string, body: CreateSandboxSnapshotBody) =>

@@ -41,9 +41,21 @@ arbitrary CSI-driver compatibility.
 
 There is no customer bundle or BackgroundAgent dependency. The current runtime
 requires cluster-scoped CRDs/RBAC and network privileges for native egress. Do
-not alter OpenShift SCCs to make the evaluation profile run. Configured concurrency
-targets remain unenforced; usage history is unavailable. Restrict preview access
+not alter OpenShift SCCs to make the evaluation profile run. In the pinned
+0.5.0-rc.8 release, configured concurrency targets remain unenforced; usage
+history is unavailable. Restrict preview access
 to trusted teams and account for resource consumption independently.
+
+## Upcoming Capacity Upgrade
+
+The unreleased migration 038 adds atomic organization execution admission. Read
+[Execution capacity](https://sb.harakiri.io/#docs/execution-capacity) and the
+[operator activation and recovery runbook](operations/execution-capacity.md).
+Do not use a mixed-version rolling upgrade: stop all older API and scheduler
+writers, migrate, verify inventory, then start matching builds. Every preexisting
+organization remains closed to new execution until activation succeeds. An image
+rollback to a pre-capacity build does not preserve enforcement. The current
+pinned release commands above intentionally remain unchanged until delivery.
 
 ## Documentation Ownership
 

@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { makeId } from "../crypto.js";
-import { query as defaultQuery, type Transaction } from "../db.js";
+import { query as defaultQuery, transaction as defaultTransaction, type Transaction } from "../db.js";
 import {
   compileEgressPolicy,
   defaultEgressPolicyInput,
@@ -55,6 +55,11 @@ import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-se
 import { redactText } from "../redaction.js";
 import { prepareRuntimeWorkspace, validateWorkspaceAttachment, WorkspaceError } from "./persistent-workspaces.js";
 import { renewSandboxLease, SandboxLeaseError } from "./sandbox-lease.js";
+import { createIntentFingerprint, findAcceptedCreate, lockCreateAdmission } from "./sandbox-admission.js";
+import { reserveSandboxCapacity, releaseSandboxCapacity } from "./organization-capacity.js";
+import { beginRuntimeEffect, finishRuntimeEffect, type RuntimeEffect } from "./sandbox-runtime-effects.js";
+import { provisionSandboxRuntime, completeSandboxProvision, type ProvisionedRuntime } from "./sandbox-provision.js";
+import { requestSandboxTermination, executeRuntimeDeletion } from "./sandbox-termination.js";
 export type { Audit, SandboxEventRecorder } from "./sandbox-runtime.js";
 
 export type SandboxSummary = SharedSandboxSummary;
@@ -106,6 +111,10 @@ export type CreateSandboxInput = {
 export const sandboxSelect = `
   SELECT s.id, s.opensandbox_id AS "opensandboxId", s.name, s.template_id AS template,
          s.workspace_id AS "workspaceId",
+         COALESCE(
+           (SELECT CASE WHEN e.uncertain_at IS NOT NULL THEN 'uncertain' ELSE 'releasing' END FROM sandbox_runtime_effects e WHERE e.sandbox_id=s.id AND e.kind='delete' AND e.settled_at IS NULL),
+           (SELECT r.phase FROM sandbox_capacity_reservations r WHERE r.sandbox_id=s.id ORDER BY r.generation DESC LIMIT 1)
+         ) AS "capacityPhase",
          s.status, s.cpu_pct AS cpu, s.memory_mb AS mem,
          COALESCE(to_char(now() - s.started_at, 'HH24"h "MI"m"'), '-') AS started,
          s.owner_label AS owner, s.cost_usd::float AS cost, s.ttl_seconds AS "ttlSeconds",
@@ -615,88 +624,25 @@ const attachCreateCredentials = async (
 
 const rollbackCredentialCreate = async (
   input: {
-    organizationId: string;
-    userId: string | null;
-    actorLabel: string;
-    sandboxId: string;
-    providerSandboxId: string;
-    operationId: string;
-    failureKind: string;
-    failureMessage: string;
+    organizationId: string; userId: string | null; actorLabel: string; sandboxId: string;
+    providerSandboxId: string; operationId: string; failureKind: string; failureMessage: string;
+    effect: RuntimeEffect;
   },
-  dependencies: {
-    query: Query;
-    runtimeProvider: RuntimeProvider;
-    recordEvent: SandboxEventRecorder;
-    recordAudit: Audit;
-  }
+  dependencies: { query: Query; transaction: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
 ) => {
-  const failureMessage = redactText(input.failureMessage);
-  let cleanupError: string | null = null;
-  try {
-    await dependencies.runtimeProvider.delete(runtimeRef(dependencies.runtimeProvider, input.providerSandboxId));
-  } catch (error) {
-    cleanupError = redactText(error instanceof Error ? error.message : String(error));
-  }
-
-  await dependencies.query(
-    `UPDATE sandboxes
-     SET status = 'error', updated_at = now()
-     WHERE id = $1 AND organization_id = $2`,
-    [input.sandboxId, input.organizationId]
-  );
-  await dependencies.query(
-    `UPDATE sandbox_schedules
-     SET completed_at = COALESCE(completed_at, now())
-     WHERE sandbox_id = $1 AND organization_id = $2`,
-    [input.sandboxId, input.organizationId]
-  );
-  await dependencies.query(
-    `UPDATE sandbox_credential_attachments
-     SET status = 'detached',
-         provider_state = 'missing',
-         last_error = $3,
-         detached_at = COALESCE(detached_at, now()),
-         updated_at = now()
-     WHERE sandbox_id = $1 AND organization_id = $2 AND detached_at IS NULL`,
-    [input.sandboxId, input.organizationId, "sandbox creation rolled back after credential attachment failed"]
-  );
-  await failSandboxOperation(
-    {
-      operationId: input.operationId,
-      error: failureMessage,
-      result: {
-        provider: dependencies.runtimeProvider.kind,
-        providerSandboxId: input.providerSandboxId,
-        credentialFailure: input.failureKind,
-        cleanup: cleanupError ? "failed" : "completed",
-        ...(cleanupError ? { cleanupError } : {})
-      }
-    },
-    dependencies.query
-  );
-
-  const metadata = {
-    operationId: input.operationId,
-    failure: input.failureKind,
-    cleanup: cleanupError ? "failed" : "completed"
-  };
-  await dependencies.recordEvent(
-    input.organizationId,
-    input.sandboxId,
-    "error",
-    "sandbox creation rolled back because credential attachment failed",
-    metadata
-  );
-  await dependencies.recordAudit(
-    input.organizationId,
-    input.userId,
-    input.actorLabel,
-    "sandbox.create.credential_failed",
-    "sandbox",
-    input.sandboxId,
-    metadata
-  );
+  const deletion = await finishRuntimeEffect(input.effect, async (query) => {
+    await query("UPDATE sandboxes SET status='error', updated_at=now() WHERE id=$1 AND organization_id=$2", [input.sandboxId, input.organizationId]);
+    await failSandboxOperation({ operationId: input.operationId, error: "Credential attachment failed; runtime cleanup requested.", result: { credentialFailure: input.failureKind, cleanup: "pending" } }, query);
+    // A separate effect prevents an old provision observer from completing cleanup.
+    const effect = await beginRuntimeEffect({ ...input, kind: "delete", context: { failedProvisionOperationId: input.operationId } }, query);
+    await query("UPDATE sandbox_capacity_reservations SET phase='releasing', reason='credential_attachment_failed', updated_at=now() WHERE sandbox_id=$1 AND released_at IS NULL", [input.sandboxId]);
+    await query("UPDATE sandbox_credential_attachments SET status='failed', last_error='Sandbox creation failed; runtime cleanup pending', updated_at=now() WHERE sandbox_id=$1 AND organization_id=$2 AND detached_at IS NULL", [input.sandboxId, input.organizationId]);
+    return effect;
+  }, dependencies.transaction);
+  try { await executeRuntimeDeletion(deletion, dependencies); }
+  catch { /* The durable cleanup effect retains capacity and is reconciled independently. */ }
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "error", "sandbox credential attachment failed; cleanup requested", { operationId: input.operationId, failure: input.failureKind });
+  await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.create.credential_failed", "sandbox", input.sandboxId, { operationId: input.operationId, failure: input.failureKind });
 };
 
 export const getSandbox = async (
@@ -755,6 +701,7 @@ export const createSandbox = async (
   input: CreateSandboxInput,
   dependencies: {
     query?: Query;
+    transaction?: Transaction;
     runtimeProvider: RuntimeProvider;
     recordEvent: SandboxEventRecorder;
     recordAudit: Audit;
@@ -768,59 +715,41 @@ export const createSandbox = async (
   }
 ): Promise<CreateSandboxResult> => {
   const query = dependencies.query ?? defaultQuery;
+  const transaction = dependencies.transaction ?? defaultTransaction;
   const idFactory = dependencies.idFactory ?? makeId;
   const createCredentials = input.credentials ?? [];
   const credentialMappings = input.credentialMappings ?? [];
-  const createCredentialCount = createCredentials.length + credentialMappings.length;
+  const credentialCount = createCredentials.length + credentialMappings.length;
   const syncError = createCredentialSyncError(input);
   if (syncError) return { kind: "credential_vault_create_requires_sync", message: syncError };
-  if (createCredentialCount && !dependencies.runtimeProvider.applyCredentialVault) {
+  if (credentialCount && !dependencies.runtimeProvider.applyCredentialVault) {
     return { kind: "credential_vault_unsupported", message: "runtime provider does not expose Credential Vault injection" };
   }
-  if (input.idempotencyKey) {
-    const existing = await query<SandboxOperation>(
-      `${sandboxOperationSelect}
-       WHERE organization_id = $1 AND kind = 'provision' AND idempotency_key = $2
-       ORDER BY created_at DESC
-       LIMIT 1`,
-      [input.organizationId, input.idempotencyKey]
-    );
-    const operation = existing.rows[0];
-    if (operation?.sandboxId) {
-      const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider });
-      if (sandbox && operation.state === "failed") {
-        return {
-          kind: "sandbox_provision_failed",
-          sandbox,
-          operation,
-          message: operation.error ?? "sandbox provision failed"
-        };
-      }
-      if (sandbox && (sandbox.status === "pending" || operation.state === "queued" || operation.state === "running")) {
-        return {
-          kind: "pending",
-          sandbox,
-          operation,
-          message: "sandbox provision is still pending"
-        };
-      }
-      if (sandbox) return { kind: "created", sandbox };
+  const existingResult = async (operation: SandboxOperation): Promise<CreateSandboxResult> => {
+    const sandbox = operation.sandboxId ? await getSandbox(
+      { organizationId: input.organizationId, sandboxId: operation.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider }
+    ) : null;
+    if (!sandbox || operation.state === "failed" || operation.state === "canceled") {
+      return { kind: "sandbox_provision_failed", sandbox, operation, message: operation.error ?? "The accepted provision operation is no longer running." };
     }
-  }
+    if (sandbox.status === "pending" || operation.state === "queued" || operation.state === "running") {
+      return { kind: "pending", sandbox, operation, message: "sandbox provision is still pending" };
+    }
+    return { kind: "created", sandbox };
+  };
+  const existing = await findAcceptedCreate(input, query);
+  if (existing) return existingResult(existing);
+  const intentFingerprint = createIntentFingerprint(input);
+  if (!intentFingerprint) return {
+    kind: "sandbox_env_not_replayable",
+    message: "Create inputs containing env, source or credentials require CONTROL_PLANE_SECRET_KEY for safe idempotent admission. Inline credentials are never stored as replay input."
+  };
   const restoreSnapshot = input.snapshotId
-    ? await getSandboxSnapshotForRestore({ organizationId: input.organizationId, snapshotId: input.snapshotId }, query)
-    : null;
+    ? await getSandboxSnapshotForRestore({ organizationId: input.organizationId, snapshotId: input.snapshotId }, query) : null;
   if (input.snapshotId && !restoreSnapshot) return { kind: "snapshot_not_found", snapshotId: input.snapshotId };
-  if (restoreSnapshot && restoreSnapshot.status !== "ready") {
-    return { kind: "snapshot_not_ready", snapshotId: restoreSnapshot.id, status: restoreSnapshot.status };
-  }
+  if (restoreSnapshot && restoreSnapshot.status !== "ready") return { kind: "snapshot_not_ready", snapshotId: restoreSnapshot.id, status: restoreSnapshot.status };
   if (restoreSnapshot && restoreSnapshot.provider !== dependencies.runtimeProvider.kind) {
-    return {
-      kind: "snapshot_provider_mismatch",
-      snapshotId: restoreSnapshot.id,
-      provider: restoreSnapshot.provider,
-      runtimeProvider: dependencies.runtimeProvider.kind
-    };
+    return { kind: "snapshot_provider_mismatch", snapshotId: restoreSnapshot.id, provider: restoreSnapshot.provider, runtimeProvider: dependencies.runtimeProvider.kind };
   }
   if (restoreSnapshot && (!restoreSnapshot.providerSnapshotId || !restoreSnapshot.template)) {
     return { kind: "snapshot_not_ready", snapshotId: restoreSnapshot.id, status: restoreSnapshot.status };
@@ -828,332 +757,169 @@ export const createSandbox = async (
   const templateRef = input.templateRef ?? restoreSnapshot?.template ?? "python-3.12-data";
   const unresolvedTemplate = await (dependencies.resolveTemplateFn ?? resolveTemplate)(templateRef, input.organizationId);
   if (!unresolvedTemplate) return { kind: "template_not_found", template: templateRef };
-  if (!(dependencies.templateCanCreateSandboxFn ?? templateCanCreateSandbox)(unresolvedTemplate)) {
-    return { kind: "template_not_ready", template: templateRef, status: unresolvedTemplate.status };
-  }
+  if (!(dependencies.templateCanCreateSandboxFn ?? templateCanCreateSandbox)(unresolvedTemplate)) return { kind: "template_not_ready", template: templateRef, status: unresolvedTemplate.status };
   let template;
-  try {
-    template = await (dependencies.ensureTemplateImageDigestFn ?? ensureTemplateImageDigest)(unresolvedTemplate);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { kind: "template_image_digest_unresolved", template: templateRef, message };
-  }
-  const preparedCredentials = await prepareCreateCredentials(
-    { organizationId: input.organizationId, userId: input.userId, apiKeyId: input.apiKeyId, template, credentials: createCredentials, credentialMappings },
-    {
-      query,
-      idFactory,
-      decryptSecret: dependencies.decryptSecret,
-      externalSecretResolvers: dependencies.externalSecretResolvers,
-      dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
-    }
-  );
-  if (preparedCredentials.kind !== "ok") return mapCreateCredentialPreparationFailure(preparedCredentials);
-  let sandboxEnv;
-  let egressPolicyInput;
-  try {
-    sandboxEnv = mergeCredentialFakeEnv(input.env, preparedCredentials.attachments);
-    egressPolicyInput = credentialAwareEgressInput(input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput, preparedCredentials.attachments);
-  } catch (error) {
-    return { kind: "credential_vault_invalid_binding", message: error instanceof Error ? error.message : String(error) };
-  }
-  const egressValidation = await validateEgressPolicyForOrganization(
-    { organizationId: input.organizationId, policy: egressPolicyInput },
-    query
-  );
-  if (egressValidation.kind === "invalid_policy") return { kind: "egress_policy_invalid", message: egressValidation.message };
-  if (egressValidation.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: egressValidation.preset };
-  if (egressValidation.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
-  if (egressValidation.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: egressValidation.limit };
-  const egressSummary = egressValidation.summary;
-  const runtimeEgressPolicy = runtimeEgressPolicyFromSummary(egressSummary);
+  try { template = await (dependencies.ensureTemplateImageDigestFn ?? ensureTemplateImageDigest)(unresolvedTemplate); }
+  catch { return { kind: "template_image_digest_unresolved", template: templateRef, message: "Unable to resolve the template image digest." }; }
 
-  const id = idFactory("sbx", 10);
-  const name = input.name?.trim() || `${template.id}-runner`;
-  const publicUrl = `${id}.sandbox.harakiri.local`;
-  const envKeys = Object.keys(sandboxEnv).sort();
-  const source = sanitizeSourceProvenance(input.source);
-  const sourceMetadata = source ? { source } : {};
-  const restoreMetadata = restoreSnapshot ? {
-    restoreSnapshotId: restoreSnapshot.id,
-    providerSnapshotId: restoreSnapshot.providerSnapshotId
-  } : {};
-  const envReplayable = envKeys.length === 0 || hasSecretBoxKey();
-  if (input.wait === false && !envReplayable) {
-    return {
-      kind: "sandbox_env_not_replayable",
-      message: "async sandbox creation with env requires CONTROL_PLANE_SECRET_KEY or HARAKIRI_SECRET_KEY so env can be encrypted for worker replay"
-    };
-  }
+  const basePolicy = input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput;
+  if (credentialCount && basePolicy.mode === "blocked") return { kind: "credential_vault_invalid_binding", message: "create-time credentials cannot be used with blocked outbound access" };
+  const initialEgress = await validateEgressPolicyForOrganization({ organizationId: input.organizationId, policy: basePolicy }, query);
+  if (initialEgress.kind === "invalid_policy") return { kind: "egress_policy_invalid", message: initialEgress.message };
+  if (initialEgress.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: initialEgress.preset };
+  if (initialEgress.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
+  if (initialEgress.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: initialEgress.limit };
   if (input.workspaceId) {
     if (input.snapshotId) throw new WorkspaceError("workspace_snapshot_conflict", 400, "Workspace attachment cannot be combined with snapshot restore");
-    await validateWorkspaceAttachment(input.organizationId, input.workspaceId, query, dependencies.runtimeProvider);
   }
-  await query(
-    `INSERT INTO sandboxes
-     (id, opensandbox_id, organization_id, template_id, name, status, cpu_pct, memory_mb,
-      owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url,
-      template_version_id, template_image_digest, egress_policy, egress_compiled_policy, source_provenance, workspace_id)
-     VALUES ($1, NULL, $2, $3, $4, 'pending', 0, 0, $5, $6, $7, NULL, now(), NULL, $8, $9, $10, $11::jsonb, $12::jsonb, $13::jsonb, $14)`,
-    [
-      id,
-      input.organizationId,
-      template.id,
-      name,
-      input.userId,
-      input.actorLabel,
-      input.ttlSeconds,
-      publicUrl,
-      template.templateVersionId,
-      template.imageDigest,
-      JSON.stringify(policyInputFromSummary(egressSummary)),
-      JSON.stringify(runtimeEgressPolicy),
-      source ? JSON.stringify(source) : null,
-      input.workspaceId ?? null
-    ]
-  ).catch((error: unknown) => {
-    if ((error as { code?: string; message?: string }).code === "P0001" && (error as Error).message === "workspace_unavailable") {
-      throw new WorkspaceError("workspace_unavailable", 409, "Workspace was reserved by another sandbox");
-    }
-    throw error;
-  });
-  const { operation, reused } = await enqueueSandboxOperation(
-    {
-      organizationId: input.organizationId,
-      sandboxId: id,
-      kind: "provision",
-      idempotencyKey: input.idempotencyKey,
-      request: {
-        sandboxId: id,
-        templateId: template.id,
-        templateVersionId: template.templateVersionId,
-        imageDigest: template.imageDigest,
-        name,
-        ttlSeconds: input.ttlSeconds,
-        envKeys,
-        envReplayable,
-        actorUserId: input.userId,
-        actorLabel: input.actorLabel,
-        egressMode: egressSummary.mode,
-        egressRuleCount: egressSummary.rules.length,
-        ...restoreMetadata,
-        ...sourceMetadata
+  const id = idFactory("sbx", 10);
+  const name = input.name?.trim() || `${template.id}-runner`;
+  const source = sanitizeSourceProvenance(input.source);
+  const sourceMetadata = source ? { source } : {};
+  const restoreMetadata = restoreSnapshot ? { restoreSnapshotId: restoreSnapshot.id, providerSnapshotId: restoreSnapshot.providerSnapshotId } : {};
+  const admitted = await transaction(async (q) => {
+    const reused = await lockCreateAdmission(input, q);
+    if (reused) return { operation: reused, preparation: null };
+    if (input.workspaceId) await validateWorkspaceAttachment(input.organizationId, input.workspaceId, q, dependencies.runtimeProvider);
+    await q(
+      `INSERT INTO sandboxes
+       (id, opensandbox_id, organization_id, template_id, name, status, cpu_pct, memory_mb,
+        owner_id, owner_label, ttl_seconds, started_at, last_active_at, expires_at, public_url,
+        template_version_id, template_image_digest, egress_policy, egress_compiled_policy, source_provenance, workspace_id)
+       VALUES ($1,NULL,$2,$3,$4,'pending',0,0,$5,$6,$7,NULL,now(),NULL,$8,$9,$10,$11::jsonb,$12::jsonb,$13::jsonb,$14)`,
+      [id, input.organizationId, template.id, name, input.userId, input.actorLabel, input.ttlSeconds,
+        `${id}.sandbox.harakiri.local`, template.templateVersionId, template.imageDigest,
+        JSON.stringify(policyInputFromSummary(initialEgress.summary)), JSON.stringify(runtimeEgressPolicyFromSummary(initialEgress.summary)),
+        source ? JSON.stringify(source) : null, input.workspaceId ?? null]
+    ).catch((error: unknown) => {
+      if ((error as { code?: string; message?: string }).code === "P0001" && (error as Error).message === "workspace_unavailable") {
+        throw new WorkspaceError("workspace_unavailable", 409, "Workspace was reserved by another sandbox");
       }
-    },
-    { query, idFactory: dependencies.idFactory }
-  );
-  if (!reused && envKeys.length > 0 && envReplayable) {
-    await storeSandboxOperationSecret(
-      {
-        operationId: operation.id,
-        name: "provision_env",
-        value: JSON.stringify(sandboxEnv)
-      },
-      { query }
+      throw error;
+    });
+    const { operation } = await enqueueSandboxOperation({
+      organizationId: input.organizationId, sandboxId: id, kind: "provision", idempotencyKey: input.idempotencyKey,
+      request: {
+        sandboxId: id, templateId: template.id, templateVersionId: template.templateVersionId, imageDigest: template.imageDigest,
+        name, ttlSeconds: input.ttlSeconds, envKeys: Object.keys(input.env).sort(), envReplayable: true,
+        dispatchReady: false, nonReplayable: credentialCount > 0, intentFingerprint, capacityProtocol: 1,
+        actorUserId: input.userId, actorLabel: input.actorLabel, ...restoreMetadata, ...sourceMetadata
+      }
+    }, { query: q, idFactory: dependencies.idFactory });
+    await reserveSandboxCapacity({ organizationId: input.organizationId, sandboxId: id, operationId: operation.id }, q);
+    if (Object.keys(input.env).length) await storeSandboxOperationSecret({ operationId: operation.id, name: "provision_env", value: JSON.stringify(input.env) }, { query: q });
+    const preparation = await beginRuntimeEffect({ organizationId: input.organizationId, sandboxId: id, kind: "prepare", operation }, q);
+    return { operation, preparation };
+  });
+  if (!admitted.preparation) return existingResult(admitted.operation);
+  const preparation = admitted.preparation;
+  let operation = admitted.operation;
+  const abandonPreparation = async (result: CreateSandboxResult): Promise<CreateSandboxResult> => {
+    await finishRuntimeEffect(preparation, async (q) => {
+      await q("UPDATE sandboxes SET status='error', updated_at=now() WHERE id=$1 AND organization_id=$2 AND opensandbox_id IS NULL", [id, input.organizationId]);
+      await failSandboxOperation({ operationId: operation.id, error: "Sandbox preparation failed before runtime dispatch" }, q);
+      await releaseSandboxCapacity({ organizationId: input.organizationId, sandboxId: id, generation: preparation.generation, reason: "canceled_before_dispatch" }, q);
+      await q("UPDATE persistent_workspaces SET attached_sandbox_id=NULL, updated_at=now() WHERE attached_sandbox_id=$1 AND organization_id=$2 AND attachment_attempted_at IS NULL", [id, input.organizationId]);
+    }, transaction);
+    return result;
+  };
+  let preparedCredentials: Extract<Awaited<ReturnType<typeof prepareCreateCredentials>>, { kind: "ok" }>;
+  let sandboxEnv: Record<string, string>;
+  let egressSummary = initialEgress.summary;
+  try {
+    const prepared = await prepareCreateCredentials(
+      { organizationId: input.organizationId, userId: input.userId, apiKeyId: input.apiKeyId, template, credentials: createCredentials, credentialMappings },
+      { query, idFactory, decryptSecret: dependencies.decryptSecret, externalSecretResolvers: dependencies.externalSecretResolvers, dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers }
     );
-  }
-  if (reused) {
-    if (input.workspaceId && operation.sandboxId !== id) {
-      await query("UPDATE sandboxes SET status = 'error', updated_at = now() WHERE id = $1 AND organization_id = $2", [id, input.organizationId]);
-      await query("UPDATE persistent_workspaces SET attached_sandbox_id = NULL, updated_at = now() WHERE attached_sandbox_id = $1 AND organization_id = $2 AND attachment_attempted_at IS NULL", [id, input.organizationId]);
+    if (prepared.kind !== "ok") return abandonPreparation(mapCreateCredentialPreparationFailure(prepared));
+    preparedCredentials = prepared;
+    try { sandboxEnv = mergeCredentialFakeEnv(input.env, prepared.attachments); }
+    catch (error) {
+      return abandonPreparation({ kind: "credential_vault_invalid_binding", message: (error as Error).message });
     }
-    const sandbox = operation.sandboxId ? await getSandbox({ organizationId: input.organizationId, sandboxId: operation.sandboxId }, { query, runtimeProvider: dependencies.runtimeProvider }) : null;
-    if (sandbox && (sandbox.status === "pending" || operation.state === "queued" || operation.state === "running")) {
-      return {
-        kind: "pending",
-        sandbox,
-        operation,
-        message: "sandbox provision is still pending"
-      };
-    }
-    if (sandbox) return { kind: "created", sandbox };
+    const egress = await validateEgressPolicyForOrganization({
+      organizationId: input.organizationId, policy: credentialAwareEgressInput(basePolicy, prepared.attachments)
+    }, query);
+    if (egress.kind === "invalid_policy") return abandonPreparation({ kind: "egress_policy_invalid", message: egress.message });
+    if (egress.kind === "preset_not_allowed") return abandonPreparation({ kind: "egress_preset_not_allowed", preset: egress.preset });
+    if (egress.kind === "custom_domains_disabled") return abandonPreparation({ kind: "egress_custom_domains_disabled" });
+    if (egress.kind === "rule_limit_exceeded") return abandonPreparation({ kind: "egress_rule_limit_exceeded", limit: egress.limit });
+    egressSummary = egress.summary;
+    operation = await finishRuntimeEffect(preparation, async (q) => {
+      await q("UPDATE sandboxes SET egress_policy=$3::jsonb, egress_compiled_policy=$4::jsonb WHERE id=$1 AND organization_id=$2", [
+        id, input.organizationId, JSON.stringify(policyInputFromSummary(egressSummary)), JSON.stringify(runtimeEgressPolicyFromSummary(egressSummary))
+      ]);
+      if (Object.keys(sandboxEnv).length) await storeSandboxOperationSecret({ operationId: operation.id, name: "provision_env", value: JSON.stringify(sandboxEnv) }, { query: q });
+      await q("UPDATE sandbox_operations SET request=request || $2::jsonb, updated_at=now() WHERE id=$1 AND state='queued'", [
+        operation.id, JSON.stringify({ dispatchReady: true, envKeys: Object.keys(sandboxEnv).sort(), envReplayable: true })
+      ]);
+      return (await q<SandboxOperation>(`${sandboxOperationSelect} WHERE id=$1`, [operation.id])).rows[0];
+    }, transaction);
+  } catch {
+    return abandonPreparation({ kind: "sandbox_provision_failed", sandbox: null, operation, message: "Sandbox preparation failed before runtime dispatch." });
   }
   if (input.wait === false) {
-    const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
-    if (!sandbox) throw new Error("sandbox row missing after provision enqueue");
-    const metadata = {
-      operationId: operation.id,
-      envKeys,
-      runtimeWorkdir: template.workdir,
-      egressMode: egressSummary.mode,
-      egressRuleCount: egressSummary.rules.length,
-      ...restoreMetadata,
-      ...sourceMetadata,
-      ...sandboxTemplateMetadata(template)
-    };
-    await dependencies.recordEvent(input.organizationId, id, "queued", "sandbox provision queued", metadata);
-    await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.create.queued", "sandbox", id, metadata);
-    return {
-      kind: "pending",
-      sandbox,
-      operation,
-      message: "sandbox provision queued"
-    };
+    await dependencies.recordEvent(input.organizationId, id, "queued", "sandbox provision queued", { operationId: operation.id, ...restoreMetadata });
+    await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.create.queued", "sandbox", id, { operationId: operation.id, ...restoreMetadata });
+    return existingResult(operation);
   }
-  const runningOperation = await claimSandboxOperationById({ operationId: operation.id, kinds: ["provision"] }, query);
-  const activeOperation = runningOperation ?? operation;
+  const claimed = await claimSandboxOperationById({ operationId: operation.id, kinds: ["provision"] }, query);
+  if (!claimed) return existingResult((await query<SandboxOperation>(`${sandboxOperationSelect} WHERE id=$1`, [operation.id])).rows[0] ?? operation);
+  const activeOperation = claimed;
   const provisionPromise = (async (): Promise<CreateSandboxResult> => {
-    let provider;
+    let provisioned: ProvisionedRuntime;
     try {
-      provider = await dependencies.runtimeProvider.create({
+      provisioned = await provisionSandboxRuntime(activeOperation, async () => ({
         workspace: input.workspaceId ? await prepareRuntimeWorkspace(input.organizationId, id, query, dependencies.runtimeProvider) : undefined,
-        template,
-        ttlSeconds: input.ttlSeconds,
-        name,
-        organizationId: input.organizationId,
-        snapshot: restoreSnapshot?.providerSnapshotId
-          ? { provider: dependencies.runtimeProvider.kind, providerSnapshotId: restoreSnapshot.providerSnapshotId }
-          : undefined,
-        env: sandboxEnv,
-        egressPolicy: runtimeEgressPolicy,
-        metadata: {
-          "harakiri.id": id,
-          "harakiri.sandbox": id,
-          "harakiri.org": input.organizationId,
-          "harakiri.organization": input.organizationId,
-          ...(restoreSnapshot ? { "harakiri.restore_snapshot": restoreSnapshot.id } : {})
-        }
-      });
-      await query(
-        `UPDATE sandboxes
-         SET opensandbox_id = $2,
-             status = 'running',
-             cpu_pct = 3,
-             memory_mb = 128,
-             started_at = now(),
-             last_active_at = now(),
-             expires_at = LEAST($4::timestamptz, now() + make_interval(secs => ttl_seconds::int)),
-             provider_expires_at = $4::timestamptz,
-             updated_at = now()
-         WHERE id = $1 AND organization_id = $3`,
-        [id, provider.providerSandboxId, input.organizationId, provider.expiresAt ?? null]
-      );
-      await query(
-        `INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at)
-         SELECT id, organization_id, 'idle_ttl', expires_at FROM sandboxes WHERE id = $1 AND organization_id = $2`,
-        [id, input.organizationId]
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (provider?.providerSandboxId) {
-        await dependencies.runtimeProvider.delete(runtimeRef(dependencies.runtimeProvider, provider.providerSandboxId)).catch(() => undefined);
-      }
-      await query("UPDATE sandboxes SET status = 'error', updated_at = now() WHERE id = $1 AND organization_id = $2", [id, input.organizationId]);
-      const failed = await failSandboxOperation(
-        {
-          operationId: activeOperation.id,
-          error: message,
-          result: provider ? { provider: provider.provider, providerSandboxId: provider.providerSandboxId } : {}
-        },
-        query
-      );
-      await dependencies.recordEvent(input.organizationId, id, "error", `sandbox provision failed: ${message}`, {
-        operationId: activeOperation.id,
-        provider: provider?.provider
-      });
-      return {
-        kind: "sandbox_provision_failed",
-        sandbox: await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider }),
-        operation: failed ?? activeOperation,
-        message
-      };
+        template, ttlSeconds: input.ttlSeconds, name, organizationId: input.organizationId,
+        snapshot: restoreSnapshot?.providerSnapshotId ? { provider: dependencies.runtimeProvider.kind, providerSnapshotId: restoreSnapshot.providerSnapshotId } : undefined,
+        env: sandboxEnv, egressPolicy: runtimeEgressPolicyFromSummary(egressSummary),
+        metadata: { "harakiri.id": id, "harakiri.sandbox": id, "harakiri.org": input.organizationId, "harakiri.organization": input.organizationId,
+          ...(restoreSnapshot ? { "harakiri.restore_snapshot": restoreSnapshot.id } : {}) }
+      }), { query, transaction, runtimeProvider: dependencies.runtimeProvider });
+    } catch {
+      const failed = await failSandboxOperation({ operationId: activeOperation.id, expectedAttempts: activeOperation.attempts,
+        error: "Runtime provisioning could not be confirmed. The execution reservation is retained until safely reconciled." }, query);
+      await dependencies.recordEvent(input.organizationId, id, "error", "Runtime provisioning could not be confirmed; its execution slot is retained.", { operationId: activeOperation.id });
+      return { kind: "sandbox_provision_failed", sandbox: await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider }),
+        operation: failed ?? activeOperation, message: "Runtime provisioning could not be confirmed. Inspect the accepted operation before retrying." };
     }
-    const metadata = {
-      opensandboxId: provider.providerSandboxId,
-      provider: provider.provider,
-      operationId: activeOperation.id,
-      envKeys: Object.keys(sandboxEnv).sort(),
-      runtimeWorkdir: template.workdir,
-      runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
-      runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
-      egressMode: egressSummary.mode,
-      egressRuleCount: egressSummary.rules.length,
-      ...restoreMetadata,
-      ...sourceMetadata,
-      ...sandboxTemplateMetadata(template)
-    };
     const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
     if (!sandbox) throw new Error("sandbox row missing after provider create");
-
     let credentialAttachments: SandboxCredentialAttachmentSummary[] = [];
     if (preparedCredentials.attachments.length) {
-      const attached = await attachCreateCredentials(
-        {
-          organizationId: input.organizationId,
-          userId: input.userId,
-          actorLabel: input.actorLabel,
-          sandbox,
-          credentials: preparedCredentials.attachments
-        },
-        { query, runtimeProvider: dependencies.runtimeProvider, recordEvent: dependencies.recordEvent, recordAudit: dependencies.recordAudit, idFactory, decryptSecret: dependencies.decryptSecret }
-      );
+      const attached = await attachCreateCredentials({
+        organizationId: input.organizationId, userId: input.userId, actorLabel: input.actorLabel, sandbox, credentials: preparedCredentials.attachments
+      }, { query, runtimeProvider: dependencies.runtimeProvider, recordEvent: dependencies.recordEvent, recordAudit: dependencies.recordAudit, idFactory, decryptSecret: dependencies.decryptSecret }).catch(() => ({
+        kind: "sandbox_provision_failed" as const, message: "Credential attachment could not be confirmed.", sandbox, operation: activeOperation
+      }));
       if (attached.kind !== "ok") {
-        await rollbackCredentialCreate(
-          {
-            organizationId: input.organizationId,
-            userId: input.userId,
-            actorLabel: input.actorLabel,
-            sandboxId: id,
-            providerSandboxId: provider.providerSandboxId,
-            operationId: activeOperation.id,
-            failureKind: attached.kind,
-            failureMessage: attached.message
-          },
-          {
-            query,
-            runtimeProvider: dependencies.runtimeProvider,
-            recordEvent: dependencies.recordEvent,
-            recordAudit: dependencies.recordAudit
-          }
-        );
+        await rollbackCredentialCreate({
+          organizationId: input.organizationId, userId: input.userId, actorLabel: input.actorLabel, sandboxId: id,
+          providerSandboxId: provisioned.provider.providerSandboxId, operationId: activeOperation.id, failureKind: attached.kind, failureMessage: attached.message, effect: provisioned.effect
+        }, { query, transaction, runtimeProvider: dependencies.runtimeProvider, recordEvent: dependencies.recordEvent, recordAudit: dependencies.recordAudit });
         if (attached.kind === "credential_vault_provider_unavailable") {
-          const failedSandbox = await getSandbox(
-            { organizationId: input.organizationId, sandboxId: id },
-            { query, runtimeProvider: dependencies.runtimeProvider }
-          );
-          return { ...attached, sandbox: failedSandbox ?? sandbox };
+          return { ...attached, sandbox: await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider }) ?? sandbox };
         }
         return attached;
       }
       credentialAttachments = attached.attachments;
     }
-
-    await completeSandboxOperation(
-      {
-        operationId: activeOperation.id,
-        result: {
-          provider: provider.provider,
-          providerSandboxId: provider.providerSandboxId,
-          runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
-          runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
-          credentialAttachmentIds: credentialAttachments.map((attachment) => attachment.id),
-          ...restoreMetadata,
-          ...sourceMetadata
-        }
-      },
-      query
-    );
-    await dependencies.recordEvent(input.organizationId, id, "created", `created through ${provider.provider}`, metadata);
+    await completeSandboxProvision(activeOperation, provisioned, {
+      credentialAttachmentIds: credentialAttachments.map((attachment) => attachment.id), ...restoreMetadata, ...sourceMetadata,
+      runtimeRegistryCredentialId: provisioned.provider.runtimeRegistryCredentialId, runtimeImageAuthProvided: provisioned.provider.runtimeImageAuthProvided
+    }, transaction);
+    const metadata = { operationId: activeOperation.id, provider: provisioned.provider.provider,
+      opensandboxId: provisioned.provider.providerSandboxId, envKeys: Object.keys(sandboxEnv).sort(), runtimeWorkdir: template.workdir,
+      egressMode: egressSummary.mode, egressRuleCount: egressSummary.rules.length, ...sandboxTemplateMetadata(template), ...restoreMetadata, ...sourceMetadata };
+    await dependencies.recordEvent(input.organizationId, id, "created", `created through ${provisioned.provider.provider}`, metadata);
     await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.create", "sandbox", id, metadata);
-    return {
-      kind: "created",
-      sandbox,
-      ...(credentialAttachments.length ? { credentialAttachments } : {})
-    };
+    return { kind: "created", sandbox, ...(credentialAttachments.length ? { credentialAttachments } : {}) };
   })();
   if (input.waitTimeoutMs !== undefined) {
     void provisionPromise.catch(() => undefined);
     const waited = await waitFor(provisionPromise, input.waitTimeoutMs);
-    if (waited === "timeout") {
-      const sandbox = await getSandbox({ organizationId: input.organizationId, sandboxId: id }, { query, runtimeProvider: dependencies.runtimeProvider });
-      if (!sandbox) throw new Error("sandbox row missing after provision timeout");
-      return {
-        kind: "pending",
-        sandbox,
-        operation: activeOperation,
-        message: "sandbox provision is still running"
-      };
-    }
+    if (waited === "timeout") return existingResult(activeOperation);
     return waited;
   }
   return provisionPromise;
@@ -1198,7 +964,7 @@ export const deleteSandbox = async (
     sandboxId: string;
     idempotencyKey?: string | null;
   },
-  dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
+  dependencies: { query?: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
 ) => {
   const query = dependencies.query ?? defaultQuery;
   const result = await query<{ opensandbox_id: string | null; workspace_id: string | null; status: string }>(
@@ -1206,32 +972,8 @@ export const deleteSandbox = async (
     [input.sandboxId, input.organizationId]
   );
   if (!result.rowCount) return false;
-  if (result.rows[0].workspace_id && result.rows[0].status === "pending") {
-    throw new WorkspaceError("workspace_provision_in_progress", 409, "Workspace provisioning is still in progress. Wait for it to finish before terminating the sandbox.");
-  }
-  const { operation } = await enqueueSandboxOperation(
-    {
-      organizationId: input.organizationId,
-      sandboxId: input.sandboxId,
-      kind: "delete",
-      idempotencyKey: input.idempotencyKey,
-      request: { sandboxId: input.sandboxId, providerSandboxId: result.rows[0].opensandbox_id }
-    },
-    { query }
-  );
-  const runningOperation = await claimSandboxOperationById({ operationId: operation.id, kinds: ["delete"] }, query);
-  const activeOperation = runningOperation ?? operation;
-  try {
-    if (result.rows[0].opensandbox_id) await dependencies.runtimeProvider.delete(runtimeRef(dependencies.runtimeProvider, result.rows[0].opensandbox_id));
-    await query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [input.sandboxId]);
-    await query("UPDATE sandbox_routes SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now() WHERE sandbox_id = $1", [input.sandboxId]);
-    await completeSandboxOperation({ operationId: activeOperation.id, result: { providerSandboxId: result.rows[0].opensandbox_id } }, query);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await failSandboxOperation({ operationId: activeOperation.id, error: message }, query);
-    throw error;
-  }
-  await dependencies.recordEvent(input.organizationId, input.sandboxId, "terminated", "sandbox terminated; persistent workspace storage is retained");
+  await requestSandboxTermination(input, { query, transaction: dependencies.transaction, runtimeProvider: dependencies.runtimeProvider });
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, "termination.requested", "Stop requested; execution capacity is released after runtime absence is confirmed. Persistent workspace storage is retained.");
   await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, "sandbox.kill", "sandbox", input.sandboxId);
   return true;
 };

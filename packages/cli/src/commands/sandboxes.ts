@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import type { Command } from "commander";
 import WebSocket, { type RawData } from "ws";
@@ -219,6 +219,18 @@ const attachToSandbox = async (
 };
 
 export const registerSandboxCommands = (program: Command) => {
+  program.command("capacity")
+    .description("Inspect organization execution slots")
+    .option("--json", "print structured capacity data")
+    .action(async (options: { json?: boolean }) => {
+      const { capacity } = await (await apiClient()).capacity();
+      if (options.json) { printJson({ capacity }); return; }
+      console.log(`Execution capacity: ${capacity.state}`);
+      console.log(`Limit: ${capacity.limit} | In use: ${capacity.inUse ?? "unknown"} | Available: ${capacity.available ?? "unknown"}`);
+      if (capacity.breakdown) console.log(`Starting: ${capacity.breakdown.reserved} | Active: ${capacity.breakdown.active} | Stopping: ${capacity.breakdown.releasing} | Uncertain: ${capacity.breakdown.uncertain}`);
+      if (capacity.state !== "enforced") console.log("New execution is unavailable until an operator verifies capacity inventory.");
+      else if (capacity.available === 0) console.log("Stop a sandbox and wait for confirmation, or ask an administrator to raise the limit.");
+    });
   program
     .command("create")
     .description("Create a sandbox")
@@ -243,6 +255,7 @@ export const registerSandboxCommands = (program: Command) => {
     .option("--git-username <name>", "HTTPS Git username; defaults to x-access-token for token auth")
     .option("--git-preserve-credentials", "dangerously leave credentials in the Git remote URL")
     .option("--no-wait", "enqueue sandbox creation and return before provider provisioning finishes")
+    .option("--idempotency-key <key>", "reuse this key when retrying the same create intent")
     .option("--wait-timeout-ms <ms>", "maximum create wait before returning a pending sandbox", parsePositiveInt)
     .action(async (options) => {
       if (options.git && options.wait === false) throw new Error("--git requires waiting for sandbox readiness; omit --no-wait");
@@ -253,6 +266,7 @@ export const registerSandboxCommands = (program: Command) => {
       printProgress("provisioning sandbox...");
       const started = Date.now();
       const body = {
+        idempotencyKey: options.idempotencyKey ?? randomUUID(),
         template: options.template,
         snapshotId: options.snapshot,
         workspaceId: options.workspace,
@@ -292,6 +306,7 @@ export const registerSandboxCommands = (program: Command) => {
         ...(options.waitTimeoutMs !== undefined ? { waitTimeoutMs: options.waitTimeoutMs } : {})
       };
       const client = await apiClient();
+      console.error(`request key=${body.idempotencyKey}`);
       const result = await client.createSandbox(body);
       const config = await loadConfig();
       await saveConfig({ ...config, lastSandboxId: result.sandbox.id });
@@ -387,9 +402,12 @@ export const registerSandboxCommands = (program: Command) => {
     .argument("<id>", "sandbox id")
     .description("Resume a paused sandbox through the runtime provider")
     .option("--json", "print JSON")
-    .action(async (id, options: { json?: boolean }) => {
+    .option("--idempotency-key <key>", "reuse this key when retrying the same resume intent")
+    .action(async (id, options: { json?: boolean; idempotencyKey?: string }) => {
       const client = await apiClient();
-      const result = await client.resumeSandbox(id);
+      const idempotencyKey = options.idempotencyKey ?? randomUUID();
+      console.error(`request key=${idempotencyKey}`);
+      const result = await client.resumeSandbox(id, { idempotencyKey });
       if (options.json) {
         printJson(result);
         return;
@@ -534,7 +552,7 @@ export const registerSandboxCommands = (program: Command) => {
       if (shouldTerminateAfterRun) {
         await client.killSandbox(id);
         await saveConfig({ ...config, lastSandboxId: undefined });
-        printProgress("sandbox terminated.");
+        printProgress("stop requested; capacity is released after runtime absence is confirmed.");
       }
       printProgress(`roundtrip ${Date.now() - started}ms`);
     });
@@ -970,12 +988,12 @@ export const registerSandboxCommands = (program: Command) => {
         const result = await client.listSandboxes("?status=idle");
         for (const sandbox of result.sandboxes) {
           await client.killSandbox(sandbox.id);
-          printProgress(`${sandbox.id} terminated.`);
+          printProgress(`${sandbox.id}: stop requested; check harakiri capacity for confirmed release.`);
         }
         return;
       }
       if (!id) throw new Error("sandbox id is required unless --idle is set");
       await client.killSandbox(id);
-      printProgress("sandbox terminated.");
+      printProgress("stop requested; check harakiri capacity for confirmed release.");
     });
 };

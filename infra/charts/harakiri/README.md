@@ -200,6 +200,14 @@ Still TODO before a production deployment (tracked in the security audit):
 
 ## Upgrade
 
+**Unreleased migration 038:** execution capacity admission requires a maintenance
+upgrade, not mixed old/new API or scheduler writers. Stop all older mutation
+producers before migration (including API startup with `AUTO_MIGRATE=1`), verify
+and activate inventory, then start matching binaries. Existing organizations
+remain closed to new execution until activation. Pre-capacity image rollback
+does not preserve enforcement. Follow the
+[capacity operations runbook](../../../docs/operations/execution-capacity.md).
+
 Follow the target release's migration order and use its downloaded chart with
 your preserved operator values and matching versioned image overlay. Do not
 regenerate passwords, change public origins accidentally or rely on

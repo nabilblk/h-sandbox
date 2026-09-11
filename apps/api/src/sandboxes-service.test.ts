@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { credentialProviderPresetCatalog, templateCredentialSlotFromInput } from "@harakiri/shared";
 import type { RuntimeProvider } from "./providers/runtime/provider.js";
-import { createSandbox, deleteSandbox, listSandboxes, renewSandbox, updateSandboxSource } from "./services/sandboxes.js";
+import { createSandbox as createSandboxService, deleteSandbox as deleteSandboxService, listSandboxes, renewSandbox as renewSandboxService, updateSandboxSource } from "./services/sandboxes.js";
+import { capacityFixture } from "./test-support/capacity-fixture.js";
+import { config } from "./config.js";
+config.controlPlaneSecretKey = "unit-test-key-not-for-deployment";
+const createSandbox: typeof createSandboxService = (input, dependencies) => createSandboxService(input, { ...dependencies, ...capacityFixture(dependencies.query!) });
+const deleteSandbox: typeof deleteSandboxService = (input, dependencies) => deleteSandboxService(input, { ...dependencies, ...capacityFixture(dependencies.query!, { sandboxId: input.sandboxId, organizationId: input.organizationId, providerId: "provider_sbx", status: "running" }) });
+const renewSandbox: typeof renewSandboxService = (input, dependencies) => renewSandboxService(input, { ...dependencies, ...capacityFixture(dependencies.query!, { sandboxId: input.sandboxId, organizationId: input.organizationId, providerId: "provider_sbx", status: "running" }) });
 import type { RuntimeTemplate } from "./templates.js";
 
 const readyTemplate: RuntimeTemplate = {
@@ -230,7 +236,7 @@ test("createSandbox creates provider sandbox, persists schedule, and records met
       },
       query: async (text, params) => {
         calls.push({ text, params });
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow()] as never[] };
         }
@@ -352,7 +358,7 @@ test("createSandbox attaches create-time credentials without persisting plaintex
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_vault", sandboxId: "sbx_vault_create" })] as never[] };
         }
@@ -482,7 +488,7 @@ test("createSandbox rolls back when runtime egress is unsafe for credentials", a
       },
       query: async (text, params) => {
         databaseCalls.push({ text, params });
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_unsafe", sandboxId: "sbx_unsafe" })] as never[] };
         }
@@ -492,7 +498,7 @@ test("createSandbox rolls back when runtime egress is unsafe for credentials", a
         if (text.includes("UPDATE sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_unsafe", sandboxId: "sbx_unsafe", state: "failed" })] as never[] };
         }
-        if (text.includes("UPDATE sandboxes") && text.includes("status = 'error'")) {
+        if (text.includes("UPDATE sandboxes") && /status\s*=\s*'error'/.test(text)) {
           sandboxStatus = "error";
           return { rowCount: 1, rows: [] as never[] };
         }
@@ -605,7 +611,7 @@ test("createSandbox attaches stored workspace secrets at create time", async () 
         calls.push({ text, params });
         if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
         if (text.includes("FROM workspace_credential_secrets")) return { rowCount: 1, rows: [storedSecret] as never[] };
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_stored", sandboxId: "sbx_stored_create" })] as never[] };
         }
@@ -683,7 +689,7 @@ test("createSandbox attaches stored workspace secrets at create time", async () 
   const sandboxInsertIndex = calls.findIndex((call) => call.text.includes("INSERT INTO sandboxes"));
   assert.notEqual(secretLookupIndex, -1);
   assert.notEqual(sandboxInsertIndex, -1);
-  assert(secretLookupIndex < sandboxInsertIndex);
+  assert(secretLookupIndex > sandboxInsertIndex, "credential resolution happens after admission");
   assert.equal(JSON.stringify(calls.map((call) => call.params)).includes("stored-real-secret"), false);
 });
 
@@ -776,7 +782,7 @@ test("createSandbox restores a snapshot with an explicit stored template-slot ma
         }
         if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
         if (text.includes("FROM workspace_credential_secrets")) return { rowCount: 1, rows: [storedSecret] as never[] };
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_slot", sandboxId: "sbx_slot_create" })] as never[] };
         }
@@ -888,6 +894,9 @@ test("createSandbox rejects mapped stored secrets with the wrong provider preset
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
         if (text.includes("FROM workspace_credential_secrets")) {
           return {
@@ -923,10 +932,10 @@ test("createSandbox rejects mapped stored secrets with the wrong provider preset
 
   assert.equal(result.kind, "credential_vault_invalid_binding");
   assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /cannot satisfy template slot/);
-  assert.equal(calls.some((call) => call.text.includes("INSERT INTO sandboxes")), false);
+  assert.equal(calls.some((call) => call.text.includes("INSERT INTO sandboxes")), true);
 });
 
-test("createSandbox rejects unsatisfied required template credential slots before DB writes", async () => {
+test("createSandbox rejects unsatisfied required template credential slots before provider dispatch", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const runtimeState: { createInput?: unknown } = {};
   const result = await createSandbox(
@@ -947,6 +956,9 @@ test("createSandbox rejects unsatisfied required template credential slots befor
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         throw new Error(`unexpected query: ${text}`);
       }
     }
@@ -955,11 +967,11 @@ test("createSandbox rejects unsatisfied required template credential slots befor
   assert.equal(result.kind, "credential_vault_required_slot_missing");
   assert.match(result.kind === "credential_vault_required_slot_missing" ? result.message : "", /requires credential slot: llm/);
   assert.deepEqual(result.kind === "credential_vault_required_slot_missing" ? result.missingSlots : [], ["llm"]);
-  assert.equal(calls.length, 0);
+  assert.equal(calls.some((call) => call.text.includes("opensandbox_id=$2")), false);
   assert.equal(runtimeState.createInput, undefined);
 });
 
-test("createSandbox rejects missing mapped template slots before DB writes", async () => {
+test("createSandbox rejects missing mapped template slots before provider dispatch", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const result = await createSandbox(
     {
@@ -991,6 +1003,9 @@ test("createSandbox rejects missing mapped template slots before DB writes", asy
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         throw new Error(`unexpected query: ${text}`);
       }
     }
@@ -998,10 +1013,10 @@ test("createSandbox rejects missing mapped template slots before DB writes", asy
 
   assert.equal(result.kind, "credential_vault_invalid_binding");
   assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /was not found/);
-  assert.equal(calls.length, 0);
+  assert.equal(calls.some((call) => call.text.includes("opensandbox_id=$2")), false);
 });
 
-test("createSandbox rejects disabled stored credentials before DB writes", async () => {
+test("createSandbox rejects disabled stored credentials before provider dispatch", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const result = await createSandbox(
     {
@@ -1030,6 +1045,9 @@ test("createSandbox rejects disabled stored credentials before DB writes", async
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("SELECT role FROM memberships")) return { rowCount: 1, rows: [{ role: "admin" }] as never[] };
         if (text.includes("FROM workspace_credential_secrets")) {
           return {
@@ -1064,10 +1082,10 @@ test("createSandbox rejects disabled stored credentials before DB writes", async
   );
 
   assert.equal(result.kind, "credential_secret_disabled");
-  assert.equal(calls.some((call) => call.text.includes("INSERT INTO sandboxes")), false);
+  assert.equal(calls.some((call) => call.text.includes("INSERT INTO sandboxes")), true);
 });
 
-test("createSandbox rejects create-time credentials on async create before DB writes", async () => {
+test("createSandbox rejects create-time credentials on async create before provider dispatch", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const result = await createSandbox(
     {
@@ -1095,16 +1113,19 @@ test("createSandbox rejects create-time credentials on async create before DB wr
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         return { rowCount: 0, rows: [] as never[] };
       }
     }
   );
 
   assert.equal(result.kind, "credential_vault_create_requires_sync");
-  assert.equal(calls.length, 0);
+  assert.equal(calls.some((call) => call.text.includes("opensandbox_id=$2")), false);
 });
 
-test("createSandbox rejects create-time fake env conflicts before DB writes", async () => {
+test("createSandbox rejects create-time fake env conflicts before provider dispatch", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const result = await createSandbox(
     {
@@ -1138,6 +1159,9 @@ test("createSandbox rejects create-time fake env conflicts before DB writes", as
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         return { rowCount: 0, rows: [] as never[] };
       }
     }
@@ -1145,10 +1169,10 @@ test("createSandbox rejects create-time fake env conflicts before DB writes", as
 
   assert.equal(result.kind, "credential_vault_invalid_binding");
   assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /conflicts/);
-  assert.equal(calls.length, 0);
+  assert.equal(calls.some((call) => call.text.includes("opensandbox_id=$2")), false);
 });
 
-test("createSandbox rejects duplicate create-time credential names before DB writes", async () => {
+test("createSandbox rejects duplicate create-time credential names before provider dispatch", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const result = await createSandbox(
     {
@@ -1193,6 +1217,9 @@ test("createSandbox rejects duplicate create-time credential names before DB wri
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
+        if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes") || text.includes("UPDATE sandbox_operations") || text.includes("UPDATE persistent_workspaces")) return { rowCount: 1, rows: [] as never[] };
         return { rowCount: 0, rows: [] as never[] };
       }
     }
@@ -1200,7 +1227,7 @@ test("createSandbox rejects duplicate create-time credential names before DB wri
 
   assert.equal(result.kind, "credential_vault_invalid_binding");
   assert.match(result.kind === "credential_vault_invalid_binding" ? result.message : "", /credential dup is already declared/);
-  assert.equal(calls.length, 0);
+  assert.equal(calls.some((call) => call.text.includes("opensandbox_id=$2")), false);
 });
 
 test("createSandbox restores a ready snapshot through the provider snapshot ref", async () => {
@@ -1242,7 +1269,7 @@ test("createSandbox restores a ready snapshot through the provider snapshot ref"
             }] as never[]
           };
         }
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_restore", sandboxId: "sbx_restored" })] as never[] };
         }
@@ -1304,7 +1331,7 @@ test("createSandbox can enqueue async provision and return a pending sandbox", a
       },
       query: async (text, params) => {
         calls.push({ text, params });
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_async", sandboxId: "sbx_async" })] as never[] };
         }
@@ -1364,7 +1391,7 @@ test("createSandbox returns pending when synchronous provision exceeds wait time
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) {
           return { rowCount: 1, rows: [operationRow({ id: "op_timeout", sandboxId: "sbx_timeout" })] as never[] };
         }
@@ -1388,7 +1415,7 @@ test("createSandbox returns pending when synchronous provision exceeds wait time
     assert.equal(result.sandbox.id, "sbx_timeout");
     assert.equal(result.operation.id, "op_timeout");
     assert.equal(result.operation.state, "running");
-    assert.match(result.message, /still running/);
+    assert.match(result.message, /still pending/);
   }
   assert.equal(runtimeState.createInput?.metadata["harakiri.sandbox"], "sbx_timeout");
   assert(calls.some((call) => call.text.includes("state IN ('queued', 'failed')")));
@@ -1420,11 +1447,11 @@ test("createSandbox records a failed operation when provider provisioning fails"
       recordAudit: async () => undefined,
       query: async (text, params) => {
         calls.push({ text, params });
-        if (text.includes("INSERT INTO sandboxes")) return { rowCount: 1, rows: [] as never[] };
+        if (text.includes("INSERT INTO sandboxes") || text.includes("UPDATE sandboxes SET egress_policy=")) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow()] as never[] };
         if (text.includes("FROM sandbox_operations") && text.includes("FOR UPDATE")) return { rowCount: 1, rows: [operationRow()] as never[] };
         if (text.includes("UPDATE sandbox_operations")) return { rowCount: 1, rows: [operationRow({ state: "failed", error: "provider unavailable" })] as never[] };
-        if (text.includes("UPDATE sandboxes SET status = 'error'")) return { rowCount: 1, rows: [] as never[] };
+        if (/UPDATE sandboxes SET status\s*=\s*'error'/.test(text)) return { rowCount: 1, rows: [] as never[] };
         if (text.includes("default_egress_policy")) return { rowCount: 1, rows: [orgEgressSettingsRow()] as never[] };
         if (text.includes("FROM sandboxes s") && text.includes("WHERE s.id = $1")) {
           return {
@@ -1440,10 +1467,10 @@ test("createSandbox records a failed operation when provider provisioning fails"
   assert.equal(result.kind, "sandbox_provision_failed");
   assert(calls.some((call) => call.text.includes("INSERT INTO sandboxes")));
   assert(calls.some((call) => call.text.includes("INSERT INTO sandbox_operations")));
-  assert(calls.some((call) => call.text.includes("UPDATE sandboxes SET status = 'error'")));
+  assert(!calls.some((call) => /UPDATE sandboxes SET status\s*=\s*'terminated'/.test(call.text)));
   assert(calls.some((call) => call.text.includes("state = 'failed'")));
   assert.equal(events[0].type, "error");
-  assert.match(events[0].message, /provider unavailable/);
+  assert.match(events[0].message, /could not be confirmed/);
 });
 
 test("updateSandboxSource stores sanitized source provenance and records audit metadata", async () => {
@@ -1556,6 +1583,6 @@ test("deleteSandbox and renewSandbox use injected provider refs", async () => {
   assert.deepEqual(runtimeState.renewedRef, { provider: "fake", providerSandboxId: "provider_sbx" });
   assert.match(runtimeState.renewedInput.expiresAt, /^\d{4}-\d{2}-\d{2}T/);
   assert(calls.filter((call) => call.text.includes("INSERT INTO sandbox_operations")).length >= 2);
-  assert(calls.some((call) => call.text.includes("UPDATE sandboxes SET status = 'terminated'")));
+  assert(!calls.some((call) => /UPDATE sandboxes SET status\s*=\s*'terminated'/.test(call.text)), "delete acknowledgement is not absence");
   assert(calls.some((call) => call.text.includes("UPDATE sandboxes SET expires_at")));
 });

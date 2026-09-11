@@ -6,6 +6,7 @@ type JsonSchema = Record<string, unknown>;
 type Operation = {
   tags: string[];
   summary: string;
+  description?: string;
   operationId: string;
   security?: Array<Record<string, string[]>>;
   parameters?: JsonSchema[];
@@ -77,8 +78,13 @@ const authErrorResponses = {
   "404": jsonResponse("Not found", ref("ApiErrorResponse")),
   "409": jsonResponse("Conflict", ref("ApiErrorResponse")),
   "422": jsonResponse("Validation or policy error", ref("ApiErrorResponse")),
-  "429": jsonResponse("Rate or concurrency limited", ref("ApiErrorResponse")),
+  "429": jsonResponse("Rate limited. Execution capacity uses 409.", ref("ApiErrorResponse")),
   "500": jsonResponse("Server error", ref("ApiErrorResponse"))
+};
+
+const capacityErrorResponses = {
+  "409": jsonResponse("organization_capacity_exceeded: no execution was admitted; stop work or raise the limit. idempotency_conflict: key reused for a different intent. sandbox_transition_in_progress: existing runtime effect must settle.", ref("ApiErrorResponse")),
+  "503": jsonResponse("organization_capacity_unavailable: inventory is unverified or unavailable; no new execution was admitted.", ref("ApiErrorResponse"))
 };
 
 const secured = (operation: Operation): Operation => ({
@@ -119,7 +125,9 @@ const schemas: Record<string, JsonSchema> = {
       ...string,
       description: "Stable machine-readable error code. Sandbox runtime endpoints use the SandboxRuntimeApiErrorCode vocabulary."
     },
-    message: string
+    message: string,
+    capacity: ref("OrganizationCapacity"),
+    sandboxId: string, operationId: string
   }, ["error"]),
   SandboxRuntimeApiErrorCode: {
     type: "string",
@@ -407,6 +415,7 @@ const schemas: Record<string, JsonSchema> = {
     })
   }),
   SandboxSummary: objectSchema({
+    capacityPhase: { type: ["string", "null"], enum: ["reserved", "active", "releasing", "uncertain", "released", null] },
     workspaceId: nullableString,
     id: string,
     opensandboxId: nullableString,
@@ -1358,6 +1367,7 @@ const schemas: Record<string, JsonSchema> = {
     avgColdStartMs: { ...number, deprecated: true, description: "Unmeasured; template boot estimates are not observed cold starts. Consult coverage." },
     avgRuntimeSeconds: { ...number, deprecated: true, description: "Unmeasured; zero is a numeric compatibility placeholder. Consult coverage." },
     concurrentNow: integer,
+    capacity: ref("OrganizationCapacity"),
     concurrentPeak: { ...integer, deprecated: true, description: "Unmeasured; zero is a compatibility placeholder, not an observed peak." },
     series: arrayOf(number),
     topTemplates: arrayOf(objectSchema({ label: string, value: number })),
@@ -1367,7 +1377,7 @@ const schemas: Record<string, JsonSchema> = {
       period: { type: "string", enum: ["retained_records"] },
       observedAt: { type: "string", format: "date-time" },
       unavailableMetrics: arrayOf({ type: "string", enum: ["computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentPeak", "series"] }),
-      concurrencyLimitEnforced: { type: "boolean", enum: [false] }
+      concurrencyLimitEnforced: boolean
     })
   }, ["sandboxesSpawned", "computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentNow", "concurrentPeak", "series", "topTemplates", "statusBreakdown"]),
   OrganizationSettings: objectSchema({
@@ -1375,7 +1385,8 @@ const schemas: Record<string, JsonSchema> = {
     name: string,
     slug: string,
     idleTtlSeconds: integer,
-    maxConcurrency: { ...integer, description: "Configured target only. Concurrency admission is not enforced in this preview." },
+    maxConcurrency: { ...integer, minimum: 1, maximum: 10000, description: "Maximum execution reservations; lowering the limit never evicts existing work." },
+    capacityRevision: { ...integer, minimum: 1 },
     defaultTemplateId: nullableString,
     defaultEgressPolicy: ref("EgressPolicyInput"),
     egressAllowedPresets: arrayOf({ type: "string", enum: ["python-package-install", "node-package-install", "git-hosting", "llm-apis", "browser-basic"] }),
@@ -1384,6 +1395,22 @@ const schemas: Record<string, JsonSchema> = {
     egressRedactDomains: boolean
   }, ["name", "slug", "idleTtlSeconds", "maxConcurrency", "defaultTemplateId", "defaultEgressPolicy", "egressAllowedPresets", "egressCustomDomainsEnabled", "egressMaxRules", "egressRedactDomains"]),
   OrganizationSettingsResponse: objectSchema({ organization: ref("OrganizationSettings") }),
+  UpdateOrganizationSettingsBody: objectSchema({
+    name: string, slug: string, idleTtlSeconds: integer,
+    maxConcurrency: { ...integer, minimum: 1, maximum: 10000 },
+    expectedCapacityRevision: { ...integer, minimum: 1, description: "Required when maxConcurrency is supplied. A stale revision returns 409 organization_capacity_settings_conflict." },
+    defaultTemplateId: nullableString, defaultEgressPolicy: ref("EgressPolicyInput"),
+    egressAllowedPresets: arrayOf(string), egressCustomDomainsEnabled: boolean,
+    egressMaxRules: integer, egressRedactDomains: boolean
+  }, []),
+  OrganizationCapacity: objectSchema({
+    state: { type: "string", enum: ["enforced", "reconciling", "quarantined"] },
+    limit: integer, revision: integer,
+    inUse: { type: ["integer", "null"] }, available: { type: ["integer", "null"] }, overLimit: { type: ["integer", "null"] },
+    breakdown: { anyOf: [objectSchema({ reserved: integer, active: integer, releasing: integer, uncertain: integer }), { type: "null" }] },
+    observedAt: { type: "string", format: "date-time" }
+  }),
+  OrganizationCapacityResponse: objectSchema({ capacity: ref("OrganizationCapacity") }),
   AccountCapabilities: objectSchema({
     canManageMembers: boolean,
     canManageCredentialSecrets: boolean,
@@ -1581,12 +1608,13 @@ export const openApiDocument = {
         operationId: "createSandbox",
         parameters: [parameter("Prefer", "header", string, false), parameter("Idempotency-Key", "header", string, false)],
         requestBody: jsonBody(ref("CreateSandboxBody")),
-        responses: { ...created("Created sandbox", ref("CreateSandboxResponse")), ...accepted("Queued sandbox", ref("CreateSandboxResponse")), ...authErrorResponses }
+        description: "Atomically reserves an organization execution slot before credential issuance or runtime creation. Reuse Idempotency-Key for the same intent after a lost response. wait:false means admitted provisioning, not an overflow queue.",
+        responses: { ...created("Created sandbox", ref("CreateSandboxResponse")), ...accepted("Queued sandbox", ref("CreateSandboxResponse")), ...authErrorResponses, ...capacityErrorResponses }
       })
     },
     "/v1/sandboxes/{id}": {
       get: secured({ tags: ["Sandboxes"], summary: "Get a sandbox", operationId: "getSandbox", parameters: [pathId], responses: { ...ok("Sandbox", ref("SandboxResponse")), ...authErrorResponses } }),
-      delete: secured({ tags: ["Sandboxes"], summary: "Delete a sandbox", operationId: "deleteSandbox", parameters: [pathId], responses: { ...noContent("Deleted sandbox"), ...authErrorResponses } })
+      delete: secured({ tags: ["Sandboxes"], summary: "Request sandbox deletion", description: "Acceptance does not prove runtime absence. Poll the sandbox and organization capacity until cleanup is confirmed.", operationId: "deleteSandbox", parameters: [pathId], responses: { ...noContent("Deletion accepted"), ...authErrorResponses, ...capacityErrorResponses } })
     },
     "/v1/sandboxes/{id}/source": {
       patch: secured({ tags: ["Sandboxes"], summary: "Update sandbox source provenance", operationId: "updateSandboxSource", parameters: [pathId], requestBody: jsonBody(ref("PatchSandboxSourceBody")), responses: { ...ok("Sandbox source", ref("SandboxSourceResponse")), ...authErrorResponses } })
@@ -1595,7 +1623,7 @@ export const openApiDocument = {
       post: secured({ tags: ["Sandboxes"], summary: "Pause a running sandbox", operationId: "pauseSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Paused sandbox", ref("SandboxResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/resume": {
-      post: secured({ tags: ["Sandboxes"], summary: "Resume a paused sandbox", operationId: "resumeSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Resumed sandbox", ref("SandboxResponse")), ...authErrorResponses } })
+      post: secured({ tags: ["Sandboxes"], summary: "Resume a paused sandbox", description: "Reserves capacity before resuming a released pause. The returned sandbox can still be resuming; poll until running. A full organization returns 409 without resuming.", operationId: "resumeSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Resume accepted", ref("SandboxResponse")), ...authErrorResponses, ...capacityErrorResponses } })
     },
     "/v1/sandboxes/{id}/renew": {
       post: secured({ tags: ["Sandboxes"], summary: "Renew an active sandbox TTL after provider confirmation", operationId: "renewSandbox", parameters: [pathId, parameter("Idempotency-Key", "header", string, false)], responses: { ...ok("Renewed sandbox", ref("OkResponse")), ...authErrorResponses } })
@@ -1838,7 +1866,10 @@ export const openApiDocument = {
     },
     "/v1/org/settings": {
       get: secured({ tags: ["Organization Settings"], summary: "Read organization settings", operationId: "getOrganizationSettings", responses: { ...ok("Organization settings", ref("OrganizationSettingsResponse")), ...authErrorResponses } }),
-      patch: secured({ tags: ["Organization Settings"], summary: "Update organization settings", operationId: "updateOrganizationSettings", requestBody: jsonBody(ref("OrganizationSettings")), responses: { ...ok("Organization settings", ref("OrganizationSettingsResponse")), ...authErrorResponses } })
+      patch: secured({ tags: ["Organization Settings"], summary: "Update organization settings", operationId: "updateOrganizationSettings", requestBody: jsonBody(ref("UpdateOrganizationSettingsBody")), responses: { ...ok("Organization settings", ref("OrganizationSettingsResponse")), ...authErrorResponses, "409": jsonResponse("Capacity revision is stale; reload settings before retrying.", ref("ApiErrorResponse")) } })
+    },
+    "/v1/org/capacity": {
+      get: secured({ tags: ["Organization Settings"], summary: "Read execution capacity", description: "Requires org:read. Counts held execution reservations, not running observations, host resources or billing. Counts are null while inventory is reconciling or quarantined.", operationId: "getOrganizationCapacity", responses: { ...ok("Organization capacity", ref("OrganizationCapacityResponse")), ...authErrorResponses, "503": jsonResponse("Capacity inventory unavailable.", ref("ApiErrorResponse")) } })
     }
   },
   components: {

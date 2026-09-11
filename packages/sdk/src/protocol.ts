@@ -48,6 +48,7 @@ export type SandboxCommandStatus = typeof sandboxCommandStatuses[number];
 export type ApiErrorResponse<TCode extends string = string, TExtra extends Record<string, unknown> = Record<string, unknown>> = {
   error: TCode;
   message?: string;
+  capacity?: OrganizationCapacity;
 } & TExtra;
 
 export const apiErrorResponse = <TCode extends string, TExtra extends Record<string, unknown> = Record<string, never>>(
@@ -360,6 +361,7 @@ export type SandboxRuntimeMetadata = {
 };
 
 export type SandboxSummary = {
+  capacityPhase?: "reserved" | "active" | "releasing" | "uncertain" | "released" | null;
   workspaceId?: string | null;
   id: string;
   opensandboxId?: string | null;
@@ -1674,6 +1676,7 @@ export type UsageSummary = {
   avgRuntimeSeconds: number;
   /** Running records at observation time; not a provider-level capacity measurement. */
   concurrentNow: number;
+  capacity?: OrganizationCapacity;
   /** @deprecated Unmeasured. Compatibility placeholder; consult coverage. */
   concurrentPeak: number;
   series: number[];
@@ -1685,7 +1688,7 @@ export type UsageSummary = {
     period: "retained_records";
     observedAt: string;
     unavailableMetrics: Array<"computeHours" | "avgColdStartMs" | "avgRuntimeSeconds" | "concurrentPeak" | "series">;
-    concurrencyLimitEnforced: false;
+    concurrencyLimitEnforced: boolean;
   };
 };
 
@@ -1694,8 +1697,9 @@ export type OrganizationSettings = {
   name: string;
   slug: string;
   idleTtlSeconds: number;
-  /** Configured target only. The preview does not enforce concurrency admission. */
+  /** Maximum execution reservations. Lowering the limit never evicts existing work. */
   maxConcurrency: number;
+  capacityRevision?: number;
   defaultTemplateId: string | null;
   defaultEgressPolicy: EgressPolicyInput;
   egressAllowedPresets: EgressPresetId[];
@@ -1706,6 +1710,21 @@ export type OrganizationSettings = {
 
 export type OrganizationSettingsResponse = {
   organization: OrganizationSettings;
+};
+
+export type OrganizationCapacity = {
+  state: "enforced" | "reconciling" | "quarantined";
+  limit: number;
+  revision: number;
+  inUse: number | null;
+  available: number | null;
+  overLimit: number | null;
+  breakdown: { reserved: number; active: number; releasing: number; uncertain: number } | null;
+  observedAt: string;
+};
+export type OrganizationCapacityResponse = { capacity: OrganizationCapacity };
+export type UpdateOrganizationSettingsBody = Partial<Omit<OrganizationSettings, "id" | "capacityRevision">> & {
+  expectedCapacityRevision?: number;
 };
 
 export type AccountCapabilities = {

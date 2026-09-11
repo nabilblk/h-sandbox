@@ -9,6 +9,7 @@
     }
   },
   "include": [
+    "sdk-execution-capacity/index.ts",
     "sdk-typescript-quickstart/index.ts",
     "sdk-sandbox-object/index.ts",
     "sdk-git-workflow/index.ts",

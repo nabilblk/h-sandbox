@@ -2555,6 +2555,7 @@
 }
 .settings-card {
   padding: 22px;
+  min-width: 0;
 }
 .settings-form-grid {
   display: grid;
@@ -2620,6 +2621,19 @@
   gap: 8px;
   color: var(--muted);
   font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .settings-egress-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .settings-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 540px) {
+  .settings-card { padding: 16px; }
+  .settings-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .settings-section-head { flex-wrap: wrap; }
+  .settings-card .field, .settings-card .input { min-width: 0; }
 }
 
 /* TEMPLATE EGRESS */

@@ -23,7 +23,7 @@ harakiri --version`}</CodeBlock>
     </tbody></table>
     <p>Inspect the installed provider's capabilities before using pause, snapshots, persistent storage, Vault or egress. Unsupported operations must fail explicitly; Harakiri does not substitute Kubernetes exec or plaintext environment secrets.</p>
     <h2>Measurements and capacity</h2>
-    <p><code>maxConcurrency</code> is a configured target, not enforced admission. Operators must bound evaluation access and resource consumption independently. This preview is not an unbounded public execution service or a hostile multi-tenant production recommendation.</p>
+    <p>Published 0.5.0-rc.8 treats <code>maxConcurrency</code> as a configured target. The unreleased <a href="#docs/execution-capacity">execution capacity</a> implementation adds atomic admission and an inventory activation gate. Operators must still bound infrastructure resource consumption independently. This preview is not an unbounded public execution service or a hostile multi-tenant production recommendation.</p>
     <p>Usage counts describe retained control-plane records, including failed creates. Historical concurrency, historical peaks, compute hours, runtime durations and measured cold starts are unavailable. Older releases displayed synthetic estimates: do not use those values for billing, planning or isolation decisions.</p>
     <p>This candidate adds <code>coverage</code> to <code>GET /v1/usage</code> and returns an empty history. Deprecated numeric fields remain zero for wire compatibility only. Zero is not a measurement when the field appears in <code>coverage.unavailableMetrics</code>; missing coverage from an older server does not establish measured history.</p>
     <h2>Security and operations</h2>

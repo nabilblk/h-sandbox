@@ -29,12 +29,13 @@ import {
 } from "./services/sandbox-runtime.js";
 import { hashApiKey } from "./crypto.js";
 import type { Transaction } from "./db.js";
+import { capacityFixture } from "./test-support/capacity-fixture.js";
 
-const leaseTransaction: Transaction = (fn) => fn(async (text) => {
+const leaseTransaction: Transaction = capacityFixture(async (text) => {
   if (text.includes("FOR UPDATE")) return { rows: [{ opensandbox_id: "provider_sbx", ttl_seconds: 300, status: "running", expires_at: null }] as never[] };
   if (text.includes("SELECT clock_timestamp")) return { rows: [{ now: new Date() }] as never[] };
   return { rows: [], rowCount: 1 };
-});
+}, { sandboxId: "sbx_runtime", providerId: "provider_sbx", status: "running" }).transaction;
 
 const fakeRuntimeProvider = (overrides: Partial<RuntimeProvider> = {}): RuntimeProvider => ({
   kind: "fake",

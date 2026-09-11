@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { HarakiriApiError } from "@h-sandbox/sdk";
 import { readFileSync } from "node:fs";
 import { registerAuthCommands } from "./commands/auth.js";
 import { registerConfigCommands } from "./commands/config.js";
@@ -46,6 +47,12 @@ registerVaultCommands(program);
 registerWorkspaceCommands(program);
 
 program.parseAsync(process.argv).catch((error) => {
+  if (error instanceof HarakiriApiError && (error.code?.startsWith("organization_capacity_") || error.code === "sandbox_transition_in_progress" || error.code === "idempotency_conflict")) {
+    console.error(process.argv.includes("--json")
+      ? JSON.stringify({ ...error.details, status: error.status })
+      : `${error.code}: ${error.details?.message ?? "Inspect execution capacity with harakiri capacity."}`);
+    process.exit(1);
+  }
   console.error(error.message);
   process.exit(1);
 });

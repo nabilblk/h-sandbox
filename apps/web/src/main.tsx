@@ -29,6 +29,7 @@ import "./styles-docs.css";
 const DocsRoute = lazy(() => import("./routes/docs").then((module) => ({ default: module.DocsRoute })));
 import "./styles-demos.css";
 import "./styles-workspaces.css";
+import "./styles-capacity.css";
 
 const pendingPublicRouteKey = "harakiri_pending_public_route";
 

@@ -1,5 +1,6 @@
 import { query as defaultQuery } from "../db.js";
 import type { Query } from "./query.js";
+import { CapacityError } from "./organization-capacity.js";
 import {
   defaultEgressPolicyInput,
   egressPresetIds,
@@ -12,6 +13,7 @@ export type OrganizationSettingsUpdate = {
   slug?: string;
   idleTtlSeconds?: number;
   maxConcurrency?: number;
+  expectedCapacityRevision?: number;
   defaultTemplateId?: string;
   defaultEgressPolicy?: EgressPolicyInput;
   egressAllowedPresets?: EgressPresetId[];
@@ -27,6 +29,7 @@ export type OrganizationSettings = {
   defaultTemplateId: string | null;
   idleTtlSeconds: number;
   maxConcurrency: number;
+  capacityRevision: number;
   defaultEgressPolicy: EgressPolicyInput;
   egressAllowedPresets: EgressPresetId[];
   egressCustomDomainsEnabled: boolean;
@@ -52,6 +55,7 @@ export const getOrganizationSettings = async (
   const result = await query<OrganizationSettings>(
     `SELECT id, name, slug, default_template_id AS "defaultTemplateId",
             idle_ttl_seconds AS "idleTtlSeconds", max_concurrency AS "maxConcurrency",
+            capacity_revision AS "capacityRevision",
             default_egress_policy AS "defaultEgressPolicy",
             egress_allowed_presets AS "egressAllowedPresets",
             egress_custom_domains_enabled AS "egressCustomDomainsEnabled",
@@ -67,61 +71,46 @@ export const updateOrganizationSettings = async (
   input: { organizationId: string; patch: OrganizationSettingsUpdate },
   query: Query = defaultQuery
 ) => {
-  const current = await query<{
-    name: string;
-    slug: string;
-    default_template_id: string | null;
-    idle_ttl_seconds: number;
-    max_concurrency: number;
-    default_egress_policy: EgressPolicyInput | null;
-    egress_allowed_presets: EgressPresetId[] | null;
-    egress_custom_domains_enabled: boolean | null;
-    egress_max_rules: number | null;
-    egress_redact_domains: boolean | null;
-  }>("SELECT * FROM organizations WHERE id = $1", [input.organizationId]);
-  const next = {
-    name: input.patch.name ?? current.rows[0].name,
-    slug: input.patch.slug ?? current.rows[0].slug,
-    defaultTemplateId: input.patch.defaultTemplateId ?? current.rows[0].default_template_id,
-    idleTtlSeconds: input.patch.idleTtlSeconds ?? current.rows[0].idle_ttl_seconds,
-    maxConcurrency: input.patch.maxConcurrency ?? current.rows[0].max_concurrency,
-    defaultEgressPolicy: input.patch.defaultEgressPolicy ?? current.rows[0].default_egress_policy ?? defaultEgressPolicyInput,
-    egressAllowedPresets: input.patch.egressAllowedPresets ?? current.rows[0].egress_allowed_presets ?? defaultEgressAllowedPresets,
-    egressCustomDomainsEnabled: input.patch.egressCustomDomainsEnabled ?? current.rows[0].egress_custom_domains_enabled ?? true,
-    egressMaxRules: input.patch.egressMaxRules ?? current.rows[0].egress_max_rules ?? 128,
-    egressRedactDomains: input.patch.egressRedactDomains ?? current.rows[0].egress_redact_domains ?? false
-  };
+  if (input.patch.maxConcurrency !== undefined && input.patch.expectedCapacityRevision === undefined) {
+    throw new CapacityError("organization_capacity_settings_conflict", "Reload settings before changing the concurrency limit.");
+  }
+  const fields: Array<[keyof OrganizationSettingsUpdate, string, string?]> = [
+    ["name", "name"], ["slug", "slug"], ["defaultTemplateId", "default_template_id"],
+    ["idleTtlSeconds", "idle_ttl_seconds"], ["maxConcurrency", "max_concurrency"],
+    ["defaultEgressPolicy", "default_egress_policy", "jsonb"],
+    ["egressAllowedPresets", "egress_allowed_presets", "text[]"],
+    ["egressCustomDomainsEnabled", "egress_custom_domains_enabled"],
+    ["egressMaxRules", "egress_max_rules"], ["egressRedactDomains", "egress_redact_domains"]
+  ];
+  const params: unknown[] = [input.organizationId];
+  const updates = ["updated_at = now()"];
+  for (const [field, column, cast] of fields) {
+    const value = input.patch[field];
+    if (value === undefined) continue;
+    params.push(cast === "jsonb" ? JSON.stringify(value) : value);
+    updates.push(`${column} = $${params.length}${cast ? `::${cast}` : ""}`);
+  }
+  let revisionClause = "";
+  if (input.patch.maxConcurrency !== undefined) {
+    params.push(input.patch.expectedCapacityRevision);
+    revisionClause = ` AND capacity_revision = $${params.length}`;
+    updates.push("capacity_revision = capacity_revision + 1");
+  }
+  // A single UPDATE serializes with admission and only changes explicitly supplied fields.
   const result = await query<OrganizationSettings>(
     `UPDATE organizations
-     SET name = $2, slug = $3, default_template_id = $4,
-         idle_ttl_seconds = $5, max_concurrency = $6,
-         default_egress_policy = $7::jsonb,
-         egress_allowed_presets = $8::text[],
-         egress_custom_domains_enabled = $9,
-         egress_max_rules = $10,
-         egress_redact_domains = $11,
-         updated_at = now()
-     WHERE id = $1
+     SET ${updates.join(", ")}
+     WHERE id = $1${revisionClause}
      RETURNING id, name, slug, default_template_id AS "defaultTemplateId",
                idle_ttl_seconds AS "idleTtlSeconds", max_concurrency AS "maxConcurrency",
+               capacity_revision AS "capacityRevision",
                default_egress_policy AS "defaultEgressPolicy",
                egress_allowed_presets AS "egressAllowedPresets",
                egress_custom_domains_enabled AS "egressCustomDomainsEnabled",
                egress_max_rules AS "egressMaxRules",
                egress_redact_domains AS "egressRedactDomains"`,
-    [
-      input.organizationId,
-      next.name,
-      next.slug,
-      next.defaultTemplateId,
-      next.idleTtlSeconds,
-      next.maxConcurrency,
-      JSON.stringify(next.defaultEgressPolicy),
-      next.egressAllowedPresets,
-      next.egressCustomDomainsEnabled,
-      next.egressMaxRules,
-      next.egressRedactDomains
-    ]
+    params
   );
+  if (!result.rows[0]) throw new CapacityError("organization_capacity_settings_conflict", "Settings changed. Reload them before saving the concurrency limit.");
   return normalizeSettings(result.rows[0]);
 };

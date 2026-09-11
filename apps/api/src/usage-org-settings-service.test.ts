@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { getOrganizationSettings, updateOrganizationSettings } from "./services/org-settings.js";
 import { getUsageSummary } from "./services/usage.js";
+const capacityRow = { max_concurrency: 5, capacity_revision: 1, capacity_state: "enforced", active: 3, reserved: 1, releasing: 0, uncertain: 0, observed_at: new Date() };
 
 test("getUsageSummary reports scoped record counts without manufacturing usage measurements", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
@@ -11,6 +12,7 @@ test("getUsageSummary reports scoped record counts without manufacturing usage m
       now: () => new Date("2026-09-09T00:00:00Z"),
       query: async (text, params) => {
         calls.push({ text, params });
+        if (text.includes("SELECT o.max_concurrency")) return { rows: [capacityRow] as never[] };
         if (text.includes("GROUP BY status")) {
           return {
             rowCount: 2,
@@ -31,7 +33,8 @@ test("getUsageSummary reports scoped record counts without manufacturing usage m
     }
   );
 
-  assert.deepEqual(calls.map((call) => call.params), [["org_usage"], ["org_usage"]]);
+  assert.deepEqual(calls.map((call) => call.params), [["org_usage"], ["org_usage"], ["org_usage"]]);
+  assert.equal(usage.capacity?.inUse, 4);
   assert.equal(usage.sandboxesSpawned, 5);
   assert.equal(usage.concurrentNow, 3);
   assert.equal(usage.concurrentPeak, 0);
@@ -42,7 +45,7 @@ test("getUsageSummary reports scoped record counts without manufacturing usage m
   assert.deepEqual(usage.coverage, {
     source: "control_plane_records", period: "retained_records", observedAt: "2026-09-09T00:00:00.000Z",
     unavailableMetrics: ["computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentPeak", "series"],
-    concurrencyLimitEnforced: false
+    concurrencyLimitEnforced: true
   });
   assert.deepEqual(usage.topTemplates, [{ label: "python-3.12", value: 5 }]);
   assert.deepEqual(usage.statusBreakdown, [
@@ -56,6 +59,7 @@ test("empty organizations still report unmeasured history, not a zero-usage obse
     { organizationId: "org_empty" },
     {
       query: async (text) => {
+        if (text.includes("SELECT o.max_concurrency")) return { rows: [{ ...capacityRow, active: 0, reserved: 0 }] as never[] };
         if (text.includes("GROUP BY status")) return { rowCount: 0, rows: [] as never[] };
         if (text.includes("GROUP BY template_id")) return { rowCount: 0, rows: [] as never[] };
         throw new Error(`unexpected query: ${text}`);
@@ -99,35 +103,19 @@ test("getOrganizationSettings selects organization-scoped settings", async () =>
   assert.equal(settings.defaultTemplateId, "python-3.12");
 });
 
-test("updateOrganizationSettings merges partial patches with current settings", async () => {
+test("updateOrganizationSettings atomically writes only supplied fields with a limit revision", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const updated = await updateOrganizationSettings(
     {
       organizationId: "org_settings",
       patch: {
         name: "Runtime Team",
-        maxConcurrency: 50
+        maxConcurrency: 50,
+        expectedCapacityRevision: 1
       }
     },
     async (text, params) => {
       calls.push({ text, params });
-      if (text === "SELECT * FROM organizations WHERE id = $1") {
-        return {
-          rowCount: 1,
-          rows: [{
-            name: "Workspace Labs",
-            slug: "workspace-labs",
-            default_template_id: "python-3.12",
-            idle_ttl_seconds: 300,
-            max_concurrency: 200,
-            default_egress_policy: { mode: "open", presets: [], allow: [], deny: [] },
-            egress_allowed_presets: ["python-package-install", "git-hosting"],
-            egress_custom_domains_enabled: false,
-            egress_max_rules: 64,
-            egress_redact_domains: true
-          }] as never[]
-        };
-      }
       if (text.includes("UPDATE organizations")) {
         return {
           rowCount: 1,
@@ -150,19 +138,10 @@ test("updateOrganizationSettings merges partial patches with current settings", 
     }
   );
 
-  assert.deepEqual(calls[1].params, [
-    "org_settings",
-    "Runtime Team",
-    "workspace-labs",
-    "python-3.12",
-    300,
-    50,
-    "{\"mode\":\"open\",\"presets\":[],\"allow\":[],\"deny\":[]}",
-    ["python-package-install", "git-hosting"],
-    false,
-    64,
-    true
-  ]);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].params, ["org_settings", "Runtime Team", 50, 1]);
+  assert.match(calls[0].text, /capacity_revision = \$4/);
+  assert.doesNotMatch(calls[0].text.split("RETURNING")[0], /slug =|egress_max_rules =/);
   assert.equal(updated.name, "Runtime Team");
   assert.equal(updated.maxConcurrency, 50);
   assert.equal(updated.egressMaxRules, 64);
