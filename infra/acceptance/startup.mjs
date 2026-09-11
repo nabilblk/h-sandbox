@@ -1,5 +1,6 @@
 import { podEvidence, logEvidence } from "./diagnostics.mjs";
 import { runtimeNamespace } from "./operator.mjs";
+import { AcceptanceCheckError } from "./context.mjs";
 
 export function runtimeStateEvidence(workload) {
   const status = workload.status ?? {};
@@ -12,6 +13,7 @@ export async function observeStartup(ctx, action, intervalMs = 10000) {
   const observations = [];
   ctx.startupObservations = observations;
   const started = Date.now();
+  const abort = new AbortController();
   let previous;
   const capture = () => {
     if (observations.length >= 80) return;
@@ -32,10 +34,13 @@ export async function observeStartup(ctx, action, intervalMs = 10000) {
         observations.push({ elapsedSeconds: Math.floor((Date.now() - started) / 1000), ...state });
         previous = fingerprint;
       }
+      const failed = pods.flatMap(pod => pod.status.containerStatuses ?? [])
+        .find(container => container.name === "sandbox" && container.state?.terminated?.exitCode > 0);
+      if (failed) abort.abort(new AcceptanceCheckError(`Native sandbox bootstrap exited before readiness: ${failed.state.terminated.exitCode}`));
     } catch { /* Diagnostics must not replace the published client's outcome. */ }
   };
   // Capture before provider rollback removes the failed pod; never export raw logs.
   const timer = setInterval(capture, intervalMs);
-  try { return await action(); }
+  try { return await action(abort.signal); }
   finally { clearInterval(timer); }
 }

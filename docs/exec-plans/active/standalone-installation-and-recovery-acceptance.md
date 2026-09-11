@@ -351,6 +351,14 @@ browser state to unblock diagnostics.
   60-second startup deadline implicit. A bounded 180-second deadline and read-only
   startup observations are now under test; this is not yet a confirmed fix.
   The failed run cleaned both owned namespaces and private material successfully.
+- [Run 34656885037](https://github.com/nabilblk/h-sandbox/actions/runs/34656885037)
+  disproved the longer-timeout hypothesis. At 21 seconds the main `sandbox`
+  container had terminated with `Error`; egress was healthy by 30 seconds. The
+  workload stayed Pending until provider rollback. Both cleanup layers passed.
+  Removed the timeout experiment, added exit-code/bootstrap classifications and
+  fail-fast SDK wait cancellation on a nonzero main-container exit. This is a
+  failing gate, not an alternative successful execution path. Native recovery is
+  still unreached; runtime startup is the current investigation.
 
 In progress. Native installation of the published bundle and the browser's
 onboarding interactions have passed. The current run must still establish the

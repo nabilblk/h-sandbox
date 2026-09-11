@@ -12,12 +12,12 @@ export async function run(client, id, command, env) {
   return result.stdout;
 }
 
-export async function createRuntime(client, state, name) {
+export async function createRuntime(client, state, name, options = {}) {
   const intent = { template: state.templateId, workspaceId: state.workspaceId, name, ttlSeconds: 3600, idempotencyKey: randomUUID(), wait: false };
   const created = await client.createSandbox(intent);
   const replay = await client.createSandbox(intent);
   check(created.sandbox.id === replay.sandbox.id, "An idempotent create duplicated a runtime");
-  await client.waitForSandbox(created.sandbox.id, { timeoutMs: 600000 });
+  await client.waitForSandbox(created.sandbox.id, { timeoutMs: 600000, signal: options.signal });
   return created.sandbox.id;
 }
 
@@ -63,7 +63,7 @@ export async function workload(ctx, operator) {
   const bytes = `Retained state from ${ctx.identity.id}\n${randomUUID()}\n`;
   const state = { templateId, workspaceId: workspace.id, fileSha256: sha256(bytes), runtimeIds: [] };
   ctx.save("workload.json", state);
-  const id = await observeStartup(ctx, () => createRuntime(client, state, "native-amd64-first-task"));
+  const id = await observeStartup(ctx, signal => createRuntime(client, state, "native-amd64-first-task", { signal }));
   state.runtimeIds.push(id);
   ctx.save("workload.json", state);
   await client.files.write(id, { path: retainedPath, content: bytes });

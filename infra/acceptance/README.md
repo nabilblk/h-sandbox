@@ -86,9 +86,10 @@ Failure diagnostics contain only pod readiness, counts and allowlisted reasons,
 operation states and known platform error categories, not environment variables,
 annotations, request payloads or raw error messages.
 Bounded first-runtime snapshots preserve pod/workload progress before provider
-rollback removes failed resources. The reference startup allowance is explicitly
-180 seconds; the original implicit 60-second failure remains recorded. This
-configuration adjustment is under native qualification, not a readiness bypass.
+rollback removes failed resources. A nonzero main-container exit fails the test
+promptly, without pretending that a longer readiness wait will repair it. The
+180-second timeout experiment also failed and was removed: the main container
+exited before readiness while the egress sidecar became healthy.
 
 Backups, Kubernetes Secrets, credentials, Helm values, raw subprocess output and
 browser state are private runner material, **not** public build artifacts.

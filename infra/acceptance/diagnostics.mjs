@@ -18,6 +18,14 @@ export function logEvidence(text) {
     ["readiness_failed", /Readiness probe failed|Startup probe failed|not ready/],
     ["connection_refused", /ECONNREFUSED|Connection refused/],
     ["dns_failure", /ENOTFOUND|Name or service not known/],
+    ["executable_not_found", /not found|No such file or directory/],
+    ["exec_format_error", /[Ee]xec format error/],
+    ["dynamic_linker_error", /GLIBC_[0-9.]|error while loading shared libraries/],
+    ["illegal_instruction", /[Ii]llegal instruction|invalid opcode/],
+    ["invalid_sleep_argument", /sleep:.*(?:invalid|unrecognized|illegal)/],
+    ["unsupported_flag", /unknown flag|flag provided but not defined|[Uu]nrecognized option/],
+    ["bootstrap_ca_ready", /mitm CA ready at/],
+    ["bootstrap_execd_start", /starting OpenSandbox Execd daemon/],
     ["timeout", /ETIMEDOUT|timed out|TimeoutError|context deadline exceeded/]
   ];
   const modules = ["scheduler.js", "services/sandbox-operation-worker.js", "services/sandbox-capacity-reconciler.js", "services/sandbox-runtime-effects.js", "services/persistent-workspaces.js", "services/sandbox-provision.js"];
@@ -37,7 +45,7 @@ export function eventEvidence(event) {
   const knownReasons = new Set(["Failed", "FailedCreate", "FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedBinding", "ProvisioningFailed", "BackOff", "Unhealthy", "Killing", "Pulling", "Pulled", "Started", "Created"]);
   return {
     reason: knownReasons.has(event.reason) ? event.reason : "unknown",
-    container: ["main", "egress", "execd", "execd-init"].find(name => event.involvedObject?.fieldPath === `spec.containers{${name}}` || event.involvedObject?.fieldPath === `spec.initContainers{${name}}`) ?? null,
+    container: ["main", "sandbox", "egress", "execd", "execd-init", "execd-installer"].find(name => event.involvedObject?.fieldPath === `spec.containers{${name}}` || event.involvedObject?.fieldPath === `spec.initContainers{${name}}`) ?? null,
     count: Number.isSafeInteger(event.count) ? event.count : null,
     details: logEvidence(typeof event.message === "string" ? event.message : "")
   };
@@ -71,6 +79,7 @@ export function podEvidence(pod) {
       name: container.name,
       ready: container.ready === true,
       restarts: Number.isSafeInteger(container.restartCount) ? container.restartCount : null,
+      exitCode: Number.isSafeInteger(container.state?.terminated?.exitCode) ? container.state.terminated.exitCode : null,
       reason: [container.state?.waiting?.reason, container.state?.terminated?.reason, container.lastState?.terminated?.reason].find(reason => reasons.has(reason)) ?? null
     }))
   };

@@ -170,6 +170,11 @@ test("startup evidence excludes workload secrets and preserves client outcomes",
   assert.equal(observed.startupObservations.length, 1);
   assert.equal(observed.startupObservations[0].pods[0].phase, "Pending");
   assert.ok(!JSON.stringify(observed.startupObservations).includes("sensitive"));
+  const failed = { k: args => args.includes("logs") ? "sleep: invalid time interval 'sensitive'" : JSON.stringify({ items: args.includes("pods") ? [{ metadata: { name: "owned" }, status: { phase: "Running", containerStatuses: [{ name: "sandbox", state: { terminated: { exitCode: 1, reason: "Error", message: "sensitive" } } }] } }] : [] }) };
+  await assert.rejects(observeStartup(failed, signal => new Promise((resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })), 5), /bootstrap exited before readiness: 1/);
+  assert.equal(failed.startupObservations[0].pods[0].containers[0].exitCode, 1);
+  assert.deepEqual(failed.startupObservations[0].errors[0].symptoms, ["invalid_sleep_argument"]);
+  assert.ok(!JSON.stringify(failed.startupObservations).includes("sensitive"));
 });
 
 test("failure infrastructure evidence excludes container env, annotations and raw messages", () => {
