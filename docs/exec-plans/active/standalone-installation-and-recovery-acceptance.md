@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-11
 **Author**: Codex with the maintainer
-**Status**: In Progress; PR 42 native installation passed, browser onboarding under diagnosis
+**Status**: In Progress; PR 42 native installation and onboarding interactions passed, end-to-end qualification running
 **Priority**: Next owner-approved milestone
 **Estimated effort**: Several engineering sessions, bounded by real acceptance evidence
 
@@ -112,9 +112,9 @@ baseline, not an availability or resource-capacity guarantee.
 - [x] Add a bounded native amd64 workflow and test-owned bootstrap guards.
 - [x] Download exact release assets and verify image/chart/package identity
   against the pinned public manifest; offline-render both actual chart archives.
-  Application images have not yet been pulled/executed by this harness.
+  Published API/web images have also run on the fresh native amd64 node.
 - [x] Install dependencies/runtime/control plane using public reference inputs.
-- [ ] Complete real OIDC onboarding and create an expiring scoped test key.
+- [x] Complete real OIDC onboarding and create an expiring scoped test key.
 - [ ] Import the published OpenCode image; prove a model-free task, first file
   write/command, protected route, capacity denial and two-runtime persistence.
 - [ ] Retain redacted failed attempts and clean only owned resources.
@@ -312,10 +312,18 @@ browser state to unblock diagnostics.
   (201), persisted completion (200) and opened the dashboard. Harness revocation
   then received 400 because its empty DELETE advertised JSON content. Corrected
   the bodyless-request helper with regression coverage. Both cleanup layers passed.
+- [Run 34652450411](https://github.com/nabilblk/h-sandbox/actions/runs/34652450411)
+  passed installation, the complete OIDC/scoped-key gate and OpenCode image
+  import. The first asynchronous sandbox timed out after ten minutes; there
+  were no runtime pods at failure. Both cleanup layers passed. Added allowlisted
+  timeout status, database operation/effect states and platform error categories
+  to diagnose stalled provisioning without publishing raw logs or credentials.
+  Native task execution and recovery have not yet passed.
 
 ## Completion Notes
 
-In progress. Local preparation is verified, but no native installation or
-destructive recovery has been performed. The milestone must remain in `active/`
-until real acceptance and the separately identified release-compatibility gate
-are closed or explicitly rescoped by the owner.
+In progress. Native installation of the published bundle and the browser's
+onboarding interactions have passed. The current run must still establish the
+complete scoped-client workflow and destructive recovery. The milestone remains
+in `active/` until those acceptance gates and the separately identified
+release-compatibility gate are closed or explicitly rescoped by the owner.

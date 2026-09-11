@@ -4,9 +4,9 @@ This is a qualification harness, not a second installer. It consumes the public
 reference configuration, published chart archives, immutable application image
 digests and integrity-checked npm tarballs pinned in `versions.json`.
 
-**Current evidence: native amd64 installation of published rc.9 passes, and the
-browser returns from real OIDC login. Onboarding completion is under diagnosis;
-destructive recovery has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
+**Current evidence: native amd64 installation of published rc.9, real OIDC
+onboarding and scoped-key setup pass. The first asynchronous runtime timed out
+before a pod appeared; destructive recovery has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
 and its per-run receipts. Local contracts alone are not native acceptance evidence.
 
 ## Isolation
@@ -80,7 +80,8 @@ allowlisted booleans and hashes; it distinguishes application source from harnes
 source and includes the owned cluster UID. Failed gates stay failed. The
 receipt's `cleanup.status` is separate from application assertions.
 Failure diagnostics contain only pod readiness, counts and allowlisted reasons,
-not environment variables, annotations or raw error messages.
+operation states and known platform error categories, not environment variables,
+annotations, request payloads or raw error messages.
 
 Backups, Kubernetes Secrets, credentials, Helm values, raw subprocess output and
 browser state are private runner material, **not** public build artifacts.

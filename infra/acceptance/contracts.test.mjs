@@ -9,7 +9,7 @@ import { finishReceipt, publicEvidence, publicFailure } from "./receipt.mjs";
 import { literalId, applyOwned } from "./operator.mjs";
 import { ownershipLabel } from "./safety.mjs";
 import { assertCredentialBoundary, credentialTarget, exampleCredential, placeholder, probeCredential } from "./credential-fixture.mjs";
-import { podEvidence } from "./diagnostics.mjs";
+import { databaseEvidence, logEvidence, podEvidence } from "./diagnostics.mjs";
 import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
@@ -38,6 +38,7 @@ test("public evidence strips keys, backups, nested objects and arbitrary strings
   assert.deepEqual(publicFailure(new Error("page.goto: net::ERR_CONNECTION_REFUSED http://user:sensitive@localhost/path?code=sensitive")), { kind: "browser", reason: "connection_refused" });
   assert.deepEqual(publicFailure(new TypeError("sensitive")), { kind: "exception", type: "TypeError" });
   assert.ok(!JSON.stringify(publicFailure({ name: "sensitive", message: "sensitive" })).includes("sensitive"));
+  assert.deepEqual(publicFailure({ name: "HarakiriWaitTimeoutError", id: "sensitive", message: "sensitive", lastStatus: "pending" }), { kind: "readiness_timeout", lastStatus: "pending" });
 });
 
 test("create replay preserves one intent and fails on duplicate identity", async () => {
@@ -151,6 +152,19 @@ test("failure infrastructure evidence excludes container env, annotations and ra
   } });
   assert.equal(evidence.containers[0].reason, "ImagePullBackOff");
   assert.equal(evidence.containers[0].restarts, 2);
+  assert.ok(!JSON.stringify(evidence).includes("sensitive"));
+});
+
+test("operator diagnostics expose only known states and error categories", () => {
+  const text = `error: inconsistent types deduced for parameter $1\ncode: '42P08'\n at /app/apps/api/dist/services/sandbox-operation-worker.js:12:3\nsecret: sensitive`;
+  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
+  assert.deepEqual(logEvidence('{"code":"42703","msg":"column sensitive does not exist"}').sqlStates, ["42703"]);
+  const evidence = databaseEvidence({ sandboxes: [{ status: "pending", hasRuntimeId: false, name: "sensitive" }],
+    operations: [{ kind: "provision", state: "queued", attempts: 0, error: text, request: { key: "sensitive" } }],
+    effects: [{ kind: "sensitive", dispatched: false, settled: true }], reservations: [{ phase: "reserved", released: false }],
+    workspaces: [{ attached: true, attempted: false, name: "sensitive" }] });
+  assert.equal(evidence.operations[0].state, "queued");
+  assert.equal(evidence.effects[0].kind, "unknown");
   assert.ok(!JSON.stringify(evidence).includes("sensitive"));
 });
 

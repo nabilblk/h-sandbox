@@ -18,6 +18,10 @@ export function publicEvidence(details) {
 
 export function publicFailure(error) {
   if (error instanceof AcceptanceCheckError) return { kind: "acceptance_check", check: error.message };
+  if (error.name === "HarakiriWaitTimeoutError") {
+    const statuses = new Set(["pending", "running", "idle", "paused", "resuming", "error", "terminated"]);
+    return { kind: "readiness_timeout", lastStatus: statuses.has(error.lastStatus) ? error.lastStatus : "unknown" };
+  }
   if (Number.isInteger(error.status) && error.status >= 400 && error.status <= 599) {
     const codes = new Set(["forbidden", "unauthorized", "validation_error", "template_not_found", "sandbox_not_found", "sandbox_not_ready", "sandbox_readiness_failed", "workspaces_unavailable", "workspace_unavailable", "workspace_attachment_ambiguous", "organization_capacity_exceeded", "organization_capacity_unavailable", "credential_secret_decryption_unavailable", "credential_vault_unavailable"]);
     return { kind: "http", status: error.status, ...(codes.has(error.code) ? { code: error.code } : {}) };
