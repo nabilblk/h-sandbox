@@ -157,7 +157,7 @@ test("failure infrastructure evidence excludes container env, annotations and ra
 
 test("operator diagnostics expose only known states and error categories", () => {
   const text = `error: inconsistent types deduced for parameter $1\ncode: '42P08'\n at /app/apps/api/dist/services/sandbox-operation-worker.js:12:3\nsecret: sensitive`;
-  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
+  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], providerCodes: [], deniedResources: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
   assert.deepEqual(logEvidence('{"code":"42703","msg":"column sensitive does not exist"}').sqlStates, ["42703"]);
   const evidence = databaseEvidence({ sandboxes: [{ status: "pending", hasRuntimeId: false, name: "sensitive" }],
     operations: [{ kind: "provision", state: "queued", attempts: 0, error: text, request: { key: "sensitive" } }],
@@ -167,6 +167,8 @@ test("operator diagnostics expose only known states and error categories", () =>
   assert.equal(evidence.effects[0].kind, "unknown");
   assert.ok(!JSON.stringify(evidence).includes("sensitive"));
   assert.deepEqual(logEvidence('OpenSandbox 503: {"credential":"sensitive"}').providerHttpStatuses, [503]);
+  assert.deepEqual(logEvidence('OpenSandbox 500: {"detail":{"code":"KUBERNETES::POD_READY_TIMEOUT","input":"sensitive"}}').providerCodes, ["KUBERNETES::POD_READY_TIMEOUT"]);
+  assert.deepEqual(logEvidence(JSON.stringify({ error: 'sensitive cannot list resource "leases" in API group "coordination.k8s.io" in the namespace "sensitive"' })).deniedResources, ["leases"]);
   const event = eventEvidence({ reason: "Failed", count: 3, message: "Failed to pull sensitive with sensitive", involvedObject: { name: "sensitive" } });
   assert.equal(event.reason, "Failed");
   assert.deepEqual(event.details.symptoms, ["image_pull_failed"]);

@@ -5,6 +5,8 @@ const phases = new Set(["Pending", "Running", "Succeeded", "Failed", "Unknown"])
 
 export function logEvidence(text) {
   const sqlStates = ["23502", "23503", "23505", "23514", "40001", "40P01", "42501", "42601", "42702", "42703", "42804", "42883", "42P01", "42P08", "42P18", "53300", "57P03"];
+  const resources = ["pods", "pods/exec", "pods/status", "nodes", "events", "leases", "configmaps", "secrets", "persistentvolumeclaims", "batchsandboxes", "batchsandboxes/status", "pools", "sandboxsnapshots", "tokenreviews", "subjectaccessreviews"];
+  const providerCodes = ["KUBERNETES::INITIALIZATION_ERROR", "KUBERNETES::POD_FAILED", "KUBERNETES::POD_READY_TIMEOUT", "KUBERNETES::API_ERROR", "KUBERNETES::POD_IP_NOT_AVAILABLE", "SANDBOX::UNKNOWN_ERROR", "SANDBOX::INVALID_METADATA_LABEL", "SANDBOX::INVALID_PARAMETER", "SANDBOX::INTERNAL_ERROR", "VOLUME::INVALID_NAME", "VOLUME::INVALID_BACKEND", "VOLUME::INVALID_MOUNT_PATH", "VOLUME::INVALID_PVC_NAME", "VOLUME::UNSUPPORTED_BACKEND", "VOLUME::PVC_NOT_FOUND", "VOLUME::PVC_INSPECT_FAILED"];
   const symptoms = [
     ["ambiguous_parameter_type", /inconsistent types deduced for parameter|could not determine data type of parameter/],
     ["missing_relation", /relation [^\n]+ does not exist/],
@@ -22,6 +24,8 @@ export function logEvidence(text) {
   return {
     sqlStates: sqlStates.filter(code => new RegExp(`\\bcode[\\s\"']*:[\\s\"']*${code}\\b`).test(text)),
     providerHttpStatuses: [...new Set([...text.matchAll(/\bOpenSandbox ([45][0-9]{2}):/g)].map(match => Number(match[1])))],
+    providerCodes: providerCodes.filter(code => text.includes(code)),
+    deniedResources: resources.filter(resource => new RegExp(`cannot (?:get|list|watch|create|update|patch|delete) resource .{0,4}${resource}.{0,4} in API group`).test(text)),
     symptoms: symptoms.filter(([, pattern]) => pattern.test(text)).map(([name]) => name),
     modules: modules.filter(name => text.includes(`/${name}:`))
   };

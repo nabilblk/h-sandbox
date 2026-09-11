@@ -325,6 +325,16 @@ browser state to unblock diagnostics.
   this does not establish native provider readiness. Startup event reasons and
   provider HTTP status diagnostics also cover failures whose pods were already
   removed by provider cleanup, without exporting event messages or raw responses.
+- [Run 34653918829](https://github.com/nabilblk/h-sandbox/actions/runs/34653918829)
+  reproduced the pending timeout. The operation was attempted once and failed;
+  its dispatched effect stayed unsettled, its reservation uncertain and held,
+  and its workspace attached. No duplicate execution or unsafe release was
+  introduced to bypass the failure. Controller logs included permission denial;
+  scheduler logs also included an earlier missing-relation error, which alone
+  does not establish the cause because dispatch subsequently occurred. Added
+  static provider codes and denied-resource names for the next diagnosis.
+  Both cleanup layers passed. The queued test-only run 34654255332 was superseded
+  before a VM started by GitHub's serialized workflow concurrency policy.
 
 ## Completion Notes
 
