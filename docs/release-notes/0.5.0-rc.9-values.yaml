@@ -1,0 +1,9 @@
+# Apply after your preserved operator values with the published rc.9 chart.
+# Migration 038 requires coordinated activation when upgrading from rc.8.
+image:
+  api:
+    tag: "0.5.0-rc.9@sha256:a0f6abcc401c92574ad0a33244e85dd59076352c51fd0fc90e150c289985269f"
+  web:
+    tag: "0.5.0-rc.9@sha256:a07f640e233e9b2e378ade810b1d7a240ee7abb69125f276b275d91e6e795abd"
+config:
+  TEMPLATE_BUILDER_JOB_IMAGE: "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.9@sha256:a0f6abcc401c92574ad0a33244e85dd59076352c51fd0fc90e150c289985269f"

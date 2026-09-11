@@ -1,7 +1,7 @@
 # Execution Readiness and Cold-Start Acceptance
 
-September 11, 2026. **Included in candidate 0.5.0-rc.9; source acceptance below
-is separate from the release's delivery receipt.** No schema migration or provider upgrade is required
+September 11, 2026. **Published and deployed in candidate 0.5.0-rc.9; source acceptance below
+is separate from the [delivery receipt](../release-notes/0.5.0-rc.9-delivery.md).** No schema migration or provider upgrade is required
 by this change. The existing capacity migration requirements remain unchanged.
 
 ## Contract
@@ -121,6 +121,9 @@ bulk-delete an organization to make the test pass.
 Older SDK/CLI rc.8 still use the old wait semantics. Candidate rc.9 includes
 the new contract. API, SDK and CLI must be delivered together;
 there is no silent readiness-success fallback against an older API. Harbor
-storage verification, a matching candidate release, anonymous consumption and
-installation of that actual artifact bundle remain separate gates in the
-[capacity plan](../exec-plans/active/organization-capacity-admission.md).
+storage verification remains outstanding. Matching candidate publication,
+anonymous consumption and upgrades using the actual artifact bundle passed;
+the [delivery receipt](../release-notes/0.5.0-rc.9-delivery.md) records the
+published SDK/CLI first-task and browser checks, initial failures and cleanup.
+The [capacity plan](../exec-plans/active/organization-capacity-admission.md)
+remains active for explicit unresolved gates, not unfinished publication.
