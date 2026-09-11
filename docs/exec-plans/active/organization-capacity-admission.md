@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-10
 **Author**: Codex with the maintainer
-**Status**: In Progress; capacity deployed, safety/rollback and cold-start source fix proved; publication and candidate installation remain
+**Status**: In Progress; rc.9 published, deployed and natively verified; registry headroom and explicitly unverified runtime matrix remain
 **Priority**: P1; next agreed engineering step, point 2 in the roadmap
 **Estimated effort**: 10-15 engineering days, provisional, excluding release approval and unavailable test infrastructure
 **Source baseline**: `1fc0e7a4bfa67896d9313cf3ca3526539987ffdf`
@@ -21,7 +21,7 @@ precede the first workload; retrying writes or recreating the sandbox is not a f
 - [x] Make synchronous HTTP creation and default SDK waiting require execution readiness; preserve accepted IDs, async creation, cancellation and bounded waits.
 - [x] Cover delayed startup, unavailable health, authorization, transition races and first mutations submitted once with regression tests.
 - [x] Prove first-write/first-command success on the isolated native k0s fixture and clean up only test-owned runtimes.
-- [x] Document the readiness contract in API/SDK/public docs source and record acceptance evidence; mark it unreleased pending delivery.
+- [x] Document the readiness contract in API/SDK/public docs and record source acceptance separately from the completed rc.9 delivery receipt.
 
 Design boundary: health probes do not mutate lifecycle, provision again, release
 capacity, or retry commands/filesystem writes. Health is a point-in-time execution
@@ -663,7 +663,7 @@ are prerequisites.
 
 ### Phase 6: Documentation and Examples
 
-**Status**: Complete for the unreleased source contract
+**Status**: Complete for the published rc.9 contract and delivery evidence
 
 | Audience | Required material | Acceptance |
 | --- | --- | --- |
@@ -689,11 +689,11 @@ that only the implementing maintainer knows how to recover.
 
 ### Phase 7: Delivery and Closure
 
-**Status**: In Progress; public lab deployment complete, package release deferred
+**Status**: Published and deployed as rc.9; plan closure awaits explicitly unresolved gates
 
 - [x] Review the full diff and effective test evidence, including non-skipped real
   PostgreSQL tests and native receipts; resolve safety blockers before release.
-- [ ] Choose the release version/channel and publish through protected existing
+- [x] Choose the release version/channel and publish through protected existing
   CI. Update source, chart/images, OpenAPI and affected SDK/CLI packages coherently.
   Do not hardcode an unapproved next version or promote npm `latest` implicitly.
 - [x] With deployment approval, apply the tested maintenance/backfill sequence,
@@ -913,15 +913,17 @@ destructive recovery tests isolated from the public lab. Do not change npm
   an isolated deployment; never reopen pre-capacity writers against migration 038.
 - [ ] Establish Harbor filesystem/inode headroom and durable monitoring or
   expansion. API health and successful garbage collection alone are insufficient.
-- [ ] Select an unused candidate, publish matching SDK/CLI/images/chart via
+- [x] Select an unused candidate, publish matching SDK/CLI/images/chart via
   protected CI and verify anonymous artifact consumption.
-- [ ] Follow the public standalone installation/upgrade instructions with those
+- [x] Follow the public standalone installation/upgrade instructions with those
   artifacts, verify OIDC and real runtime/SDK/CLI/capacity workflows, and clean
   only the explicitly owned acceptance resources.
+  The published rc.9 bundle upgraded the existing isolated installation; this
+  does not claim a second fresh blank-cluster installation of rc.9.
 - [x] Resolve or explicitly triage the observed cold-start readiness gap before
   claiming a reliably ready first task. Published rc.8 reported running before
   its execd file endpoint accepted the first write; a manual retry is not a fix.
-- [ ] Record precise release/install evidence, update discoverable public docs
+- [x] Record precise release/install evidence, update discoverable public docs
   and plan placement; retain explicit limits for optional unverified runtimes.
 
 Harbor API credentials are available locally, but its host/cluster access is not
@@ -1011,7 +1013,7 @@ This closes the source readiness defect, not publication or coherent artifact
 installation. No public deployment, npm version or dist-tag changed. Keep this
 plan active until the remaining registry/candidate/installation gates are met.
 
-### Candidate Delivery In Progress
+### Candidate Delivery Checkpoint
 
 The owner explicitly requested commit, deployment, publication and release.
 Selected `0.5.0-rc.9` after confirming npm and all three Harbor artifact
@@ -1023,9 +1025,45 @@ origins, Secrets, capacity activation and user workloads.
 
 - [x] Prepare matching source/package/chart versions, real changelog and
   readiness/capacity installation guidance.
-- [ ] Commit through protected PR checks and merge reviewed source.
-- [ ] Publish immutable matching images/chart and SDK/CLI using trusted CI.
-- [ ] Verify anonymous artifacts and test the published bundle on the isolated
+- [x] Commit through protected PR checks and merge reviewed source.
+- [x] Publish immutable matching images/chart and SDK/CLI using trusted CI.
+- [x] Verify anonymous artifacts and test the published bundle on the isolated
   native fixture before updating the populated public lab.
-- [ ] Deploy with preserved operator values, verify public identity and native
+- [x] Deploy with preserved operator values, verify public identity and native
   first tasks, publish the delivery receipt and GitHub prerelease.
+
+PR #39 merged as `f626226`; immutable `v0.5.0-rc.9` now publishes the API/web,
+chart and SDK/CLI on `next`. Stable `latest` remains `0.4.0`. The isolated
+fixture upgraded to Helm revision 6 and the populated public lab to revision 39,
+preserving operator origins and Secret values. Published-client native tests,
+capacity denial/cleanup, browser OIDC sign-in/out and the repeated public docs
+suite passed. See the [delivery receipt](../../release-notes/0.5.0-rc.9-delivery.md)
+and [GitHub prerelease](https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.9).
+
+The original npm job published both packages but its immediate metadata check
+hit propagation 404. PR #40 added bounded anonymous polling and a read-only
+verification mode; protected CI and the subsequent read-only workflow passed.
+Nothing was republished or retagged. The receipt retains the first fixture
+CLI-harness error and transient public rollout 502s before successful reruns.
+
+The explicit owner delivery request proceeded with Harbor uploads working but
+physical disk/inode headroom still unavailable. That gate is not waived or
+marked complete. Keep this plan active for registry monitoring/headroom and
+explicitly unverified optional runtime combinations; do not describe publication
+as pending or expand deployment/recovery support claims. Only owned acceptance
+resources were cleaned, and the isolated VM returned to its prior stopped state.
+
+### Harbor Retest, September 11 at 15:10 UTC
+
+The owner requested a fresh check because storage may have been repaired.
+Harbor v2.12.2 reports all eight components healthy, read-only mode disabled and
+an unlimited project storage quota. Two separate 8 MiB registry upload writes
+returned 202 with their full ranges; both were cancelled (204) and confirmed
+absent (404), without publishing an image or tag. The disk-full error did not
+recur. Publication and anonymous downloads also passed earlier in this delivery.
+
+The volume API returns `{"storage":[{}]}` rather than capacity/free-space
+figures. Treat Harbor as operational, with disk/inode headroom and monitoring
+still an operator follow-up, not a currently reproduced publication failure.
+Do not infer storage expansion or mark that measurement gate complete from
+successful writes alone. The delivery receipt includes this retest.
