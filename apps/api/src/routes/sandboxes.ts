@@ -35,6 +35,7 @@ import {
 } from "../services/sandbox-lifecycle.js";
 import type { Query } from "../services/query.js";
 import { createSandboxSchema, createSandboxSnapshotSchema, patchSandboxSourceSchema } from "./sandboxes.schema.js";
+import { getSandboxReadiness, waitForSandboxReadiness } from "../services/sandbox-readiness.js";
 
 export type SandboxRouteDependencies = {
   query?: Query;
@@ -86,6 +87,8 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
 
   app.post("/v1/sandboxes", async (request, reply) => {
     const body = createSandboxSchema.parse(request.body ?? {});
+    const wait = body.wait ?? !preferRespondAsync(request.headers);
+    const deadline = Date.now() + (body.waitTimeoutMs ?? 60_000);
     const result = await createSandbox(
       {
         organizationId: request.auth.organizationId,
@@ -103,8 +106,8 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         credentials: body.credentials,
         credentialMappings: body.credentialMappings,
         idempotencyKey: body.idempotencyKey ?? idempotencyKey(request.headers),
-        wait: body.wait ?? !preferRespondAsync(request.headers),
-        waitTimeoutMs: body.waitTimeoutMs
+        wait,
+        waitTimeoutMs: body.waitTimeoutMs ?? ((body.credentials?.length || body.credentialMappings?.length) ? undefined : 60_000)
       },
       {
         query,
@@ -253,23 +256,35 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         message: result.message
       }));
     }
-    if (result.kind === "pending") {
-      const response = {
-        sandbox: result.sandbox,
-        operation: summarizeSandboxOperation(result.operation),
-        status: "pending",
-        message: result.message
-      } satisfies CreateSandboxResponse;
+    const response: CreateSandboxResponse = result.kind === "pending"
+      ? { sandbox: result.sandbox, operation: summarizeSandboxOperation(result.operation), status: "pending", message: result.message }
+      : { sandbox: result.sandbox, credentialAttachments: result.credentialAttachments };
+    if (wait) {
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      reply.raw.once("close", abort);
+      if (reply.raw.destroyed) abort();
+      try {
+        const observation = await waitForSandboxReadiness({
+          organizationId: request.auth.organizationId, sandboxId: result.sandbox.id,
+          timeoutMs: Math.max(0, deadline - Date.now()), signal: controller.signal
+        }, { query, runtimeProvider });
+        if (observation) Object.assign(response, observation);
+        response.status = observation?.readiness.status === "ready" ? "created" : "pending";
+        response.message = response.status === "pending"
+          ? "Sandbox accepted but execution readiness is not confirmed. Wait on this sandbox ID before submitting work."
+          : undefined;
+      } finally {
+        reply.raw.off("close", abort);
+      }
+    }
+    if (response.status === "pending") {
       return reply
         .code(202)
         .header("location", `/v1/sandboxes/${encodeURIComponent(result.sandbox.id)}`)
         .header("retry-after", "1")
         .send(response);
     }
-    const response = {
-      sandbox: result.sandbox,
-      credentialAttachments: result.credentialAttachments
-    } satisfies CreateSandboxResponse;
     return reply.code(201).send(response);
   });
 
@@ -278,6 +293,22 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
     const sandbox = await getSandbox({ organizationId: request.auth.organizationId, sandboxId: id }, { query, runtimeProvider });
     if (!sandbox) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     return { sandbox } satisfies SandboxResponse;
+  });
+
+  app.get("/v1/sandboxes/:id/readiness", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    reply.raw.once("close", abort);
+    try {
+      const response = await getSandboxReadiness({
+        organizationId: request.auth.organizationId, sandboxId: id, signal: controller.signal
+      }, { query, runtimeProvider });
+      reply.header("cache-control", "no-store");
+      return response ?? reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    } finally {
+      reply.raw.off("close", abort);
+    }
   });
 
   app.patch("/v1/sandboxes/:id/source", async (request, reply) => {

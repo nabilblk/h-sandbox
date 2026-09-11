@@ -63,6 +63,37 @@ test("members have read-only settings and onboarding skips organization writes",
   expect(state.creates).toEqual([{ name: "onboarding" }]);
 });
 
+test("onboarding never submits its first command for a running but not ready sandbox", async ({ page }) => {
+  await setup(page, "member", true);
+  let ready = false;
+  let commands = 0;
+  const keys: string[] = [];
+  await page.route("**/v1/sandboxes", async route => {
+    keys.push(route.request().postDataJSON().idempotencyKey);
+    await route.fulfill({ status: ready ? 201 : 202, json: {
+      sandbox: { id: "sbx_starting", status: "running" }, status: ready ? "created" : "pending",
+      readiness: { status: ready ? "ready" : "starting", checkedAt: new Date().toISOString() }
+    } });
+  });
+  await page.route("**/v1/sandboxes/sbx_starting/run", async route => {
+    commands++;
+    await route.fulfill({ json: { result: { exitCode: 0, stdout: "4\n" } } });
+  });
+  await page.goto("/#onboarding");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await page.getByRole("button", { name: "Run first sandbox" }).click();
+  await expect(page.getByRole("alert")).toContainText("sbx_starting is still starting");
+  expect(commands).toBe(0);
+  ready = true;
+  await page.getByRole("button", { name: "Run first sandbox" }).click();
+  await expect(page.locator(".hterm-line", { hasText: /^4$/ })).toBeVisible();
+  expect(commands).toBe(1);
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBe(keys[1]);
+});
+
 test("admin saves settings; scoped key creation, clipboard and confirmed revocation handle errors", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   const state = await setup(page, "admin");

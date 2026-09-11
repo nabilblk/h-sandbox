@@ -28,15 +28,14 @@ kubectl -n harakiri-preview rollout status deployment/preview-keycloak --timeout
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox \\
   --version 0.2.2-harakiri.2 --destination preview-charts
 helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \\
-  --version 0.5.0-rc.8 --destination preview-charts
-helm show chart preview-charts/harakiri-0.5.0-rc.8.tgz`,
+  --version 0.5.0-rc.9 --destination preview-charts
+helm show chart preview-charts/harakiri-0.5.0-rc.9.tgz`,
   runtime: `helm install preview-runtime preview-charts/opensandbox-0.2.2-harakiri.2.tgz \\
   --namespace harakiri-preview \\
   -f infra/preview/.private/opensandbox-values.json --wait --timeout 10m`,
-  controlPlane: `helm install harakiri preview-charts/harakiri-0.5.0-rc.8.tgz \\
+  controlPlane: `helm install harakiri preview-charts/harakiri-0.5.0-rc.9.tgz \\
   --namespace harakiri-preview \\
-  -f infra/preview/.private/harakiri-values.json \\
-  -f docs/release-notes/0.5.0-rc.8-public-values.yaml --wait --timeout 10m
+  -f infra/preview/.private/harakiri-values.json --wait --timeout 10m
 kubectl -n harakiri-preview get pods
 kubectl -n harakiri-preview-runtime get pods`,
   webForward: `kubectl -n harakiri-preview port-forward --address=127.0.0.1 \\
@@ -49,7 +48,7 @@ kubectl -n harakiri-preview-runtime get pods`,
 curl --fail --silent --show-error \\
   http://127.0.0.1:28484/realms/harakiri/.well-known/openid-configuration \\
   | jq -e '.issuer == "http://127.0.0.1:28484/realms/harakiri"'`,
-  cli: `npm install --global @h-sandbox/cli@0.5.0-rc.8
+  cli: `npm install --global @h-sandbox/cli@0.5.0-rc.9
 harakiri --version
 export HARAKIRI_API_URL=http://127.0.0.1:28482
 read -r -s -p "Harakiri API key: " HARAKIRI_API_KEY
@@ -64,7 +63,7 @@ harakiri template inspect opencode`,
   consumer: `mkdir install-check
 cd install-check
 npm init -y
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8`,
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9`,
   execute: `node install-check.mjs
 unset HARAKIRI_API_KEY`,
   inspect: `kubectl -n harakiri-preview get pods,pvc
@@ -109,6 +108,7 @@ try {
   assert.equal(file.content, "harakiri-ready");
 } finally {
   await sandbox.kill();
+  await client.waitForSandbox(sandbox.id, { statuses: ["terminated"], timeoutMs: 120_000 });
 }
 console.log("PASS: create, file write/read, command and termination");`;
 
@@ -122,10 +122,10 @@ export const kubernetesInstallDocs: DocPage = {
     <table className="docs-data-table"><caption>Installed components</caption><thead><tr><th scope="col">Layer</th><th scope="col">Components and responsibility</th></tr></thead><tbody>
       <tr><td>Data and identity</td><td><strong>PostgreSQL 16.15 and Keycloak 26.7.3</strong>, from manifests. Separate application and identity databases; browser sign-in and a realm-scoped service account.</td></tr>
       <tr><td>Runtime</td><td><strong>OpenSandbox chart 0.2.2-harakiri.2.</strong> Controller, lifecycle server and gateway; executes sandbox workloads in a separate namespace.</td></tr>
-      <tr><td>Control plane</td><td><strong>Harakiri chart and API 0.5.0-rc.8.</strong> API, dashboard, scheduler and template worker. The overlay selects web 0.5.0-rc.8-docs.2 by digest.</td></tr>
-      <tr><td>Developer clients</td><td><strong>SDK and CLI 0.5.0-rc.8.</strong> Your application connects only to the Harakiri API.</td></tr>
+      <tr><td>Control plane</td><td><strong>Harakiri chart, API and web 0.5.0-rc.9.</strong> API, dashboard, scheduler and template worker use matching candidate artifacts.</td></tr>
+      <tr><td>Developer clients</td><td><strong>SDK and CLI 0.5.0-rc.9.</strong> Your application connects only to the Harakiri API.</td></tr>
     </tbody></table>
-    <aside className="docs-notice"><p><strong>Scope matters.</strong> Recorded native acceptance is Linux/arm64 on k0s 1.36.3, Ubuntu 24.04, with 8 CPUs, 16 GiB RAM, 80 GiB disk and local-path storage. This is a reference allocation, not a minimum, capacity guarantee or certification of every Kubernetes distribution. Native amd64 acceptance is still pending.</p><p>This is for trusted-team evaluation, not hostile multi-tenancy or HA. Organization concurrency targets are not enforced, and historical usage is not measured. Read <a href="#docs/developer-preview">the preview limits</a> before sharing access.</p></aside>
+    <aside className="docs-notice"><p><strong>Scope matters.</strong> Recorded native acceptance is Linux/arm64 on k0s 1.36.3, Ubuntu 24.04, with 8 CPUs, 16 GiB RAM, 80 GiB disk and local-path storage. This is a reference allocation, not a minimum, capacity guarantee or certification of every Kubernetes distribution. Native amd64 acceptance is still pending.</p><p>This is for trusted-team evaluation, not hostile multi-tenancy or HA. Organization execution slots are enforced; CPU, memory and storage quotas need infrastructure controls, and historical usage is not measured. Read <a href="#docs/developer-preview">the preview limits</a> before sharing access.</p></aside>
     <p><strong>Already have PostgreSQL, OIDC and a runtime?</strong> Use the <a href={`${source}/infra/charts/harakiri/values.yaml`}>chart values reference</a> with your existing services and operator-owned Secret. Do not run the bundled dependency manifests against them. This walkthrough is the complete reference path, not a recipe for replacing an existing installation.</p>
     <p><strong>OpenShift or a disconnected registry?</strong> Review the standalone <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/install-openshift.md">OpenShift boundaries</a> and <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/airgap.md">artifact mirroring guide</a>. The native egress sidecar requires network privileges including <code>NET_ADMIN</code>; it does not fit an unchanged restricted OpenShift SCC. Do not relax SCCs to follow this guide. BackgroundAgent and customer deployment bundles are not prerequisites.</p>
 
@@ -157,11 +157,11 @@ export const kubernetesInstallDocs: DocPage = {
     <h2>Install the runtime and control plane</h2>
     <p>Download the <strong>two</strong> charts before installation. The published Harbor artifacts allow anonymous reads; private mirrors require your own registry identity. Do not use unversioned chart or image tags.</p>
     <CodeBlock language="bash">{kubernetesInstallCommands.charts}</CodeBlock>
-    <p>Compare each digest reported by <code>helm pull</code> with the <a href={`${source}/docs/release-notes/0.5.0-rc.8-delivery.md`}>release artifact receipt</a>: the runtime digest starts with <code>b93f5155</code>, and the control-plane digest with <code>87e9c225</code>. Verify the full digest, not just these prefixes. An OCI manifest digest is not the archive checksum and does not establish a signing/provenance guarantee.</p>
+    <p>Compare the full digests reported by <code>helm pull</code> with the assets attached to the <a href="https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.9">0.5.0-rc.9 release</a>. An OCI manifest digest is not the archive checksum and does not establish a signing/provenance guarantee.</p>
     <CodeBlock language="bash" filename="Install the runtime first">{kubernetesInstallCommands.runtime}</CodeBlock>
     <p>The runtime server listens on 8080; its internal Service uses port 80. The supplied values explicitly set both subchart namespaces. The lifecycle API remains internal.</p>
     <CodeBlock language="bash" filename="Install Harakiri second">{kubernetesInstallCommands.controlPlane}</CodeBlock>
-    <p>The public-launch overlay pins the API and corrected web image by digest. It does not replace credentials or public origins. This profile supports importing existing template images; it supplies no registry writer and does not prove Dockerfile build support. Configure that workflow separately.</p>
+    <p>The chart selects matching versioned API and web images; record their index and platform digests in your installation receipt. Do not apply an older release's image overlay. This profile supports importing existing template images; it supplies no registry writer and does not prove Dockerfile build support. Configure that workflow separately.</p>
 
     <h2>Connect and sign in</h2>
     <p>Open three terminals. Set the same <code>KUBECONFIG</code> in each and keep one forward running per terminal. They are loopback-only; no Cloudflare tunnel, DNS or public ingress is needed.</p>
@@ -198,13 +198,13 @@ export const kubernetesInstallDocs: DocPage = {
       <tr><td>401 during onboarding</td><td>API origin, token issuer, API audience mapper and server JWKS access. Do not enable dev authentication to bypass the error.</td></tr>
       <tr><td>Login redirects to localhost</td><td>Public runtime config, Keycloak hostname and existing realm client URLs. Do not regenerate credentials as a repair.</td></tr>
       <tr><td>Runtime or egress unavailable</td><td>Runtime capabilities, network privileges, workload namespace and controller events. Do not use Kubernetes exec as an application fallback.</td></tr>
-      <tr><td>Running sandbox, but the first file request returns 502</td><td>A cold-start readiness race was observed with the pinned rc.8 profile: lifecycle status became running before the execution endpoint was reachable. Keep the accepted sandbox ID and check a read-only file listing. Do not recreate the sandbox or blindly retry commands and writes whose outcome is unknown.</td></tr>
+      <tr><td>Running sandbox, but the first file request returns 502</td><td>Check that API and SDK/CLI both use rc.9 or newer. Earlier rc.8 had a cold-start readiness race. Keep the accepted sandbox ID and use the readiness endpoint or SDK wait before the first task. Do not recreate the sandbox or blindly retry commands and writes whose outcome is unknown.</td></tr>
       <tr><td>Browser stops working after pod replacement</td><td>Restart the affected local port forward. For public ingress, inspect Service endpoints and ingress configuration instead.</td></tr>
     </tbody></table>
     <p>Share sanitized versions, status and relevant error codes in <a href="https://github.com/nabilblk/h-sandbox/discussions">Discussions</a>. Never attach Secrets, a full Helm values dump, tokens or customer data. The <a href="#docs/errors-troubleshooting">error reference</a> describes application-level failures.</p>
 
     <h2>Upgrade and recovery</h2>
-    <aside className="docs-notice"><p><strong>Upcoming capacity admission upgrade.</strong> Migration 038 is unreleased and is not included in the pinned 0.5.0-rc.8 installation above. It requires stopping all older API and scheduler writers, verifying runtime inventory and activating existing organizations before reopening mutations. Do not mix old and new writers. Read <a href="#docs/execution-capacity">Execution capacity</a> and the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/execution-capacity.md">operator activation runbook</a> before upgrading to a release containing it.</p></aside>
+    <aside className="docs-notice"><p><strong>Migration 038 is included in 0.5.0-rc.9.</strong> Upgrading from rc.8 requires stopping all older API and scheduler writers, verifying runtime inventory and activating existing organizations before reopening mutations. Fresh organizations start enforced. Do not mix old and new writers or roll back to pre-capacity rc.8 after migration 038. Read <a href="#docs/execution-capacity">Execution capacity</a> and the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/execution-capacity.md">operator activation runbook</a> before upgrading.</p></aside>
     <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/execution-capacity-install-acceptance.md">September 11 installation and rollback receipt</a> records a separate arm64 fixture, real workspace retention and rollback between capacity-aware images. It also records the cold-start failure and remaining publication gates. This is not a newly published candidate or permission to roll back to pre-capacity rc.8 after migration 038.</p>
     <p>Use the target release's migration order, downloaded chart, original operator values and matching image overlay. Do not use <code>helm upgrade --reuse-values</code> as a substitute for reviewing changes, mix npm <code>latest</code> with the candidate server, or regenerate the configuration directory.</p>
     <p>Before upgrading, quiesce writes and workers and back up both PostgreSQL databases, operator Secrets, encryption keyrings and detached workspace files from the same point in time. Test restoration into a disposable target. A database dump is not a workspace backup; retained files are not a process or memory snapshot.</p>

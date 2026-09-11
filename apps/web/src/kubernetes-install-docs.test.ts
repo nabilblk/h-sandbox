@@ -46,8 +46,8 @@ test("installation pins reviewed artifacts, separates configuration and protects
   assert.match(commands.cluster, /export KUBECONFIG=/);
   assert.doesNotMatch(commands.configure, /kubectl|helm/);
   assert.match(commands.runtime, /opensandbox-0.2.2-harakiri.2.tgz/);
-  assert.match(commands.controlPlane, /harakiri-0.5.0-rc.8.tgz/);
-  assert.match(commands.controlPlane, /0.5.0-rc.8-public-values.yaml/);
+  assert.match(commands.controlPlane, /harakiri-0.5.0-rc.9.tgz/);
+  assert.doesNotMatch(commands.controlPlane, /rc\.8-public-values/);
   const receipt = fs.readFileSync(new URL("../../../docs/release-notes/0.5.0-rc.8-delivery.md", import.meta.url), "utf8");
   const image = commands.template.match(/core\.campus\.clusterdiali\.me\/harakiri\/templates\/opencode@sha256:[a-f0-9]{64}/)![0];
   assert.ok(receipt.includes(image));
@@ -58,7 +58,7 @@ test("installation pins reviewed artifacts, separates configuration and protects
 
 test("profile limits and upgrade hazards stay visible instead of implying production certification", () => {
   const markdown = renderDocMarkdown(kubernetesInstallDocs);
-  for (const phrase of ["Native amd64 acceptance is still pending", "not enforced", "historical usage is not measured", "NET_ADMIN", "does not fit an unchanged restricted OpenShift SCC", "local-path", "realm-scoped service account", "no application build", "does not contact Kubernetes", "not a complete data erasure", "encrypted Vault rows", "not expected behavior"]) {
+  for (const phrase of ["Native amd64 acceptance is still pending", "execution slots are enforced", "historical usage is not measured", "NET_ADMIN", "does not fit an unchanged restricted OpenShift SCC", "local-path", "realm-scoped service account", "no application build", "does not contact Kubernetes", "not a complete data erasure", "encrypted Vault rows", "not expected behavior"]) {
     assert.ok(markdown.includes(phrase), phrase);
   }
   const chartReadme = fs.readFileSync(new URL("../../../infra/charts/harakiri/README.md", import.meta.url), "utf8");

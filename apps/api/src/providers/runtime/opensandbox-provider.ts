@@ -1,4 +1,5 @@
 import { openSandbox } from "./opensandbox-transport.js";
+import { probeExecd } from "./opensandbox-execd.js";
 import { config } from "../../config.js";
 import type {
   RuntimeFileListResult,
@@ -118,6 +119,11 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
   async get(ref) {
     const sandbox = await openSandbox.get(ref.providerSandboxId);
     return sandbox ? mapSandbox(sandbox) : null;
+  },
+
+  async isReady(ref, signal) {
+    if (ref.provider !== "opensandbox" || !ref.providerSandboxId) return false;
+    return probeExecd(ref.providerSandboxId, signal);
   },
 
   async delete(ref) {

@@ -38,7 +38,7 @@ test("create uses one key per invocation and preserves explicit retry keys", asy
   const requests: Record<string, unknown>[] = [];
   const client = new HarakiriClient({ apiUrl: "https://sandbox.test", apiKey: "test", fetch: async (_url, init) => {
     requests.push(JSON.parse(String(init?.body)));
-    return Response.json({ sandbox: { id: "sbx_test" } });
+    return Response.json({ sandbox: { id: "sbx_test" }, readiness: { status: "ready", checkedAt: new Date().toISOString() } });
   } });
   await client.createSandbox({ template: "test" });
   await client.createSandbox({ template: "test" });

@@ -13,6 +13,8 @@ test("changelog route renders release entries and active public navigation", () 
   }));
 
   assert.match(markup, /Changelog/);
+  assert.match(markup, /v0\.5\.0-rc\.9/);
+  assert.match(markup, /Execution capacity and cold-start readiness/);
   assert.match(markup, /v0\.5\.0-rc\.4/);
   assert.match(markup, /Scoped authorization and owned API keys/);
   assert.match(markup, /v0\.5\.0-rc\.3/);

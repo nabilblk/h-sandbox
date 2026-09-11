@@ -42,6 +42,7 @@ export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: User
   const createKey = () => perform(async () => { setCreatedKey(await api.createKey("onboarding")); setStep(3); });
   const run = () => perform(async () => {
     const created = await api.createSandbox({ template: "python-3.12", ttlSeconds: 300, idempotencyKey: intentKeys.forIntent("onboarding") });
+    if (created.status === "pending") throw new Error(`Sandbox ${created.sandbox.id} is still starting. No command was submitted.`);
     const result = await api.run(created.sandbox.id, { command: "python -c 'print(2+2)'" });
     setOut([`POST /v1/sandboxes -> ${created.sandbox.id}`, result.result.stdout.trim(), "sandbox ready in dashboard"]);
   });

@@ -344,6 +344,8 @@ export type RuntimeProviderCapabilities = {
 export interface RuntimeProvider {
   readonly kind: RuntimeProviderKind;
   readonly capabilities: RuntimeProviderCapabilities;
+  /** Read-only execution-service health, not lifecycle or application readiness. */
+  isReady?(ref: RuntimeSandboxRef, signal: AbortSignal): Promise<boolean>;
 
   create(input: RuntimeCreateSandboxInput): Promise<RuntimeCreateSandboxResult>;
   list(): Promise<RuntimeSandboxSummary[]>;

@@ -29,6 +29,7 @@ add("DELETE", ["/v1/registry-credentials/:id"], { scopes: ["registry:manage"] })
 add("GET", ["/v1/workspaces", "/v1/workspaces/:id"], { scopes: ["workspaces:read"] });
 add("POST", ["/v1/workspaces", "/v1/workspaces/:id/archive"], { scopes: ["workspaces:write"] });
 add("GET", ["/v1/sandboxes", "/v1/sandboxes/:id", "/v1/snapshots", "/v1/snapshots/:snapshotId", "/v1/runtime/capabilities"], { scopes: ["sandboxes:read"] });
+add("GET", ["/v1/sandboxes/:id/readiness"], { scopes: ["sandboxes:read"] });
 add("POST", ["/v1/sandboxes", "/v1/sandboxes/:id/pause", "/v1/sandboxes/:id/resume", "/v1/sandboxes/:id/snapshots", "/v1/sandboxes/:id/renew"], { scopes: ["sandboxes:write"] });
 add("DELETE", ["/v1/sandboxes/:id", "/v1/snapshots/:snapshotId"], { scopes: ["sandboxes:write"] });
 add("PATCH", ["/v1/sandboxes/:id/source"], { scopes: ["sandboxes:write"] });

@@ -1,7 +1,7 @@
 import { observeCommandStream, type CommandStreamOptions } from "./command-stream.js";
 import type { WorkspaceResponse, WorkspacesResponse, CreateWorkspaceBody } from "./workspaces.js";
-import type { OrganizationCapacityResponse } from "./protocol.js";
-export type { OrganizationCapacity, OrganizationCapacityResponse } from "./protocol.js";
+import type { OrganizationCapacityResponse, SandboxReadiness, SandboxReadinessResponse } from "./protocol.js";
+export type { OrganizationCapacity, OrganizationCapacityResponse, SandboxReadiness, SandboxReadinessResponse } from "./protocol.js";
 export { readCommandEvents, observeCommandStream, CommandStreamError, type CommandStreamOptions } from "./command-stream.js";
 export type { WorkspaceSummary, WorkspacePolicy, CreateWorkspaceBody, WorkspacesResponse, WorkspaceResponse } from "./workspaces.js";
 export type { SandboxCommandEvent } from "./command-events.js";
@@ -435,6 +435,7 @@ export type WaitForSandboxOptions = {
   timeoutMs?: number;
   intervalMs?: number;
   statuses?: SandboxStatus[];
+  signal?: AbortSignal;
 };
 
 export type WaitForCommandOptions = {
@@ -1518,6 +1519,7 @@ export class HarakiriClient {
     wrap: (sandbox: SandboxSummary) => HarakiriSandbox.wrap(this, sandbox),
     list: (params = "") => this.listSandboxes(params),
     get: (id: string) => this.getSandbox(id),
+    readiness: (id: string, options: { signal?: AbortSignal } = {}) => this.getSandboxReadiness(id, options),
     reconnect: (id: string) => HarakiriSandbox.connect(this, id),
     wait: (id: string, options: WaitForSandboxOptions = {}) => this.waitForSandbox(id, options),
     renew: (id: string) => this.renewSandbox(id),
@@ -1671,11 +1673,15 @@ export class HarakiriClient {
         waitTimeoutMs: createInput.waitTimeoutMs
       })
     });
-    if (!source) return result;
+    if (!source) {
+      if (createInput.wait === false || createInput.waitTimeoutMs !== undefined || result.readiness?.status === "ready") return result;
+      const ready = await this.waitForSandbox(result.sandbox.id);
+      return { ...result, ...ready, status: "created" as const, message: undefined };
+    }
 
     try {
-      const ready = result.sandbox.status === "running" || result.sandbox.status === "idle"
-        ? { sandbox: result.sandbox }
+      const ready = result.readiness?.status === "ready"
+        ? { sandbox: result.sandbox, readiness: result.readiness }
         : await this.waitForSandbox(result.sandbox.id, { timeoutMs: Math.max(createInput.waitTimeoutMs ?? 0, 60_000) });
       const startedAt = new Date().toISOString();
       const started = Date.now();
@@ -1700,7 +1706,7 @@ export class HarakiriClient {
           durationMs: Date.now() - started
         })
       });
-      return { ...result, sandbox: completed.sandbox };
+      return { ...result, sandbox: completed.sandbox, readiness: ready.readiness, status: "created" as const, message: undefined };
     } catch (error) {
       await this.updateSandboxSource(result.sandbox.id, {
         source: gitSourceProvenance(source, "failed", {
@@ -1725,6 +1731,10 @@ export class HarakiriClient {
     return this.request<SandboxResponse>(`/v1/sandboxes/${id}`);
   }
 
+  getSandboxReadiness(id: string, options: { signal?: AbortSignal } = {}) {
+    return this.request<SandboxReadinessResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/readiness`, { signal: options.signal });
+  }
+
   updateSandboxSource(id: string, input: PatchSandboxSourceBody) {
     return this.request<SandboxSourceResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/source`, {
       method: "PATCH",
@@ -1732,21 +1742,51 @@ export class HarakiriClient {
     });
   }
 
-  async waitForSandbox(id: string, options: WaitForSandboxOptions = {}) {
+  async waitForSandbox(id: string, options: WaitForSandboxOptions = {}): Promise<SandboxResponse & { readiness?: SandboxReadiness }> {
     const timeoutMs = options.timeoutMs ?? 60_000;
     const intervalMs = options.intervalMs ?? 1_000;
-    const targetStatuses = new Set<SandboxStatus>(options.statuses ?? ["running", "idle"]);
-    const started = Date.now();
-    let last: SandboxResponse | null = null;
-    while (Date.now() - started <= timeoutMs) {
-      last = await this.getSandbox(id);
-      if (targetStatuses.has(last.sandbox.status)) return last;
-      if (!options.statuses && (last.sandbox.status === "error" || last.sandbox.status === "terminated")) {
-        throw new Error(`Sandbox ${id} reached ${last.sandbox.status} before becoming ready`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 0 || !Number.isSafeInteger(intervalMs) || intervalMs < 0) {
+      throw new RangeError("Sandbox wait requires non-negative integer timeoutMs and intervalMs.");
     }
-    const suffix = last ? `; last status ${last.sandbox.status}` : "";
+    options.signal?.throwIfAborted();
+    if (timeoutMs === 0) throw new HarakiriWaitTimeoutError(`Timed out waiting for sandbox ${id}`, "sandbox", id);
+    const targetStatuses = new Set<SandboxStatus>(options.statuses ?? ["running", "idle"]);
+    const needsReadiness = targetStatuses.has("running") || targetStatuses.has("idle");
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
+    let last: (SandboxResponse & { readiness?: SandboxReadiness }) | null = null;
+    let readiness: SandboxReadinessResponse["readiness"] | undefined;
+    try {
+      while (!signal.aborted) {
+        options.signal?.throwIfAborted();
+        const health = needsReadiness
+          ? await this.getSandboxReadiness(id, { signal })
+          : null;
+        const observation = health ?? await this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}`, { signal });
+        signal.throwIfAborted();
+        last = observation;
+        readiness = health?.readiness;
+        if (needsReadiness && (!readiness || readiness.status === "unsupported")) {
+          throw new Error(`Execution readiness is not supported for sandbox ${id}. Upgrade the API/provider; do not submit work based only on lifecycle status.`);
+        }
+        if (targetStatuses.has(last.sandbox.status) &&
+          (!["running", "idle"].includes(last.sandbox.status) || readiness?.status === "ready")) return last;
+        if (!options.statuses && (last.sandbox.status === "error" || last.sandbox.status === "terminated")) {
+          throw new Error(`Sandbox ${id} reached ${last.sandbox.status} before becoming ready`);
+        }
+        await new Promise<void>((resolve, reject) => {
+          const abort = () => { clearTimeout(timer); reject(signal.reason); };
+          const timer = setTimeout(() => { signal.removeEventListener("abort", abort); resolve(); }, intervalMs);
+          signal.addEventListener("abort", abort, { once: true });
+          if (signal.aborted) abort();
+        });
+      }
+    } catch (error) {
+      options.signal?.throwIfAborted();
+      if (!timeout.aborted) throw error;
+    }
+    options.signal?.throwIfAborted();
+    const suffix = last ? `; last status ${last.sandbox.status}${readiness ? `, execution ${readiness.status}` : ""}` : "";
     throw new HarakiriWaitTimeoutError(`Timed out waiting for sandbox ${id}${suffix}`, "sandbox", id, last?.sandbox.status);
   }
 

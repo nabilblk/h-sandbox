@@ -60,6 +60,10 @@ test("docs content exposes expected product pages and renderable body markup", (
   const lifecycleMarkup = renderToStaticMarkup(lifecycle.body);
   assert.match(lifecycleMarkup, /snapshotId/);
   assert.match(lifecycleMarkup, /lifecycleSnapshot/);
+  assert.match(lifecycleMarkup, /Execution readiness/);
+  assert.match(lifecycleMarkup, /readiness.status = ready/);
+  assert.match(lifecycleMarkup, /Requires API and SDK 0.5.0-rc.9 or newer/);
+  assert.match(lifecycleMarkup, /does not prove your application/);
 
   const vault = docPages.find((page) => page.id === "credential-vault");
   assert.ok(vault);

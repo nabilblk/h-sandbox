@@ -3,6 +3,7 @@ import test from "node:test";
 import { openSandbox, openSandboxCreateBody } from "./opensandbox.js";
 import type { RuntimeTemplate } from "./templates.js";
 import { config } from "./config.js";
+import { probeExecd } from "./providers/runtime/opensandbox-execd.js";
 
 const originalFetch = globalThis.fetch;
 
@@ -26,6 +27,40 @@ const execdEndpointResponse = (headers?: Record<string, string>) =>
     endpoint: "127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772",
     ...(headers ? { headers } : {})
   });
+
+test("execution readiness resolves the authenticated endpoint and performs only GET /ping", async () => {
+  const signal = AbortSignal.timeout(1000);
+  const calls: string[] = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push(String(url));
+    assert.equal(init?.signal, signal);
+    assert.equal(init?.body, undefined);
+    if (String(url).includes("/endpoints/")) return execdEndpointResponse({ "X-EXECD-ACCESS-TOKEN": "test-execd-token", "OpenSandbox-Ingress-To": "runtime-test" });
+    assert.equal(String(url), `${config.openSandboxGatewayUrl.replace(/\/+$/, "")}/ping`);
+    assert.equal(init?.method, "GET");
+    assert.equal(init?.redirect, "error");
+    assert.equal(new Headers(init?.headers).get("X-EXECD-ACCESS-TOKEN"), "test-execd-token");
+    assert.equal(new Headers(init?.headers).get("OpenSandbox-Ingress-To"), "runtime-test");
+    return new Response(null, { status: 200 });
+  };
+  assert.equal(await probeExecd("runtime-test", signal), true);
+  assert.equal(calls.length, 2);
+});
+
+test("failed execution health is not retried internally or interpreted as ready", async () => {
+  for (const status of [204, 301, 401, 404, 500, 502, 503]) {
+    let attempts = 0;
+    globalThis.fetch = async (url) => {
+      if (String(url).includes("/endpoints/")) return execdEndpointResponse();
+      attempts++;
+      return new Response(null, { status });
+    };
+    assert.equal(await probeExecd("runtime-test", AbortSignal.timeout(1000)), false);
+    assert.equal(attempts, 1);
+  }
+  globalThis.fetch = async () => { throw new TypeError("connection refused"); };
+  await assert.rejects(probeExecd("runtime-test", AbortSignal.timeout(1000)), /connection refused/);
+});
 
 test("native lease operations fail closed even when legacy fallback is enabled", async () => {
   const previous = config.openSandboxAllowFallback;

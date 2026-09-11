@@ -2,12 +2,31 @@
 
 **Created**: 2026-09-10
 **Author**: Codex with the maintainer
-**Status**: In Progress; public lab deployed, safety/rollback proved, readiness and publication gates remain
+**Status**: In Progress; capacity deployed, safety/rollback and cold-start source fix proved; publication and candidate installation remain
 **Priority**: P1; next agreed engineering step, point 2 in the roadmap
 **Estimated effort**: 10-15 engineering days, provisional, excluding release approval and unavailable test infrastructure
 **Source baseline**: `1fc0e7a4bfa67896d9313cf3ca3526539987ffdf`
 
 ## Context
+
+### Cold-Start Readiness Follow-Up (September 11)
+
+The owner authorized this engineering gate separately from registry storage and
+publication. Native acceptance reproduced a lifecycle `running` response before
+the execution daemon accepted connections. A read-only readiness observation must
+precede the first workload; retrying writes or recreating the sandbox is not a fix.
+
+- [x] Trace the lifecycle/execd race and verify OpenSandbox's authenticated `GET /ping` contract.
+- [x] Add a provider-neutral, tenant-scoped readiness observation, independent of lifecycle and capacity.
+- [x] Make synchronous HTTP creation and default SDK waiting require execution readiness; preserve accepted IDs, async creation, cancellation and bounded waits.
+- [x] Cover delayed startup, unavailable health, authorization, transition races and first mutations submitted once with regression tests.
+- [x] Prove first-write/first-command success on the isolated native k0s fixture and clean up only test-owned runtimes.
+- [x] Document the readiness contract in API/SDK/public docs source and record acceptance evidence; mark it unreleased pending delivery.
+
+Design boundary: health probes do not mutate lifecycle, provision again, release
+capacity, or retry commands/filesystem writes. Health is a point-in-time execution
+service observation, not application/route readiness. No customer installer or
+BackgroundAgent dependency is introduced.
 
 The next step after publishing the standalone Kubernetes installation guide is
 to make the organization's concurrency setting a real admission limit. Today,
@@ -899,7 +918,7 @@ destructive recovery tests isolated from the public lab. Do not change npm
 - [ ] Follow the public standalone installation/upgrade instructions with those
   artifacts, verify OIDC and real runtime/SDK/CLI/capacity workflows, and clean
   only the explicitly owned acceptance resources.
-- [ ] Resolve or explicitly triage the observed cold-start readiness gap before
+- [x] Resolve or explicitly triage the observed cold-start readiness gap before
   claiming a reliably ready first task. Published rc.8 reported running before
   its execd file endpoint accepted the first write; a manual retry is not a fix.
 - [ ] Record precise release/install evidence, update discoverable public docs
@@ -976,3 +995,37 @@ still require the real release. Harbor host/cluster access remains outstanding,
 and the cold-start readiness bug remains engineering work on Harakiri, not an
 owner-configuration task. No runtime code, live deployment or Brain files were
 changed by this authentication follow-up.
+
+### Cold-Start Engineering Checkpoint
+
+The subsequent owner-authorized readiness work is implemented in the working
+tree. The [technical contract and acceptance receipt](../../operations/execution-readiness.md)
+records a provider-neutral execution-health endpoint, synchronous create and SDK
+wait gates, async/cancellation behavior, the onboarding guard and CLI status
+correction. Six fresh native runtimes passed first writes/commands without
+recreation or mutation retries, using a local source API against the isolated
+k0s provider/database. All owned runtimes and temporary keys were cleaned up.
+The native smoke is repeatable from `tests/conformance/readiness-smoke.mjs`.
+
+This closes the source readiness defect, not publication or coherent artifact
+installation. No public deployment, npm version or dist-tag changed. Keep this
+plan active until the remaining registry/candidate/installation gates are met.
+
+### Candidate Delivery In Progress
+
+The owner explicitly requested commit, deployment, publication and release.
+Selected `0.5.0-rc.9` after confirming npm and all three Harbor artifact
+coordinates were unused. The registry accepted an empty diagnostic upload,
+which was cancelled; filesystem/inode headroom is still unverified and access
+was requested again. No garbage collection or artifact deletion is part of this
+release. Keep stable npm `latest` at `0.4.0` and preserve existing public OIDC
+origins, Secrets, capacity activation and user workloads.
+
+- [x] Prepare matching source/package/chart versions, real changelog and
+  readiness/capacity installation guidance.
+- [ ] Commit through protected PR checks and merge reviewed source.
+- [ ] Publish immutable matching images/chart and SDK/CLI using trusted CI.
+- [ ] Verify anonymous artifacts and test the published bundle on the isolated
+  native fixture before updating the populated public lab.
+- [ ] Deploy with preserved operator values, verify public identity and native
+  first tasks, publish the delivery receipt and GitHub prerelease.

@@ -54,7 +54,7 @@ test("SDK workspace attachment is included in the create body", async () => {
   const bodies: unknown[] = [];
   const client = new HarakiriClient({ apiUrl: "https://api.example.test", apiKey: "hk_test", fetch: async (_url, init) => {
     bodies.push(JSON.parse(init?.body as string));
-    return Response.json({ sandbox: { id: "sbx_test", workspaceId: "wsp_test" } });
+    return Response.json({ sandbox: { id: "sbx_test", workspaceId: "wsp_test" }, readiness: { status: "ready", checkedAt: new Date().toISOString() } });
   } });
   await client.createSandbox({ template: "python-3.12", workspaceId: "wsp_test" });
   assert.equal((bodies[0] as { workspaceId: string }).workspaceId, "wsp_test");

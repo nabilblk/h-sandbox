@@ -7,9 +7,9 @@ and [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 
 ## Install
 
-### Upcoming Execution Capacity Support
+### Execution Capacity
 
-Unreleased, migration 038; not in the pinned package below. `harakiri capacity`
+Included in 0.5.0-rc.9; requires matching server migration 038. `harakiri capacity`
 and `harakiri capacity --json` report organization execution slots, including
 starting, stopping and uncertain work. API keys require `org:read`. Create and
 resume accept `--idempotency-key`; keep it for retries of the same intent. A
@@ -18,16 +18,25 @@ machine-readable; errors and request keys go to stderr. Kill reports a stop
 request, not confirmed capacity release. Follow the
 [capacity tutorial](https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-execution-capacity).
 
+### Cold-Start Readiness
+
+With API and CLI 0.5.0-rc.9, default `harakiri create` waits for execution-service health,
+not only a `running` record. `--no-wait` or `--wait-timeout-ms` can return an
+accepted, still-starting sandbox ID; do not submit a task based on that response
+alone. Preserve the ID and request key. There is no automatic command or file
+write retry. See the [readiness contract](https://sb.harakiri.io/#docs/sandbox-lifecycle)
+and the SDK's `waitForSandbox` for explicit readiness polling.
+
 The published package installs a normal `harakiri` executable:
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.8
+npm install -g @h-sandbox/cli@0.5.0-rc.9
 harakiri --version
 ```
 
 This pins the recorded Developer Preview; confirm the matching server with your
-operator. The older stable `latest` channel is `0.4.0`. Source changes after the
-rc.5 receipt are unreleased until a new candidate is published.
+operator. The older stable `latest` channel is `0.4.0`. Use the `next` candidate
+channel or pin this version; do not pair readiness-aware clients with rc.8 APIs.
 
 ## Build From Source
 

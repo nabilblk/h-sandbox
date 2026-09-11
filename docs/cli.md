@@ -6,16 +6,24 @@ Vault administration needs `credentials:manage`, registry administration needs
 `registry:manage`, and audit reads need `audit:read`. Keys cannot manage members,
 settings or other keys. See [authorization and rotation](authorization.md).
 
-## Upcoming Execution Capacity Admission
+## Execution Capacity Admission
 
-**Unreleased, migration 038.** `harakiri capacity [--json]` requires `org:read`
+**Since 0.5.0-rc.9, migration 038.** `harakiri capacity [--json]` requires `org:read`
 and reports held execution slots, including uncertain work. Create/resume accept
 `--idempotency-key`, print the chosen key on stderr and do not retry conflicts
 automatically. `organization_capacity_exceeded` exits 1; stop owned work, wait
 for confirmation or ask an admin to raise the limit. Never interpret an
 unavailable capacity endpoint as zero use. The
 [limit-one tutorial](../examples/sdk-execution-capacity/README.md) includes a
-copyable CLI sequence. Published rc.8 below does not contain these commands.
+copyable CLI sequence. Use matching API/CLI versions.
+
+## Cold-Start Readiness
+
+With API/CLI rc.9, default `harakiri create` waits for execution-service health,
+not only lifecycle `running`. `--no-wait` or `--wait-timeout-ms` can return an
+accepted ID before readiness. Keep that ID and request key; do not retry a
+command or write whose outcome is unknown. See the
+[readiness contract](operations/execution-readiness.md) for explicit SDK waits.
 
 ## Workspace and Live Output Preview
 
@@ -24,7 +32,7 @@ matching API. Stable npm 0.4.0 (`latest`) does not include them. Workspace
 allocation also requires operator opt-in.
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.8
+npm install -g @h-sandbox/cli@0.5.0-rc.9
 ```
 
 ```bash
@@ -50,7 +58,7 @@ API as the SDK and dashboard.
 ## Install
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.8
+npm install -g @h-sandbox/cli@0.5.0-rc.9
 harakiri --version
 ```
 

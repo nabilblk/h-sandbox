@@ -12,14 +12,11 @@ future possibilities, not capabilities advertised by this preview.
 
 ## Select a Version
 
-The current candidate is **0.5.0-rc.8**. Use its
-[delivery receipt](release-notes/0.5.0-rc.8-delivery.md) for the exact artifact
-coordinates and acceptance scope. The later [public-launch receipt](release-notes/2026-09-09-public-launch.md)
-and [public-launch image overlay](release-notes/0.5.0-rc.8-public-values.yaml)
-select the separately published homepage/vision correction. SDK/CLI `next`
-points to rc.8; `latest` remains `0.4.0`. Do not use the older stable tag as a
-substitute for the scoped authorization release. Source changes are not
-automatically published or deployed.
+The current candidate is **0.5.0-rc.9**. Use its
+[release notes](release-notes/0.5.0-rc.9.md) and attached artifact receipt for
+coordinates and acceptance scope. API, web, chart and SDK/CLI must match.
+Candidates use `next`; `latest` remains `0.4.0`. Do not use the older stable tag
+as a substitute. Source changes are not automatically published or deployed.
 
 The native reference cluster verified anonymous chart, image and npm access,
 operator-owned credentials, real runtime workflows and retained-file recovery.
@@ -71,8 +68,8 @@ Harakiri's API, never direct pod access. The private `@harakiri/shared` package
 is not a consumer dependency.
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.8
-npm install -g @h-sandbox/cli@0.5.0-rc.8
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
+npm install -g @h-sandbox/cli@0.5.0-rc.9
 harakiri --version
 ```
 
@@ -100,7 +97,7 @@ task times separately without assuming a predetermined time-to-first-task.
 | Area | Preview boundary |
 | --- | --- |
 | Authorization | Human admin operations remain separate from scoped API-key principals. Key scopes do not grant more than the creator's current role |
-| Capacity | `maxConcurrency` is a target only; atomic admission is not implemented. Restrict evaluators and resource consumption operationally |
+| Capacity | rc.9 enforces execution slots atomically. Existing organizations require migration 038 inventory activation; CPU/RAM/storage quotas remain infrastructure responsibilities |
 | Usage | Retained record counts are available. Historical peaks/concurrency, billed compute, measured runtime and cold-start observations are unavailable |
 | Workspace | Exclusive file-volume attachment; no retained processes, shared concurrent mount or automatic backup |
 | Vault/egress | Require provider-supported enforcement. No plaintext-secret or Kubernetes-exec fallback. Credential revocation does not erase existing files or cancel detached work |

@@ -45,6 +45,15 @@ export const resolveExecdEndpoint = async (opensandboxId: string, signal?: Abort
   };
 };
 
+export const probeExecd = async (opensandboxId: string, signal: AbortSignal) => {
+  const endpoint = await resolveExecdEndpoint(opensandboxId, signal);
+  const response = await fetch(joinUrl(endpoint.baseUrl, "/ping"), {
+    method: "GET", headers: endpoint.headers, signal, redirect: "error"
+  });
+  await response.body?.cancel();
+  return response.status === 200;
+};
+
 const appendLine = (current: string, line: string) => `${current}${line}${line.endsWith("\n") ? "" : "\n"}`;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

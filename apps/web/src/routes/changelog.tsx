@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-11-v0-5-0-rc-9",
+    version: "v0.5.0-rc.9",
+    date: "September 11, 2026",
+    title: "Execution capacity and cold-start readiness",
+    items: [
+      "Enforce organization execution limits with atomic reservations, idempotent create/resume and evidence-based release. Starting, stopping and uncertain work count toward the limit; CPU, memory and historical usage remain separate concerns.",
+      "Wait for execution-service health before reporting a sandbox ready for its first task. API readiness observations, SDK waits and default CLI creation no longer trust lifecycle running alone.",
+      "Preserve accepted sandbox IDs on timeout or cancellation. Async creation remains explicit; onboarding avoids submitting its first command before readiness. Commands and file writes are not automatically retried.",
+      "Add capacity and readiness references, a native first-task smoke test, and migration 038 activation and recovery instructions. Pre-capacity writers must be stopped before migration; old rc.8 is not a compatible rollback target.",
+      "Keep matching API, web, chart, SDK and CLI candidate versions on the next release track. Stable latest remains 0.4.0; this is still a developer preview."
+    ]
+  },
+  {
     id: "2026-09-09-v0-5-0-rc-8",
     version: "v0.5.0-rc.8",
     date: "September 9, 2026",

@@ -1,6 +1,6 @@
 # Execution Capacity Tutorial
 
-**Unreleased:** use matching source-built SDK and API with migration 038. Published
+**Requires 0.5.0-rc.9:** use the matching SDK and API with migration 038. Older
 0.5.0-rc.8 does not include capacity admission or `client.capacity()`.
 
 Use a dedicated empty organization. A human admin sets **Settings > Execution

@@ -358,7 +358,7 @@ try {
         <h2>Configure</h2>
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</CodeBlock>
         <p>The CLI resolves explicit flags first, then environment variables, then saved config. Browser sign-in remains Keycloak-owned; CLI automation uses API keys.</p>
-        <p><strong>Upcoming:</strong> matching capacity-aware builds add <code>harakiri capacity --json</code> and explicit create/resume retry keys. Published rc.8 does not include this feature. See <a href="#docs/execution-capacity">execution capacity</a> for the contract and runnable tutorial.</p>
+        <p><strong>Since 0.5.0-rc.9:</strong> <code>harakiri capacity --json</code> reports execution slots; create/resume accept explicit retry keys. Use a matching capacity-aware API. See <a href="#docs/execution-capacity">execution capacity</a> for the contract and runnable tutorial.</p>
         <h2>Lifecycle</h2>
         <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri status sbx_... --json\nharakiri renew sbx_...\nharakiri capabilities\nharakiri kill sbx_...`}</CodeBlock>
         <h2>Processes</h2>
@@ -420,12 +420,34 @@ try {
     section: "Sandboxes",
     title: "Lifecycle",
     lede: "Use explicit create, reconnect, renew, kill, and provider-backed persistence semantics without exposing provider IDs to users.",
-    toc: ["States", "Supported operations", "TTL and activity", "Snapshots", "Capability gating", "SDK", "CLI", "Cleanup"],
+    toc: ["States", "Execution readiness", "Supported operations", "TTL and activity", "Snapshots", "Capability gating", "SDK", "CLI", "Cleanup"],
     body: (
       <>
         <h2>States</h2>
         <p>Sandbox states are <code>{"pending"}</code>, <code>{"running"}</code>, <code>{"idle"}</code>, <code>{"pausing"}</code>, <code>{"paused"}</code>, <code>{"resuming"}</code>, <code>{"error"}</code>, and <code>{"terminated"}</code>. OpenSandbox owns the runtime status. Harakiri stores the control-plane record, TTL, expiration, routes, commands, snapshots, usage, and audit events around that runtime.</p>
         <p><code>{"terminated"}</code> is terminal. Reconnect can read the historical summary, but it does not resurrect a runtime.</p>
+        <h2>Execution readiness</h2>
+        <aside className="docs-notice"><p><strong>Requires API and SDK 0.5.0-rc.9 or newer.</strong> The older <code>0.5.0-rc.8</code> SDK waits for lifecycle state only. Upgrade both sides to use execution-health checks; reinstalling rc.8 does not close the cold-start gap.</p></aside>
+        <p><code>running</code> means the provider reports an active runtime. Its execution service may still be starting. Before the first command, file write or Git bootstrap, wait for <code>readiness.status = ready</code>. Reconnect and ordinary status reads do not perform this check.</p>
+        <p><code>GET /v1/sandboxes/&#123;id&#125;/readiness</code> requires <code>sandboxes:read</code> and returns the sandbox plus an uncached health observation: <code>ready</code>, <code>starting</code>, <code>unavailable</code>, <code>not_running</code> or <code>unsupported</code>, with <code>checkedAt</code>. Checks use the provider's execution-service API, not a test command or Kubernetes exec.</p>
+        <p>Default HTTP creation uses a 60-second provisioning and readiness wait budget. An exhausted wait returns HTTP <code>202</code> with the accepted sandbox ID. Validation and create-time credential setup can take longer. <code>wait:false</code> accepts asynchronously; <code>waitTimeoutMs</code> sets an explicit wait budget. Neither cancels the sandbox nor releases its execution slot. Continue waiting on the same ID.</p>
+        <CodeBlock language="typescript">{`const accepted = await client.createSandbox({
+  template: "python-3.12-data", ttlSeconds: 600, wait: false,
+  idempotencyKey: jobId
+});
+const sandboxId = accepted.sandbox.id; // Persist before waiting.
+await client.waitForSandbox(sandboxId, {
+  timeoutMs: 120_000,
+  signal: abortController.signal
+});
+await client.files.write(sandboxId, {
+  path: "/workspace/task.py", content: "print(4)\\n", createParents: true
+});
+const { result } = await client.runSandbox(sandboxId, {
+  command: "python /workspace/task.py"
+});`}</CodeBlock>
+        <p>Default SDK creation and <code>sandbox.wait()</code> require execution health. An explicit SDK <code>waitTimeoutMs</code> returns acceptance without another automatic wait. <code>HarakiriWaitTimeoutError.id</code> retains the sandbox ID; retry the read-only wait, not a command or file write whose outcome is unknown. Explicit waits for <code>paused</code> or <code>terminated</code> remain lifecycle-only.</p>
+        <p>A successful probe is a point-in-time observation, not a guarantee against later failures. It does not prove your application, HTTP route, package registry or model provider is ready. Use <a href="#docs/routes">route HTTP readiness</a> for a server started inside the sandbox. Readiness polling does not renew TTL.</p>
         <h2>Supported operations</h2>
         <p>Create starts a runtime from a template or a ready snapshot. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates <code>{"expiresAt"}</code>. Kill terminates the runtime and removes active route records. Pause and resume delegate to provider lifecycle operations when available.</p>
         <h2>TTL and activity</h2>
@@ -835,7 +857,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <p>The SDK maps common responses to typed errors such as <code>{"HarakiriAuthenticationError"}</code>, <code>{"HarakiriValidationError"}</code>, <code>{"HarakiriNotFoundError"}</code>, <code>{"HarakiriProviderUnavailableError"}</code>, <code>{"HarakiriUnsupportedCapabilityError"}</code>, and <code>{"HarakiriCommandEndedError"}</code>.</p>
         <h2>Retry</h2>
         <p>Retry idempotent creates, waits, route readiness, and provider-unavailable reads with backoff. Do not blindly retry validation errors, auth failures, terminated sandboxes, resource-limit failures, or artifact checksum mismatches.</p>
-        <p>In the upcoming capacity-aware release, <code>409 organization_capacity_exceeded</code> requires an available execution slot before a new intent can be admitted. <code>503 organization_capacity_unavailable</code> requires inventory recovery, not a hot retry loop. An unchanged already-accepted intent can be retried with its original key, even at full capacity. See <a href="#docs/execution-capacity">execution capacity</a> for settings conflicts, unknown counts and operator recovery. These errors are not part of published rc.8.</p>
+        <p>Since 0.5.0-rc.9, <code>409 organization_capacity_exceeded</code> requires an available execution slot before a new intent can be admitted. <code>503 organization_capacity_unavailable</code> requires inventory recovery, not a hot retry loop. An unchanged already-accepted intent can be retried with its original key, even at full capacity. See <a href="#docs/execution-capacity">execution capacity</a> for settings conflicts, unknown counts and operator recovery.</p>
         <h2>Common fixes</h2>
         <p><code>{"sandbox_file_artifact_checksum_mismatch"}</code> means the caller must recompute <code>{"sha256"}</code> over raw bytes. <code>{"route_proxy_upstream_unreachable"}</code> usually means the server is not listening on <code>{"0.0.0.0"}</code> or the wrong port was exposed. <code>{"git_network_access_failed"}</code> usually needs the <code>{"git-hosting"}</code> egress preset or explicit host allow rules. <code>{"template_not_ready"}</code> requires a successful digest-pinned template build.</p>
         <h2>Boundary</h2>
@@ -860,7 +882,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <h2>Authentication</h2>
         <p>Resource operations accept an organization-scoped API key in <code>x-api-key</code> or a valid Keycloak bearer token. Keep API keys on the trusted caller, not in frontend bundles or sandbox files. The organization comes from the authenticated identity.</p>
         <p>Start with <a href="#docs/quickstart">the quickstart</a> for connection setup, <a href="#docs/security-model">the security model</a> for access boundaries, and <a href="#docs/errors-troubleshooting">errors and troubleshooting</a> for failures. Workspace operations have a dedicated <a href="#docs/workspace-reference">API, SDK and CLI reference</a>.</p>
-        <p><strong>Upcoming, not in published rc.8:</strong> <code>GET /v1/org/capacity</code> requires <code>org:read</code> and returns execution reservations for the authenticated organization. The <a href="#docs/execution-capacity">capacity reference</a> covers counting, idempotency and revision-checked limit edits.</p>
+        <p><strong>Since 0.5.0-rc.9:</strong> <code>GET /v1/org/capacity</code> requires <code>org:read</code> and returns execution reservations for the authenticated organization. The <a href="#docs/execution-capacity">capacity reference</a> covers counting, idempotency and revision-checked limit edits.</p>
         <h2>Templates</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>
