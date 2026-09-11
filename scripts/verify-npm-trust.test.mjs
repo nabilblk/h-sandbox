@@ -65,17 +65,17 @@ test("OIDC and npm failures fail closed without logging credential-bearing respo
   }
 });
 
-test("malformed, missing, expired and transport-error responses never count as verified", async () => {
+test("malformed, missing and transport-error responses never count as verified", async () => {
   for (const payload of [null, {}, { value: " " }]) {
     await assert.rejects(verifyNpmTrust({ env, log: () => {}, fetchImpl: async () => Response.json(payload) }), /did not return an OIDC identity/);
   }
-  for (const payload of [null, {}, { ...exchange(), token: "" }, { ...exchange(), token_type: "other" },
-    { ...exchange(), expires: "invalid" }, { ...exchange(), expires: "2000-01-01T00:00:00Z" }]) {
+  for (const payload of [null, {}, { ...exchange(), token: "" }, { ...exchange(), token: " " },
+    { ...exchange(), token: 123 }, { ...exchange(), token: {} }]) {
     let calls = 0;
     await assert.rejects(verifyNpmTrust({ env, log: () => {}, fetchImpl: async () => {
       calls++;
       return calls === 1 ? Response.json({ value: identity }) : Response.json(payload, { status: 201 });
-    } }), /valid short-lived exchange token/);
+    } }), /did not return an exchange token/);
     assert.equal(calls, 2);
   }
   for (const fetchImpl of [async () => { throw new Error(identity); }, async () => new Response(identity)]) {
@@ -84,6 +84,17 @@ test("malformed, missing, expired and transport-error responses never count as v
       assert.doesNotMatch(error.message, /test-oidc-identity/);
       return true;
     });
+  }
+});
+
+test("exchange success does not depend on optional response metadata", async () => {
+  for (const payload of [{ token: exchange().token }, { ...exchange(), token_type: "Bearer" }]) {
+    let calls = 0;
+    assert.deepEqual(await verifyNpmTrust({ env, log: () => {}, fetchImpl: async () => {
+      calls++;
+      return calls === 1 ? Response.json({ value: identity }) : Response.json(payload, { status: 201 });
+    } }), ["@h-sandbox/sdk", "@h-sandbox/cli"]);
+    assert.equal(calls, 3);
   }
 });
 
