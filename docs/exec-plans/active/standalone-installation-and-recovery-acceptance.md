@@ -344,6 +344,14 @@ browser state to unblock diagnostics.
 
 ## Completion Notes
 
+- [Run 34654783311](https://github.com/nabilblk/h-sandbox/actions/runs/34654783311)
+  captured a provider HTTP 504 during the first creation, with Kubernetes image
+  pulls/container starts and later cleanup. The earlier scheduler and permission
+  warnings did not recur. The reference configuration left the provider's default
+  60-second startup deadline implicit. A bounded 180-second deadline and read-only
+  startup observations are now under test; this is not yet a confirmed fix.
+  The failed run cleaned both owned namespaces and private material successfully.
+
 In progress. Native installation of the published bundle and the browser's
 onboarding interactions have passed. The current run must still establish the
 complete scoped-client workflow and destructive recovery. The milestone remains

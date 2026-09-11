@@ -52,6 +52,7 @@ try {
   ctx.save("failure.json", { gate: activeGate, message: error.message, stack: error.stack, body: error.body });
   receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });
   receipt.infrastructure = diagnostics(ctx);
+  if (ctx.startupObservations) receipt.infrastructure.startup = ctx.startupObservations;
   receipt.status = "failed";
   process.exitCode = 1;
   publish();

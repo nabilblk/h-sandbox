@@ -18,6 +18,7 @@ test("preview config owns secrets and separates public issuer from internal JWKS
   const api = secrets.find(s => s.metadata.name === "preview-api").stringData;
   assert.equal(Buffer.from(api.CREDENTIAL_VAULT_KEY, "base64").length, 32);
   assert.ok(first["opensandbox-values.json"]["opensandbox-server"].configToml.includes(api.OPEN_SANDBOX_API_KEY));
+  assert.match(first["opensandbox-values.json"]["opensandbox-server"].configToml, /sandbox_create_timeout_seconds = 180\n/);
   for (const component of ["opensandbox-controller", "opensandbox-server"]) assert.equal(first["opensandbox-values.json"][component].namespaceOverride, "harakiri-preview");
   const server = first["opensandbox-values.json"]["opensandbox-server"].server;
   assert.equal(server.replicaCount, 1);

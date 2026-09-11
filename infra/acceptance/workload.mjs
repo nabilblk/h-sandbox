@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { check, origins, pinned, sha256, until } from "./context.mjs";
+import { observeStartup } from "./startup.mjs";
 
 export const retainedPath = "/workspace/acceptance.txt";
 
@@ -62,7 +63,7 @@ export async function workload(ctx, operator) {
   const bytes = `Retained state from ${ctx.identity.id}\n${randomUUID()}\n`;
   const state = { templateId, workspaceId: workspace.id, fileSha256: sha256(bytes), runtimeIds: [] };
   ctx.save("workload.json", state);
-  const id = await createRuntime(client, state, "native-amd64-first-task");
+  const id = await observeStartup(ctx, () => createRuntime(client, state, "native-amd64-first-task"));
   state.runtimeIds.push(id);
   ctx.save("workload.json", state);
   await client.files.write(id, { path: retainedPath, content: bytes });

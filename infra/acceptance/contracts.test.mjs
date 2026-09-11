@@ -12,6 +12,7 @@ import { assertCredentialBoundary, credentialTarget, exampleCredential, placehol
 import { databaseEvidence, eventEvidence, logEvidence, podEvidence } from "./diagnostics.mjs";
 import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
 import { wrappingKeyCase } from "./recovery.mjs";
+import { observeStartup, runtimeStateEvidence } from "./startup.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
   for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {
@@ -158,6 +159,19 @@ test("missing wrapping material disables legacy fallback without changing other 
   assert.equal(wrappingKeyCase(original, "wrong").data.CREDENTIAL_VAULT_KEY, Buffer.from("wrong").toString("base64"));
 });
 
+test("startup evidence excludes workload secrets and preserves client outcomes", async () => {
+  assert.deepEqual(runtimeStateEvidence({ spec: { token: "sensitive" }, status: { phase: "Pending", ready: 0, allocated: 1, replicas: 1, conditions: [{ message: "sensitive" }] } }), { phase: "Pending", ready: 0, allocated: 1, replicas: 1 });
+  const ctx = { k: () => { throw new Error("sensitive"); } };
+  assert.equal(await observeStartup(ctx, async () => "result"), "result");
+  await assert.rejects(observeStartup(ctx, async () => { throw new Error("client failure"); }), /client failure/);
+  assert.deepEqual(ctx.startupObservations, []);
+  const observed = { k: args => JSON.stringify({ items: args.includes("pods") ? [{ metadata: { name: "owned", annotations: { key: "sensitive" } }, status: { phase: "Pending" } }] : [{ status: { phase: "Pending", token: "sensitive" } }] }) };
+  await observeStartup(observed, () => new Promise(resolve => setTimeout(resolve, 40)), 5);
+  assert.equal(observed.startupObservations.length, 1);
+  assert.equal(observed.startupObservations[0].pods[0].phase, "Pending");
+  assert.ok(!JSON.stringify(observed.startupObservations).includes("sensitive"));
+});
+
 test("failure infrastructure evidence excludes container env, annotations and raw messages", () => {
   const evidence = podEvidence({ metadata: { name: "owned", annotations: { secret: "sensitive" } }, spec: { containers: [{ env: [{ value: "sensitive" }] }] }, status: {
     phase: "Pending", containerStatuses: [{ name: "api", restartCount: 2, state: { waiting: { reason: "ImagePullBackOff", message: "sensitive" } } }]
@@ -169,7 +183,7 @@ test("failure infrastructure evidence excludes container env, annotations and ra
 
 test("operator diagnostics expose only known states and error categories", () => {
   const text = `error: inconsistent types deduced for parameter $1\ncode: '42P08'\n at /app/apps/api/dist/services/sandbox-operation-worker.js:12:3\nsecret: sensitive`;
-  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], providerCodes: [], deniedResources: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
+  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], providerCodes: [], providerLastStates: [], deniedResources: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
   assert.deepEqual(logEvidence('{"code":"42703","msg":"column sensitive does not exist"}').sqlStates, ["42703"]);
   const evidence = databaseEvidence({ sandboxes: [{ status: "pending", hasRuntimeId: false, name: "sensitive" }],
     operations: [{ kind: "provision", state: "queued", attempts: 0, error: text, request: { key: "sensitive" } }],
@@ -179,6 +193,7 @@ test("operator diagnostics expose only known states and error categories", () =>
   assert.equal(evidence.effects[0].kind, "unknown");
   assert.ok(!JSON.stringify(evidence).includes("sensitive"));
   assert.deepEqual(logEvidence('OpenSandbox 503: {"credential":"sensitive"}').providerHttpStatuses, [503]);
+  assert.deepEqual(logEvidence('Timeout waiting for sensitive. Last state: Pending').providerLastStates, ["Pending"]);
   assert.deepEqual(logEvidence('OpenSandbox 500: {"detail":{"code":"KUBERNETES::POD_READY_TIMEOUT","input":"sensitive"}}').providerCodes, ["KUBERNETES::POD_READY_TIMEOUT"]);
   assert.deepEqual(logEvidence(JSON.stringify({ error: 'sensitive cannot list resource "leases" in API group "coordination.k8s.io" in the namespace "sensitive"' })).deniedResources, ["leases"]);
   const event = eventEvidence({ reason: "Failed", count: 3, message: "Failed to pull sensitive with sensitive", involvedObject: { name: "sensitive" } });

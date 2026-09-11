@@ -5,8 +5,8 @@ reference configuration, published chart archives, immutable application image
 digests and integrity-checked npm tarballs pinned in `versions.json`.
 
 **Current evidence: native amd64 installation of published rc.9, real OIDC
-onboarding and scoped-key setup pass. The first asynchronous runtime timed out
-before a pod appeared; destructive recovery has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
+onboarding and scoped-key setup pass. The first asynchronous runtime received a
+provider 504 and its pod was removed; destructive recovery has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
 and its per-run receipts. Local contracts alone are not native acceptance evidence.
 
 ## Isolation
@@ -85,6 +85,10 @@ receipt's `cleanup.status` is separate from application assertions.
 Failure diagnostics contain only pod readiness, counts and allowlisted reasons,
 operation states and known platform error categories, not environment variables,
 annotations, request payloads or raw error messages.
+Bounded first-runtime snapshots preserve pod/workload progress before provider
+rollback removes failed resources. The reference startup allowance is explicitly
+180 seconds; the original implicit 60-second failure remains recorded. This
+configuration adjustment is under native qualification, not a readiness bypass.
 
 Backups, Kubernetes Secrets, credentials, Helm values, raw subprocess output and
 browser state are private runner material, **not** public build artifacts.

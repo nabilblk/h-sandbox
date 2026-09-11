@@ -25,6 +25,7 @@ export function logEvidence(text) {
     sqlStates: sqlStates.filter(code => new RegExp(`\\bcode[\\s\"']*:[\\s\"']*${code}\\b`).test(text)),
     providerHttpStatuses: [...new Set([...text.matchAll(/\bOpenSandbox ([45][0-9]{2}):/g)].map(match => Number(match[1])))],
     providerCodes: providerCodes.filter(code => text.includes(code)),
+    providerLastStates: ["Pending", "Allocated", "Running", "Failed"].filter(state => text.includes(`Last state: ${state}`)),
     deniedResources: resources.filter(resource => new RegExp(`cannot (?:get|list|watch|create|update|patch|delete) resource .{0,4}${resource}.{0,4} in API group`).test(text)),
     symptoms: symptoms.filter(([, pattern]) => pattern.test(text)).map(([name]) => name),
     modules: modules.filter(name => text.includes(`/${name}:`))
