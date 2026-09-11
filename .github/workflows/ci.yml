@@ -83,7 +83,7 @@ jobs:
         run: pnpm templates:check
 
       - name: Standalone installation, template release and local supervision contracts
-        run: node --test scripts/deployment-boundary.test.mjs infra/keycloak/harakiri-realm.test.mjs infra/mirror/mirror-opensandbox-chart.test.mjs infra/templates/release.test.mjs infra/scripts/env/harakiri/local-services.test.mjs infra/preview/configure.test.mjs
+        run: node --test scripts/deployment-boundary.test.mjs infra/keycloak/harakiri-realm.test.mjs infra/mirror/mirror-opensandbox-chart.test.mjs infra/templates/release.test.mjs infra/scripts/env/harakiri/local-services.test.mjs infra/preview/configure.test.mjs infra/acceptance/*.test.mjs
 
       - name: Shared tests
         run: pnpm --filter @harakiri/shared test

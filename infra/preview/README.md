@@ -209,6 +209,11 @@ workspace volumes from the same quiesced point. A successful `pg_dump` alone
 does not back up agent-written files. Restore into a disposable target before
 claiming recovery works; verify login, metadata, retained files and encryption.
 See the [storage recovery procedure](../../docs/persistent-workspace-operations.md).
+The [coordinated recovery runbook](../../docs/operations/standalone-recovery.md)
+covers identity, encrypted Vault sources, workspace storage, missing-key tests
+and upgrade boundaries together. The new [isolated amd64 acceptance harness](../acceptance/README.md)
+has local contract checks; native execution is still pending. A green
+configuration-rollback test is not cross-release/schema compatibility evidence.
 
 Before installing any build containing migration 038, follow the
 [capacity maintenance runbook](../../docs/operations/execution-capacity.md).

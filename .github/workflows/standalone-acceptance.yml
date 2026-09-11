@@ -1,0 +1,47 @@
+name: Standalone installation and recovery acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "infra/acceptance/**"
+      - "infra/preview/**"
+      - ".github/workflows/standalone-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: standalone-acceptance-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  native-amd64:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - name: Verify safety contracts without cluster access
+        run: node --test infra/acceptance/*.test.mjs
+      - name: Bootstrap a fresh test-owned native k0s cluster
+        run: node infra/acceptance/bootstrap.mjs
+      - name: Consume the published bundle and exercise recovery sequentially
+        run: node infra/acceptance/run.mjs
+      - name: Clean only owned resources and remove private recovery material
+        if: always()
+        run: node infra/acceptance/cleanup.mjs
+      - name: Export only the allowlisted receipt, never runner state or raw logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: standalone-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: standalone-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -74,4 +74,7 @@ test("cold-start evidence and capacity rollback limits are disclosed without pro
   assert.match(markdown, /execution-capacity-install-acceptance\.md/);
   assert.match(markdown, /not a newly published candidate/);
   assert.match(markdown, /pre-capacity rc\.8 after migration 038/);
+  assert.match(markdown, /operations\/standalone-recovery\.md/);
+  assert.match(markdown, /native execution is still pending/);
+  assert.match(markdown, /does not prove cross-release or schema rollback safety/);
 });

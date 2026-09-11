@@ -15,6 +15,7 @@ does not install a server or sandbox runtime.
 | Disconnected or private registry | [Artifact mirroring](airgap.md) and [release inventory](release-artifacts.md) |
 | Application team with a running installation | [CLI](cli.md), [SDK](sdk.md) and [quickstart](https://sb.harakiri.io/#docs/quickstart) |
 | Contributor developing the product | [Runtime-free local setup](development.md); not sandbox isolation acceptance |
+| Qualify recovery and failure behavior | [Coordinated recovery and upgrade qualification](operations/standalone-recovery.md), with explicit evidence limits |
 
 ## Complete Operator Journey
 

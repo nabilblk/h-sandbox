@@ -1,0 +1,113 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import test from "node:test";
+import { AcceptanceCheckError, sha256 } from "./context.mjs";
+import { createRuntime, denyAtCapacity, assertRetained, retainedPath } from "./workload.mjs";
+import { publicEvidence, publicFailure } from "./receipt.mjs";
+import { literalId, applyOwned } from "./operator.mjs";
+import { ownershipLabel } from "./safety.mjs";
+import { assertCredentialBoundary, credentialCheckScript } from "./credential-fixture.mjs";
+import { podEvidence } from "./diagnostics.mjs";
+
+test("all harness modules parse without bootstrapping a cluster", () => {
+  for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {
+    execFileSync(process.execPath, ["--check", path.join(import.meta.dirname, filename)], { stdio: "pipe" });
+  }
+});
+
+test("mutable entry points refuse an ordinary developer shell before running commands", () => {
+  const env = { ...process.env, GITHUB_ACTIONS: "false", RUNNER_ENVIRONMENT: "self-hosted" };
+  for (const filename of ["bootstrap.mjs", "run.mjs", "cleanup.mjs"]) {
+    const result = spawnSync(process.execPath, [path.join(import.meta.dirname, filename)], { env, encoding: "utf8", timeout: 5000 });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /local host|disposable Actions runner|ARM host/);
+    assert.doesNotMatch(result.stdout, /gate passed|cluster stopped|Configuration created/);
+  }
+});
+
+test("public evidence strips keys, backups, nested objects and arbitrary strings", () => {
+  const result = publicEvidence({ encryptedVaultUse: true, fileSha256: "a".repeat(64), negativeCases: ["missing", "incorrect", "secret"],
+    token: "sensitive", databaseUrl: "sensitive", vault: { value: "sensitive" }, browser: {}, keyRevoked: "sensitive", envelopeSha256: "sensitive" });
+  assert.deepEqual(result, { encryptedVaultUse: true, fileSha256: "a".repeat(64), negativeCases: ["missing", "incorrect"] });
+  assert.deepEqual(publicFailure({ status: 500, message: "sensitive", body: "sensitive", code: "sensitive" }), { kind: "http", status: 500 });
+  assert.ok(!JSON.stringify(publicFailure(new Error("sensitive"))).includes("sensitive"));
+  assert.deepEqual(publicFailure(new AcceptanceCheckError("owned check")), { kind: "acceptance_check", check: "owned check" });
+});
+
+test("create replay preserves one intent and fails on duplicate identity", async () => {
+  const requests = [];
+  const client = { createSandbox: async input => { requests.push(input); return { sandbox: { id: "sbx_owned" } }; }, waitForSandbox: async id => assert.equal(id, "sbx_owned") };
+  assert.equal(await createRuntime(client, { templateId: "template", workspaceId: "workspace" }, "owned"), "sbx_owned");
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[0], requests[1]);
+  assert.equal(requests[0].wait, false);
+  let count = 0;
+  await assert.rejects(createRuntime({ ...client, createSandbox: async () => ({ sandbox: { id: `sbx_${++count}` } }) }, { templateId: "template", workspaceId: "workspace" }, "owned"), /duplicated/);
+});
+
+test("capacity gate accepts only explicit admission denial, never generic provider failure", async () => {
+  const rejects = (status, code) => ({ createSandbox: async () => { throw { status, code }; } });
+  await denyAtCapacity(rejects(409, "organization_capacity_exceeded"), "template");
+  await denyAtCapacity(rejects(503, "organization_capacity_unavailable"), "template", true);
+  for (const [status, code] of [[500, "internal_error"], [401, "unauthorized"], [503, "provider_unavailable"], [409, "workspace_unavailable"]]) {
+    await assert.rejects(denyAtCapacity(rejects(status, code), "template", true));
+  }
+  await assert.rejects(denyAtCapacity({ createSandbox: async () => ({ sandbox: {} }) }, "template"), /above its execution limit/);
+});
+
+test("persistence evidence requires matching bytes and an actual workspace working directory", async () => {
+  const client = { files: { read: async (id, filename) => { assert.equal(filename, retainedPath); return { content: "retained" }; } }, runSandbox: async () => ({ result: { exitCode: 0, stdout: "/workspace\n" } }) };
+  await assertRetained(client, "sandbox", { fileSha256: sha256("retained") });
+  await assert.rejects(assertRetained(client, "sandbox", { fileSha256: sha256("changed") }), /Workspace file changed/);
+  await assert.rejects(assertRetained({ ...client, runSandbox: async () => ({ result: { exitCode: 0, stdout: "/root\n" } }) }, "sandbox", { fileSha256: sha256("retained") }), /working directory/);
+});
+
+test("operator resources refuse an unowned namespace before saving or applying", () => {
+  const calls = [];
+  const ctx = { identity: { id: "123-1" }, k: args => { calls.push(args); return JSON.stringify({ metadata: { name: "harakiri-preview", labels: { [ownershipLabel]: "other-run" } } }); }, save: () => assert.fail("must not write"), file: () => assert.fail("must not apply") };
+  assert.throws(() => applyOwned(ctx, { kind: "Secret", metadata: { name: "fixture", namespace: "harakiri-preview" } }, "fixture.json"));
+  assert.equal(calls.length, 1);
+  assert.equal(literalId("wsp_owned-123"), "'wsp_owned-123'");
+  assert.throws(() => literalId("x';DELETE FROM users;--"));
+});
+
+test("credential fixture has no request or secret echo in its response", () => {
+  assert.match(credentialCheckScript, /hmac\.compare_digest/);
+  assert.match(credentialCheckScript, /json\.dumps\(\{"verified": valid\}\)/);
+  assert.match(credentialCheckScript, /def log_message\(self, \*args\): pass/);
+  assert.doesNotMatch(credentialCheckScript, /print\(/);
+});
+
+test("credential boundary checks never send the source plaintext into a sandbox", async () => {
+  const value = "f".repeat(64);
+  const ctx = { read: () => ({ items: [{ kind: "Secret", stringData: { EXPECTED_TOKEN: value } }] }) };
+  let command;
+  const client = { credentials: { inspect: async () => ({ vault: { credentials: [{ name: "owned" }] } }) },
+    runSandbox: async (id, input) => { command = input.command; return { result: { exitCode: 0, stdout: "False\n" } }; } };
+  await assertCredentialBoundary(ctx, client, "owned");
+  assert.ok(command.includes(sha256(value)));
+  assert.ok(!command.includes(value));
+  await assert.rejects(assertCredentialBoundary(ctx, { ...client, credentials: { inspect: async () => ({ value }) } }, "owned"), /exposed plaintext/);
+});
+
+test("failure infrastructure evidence excludes container env, annotations and raw messages", () => {
+  const evidence = podEvidence({ metadata: { name: "owned", annotations: { secret: "sensitive" } }, spec: { containers: [{ env: [{ value: "sensitive" }] }] }, status: {
+    phase: "Pending", containerStatuses: [{ name: "api", restartCount: 2, state: { waiting: { reason: "ImagePullBackOff", message: "sensitive" } } }]
+  } });
+  assert.equal(evidence.containers[0].reason, "ImagePullBackOff");
+  assert.equal(evidence.containers[0].restarts, 2);
+  assert.ok(!JSON.stringify(evidence).includes("sensitive"));
+});
+
+test("native workflow has no production secrets, self-hosted labels or broad artifact upload", () => {
+  const workflow = fs.readFileSync(new URL("../../.github/workflows/standalone-acceptance.yml", import.meta.url), "utf8");
+  assert.match(workflow, /runs-on: ubuntu-24\.04/);
+  assert.match(workflow, /contents: read/);
+  assert.match(workflow, /persist-credentials: false/);
+  assert.doesNotMatch(workflow, /secrets\.|self-hosted|pull_request_target|id-token: write|packages: write/);
+  assert.match(workflow, /path: standalone-acceptance-report\.json\n/);
+  assert.doesNotMatch(workflow, /path:.*\*/);
+  assert.match(workflow, /if: always\(\)\n\s+run: node infra\/acceptance\/cleanup\.mjs/);
+});

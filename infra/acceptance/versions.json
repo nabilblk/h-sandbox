@@ -1,0 +1,24 @@
+{
+  "version": "0.5.0-rc.9",
+  "source": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+  "manifestSha256": "156519b7b1e5cce8a4c195e8904bffa30da087103ad89306c76443aa4b009e36",
+  "images": {
+    "api": "sha256:a0f6abcc401c92574ad0a33244e85dd59076352c51fd0fc90e150c289985269f",
+    "web": "sha256:a07f640e233e9b2e378ade810b1d7a240ee7abb69125f276b275d91e6e795abd"
+  },
+  "charts": {
+    "harakiri": { "version": "0.5.0-rc.9", "digest": "sha256:9480ef014a5c1ba38d6bb43c615de827cb77b9443be07346bfaac8a620258c99" },
+    "opensandbox": { "version": "0.2.2-harakiri.2", "digest": "sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34" }
+  },
+  "opencodeImage": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:6b300e6ecde41a6174428f13f39663462c32dd7f6799e5af863cd50245d95de5",
+  "k0s": {
+    "version": "v1.36.3+k0s.2",
+    "url": "https://github.com/k0sproject/k0s/releases/download/v1.36.3%2Bk0s.2/k0s-v1.36.3%2Bk0s.2-amd64",
+    "sha256": "f8b278ba5a9938ced226381484a0f31b6bfa2938703949df235474e03c774acc"
+  },
+  "storage": {
+    "url": "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.32/deploy/local-path-storage.yaml",
+    "sha256": "1389a68e17a3035b7be0fdada9a9ecc7063cc2e5fee88fcbf9bfd87c0e30a38c"
+  },
+  "playwright": "1.60.0"
+}
