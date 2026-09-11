@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-11
 **Author**: Codex with the maintainer
-**Status**: In Progress; PR 42 native installation and onboarding interactions passed, end-to-end qualification running
+**Status**: In Progress; native client workflow and encrypted recovery passed, provider state-loss/rollback qualification running
 **Priority**: Next owner-approved milestone
 **Estimated effort**: Several engineering sessions, bounded by real acceptance evidence
 
@@ -34,12 +34,12 @@ deployment is part of this milestone without separate authorization.
 - [x] A fresh native amd64 Kubernetes installation consumes published, verified
   chart/images/packages and generated operator configuration, without private
   source patches or production credentials.
-- [ ] Browser OIDC onboarding/login/logout, published CLI/SDK first tasks,
+- [x] Browser OIDC onboarding/login/logout, published CLI/SDK first tasks,
   capacity enforcement, protected routes and retained workspace reuse pass.
-- [ ] A coherent backup of both databases, workspace files, operator settings
+- [x] A coherent backup of both databases, workspace files, operator settings
   and wrapping keys is restored into an isolated target. Identity, metadata,
   file integrity and a real encrypted Vault source remain usable.
-- [ ] Missing and incorrect wrapping keys fail closed without printing secret
+- [x] Missing and incorrect wrapping keys fail closed without printing secret
   payloads, injecting credentials or silently replacing the encrypted source.
 - [ ] Provider interruption/state-loss and control-plane restarts preserve
   execution reservations and workspace ownership; recovery does not duplicate
@@ -107,7 +107,7 @@ No local fixture is started. Public web, API health and OIDC discovery returned
 baseline, not an availability or resource-capacity guarantee.
 
 ### Phase 1: Guarded Fresh Installation and Native Workflow
-**Status**: In Progress
+**Status**: Complete; native run 34658975916
 
 - [x] Add a bounded native amd64 workflow and test-owned bootstrap guards.
 - [x] Download exact release assets and verify image/chart/package identity
@@ -115,36 +115,36 @@ baseline, not an availability or resource-capacity guarantee.
   Published API/web images have also run on the fresh native amd64 node.
 - [x] Install dependencies/runtime/control plane using public reference inputs.
 - [x] Complete real OIDC onboarding and create an expiring scoped test key.
-- [ ] Import the published OpenCode image; prove a model-free task, first file
+- [x] Import the published OpenCode image; prove a model-free task, first file
   write/command, protected route, capacity denial and two-runtime persistence.
-- [ ] Retain redacted failed attempts and clean only owned resources.
+- [x] Retain redacted failed attempts and clean only owned resources.
 
 ### Phase 2: Coherent Encrypted Recovery
-**Status**: Harness implemented; native acceptance not executed
+**Status**: Complete; native run 34658975916
 
 - [x] Implement distinct PostgreSQL storage, source database shutdown, empty
   replacement workspace storage, encrypted-envelope fingerprints, key-failure
   cases and actual proxy-injection assertions. These are test definitions, not
   successful recovery evidence.
 
-- [ ] Create a nonempty encrypted Vault source for the public HTTPS authentication
+- [x] Create a nonempty encrypted Vault source for the public HTTPS authentication
   fixture. Prove injection with a published example credential, not an account secret.
-- [ ] Quiesce writers and attachments; back up both databases, a detached
+- [x] Quiesce writers and attachments; back up both databases, a detached
   workspace, settings and the complete key material at one recovery point.
-- [ ] Restore into isolated databases/storage; verify OIDC, organization/key
+- [x] Restore into isolated databases/storage; verify OIDC, organization/key
   identity, workspace bytes and credential use through the actual runtime proxy.
-- [ ] Exercise missing/wrong-key cases before restoring the correct material.
-- [ ] Demonstrate that a backup catalog alone does not satisfy this phase.
+- [x] Exercise missing/wrong-key cases before restoring the correct material.
+- [x] Demonstrate that a backup catalog alone does not satisfy this phase.
 
 ### Phase 3: Interruption and Provider-State Recovery
-**Status**: Harness implemented; native acceptance not executed
+**Status**: In Progress; interruption passed before the state-loss fixture stopped
 
 - [x] Implement guarded provider API interruption, writer restart, SQL/read API
   ownership observations, once-only command markers and owned binding loss.
 
-- [ ] Interrupt the test runtime control-plane service and restart Harakiri
+- [x] Interrupt the test runtime control-plane service and restart Harakiri
   components while a known owned runtime survives.
-- [ ] Confirm capacity/workspace ownership remains held during uncertainty and
+- [x] Confirm capacity/workspace ownership remains held during uncertainty and
   no second execution is admitted or silently provisioned.
 - [ ] Remove only the owned provider Vault entry via its administrative API,
   then prove normal inspection/rehydration restores the desired binding.
@@ -253,6 +253,18 @@ browser state to unblock diagnostics.
   dedicated acceptance branch/PR and isolated runner; remote execution is next.
 
 ## Native Execution Log
+
+- [Run 34658975916](https://github.com/nabilblk/h-sandbox/actions/runs/34658975916)
+  passed installation (132s), OIDC onboarding, published CLI/SDK workflow (83s)
+  and coordinated encrypted recovery (290s). Actual native OpenCode, file reuse,
+  protected routes, capacity denial, missing/wrong-key rejection, restored
+  identities and recovered credential injection passed. Provider API loss and
+  Harakiri restart retained the once-only command and ownership. The next fixture
+  incorrectly demanded `OpenSandbox-Ingress-To` on a `use_server_proxy=true`
+  endpoint; upstream deliberately removes that header. Correct it to use the
+  returned loopback server-proxy path and egress authentication, with tests
+  rejecting foreign origins, identities, ports and redirects. State-loss mutation
+  was not reached in this run. Both cleanup layers passed.
 
 - [Run 34658393120](https://github.com/nabilblk/h-sandbox/actions/runs/34658393120)
   captured main-container exit 255 and `exec_format_error`. Anonymous registry
@@ -371,8 +383,8 @@ browser state to unblock diagnostics.
   failing gate, not an alternative successful execution path. Native recovery is
   still unreached; runtime startup is the current investigation.
 
-In progress. Native installation of the published bundle and the browser's
-onboarding interactions have passed. The current run must still establish the
-complete scoped-client workflow and destructive recovery. The milestone remains
+In progress. Native installation, OIDC, scoped-client workflow and coordinated
+encrypted recovery have passed. The current run must still establish provider
+state rehydration, configuration rollback and final key revocation. The milestone remains
 in `active/` until those acceptance gates and the separately identified
 release-compatibility gate are closed or explicitly rescoped by the owner.

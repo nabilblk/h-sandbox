@@ -4,11 +4,14 @@ This is a qualification harness, not a second installer. It consumes the public
 reference configuration, published chart archives, immutable application image
 digests and integrity-checked npm tarballs pinned in `versions.json`.
 
-**Current evidence: native amd64 installation of published rc.9, real OIDC
-onboarding and scoped-key setup pass. The first runtime failed because this
-harness selected an ARM64-only template digest; the existing published AMD64
-digest is now selected and checked before installation. Destructive recovery
-has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
+**Current evidence: native amd64 installation of published rc.9, real OIDC,
+published CLI/SDK tasks, admission denial, routes and workspace reuse pass.
+Coordinated database/workspace/encrypted Vault recovery passes, including
+missing/wrong-key rejection.** Run 34658975916 then stopped before provider
+state-loss injection because the harness expected a gateway header on a
+server-proxy endpoint. That fixture assumption is corrected; rehydration,
+configuration rollback and final revocation await qualification.
+See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
 and its per-run receipts. Local contracts alone are not native acceptance evidence.
 
 ## Isolation

@@ -9,23 +9,35 @@ function heldRuntime(ctx, state) {
   return row.nativeId;
 }
 
+export function ownedVaultEndpoint(endpoint, providerId) {
+  literalId(providerId);
+  const origin = "http://127.0.0.1:28486";
+  const value = endpoint.endpoint ?? endpoint.url;
+  check(typeof value === "string" && value.length > 0, "Owned provider proxy endpoint unavailable");
+  const url = new URL(value.includes("://") || value.startsWith("/") ? value : `http://${value}`, origin);
+  check(url.origin === origin && !url.username && !url.password && !url.search && !url.hash
+    && url.pathname === `/v1/sandboxes/${providerId}/proxy/18080`, "Provider proxy escaped the owned endpoint");
+  const headers = new Headers(endpoint.headers);
+  check(headers.has("OPENSANDBOX-EGRESS-AUTH"), "Owned provider egress authentication unavailable");
+  return { url: `${url.href}/credential-vault`, headers };
+}
+
 async function removeProviderEntry(ctx, providerId, attachment) {
   await ctx.forward("opensandbox-server", 28486, 80);
-  await ctx.forward("opensandbox-ingress-gateway", 28488, 80);
   const key = ctx.read("secrets.json").items.find(item => item.metadata.name === "preview-api").stringData.OPEN_SANDBOX_API_KEY;
   const endpointResponse = await fetch(`http://127.0.0.1:28486/v1/sandboxes/${encodeURIComponent(providerId)}/endpoints/18080?use_server_proxy=true`, {
     headers: { "OPEN-SANDBOX-API-KEY": key }, signal: AbortSignal.timeout(15000)
   });
   check(endpointResponse.ok, "Owned provider sidecar resolution failed");
-  const endpoint = await endpointResponse.json();
-  check(Object.keys(endpoint.headers ?? {}).some(name => name.toLowerCase() === "opensandbox-ingress-to"), "Expected the isolated header-routing gateway");
-  const url = "http://127.0.0.1:28488/credential-vault";
-  const current = await fetch(url, { headers: endpoint.headers, signal: AbortSignal.timeout(15000) });
+  // Server-proxy endpoints deliberately omit the ingress gateway routing header.
+  const { url, headers } = ownedVaultEndpoint(await endpointResponse.json(), providerId);
+  const current = await fetch(url, { headers, redirect: "error", signal: AbortSignal.timeout(15000) });
   check(current.ok, "Owned provider Vault inspection failed");
   const vault = await current.json();
   check(vault.credentials.some(item => item.name === attachment.credentialName) && vault.bindings.some(item => item.name === attachment.bindingName), "Owned attachment is absent before state-loss injection");
+  headers.set("content-type", "application/json");
   const changed = await fetch(url, {
-    method: "PATCH", headers: { ...endpoint.headers, "content-type": "application/json" }, signal: AbortSignal.timeout(15000),
+    method: "PATCH", headers, redirect: "error", signal: AbortSignal.timeout(15000),
     body: JSON.stringify({ expectedRevision: vault.revision, credentials: { delete: [attachment.credentialName] }, bindings: { delete: [attachment.bindingName] } })
   });
   check(changed.ok, "Owned provider state-loss injection failed");

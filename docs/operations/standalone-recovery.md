@@ -3,12 +3,16 @@
 This runbook defines the recovery contract for a standalone Harakiri installation.
 It does not certify a profile merely because its commands or tests exist.
 
-**Evidence status, September 11, 2026:** the published rc.9 delivery has arm64
-runtime evidence. The new isolated harness has passed native amd64 installation
-of the published bundle and complete browser OIDC/scoped-key onboarding. The
-first asynchronous runtime received a provider 504; startup events were recorded
-but no runtime pod remained at failure. Native task execution and encrypted
-recovery remain unqualified; see the per-run results in
+**Evidence status, September 11, 2026:** isolated native amd64 installation,
+browser OIDC onboarding, published CLI/SDK tasks, protected routes, admission
+denial and retained workspace reuse passed in
+[run 34658975916](https://github.com/nabilblk/h-sandbox/actions/runs/34658975916).
+Coordinated restoration of both databases and workspace storage also passed,
+including real encrypted Vault use and missing/wrong-key rejection. The next
+gate stopped before provider state-loss injection because the harness expected
+a gateway header on a server-proxy endpoint; that fixture assumption is being
+corrected. State rehydration, final revocation and configuration rollback are
+not yet qualified; see the per-run results in
 [PR 42](https://github.com/nabilblk/h-sandbox/pull/42). HA, arbitrary CSI
 drivers and unchanged restricted OpenShift remain outside this qualification.
 See [the delivery record](../release-notes/0.5.0-rc.9-delivery.md) and
