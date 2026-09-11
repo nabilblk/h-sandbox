@@ -24,13 +24,14 @@ export async function install(ctx) {
   for (const name of ["preview-postgres", "preview-keycloak"]) ctx.k(["-n", "harakiri-preview", "rollout", "status", `deployment/${name}`, "--timeout=600s"]);
   ctx.helm(["install", "preview-runtime", ctx.file(manifest.charts.opensandbox.archive), "--namespace", "harakiri-preview", "-f", ctx.file("opensandbox-values.json"), "--wait", "--timeout", "10m"]);
   ctx.helm(["install", "harakiri", ctx.file(manifest.charts.harakiri.archive), "--namespace", "harakiri-preview", "-f", ctx.file("harakiri-values.json"), "--wait", "--timeout", "10m"]);
+  await installClients(ctx, manifest);
+  ctx.execute("node", [path.join(ctx.consumer, "node_modules/playwright/cli.js"), "install", "--with-deps", "chromium"], "Acceptance browser installation");
+  // Browser dependency installation can restart services; open forwards afterwards.
   await ctx.forwardAll();
   for (const [url, expected] of [[`${origins.api}/health`, 200], [`${origins.web}/docs/install-kubernetes.md`, 200], [`${origins.auth}/realms/harakiri/.well-known/openid-configuration`, 200]]) {
     const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
     check(response.status === expected, "Installed public endpoint check failed");
     if (url.includes("openid-configuration")) check((await response.json()).issuer === `${origins.auth}/realms/harakiri`, "Installed issuer mismatch");
   }
-  await installClients(ctx, manifest);
-  ctx.execute("node", [path.join(ctx.consumer, "node_modules/playwright/cli.js"), "install", "--with-deps", "chromium"], "Acceptance browser installation");
   return { version: pinned.version, source: pinned.source, architecture: "amd64", anonymousArtifacts: true, freshInstallation: true };
 }

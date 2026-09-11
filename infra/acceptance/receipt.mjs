@@ -19,5 +19,17 @@ export function publicEvidence(details) {
 export function publicFailure(error) {
   if (error instanceof AcceptanceCheckError) return { kind: "acceptance_check", check: error.message };
   if (Number.isInteger(error.status) && error.status >= 400 && error.status <= 599) return { kind: "http", status: error.status };
+  const browserFailures = [
+    ["net::ERR_CONNECTION_REFUSED", "connection_refused"],
+    ["net::ERR_CONNECTION_RESET", "connection_reset"],
+    ["net::ERR_ABORTED", "navigation_aborted"],
+    ["Executable doesn't exist", "browser_executable_missing"],
+    ["strict mode violation", "ambiguous_locator"],
+    ["Target page, context or browser has been closed", "browser_closed"]
+  ];
+  for (const [signature, reason] of browserFailures) {
+    if (typeof error.message === "string" && error.message.includes(signature)) return { kind: "browser", reason };
+  }
+  if (["TypeError", "TimeoutError", "SyntaxError", "ReferenceError"].includes(error.name)) return { kind: "exception", type: error.name };
   return { kind: "withheld", check: "Detailed exception withheld because it may contain credentials or browser state." };
 }

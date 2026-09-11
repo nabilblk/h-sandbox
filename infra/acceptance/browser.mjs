@@ -3,8 +3,11 @@ import { check, origins, until } from "./context.mjs";
 const scopes = ["sandboxes:read", "sandboxes:write", "templates:read", "templates:write", "workspaces:read", "workspaces:write", "credentials:use", "credentials:manage", "org:read", "audit:read"];
 
 export async function operatorSession(ctx) {
+  console.log("Browser step: import published clients");
   const { chromium } = await ctx.loadClients();
+  console.log("Browser step: launch installed Chromium");
   const browser = await chromium.launch({ headless: true });
+  console.log("Browser step: create isolated page");
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(45000);
   let bearer = "";
@@ -32,7 +35,9 @@ export async function operatorSession(ctx) {
   };
   const login = async () => {
     bearer = "";
+    console.log("Browser step: open installed dashboard");
     await page.goto(`${origins.web}/#dashboard/sandboxes`);
+    console.log("Browser step: find sign-in entry");
     const username = page.locator('input[name="username"]');
     await until("Sign-in entry", async () => {
       if (await username.isVisible()) return true;
@@ -41,11 +46,13 @@ export async function operatorSession(ctx) {
       return false;
     }, 60000);
     await username.waitFor();
+    console.log("Browser step: submit generated operator login");
     const credentials = ctx.read("operator-login.json");
     await username.fill(credentials.username);
     await page.locator('input[name="password"]').fill(credentials.password);
     await page.locator("#kc-login").click();
     await until("OIDC callback", () => Boolean(bearer), 60000);
+    console.log("Browser step: verify authenticated account view");
     check(pkce, "Browser did not use the authorization code flow with S256 PKCE");
     await until("Account view", async () => (await page.getByRole("heading", { name: "Welcome to Harakiri." }).isVisible()) || (await page.locator('[aria-label^="Account:"]').first().isVisible()));
     const storedToken = await page.evaluate(() => localStorage.getItem("harakiri_access_token"));

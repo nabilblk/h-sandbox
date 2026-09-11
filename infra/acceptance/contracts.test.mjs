@@ -34,6 +34,9 @@ test("public evidence strips keys, backups, nested objects and arbitrary strings
   assert.deepEqual(publicFailure({ status: 500, message: "sensitive", body: "sensitive", code: "sensitive" }), { kind: "http", status: 500 });
   assert.ok(!JSON.stringify(publicFailure(new Error("sensitive"))).includes("sensitive"));
   assert.deepEqual(publicFailure(new AcceptanceCheckError("owned check")), { kind: "acceptance_check", check: "owned check" });
+  assert.deepEqual(publicFailure(new Error("page.goto: net::ERR_CONNECTION_REFUSED http://user:sensitive@localhost/path?code=sensitive")), { kind: "browser", reason: "connection_refused" });
+  assert.deepEqual(publicFailure(new TypeError("sensitive")), { kind: "exception", type: "TypeError" });
+  assert.ok(!JSON.stringify(publicFailure({ name: "sensitive", message: "sensitive" })).includes("sensitive"));
 });
 
 test("create replay preserves one intent and fails on duplicate identity", async () => {

@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-11
 **Author**: Codex with the maintainer
-**Status**: In Progress; PR 42 native acceptance, bootstrap correction after first failed run
+**Status**: In Progress; PR 42 native installation passed, browser onboarding under diagnosis
 **Priority**: Next owner-approved milestone
 **Estimated effort**: Several engineering sessions, bounded by real acceptance evidence
 
@@ -266,6 +266,14 @@ browser state to unblock diagnostics.
   advertised address belongs to this runner. Preserve its CA/client identity
   and validate the complete result before any cluster operation. Subsequent
   operations still require localhost plus the recorded cluster UID/owner label.
+- [Run 34649588659](https://github.com/nabilblk/h-sandbox/actions/runs/34649588659)
+  passed native bootstrap and anonymous published-bundle installation, including
+  the web/API/OIDC endpoint checks. Browser onboarding failed immediately with
+  an initially withheld exception. All application pods were ready in the
+  sanitized diagnostic; cleanup passed and private material was removed. Recovery
+  was not reached. Added static browser progress markers and allowlisted failure
+  categories, and moved forwards after browser dependency installation. The
+  initial report does not establish the browser failure's root cause.
 
 ## Completion Notes
 
