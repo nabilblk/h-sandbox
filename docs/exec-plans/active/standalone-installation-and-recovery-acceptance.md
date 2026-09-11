@@ -304,6 +304,14 @@ browser state to unblock diagnostics.
   Initial acceptance login now requests onboarding explicitly, while recovery
   login retains the dashboard route. This is a harness correction, not a change
   to the application's return-route behavior; native verification is next.
+- [Run 34651529367](https://github.com/nabilblk/h-sandbox/actions/runs/34651529367)
+  confirmed the earlier navigation mismatch: all known wizard headings were
+  absent on the dashboard, with account/capacity API requests returning 200.
+- [Run 34651842257](https://github.com/nabilblk/h-sandbox/actions/runs/34651842257)
+  completed browser onboarding, saved workspace settings (200), created its key
+  (201), persisted completion (200) and opened the dashboard. Harness revocation
+  then received 400 because its empty DELETE advertised JSON content. Corrected
+  the bodyless-request helper with regression coverage. Both cleanup layers passed.
 
 ## Completion Notes
 

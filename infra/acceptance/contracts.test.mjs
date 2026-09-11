@@ -10,7 +10,7 @@ import { literalId, applyOwned } from "./operator.mjs";
 import { ownershipLabel } from "./safety.mjs";
 import { assertCredentialBoundary, credentialTarget, exampleCredential, placeholder, probeCredential } from "./credential-fixture.mjs";
 import { podEvidence } from "./diagnostics.mjs";
-import { assertOperatorAccount } from "./browser.mjs";
+import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
   for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {
@@ -56,6 +56,18 @@ test("operator onboarding consumes the public account role and capabilities cont
   for (const account of [null, { membership: { role: "admin" } }, { role: "member", capabilities: { canManageSettings: false } }, { role: "admin", capabilities: { canManageSettings: false } }]) {
     assert.throws(() => assertOperatorAccount(account), /not organization admin/);
   }
+});
+
+test("bodyless operator requests do not advertise an empty JSON payload", () => {
+  for (const method of ["GET", "DELETE"]) {
+    const request = operatorRequestOptions("fixture", method);
+    assert.equal(request.headers["content-type"], undefined);
+    assert.equal(request.body, undefined);
+    assert.equal(request.headers.authorization, "fixture");
+  }
+  const request = operatorRequestOptions("fixture", "PATCH", { maxConcurrency: 1 });
+  assert.equal(request.headers["content-type"], "application/json");
+  assert.deepEqual(JSON.parse(request.body), { maxConcurrency: 1 });
 });
 
 test("owned forward cleanup signals only its dedicated group, with bounded escalation", async () => {

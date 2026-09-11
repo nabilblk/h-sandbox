@@ -18,7 +18,10 @@ export function publicEvidence(details) {
 
 export function publicFailure(error) {
   if (error instanceof AcceptanceCheckError) return { kind: "acceptance_check", check: error.message };
-  if (Number.isInteger(error.status) && error.status >= 400 && error.status <= 599) return { kind: "http", status: error.status };
+  if (Number.isInteger(error.status) && error.status >= 400 && error.status <= 599) {
+    const codes = new Set(["forbidden", "unauthorized", "validation_error", "template_not_found", "sandbox_not_found", "sandbox_not_ready", "sandbox_readiness_failed", "workspaces_unavailable", "workspace_unavailable", "workspace_attachment_ambiguous", "organization_capacity_exceeded", "organization_capacity_unavailable", "credential_secret_decryption_unavailable", "credential_vault_unavailable"]);
+    return { kind: "http", status: error.status, ...(codes.has(error.code) ? { code: error.code } : {}) };
+  }
   const browserFailures = [
     ["net::ERR_CONNECTION_REFUSED", "connection_refused"],
     ["net::ERR_CONNECTION_RESET", "connection_reset"],

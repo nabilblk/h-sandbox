@@ -33,6 +33,7 @@ async function removeProviderEntry(ctx, providerId, attachment) {
 
 export async function interruption(ctx, operator) {
   const { client } = operator;
+  console.log("Interruption step: start once-only surviving command");
   const state = ctx.read("recovered-workload.json");
   const nativeId = heldRuntime(ctx, state);
   const code = "import time\nwith open('/workspace/execution-starts.txt', 'a') as f:\n f.write('started\\n')\n f.flush()\ntime.sleep(1200)\n";
@@ -42,6 +43,7 @@ export async function interruption(ctx, operator) {
     try { return (await client.files.read(state.sandboxId, "/workspace/execution-starts.txt")).content === "started\n"; }
     catch (error) { if ([404, 500].includes(error.status)) return false; throw error; }
   });
+  console.log("Interruption step: remove provider API and restart Harakiri writers");
   await replicas(ctx, ["opensandbox-server"], 0);
   await replicas(ctx, writers, 0);
   await replicas(ctx, writers, 1);
@@ -50,6 +52,7 @@ export async function interruption(ctx, operator) {
   await denyAtCapacity(client, state.templateId, true);
   check(heldRuntime(ctx, state) === nativeId, "Denied creation changed the surviving runtime");
   await replicas(ctx, ["opensandbox-server"], 1);
+  console.log("Interruption step: verify surviving runtime and retained admission");
   await client.waitForSandbox(state.sandboxId, { timeoutMs: 180000 });
   await assertRetained(client, state.sandboxId, state);
   check((await client.files.read(state.sandboxId, "/workspace/execution-starts.txt")).content === "started\n", "A restart duplicated the long-running command");
@@ -57,6 +60,7 @@ export async function interruption(ctx, operator) {
   await client.commands.kill(state.sandboxId, command.id);
   await probeCredential(client, state.sandboxId, true);
   await replicas(ctx, ["harakiri-scheduler"], 0);
+  console.log("Interruption step: remove owned provider binding and rehydrate through Harakiri");
   await removeProviderEntry(ctx, nativeId, state.attachment);
   const inspection = await client.credentials.inspect(state.sandboxId);
   check(inspection.attachments.some(item => item.id === state.attachment.id && item.providerState === "missing"), "Provider loss was not reflected in desired-state inspection");

@@ -6,6 +6,15 @@ export function assertOperatorAccount(account) {
   check(account?.role === "admin" && account?.capabilities?.canManageSettings === true, "Fresh operator is not organization admin");
 }
 
+export function operatorRequestOptions(bearer, method, body) {
+  return {
+    method,
+    headers: { authorization: bearer, ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(45000)
+  };
+}
+
 export async function operatorSession(ctx) {
   console.log("Browser step: import published clients");
   const { chromium } = await ctx.loadClients();
@@ -41,10 +50,7 @@ export async function operatorSession(ctx) {
   const request = async (route, method = "GET", body, expected = 200) => {
     check(route.startsWith("/v1/"), "Operator request outside the installed API");
     check(bearer, "Browser has not authenticated");
-    const response = await fetch(`${origins.api}${route}`, {
-      method, headers: { authorization: bearer, "content-type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(45000)
-    });
+    const response = await fetch(`${origins.api}${route}`, operatorRequestOptions(bearer, method, body));
     check(response.status === expected, `Operator ${method} ${route}: HTTP ${response.status}, expected ${expected}`);
     return response.status === 204 ? null : response.json();
   };

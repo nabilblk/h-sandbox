@@ -88,6 +88,7 @@ async function setWrappingKey(ctx, value) {
 
 export async function recovery(ctx, operator, state) {
   const { client } = operator;
+  console.log("Recovery step: store encrypted source and prove credential injection");
   const secretId = await credentialFixture(ctx, client);
   const first = await createRuntime(client, state, "vault-before-backup");
   await probeCredential(client, first, false);
@@ -96,6 +97,7 @@ export async function recovery(ctx, operator, state) {
   await assertCredentialBoundary(ctx, client, first);
   await released(client, first, state.workspaceId);
   await operator.logout();
+  console.log("Recovery step: drain writers and back up both databases and detached files");
   const held = (await client.capacity()).capacity.inUse;
   const workspace = (await client.workspaces.get(state.workspaceId)).workspace;
   check(held === 0 && workspace.attachedSandboxId === null, "Cannot back up active execution or attached storage");
@@ -122,13 +124,16 @@ export async function recovery(ctx, operator, state) {
   const fingerprint = envelopeFingerprint(ctx, secretId);
   const backup = { recoveryPoint: new Date().toISOString(), files, claim, claimUid, secretId, envelopeSha256: fingerprint };
   ctx.save("backup.json", backup);
+  console.log("Recovery step: restore both databases into new PostgreSQL storage");
   const target = restoreDatabases(ctx);
   check(envelopeFingerprint(ctx, secretId, target) === fingerprint, "Encrypted source changed in database restoration");
   await replicas(ctx, ["preview-postgres"], 0);
+  console.log("Recovery step: restore files into an empty replacement workspace volume");
   await restoreVolume(ctx, backup);
   configureRestoredDatabases(ctx, target);
   await replicas(ctx, ["preview-keycloak", ...writers], 1);
   await ctx.forwardAll();
+  console.log("Recovery step: verify restored browser identity and API key");
   const restoredAccount = await operator.login();
   const identity = ctx.read("account.json");
   check(restoredAccount.user.id === identity.userId && restoredAccount.organization.id === identity.organizationId, "OIDC or organization identity changed after recovery");
@@ -136,6 +141,7 @@ export async function recovery(ctx, operator, state) {
   const correctKey = ctx.read("secrets.json").items.find(item => item.metadata.name === "preview-api").stringData.CREDENTIAL_VAULT_KEY;
   const negativeCases = [];
   for (const [label, key] of [["missing", null], ["incorrect", randomBytes(32).toString("base64")]]) {
+    console.log(`Recovery step: fail closed with ${label} wrapping key`);
     await setWrappingKey(ctx, key);
     const sandbox = await createRuntime(client, state, `vault-${label}-key`);
     await assertRetained(client, sandbox, state);
@@ -151,6 +157,7 @@ export async function recovery(ctx, operator, state) {
     negativeCases.push(label);
   }
   await setWrappingKey(ctx, correctKey);
+  console.log("Recovery step: restore correct key and verify recovered injection");
   const recovered = await createRuntime(client, state, "vault-after-recovery");
   await assertRetained(client, recovered, state);
   const attached = await client.credentials.attachSecret(recovered, secretId);

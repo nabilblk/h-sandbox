@@ -48,6 +48,7 @@ export async function assertRetained(client, id, state) {
 
 export async function workload(ctx, operator) {
   const { client } = operator;
+  console.log("Workload step: import published OpenCode template");
   const templateId = `acceptance-opencode-${ctx.identity.id}`;
   await client.createTemplate({ id: templateId, name: "Acceptance OpenCode", image: pinned.opencodeImage, visibility: "private", cpuCount: 1, memoryMb: 2048, workdir: "/workspace", defaultEntrypoint: ["sleep", "7200"], runtimeFamily: "custom" });
   const { build } = await client.createTemplateBuild(templateId, { sourceType: "image", imageDestination: pinned.opencodeImage });
@@ -56,6 +57,7 @@ export async function workload(ctx, operator) {
     check(!["failed", "canceled"].includes(result.build.status), "Template image import failed");
     return result.build.status === "success";
   }, 600000);
+  console.log("Workload step: allocate persistent workspace and create native runtime");
   const { workspace } = await client.workspaces.create({ name: `acceptance-${ctx.identity.id}` });
   const bytes = `Retained state from ${ctx.identity.id}\n${randomUUID()}\n`;
   const state = { templateId, workspaceId: workspace.id, fileSha256: sha256(bytes), runtimeIds: [] };
@@ -64,6 +66,7 @@ export async function workload(ctx, operator) {
   state.runtimeIds.push(id);
   ctx.save("workload.json", state);
   await client.files.write(id, { path: retainedPath, content: bytes });
+  console.log("Workload step: native OpenCode, capacity denial and published CLI");
   const stdout = await run(client, id, "uname -m && opencode --version && python3 -c 'print(6 * 7)'");
   check(stdout.includes("x86_64") && stdout.trim().endsWith("42"), "Native OpenCode model-free first task failed");
   await denyAtCapacity(client, templateId);
@@ -73,6 +76,7 @@ export async function workload(ctx, operator) {
   const cli = path.join(ctx.consumer, "node_modules/@h-sandbox/cli/dist/index.js");
   const result = ctx.execute("node", [cli, "run", id, "--cmd", "python3 -c 'print(7 * 6)'", "--cwd", "/workspace"], "Published CLI first task", { env, timeout: 90000 });
   check(result.includes("42"), "Published CLI first task returned no expected output");
+  console.log("Workload step: protected HTTP route");
   await client.commands.start(id, { command: "python3 -m http.server 8088 --bind 0.0.0.0", cwd: "/workspace", detached: true, timeoutMs: 600000 });
   const exposed = await client.routes.expose(id, { port: 8088, accessMode: "token" });
   check(new URL(exposed.route.url).origin === origins.api, "Protected route escaped the installed API origin");
@@ -84,6 +88,7 @@ export async function workload(ctx, operator) {
   const denied = await fetch(exposed.route.url, { signal: AbortSignal.timeout(10000), redirect: "manual" });
   check([401, 403].includes(denied.status), "Protected route allowed an anonymous request");
   await released(client, id, state.workspaceId);
+  console.log("Workload step: reattach retained files to a replacement runtime");
   const second = await createRuntime(client, state, "retained-workspace-second-runtime");
   state.runtimeIds.push(second);
   ctx.save("workload.json", state);
