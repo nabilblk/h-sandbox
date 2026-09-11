@@ -254,6 +254,17 @@ browser state to unblock diagnostics.
 
 ## Native Execution Log
 
+- [Run 34658393120](https://github.com/nabilblk/h-sandbox/actions/runs/34658393120)
+  captured main-container exit 255 and `exec_format_error`. Anonymous registry
+  inspection established the root cause: the harness pinned an ARM64-only lab
+  template digest. This is a fixture selection error, not evidence that the
+  provider timeout needs changing. The already published catalog index
+  `089f32fa775f6b5865a277da8bd00a2dc1d2784e55eb27a7072e22cf2ea1577b`
+  includes an AMD64 child `9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3`.
+  Select that immutable child and verify manifest/config checksums and native
+  architecture before installation. No image build, publication, runtime patch,
+  privilege change or timeout extension is needed. Cleanup passed.
+
 - [PR 42](https://github.com/nabilblk/h-sandbox/pull/42) contains the dedicated
   acceptance branch. No merge, publication or public-lab deployment is requested.
 - [Run 34649412463](https://github.com/nabilblk/h-sandbox/actions/runs/34649412463)

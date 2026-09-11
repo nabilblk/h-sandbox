@@ -3,8 +3,10 @@ import { createConfiguration } from "../preview/configure.mjs";
 import { check, download, origins, pinned } from "./context.mjs";
 import { namespaces, ownershipLabel, validateArtifactManifest } from "./safety.mjs";
 import { installClients } from "./clients.mjs";
+import { verifyNativeTemplate } from "./image.mjs";
 
 export async function install(ctx) {
+  const templateEvidence = await verifyNativeTemplate(pinned.opencodeImage);
   const base = `https://github.com/nabilblk/h-sandbox/releases/download/v${pinned.version}/`;
   const bytes = await download(`${base}artifact-manifest.json`, pinned.manifestSha256);
   const manifest = validateArtifactManifest(JSON.parse(bytes), pinned);
@@ -33,5 +35,5 @@ export async function install(ctx) {
     check(response.status === expected, "Installed public endpoint check failed");
     if (url.includes("openid-configuration")) check((await response.json()).issuer === `${origins.auth}/realms/harakiri`, "Installed issuer mismatch");
   }
-  return { version: pinned.version, source: pinned.source, architecture: "amd64", anonymousArtifacts: true, freshInstallation: true };
+  return { version: pinned.version, source: pinned.source, architecture: "amd64", anonymousArtifacts: true, freshInstallation: true, ...templateEvidence };
 }

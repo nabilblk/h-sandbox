@@ -10,7 +10,7 @@
     "harakiri": { "version": "0.5.0-rc.9", "digest": "sha256:9480ef014a5c1ba38d6bb43c615de827cb77b9443be07346bfaac8a620258c99" },
     "opensandbox": { "version": "0.2.2-harakiri.2", "digest": "sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34" }
   },
-  "opencodeImage": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:6b300e6ecde41a6174428f13f39663462c32dd7f6799e5af863cd50245d95de5",
+  "opencodeImage": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3",
   "k0s": {
     "version": "v1.36.3+k0s.2",
     "url": "https://github.com/k0sproject/k0s/releases/download/v1.36.3%2Bk0s.2/k0s-v1.36.3%2Bk0s.2-amd64",

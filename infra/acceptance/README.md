@@ -5,8 +5,10 @@ reference configuration, published chart archives, immutable application image
 digests and integrity-checked npm tarballs pinned in `versions.json`.
 
 **Current evidence: native amd64 installation of published rc.9, real OIDC
-onboarding and scoped-key setup pass. The first asynchronous runtime received a
-provider 504 and its pod was removed; destructive recovery has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
+onboarding and scoped-key setup pass. The first runtime failed because this
+harness selected an ARM64-only template digest; the existing published AMD64
+digest is now selected and checked before installation. Destructive recovery
+has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
 and its per-run receipts. Local contracts alone are not native acceptance evidence.
 
 ## Isolation
@@ -90,6 +92,13 @@ rollback removes failed resources. A nonzero main-container exit fails the test
 promptly, without pretending that a longer readiness wait will repair it. The
 180-second timeout experiment also failed and was removed: the main container
 exited before readiness while the egress sidecar became healthy.
+Run 34658393120 captured exit 255 with `exec_format_error`. Anonymous OCI
+inspection then confirmed that the original template digest was ARM64-only.
+The corrected digest is the AMD64 child of the already published catalog index
+`sha256:089f32fa775f6b5865a277da8bd00a2dc1d2784e55eb27a7072e22cf2ea1577b`.
+The harness verifies manifest/config checksums and requires `linux/amd64`;
+image-pull success alone does not establish executable architecture. No image
+was built or published to correct this fixture error.
 
 Backups, Kubernetes Secrets, credentials, Helm values, raw subprocess output and
 browser state are private runner material, **not** public build artifacts.
