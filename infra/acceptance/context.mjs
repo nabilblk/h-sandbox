@@ -31,6 +31,24 @@ export async function download(url, digest) {
   return bytes;
 }
 
+export async function stopOwnedForward(child, signal = process.kill, wait = until) {
+  const exited = () => child.exitCode !== null || child.signalCode !== null;
+  if (exited()) return;
+  check(Number.isSafeInteger(child.pid) && child.pid > 1, "Invalid owned forward process group");
+  const stop = name => {
+    try { signal(-child.pid, name); }
+    catch (error) { if (error.code !== "ESRCH") throw error; }
+  };
+  // k0s runs kubectl as a child: signal the dedicated group, never an ambient PID.
+  stop("SIGTERM");
+  try { await wait("Owned forward stopped", exited, 3000); }
+  catch {
+    if (exited()) return;
+    stop("SIGKILL");
+    await wait("Owned forward forced cleanup", exited, 10000);
+  }
+}
+
 export function context() {
   const identity = runnerIdentity();
   assertPrivateDirectory(identity.directory);
@@ -69,12 +87,10 @@ export function context() {
   const forward = async (name, port, remote) => {
     guard();
     if (children.has(name)) {
-      const prior = children.get(name);
-      prior.kill("SIGTERM");
-      await until("Owned forward stopped", () => prior.exitCode !== null || prior.signalCode !== null, 10000);
+      await stopOwnedForward(children.get(name));
     }
     const descriptor = fs.openSync(file(`forward-${name}.log`), "a", 0o600);
-    const child = spawn("/usr/local/bin/k0s", ["kubectl", "--kubeconfig", identity.kubeconfig, "-n", "harakiri-preview", "port-forward", "--address=127.0.0.1", `service/${name}`, `${port}:${remote}`], { stdio: ["ignore", descriptor, descriptor] });
+    const child = spawn("/usr/local/bin/k0s", ["kubectl", "--kubeconfig", identity.kubeconfig, "-n", "harakiri-preview", "port-forward", "--address=127.0.0.1", `service/${name}`, `${port}:${remote}`], { detached: true, stdio: ["ignore", descriptor, descriptor] });
     fs.closeSync(descriptor);
     children.set(name, child);
     await until("Owned forward listening", async () => {
@@ -91,8 +107,7 @@ export function context() {
     await forward("preview-keycloak", 28484, 8080);
   };
   const stopForwards = async () => {
-    for (const child of children.values()) child.kill("SIGTERM");
-    for (const child of children.values()) await until("Owned forward cleanup", () => child.exitCode !== null || child.signalCode !== null, 10000);
+    for (const child of children.values()) await stopOwnedForward(child);
     children.clear();
   };
   return { identity, file, save, read, execute, k, helm, guard, consumer, loadClients, forward, forwardAll, stopForwards };

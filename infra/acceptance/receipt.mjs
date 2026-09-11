@@ -33,3 +33,18 @@ export function publicFailure(error) {
   if (["TypeError", "TimeoutError", "SyntaxError", "ReferenceError"].includes(error.name)) return { kind: "exception", type: error.name };
   return { kind: "withheld", check: "Detailed exception withheld because it may contain credentials or browser state." };
 }
+
+export async function finishReceipt(receipt, cleanups) {
+  receipt.runnerProcesses = { status: "passed", checks: [] };
+  for (const [name, cleanup] of Object.entries(cleanups)) {
+    try {
+      await cleanup();
+      receipt.runnerProcesses.checks.push({ name, status: "passed" });
+    } catch (error) {
+      receipt.runnerProcesses.checks.push({ name, status: "failed", failure: publicFailure(error) });
+      receipt.runnerProcesses.status = "failed";
+      receipt.status = "failed";
+    }
+  }
+  receipt.completedAt = new Date().toISOString();
+}

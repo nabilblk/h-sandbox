@@ -3,13 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import test from "node:test";
-import { AcceptanceCheckError, sha256 } from "./context.mjs";
+import { AcceptanceCheckError, sha256, stopOwnedForward } from "./context.mjs";
 import { createRuntime, denyAtCapacity, assertRetained, retainedPath } from "./workload.mjs";
-import { publicEvidence, publicFailure } from "./receipt.mjs";
+import { finishReceipt, publicEvidence, publicFailure } from "./receipt.mjs";
 import { literalId, applyOwned } from "./operator.mjs";
 import { ownershipLabel } from "./safety.mjs";
 import { assertCredentialBoundary, credentialCheckScript } from "./credential-fixture.mjs";
 import { podEvidence } from "./diagnostics.mjs";
+import { assertOperatorAccount } from "./browser.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
   for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {
@@ -48,6 +49,36 @@ test("create replay preserves one intent and fails on duplicate identity", async
   assert.equal(requests[0].wait, false);
   let count = 0;
   await assert.rejects(createRuntime({ ...client, createSandbox: async () => ({ sandbox: { id: `sbx_${++count}` } }) }, { templateId: "template", workspaceId: "workspace" }, "owned"), /duplicated/);
+});
+
+test("operator onboarding consumes the public account role and capabilities contract", () => {
+  assertOperatorAccount({ role: "admin", capabilities: { canManageSettings: true } });
+  for (const account of [null, { membership: { role: "admin" } }, { role: "member", capabilities: { canManageSettings: false } }, { role: "admin", capabilities: { canManageSettings: false } }]) {
+    assert.throws(() => assertOperatorAccount(account), /not organization admin/);
+  }
+});
+
+test("owned forward cleanup signals only its dedicated group, with bounded escalation", async () => {
+  const child = { pid: 12345, exitCode: null, signalCode: null };
+  const signals = [];
+  const signal = (pid, name) => { signals.push([pid, name]); if (name === "SIGKILL") child.signalCode = name; };
+  const wait = async (label, exited) => { if (!exited()) throw new Error("still stopping"); };
+  await stopOwnedForward(child, signal, wait);
+  assert.deepEqual(signals, [[-12345, "SIGTERM"], [-12345, "SIGKILL"]]);
+  await stopOwnedForward(child, () => assert.fail("Do not signal an exited process"), wait);
+  await assert.rejects(stopOwnedForward({ pid: 0, exitCode: null, signalCode: null }, () => assert.fail("Unsafe process group"), wait), /Invalid owned/);
+});
+
+test("cleanup failure preserves the gate failure and still finalizes the receipt", async () => {
+  const receipt = { status: "failed", results: [{ gate: "oidc-onboarding", status: "failed" }] };
+  let forwardsStopped = false;
+  await finishReceipt(receipt, { browser: async () => { throw new Error("sensitive"); }, portForwards: async () => { forwardsStopped = true; } });
+  assert.equal(forwardsStopped, true);
+  assert.equal(receipt.status, "failed");
+  assert.equal(receipt.runnerProcesses.status, "failed");
+  assert.equal(receipt.results[0].gate, "oidc-onboarding");
+  assert.ok(receipt.completedAt);
+  assert.ok(!JSON.stringify(receipt).includes("sensitive"));
 });
 
 test("capacity gate accepts only explicit admission denial, never generic provider failure", async () => {

@@ -6,7 +6,7 @@ import { workload } from "./workload.mjs";
 import { recovery } from "./recovery.mjs";
 import { interruption } from "./interruption.mjs";
 import { configurationUpgrade } from "./configuration-upgrade.mjs";
-import { publicEvidence, publicFailure } from "./receipt.mjs";
+import { finishReceipt, publicEvidence, publicFailure } from "./receipt.mjs";
 import { diagnostics } from "./diagnostics.mjs";
 
 process.umask(0o077);
@@ -54,10 +54,13 @@ try {
   receipt.infrastructure = diagnostics(ctx);
   receipt.status = "failed";
   process.exitCode = 1;
+  publish();
   console.error(`Acceptance gate failed: ${activeGate}`);
 } finally {
-  try { if (operator) await operator.browser.close(); }
-  finally { await ctx.stopForwards(); }
-  receipt.completedAt = new Date().toISOString();
+  await finishReceipt(receipt, {
+    browser: async () => { if (operator) await operator.browser.close(); },
+    portForwards: () => ctx.stopForwards()
+  });
+  if (receipt.status === "failed") process.exitCode = 1;
   publish();
 }

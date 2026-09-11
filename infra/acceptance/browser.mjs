@@ -2,6 +2,10 @@ import { check, origins, until } from "./context.mjs";
 
 const scopes = ["sandboxes:read", "sandboxes:write", "templates:read", "templates:write", "workspaces:read", "workspaces:write", "credentials:use", "credentials:manage", "org:read", "audit:read"];
 
+export function assertOperatorAccount(account) {
+  check(account?.role === "admin" && account?.capabilities?.canManageSettings === true, "Fresh operator is not organization admin");
+}
+
 export async function operatorSession(ctx) {
   console.log("Browser step: import published clients");
   const { chromium } = await ctx.loadClients();
@@ -71,7 +75,7 @@ export async function operatorSession(ctx) {
   };
   try {
     const account = await login();
-    check(account.membership.role === "admin", "Fresh operator is not organization admin");
+    assertOperatorAccount(account);
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("textbox", { name: "Organization name", exact: true }).fill("Standalone acceptance");
     await page.getByRole("textbox", { name: "Slug", exact: true }).fill(`acceptance-${ctx.identity.id}`);

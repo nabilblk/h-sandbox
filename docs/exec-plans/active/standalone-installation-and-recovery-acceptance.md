@@ -274,6 +274,16 @@ browser state to unblock diagnostics.
   was not reached. Added static browser progress markers and allowlisted failure
   categories, and moved forwards after browser dependency installation. The
   initial report does not establish the browser failure's root cause.
+- [Run 34650133480](https://github.com/nabilblk/h-sandbox/actions/runs/34650133480)
+  installed the published bundle and reached the authenticated browser account
+  view. The harness incorrectly read `membership.role`; the public contract has
+  top-level `role` and `capabilities`. Corrected with regression coverage.
+  Separately, stopping a k0s kubectl wrapper did not reliably stop its child,
+  and a finalizer exception prevented the failed gate from reaching the receipt.
+  Native namespace/private-material cleanup still passed. Corrected by giving
+  each owned forward a dedicated process group and always finalizing failed
+  receipts, with bounded group cleanup and regression coverage. The incomplete
+  earlier receipt must not be interpreted as a successful run.
 
 ## Completion Notes
 
