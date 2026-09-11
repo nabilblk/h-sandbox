@@ -8,7 +8,7 @@ import { createRuntime, denyAtCapacity, assertRetained, retainedPath } from "./w
 import { finishReceipt, publicEvidence, publicFailure } from "./receipt.mjs";
 import { literalId, applyOwned } from "./operator.mjs";
 import { ownershipLabel } from "./safety.mjs";
-import { assertCredentialBoundary, credentialCheckScript } from "./credential-fixture.mjs";
+import { assertCredentialBoundary, credentialTarget, exampleCredential, placeholder, probeCredential } from "./credential-fixture.mjs";
 import { podEvidence } from "./diagnostics.mjs";
 import { assertOperatorAccount } from "./browser.mjs";
 
@@ -107,23 +107,30 @@ test("operator resources refuse an unowned namespace before saving or applying",
   assert.throws(() => literalId("x';DELETE FROM users;--"));
 });
 
-test("credential fixture has no request or secret echo in its response", () => {
-  assert.match(credentialCheckScript, /hmac\.compare_digest/);
-  assert.match(credentialCheckScript, /json\.dumps\(\{"verified": valid\}\)/);
-  assert.match(credentialCheckScript, /def log_message\(self, \*args\): pass/);
-  assert.doesNotMatch(credentialCheckScript, /print\(/);
+test("credential probe requires HTTPS and sends only the invalid placeholder", async () => {
+  assert.equal(credentialTarget, "https://postman-echo.com/basic-auth");
+  const client = { runSandbox: async (id, input) => {
+    assert.equal(input.env.ACCEPTANCE_API_KEY, placeholder);
+    assert.ok(!JSON.stringify(input).includes(exampleCredential()));
+    assert.doesNotMatch(input.command, /--insecure|--location|curl -k/);
+    assert.match(input.command, /--output \/dev\/null/);
+    return { result: { exitCode: 0, stdout: "401" } };
+  } };
+  await probeCredential(client, "owned", false);
+  await assert.rejects(probeCredential(client, "owned", true), /did not inject/);
+  await assert.rejects(probeCredential({ runSandbox: async () => ({ result: { exitCode: 0, stdout: "503" } }) }, "owned", false), /not rejected/);
 });
 
 test("credential boundary checks never send the source plaintext into a sandbox", async () => {
-  const value = "f".repeat(64);
-  const ctx = { read: () => ({ items: [{ kind: "Secret", stringData: { EXPECTED_TOKEN: value } }] }) };
+  const value = exampleCredential();
+  const ctx = {};
   let command;
   const client = { credentials: { inspect: async () => ({ vault: { credentials: [{ name: "owned" }] } }) },
     runSandbox: async (id, input) => { command = input.command; return { result: { exitCode: 0, stdout: "False\n" } }; } };
   await assertCredentialBoundary(ctx, client, "owned");
   assert.ok(command.includes(sha256(value)));
   assert.ok(!command.includes(value));
-  await assert.rejects(assertCredentialBoundary(ctx, { ...client, credentials: { inspect: async () => ({ value }) } }, "owned"), /exposed plaintext/);
+  await assert.rejects(assertCredentialBoundary(ctx, { ...client, credentials: { inspect: async () => ({ value }) } }, "owned"), /exposed source material/);
 });
 
 test("failure infrastructure evidence excludes container env, annotations and raw messages", () => {

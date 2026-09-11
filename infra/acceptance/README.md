@@ -4,9 +4,10 @@ This is a qualification harness, not a second installer. It consumes the public
 reference configuration, published chart archives, immutable application image
 digests and integrity-checked npm tarballs pinned in `versions.json`.
 
-**Current evidence: local contracts and published-client import/version checks
-pass. No native installation or destructive recovery run has been completed for
-this harness yet.** Do not treat this source tree as an acceptance receipt.
+**Current evidence: native amd64 installation of published rc.9 passes, and the
+browser returns from real OIDC login. Onboarding completion is under diagnosis;
+destructive recovery has not been reached.** See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
+and its per-run receipts. Local contracts alone are not native acceptance evidence.
 
 ## Isolation
 
@@ -40,11 +41,15 @@ serialized and bounded to 75 minutes.
 | Configuration rollback | A real Helm CPU-request change and rollback retain workspace state, encrypted credentials and admission |
 | Revocation/cleanup | API key becomes unusable; browser logout ends SSO; owned runtime namespace removed before controller namespace; private evidence removed |
 
-The credential fixture is an owned HTTP service inside the isolated cluster. It
-compares a random token and returns only `{"verified": true/false}`. A sandbox
-sends a placeholder, never the real credential. This verifies injection and
-key recovery, **not** external provider behavior, TLS trust policy or a real
-production secret. No model account or paid inference is required.
+The credential fixture uses the public [Postman authentication test endpoint](https://www.postman.com/postman/postman-public-workspace/request/rg6swaa/basic-auth-success)
+and its published example credential, not a Postman account or production secret.
+It matches Harakiri's HTTPS-only custom profiles without disabling certificate
+verification. A sandbox sends an invalid placeholder: the test requires 401
+before attachment and 200 only after injection. The source is genuinely encrypted
+in PostgreSQL and subjected to the same missing/wrong-key recovery tests.
+Only the HTTP status is returned to the test, not reflected request headers.
+This introduces an external availability dependency; an outage fails acceptance,
+not passes the negative case. No model account or paid inference is required.
 
 ## Run
 
@@ -109,7 +114,8 @@ of pruning a shared registry or Docker daemon.
   are not a process snapshot.
 - File-keyring rotation, KMS/HSM or external secret-store recovery was exercised.
   This fixture uses one environment-provided wrapping key and a nonempty
-  `envelope-v1` source.
+  `envelope-v1` source containing a public example credential. It is not proof of
+  private-CA trust distribution or a nonpublic upstream service.
 
 See [the coordinated recovery runbook](../../docs/operations/standalone-recovery.md)
 and [the native reference installation](../preview/README.md).

@@ -16,7 +16,18 @@ export async function operatorSession(ctx) {
   page.setDefaultTimeout(45000);
   let bearer = "";
   let pkce = false;
+  let step = "login";
+  const responses = [];
+  const accountPaths = new Set(["/v1/me", "/v1/org/settings", "/v1/org/capacity", "/v1/api-keys", "/v1/me/onboarding/complete"]);
+  const mark = name => { step = name; console.log(`Browser step: ${name}`); };
   const keyIds = [];
+  page.on("response", response => {
+    const url = new URL(response.url());
+    if (url.origin === origins.api && accountPaths.has(url.pathname)) {
+      responses.push({ path: url.pathname, method: response.request().method(), status: response.status() });
+      if (responses.length > 40) responses.shift();
+    }
+  });
   page.on("request", request => {
     const url = new URL(request.url());
     if (url.origin === origins.api && url.pathname.startsWith("/v1/")) {
@@ -76,18 +87,25 @@ export async function operatorSession(ctx) {
   try {
     const account = await login();
     assertOperatorAccount(account);
+    mark("continue from account to workspace");
     await page.getByRole("button", { name: "Continue" }).click();
+    mark("fill workspace settings");
     await page.getByRole("textbox", { name: "Organization name", exact: true }).fill("Standalone acceptance");
     await page.getByRole("textbox", { name: "Slug", exact: true }).fill(`acceptance-${ctx.identity.id}`);
+    mark("save workspace settings");
     await page.getByRole("button", { name: "Continue" }).click();
+    mark("create onboarding key");
     const keyResponse = page.waitForResponse(response => response.url() === `${origins.api}/v1/api-keys` && response.request().method() === "POST");
     await page.getByRole("button", { name: "Create key", exact: true }).click();
     const onboardingKey = await keyResponse;
     check(onboardingKey.status() === 201, "Onboarding API key creation failed");
     keyIds.push((await onboardingKey.json()).key.id);
     // The standalone catalog is intentionally empty; import a verified template next.
+    mark("complete onboarding and open dashboard");
     await page.getByRole("button", { name: "Open dashboard" }).click();
+    mark("await dashboard account menu");
     await page.locator('[aria-label^="Account:"]').first().waitFor();
+    mark("configure scoped acceptance key and capacity");
     await request(`/v1/api-keys/${keyIds[0]}`, "DELETE");
     const created = await request("/v1/api-keys", "POST", {
       name: "isolated-acceptance", scopes, expiresAt: new Date(Date.now() + 6 * 3600000).toISOString()
@@ -104,6 +122,11 @@ export async function operatorSession(ctx) {
     ctx.save("account.json", { userId: identity.user.id, organizationId: identity.organization.id, keyId: created.key.id });
     return { browser, page, request, login, logout, client, keyIds, oidcOnboarding: true, pkceS256: true };
   } catch (error) {
+    const visible = {};
+    for (const heading of ["Welcome to Harakiri.", "Your workspace.", "Your first API key.", "Hello, sandbox."]) {
+      visible[heading] = await page.getByRole("heading", { name: heading, exact: true }).isVisible().catch(() => false);
+    }
+    console.log(JSON.stringify({ browserFailure: { step, visible, responses } }));
     await browser.close();
     throw error;
   }

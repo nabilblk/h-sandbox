@@ -31,7 +31,7 @@ deployment is part of this milestone without separate authorization.
 
 ## Success Criteria
 
-- [ ] A fresh native amd64 Kubernetes installation consumes published, verified
+- [x] A fresh native amd64 Kubernetes installation consumes published, verified
   chart/images/packages and generated operator configuration, without private
   source patches or production credentials.
 - [ ] Browser OIDC onboarding/login/logout, published CLI/SDK first tasks,
@@ -113,7 +113,7 @@ baseline, not an availability or resource-capacity guarantee.
 - [x] Download exact release assets and verify image/chart/package identity
   against the pinned public manifest; offline-render both actual chart archives.
   Application images have not yet been pulled/executed by this harness.
-- [ ] Install dependencies/runtime/control plane using public reference inputs.
+- [x] Install dependencies/runtime/control plane using public reference inputs.
 - [ ] Complete real OIDC onboarding and create an expiring scoped test key.
 - [ ] Import the published OpenCode image; prove a model-free task, first file
   write/command, protected route, capacity denial and two-runtime persistence.
@@ -127,8 +127,8 @@ baseline, not an availability or resource-capacity guarantee.
   cases and actual proxy-injection assertions. These are test definitions, not
   successful recovery evidence.
 
-- [ ] Create a nonempty encrypted Vault source and an owned deterministic
-  credential-check service. Prove injection without revealing the real secret.
+- [ ] Create a nonempty encrypted Vault source for the public HTTPS authentication
+  fixture. Prove injection with a published example credential, not an account secret.
 - [ ] Quiesce writers and attachments; back up both databases, a detached
   workspace, settings and the complete key material at one recovery point.
 - [ ] Restore into isolated databases/storage; verify OIDC, organization/key
@@ -224,8 +224,8 @@ then imports OpenCode and runs CLI/SDK tasks; it does not validate that hardcode
 button. Resolve or explicitly scope this first-install UX gap before declaring
 the whole onboarding experience accepted. No runtime/UI fix is claimed here.
 
-The single-key environment wrapping provider and an owned HTTP credential
-fixture do not certify keyring rotation, external secret stores, TLS trust
+The single-key environment wrapping provider and a public HTTPS authentication
+fixture do not certify keyring rotation, external secret stores, private-CA trust
 policies, a different CSI driver, restore of live ambiguous inventory, or
 automatic timed Vault reconciliation.
 
@@ -284,6 +284,20 @@ browser state to unblock diagnostics.
   each owned forward a dedicated process group and always finalizing failed
   receipts, with bounded group cleanup and regression coverage. The incomplete
   earlier receipt must not be interpreted as a successful run.
+- Source review found that the initial HTTP credential fixture could not match
+  Harakiri's HTTPS-only custom profile. It was replaced with Postman's documented
+  HTTPS basic-auth test endpoint and published example credential, using a custom
+  Authorization header binding. Direct preflight requires 401 for an invalid
+  placeholder and 200 for the documented example. TLS verification stays enabled;
+  no private CA, real account secret or provider image modification is introduced.
+  External fixture downtime remains a visible acceptance failure. Earlier HTTP
+  fixture definitions were not evidence of working encrypted recovery.
+- [Run 34650726442](https://github.com/nabilblk/h-sandbox/actions/runs/34650726442)
+  passed installation and returned from OIDC login, then timed out during the
+  onboarding interaction. Both process-group and namespace/private-material
+  cleanup passed; the failed gate now survives in the finalized receipt. Added
+  per-interaction markers, known-heading visibility and allowlisted account API
+  statuses to diagnose the timeout without uploading DOM, tokens or form values.
 
 ## Completion Notes
 
