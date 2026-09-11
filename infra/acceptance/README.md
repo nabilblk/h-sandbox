@@ -50,6 +50,9 @@ in PostgreSQL and subjected to the same missing/wrong-key recovery tests.
 Only the HTTP status is returned to the test, not reflected request headers.
 This introduces an external availability dependency; an outage fails acceptance,
 not passes the negative case. No model account or paid inference is required.
+The missing-key case supplies an explicitly empty Vault key: deleting that env
+variable alone would enable the legacy control-plane-key fallback. Unrelated
+encryption keys remain unchanged in both negative cases.
 
 ## Run
 

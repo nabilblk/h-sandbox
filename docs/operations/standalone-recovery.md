@@ -28,6 +28,10 @@ old one. Keep older key versions while any retained backup depends on them.
 External references and short-lived issuers also require their independently
 managed stores/permissions; this runbook's encrypted-source test is not evidence
 of external-provider recovery.
+An unset `CREDENTIAL_VAULT_KEY` can fall back to the control-plane encryption key.
+The fixture uses an explicitly empty value for its missing-material case so that
+fallback cannot turn it into a second wrong-key test. This fault injection belongs
+only in a disposable target; it is not an instruction to erase production keys.
 
 ## Prepare the Rehearsal
 

@@ -335,6 +335,12 @@ browser state to unblock diagnostics.
   static provider codes and denied-resource names for the next diagnosis.
   Both cleanup layers passed. The queued test-only run 34654255332 was superseded
   before a VM started by GitHub's serialized workflow concurrency policy.
+- Recovery fixture review found a legacy fallback: deleting `CREDENTIAL_VAULT_KEY`
+  would use the still-present control-plane/registry key. The missing-material
+  case now supplies an empty value explicitly, preserving unrelated keys and
+  preventing false classification of two wrong-key tests as missing/wrong cases.
+  Regression coverage checks this without accessing a cluster; native recovery
+  remains unexecuted until the first-runtime gate passes.
 
 ## Completion Notes
 

@@ -11,6 +11,7 @@ import { ownershipLabel } from "./safety.mjs";
 import { assertCredentialBoundary, credentialTarget, exampleCredential, placeholder, probeCredential } from "./credential-fixture.mjs";
 import { databaseEvidence, eventEvidence, logEvidence, podEvidence } from "./diagnostics.mjs";
 import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
+import { wrappingKeyCase } from "./recovery.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
   for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {
@@ -144,6 +145,17 @@ test("credential boundary checks never send the source plaintext into a sandbox"
   assert.ok(command.includes(sha256(value)));
   assert.ok(!command.includes(value));
   await assert.rejects(assertCredentialBoundary(ctx, { ...client, credentials: { inspect: async () => ({ value }) } }, "owned"), /exposed source material/);
+});
+
+test("missing wrapping material disables legacy fallback without changing other keys", () => {
+  const original = { metadata: { resourceVersion: "123", managedFields: [] }, data: { CREDENTIAL_VAULT_KEY: "previous", TEMPLATE_REGISTRY_CREDENTIAL_KEY: "unrelated" } };
+  const missing = wrappingKeyCase(original, null);
+  assert.equal(missing.data.CREDENTIAL_VAULT_KEY, "");
+  assert.equal(missing.data.TEMPLATE_REGISTRY_CREDENTIAL_KEY, "unrelated");
+  assert.equal(missing.metadata.resourceVersion, "123");
+  assert.equal(missing.metadata.managedFields, undefined);
+  assert.equal(original.data.CREDENTIAL_VAULT_KEY, "previous");
+  assert.equal(wrappingKeyCase(original, "wrong").data.CREDENTIAL_VAULT_KEY, Buffer.from("wrong").toString("base64"));
 });
 
 test("failure infrastructure evidence excludes container env, annotations and raw messages", () => {

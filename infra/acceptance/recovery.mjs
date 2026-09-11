@@ -73,14 +73,19 @@ function configureRestoredDatabases(ctx, deployment) {
   applyOwned(ctx, { apiVersion: "v1", kind: "List", items: [api, keycloak] }, "restored-secrets.json");
 }
 
+export function wrappingKeyCase(original, value) {
+  const secret = structuredClone(original);
+  // Absent env falls back to the control-plane key; empty material disables that fallback.
+  secret.data.CREDENTIAL_VAULT_KEY = Buffer.from(value ?? "").toString("base64");
+  delete secret.metadata.managedFields;
+  return secret;
+}
+
 async function setWrappingKey(ctx, value) {
   await replicas(ctx, writers, 0);
-  const secret = get(ctx, "secret", "preview-api");
-  if (value === null) delete secret.data.CREDENTIAL_VAULT_KEY;
-  else secret.data.CREDENTIAL_VAULT_KEY = Buffer.from(value).toString("base64");
-  delete secret.metadata.managedFields;
+  const secret = wrappingKeyCase(get(ctx, "secret", "preview-api"), value);
   ctx.save("key-case.json", secret);
-  // Replace uses the current resourceVersion, including removal of an absent key.
+  // Replace retains the current resourceVersion and unrelated encryption keys.
   ctx.k(["replace", "-f", ctx.file("key-case.json")]);
   await replicas(ctx, writers, 1);
   await ctx.forward("harakiri-api", 28482, 8080);
