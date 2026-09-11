@@ -105,7 +105,7 @@ test("verification and publication are mutually exclusive protected workflow job
   const publication = workflow.split("\n  publish:\n")[1];
   assert.ok(verification && publication);
   assert.match(verification, /if: \$\{\{ inputs\.verify_only \}\}/);
-  assert.match(publication, /if: \$\{\{ !inputs\.verify_only \}\}/);
+  assert.match(publication, /if: \$\{\{ !inputs\.verify_only && !inputs\.verify_published_only \}\}/);
   for (const job of [verification, publication]) {
     assert.match(job, /needs: validate/);
     assert.match(job, /environment: npm/);

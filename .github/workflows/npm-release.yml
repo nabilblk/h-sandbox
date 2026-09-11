@@ -8,6 +8,11 @@ on:
         type: boolean
         default: false
         required: true
+      verify_published_only:
+        description: "Read-only verification of an already published version; never republish"
+        type: boolean
+        default: false
+        required: true
       tag:
         description: "npm dist-tag"
         default: "next"
@@ -47,6 +52,30 @@ jobs:
           RELEASE_SOURCE_REF: ${{ inputs.release_ref }}
           RELEASE_DIST_TAG: ${{ inputs.tag }}
         run: node scripts/check-release-source.mjs
+      - name: Reject conflicting verification modes
+        env:
+          VERIFY_TRUST: ${{ inputs.verify_only }}
+          VERIFY_PUBLISHED: ${{ inputs.verify_published_only }}
+        run: node -e 'if(process.env.VERIFY_TRUST === "true" && process.env.VERIFY_PUBLISHED === "true") throw new Error("Choose one verification mode")'
+
+  verify-published:
+    if: ${{ inputs.verify_published_only }}
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Verify published archives with the reviewed current checker
+        env:
+          HARAKIRI_PUBLISH_VERSION: ${{ needs.validate.outputs.version }}
+        run: bash scripts/npm-postpublish-smoke.sh
 
   verify-trust:
     if: ${{ inputs.verify_only }}
@@ -68,7 +97,7 @@ jobs:
         run: node scripts/verify-npm-trust.mjs
 
   publish:
-    if: ${{ !inputs.verify_only }}
+    if: ${{ !inputs.verify_only && !inputs.verify_published_only }}
     needs: validate
     runs-on: ubuntu-latest
     environment: npm
