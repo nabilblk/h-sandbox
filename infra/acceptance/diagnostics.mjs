@@ -18,7 +18,7 @@ export function logEvidence(text) {
     ["readiness_failed", /Readiness probe failed|Startup probe failed|not ready/],
     ["connection_refused", /ECONNREFUSED|Connection refused/],
     ["dns_failure", /ENOTFOUND|Name or service not known/],
-    ["timeout", /ETIMEDOUT|timed out|TimeoutError/]
+    ["timeout", /ETIMEDOUT|timed out|TimeoutError|context deadline exceeded/]
   ];
   const modules = ["scheduler.js", "services/sandbox-operation-worker.js", "services/sandbox-capacity-reconciler.js", "services/sandbox-runtime-effects.js", "services/persistent-workspaces.js", "services/sandbox-provision.js"];
   return {
@@ -26,6 +26,7 @@ export function logEvidence(text) {
     providerHttpStatuses: [...new Set([...text.matchAll(/\bOpenSandbox ([45][0-9]{2}):/g)].map(match => Number(match[1])))],
     providerCodes: providerCodes.filter(code => text.includes(code)),
     providerLastStates: ["Pending", "Allocated", "Running", "Failed"].filter(state => text.includes(`Last state: ${state}`)),
+    probeHttpStatuses: [...new Set([...text.matchAll(/HTTP probe failed with statuscode: ([1-5][0-9]{2})/g)].map(match => Number(match[1])))],
     deniedResources: resources.filter(resource => new RegExp(`cannot (?:get|list|watch|create|update|patch|delete) resource .{0,4}${resource}.{0,4} in API group`).test(text)),
     symptoms: symptoms.filter(([, pattern]) => pattern.test(text)).map(([name]) => name),
     modules: modules.filter(name => text.includes(`/${name}:`))
@@ -36,6 +37,7 @@ export function eventEvidence(event) {
   const knownReasons = new Set(["Failed", "FailedCreate", "FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedBinding", "ProvisioningFailed", "BackOff", "Unhealthy", "Killing", "Pulling", "Pulled", "Started", "Created"]);
   return {
     reason: knownReasons.has(event.reason) ? event.reason : "unknown",
+    container: ["main", "egress", "execd", "execd-init"].find(name => event.involvedObject?.fieldPath === `spec.containers{${name}}` || event.involvedObject?.fieldPath === `spec.initContainers{${name}}`) ?? null,
     count: Number.isSafeInteger(event.count) ? event.count : null,
     details: logEvidence(typeof event.message === "string" ? event.message : "")
   };

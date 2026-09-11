@@ -183,7 +183,7 @@ test("failure infrastructure evidence excludes container env, annotations and ra
 
 test("operator diagnostics expose only known states and error categories", () => {
   const text = `error: inconsistent types deduced for parameter $1\ncode: '42P08'\n at /app/apps/api/dist/services/sandbox-operation-worker.js:12:3\nsecret: sensitive`;
-  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], providerCodes: [], providerLastStates: [], deniedResources: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
+  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], providerCodes: [], providerLastStates: [], probeHttpStatuses: [], deniedResources: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
   assert.deepEqual(logEvidence('{"code":"42703","msg":"column sensitive does not exist"}').sqlStates, ["42703"]);
   const evidence = databaseEvidence({ sandboxes: [{ status: "pending", hasRuntimeId: false, name: "sensitive" }],
     operations: [{ kind: "provision", state: "queued", attempts: 0, error: text, request: { key: "sensitive" } }],
@@ -200,6 +200,10 @@ test("operator diagnostics expose only known states and error categories", () =>
   assert.equal(event.reason, "Failed");
   assert.deepEqual(event.details.symptoms, ["image_pull_failed"]);
   assert.ok(!JSON.stringify(event).includes("sensitive"));
+  const probe = eventEvidence({ reason: "Unhealthy", message: "Readiness probe failed: HTTP probe failed with statuscode: 503 sensitive", involvedObject: { fieldPath: "spec.containers{egress}", name: "sensitive" } });
+  assert.equal(probe.container, "egress");
+  assert.deepEqual(probe.details.probeHttpStatuses, [503]);
+  assert.ok(!JSON.stringify(probe).includes("sensitive"));
 });
 
 test("native workflow has no production secrets, self-hosted labels or broad artifact upload", () => {

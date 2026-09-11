@@ -212,7 +212,8 @@ See the [storage recovery procedure](../../docs/persistent-workspace-operations.
 The [coordinated recovery runbook](../../docs/operations/standalone-recovery.md)
 covers identity, encrypted Vault sources, workspace storage, missing-key tests
 and upgrade boundaries together. The new [isolated amd64 acceptance harness](../acceptance/README.md)
-has local contract checks; native execution is still pending. A green
+has passed fresh native installation and OIDC onboarding; native sandbox execution
+and destructive recovery are still under qualification. A green
 configuration-rollback test is not cross-release/schema compatibility evidence.
 
 Before installing any build containing migration 038, follow the

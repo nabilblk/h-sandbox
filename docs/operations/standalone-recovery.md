@@ -6,8 +6,9 @@ It does not certify a profile merely because its commands or tests exist.
 **Evidence status, September 11, 2026:** the published rc.9 delivery has arm64
 runtime evidence. The new isolated harness has passed native amd64 installation
 of the published bundle and complete browser OIDC/scoped-key onboarding. The
-first asynchronous runtime timed out without creating a pod, so native task
-execution and encrypted recovery remain unqualified; see the per-run results in
+first asynchronous runtime received a provider 504; startup events were recorded
+but no runtime pod remained at failure. Native task execution and encrypted
+recovery remain unqualified; see the per-run results in
 [PR 42](https://github.com/nabilblk/h-sandbox/pull/42). HA, arbitrary CSI
 drivers and unchanged restricted OpenShift remain outside this qualification.
 See [the delivery record](../release-notes/0.5.0-rc.9-delivery.md) and
