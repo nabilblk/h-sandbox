@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-10
 **Author**: Codex with the maintainer
-**Status**: In Progress; public lab deployed, extended acceptance and package release remain
+**Status**: In Progress; public lab deployed, safety/rollback proved, readiness and publication gates remain
 **Priority**: P1; next agreed engineering step, point 2 in the roadmap
 **Estimated effort**: 10-15 engineering days, provisional, excluding release approval and unavailable test infrastructure
 **Source baseline**: `1fc0e7a4bfa67896d9313cf3ca3526539987ffdf`
@@ -616,15 +616,16 @@ developer can identify their next action without access to provider internals.
 
 ### Phase 5: Upgrade and Native Acceptance
 
-**Status**: Core native and older-backup acceptance complete; rollout/extended matrix remains
+**Status**: Core native, older-backup and compatible rollback acceptance complete; cold-start and optional matrix limits remain
 
 - [x] Implement and test fresh initialization, migration/backfill and activation;
   reject admission while an organization lacks a trustworthy inventory.
 - [x] Exercise real older-backup recovery with native provider work surviving
   outside the restored database snapshot; confirm quarantine and denied dispatch.
-- [ ] Exercise deployment rollback with a compatible image. No previously
-  published release implements this protocol; pre-capacity images require
-  admission to remain closed.
+- [x] Exercise deployment rollback with a compatible image. A separate arm64
+  fixture retained its native runtime, held slot, replay and workspace file
+  across local source-build upgrade and rollback to the published capacity-aware
+  source image. Packaged rc.8 remains an incompatible pre-capacity target.
 - [x] Run native create, duplicate/full admission, async worker, execution/renewal,
   lost-response recovery, local TTL deletion and the authenticated SDK tutorial
   against an isolated API/database and the current native provider API.
@@ -791,9 +792,10 @@ They describe the source implementation, not the currently published rc.8 runtim
 
 ## Tech Debt Incurred
 
-First-release gates remain explicit: extended fault/lifecycle acceptance,
-maintenance activation and a matching release. There is no compatible published
-pre-capacity rollback image; rollback must stay admission-closed until repair.
+First-release gates remain explicit: remaining readiness/lifecycle acceptance,
+durable release infrastructure and a matching release. Compatible rollback was
+rehearsed on the isolated arm64 fixture, but pre-capacity packages are not valid
+rollback targets. Without a capacity-aware build, keep admission closed until repair.
 Unknown provider outcomes still require evidence or operator escalation, not
 automatic timed release. Released ledger/effect tombstones are retained; any
 future retention policy must preserve replay and generation-fence guarantees.
@@ -888,7 +890,7 @@ destructive recovery tests isolated from the public lab. Do not change npm
 
 - [x] Exercise create/credential persistence write boundaries and an actual HTTP
   disconnect during credential preparation with real PostgreSQL.
-- [ ] Rehearse compatible-image rollback with admission accounting preserved in
+- [x] Rehearse compatible-image rollback with admission accounting preserved in
   an isolated deployment; never reopen pre-capacity writers against migration 038.
 - [ ] Establish Harbor filesystem/inode headroom and durable monitoring or
   expansion. API health and successful garbage collection alone are insufficient.
@@ -897,6 +899,9 @@ destructive recovery tests isolated from the public lab. Do not change npm
 - [ ] Follow the public standalone installation/upgrade instructions with those
   artifacts, verify OIDC and real runtime/SDK/CLI/capacity workflows, and clean
   only the explicitly owned acceptance resources.
+- [ ] Resolve or explicitly triage the observed cold-start readiness gap before
+  claiming a reliably ready first task. Published rc.8 reported running before
+  its execd file endpoint accepted the first write; a manual retry is not a fix.
 - [ ] Record precise release/install evidence, update discoverable public docs
   and plan placement; retain explicit limits for optional unverified runtimes.
 
@@ -910,3 +915,21 @@ plus 121 write/commit checkpoints, two real HTTP disconnect cases and the new
 suite parent. Required CI now provisions PostgreSQL and forbids silently skipping
 this gate. See the [fault acceptance receipt](../../operations/execution-capacity-fault-acceptance.md)
 for the explicit operator-recovery boundary and fixture limitations.
+
+PR #34 and main CI passed all required checks. The separate cluster installed
+published rc.8, completed browser OIDC/onboarding and imported the pinned OpenCode
+image through the published CLI. Native model-free smoke, protected routes,
+binary artifacts and retained workspace files passed after the recorded cold
+readiness failure. Migration 038 accounted for a surviving runtime at limit one;
+the fixture then upgraded to a local-only `19790c5` image and rolled back to the
+capacity-aware `be8f650` image at Helm revision 5. Native identity, checkpoint,
+hold, 409 denial and idempotent replay were preserved. Both owned runtimes were
+subsequently confirmed absent, their holds released and the workspace archived.
+
+See the [installation/rollback receipt](../../operations/execution-capacity-install-acceptance.md).
+This is not a new candidate release or a universal recovery certification.
+Harbor host access and npm trusted-publisher setup were requested from the owner;
+the current token's trust query returned 403. No new version/tag/channel was
+published. Local Colima storage was full, so a rootless builder in the disposable
+cluster was used without pruning or restarting other projects. Keep this plan
+active until the named gates are actually closed.
