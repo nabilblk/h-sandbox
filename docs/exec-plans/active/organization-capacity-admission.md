@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-10
 **Author**: Codex with the maintainer
-**Status**: In Progress; local acceptance complete, commit and lab deployment authorized
+**Status**: In Progress; public lab deployed, extended acceptance and package release remain
 **Priority**: P1; next agreed engineering step, point 2 in the roadmap
 **Estimated effort**: 10-15 engineering days, provisional, excluding release approval and unavailable test infrastructure
 **Source baseline**: `1fc0e7a4bfa67896d9313cf3ca3526539987ffdf`
@@ -668,16 +668,16 @@ that only the implementing maintainer knows how to recover.
 
 ### Phase 7: Delivery and Closure
 
-**Status**: In Progress; commit and lab deployment authorized, package release deferred
+**Status**: In Progress; public lab deployment complete, package release deferred
 
-- [ ] Review the full diff and effective test evidence, including non-skipped real
+- [x] Review the full diff and effective test evidence, including non-skipped real
   PostgreSQL tests and native receipts; resolve safety blockers before release.
 - [ ] Choose the release version/channel and publish through protected existing
   CI. Update source, chart/images, OpenAPI and affected SDK/CLI packages coherently.
   Do not hardcode an unapproved next version or promote npm `latest` implicitly.
-- [ ] With deployment approval, apply the tested maintenance/backfill sequence,
+- [x] With deployment approval, apply the tested maintenance/backfill sequence,
   verify public origins/auth, inspect live capacity and run isolated acceptance.
-- [ ] Publish accurate release notes/support limits and the delivery receipt;
+- [x] Publish accurate release notes/support limits and the delivery receipt;
   update roadmap status without claiming historical metering or broader support.
 - [ ] Archive this plan only after required gates pass, or explicitly rescope a
   remaining task with an owner and reason. Implementation complete is not the
@@ -837,12 +837,12 @@ release.
 
 - [x] Confirmed all six public lab deployments healthy at Helm revision 36;
   existing API/scheduler/builder use rc.8 and schema activation needs maintenance.
-- [ ] Merge the implementation after required protected-branch CI checks.
-- [ ] Publish immutable API and web images from the same reviewed source without
+- [x] Merge the implementation after required protected-branch CI checks.
+- [x] Publish immutable API and web images from the same reviewed source without
   replacing rc.8 or npm channels; preserve the existing chart and configuration.
-- [ ] Back up the database and required operator state, stop every old writer,
+- [x] Back up the database and required operator state, stop every old writer,
   migrate, inspect authoritative runtime inventory and activate each organization.
-- [ ] Start matching writers, verify isolated capacity acceptance, public docs
+- [x] Start matching writers, verify isolated capacity acceptance, public docs
   and public OIDC, then record the receipt and remaining limits.
 
 The generic bootstrap wrapper is not an upgrade procedure for this deployment.
@@ -850,3 +850,29 @@ Do not use automatic rollback to an old image after migration 038: keep mutation
 closed until a compatible repair is ready. Test workloads must be dedicated and
 cleaned by their exact owned IDs; existing workloads must not be deleted to free
 capacity.
+
+PR #32 merged as `be8f650118aba757c3e0a87c9046779420f7bac4` after all eight
+required checks passed; the additional demo checks and main-branch CI also passed.
+API workflow 34548677721 and web workflow 34548679993 (attempt 2) published
+`0.5.0-rc.8-capacity.be8f650` for amd64 and arm64 with matching source labels.
+The first web upload hit Harbor filesystem error 28. Dry-run GC 1296 identified
+10 unreferenced blobs and zero manifests; GC 1297 reclaimed 124 MB with both
+tag and untagged-image deletion disabled. An empty upload probe then succeeded
+and was cancelled. Existing artifacts/channels were not replaced. Registry
+storage headroom remains an operational follow-up, not a resolved capacity issue.
+
+Public k0s deployment completed at revision 38 after an admission-closed revision
+37, coordinated database/five-volume backup, migration 038 and inventory
+activation of all seven existing organizations/179 records. Limits, key
+permissions, public OIDC and retained workspace state were preserved. The live
+SDK limit-one tutorial, async replay/native command, built CLI capacity read,
+signed-in dashboard and sign-out passed. Seven public documentation browser
+checks and media/export checks passed. All four owned runtimes were confirmed
+absent; the temporary key was revoked, its membership removed and the operator
+pod deleted. Non-executing audit/ledger records are retained.
+
+See the [delivery receipt](../../release-notes/2026-09-11-capacity-delivery.md)
+for exact digests, maintenance times, harness limitations and recovery boundaries.
+Npm/chart publication and the remaining fault/lifecycle/rollback matrix are not
+complete; keep this plan active. The new source-commit deployment is not a
+silent replacement of published rc.8 artifacts.

@@ -5,6 +5,11 @@ implement this protocol. Do not deploy mixed old/new API and scheduler writers.
 The [public concept](https://sb.harakiri.io/#docs/execution-capacity) describes
 developer behavior once the matching documentation is deployed.
 
+The September 11 public lab deployment now runs the source-commit capacity build;
+see its [delivery receipt](../release-notes/2026-09-11-capacity-delivery.md) for
+immutable images, maintenance activation and live acceptance. This does not
+republish the rc.8 SDK/CLI or certify every deployment profile.
+
 ## Before Installing
 
 An execution slot represents one potentially executing sandbox, not CPU, memory,
