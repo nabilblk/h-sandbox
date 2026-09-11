@@ -14,6 +14,7 @@ import {
   type TestSandboxEgressResponse
 } from "@harakiri/shared";
 import { api } from "../api";
+import { CapacitySummary, useIntentKeys, useOrganizationCapacity } from "../capacity";
 import { Brand } from "../components/brand";
 import { EgressModePicker, egressModeMeta } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
@@ -33,12 +34,19 @@ const lifecycleActionError = (error: unknown) =>
   error instanceof Error ? error.message : "Lifecycle action failed.";
 
 export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: GoToRoute; openSandbox?: (id: string) => void }) => {
+  const capacity = useOrganizationCapacity();
+  const resumeKeys = useIntentKeys();
   const [sandbox, setSandbox] = useState<SandboxSummary | null>(null);
   const [canViewCredentialAudit, setCanViewCredentialAudit] = useState(false);
   const [tab, setTab] = useState("terminal");
   const [actionBusy, setActionBusy] = useState<"pause" | "resume" | "renew" | "kill" | null>(null);
   const [actionError, setActionError] = useState("");
   useEffect(() => { api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, [id]);
+  useEffect(() => {
+    if (!sandbox || (!["pending", "pausing", "resuming"].includes(sandbox.status) && !["releasing", "uncertain"].includes(sandbox.capacityPhase ?? ""))) return;
+    const timer = window.setInterval(() => { void api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, 3_000);
+    return () => window.clearInterval(timer);
+  }, [id, sandbox?.status, sandbox?.capacityPhase]);
   useEffect(() => {
     api.me().then((account) => setCanViewCredentialAudit(account.capabilities.canManageCredentialSecrets)).catch(() => undefined);
   }, []);
@@ -50,6 +58,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
     try {
       await action();
     } catch (error) {
+      capacity.acceptError(error);
       setActionError(lifecycleActionError(error));
     } finally {
       setActionBusy(null);
@@ -58,6 +67,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
   const isActive = sandbox.status === "running" || sandbox.status === "idle" || sandbox.status === "pending";
   const canPause = hasCapability(sandbox, "lifecyclePause") && (sandbox.status === "running" || sandbox.status === "idle");
   const canResume = hasCapability(sandbox, "lifecycleResume") && sandbox.status === "paused";
+  const settling = sandbox.capacityPhase === "releasing" || sandbox.capacityPhase === "uncertain";
   return (
     <div className="detail">
       <aside className="dash-side" style={{ padding: "16px 0" }}>
@@ -86,23 +96,25 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
           </div>
           <div className="detail-actions">
             {sandbox.status === "paused" ? (
-              <button className="btn btn-sm" disabled={!canResume || actionBusy !== null} onClick={() => void runLifecycleAction("resume", async () => { const result = await api.resumeSandbox(sandbox.id); setSandbox(result.sandbox); })}>
+              <button className="btn btn-sm" disabled={!canResume || (capacity.blocked && sandbox.capacityPhase !== "active") || settling || actionBusy !== null} onClick={() => void runLifecycleAction("resume", async () => { const result = await api.resumeSandbox(sandbox.id, resumeKeys.forIntent({ sandboxId: sandbox.id })); setSandbox(result.sandbox); resumeKeys.clear(); })}>
                 <Icon name="play" size={12} /> {actionBusy === "resume" ? "Resuming" : "Resume"}
               </button>
             ) : (
-              <button className="btn btn-sm" disabled={!canPause || actionBusy !== null} title={canPause ? "Pause sandbox" : "Pause is unavailable for this runtime state or provider"} onClick={() => void runLifecycleAction("pause", async () => { const result = await api.pauseSandbox(sandbox.id); setSandbox(result.sandbox); })}>
+              <button className="btn btn-sm" disabled={!canPause || settling || actionBusy !== null} title={canPause ? "Pause sandbox" : "Pause is unavailable for this runtime state or provider"} onClick={() => void runLifecycleAction("pause", async () => { const result = await api.pauseSandbox(sandbox.id); setSandbox(result.sandbox); })}>
                 <Icon name="pause" size={12} /> {actionBusy === "pause" ? "Pausing" : "Pause"}
               </button>
             )}
-            <button className="btn btn-sm" disabled={!isActive || actionBusy !== null} onClick={() => void runLifecycleAction("renew", async () => { await api.renewSandbox(sandbox.id); await refreshSandbox(); })}>
+            <button className="btn btn-sm" disabled={!isActive || settling || actionBusy !== null} onClick={() => void runLifecycleAction("renew", async () => { await api.renewSandbox(sandbox.id); await refreshSandbox(); })}>
               <Icon name="refresh" size={12} /> {actionBusy === "renew" ? "Renewing" : "Renew"}
             </button>
-            <button className="btn btn-sm" style={{ color: "var(--err)" }} disabled={sandbox.status === "terminated" || actionBusy !== null} onClick={() => void runLifecycleAction("kill", async () => { await api.killSandbox(sandbox.id); await refreshSandbox(); })}>
-              <Icon name="stop" size={11} /> {actionBusy === "kill" ? "Killing" : "Kill"}
+            <button className="btn btn-sm" style={{ color: "var(--err)" }} disabled={sandbox.status === "terminated" || settling || actionBusy !== null} onClick={() => void runLifecycleAction("kill", async () => { await api.killSandbox(sandbox.id); await refreshSandbox(); })}>
+              <Icon name="stop" size={11} /> {actionBusy === "kill" || sandbox.capacityPhase === "releasing" ? "Stopping" : "Stop"}
             </button>
           </div>
         </div>
-        {actionError ? <div className="detail-action-error">{actionError}</div> : null}
+        {actionError ? <div role="alert" className="detail-action-error">{actionError}</div> : null}
+        {settling ? <div role="status" className="workspace-notice">{sandbox.capacityPhase === "releasing" ? "Stop requested. Waiting for the runtime to disappear." : "The runtime outcome is being verified. Capacity remains accounted for."}</div> : null}
+        <CapacitySummary state={capacity} />
         <div className="detail-tabs">
           {[["terminal", "Terminal", "terminal"], ["commands", "Commands", "play"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
             <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
@@ -407,6 +419,8 @@ const MetricsPane = ({ id }: { id: string }) => {
 const snapshotIsReady = (snapshot: SandboxSnapshotSummary) => snapshot.status === "ready";
 
 const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; go: GoToRoute; openSandbox?: (id: string) => void }) => {
+  const capacity = useOrganizationCapacity();
+  const restoreKeys = useIntentKeys();
   const [snapshots, setSnapshots] = useState<SandboxSnapshotSummary[]>([]);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState<"load" | "create" | "restore" | "delete" | null>("load");
@@ -451,13 +465,14 @@ const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; 
     }
   };
   const restoreSnapshot = async (snapshot: SandboxSnapshotSummary) => {
-    if (!snapshotIsReady(snapshot) || !canRestore) return;
+    if (!snapshotIsReady(snapshot) || !canRestore || capacity.blocked) return;
     setBusy("restore");
     setMessage("");
     setError("");
     try {
       const result = await api.createSandbox({
         snapshotId: snapshot.id,
+        idempotencyKey: restoreKeys.forIntent({ snapshotId: snapshot.id, name: snapshot.name || sandbox.name, ttlSeconds: sandbox.ttlSeconds }),
         name: `${snapshot.name || sandbox.name}-restore`,
         ttlSeconds: sandbox.ttlSeconds,
         wait: true
@@ -466,6 +481,7 @@ const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; 
       if (openSandbox) openSandbox(result.sandbox.id);
       else go("dashboard/sandboxes");
     } catch (cause) {
+      capacity.acceptError(cause);
       setError(cause instanceof Error ? cause.message : "Snapshot restore failed.");
     } finally {
       setBusy(null);
@@ -513,7 +529,7 @@ const SnapshotsPane = ({ sandbox, go, openSandbox }: { sandbox: SandboxSummary; 
             <span className="num muted">{formatDateTime(snapshot.createdAt)}</span>
             <span className="num muted">{snapshot.expiresAt ? formatDateTime(snapshot.expiresAt) : "-"}</span>
             <span className="snapshot-actions">
-              <button className="btn btn-ghost btn-sm" disabled={!snapshotIsReady(snapshot) || !canRestore || busy !== null} onClick={() => void restoreSnapshot(snapshot)}>Restore</button>
+              <button className="btn btn-ghost btn-sm" disabled={!snapshotIsReady(snapshot) || !canRestore || capacity.blocked || busy !== null} onClick={() => void restoreSnapshot(snapshot)}>Restore</button>
               <button className="btn btn-ghost btn-sm route-delete" disabled={!canDelete || busy !== null} onClick={() => void deleteSnapshot(snapshot)} title="Delete snapshot"><Icon name="x" size={12} /></button>
             </span>
           </div>

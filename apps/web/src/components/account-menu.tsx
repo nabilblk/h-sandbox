@@ -31,7 +31,7 @@ export const AccountMenu = ({
 
   return (
     <div className="account-menu" ref={ref}>
-      <button className={`account-trigger ${compact ? "compact" : ""}`} onClick={() => setOpen((next) => !next)} aria-expanded={open}>
+      <button className={`account-trigger ${compact ? "compact" : ""}`} onClick={() => setOpen((next) => !next)} aria-label={`Account: ${name}`} title={email} aria-expanded={open}>
         <span className="ava-sm">{avatarLabel}</span>
         {compact ? null : <span className="account-trigger-label">{profile?.email ?? "Account"}</span>}
         <Icon name="chevDown" size={11} />

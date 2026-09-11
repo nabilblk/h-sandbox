@@ -108,6 +108,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
       },
       {
         query,
+        transaction: dependencies.transaction,
         runtimeProvider,
         recordAudit,
         recordEvent,
@@ -306,7 +307,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         sandboxId: id,
         idempotencyKey: idempotencyKey(request.headers)
       },
-      { query, runtimeProvider, recordAudit, recordEvent }
+      { query, transaction: dependencies.transaction, runtimeProvider, recordAudit, recordEvent }
     );
     if (result.kind === "sandbox_not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     if (result.kind === "sandbox_invalid_state") {
@@ -340,6 +341,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
       },
       {
         query,
+        transaction: dependencies.transaction,
         runtimeProvider,
         recordAudit,
         recordEvent,
@@ -479,7 +481,7 @@ export const registerSandboxRoutes = async (app: FastifyInstance, dependencies: 
         sandboxId: id,
         idempotencyKey: idempotencyKey(request.headers)
       },
-      { query, runtimeProvider, recordAudit, recordEvent }
+      { query, transaction: dependencies.transaction, runtimeProvider, recordAudit, recordEvent }
     );
     if (!deleted) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
     return { ok: true } satisfies OkResponse;

@@ -131,6 +131,8 @@ const devCommandStdout = (input: RuntimeRunInput) => {
 export class InMemoryRuntimeProvider implements RuntimeProvider {
   readonly kind = "dev";
   readonly capabilities = {
+    authoritativeLifecycle: true,
+    pauseStopsExecution: true,
     terminal: true,
     sessionCommands: true,
     filesystem: true,

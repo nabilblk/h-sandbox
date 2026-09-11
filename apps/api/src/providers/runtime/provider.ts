@@ -317,6 +317,10 @@ export type RuntimeCreateSnapshotInput = RuntimeSandboxRef & {
 };
 
 export type RuntimeProviderCapabilities = {
+  /** get(null) and terminal states are authoritative, not simulated fallback responses. */
+  authoritativeLifecycle?: boolean;
+  /** A confirmed paused state means the sandbox cannot execute code until resumed. */
+  pauseStopsExecution?: boolean;
   persistentWorkspaces?: boolean;
   terminal: boolean;
   terminalAttach?: boolean;

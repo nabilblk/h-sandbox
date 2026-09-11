@@ -291,6 +291,7 @@ test("HarakiriClient sends create-time sandbox credentials", async () => {
   assert.equal(result.credentialAttachments?.[0]?.status, "injected");
   assert.equal(JSON.stringify(result).includes("real-secret"), false);
   assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    idempotencyKey: JSON.parse(calls[0].body ?? "{}").idempotencyKey,
     template: "python-3.12-data",
     ttlSeconds: 300,
     credentials: [{
@@ -354,6 +355,7 @@ test("HarakiriClient sends create-time stored credential references", async () =
 
   assert.equal(result.credentialAttachments?.[0]?.sourceType, "harakiri_encrypted");
   assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    idempotencyKey: JSON.parse(calls[0].body ?? "{}").idempotencyKey,
     template: "open-agents-dev",
     ttlSeconds: 300,
     credentials: [{
@@ -391,6 +393,7 @@ test("HarakiriClient sends template slot credential mappings", async () => {
   });
 
   assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    idempotencyKey: JSON.parse(calls[0].body ?? "{}").idempotencyKey,
     template: "open-agents-dev",
     ttlSeconds: 300,
     credentialMappings: [{
@@ -494,6 +497,7 @@ test("HarakiriClient can create a sandbox from a snapshot without a template def
 
   assert.equal(result.sandbox.id, "sbx_restore");
   assert.deepEqual(JSON.parse(calls[0].body ?? "{}"), {
+    idempotencyKey: JSON.parse(calls[0].body ?? "{}").idempotencyKey,
     snapshotId: "snp_ready",
     name: "restored",
     ttlSeconds: 300
@@ -869,7 +873,7 @@ test("HarakiriSandbox creates, connects, refreshes, and delegates runtime namesp
   assert.equal(sandbox.lifecycle.ttlSeconds, 300);
   assert.equal(sandbox.expiresAt, "2026-06-03T12:00:00.000Z");
   await sandbox.kill();
-  assert.equal(sandbox.status, "terminated");
+  assert.notEqual(sandbox.status, "terminated");
 
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes" && call.method === "POST"));
   assert(calls.some((call) => call.url === "http://harakiri.local/v1/sandboxes/sbx_obj/run" && call.method === "POST"));

@@ -1,6 +1,7 @@
 import { query as defaultQuery } from "../db.js";
 import type { UsageSummary } from "@harakiri/shared";
 import type { Query } from "./query.js";
+import { readOrganizationCapacity } from "./organization-capacity.js";
 
 export type { UsageSummary } from "@harakiri/shared";
 
@@ -24,6 +25,7 @@ export const getUsageSummary = async (
   );
   const total = counts.rows.reduce((sum, row) => sum + Number(row.count), 0);
   const concurrentNow = Number(counts.rows.find((row) => row.status === "running")?.count ?? 0);
+  const capacity = await readOrganizationCapacity(input.organizationId, query);
   return {
     sandboxesSpawned: total,
     // Preserve numeric wire types for existing clients, but never invent observations.
@@ -31,6 +33,7 @@ export const getUsageSummary = async (
     avgColdStartMs: 0,
     avgRuntimeSeconds: 0,
     concurrentNow,
+    capacity,
     concurrentPeak: 0,
     series: [],
     topTemplates: topTemplates.rows.map((row) => ({ label: row.label, value: Number(row.value) })),
@@ -40,7 +43,7 @@ export const getUsageSummary = async (
       period: "retained_records",
       observedAt: (options.now?.() ?? new Date()).toISOString(),
       unavailableMetrics: ["computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentPeak", "series"],
-      concurrencyLimitEnforced: false
+      concurrencyLimitEnforced: capacity.state === "enforced"
     }
   };
 };

@@ -1,4 +1,9 @@
 export const sandboxRuntimeApiErrorCodes = [
+  "organization_capacity_exceeded",
+  "organization_capacity_unavailable",
+  "organization_capacity_settings_conflict",
+  "sandbox_transition_in_progress",
+  "idempotency_conflict",
   "sandbox_not_found",
   "sandbox_not_running",
   "sandbox_terminated",
@@ -92,6 +97,7 @@ export const unsupportedCapabilityApiErrorCodes = [
 export type UnsupportedCapabilityApiErrorCode = typeof unsupportedCapabilityApiErrorCodes[number];
 
 export const providerUnavailableApiErrorCodes = [
+  "organization_capacity_unavailable",
   "sandbox_provision_failed",
   "runtime_terminal_unavailable",
   "runtime_command_unavailable",
@@ -111,6 +117,10 @@ export const timeoutApiErrorCodes = [
 export type TimeoutApiErrorCode = typeof timeoutApiErrorCodes[number];
 
 export const sandboxConflictApiErrorCodes = [
+  "organization_capacity_exceeded",
+  "organization_capacity_settings_conflict",
+  "sandbox_transition_in_progress",
+  "idempotency_conflict",
   "sandbox_not_running",
   "sandbox_terminated",
   "route_not_ready",

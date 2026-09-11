@@ -3,6 +3,7 @@ import { apiErrorResponse } from "@harakiri/shared";
 import { ZodError } from "zod";
 import { WorkspaceError } from "./services/persistent-workspaces.js";
 import { AuthorizationError } from "./authorization-error.js";
+import { CapacityError } from "./services/organization-capacity.js";
 
 const issuePath = (path: PropertyKey[]) => path.map(String).join(".");
 
@@ -13,6 +14,7 @@ const issueMessage = (issue: ZodError["issues"][number]) => {
 
 export const registerApiErrorHandler = (app: FastifyInstance) => {
   app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof CapacityError) return reply.code(error.statusCode).send(apiErrorResponse(error.code, { message: error.message, ...error.details }));
     if (error instanceof WorkspaceError || error instanceof AuthorizationError) return reply.code(error.statusCode).send(apiErrorResponse(error.code, { message: error.message }));
     if (error instanceof ZodError) {
       const issues = error.issues.map((issue) => ({

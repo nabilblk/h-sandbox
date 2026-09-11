@@ -1,6 +1,6 @@
 import { config } from "../config.js";
 import { query as defaultQuery, type Transaction } from "../db.js";
-import type { RuntimeProvider, RuntimeRouteTarget, RuntimeSandboxRef, RuntimeSandboxSummary } from "../providers/runtime/provider.js";
+import type { RuntimeProvider, RuntimeRouteTarget, RuntimeSandboxRef } from "../providers/runtime/provider.js";
 import { runtimeProvider as defaultRuntimeProvider } from "../providers/runtime/index.js";
 import { configuredRouteTarget, routeHost } from "../providers/runtime/route-targets.js";
 import type { RuntimeTemplate } from "../templates.js";
@@ -9,6 +9,11 @@ import { recordSandboxEvent, type SandboxEventRecorder } from "./sandbox-events.
 import type { Query } from "./query.js";
 import { prepareRuntimeWorkspace } from "./persistent-workspaces.js";
 import { renewSandboxLease, SandboxLeaseError } from "./sandbox-lease.js";
+import { provisionSandboxRuntime, completeSandboxProvision } from "./sandbox-provision.js";
+import { CapacityError } from "./organization-capacity.js";
+import { beginRuntimeEffect, lockEffectSandbox } from "./sandbox-runtime-effects.js";
+import { executeRuntimeDeletion } from "./sandbox-termination.js";
+import { transaction as defaultTransaction } from "../db.js";
 import {
   claimNextSandboxOperation,
   claimStaleRunningSandboxOperation,
@@ -26,6 +31,7 @@ export const staleLeaseCleanupOperationKinds = ["delete", "renew", "route_expose
 export type ProcessSandboxOperationQueueReport = {
   claimed: number;
   succeeded: number;
+  awaitingConfirmation: number;
   requeued: number;
   failed: number;
   staleRequeued: number;
@@ -55,13 +61,6 @@ const stringValue = (value: unknown) => (typeof value === "string" && value.trim
 const numberValue = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : null);
 const protocolValue = (value: unknown): "http" | "https" => (value === "https" ? "https" : "http");
 const routeAccessModeValue = (value: unknown) => value === "token" ? "token" as const : "public" as const;
-const normalizedProviderState = (state: string) => {
-  const value = state.toLowerCase();
-  if (value.includes("terminat") || value.includes("stopped") || value.includes("delete")) return "terminated";
-  if (value.includes("fail") || value.includes("error")) return "error";
-  if (value.includes("pending") || value.includes("creating")) return "pending";
-  return "running";
-};
 
 const fallbackRouteTarget = (sandboxId: string, port: number): RuntimeRouteTarget => {
   return configuredRouteTarget({ sandboxId, port, provider: "fallback-local" });
@@ -85,13 +84,6 @@ const sandboxIdForOperation = (operation: SandboxOperation) =>
   operation.sandboxId ?? stringValue(operation.request.sandboxId);
 
 const stringArrayValue = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
-
-const metadataMatches = (summary: RuntimeSandboxSummary, sandboxId: string, organizationId: string) => {
-  const metadata = summary.metadata ?? {};
-  const metadataSandboxId = metadata["harakiri.sandbox"] ?? metadata["harakiri.id"];
-  const metadataOrganizationId = metadata["harakiri.organization"] ?? metadata["harakiri.org"];
-  return metadataSandboxId === sandboxId && (!metadataOrganizationId || metadataOrganizationId === organizationId);
-};
 
 type ProvisionSandboxRow = {
   workspaceId?: string | null;
@@ -168,7 +160,7 @@ const readProvisionEnv = async (operation: SandboxOperation, query: Query) => {
 
 const executeProvisionOperation = async (
   operation: SandboxOperation,
-  dependencies: { query: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: { query: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
 ) => {
   const sandboxId = sandboxIdForOperation(operation);
   if (!sandboxId) throw new NonRetryableOperationError("provision operation is missing sandbox id");
@@ -206,21 +198,23 @@ const executeProvisionOperation = async (
   );
   const row = result.rows[0];
   if (!row) throw new NonRetryableOperationError("sandbox not found for provision operation");
+  if (operation.request.capacityProtocol !== 1 || operation.request.dispatchReady !== true || operation.request.nonReplayable === true) {
+    throw new NonRetryableOperationError("Provision input is not ready for safe worker replay");
+  }
   if (row.opensandboxId) {
-    await completeSandboxOperation({ operationId: operation.id, result: { providerSandboxId: row.opensandboxId } }, dependencies.query);
-    return;
+    throw new NonRetryableOperationError("Existing runtime identity requires fenced capacity reconciliation");
   }
   if (row.status === "terminated") throw new NonRetryableOperationError("sandbox terminated before provision");
   const template = runtimeTemplateFromProvisionRow(row);
   const env = await readProvisionEnv(operation, dependencies.query);
-  let provider;
-  try {
-    provider = await dependencies.runtimeProvider.create({
+  const provisioned = await provisionSandboxRuntime(operation, async () => ({
       workspace: row.workspaceId ? await prepareRuntimeWorkspace(operation.organizationId, sandboxId, dependencies.query, dependencies.runtimeProvider) : undefined,
       template,
       ttlSeconds: row.ttlSeconds,
       name: row.sandboxName,
       organizationId: operation.organizationId,
+      snapshot: typeof operation.request.providerSnapshotId === "string"
+        ? { provider: dependencies.runtimeProvider.kind, providerSnapshotId: operation.request.providerSnapshotId } : undefined,
       env,
       egressPolicy: row.egressCompiledPolicy,
       metadata: {
@@ -229,38 +223,13 @@ const executeProvisionOperation = async (
         "harakiri.org": operation.organizationId,
         "harakiri.organization": operation.organizationId
       }
-    });
-    await dependencies.query(
-      `UPDATE sandboxes
-       SET opensandbox_id = $2,
-           status = 'running',
-           cpu_pct = 3,
-           memory_mb = 128,
-           started_at = now(),
-           last_active_at = now(),
-           expires_at = LEAST($4::timestamptz, now() + make_interval(secs => ttl_seconds::int)),
-           provider_expires_at = $4::timestamptz,
-           updated_at = now()
-       WHERE id = $1 AND organization_id = $3`,
-      [sandboxId, provider.providerSandboxId, operation.organizationId, provider.expiresAt ?? null]
-    );
-    await dependencies.query(
-      `INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at)
-       SELECT id, organization_id, 'idle_ttl', expires_at FROM sandboxes WHERE id = $1 AND organization_id = $2`,
-      [sandboxId, operation.organizationId]
-    );
-    await completeSandboxOperation(
-      {
-        operationId: operation.id,
-        result: {
-          provider: provider.provider,
-          providerSandboxId: provider.providerSandboxId,
-          runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
-          runtimeImageAuthProvided: provider.runtimeImageAuthProvided
-        }
-      },
-      dependencies.query
-    );
+    }), dependencies);
+    const provider = provisioned.provider;
+    await completeSandboxProvision(operation, provisioned, {
+      runtimeRegistryCredentialId: provider.runtimeRegistryCredentialId,
+      runtimeImageAuthProvided: provider.runtimeImageAuthProvided,
+      ...(operation.request.providerSnapshotId ? { providerSnapshotId: operation.request.providerSnapshotId } : {})
+    }, dependencies.transaction);
     await dependencies.recordEvent(operation.organizationId, sandboxId, "created", `created through ${provider.provider} by operation worker`, {
       operationId: operation.id,
       opensandboxId: provider.providerSandboxId,
@@ -273,122 +242,45 @@ const executeProvisionOperation = async (
       egressRuleCount: row.egressCompiledPolicy?.egress.length ?? 0,
       egressDefaultAction: row.egressCompiledPolicy?.defaultAction ?? "allow"
     });
-  } catch (error) {
-    if (provider?.providerSandboxId) {
-      await dependencies.runtimeProvider.delete(runtimeRef(dependencies.runtimeProvider, provider.providerSandboxId)).catch(() => undefined);
-    }
-    throw error;
-  }
 };
 
 const reconcileStaleProvisionOperation = async (
   operation: SandboxOperation,
-  dependencies: { query: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
-): Promise<"reconciled" | "failed"> => {
+  dependencies: { query: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+): Promise<"reconciled" | "failed"> => (dependencies.transaction ?? defaultTransaction)(async (query) => {
   const sandboxId = sandboxIdForOperation(operation);
-  if (!sandboxId) {
-    await failSandboxOperation({ operationId: operation.id, error: "stale provision operation is missing sandbox id" }, dependencies.query);
-    return "failed";
-  }
-  const sandbox = await dependencies.query<{ opensandbox_id: string | null; status: string; ttl_seconds: number }>(
-    "SELECT opensandbox_id, status, ttl_seconds FROM sandboxes WHERE id = $1 AND organization_id = $2",
-    [sandboxId, operation.organizationId]
-  );
-  if (!sandbox.rowCount) {
-    await failSandboxOperation({ operationId: operation.id, error: "sandbox not found for stale provision operation" }, dependencies.query);
-    return "failed";
-  }
-  if (sandbox.rows[0].opensandbox_id) {
-    await completeSandboxOperation(
-      { operationId: operation.id, result: { providerSandboxId: sandbox.rows[0].opensandbox_id, reconciled: true } },
-      dependencies.query
-    );
+  if (!sandboxId) return "failed";
+  const sandbox = await lockEffectSandbox(operation.organizationId, sandboxId, query);
+  const active = await query("SELECT id FROM sandbox_runtime_effects WHERE sandbox_id=$1 AND settled_at IS NULL", [sandboxId]);
+  if (active.rows.length) return "reconciled";
+  const dispatched = await query("SELECT id FROM sandbox_runtime_effects WHERE sandbox_id=$1 AND kind='provision' AND dispatched_at IS NOT NULL", [sandboxId]);
+  if (operation.request.capacityProtocol === 1 && operation.request.nonReplayable !== true &&
+      !sandbox.opensandbox_id && !dispatched.rows.length) {
+    await requeueSandboxOperation({ operationId: operation.id, expectedAttempts: operation.attempts, error: "Worker stopped before runtime dispatch; preparation is replayable." }, query);
     return "reconciled";
   }
-
-  const providerSandboxes = await dependencies.runtimeProvider.list();
-  const match = providerSandboxes.find((summary) => metadataMatches(summary, sandboxId, operation.organizationId));
-  if (!match) {
-    const message = "stale provision operation could not be matched to a provider sandbox";
-    await dependencies.query("UPDATE sandboxes SET status = 'error', updated_at = now() WHERE id = $1 AND organization_id = $2", [
-      sandboxId,
-      operation.organizationId
-    ]);
-    await failSandboxOperation({ operationId: operation.id, error: message }, dependencies.query);
-    await dependencies.recordEvent(operation.organizationId, sandboxId, "error", message, { operationId: operation.id });
-    return "failed";
-  }
-
-  const status = normalizedProviderState(match.state);
-  await dependencies.query(
-    `UPDATE sandboxes
-     SET opensandbox_id = $2,
-         status = $3,
-         cpu_pct = CASE WHEN cpu_pct = 0 THEN 3 ELSE cpu_pct END,
-         memory_mb = CASE WHEN memory_mb = 0 THEN 128 ELSE memory_mb END,
-         started_at = COALESCE(started_at, now()),
-         last_active_at = now(),
-         expires_at = COALESCE($4::timestamptz, expires_at, now() + make_interval(secs => ttl_seconds::int)),
-         provider_expires_at = $4::timestamptz,
-         updated_at = now()
-     WHERE id = $1 AND organization_id = $5`,
-    [sandboxId, match.providerSandboxId, status, match.expiresAt ?? null, operation.organizationId]
-  );
-  if (status !== "terminated") {
-    await dependencies.query(
-      `INSERT INTO sandbox_schedules (sandbox_id, organization_id, kind, run_at)
-       SELECT $1, $2, 'idle_ttl', now() + make_interval(secs => $3::int)
-       WHERE NOT EXISTS (
-         SELECT 1 FROM sandbox_schedules
-         WHERE sandbox_id = $1
-           AND organization_id = $2
-           AND kind = 'idle_ttl'
-           AND completed_at IS NULL
-       )`,
-      [sandboxId, operation.organizationId, sandbox.rows[0].ttl_seconds]
-    );
-  }
-  await completeSandboxOperation(
-    {
-      operationId: operation.id,
-      result: {
-        provider: match.provider,
-        providerSandboxId: match.providerSandboxId,
-        reconciled: true
-      }
-    },
-    dependencies.query
-  );
-  await dependencies.recordEvent(operation.organizationId, sandboxId, "created", `reconciled provider-created sandbox ${match.providerSandboxId}`, {
-    operationId: operation.id,
-    provider: match.provider,
-    providerSandboxId: match.providerSandboxId
-  });
-  return "reconciled";
-};
+  await failSandboxOperation({ operationId: operation.id, expectedAttempts: operation.attempts, error: "Runtime outcome needs capacity inventory reconciliation; no create was replayed." }, query);
+  return "failed";
+});
 
 const executeDeleteOperation = async (
   operation: SandboxOperation,
-  dependencies: { query: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
+  dependencies: { query: Query; transaction?: Transaction; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder }
 ) => {
   const sandboxId = sandboxIdForOperation(operation);
   if (!sandboxId) throw new NonRetryableOperationError("delete operation is missing sandbox id");
-  const sandbox = await dependencies.query<{ opensandbox_id: string | null }>(
-    "SELECT opensandbox_id FROM sandboxes WHERE id = $1 AND organization_id = $2",
-    [sandboxId, operation.organizationId]
-  );
-  if (!sandbox.rowCount) throw new NonRetryableOperationError("sandbox not found for delete operation");
-  const providerSandboxId = stringValue(operation.request.providerSandboxId) ?? sandbox.rows[0].opensandbox_id;
-  if (providerSandboxId) await dependencies.runtimeProvider.delete(runtimeRef(dependencies.runtimeProvider, providerSandboxId));
-  await dependencies.query("UPDATE sandboxes SET status = 'terminated', updated_at = now() WHERE id = $1", [sandboxId]);
-  await dependencies.query(
-    "UPDATE sandbox_routes SET state = 'terminated', terminated_at = COALESCE(terminated_at, now()), updated_at = now() WHERE sandbox_id = $1",
-    [sandboxId]
-  );
-  await completeSandboxOperation({ operationId: operation.id, result: { providerSandboxId } }, dependencies.query);
-  await dependencies.recordEvent(operation.organizationId, sandboxId, "terminated", "sandbox terminated by operation worker", {
+  const effect = await (dependencies.transaction ?? defaultTransaction)(async (query) => {
+    const sandbox = await lockEffectSandbox(operation.organizationId, sandboxId, query);
+    if (!sandbox.opensandbox_id) throw new NonRetryableOperationError("Delete requires reconciliation of the pending runtime identity");
+    const claimed = await beginRuntimeEffect({ organizationId: operation.organizationId, sandboxId, kind: "delete", operation }, query);
+    await query("UPDATE sandbox_capacity_reservations SET phase='releasing', updated_at=now() WHERE sandbox_id=$1 AND generation=$2 AND released_at IS NULL", [sandboxId, claimed.generation]);
+    return claimed;
+  });
+  const confirmed = await executeRuntimeDeletion(effect, dependencies);
+  await dependencies.recordEvent(operation.organizationId, sandboxId, "termination.requested", "Runtime stop requested by operation worker", {
     operationId: operation.id
   });
+  return confirmed;
 };
 
 const executeRenewOperation = async (
@@ -520,6 +412,7 @@ export const processSandboxOperationQueue = async (
   const report: ProcessSandboxOperationQueueReport = {
     claimed: 0,
     succeeded: 0,
+    awaitingConfirmation: 0,
     requeued: 0,
     failed: 0,
     staleRequeued: 0,
@@ -532,7 +425,7 @@ export const processSandboxOperationQueue = async (
     const staleProvision = await claimStaleRunningSandboxOperation({ kinds: ["provision"], staleAfterMs }, query);
     if (!staleProvision) break;
     try {
-      const result = await reconcileStaleProvisionOperation(staleProvision, { query, runtimeProvider, recordEvent });
+      const result = await reconcileStaleProvisionOperation(staleProvision, { query, runtimeProvider, recordEvent, transaction: dependencies.transaction });
       if (result === "reconciled") report.staleProvisionReconciled += 1;
       else report.staleProvisionFailed += 1;
     } catch (error) {
@@ -557,12 +450,13 @@ export const processSandboxOperationQueue = async (
     if (!operation) break;
     report.claimed += 1;
     try {
-      await executeSandboxOperation(operation, { query, runtimeProvider, recordEvent, transaction: dependencies.transaction });
-      report.succeeded += 1;
+      const outcome = await executeSandboxOperation(operation, { query, runtimeProvider, recordEvent, transaction: dependencies.transaction });
+      if (outcome === false) report.awaitingConfirmation += 1;
+      else report.succeeded += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (error instanceof SandboxLeaseError && error.code === "renew_in_progress") continue;
-      if (error instanceof NonRetryableOperationError || error instanceof SandboxLeaseError || operation.attempts >= maxAttempts) {
+      if (error instanceof NonRetryableOperationError || error instanceof SandboxLeaseError || error instanceof CapacityError || operation.kind === "provision" || operation.attempts >= maxAttempts) {
         await failSandboxOperation({ operationId: operation.id, error: message, expectedAttempts: operation.attempts }, query);
         report.failed += 1;
       } else {

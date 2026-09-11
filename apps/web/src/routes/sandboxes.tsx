@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CapacitySummary, useIntentKeys, useOrganizationCapacity } from "../capacity";
 import {
   TEMPLATES,
   customCredentialProfilesShareScope,
@@ -15,12 +16,14 @@ import {
   type TemplateCredentialSlotMappingBody
 } from "@harakiri/shared";
 import { api } from "../api";
+import { ApiResponseError } from "../api-client/request";
 import { EgressModePicker } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Field } from "../components/ui";
 import type { WorkspacesResponse } from "@harakiri/shared";
 
-export const SandboxesRoute = ({ openSandbox }: { openSandbox: (id: string) => void }) => {
+export const SandboxesRoute = ({ openSandbox, canManage = false }: { openSandbox: (id: string) => void; canManage?: boolean }) => {
+  const capacity = useOrganizationCapacity();
   const [rows, setRows] = useState<SandboxSummary[]>([]);
   const [filter, setFilter] = useState("running");
   const [q, setQ] = useState("");
@@ -62,6 +65,7 @@ export const SandboxesRoute = ({ openSandbox }: { openSandbox: (id: string) => v
   return (
     <div className="dash-page sandbox-workspace">
       <div className="page-head"><div><h1 className="page-h">Sandboxes</h1><div className="page-sub"><span><span className="dot live" /> <b className="num">{counts.running}</b> running</span><span><span className="dot idle" /> <b className="num">{counts.idle}</b> idle</span><span><span className="dot err" /> <b className="num">{counts.error}</b> errored</span></div></div><div style={{ display: "flex", gap: 8 }}><button className="btn btn-sm" onClick={load}><Icon name="refresh" size={12} /> Refresh</button><button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}><Icon name="plus" size={12} /> New sandbox</button></div></div>
+      <CapacitySummary state={capacity} canManage={canManage} />
       <div className="filter-bar"><div className="filter-tabs">{tabs.map(([key, label, count]) => <button key={key} className={`filter-tab ${filter === key ? "active" : ""}`} onClick={() => setFilter(key)}>{label} <span className="filter-count">{count}</span></button>)}</div><div className="filter-right"><div className="search-input"><Icon name="search" size={12} /><input placeholder="Filter by name, id, or template..." value={q} onChange={(e) => setQ(e.target.value)} /></div><select className="input filter-select" aria-label="Template filter" value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}><option value="all">All templates</option>{availableTemplates.map((template) => <option key={template} value={template}>{template}</option>)}</select></div></div>
       <div className="sbx-table card"><div className="sbx-tr sbx-head"><div>Name</div><div>Status</div><div>Template</div><div>CPU</div><div>Mem</div><div>Started</div><div /></div>{filtered.map((s) => <div key={s.id} className="sbx-tr" onClick={() => openSandbox(s.id)}><div><div className="sbx-name">{s.name}</div><div className="sbx-id num">{s.id}</div></div><div><span className={`pill ${s.status === "running" ? "live" : s.status === "idle" ? "idle" : s.status === "error" ? "err" : ""}`}><span className="dot" /> {s.status}</span></div><div><span className="tag">{s.template}</span></div><div className="num"><span className="meter"><span className="meter-fill" style={{ width: `${s.cpu}%`, background: s.cpu > 50 ? "var(--warn)" : "var(--ok)" }} /></span>{s.cpu}%</div><div className="num">{s.mem} MB</div><div className="num" style={{ color: "var(--muted)" }}>{s.started}</div><div className="ta-r"><button className="btn btn-ghost btn-sm">Open <Icon name="arrowR" size={11} /></button></div></div>)}{filtered.length ? null : <div className="sbx-empty"><div className="sbx-empty-title">{emptyCopy}</div><div className="sbx-empty-sub">{filter === "running" ? "Create a sandbox to start working, or open History to review terminated runs." : "Try another status filter or clear the search field."}</div><div className="sbx-empty-actions"><button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}><Icon name="plus" size={12} /> New sandbox</button>{filter === "running" ? <button className="btn btn-sm" onClick={() => setFilter("history")}>View history</button> : null}</div></div>}</div>
       <div className="dash-foot-tip">Tip: kill all idle sandboxes with <code>harakiri kill --idle</code>. Or set TTL per template.</div>
@@ -255,6 +259,14 @@ const loadSandboxLaunchOptions = async () => {
 };
 
 export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { onClose: () => void; onCreate: (id: string) => void; initialWorkspaceId?: string }) => {
+  const capacity = useOrganizationCapacity();
+  const intentKeys = useIntentKeys();
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.focus();
+    return () => { previous?.focus(); };
+  }, []);
   const [workspaces, setWorkspaces] = useState<WorkspacesResponse | null>(null);
   const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId);
   const [workspaceError, setWorkspaceError] = useState("");
@@ -277,7 +289,12 @@ export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { on
   const [allowTarget, setAllowTarget] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uncertainIntent, setUncertainIntent] = useState<string | null>(null);
+  const [acceptedSandboxId, setAcceptedSandboxId] = useState<string | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(true);
+  useEffect(() => {
+    if (!loading && !dialog.current?.contains(document.activeElement)) dialog.current?.focus();
+  }, [loading]);
 
   const activeSecrets = useMemo(() => activeCredentialSecrets(credentialSecrets), [credentialSecrets]);
   const activeReferences = useMemo(() => activeExternalReferences(externalReferences), [externalReferences]);
@@ -327,24 +344,29 @@ export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { on
     if (egressMode === "open") setEgressMode("restricted");
   };
 
+  const buildBody = () => buildCreateSandboxBody({
+    allowTarget, credentialSlots, egressMode, egressPresets, envText, name,
+    slotDrafts, template, ttlSeconds, workspaceId
+  });
+  let retryingIntent = false;
+  if (uncertainIntent) {
+    try { retryingIntent = JSON.stringify(buildBody()) === uncertainIntent; }
+    catch { /* Invalid edited input is not the uncertain request. */ }
+  }
+
   const submit = async () => {
     setError("");
     setLoading(true);
+    let body: CreateSandboxBody | undefined;
     try {
-      const result = await api.createSandbox(buildCreateSandboxBody({
-        allowTarget,
-        credentialSlots,
-        egressMode,
-        egressPresets,
-        envText,
-        name,
-        slotDrafts,
-        template,
-        ttlSeconds,
-        workspaceId
-      }));
+      body = buildBody();
+      const result = await api.createSandbox({ ...body, idempotencyKey: intentKeys.forIntent(body) });
       onCreate(result.sandbox.id);
     } catch (err) {
+      setUncertainIntent(body && (!(err instanceof ApiResponseError) || err.status >= 500) ? JSON.stringify(body) : null);
+      const accepted = err instanceof ApiResponseError ? err.details?.sandbox : null;
+      setAcceptedSandboxId(accepted && typeof accepted === "object" && "id" in accepted && typeof accepted.id === "string" ? accepted.id : null);
+      capacity.acceptError(err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
@@ -352,13 +374,22 @@ export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { on
   };
 
   return (
-    <div className="modal-wrap" onClick={onClose}>
-      <div className="modal modal-sandbox-create card" onClick={(event) => event.stopPropagation()}>
+    <div className="modal-wrap" onClick={() => { if (!loading) onClose(); }}>
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="create-sandbox-title" tabIndex={-1} className="modal modal-sandbox-create card" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
+        if (event.key === "Escape" && !loading) onClose();
+        if (event.key !== "Tab") return;
+        const focusable = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href]') ?? []);
+        const first = focusable[0], last = focusable.at(-1);
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }}>
         <div className="modal-head">
-          <h3>New sandbox</h3>
-          <button className="btn btn-ghost btn-sm" onClick={onClose}><Icon name="x" size={12} /></button>
+          <h3 id="create-sandbox-title">New sandbox</h3>
+          <button className="btn btn-ghost btn-sm" aria-label="Close new sandbox" title="Close new sandbox" disabled={loading} onClick={onClose}><Icon name="x" size={12} /></button>
         </div>
         <div className="modal-body">
+          <CapacitySummary state={capacity} />
+          <fieldset disabled={loading} className="sandbox-create-fields">
           <TemplateField
             loading={optionsLoading}
             onSelect={selectTemplate}
@@ -397,12 +428,14 @@ export const CreateModal = ({ onClose, onCreate, initialWorkspaceId = "" }: { on
           <Field label="Environment" hint="KEY=value per line">
             <textarea className="input mono sandbox-env-input" spellCheck={false} placeholder="HARAKIRI_ENV=dev" value={envText} onChange={(event) => setEnvText(event.target.value)} />
           </Field>
-          {error ? <div className="build-inline-alert"><span>{error}</span></div> : null}
+          </fieldset>
+          {error ? <div role="alert" className="build-inline-alert"><span>{error}</span></div> : null}
+          {acceptedSandboxId ? <button className="btn btn-sm" onClick={() => onCreate(acceptedSandboxId)}><Icon name="arrowR" size={12} /> Inspect accepted sandbox</button> : null}
           <div className="cost-est"><span style={{ color: "var(--muted)" }}>Sandbox lifetime</span><span className="num">{ttlSeconds}s</span></div>
         </div>
         <div className="modal-foot">
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={submit} disabled={loading || optionsLoading || Boolean(workspaceId && !workspaces?.workspaces.some((row) => row.id === workspaceId && row.status === "available"))}>{loading ? <><span className="spinner" /> Provisioning...</> : <>Create sandbox <Icon name="arrowR" size={11} /></>}</button>
+          <button className="btn" disabled={loading} onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={(capacity.blocked && !retryingIntent) || loading || optionsLoading || Boolean(workspaceId && !retryingIntent && !workspaces?.workspaces.some((row) => row.id === workspaceId && row.status === "available"))}>{loading ? <><span className="spinner" /> Provisioning...</> : <>{retryingIntent ? "Retry request" : "Create sandbox"} <Icon name="arrowR" size={11} /></>}</button>
         </div>
       </div>
     </div>

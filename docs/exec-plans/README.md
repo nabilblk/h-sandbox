@@ -8,6 +8,7 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
+| [Organization capacity admission](active/organization-capacity-admission.md) | Local ledger and lifecycle enforcement, shared provision executor, API/SDK/CLI/UI, operator recovery and first-class docs; real PostgreSQL contention and native create/async/delete/tutorial acceptance | Extended fault/lifecycle matrix, final maintenance/release acceptance and authorized delivery; not deployed or published |
 | [OSS Developer Preview launch](active/oss-developer-preview-launch.md) | Public source, reviewed credentials/material, protected release entry points, rc.8 native arm64 install/upgrade/file recovery, truthful preview, docs exports; independent evaluation and LinkedIn/X publication owner-reported complete | Security-report notification receipt, broader live member acceptance, consented three-team and second-week outcomes; no duplicate prelaunch evaluation |
 | [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspaces/live commands and workdir correction in rc.8; standalone arm64 native acceptance and coordinated database/file-volume restore; all six template architecture/manifest pipelines passed September 9; customer package/docs separated September 10 | Native amd64 for advertised support, remaining catalog/matrix coverage, real encrypted Vault recovery/provider-loss repair, host/rollback validation; customer OCP bundle excluded |
 | [Real product demos](active/real-product-demo-remotion.md) | Four agent workflow films plus separately completed full-frame UI tour; public tutorials/transcripts, restored vertical menu | Protected unattended agent-refresh credentials, CI environment and live acceptance; lower priority than core product reliability |
@@ -39,8 +40,9 @@ No customer installation, version upgrade or Brain update accompanies extraction
 
 ## Recommended Next Work
 
-These are backlog recommendations, **not started or approved implementation**.
-Keep one engineering plan in execution at a time:
+The owner approved implementing point 2; that plan is now in progress.
+The other items remain backlog
+recommendations. Keep one engineering plan in execution at a time:
 
 1. Close small reporting/support handoffs, retain the accepted independent
    evaluation, and turn consented launch feedback into reproducible issues.
@@ -48,10 +50,11 @@ Keep one engineering plan in execution at a time:
    The [Kubernetes installation guide](../install-kubernetes.md) is now public;
    use operator feedback to improve it. Documentation/browser acceptance is not
    a fresh-install certification.
-2. Plan atomic organization capacity admission across create, asynchronous
-   provision, restore, resume, retries and uncertain cleanup. The shipped
-   `concurrencyLimitEnforced: false` disclosure is not enforcement. Require
-   database concurrency tests, native acceptance and coherent API/SDK/CLI/UI docs.
+2. Follow the [organization capacity admission plan](active/organization-capacity-admission.md)
+   across create, asynchronous provision, restore, resume, retries and uncertain
+   cleanup. The shipped `concurrencyLimitEnforced: false` disclosure is not
+   enforcement. Require database concurrency tests, native acceptance and coherent
+   API/SDK/CLI/UI docs.
 3. Complete named release/profile acceptance and reproducible publication through
    the standalone OSS delivery work. Distinguish native amd64 support from the
    now-passing image architecture jobs; retain narrower recovery evidence.

@@ -11,6 +11,7 @@ import {
 import { cleanupTemplateRetention, type TemplateRetentionReport } from "./template-retention.js";
 import { reconcileWorkspaces } from "./services/persistent-workspaces.js";
 import { normalizeRuntimeState, reconcileSandboxLease } from "./services/sandbox-lease.js";
+import { reconcileSandboxCapacity } from "./services/sandbox-capacity-reconciler.js";
 
 export const normalizeState = normalizeRuntimeState;
 
@@ -57,20 +58,7 @@ export const runTemplateRetentionIfDue = async (nowMs = Date.now()) => {
 export const reconcile = async (dependencies: SchedulerDependencies = {}) => {
   const query = dependencies.query ?? defaultQuery;
   const runtimeProvider = dependencies.runtimeProvider ?? defaultRuntimeProvider;
-  const rows = await query<{ id: string; organization_id: string }>(
-    `SELECT id, organization_id FROM sandboxes
-     WHERE opensandbox_id IS NOT NULL AND status IN ('running', 'pending', 'idle')
-     LIMIT 100`
-  );
-  for (const row of rows.rows) {
-    try {
-      await reconcileSandboxLease({ sandboxId: row.id, organizationId: row.organization_id }, {
-        runtimeProvider, transaction: dependencies.transaction
-      });
-    } catch (error) {
-      console.error("sandbox reconciliation failed", row.id, error);
-    }
-  }
+  return reconcileSandboxCapacity({ query, runtimeProvider, transaction: dependencies.transaction });
 };
 
 export const tick = async (dependencies: SchedulerDependencies = {}) => {
@@ -93,7 +81,7 @@ export const tick = async (dependencies: SchedulerDependencies = {}) => {
   for (const item of due.rows) {
     try {
       await reconcileSandboxLease({ sandboxId: item.sandbox_id, organizationId: item.organization_id, expire: true }, {
-        runtimeProvider, transaction: dependencies.transaction
+        query, runtimeProvider, transaction: dependencies.transaction
       });
     } catch (error) {
       console.error("sandbox expiration failed", item.sandbox_id, error);

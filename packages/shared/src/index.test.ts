@@ -215,6 +215,7 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "GET /v1/external-secret-references",
     "GET /v1/external-secret-references/{id}",
     "GET /v1/me",
+    "GET /v1/org/capacity",
     "GET /v1/org/members",
     "GET /v1/org/settings",
     "GET /v1/registry-credentials",

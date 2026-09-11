@@ -8,7 +8,9 @@ import {
   type SandboxSummary
 } from "@harakiri/shared";
 import { makeId } from "../crypto.js";
-import { query as defaultQuery } from "../db.js";
+import { query as defaultQuery, transaction as defaultTransaction, type Transaction } from "../db.js";
+import { CapacityError, reserveSandboxCapacity, releaseSandboxCapacity } from "./organization-capacity.js";
+import { acknowledgeRuntimeEffect, beginRuntimeEffect, finishRuntimeEffect, lockEffectSandbox, markRuntimeEffectDispatched, markRuntimeEffectUncertain, type RuntimeEffect } from "./sandbox-runtime-effects.js";
 import type {
   RuntimeProvider,
   RuntimeSandboxRef,
@@ -45,6 +47,8 @@ import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-se
 
 type LifecycleDependencies = {
   query?: Query;
+  transaction?: Transaction;
+  waitTimeoutMs?: number;
   runtimeProvider: RuntimeProvider;
   recordEvent: SandboxEventRecorder;
   recordAudit: Audit;
@@ -76,7 +80,7 @@ const providerErrorMessage = (error: unknown) => error instanceof Error ? error.
 
 const normalizeSandboxStatus = (status: string): SandboxStatus => {
   const normalized = status.trim().replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
-  if (normalized === "stopping" || normalized === "deleting" || normalized === "deleted") return "terminated";
+  if (normalized === "stopped" || normalized === "deleted") return "terminated";
   if (normalized === "failed") return "error";
   return sandboxStatuses.includes(normalized as SandboxStatus) ? normalized as SandboxStatus : "error";
 };
@@ -139,25 +143,6 @@ const getLifecycleSandboxRow = async (
   return result.rows[0] ?? null;
 };
 
-const completeSandboxLifecycleOperation = async (
-  operation: SandboxOperation,
-  query: Query,
-  provider: RuntimeSandboxSummary
-) => {
-  const completed = await completeSandboxOperation(
-    {
-      operationId: operation.id,
-      result: {
-        provider: provider.provider,
-        providerSandboxId: provider.providerSandboxId,
-        state: provider.state
-      }
-    },
-    query
-  );
-  return completed ?? operation;
-};
-
 export type SandboxLifecycleResult =
   | { kind: "ok"; sandbox: SandboxSummary; operation: SandboxOperation }
   | { kind: "sandbox_not_found" }
@@ -214,118 +199,96 @@ const changeSandboxLifecycle = async (
   spec: LifecycleSpec
 ): Promise<SandboxLifecycleResult> => {
   const query = dependencies.query ?? defaultQuery;
+  const transaction = dependencies.transaction ?? defaultTransaction;
   if (!dependencies.runtimeProvider[spec.kind]) return { kind: "runtime_lifecycle_unsupported", capability: spec.kind };
-  const sandbox = await getLifecycleSandboxRow(input, query);
-  if (!sandbox) return { kind: "sandbox_not_found" };
-  if (spec.idleStates.includes(sandbox.status)) return lifecycleNoopResult(input, dependencies, spec.kind, query);
-  if (!spec.allowedStates.includes(sandbox.status)) {
-    return { kind: "sandbox_invalid_state", state: sandbox.status, allowed: spec.allowedStates };
-  }
-  const operation = await claimLifecycleOperation(input, spec.kind, sandbox.opensandboxId, query, dependencies.idFactory);
-  try {
-    return await runLifecycleProviderChange(input, dependencies, spec, sandbox, operation, query);
-  } catch (error) {
-    return failLifecycleChange(input, sandbox.status, operation, query, error);
-  }
-};
-
-const lifecycleNoopResult = async (
-  input: { organizationId: string; sandboxId: string },
-  dependencies: LifecycleDependencies,
-  kind: LifecycleAction,
-  query: Query
-): Promise<SandboxLifecycleResult> => {
-  const sandbox = await getSandbox(input, { query, runtimeProvider: dependencies.runtimeProvider });
-  if (!sandbox) return { kind: "sandbox_not_found" };
-  return { kind: "ok", sandbox, operation: await lastNoopOperation(input, kind, query) };
-};
-
-const claimLifecycleOperation = async (
-  input: { organizationId: string; sandboxId: string; idempotencyKey?: string | null },
-  kind: LifecycleAction,
-  providerSandboxId: string | null,
-  query: Query,
-  idFactory: typeof makeId | undefined
-) => {
-  const { operation } = await enqueueSandboxOperation(
-    {
-      organizationId: input.organizationId,
-      sandboxId: input.sandboxId,
-      kind,
-      idempotencyKey: input.idempotencyKey,
-      request: { sandboxId: input.sandboxId, providerSandboxId }
-    },
-    { query, idFactory }
-  );
-  return await claimSandboxOperationById({ operationId: operation.id, kinds: [kind] }, query) ?? operation;
-};
-
-class LifecycleConflictError extends Error {}
-
-const runLifecycleProviderChange = async (
-  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
-  dependencies: LifecycleDependencies,
-  spec: LifecycleSpec,
-  sandbox: LifecycleSandboxRow,
-  operation: SandboxOperation,
-  query: Query
-) => {
-  const ref = runtimeRef(dependencies.runtimeProvider, sandbox.opensandboxId);
-  const transitioned = await setSandboxStatus(input, spec.transitionStatus, sandbox.status, query);
-  if (!transitioned.rowCount) throw new LifecycleConflictError("Sandbox state changed before lifecycle operation");
-  const requested = await spec.callProvider(dependencies.runtimeProvider, ref);
-  const provider = await waitForRuntimeSandboxState(dependencies, ref, requested, spec.expectedStatuses);
-  return completeLifecycleChange(input, dependencies, spec, operation, provider, query);
-};
-
-const setSandboxStatus = (
-  input: { organizationId: string; sandboxId: string },
-  status: SandboxStatus,
-  previousStatus: string,
-  query: Query
-) => query("UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4", [input.sandboxId, input.organizationId, status, previousStatus]);
-
-const completeLifecycleChange = async (
-  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
-  dependencies: LifecycleDependencies,
-  spec: LifecycleSpec,
-  operation: SandboxOperation,
-  provider: RuntimeSandboxSummary,
-  query: Query
-): Promise<SandboxLifecycleResult> => {
-  const status = normalizeSandboxStatus(provider.state);
-  const updated = await query(
-    "UPDATE sandboxes SET status = $3, last_active_at = now(), updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4",
-    [input.sandboxId, input.organizationId, status, spec.transitionStatus]
-  );
-  if (!updated.rowCount) throw new LifecycleConflictError("Sandbox state changed during lifecycle operation");
-  const credentialsNeedingReinjection = spec.kind === "resume"
-    ? await markSandboxCredentialsRequireReinjection(input, query)
-    : 0;
-  const credentialRehydration = credentialsNeedingReinjection
-    ? await rehydrateSandboxCredentials(
-      {
-        organizationId: input.organizationId,
-        sandboxId: input.sandboxId,
-        actorUserId: input.userId,
-        actorLabel: input.actorLabel
-      },
-      {
-        sourceAccess: "system",
-        query,
-        runtimeProvider: dependencies.runtimeProvider,
-        recordEvent: dependencies.recordEvent,
-        recordAudit: dependencies.recordAudit,
-        decryptSecret: dependencies.decryptSecret,
-        externalSecretResolvers: dependencies.externalSecretResolvers,
-        dynamicCredentialIssuers: dependencies.dynamicCredentialIssuers
+  if (!await getLifecycleSandboxRow(input, query)) return { kind: "sandbox_not_found" };
+  const admission = await transaction(async (q) => {
+    const row = await lockEffectSandbox(input.organizationId, input.sandboxId, q);
+    if (input.idempotencyKey) {
+      const found = await q<SandboxOperation>(`${sandboxOperationSelect} WHERE organization_id=$1 AND kind=$2 AND idempotency_key=$3`, [input.organizationId, spec.kind, input.idempotencyKey]);
+      if (found.rows[0]) {
+        if (found.rows[0].sandboxId !== input.sandboxId) throw new CapacityError("idempotency_conflict", "This key belongs to another sandbox.");
+        return { operation: found.rows[0], effect: null };
       }
-    )
-    : null;
-  const completed = await completeSandboxLifecycleOperation(operation, query, provider);
-  await recordLifecycleChange(input, dependencies, spec, status, provider, operation, credentialMetadata(credentialsNeedingReinjection, credentialRehydration));
+    }
+    if (spec.idleStates.includes(row.status)) return { operation: await lastNoopOperation(input, spec.kind, q), effect: null };
+    if (!spec.allowedStates.includes(row.status) || !row.opensandbox_id) return { invalidState: row.status };
+    const busy = await q("SELECT id FROM sandbox_runtime_effects WHERE sandbox_id=$1 AND settled_at IS NULL", [input.sandboxId]);
+    if (busy.rows.length) throw new CapacityError("sandbox_transition_in_progress", "Another runtime operation is still in progress.");
+    const { operation: queued } = await enqueueSandboxOperation({
+      ...input, kind: spec.kind, request: { providerSandboxId: row.opensandbox_id, capacityProtocol: 1 }
+    }, { query: q, idFactory: dependencies.idFactory });
+    if (spec.kind === "resume") {
+      const held = await q("SELECT generation FROM sandbox_capacity_reservations WHERE sandbox_id=$1 AND released_at IS NULL", [input.sandboxId]);
+      if (held.rows.length) {
+        // Providers without a suspension guarantee keep their existing execution slot.
+        await q("UPDATE sandbox_capacity_reservations SET operation_id=$2, phase='reserved', reason=NULL, updated_at=now() WHERE sandbox_id=$1 AND released_at IS NULL", [input.sandboxId, queued.id]);
+      } else await reserveSandboxCapacity({ ...input, operationId: queued.id }, q);
+    }
+    const operation = await claimSandboxOperationById({ operationId: queued.id, kinds: [spec.kind] }, q);
+    if (!operation) throw new CapacityError("sandbox_transition_in_progress", "Another worker owns this transition.");
+    const effect = await beginRuntimeEffect({ ...input, kind: spec.kind, operation, context: { userId: input.userId, actorLabel: input.actorLabel, previousStatus: row.status } }, q);
+    await q("UPDATE sandboxes SET status=$3, updated_at=now() WHERE id=$1 AND organization_id=$2", [input.sandboxId, input.organizationId, spec.transitionStatus]);
+    return { operation, effect };
+  });
+  if ("invalidState" in admission) return { kind: "sandbox_invalid_state", state: admission.invalidState!, allowed: spec.allowedStates };
+  const { effect, operation } = admission;
+  if (effect) {
+    try {
+      await markRuntimeEffectDispatched(effect, query);
+      const ref = runtimeRef(dependencies.runtimeProvider, effect.provider_id);
+      const requested = await spec.callProvider(dependencies.runtimeProvider, ref);
+      await acknowledgeRuntimeEffect(effect, query);
+      const observed = await waitForRuntimeSandboxState(dependencies, ref, requested, spec.expectedStatuses, dependencies.waitTimeoutMs ?? 2_000);
+      if (spec.expectedStatuses.includes(normalizeSandboxStatus(observed.state))) {
+        await completeLifecycleEffect(effect, observed, dependencies);
+      }
+    } catch {
+      await markRuntimeEffectUncertain(effect, transaction);
+      return { kind: "runtime_provider_failed", message: "The runtime transition could not be confirmed. Its execution slot remains reserved.", operation };
+    }
+  }
   const sandbox = await getSandbox(input, { query, runtimeProvider: dependencies.runtimeProvider });
-  return sandbox ? { kind: "ok", sandbox, operation: completed } : { kind: "sandbox_not_found" };
+  return sandbox ? { kind: "ok", sandbox, operation } : { kind: "sandbox_not_found" };
+};
+
+export const completeLifecycleEffect = async (
+  effect: RuntimeEffect, provider: RuntimeSandboxSummary, dependencies: LifecycleDependencies
+) => {
+  const spec = effect.kind === "pause" ? pauseSpec : resumeSpec;
+  const status = normalizeSandboxStatus(provider.state);
+  if (!spec.expectedStatuses.includes(status)) return;
+  const input = {
+    organizationId: effect.organization_id, sandboxId: effect.sandbox_id,
+    userId: typeof effect.context.userId === "string" ? effect.context.userId : null,
+    actorLabel: typeof effect.context.actorLabel === "string" ? effect.context.actorLabel : "system"
+  };
+  const marked = await finishRuntimeEffect(effect, async (query) => {
+    await query("UPDATE sandboxes SET status=$3, last_active_at=now(), updated_at=now() WHERE id=$1 AND organization_id=$2", [input.sandboxId, input.organizationId, status]);
+    if (spec.kind === "pause" && dependencies.runtimeProvider.capabilities.pauseStopsExecution) {
+      await releaseSandboxCapacity({ ...input, generation: effect.generation, reason: "provider_suspended" }, query);
+    } else {
+      await query("UPDATE sandbox_capacity_reservations SET phase='active', reason=NULL, updated_at=now() WHERE sandbox_id=$1 AND generation=$2 AND released_at IS NULL", [input.sandboxId, effect.generation]);
+    }
+    const credentials = spec.kind === "resume" ? await markSandboxCredentialsRequireReinjection(input, query) : 0;
+    if (effect.operation_id) await completeSandboxOperation({
+      operationId: effect.operation_id, reconciled: true,
+      expectedAttempts: typeof effect.context.operationAttempt === "number" ? effect.context.operationAttempt : undefined,
+      result: { provider: provider.provider, providerSandboxId: provider.providerSandboxId, state: provider.state }
+    }, query);
+    return credentials;
+  }, dependencies.transaction);
+  // Re-injection can make provider calls and must not hold the organization's admission lock.
+  let rehydrated: RehydrateSandboxCredentialsResult | null = null;
+  if (marked) {
+    try {
+      rehydrated = await rehydrateSandboxCredentials({
+        ...input, actorUserId: input.userId
+      }, { ...dependencies, sourceAccess: "system" });
+    } catch { /* Durable needs-reinjection state remains visible for recovery. */ }
+  }
+  await dependencies.recordEvent(input.organizationId, input.sandboxId, spec.eventType(status), `sandbox ${status}`, { operationId: effect.operation_id, ...credentialMetadata(marked, rehydrated) });
+  await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, spec.auditAction, "sandbox", input.sandboxId, { operationId: effect.operation_id, ...credentialMetadata(marked, rehydrated) });
 };
 
 const credentialMetadata = (
@@ -345,43 +308,6 @@ const credentialMetadata = (
   };
 };
 
-const recordLifecycleChange = async (
-  input: { organizationId: string; userId: string | null; actorLabel: string; sandboxId: string },
-  dependencies: LifecycleDependencies,
-  spec: LifecycleSpec,
-  status: SandboxStatus,
-  provider: RuntimeSandboxSummary,
-  operation: SandboxOperation,
-  credentialState: Record<string, unknown>
-) => {
-  const metadata = {
-    operationId: operation.id,
-    provider: provider.provider,
-    providerSandboxId: provider.providerSandboxId,
-    ...credentialState
-  };
-  await dependencies.recordEvent(input.organizationId, input.sandboxId, spec.eventType(status), `sandbox ${status}`, metadata);
-  await dependencies.recordAudit(input.organizationId, input.userId, input.actorLabel, spec.auditAction, "sandbox", input.sandboxId, {
-    operationId: operation.id,
-    ...credentialState
-  });
-};
-
-const failLifecycleChange = async (
-  input: { organizationId: string; sandboxId: string },
-  previousStatus: string,
-  operation: SandboxOperation,
-  query: Query,
-  error: unknown
-): Promise<SandboxLifecycleResult> => {
-  const message = providerErrorMessage(error);
-  if (!(error instanceof LifecycleConflictError)) await query(
-    "UPDATE sandboxes SET status = $3, updated_at = now() WHERE id = $1 AND organization_id = $2 AND status = $4",
-    [input.sandboxId, input.organizationId, previousStatus, operation.kind === "pause" ? "pausing" : "resuming"]
-  );
-  await failSandboxOperation({ operationId: operation.id, error: message }, query);
-  return { kind: "runtime_provider_failed", message, operation };
-};
 
 const lastNoopOperation = async (
   input: { organizationId: string; sandboxId: string },

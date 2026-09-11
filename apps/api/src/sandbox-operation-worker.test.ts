@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { processSandboxOperationQueue } from "./services/sandbox-operation-worker.js";
+import { processSandboxOperationQueue as processQueue } from "./services/sandbox-operation-worker.js";
 import type { RuntimeProvider } from "./providers/runtime/provider.js";
+
+import { capacityFixture } from "./test-support/capacity-fixture.js";
+const processSandboxOperationQueue: typeof processQueue = (deps) => processQueue({ ...deps, ...capacityFixture(deps!.query!) });
 
 const operationRow = (overrides: Record<string, unknown> = {}) => ({
   id: "op_worker",
@@ -49,7 +52,7 @@ const fakeRuntimeProvider = (
     routes: true
   },
   create: async (input) => {
-    options.created?.push({ name: input.name, templateId: input.template.id, env: input.env });
+    options.created?.push({ name: input.name, templateId: input.template.id, env: input.env, ...(input.snapshot ? { snapshot: input.snapshot } : {}) });
     return {
       provider: "fake",
       providerSandboxId: "provider_created",
@@ -110,6 +113,7 @@ test("processSandboxOperationQueue claims and completes a queued route exposure"
   assert.deepEqual(report, {
     claimed: 1,
     succeeded: 1,
+    awaitingConfirmation: 0,
     requeued: 0,
     failed: 0,
     staleRequeued: 0,
@@ -125,7 +129,7 @@ test("processSandboxOperationQueue claims and completes a queued route exposure"
   assert(calls.some((call) => call.text.includes("state = 'succeeded'")));
 });
 
-test("processSandboxOperationQueue provisions queued sandboxes with replayable env", async () => {
+test("processSandboxOperationQueue provisions a queued snapshot restore with replayable input", async () => {
   const created: Array<Record<string, unknown>> = [];
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const report = await processSandboxOperationQueue({
@@ -139,7 +143,7 @@ test("processSandboxOperationQueue provisions queued sandboxes with replayable e
           rows: [
             operationRow({
               kind: "provision",
-              request: { sandboxId: "sbx_worker", envKeys: [], envReplayable: true }
+              request: { sandboxId: "sbx_worker", envKeys: [], envReplayable: true, capacityProtocol: 1, dispatchReady: true, providerSnapshotId: "provider_snapshot" }
             })
           ] as never[]
         };
@@ -185,12 +189,12 @@ test("processSandboxOperationQueue provisions queued sandboxes with replayable e
   });
 
   assert.equal(report.succeeded, 1);
-  assert.deepEqual(created, [{ name: "queued-worker", templateId: "python-3.12", env: {} }]);
+  assert.deepEqual(created, [{ name: "queued-worker", templateId: "python-3.12", env: {}, snapshot: { provider: "fake", providerSnapshotId: "provider_snapshot" } }]);
   assert(calls.some((call) => call.text.includes("UPDATE sandboxes") && call.params?.[1] === "provider_created"));
   assert(calls.some((call) => call.text.includes("INSERT INTO sandbox_schedules")));
 });
 
-test("processSandboxOperationQueue reconciles stale provision operations by provider metadata", async () => {
+test("processSandboxOperationQueue does not adopt a legacy runtime using incomplete provider metadata", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const report = await processSandboxOperationQueue({
     runtimeProvider: fakeRuntimeProvider({
@@ -230,10 +234,10 @@ test("processSandboxOperationQueue reconciles stale provision operations by prov
     recordEvent: async () => undefined
   });
 
-  assert.equal(report.staleProvisionReconciled, 1);
-  assert.equal(report.staleProvisionFailed, 0);
-  assert(calls.some((call) => call.text.includes("UPDATE sandboxes") && call.params?.[1] === "provider_recovered"));
-  assert(calls.some((call) => call.text.includes("INSERT INTO sandbox_schedules")));
+  assert.equal(report.staleProvisionReconciled, 0);
+  assert.equal(report.staleProvisionFailed, 1);
+  assert(!calls.some((call) => call.text.includes("UPDATE sandboxes") && call.params?.[1] === "provider_recovered"));
+  assert(!calls.some((call) => call.text.includes("INSERT INTO sandbox_schedules")));
 });
 
 test("processSandboxOperationQueue fails unmatched stale provision operations without blind replay", async () => {
@@ -260,11 +264,11 @@ test("processSandboxOperationQueue fails unmatched stale provision operations wi
 
   assert.equal(report.staleProvisionReconciled, 0);
   assert.equal(report.staleProvisionFailed, 1);
-  assert(calls.some((call) => call.text.includes("UPDATE sandboxes SET status = 'error'")));
-  assert(calls.some((call) => call.params?.[1] === "stale provision operation could not be matched to a provider sandbox"));
+  assert(!calls.some((call) => call.text.includes("UPDATE sandboxes SET status")));
+  assert(calls.some((call) => call.params?.[1] === "Runtime outcome needs capacity inventory reconciliation; no create was replayed."));
 });
 
-test("processSandboxOperationQueue requeues retryable worker failures", async () => {
+test("processSandboxOperationQueue retains uncertain deletion without blind worker retry", async () => {
   const deleted: string[] = [];
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const report = await processSandboxOperationQueue({
@@ -296,10 +300,28 @@ test("processSandboxOperationQueue requeues retryable worker failures", async ()
     recordEvent: async () => undefined
   });
 
-  assert.equal(report.requeued, 1);
-  assert.equal(report.failed, 0);
+  assert.equal(report.requeued, 0);
+  assert.equal(report.failed, 1);
   assert.deepEqual(deleted, []);
-  assert(calls.some((call) => call.text.includes("SET state = 'queued'") && call.params?.[1] === "delete unavailable"));
+  assert(calls.some((call) => call.text.includes("SET state = 'failed'") && String(call.params?.[1]).includes("could not be confirmed")));
+});
+
+test("processSandboxOperationQueue does not count a delete acknowledgement as completion", async () => {
+  const deleted: string[] = [];
+  const calls: string[] = [];
+  const report = await processSandboxOperationQueue({
+    runtimeProvider: fakeRuntimeProvider({ deleted }), limit: 1,
+    query: async (text) => {
+      calls.push(text);
+      if (text.includes("WITH candidate") && text.includes("state = 'queued'")) return { rowCount: 1, rows: [operationRow({ kind: "delete" })] as never[] };
+      return { rowCount: 0, rows: [] as never[] };
+    },
+    recordEvent: async () => undefined
+  });
+  assert.deepEqual(deleted, ["provider_sbx"]);
+  assert.equal(report.succeeded, 0);
+  assert.equal(report.awaitingConfirmation, 1);
+  assert.equal(calls.some((sql) => sql.includes("state = 'succeeded'")), false);
 });
 
 test("processSandboxOperationQueue renews queued sandboxes", async () => {
@@ -377,7 +399,7 @@ test("processSandboxOperationQueue fails exhausted retryable operations", async 
 
   assert.equal(report.failed, 1);
   assert.equal(report.requeued, 0);
-  assert(calls.some((call) => call.text.includes("SET state = 'failed'") && call.params?.[1] === "delete unavailable"));
+  assert(calls.some((call) => call.text.includes("SET state = 'failed'") && String(call.params?.[1]).includes("could not be confirmed")));
 });
 
 test("processSandboxOperationQueue fails non-retryable malformed operations", async () => {

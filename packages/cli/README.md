@@ -7,6 +7,17 @@ and [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 
 ## Install
 
+### Upcoming Execution Capacity Support
+
+Unreleased, migration 038; not in the pinned package below. `harakiri capacity`
+and `harakiri capacity --json` report organization execution slots, including
+starting, stopping and uncertain work. API keys require `org:read`. Create and
+resume accept `--idempotency-key`; keep it for retries of the same intent. A
+capacity conflict exits 1 without automatic retry. Resume `--json` keeps stdout
+machine-readable; errors and request keys go to stderr. Kill reports a stop
+request, not confirmed capacity release. Follow the
+[capacity tutorial](https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-execution-capacity).
+
 The published package installs a normal `harakiri` executable:
 
 ```bash

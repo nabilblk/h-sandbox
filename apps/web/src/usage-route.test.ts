@@ -24,7 +24,7 @@ test("usage ignores synthetic historical fields even from an older server", () =
   const html = renderToStaticMarkup(createElement(UsageContent, { usage }));
   assert.match(html, /<dd>3<\/dd>/);
   assert.match(html, /<dd>2<\/dd>/);
-  assert.match(html, /not enforced/);
+  assert.match(html, /Execution slots are counted separately/);
   assert.doesNotMatch(html, /12345|54321|98765|99999|<svg/);
 });
 

@@ -1,4 +1,5 @@
 import { openSandbox } from "./opensandbox-transport.js";
+import { config } from "../../config.js";
 import type {
   RuntimeFileListResult,
   RuntimeProvider,
@@ -11,7 +12,7 @@ const providerErrorMessage = (error: unknown) => (error instanceof Error ? error
 
 const normalizeProviderSandboxState = (state?: string) => {
   const normalized = (state ?? "unknown").trim().replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase();
-  if (normalized === "stopping" || normalized === "deleting" || normalized === "deleted") return "terminated";
+  if (normalized === "deleted" || normalized === "stopped") return "terminated";
   if (normalized === "failed") return "error";
   return normalized;
 };
@@ -75,6 +76,8 @@ export const runtimeRef = (providerSandboxId: string | null | undefined): Runtim
 export const openSandboxRuntimeProvider: RuntimeProvider = {
   kind: "opensandbox",
   capabilities: {
+    authoritativeLifecycle: !config.openSandboxAllowFallback,
+    pauseStopsExecution: !config.openSandboxAllowFallback,
     persistentWorkspaces: true,
     terminal: true,
     terminalAttach: true,

@@ -14,6 +14,7 @@ export const settingsSchema = z.object({
   slug: z.string().min(1).regex(/^[a-z0-9-]+$/).optional(),
   idleTtlSeconds: z.number().int().min(10).max(86400).optional(),
   maxConcurrency: z.number().int().min(1).max(10000).optional(),
+  expectedCapacityRevision: z.number().int().min(1).optional(),
   defaultTemplateId: z.string().optional(),
   defaultEgressPolicy: egressPolicySchema.optional(),
   egressAllowedPresets: z.array(z.enum(egressPresetIds)).optional(),

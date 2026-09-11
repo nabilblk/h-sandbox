@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SandboxCredentialAttachmentSummary } from "@harakiri/shared";
 import type { RuntimeProvider } from "./providers/runtime/provider.js";
-import { createSandboxSnapshot, deleteSandboxSnapshot, pauseSandbox, resumeSandbox } from "./services/sandbox-lifecycle.js";
+import { createSandboxSnapshot, deleteSandboxSnapshot, pauseSandbox as pauseService, resumeSandbox as resumeService } from "./services/sandbox-lifecycle.js";
+import { capacityFixture } from "./test-support/capacity-fixture.js";
+const pauseSandbox: typeof pauseService = (input, deps) => pauseService(input, { ...deps, ...capacityFixture(deps.query!, { sandboxId: input.sandboxId, organizationId: input.organizationId, providerId: "provider_sbx", status: "running" }) });
+const resumeSandbox: typeof resumeService = (input, deps) => resumeService(input, { ...deps, ...capacityFixture(deps.query!, { sandboxId: input.sandboxId, organizationId: input.organizationId, providerId: "provider_sbx", status: "paused" }) });
 import type { SandboxOperation } from "./services/sandbox-operations.js";
 import type { SandboxSnapshotRow } from "./services/sandbox-snapshots.js";
 
@@ -174,7 +177,7 @@ test("pauseSandbox persists provider lifecycle state", async () => {
         if (text.includes("INSERT INTO sandbox_operations")) return { rowCount: 1, rows: [operationRow("pause")] as never[] };
         if (text.includes("UPDATE sandbox_operations") && text.includes("state = 'running'")) return { rowCount: 1, rows: [operationRow("pause", { state: "running" })] as never[] };
         if (text.includes("UPDATE sandbox_operations") && text.includes("state = 'succeeded'")) return { rowCount: 1, rows: [operationRow("pause", { state: "succeeded" })] as never[] };
-        if (text.includes("UPDATE sandboxes SET status =")) {
+        if (/UPDATE sandboxes SET status\s*=/.test(text)) {
           if (params && params.length > 2) persistedStatus = String(params[2]);
           return { rowCount: 1, rows: [] as never[] };
         }
@@ -349,7 +352,7 @@ test("resumeSandbox marks credentials stale and rehydrates stored attachments", 
           staleAttachments[1] = { ...staleAttachments[1], lastError: params?.[3] as string };
           return { rowCount: 1, rows: [staleAttachments[1]] as never[] };
         }
-        if (text.includes("UPDATE sandboxes SET status =")) {
+        if (/UPDATE sandboxes SET status\s*=/.test(text)) {
           if (params && params.length > 2) persistedStatus = String(params[2]);
           return { rowCount: 1, rows: [] as never[] };
         }

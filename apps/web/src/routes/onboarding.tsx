@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CurrentAccountResponse, CreateApiKeyResponse } from "@harakiri/shared";
 import { api } from "../api";
+import { CapacitySummary, useOrganizationCapacity, useIntentKeys } from "../capacity";
 import type { UserProfile } from "../auth";
 import { Brand } from "../components/brand";
 import { Icon } from "../components/icon";
@@ -10,6 +11,8 @@ import type { GoToRoute } from "./types";
 
 export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: UserProfile | null }) => {
   const [step, setStep] = useState(0);
+  const capacity = useOrganizationCapacity();
+  const intentKeys = useIntentKeys();
   const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null);
   const [account, setAccount] = useState<CurrentAccountResponse | null>(null);
   const [out, setOut] = useState<string[]>([]);
@@ -29,16 +32,16 @@ export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: User
     if (busy || !loaded) return;
     setBusy(true); setError("");
     try { await action(); }
-    catch (e) { setError(e instanceof Error ? e.message : "The request failed. Please retry."); }
+    catch (e) { capacity.acceptError(e); setError(e instanceof Error ? e.message : "The request failed. Please retry."); }
     finally { setBusy(false); }
   };
   const saveWorkspace = () => perform(async () => {
-    if (canManage) setWorkspace((await api.updateSettings(workspace)).organization);
+    if (canManage) setWorkspace((await api.updateSettings({ name: workspace.name, slug: workspace.slug })).organization);
     setStep(2);
   });
   const createKey = () => perform(async () => { setCreatedKey(await api.createKey("onboarding")); setStep(3); });
   const run = () => perform(async () => {
-    const created = await api.createSandbox({ template: "python-3.12", ttlSeconds: 300 });
+    const created = await api.createSandbox({ template: "python-3.12", ttlSeconds: 300, idempotencyKey: intentKeys.forIntent("onboarding") });
     const result = await api.run(created.sandbox.id, { command: "python -c 'print(2+2)'" });
     setOut([`POST /v1/sandboxes -> ${created.sandbox.id}`, result.result.stdout.trim(), "sandbox ready in dashboard"]);
   });
@@ -64,6 +67,7 @@ export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: User
           <div className="onb-foot"><button className="btn" disabled={busy} onClick={() => setStep(1)}>Back</button><button className="btn btn-primary" disabled={busy} onClick={createKey}>Create key <Icon name="key" size={11} /></button><button className="btn btn-ghost" disabled={busy} onClick={() => setStep(3)}>Skip</button></div>
         </div> : null}
         {step === 3 ? <div>
+          <CapacitySummary state={capacity} canManage={canManage} />
           <h1 className="onb-h">Hello, sandbox.</h1>
           {createdKey ? <div className="onb-section"><div className="field-l">API key. Shown once.</div><div className="key-secret"><code>{createdKey.token}</code><button className="btn btn-ghost btn-sm" aria-label="Copy API key" title="Copy API key" onClick={() => void navigator.clipboard.writeText(createdKey.token).catch(() => setError("Clipboard unavailable. Select the key to copy it."))}><Icon name="copy" /></button></div><p className="key-metadata">Expires {createdKey.key.expiresAt ? new Date(createdKey.key.expiresAt).toLocaleDateString() : "unknown"}</p></div> : null}
           <div className="hterm card" style={{ maxWidth: 780 }}><div className="hterm-bar"><span className="hterm-title">first-sandbox.py</span></div><div className="hterm-body" style={{ minHeight: 160 }}>{out.length ? out.map((line) => <div key={line} className="hterm-line">{line}</div>) : <div className="hterm-line">print(2+2)</div>}</div></div>

@@ -6,6 +6,17 @@ Vault administration needs `credentials:manage`, registry administration needs
 `registry:manage`, and audit reads need `audit:read`. Keys cannot manage members,
 settings or other keys. See [authorization and rotation](authorization.md).
 
+## Upcoming Execution Capacity Admission
+
+**Unreleased, migration 038.** `harakiri capacity [--json]` requires `org:read`
+and reports held execution slots, including uncertain work. Create/resume accept
+`--idempotency-key`, print the chosen key on stderr and do not retry conflicts
+automatically. `organization_capacity_exceeded` exits 1; stop owned work, wait
+for confirmation or ask an admin to raise the limit. Never interpret an
+unavailable capacity endpoint as zero use. The
+[limit-one tutorial](../examples/sdk-execution-capacity/README.md) includes a
+copyable CLI sequence. Published rc.8 below does not contain these commands.
+
 ## Workspace and Live Output Preview
 
 **Included in the recorded 0.5.0-rc.8 preview (`next`):** the following commands require the

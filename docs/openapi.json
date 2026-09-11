@@ -204,7 +204,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -310,7 +310,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -477,7 +477,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -594,7 +594,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -713,7 +713,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -832,7 +832,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -961,7 +961,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1090,7 +1090,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1209,7 +1209,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1338,7 +1338,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1481,7 +1481,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1600,7 +1600,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1719,7 +1719,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1848,7 +1848,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1967,7 +1967,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2086,7 +2086,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2237,7 +2237,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2300,6 +2300,7 @@
             }
           }
         },
+        "description": "Atomically reserves an organization execution slot before credential issuance or runtime creation. Reuse Idempotency-Key for the same intent after a lost response. wait:false means admitted provisioning, not an overflow queue.",
         "responses": {
           "201": {
             "description": "Created sandbox",
@@ -2362,7 +2363,7 @@
             }
           },
           "409": {
-            "description": "Conflict",
+            "description": "organization_capacity_exceeded: no execution was admitted; stop work or raise the limit. idempotency_conflict: key reused for a different intent. sandbox_transition_in_progress: existing runtime effect must settle.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2382,7 +2383,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2393,6 +2394,16 @@
           },
           "500": {
             "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "organization_capacity_unavailable: inventory is unverified or unavailable; no new execution was admitted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2501,7 +2512,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2534,7 +2545,8 @@
         "tags": [
           "Sandboxes"
         ],
-        "summary": "Delete a sandbox",
+        "summary": "Request sandbox deletion",
+        "description": "Acceptance does not prove runtime absence. Poll the sandbox and organization capacity until cleanup is confirmed.",
         "operationId": "deleteSandbox",
         "parameters": [
           {
@@ -2548,7 +2560,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Deleted sandbox",
+            "description": "Deletion accepted",
             "content": {
               "application/json": {
                 "schema": {
@@ -2598,7 +2610,7 @@
             }
           },
           "409": {
-            "description": "Conflict",
+            "description": "organization_capacity_exceeded: no execution was admitted; stop work or raise the limit. idempotency_conflict: key reused for a different intent. sandbox_transition_in_progress: existing runtime effect must settle.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2618,7 +2630,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2629,6 +2641,16 @@
           },
           "500": {
             "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "organization_capacity_unavailable: inventory is unverified or unavailable; no new execution was admitted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2747,7 +2769,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2874,7 +2896,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2910,6 +2932,7 @@
           "Sandboxes"
         ],
         "summary": "Resume a paused sandbox",
+        "description": "Reserves capacity before resuming a released pause. The returned sandbox can still be resuming; poll until running. A full organization returns 409 without resuming.",
         "operationId": "resumeSandbox",
         "parameters": [
           {
@@ -2931,7 +2954,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Resumed sandbox",
+            "description": "Resume accepted",
             "content": {
               "application/json": {
                 "schema": {
@@ -2981,7 +3004,7 @@
             }
           },
           "409": {
-            "description": "Conflict",
+            "description": "organization_capacity_exceeded: no execution was admitted; stop work or raise the limit. idempotency_conflict: key reused for a different intent. sandbox_transition_in_progress: existing runtime effect must settle.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3001,7 +3024,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3012,6 +3035,16 @@
           },
           "500": {
             "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "organization_capacity_unavailable: inventory is unverified or unavailable; no new execution was admitted.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3128,7 +3161,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3275,7 +3308,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3426,7 +3459,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3545,7 +3578,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3670,7 +3703,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3779,7 +3812,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3898,7 +3931,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4027,7 +4060,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4146,7 +4179,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4273,7 +4306,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4400,7 +4433,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4525,7 +4558,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4634,7 +4667,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4751,7 +4784,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4880,7 +4913,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4999,7 +5032,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5145,7 +5178,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5288,7 +5321,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5417,7 +5450,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5544,7 +5577,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5681,7 +5714,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5800,7 +5833,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5927,7 +5960,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6054,7 +6087,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6187,7 +6220,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6314,7 +6347,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6449,7 +6482,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6578,7 +6611,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6705,7 +6738,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6834,7 +6867,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6963,7 +6996,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7082,7 +7115,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7201,7 +7234,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7328,7 +7361,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7447,7 +7480,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7566,7 +7599,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7693,7 +7726,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7820,7 +7853,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7957,7 +7990,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8108,7 +8141,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8217,7 +8250,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8336,7 +8369,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8455,7 +8488,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8572,7 +8605,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8691,7 +8724,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8818,7 +8851,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8935,7 +8968,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9064,7 +9097,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9183,7 +9216,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9302,7 +9335,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9421,7 +9454,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9538,7 +9571,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9657,7 +9690,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9784,7 +9817,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9901,7 +9934,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10020,7 +10053,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10139,7 +10172,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10258,7 +10291,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10377,7 +10410,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10494,7 +10527,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10613,7 +10646,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10740,7 +10773,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10857,7 +10890,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10976,7 +11009,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11095,7 +11128,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11214,7 +11247,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11333,7 +11366,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11460,7 +11493,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11589,7 +11622,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11708,7 +11741,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11843,7 +11876,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11970,7 +12003,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12076,7 +12109,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12190,7 +12223,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12306,7 +12339,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12425,7 +12458,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12542,7 +12575,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12661,7 +12694,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12770,7 +12803,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12876,7 +12909,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13000,7 +13033,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13126,7 +13159,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13242,7 +13275,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13358,7 +13391,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13474,7 +13507,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13583,7 +13616,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13620,7 +13653,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OrganizationSettings"
+                "$ref": "#/components/schemas/UpdateOrganizationSettingsBody"
               }
             }
           }
@@ -13632,6 +13665,116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrganizationSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Capacity revision is stale; reload settings before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Execution capacity uses 409.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/capacity": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Organization Settings"
+        ],
+        "summary": "Read execution capacity",
+        "description": "Requires org:read. Counts held execution reservations, not running observations, host resources or billing. Counts are null while inventory is reconciling or quarantined.",
+        "operationId": "getOrganizationCapacity",
+        "responses": {
+          "200": {
+            "description": "Organization capacity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationCapacityResponse"
                 }
               }
             }
@@ -13697,7 +13840,7 @@
             }
           },
           "429": {
-            "description": "Rate or concurrency limited",
+            "description": "Rate limited. Execution capacity uses 409.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13708,6 +13851,16 @@
           },
           "500": {
             "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Capacity inventory unavailable.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14043,6 +14196,15 @@
           },
           "message": {
             "type": "string"
+          },
+          "capacity": {
+            "$ref": "#/components/schemas/OrganizationCapacity"
+          },
+          "sandboxId": {
+            "type": "string"
+          },
+          "operationId": {
+            "type": "string"
           }
         },
         "required": [
@@ -14053,6 +14215,11 @@
       "SandboxRuntimeApiErrorCode": {
         "type": "string",
         "enum": [
+          "organization_capacity_exceeded",
+          "organization_capacity_unavailable",
+          "organization_capacity_settings_conflict",
+          "sandbox_transition_in_progress",
+          "idempotency_conflict",
           "sandbox_not_found",
           "sandbox_not_running",
           "sandbox_terminated",
@@ -15613,6 +15780,20 @@
       "SandboxSummary": {
         "type": "object",
         "properties": {
+          "capacityPhase": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "reserved",
+              "active",
+              "releasing",
+              "uncertain",
+              "released",
+              null
+            ]
+          },
           "workspaceId": {
             "type": [
               "string",
@@ -20174,6 +20355,9 @@
           "concurrentNow": {
             "type": "integer"
           },
+          "capacity": {
+            "$ref": "#/components/schemas/OrganizationCapacity"
+          },
           "concurrentPeak": {
             "type": "integer",
             "deprecated": true,
@@ -20256,10 +20440,7 @@
                 }
               },
               "concurrencyLimitEnforced": {
-                "type": "boolean",
-                "enum": [
-                  false
-                ]
+                "type": "boolean"
               }
             },
             "required": [
@@ -20302,7 +20483,13 @@
           },
           "maxConcurrency": {
             "type": "integer",
-            "description": "Configured target only. Concurrency admission is not enforced in this preview."
+            "minimum": 1,
+            "maximum": 10000,
+            "description": "Maximum execution reservations; lowering the limit never evicts existing work."
+          },
+          "capacityRevision": {
+            "type": "integer",
+            "minimum": 1
           },
           "defaultTemplateId": {
             "type": [
@@ -20359,6 +20546,151 @@
         },
         "required": [
           "organization"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateOrganizationSettingsBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "idleTtlSeconds": {
+            "type": "integer"
+          },
+          "maxConcurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "expectedCapacityRevision": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Required when maxConcurrency is supplied. A stale revision returns 409 organization_capacity_settings_conflict."
+          },
+          "defaultTemplateId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "defaultEgressPolicy": {
+            "$ref": "#/components/schemas/EgressPolicyInput"
+          },
+          "egressAllowedPresets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "egressCustomDomainsEnabled": {
+            "type": "boolean"
+          },
+          "egressMaxRules": {
+            "type": "integer"
+          },
+          "egressRedactDomains": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "OrganizationCapacity": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "enforced",
+              "reconciling",
+              "quarantined"
+            ]
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "inUse": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "available": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "overLimit": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "breakdown": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "reserved": {
+                    "type": "integer"
+                  },
+                  "active": {
+                    "type": "integer"
+                  },
+                  "releasing": {
+                    "type": "integer"
+                  },
+                  "uncertain": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "reserved",
+                  "active",
+                  "releasing",
+                  "uncertain"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "state",
+          "limit",
+          "revision",
+          "inUse",
+          "available",
+          "overLimit",
+          "breakdown",
+          "observedAt"
+        ],
+        "additionalProperties": false
+      },
+      "OrganizationCapacityResponse": {
+        "type": "object",
+        "properties": {
+          "capacity": {
+            "$ref": "#/components/schemas/OrganizationCapacity"
+          }
+        },
+        "required": [
+          "capacity"
         ],
         "additionalProperties": false
       },

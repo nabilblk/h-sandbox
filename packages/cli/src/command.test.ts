@@ -146,6 +146,54 @@ const buildRow = (overrides: Record<string, unknown>) => ({
   ...overrides
 });
 
+const assertCreateBody = (actual: unknown, expected: Record<string, unknown>) => {
+  assert.ok(actual && typeof actual === "object");
+  const { idempotencyKey, ...body } = actual as Record<string, unknown>;
+  assert.equal(typeof idempotencyKey, "string");
+  assert.match(String(idempotencyKey), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.deepEqual(body, expected);
+};
+
+test("CLI capacity prints known counts, unknown state and machine-readable data", async () => {
+  const capacity = { state: "enforced", limit: 2, revision: 1, inUse: 2, available: 0, overLimit: 0,
+    breakdown: { active: 1, reserved: 0, releasing: 0, uncertain: 1 }, observedAt: new Date().toISOString() };
+  let body: unknown = { capacity };
+  const api = await startMockApi((request) => { assert.equal(request.path, "/v1/org/capacity"); return { body }; });
+  try {
+    const text = await runCli(["capacity"], { api });
+    assert.equal(text.exitCode, 0);
+    assert.match(text.stdout, /In use: 2/);
+    assert.match(text.stdout, /Uncertain: 1/);
+    assert.match(text.stdout, /administrator/);
+    const json = await runCli(["capacity", "--json"], { api });
+    assert.deepEqual(JSON.parse(json.stdout), body);
+    body = { capacity: { ...capacity, state: "reconciling", inUse: null, available: null, breakdown: null } };
+    const unknown = await runCli(["capacity"], { api });
+    assert.match(unknown.stdout, /In use: unknown/);
+    assert.match(unknown.stdout, /operator verifies/);
+  } finally { await api.close(); }
+});
+
+test("CLI create and resume propagate stable request keys and never hot-retry a conflict", async () => {
+  const api = await startMockApi(() => ({ status: 409, body: { error: "organization_capacity_exceeded", message: "No execution slots available" } }));
+  try {
+    const create = await runCli(["create", "--template", "python-3.12", "--idempotency-key", "create-key"], { api });
+    assert.equal(create.exitCode, 1);
+    assert.match(create.stderr, /organization_capacity_exceeded: No execution slots available/);
+    assert.match(create.stderr, /request key=create-key/);
+    assert.equal((api.requests[0].body as { idempotencyKey: string }).idempotencyKey, "create-key");
+    const resume = await runCli(["resume", "sbx_example", "--idempotency-key", "resume-key", "--json"], { api });
+    assert.equal(resume.exitCode, 1);
+    assert.equal(api.requests[1].headers["idempotency-key"], "resume-key");
+    const errorLine = resume.stderr.split("\n").find((line) => line.startsWith("{"));
+    assert.ok(errorLine);
+    assert.deepEqual(JSON.parse(errorLine), { error: "organization_capacity_exceeded", message: "No execution slots available", status: 409 });
+    assert.equal(api.requests.length, 2);
+    assert.doesNotMatch(create.stdout, /request key=|organization_capacity_exceeded/);
+    assert.equal(resume.stdout, "");
+  } finally { await api.close(); }
+});
+
 test("CLI version matches its package metadata without calling the API", async () => {
   const api = await startMockApi(() => ({ status: 500 }));
   try {
@@ -480,7 +528,7 @@ test("create command can restore from a snapshot", async () => {
     const result = await runCli(["create", "--snapshot", "snp_ready", "--name", "restored"], { api });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /sbx_restore/);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       snapshotId: "snp_ready",
       name: "restored",
       ttlSeconds: 300,
@@ -896,7 +944,7 @@ test("create command sends repeated env flags in the sandbox payload", async () 
     ], { api });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /sbx_env/);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "python-3.12-data",
       name: "env-runner",
       ttlSeconds: 120,
@@ -965,7 +1013,7 @@ test("create command sends create-time credentials without printing secrets", as
     assert.match(result.stdout, /sbx_create_vault/);
     assert.match(result.stdout, /credentials injected\. count=1/);
     assert.equal(`${result.stdout}${result.stderr}`.includes("sk_create_cli_secret"), false);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "python-3.12-data",
       name: "vault-runner",
       ttlSeconds: 300,
@@ -1043,7 +1091,7 @@ test("create command sends create-time stored credential references", async () =
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /sbx_create_stored/);
     assert.match(result.stdout, /credentials injected\. count=1/);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "open-agents-dev",
       name: "stored-vault-runner",
       ttlSeconds: 300,
@@ -1089,7 +1137,7 @@ test("create command sends template slot credential mappings", async () => {
     ], { api });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /sbx_slot_vault/);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "open-agents-dev",
       name: "slot-vault-runner",
       ttlSeconds: 300,
@@ -1138,7 +1186,7 @@ test("create command expands provider preset credentials", async () => {
     ], { api, env: { OPENAI_API_KEY: "sk_create_preset_secret" } });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.equal(`${result.stdout}${result.stderr}`.includes("sk_create_preset_secret"), false);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "open-agents-dev",
       name: "preset-vault",
       ttlSeconds: 300,
@@ -1204,7 +1252,7 @@ test("create command reads one create-time credential from stdin", async () => {
     ], { api, input: "secret-from-stdin\n" });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.equal(`${result.stdout}${result.stderr}`.includes("secret-from-stdin"), false);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "python-3.12-data",
       name: "stdin-vault",
       ttlSeconds: 300,
@@ -1318,7 +1366,7 @@ test("create command bootstraps Git sources without sending secrets in command t
     ], { api });
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /sbx_git_cli/);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "open-agents-dev",
       name: "git-runner",
       ttlSeconds: 300,
@@ -1455,7 +1503,7 @@ test("create command supports no-wait pending sandbox responses", async () => {
     assert.equal(result.exitCode, 0, result.stderr);
     assert.match(result.stdout, /sbx_pending/);
     assert.match(result.stdout, /queued\. id=sbx_pending operation=op_pending/);
-    assert.deepEqual(api.requests[0]?.body, {
+    assertCreateBody(api.requests[0]?.body, {
       template: "python-3.12-data",
       name: "async-runner",
       ttlSeconds: 300,
@@ -1587,7 +1635,7 @@ ready_command = "python --version"
     assert.match(result.stdout, /Python 3\.12\.0/);
 
     const create = api.requests.find((request) => request.method === "POST" && request.path === "/v1/sandboxes");
-    assert.deepEqual(create?.body, {
+    assertCreateBody(create?.body, {
       template: "python-3.12",
       name: "smoke-python-3.12",
       ttlSeconds: 300,
