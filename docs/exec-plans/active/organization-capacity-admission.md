@@ -549,7 +549,7 @@ it is not yet an end-to-end feature or an enforced public claim.
 
 ### Phase 2: Create, Async Provision and Restore
 
-**Status**: Implemented; extended fault-injection acceptance remains
+**Status**: Implemented; focused persistence and HTTP-disconnect acceptance complete
 
 - [x] Make sandbox/workspace/hold/operation/replay-input admission atomic; ensure
   denial occurs before credential issuance or provider mutation.
@@ -564,9 +564,10 @@ it is not yet an end-to-end feature or an enforced public claim.
   configuration survives replay without replaying sensitive credential attachment.
 - [x] Cover provider success followed by persistence failure, response loss,
   same-key changed intent and create-time credential rollback.
-- [ ] Broaden fault-injection acceptance to every write boundary and a real HTTP
-  caller disconnect during credential preparation. The current loss/timeout
-  cases are not a claim that every combination in the matrix was executed.
+- [x] Broaden fault-injection acceptance across create, credential preparation,
+  provision failure and deletion write/commit boundaries, plus a real HTTP caller
+  disconnect during credential preparation. The 121-checkpoint matrix and two
+  socket-disconnect cases do not certify optional native lifecycle combinations.
 
 **Exit**: No create/restore path bypasses admission or dispatch ownership, including
 accepted work that outlives the originating HTTP request.
@@ -876,3 +877,36 @@ for exact digests, maintenance times, harness limitations and recovery boundarie
 Npm/chart publication and the remaining fault/lifecycle/rollback matrix are not
 complete; keep this plan active. The new source-commit deployment is not a
 silent replacement of published rc.8 artifacts.
+
+### Release Closure Checkpoint, 2026-09-11
+
+The owner approved the recommended next work: focused safety acceptance,
+durable registry headroom, coherent candidate publication and clean standalone
+installation/upgrade from the public instructions. Execute in that order, with
+destructive recovery tests isolated from the public lab. Do not change npm
+`latest`, customer deployments, Brain files or unrelated `docs/cot/` material.
+
+- [x] Exercise create/credential persistence write boundaries and an actual HTTP
+  disconnect during credential preparation with real PostgreSQL.
+- [ ] Rehearse compatible-image rollback with admission accounting preserved in
+  an isolated deployment; never reopen pre-capacity writers against migration 038.
+- [ ] Establish Harbor filesystem/inode headroom and durable monitoring or
+  expansion. API health and successful garbage collection alone are insufficient.
+- [ ] Select an unused candidate, publish matching SDK/CLI/images/chart via
+  protected CI and verify anonymous artifact consumption.
+- [ ] Follow the public standalone installation/upgrade instructions with those
+  artifacts, verify OIDC and real runtime/SDK/CLI/capacity workflows, and clean
+  only the explicitly owned acceptance resources.
+- [ ] Record precise release/install evidence, update discoverable public docs
+  and plan placement; retain explicit limits for optional unverified runtimes.
+
+Harbor API credentials are available locally, but its host/cluster access is not
+configured in the current workspace. Host access was requested while safety
+acceptance proceeds. No tagged artifact deletion is authorized as a substitute
+for storage capacity.
+
+The focused PostgreSQL gate passed 157 tests: the existing 33 admission checks
+plus 121 write/commit checkpoints, two real HTTP disconnect cases and the new
+suite parent. Required CI now provisions PostgreSQL and forbids silently skipping
+this gate. See the [fault acceptance receipt](../../operations/execution-capacity-fault-acceptance.md)
+for the explicit operator-recovery boundary and fixture limitations.
