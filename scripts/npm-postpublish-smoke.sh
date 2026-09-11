@@ -10,6 +10,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Consumption is public, independent of setup-node's publishing configuration.
+unset NODE_AUTH_TOKEN NPM_TOKEN
+export NPM_CONFIG_USERCONFIG="${TMP_DIR}/empty-user.npmrc"
+export NPM_CONFIG_GLOBALCONFIG="${TMP_DIR}/empty-global.npmrc"
+export NPM_CONFIG_REGISTRY="https://registry.npmjs.org"
+
+node "${ROOT}/scripts/wait-npm-version.mjs" @h-sandbox/sdk "${VERSION}"
+node "${ROOT}/scripts/wait-npm-version.mjs" @h-sandbox/cli "${VERSION}"
+
 echo "verifying @h-sandbox/sdk@${VERSION} and @h-sandbox/cli@${VERSION} from npm"
 
 SDK_VERSION="$(npm view "@h-sandbox/sdk@${VERSION}" version)"

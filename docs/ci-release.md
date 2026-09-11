@@ -127,6 +127,21 @@ Publication is not permission to modify a live installation.
 
 ## Verify and Deploy
 
+npm can acknowledge publication before all public metadata reads see the new
+version. Post-publication verification uses anonymous configuration and bounded
+read-only polling; it never retries `npm publish`. If only verification failed,
+preserve the original workflow evidence and run the dedicated read-only mode:
+
+```bash
+gh workflow run npm-release.yml --ref main -f release_ref=v0.5.0-rc.9 \
+  -f verify_published_only=true -f verify_only=false -f tag=next
+```
+
+This mode has no publishing environment or OIDC write permission. It validates
+the tagged version, checks it with the reviewed current-main verifier and installs
+the actual published SDK/CLI in clean consumer directories. It does not make the
+original failed workflow green or authorize replacing an immutable version.
+
 ```bash
 npm view @h-sandbox/sdk dist-tags --json
 npm view @h-sandbox/cli dist-tags --json
