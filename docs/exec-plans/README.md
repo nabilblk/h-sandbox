@@ -1,6 +1,6 @@
 # Execution Plans
 
-Placement reviewed September 10, 2026. A deployed candidate is not evidence that
+Placement reviewed September 11, 2026. A deployed candidate is not evidence that
 all acceptance gates are complete. Historical completed and abandoned plans stay
 in [completed](completed/); unfinished work stays in [active](active/).
 
@@ -8,7 +8,7 @@ in [completed](completed/); unfinished work stays in [active](active/).
 
 | Plan | Delivered | Still required |
 | --- | --- | --- |
-| [Organization capacity admission](active/organization-capacity-admission.md) | Ledger/effects, API/SDK/CLI/UI, operator recovery and docs; PostgreSQL/native acceptance; [public lab revision 38](../release-notes/2026-09-11-capacity-delivery.md) activated with live SDK/CLI and browser checks | Extended fault/lifecycle matrix, compatible rollback rehearsal and matching npm/chart release; deployed images are a source-commit build, not new rc.8 packages |
+| [Organization capacity admission](active/organization-capacity-admission.md) | Ledger/effects, API/SDK/CLI/UI, recovery and docs; public lab revision 38; required 157-check PostgreSQL gate; [isolated migration and compatible-image rollback](../operations/execution-capacity-install-acceptance.md) with native workspace retention | Cold-start readiness finding, Harbor physical headroom, npm trusted publishing, matching candidate/install proof and optional native lifecycle matrix; no new package release |
 | [OSS Developer Preview launch](active/oss-developer-preview-launch.md) | Public source, reviewed credentials/material, protected release entry points, rc.8 native arm64 install/upgrade/file recovery, truthful preview, docs exports; independent evaluation and LinkedIn/X publication owner-reported complete | Security-report notification receipt, broader live member acceptance, consented three-team and second-week outcomes; no duplicate prelaunch evaluation |
 | [Delivery readiness and persistent workspaces](active/delivery-readiness-and-persistent-workspaces.md) | Workspaces/live commands and workdir correction in rc.8; standalone arm64 native acceptance and coordinated database/file-volume restore; all six template architecture/manifest pipelines passed September 9; customer package/docs separated September 10 | Native amd64 for advertised support, remaining catalog/matrix coverage, real encrypted Vault recovery/provider-loss repair, host/rollback validation; customer OCP bundle excluded |
 | [Real product demos](active/real-product-demo-remotion.md) | Four agent workflow films plus separately completed full-frame UI tour; public tutorials/transcripts, restored vertical menu | Protected unattended agent-refresh credentials, CI environment and live acceptance; lower priority than core product reliability |
@@ -20,7 +20,10 @@ packages are unpublished. Current npm `next` is rc.8; `latest` is still 0.4.0.
 The latest [documented lab delivery](../release-notes/2026-09-11-capacity-delivery.md)
 is revision 38 with execution capacity admission and matching web/API images.
 It preserved operator configuration and passed live acceptance; it is not a
-new npm/chart release or fresh-install evidence. Release closure is in progress.
+new npm/chart release. A separate fresh rc.8 installation and capacity-image
+upgrade/rollback now have [evidence](../operations/execution-capacity-install-acceptance.md),
+including a cold-start failure that must not be hidden by its successful retry.
+Release closure is still in progress; packages and public lab were unchanged.
 
 ## Customer Delivery Boundary
 
@@ -55,8 +58,9 @@ recommendations. Keep one engineering plan in execution at a time:
    across create, asynchronous provision, restore, resume, retries and uncertain
    cleanup. Admission is now enforced in the public lab's September 11 build;
    previously published rc.8 packages remain unchanged. Finish the extended
-   acceptance/rollback matrix and publish a coherent API/SDK/CLI/chart release
-   before treating this as a generally released capability.
+   acceptance matrix, resolve the recorded readiness/release gates and publish
+   a coherent API/SDK/CLI/chart release before treating this as a generally
+   released capability.
 3. Complete named release/profile acceptance and reproducible publication through
    the standalone OSS delivery work. Distinguish native amd64 support from the
    now-passing image architecture jobs; retain narrower recovery evidence.

@@ -212,6 +212,16 @@ does not back up agent-written files. Restore into a disposable target before
 claiming recovery works; verify login, metadata, retained files and encryption.
 See the [storage recovery procedure](../../docs/persistent-workspace-operations.md).
 
+Before installing any build containing migration 038, follow the
+[capacity maintenance runbook](../../docs/operations/execution-capacity.md).
+Published rc.8 predates that protocol and is not a compatible rollback target.
+The [September 11 isolated rehearsal](../../docs/operations/execution-capacity-install-acceptance.md)
+records migration and compatible-image rollback, along with a cold-start failure:
+the first file request briefly returned 502 after lifecycle status became running.
+Retain the accepted sandbox ID and diagnose with a read-only operation; do not
+blindly repeat sandbox creation or a command with an unknown outcome. A later
+successful retry is not proof that this readiness issue has been fixed.
+
 After evidence and backups are secured, remove only this fixture's releases:
 
 ```bash

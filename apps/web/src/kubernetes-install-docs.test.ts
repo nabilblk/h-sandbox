@@ -65,3 +65,13 @@ test("profile limits and upgrade hazards stay visible instead of implying produc
   assert.match(chartReadme, /docs\/install-kubernetes.md/);
   assert.doesNotMatch(chartReadme, /--version 0\.1\.0|KEYCLOAK_ADMIN_PASSWORD='CHANGEME'/);
 });
+
+test("cold-start evidence and capacity rollback limits are disclosed without promising a new release", () => {
+  const markdown = renderDocMarkdown(kubernetesInstallDocs);
+  assert.match(markdown, /cold-start readiness race/);
+  assert.match(markdown, /Keep the accepted sandbox ID/);
+  assert.match(markdown, /blindly retry commands and writes whose outcome is unknown/);
+  assert.match(markdown, /execution-capacity-install-acceptance\.md/);
+  assert.match(markdown, /not a newly published candidate/);
+  assert.match(markdown, /pre-capacity rc\.8 after migration 038/);
+});

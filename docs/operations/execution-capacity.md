@@ -137,6 +137,11 @@ and claim enforcement. A pre-feature rollback requires another maintenance
 window and a reconciled database/runtime recovery procedure. Keep additive
 tables and audit evidence; there is no destructive down migration here.
 
+The [isolated installation and rollback receipt](execution-capacity-install-acceptance.md)
+records this rehearsal with a surviving native runtime, one occupied slot and
+retained workspace data. Its local-only acceptance image is not a published
+candidate; it also records the separate cold-start readiness finding.
+
 Create intent digests use domain-separated HMAC for secret-bearing inputs.
 Inline credentials are never persisted as replay input. Rotating the
 control-plane key may make old sensitive intent comparisons unverifiable; inspect
