@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { assertClusterOwnership, assertKubeconfig, assertOwnedNamespace, assertPrivateDirectory, ownershipLabel, runnerIdentity, validateArtifactManifest } from "./safety.mjs";
+import { assertClusterOwnership, assertKubeconfig, assertOwnedNamespace, assertPrivateDirectory, localizeGeneratedKubeconfig, ownershipLabel, runnerIdentity, validateArtifactManifest } from "./safety.mjs";
 
 const env = { GITHUB_ACTIONS: "true", RUNNER_ENVIRONMENT: "github-hosted", RUNNER_OS: "Linux", RUNNER_ARCH: "X64", GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", RUNNER_TEMP: "/tmp/runner" };
 const identity = runnerIdentity(env, "linux", "x64");
@@ -44,6 +44,23 @@ test("cluster and namespace UID/ownership gates fail closed", () => {
   assertOwnedNamespace({ metadata: { name: "harakiri-preview", labels: ns.metadata.labels } }, identity);
   assert.throws(() => assertOwnedNamespace({ metadata: { name: "harakiri", labels: ns.metadata.labels } }, identity));
   assert.throws(() => assertOwnedNamespace({ metadata: { name: "harakiri-preview" } }, identity));
+});
+
+test("fresh k0s config localizes only this runner's interface and retains identity validation", () => {
+  const generated = config();
+  generated.clusters[0].cluster.server = "https://10.1.0.25:6443";
+  const local = localizeGeneratedKubeconfig(generated, identity, ["127.0.0.1", "10.1.0.25"]);
+  assert.equal(local.clusters[0].cluster.server, "https://localhost:6443");
+  assert.deepEqual(local.users, generated.users);
+  assert.equal(generated.clusters[0].cluster.server, "https://10.1.0.25:6443");
+  assert.throws(() => assertKubeconfig(generated, identity));
+  assert.throws(() => localizeGeneratedKubeconfig(generated, identity, ["127.0.0.1"]));
+  for (const server of ["http://10.1.0.25:6443", "https://user@10.1.0.25:6443", "https://10.1.0.25:6444", "https://10.1.0.25:6443/other"]) {
+    const wrong = structuredClone(generated); wrong.clusters[0].cluster.server = server;
+    assert.throws(() => localizeGeneratedKubeconfig(wrong, identity, ["10.1.0.25"]));
+  }
+  generated.users[0].user.exec = { command: "external-auth" };
+  assert.throws(() => localizeGeneratedKubeconfig(generated, identity, ["10.1.0.25"]));
 });
 
 test("private state cannot be world-readable or a symlink", () => {

@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-11
 **Author**: Codex with the maintainer
-**Status**: In Progress; isolated GitHub-hosted execution authorized, acceptance PR preparation
+**Status**: In Progress; PR 42 native acceptance, bootstrap correction after first failed run
 **Priority**: Next owner-approved milestone
 **Estimated effort**: Several engineering sessions, bounded by real acceptance evidence
 
@@ -251,6 +251,21 @@ browser state to unblock diagnostics.
 - At the end of local preparation, no commit, remote branch, PR, native workflow,
   publication or deployment had started. The owner subsequently approved the
   dedicated acceptance branch/PR and isolated runner; remote execution is next.
+
+## Native Execution Log
+
+- [PR 42](https://github.com/nabilblk/h-sandbox/pull/42) contains the dedicated
+  acceptance branch. No merge, publication or public-lab deployment is requested.
+- [Run 34649412463](https://github.com/nabilblk/h-sandbox/actions/runs/34649412463)
+  failed before application installation: fresh k0s advertised the hosted VM's
+  interface address instead of localhost. The guard refused it, and private
+  bootstrap material was removed. No cluster UID was recorded, so cleanup
+  refused cluster mutation and left VM disposal to GitHub. No recovery receipt
+  exists for this attempt; retain the failed bootstrap log as evidence.
+- Correction: localize only the freshly generated kubeconfig after checking its
+  advertised address belongs to this runner. Preserve its CA/client identity
+  and validate the complete result before any cluster operation. Subsequent
+  operations still require localhost plus the recorded cluster UID/owner label.
 
 ## Completion Notes
 

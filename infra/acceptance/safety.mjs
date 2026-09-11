@@ -38,6 +38,17 @@ export function assertKubeconfig(config, identity) {
   assert.ok(identity.id && identity.kubeconfig, "Missing isolated runner identity");
 }
 
+export function localizeGeneratedKubeconfig(config, identity, localAddresses) {
+  assert.equal(config.clusters?.length, 1, "One generated cluster is required");
+  const server = new URL(config.clusters[0].cluster.server);
+  assert.ok(localAddresses.includes(server.hostname), "Generated API address is not on this runner");
+  assert.equal(server.href, `https://${server.hostname}:6443/`, "Unexpected generated API URL");
+  const localized = structuredClone(config);
+  localized.clusters[0].cluster.server = "https://localhost:6443";
+  assertKubeconfig(localized, identity);
+  return localized;
+}
+
 export function assertClusterOwnership(namespace, identity, expectedUid) {
   assert.equal(namespace.metadata.name, "kube-system");
   assert.equal(namespace.metadata.uid, expectedUid, "Cluster UID changed; refusing mutation");

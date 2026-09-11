@@ -4,7 +4,7 @@ import path from "node:path";
 import net from "node:net";
 import { execFileSync } from "node:child_process";
 import { check, download, pinned, until } from "./context.mjs";
-import { assertKubeconfig, ownershipLabel, runnerIdentity } from "./safety.mjs";
+import { assertKubeconfig, localizeGeneratedKubeconfig, ownershipLabel, runnerIdentity } from "./safety.mjs";
 
 process.umask(0o077);
 const identity = runnerIdentity();
@@ -45,6 +45,10 @@ await until("k0s admin kubeconfig", () => {
   catch { return false; }
 }, 180000);
 const k = args => command("/usr/local/bin/k0s", ["kubectl", "--kubeconfig", identity.kubeconfig, ...args]);
+// k0s advertises a host interface by default. Localize only this freshly generated config.
+const generated = JSON.parse(k(["config", "view", "--raw", "-o", "json"]));
+const addresses = Object.values(os.networkInterfaces()).flat().filter(Boolean).map(item => item.address);
+save("kubeconfig", JSON.stringify(localizeGeneratedKubeconfig(generated, identity, addresses)));
 assertKubeconfig(JSON.parse(k(["config", "view", "--raw", "-o", "json"])), identity);
 await until("Native node exists", () => {
   try { return JSON.parse(k(["get", "nodes", "-o", "json"])).items.length === 1; }
