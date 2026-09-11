@@ -319,6 +319,12 @@ browser state to unblock diagnostics.
   timeout status, database operation/effect states and platform error categories
   to diagnose stalled provisioning without publishing raw logs or credentials.
   Native task execution and recovery have not yet passed.
+- Added a real PostgreSQL queue-claim test, because the earlier native capacity
+  test manually claimed an operation before executing it. The normal queue path
+  passed in [CI 34654255326](https://github.com/nabilblk/h-sandbox/actions/runs/34654255326);
+  this does not establish native provider readiness. Startup event reasons and
+  provider HTTP status diagnostics also cover failures whose pods were already
+  removed by provider cleanup, without exporting event messages or raw responses.
 
 ## Completion Notes
 

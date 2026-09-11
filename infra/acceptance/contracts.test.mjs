@@ -9,7 +9,7 @@ import { finishReceipt, publicEvidence, publicFailure } from "./receipt.mjs";
 import { literalId, applyOwned } from "./operator.mjs";
 import { ownershipLabel } from "./safety.mjs";
 import { assertCredentialBoundary, credentialTarget, exampleCredential, placeholder, probeCredential } from "./credential-fixture.mjs";
-import { databaseEvidence, logEvidence, podEvidence } from "./diagnostics.mjs";
+import { databaseEvidence, eventEvidence, logEvidence, podEvidence } from "./diagnostics.mjs";
 import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
@@ -157,7 +157,7 @@ test("failure infrastructure evidence excludes container env, annotations and ra
 
 test("operator diagnostics expose only known states and error categories", () => {
   const text = `error: inconsistent types deduced for parameter $1\ncode: '42P08'\n at /app/apps/api/dist/services/sandbox-operation-worker.js:12:3\nsecret: sensitive`;
-  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
+  assert.deepEqual(logEvidence(text), { sqlStates: ["42P08"], providerHttpStatuses: [], symptoms: ["ambiguous_parameter_type"], modules: ["services/sandbox-operation-worker.js"] });
   assert.deepEqual(logEvidence('{"code":"42703","msg":"column sensitive does not exist"}').sqlStates, ["42703"]);
   const evidence = databaseEvidence({ sandboxes: [{ status: "pending", hasRuntimeId: false, name: "sensitive" }],
     operations: [{ kind: "provision", state: "queued", attempts: 0, error: text, request: { key: "sensitive" } }],
@@ -166,6 +166,11 @@ test("operator diagnostics expose only known states and error categories", () =>
   assert.equal(evidence.operations[0].state, "queued");
   assert.equal(evidence.effects[0].kind, "unknown");
   assert.ok(!JSON.stringify(evidence).includes("sensitive"));
+  assert.deepEqual(logEvidence('OpenSandbox 503: {"credential":"sensitive"}').providerHttpStatuses, [503]);
+  const event = eventEvidence({ reason: "Failed", count: 3, message: "Failed to pull sensitive with sensitive", involvedObject: { name: "sensitive" } });
+  assert.equal(event.reason, "Failed");
+  assert.deepEqual(event.details.symptoms, ["image_pull_failed"]);
+  assert.ok(!JSON.stringify(event).includes("sensitive"));
 });
 
 test("native workflow has no production secrets, self-hosted labels or broad artifact upload", () => {

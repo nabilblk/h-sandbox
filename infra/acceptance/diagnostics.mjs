@@ -10,6 +10,10 @@ export function logEvidence(text) {
     ["missing_relation", /relation [^\n]+ does not exist/],
     ["missing_column", /column [^\n]+ does not exist/],
     ["permission_denied", /permission denied|Forbidden|forbidden/],
+    ["image_pull_failed", /ImagePullBackOff|ErrImagePull|failed to pull|Failed to pull/],
+    ["scheduling_failed", /FailedScheduling|Insufficient cpu|Insufficient memory/],
+    ["volume_failed", /FailedMount|FailedAttachVolume|ProvisioningFailed/],
+    ["readiness_failed", /Readiness probe failed|Startup probe failed|not ready/],
     ["connection_refused", /ECONNREFUSED|Connection refused/],
     ["dns_failure", /ENOTFOUND|Name or service not known/],
     ["timeout", /ETIMEDOUT|timed out|TimeoutError/]
@@ -17,8 +21,18 @@ export function logEvidence(text) {
   const modules = ["scheduler.js", "services/sandbox-operation-worker.js", "services/sandbox-capacity-reconciler.js", "services/sandbox-runtime-effects.js", "services/persistent-workspaces.js", "services/sandbox-provision.js"];
   return {
     sqlStates: sqlStates.filter(code => new RegExp(`\\bcode[\\s\"']*:[\\s\"']*${code}\\b`).test(text)),
+    providerHttpStatuses: [...new Set([...text.matchAll(/\bOpenSandbox ([45][0-9]{2}):/g)].map(match => Number(match[1])))],
     symptoms: symptoms.filter(([, pattern]) => pattern.test(text)).map(([name]) => name),
     modules: modules.filter(name => text.includes(`/${name}:`))
+  };
+}
+
+export function eventEvidence(event) {
+  const knownReasons = new Set(["Failed", "FailedCreate", "FailedScheduling", "FailedMount", "FailedAttachVolume", "FailedBinding", "ProvisioningFailed", "BackOff", "Unhealthy", "Killing", "Pulling", "Pulled", "Started", "Created"]);
+  return {
+    reason: knownReasons.has(event.reason) ? event.reason : "unknown",
+    count: Number.isSafeInteger(event.count) ? event.count : null,
+    details: logEvidence(typeof event.message === "string" ? event.message : "")
   };
 }
 
@@ -80,5 +94,9 @@ export function diagnostics(ctx) {
       result.databases[name] = databaseEvidence(JSON.parse(text));
     } catch { result.databases[name] = "unavailable"; }
   }
+  try {
+    const events = JSON.parse(ctx.k(["-n", runtimeNamespace, "get", "events", "-o", "json", "--request-timeout=10s"], { timeout: 15000, label: "Private runtime startup diagnostics" }));
+    result.runtimeEvents = events.items.slice(-100).map(eventEvidence);
+  } catch { result.runtimeEvents = "unavailable"; }
   return result;
 }
