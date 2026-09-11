@@ -4,8 +4,10 @@ This runbook defines the recovery contract for a standalone Harakiri installatio
 It does not certify a profile merely because its commands or tests exist.
 
 **Evidence status, September 11, 2026:** the published rc.9 delivery has arm64
-runtime evidence. The new isolated amd64/encrypted-recovery harness has local
-contract checks, but no completed native execution receipt yet. HA, arbitrary CSI
+runtime evidence. The new isolated harness has passed native amd64 installation
+of the published bundle and returned from browser OIDC login. Onboarding and
+encrypted recovery qualification remain incomplete; see the per-run results in
+[PR 42](https://github.com/nabilblk/h-sandbox/pull/42). HA, arbitrary CSI
 drivers and unchanged restricted OpenShift remain outside this qualification.
 See [the delivery record](../release-notes/0.5.0-rc.9-delivery.md) and
 [the acceptance harness](../../infra/acceptance/README.md).

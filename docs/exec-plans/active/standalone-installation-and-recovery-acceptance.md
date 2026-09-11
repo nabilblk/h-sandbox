@@ -298,6 +298,12 @@ browser state to unblock diagnostics.
   cleanup passed; the failed gate now survives in the finalized receipt. Added
   per-interaction markers, known-heading visibility and allowlisted account API
   statuses to diagnose the timeout without uploading DOM, tokens or form values.
+- Source inspection identified the onboarding navigation mismatch: the harness
+  requested `#dashboard/sandboxes` but then expected the onboarding wizard. The
+  application preserves requested deep links; Get started uses `#onboarding`.
+  Initial acceptance login now requests onboarding explicitly, while recovery
+  login retains the dashboard route. This is a harness correction, not a change
+  to the application's return-route behavior; native verification is next.
 
 ## Completion Notes
 

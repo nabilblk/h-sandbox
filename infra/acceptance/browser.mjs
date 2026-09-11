@@ -48,10 +48,11 @@ export async function operatorSession(ctx) {
     check(response.status === expected, `Operator ${method} ${route}: HTTP ${response.status}, expected ${expected}`);
     return response.status === 204 ? null : response.json();
   };
-  const login = async () => {
+  const login = async (route = "dashboard/sandboxes") => {
     bearer = "";
-    console.log("Browser step: open installed dashboard");
-    await page.goto(`${origins.web}/#dashboard/sandboxes`);
+    check(["onboarding", "dashboard/sandboxes"].includes(route), "Unexpected acceptance login route");
+    mark(`open installed ${route}`);
+    await page.goto(`${origins.web}/#${route}`);
     console.log("Browser step: find sign-in entry");
     const username = page.locator('input[name="username"]');
     await until("Sign-in entry", async () => {
@@ -85,7 +86,8 @@ export async function operatorSession(ctx) {
     await page.locator('input[name="password"]').waitFor();
   };
   try {
-    const account = await login();
+    // Get started opens onboarding; a dashboard deep link correctly stays on the dashboard.
+    const account = await login("onboarding");
     assertOperatorAccount(account);
     mark("continue from account to workspace");
     await page.getByRole("button", { name: "Continue" }).click();
