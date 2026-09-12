@@ -16,13 +16,13 @@ This plan follows the owner's agreed sequence, updated against source and delive
 
 1. Kubernetes installation is discoverable in the public documentation.
 2. Database-backed capacity admission and execution readiness shipped in `0.5.0-rc.9`.
-3. Standalone native amd64 installation and bounded recovery qualification passed. Distinct-release/schema compatibility remains open.
+3. Standalone native amd64 installation and bounded recovery qualification passed. This milestone now also qualifies the rc.9/rc.10 binary pair with schema 039 retained; arbitrary schema downgrade remains excluded.
 4. **Now make historical usage and release operations trustworthy**, including the small first-run gap found during acceptance.
 5. Then reassess a focused Python SDK against actual adopter needs. Do not insert another template catalog, provider or framework adapter ahead of this milestone.
 
 The [rc.9 delivery receipt](../../release-notes/0.5.0-rc.9-delivery.md) records published artifacts and actual npm Trusted Publishing. The [September 12 delivery receipt](../../release-notes/2026-09-12-standalone-recovery-docs.md) records three consecutive passing native runs, public recovery documentation and a web-only deployment. These are historical receipts, not evidence that every installation or rollback profile is supported.
 
-The remaining recovery gate is specific: the existing Helm rollback changes configuration within rc.9. It does not exercise two different application releases with a schema change. The next useful application release should supply that second version; do not mint an empty release just to turn a gate green.
+At plan creation, the remaining recovery gate was specific: Helm rollback changed only configuration within rc.9. The substantive RC.10 usage release now supplies the second version, qualified separately from that older evidence. No empty release or destructive schema downgrade was used to close the bounded gate.
 
 ### Verified Starting Point
 
@@ -67,21 +67,23 @@ This is **operational usage**, not an invoice, a CPU profiler, an agent-reasonin
 
 ## Success Criteria
 
-- [ ] A fresh install with an empty catalog has a clear, permission-appropriate next action; an installed non-default template completes the actual first UI task exactly once.
+- [x] A fresh install with an empty catalog has a clear, permission-appropriate next action; an installed non-default template completes the actual first UI task exactly once. Native source and published-artifact onboarding gates passed.
 - [ ] Usage remains correct under concurrent admission, idempotent retries, pause/resume, restore, provider uncertainty and confirmed cleanup, without changing admission decisions.
-- [ ] History is stored or reproducible from retained durable facts, survives process restarts and the supported database restore, and never depends on a browser being open.
-- [x] Every displayed metric has a documented source, unit, window, denominator and completeness rule; missing observations never become fabricated zeroes. Local pure/contract fixtures pass; native measurements remain separate below.
-- [x] New API/SDK/CLI and UI contracts are organization-scoped, bounded and backward-compatible with the existing summary endpoint. Local route, transport and compatibility fixtures pass; PostgreSQL/native execution remains open.
-- [ ] Multi-replica collection and retention pass real PostgreSQL tests; collection cannot monopolize the database pool or the maintenance scheduler.
-- [ ] Operators can detect stale collection, exhausted capacity and low storage bytes/inodes using tested, optional integrations without extra core API privileges.
-- [ ] Clean, isolated native amd64 acceptance includes first-run UI, real history, backup/restore and a distinct-release upgrade, supported rollback and re-upgrade.
-- [ ] Release verification consumes actual published images, charts and packages by immutable identity, preserving npm `latest` until a separately approved stable decision.
+- [x] History is stored or reproducible from retained durable facts, survives process restarts and the supported database restore, and never depends on a browser being open. Native historical fingerprint recovery passed.
+- [x] Every displayed metric has a documented source, unit, window, denominator and completeness rule; missing observations never become fabricated zeroes. Pure/contract fixtures and bounded native observation checks passed.
+- [x] New API/SDK/CLI and UI contracts are organization-scoped, bounded and backward-compatible with the existing summary endpoint. Route, transport, PostgreSQL and native published-client checks passed.
+- [x] Multi-replica collection and retention pass real PostgreSQL tests; collection cannot monopolize the database pool or the maintenance scheduler. All 14 scenarios and matched load budgets passed on the controlled fixture.
+- [x] Operators can detect stale collection, exhausted capacity and low storage bytes/inodes using tested, optional integrations without extra core API privileges. Alert fixtures and native authenticated scraping passed; actual Harbor filesystem evidence remains external.
+- [x] Clean, isolated native amd64 acceptance includes first-run UI, real history, backup/restore and a distinct-release upgrade, supported rollback and re-upgrade. Published run 34709727741 passed all 11 gates and cleanup; schema 039 was retained.
+- [x] Release verification consumes actual published images, charts and packages by immutable identity, preserving npm `latest` until a separately approved stable decision. RC.10 was anonymously consumed; `latest` remains `0.4.0`.
 - [ ] Public and internal documentation, exported docs and the release receipt agree on delivered behavior and remaining limitations.
-- [ ] No existing Mac VM, k0s/CRC cluster, tunnel, unrelated container or user workload is changed by development or destructive acceptance.
+- [x] No existing Mac VM, k0s/CRC cluster, tunnel, unrelated container or user workload is changed by development or destructive acceptance. The separately authorized public application upgrade preserved all dependency specs and cluster/tunnel processes.
 
 ## Design Contract
 
-The following contract is implemented in the working tree. It is not yet a published or deployed feature. The hosted database/performance and native runtime gates remain open; local fixtures do not establish those claims.
+The following contract ships in `0.5.0-rc.10` and is deployed in public k0s.
+The [delivery record](../../release-notes/0.5.0-rc.10-delivery.md) distinguishes
+source tests, published native checks, public smoke tests and remaining gates.
 
 ### 1. Metric Dictionary
 
@@ -179,32 +181,32 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 ## Phases
 
 ### Phase 0: Freeze the Measurement and Acceptance Contract
-**Status**: In Progress
+**Status**: Complete for the bounded reference fixture; production sizing remains operator-owned
 
 - [x] Recheck this plan against the execution commit, without importing old active-plan assumptions. Record any delivered work or changed interfaces.
 - [x] Map every create/restore/resume/pause/delete/expiry/reconciliation writer to its operation, effect, reservation and cleanup facts. The [technical contract](../../operations/usage-observations.md) records retained-pause and execution-cycle ownership; database race proof remains open below.
 - [x] Finalize the metric dictionary, coverage start boundary, timestamp semantics and allowed API examples. Decide exactly which historical metrics are supported in this increment.
-- [x] Audit source-record retention/deletion paths and select the minimum additional persistence. Migration 039 adds only observations, continuity and read indexes, with bounded transactional locks. Actual migration/restore execution is still unqualified.
-- [x] Freeze observer interval/concurrency/time budgets, bounded query limits, retention and reference scale. The technical contract records about 1,667 observation rows/day at the 50,000-operation/30-day fixture; actual bytes/index/WAL cost remains explicitly unmeasured.
-- [ ] Establish repeatable baseline measurements on a disposable PostgreSQL runner. Initial qualification targets: a 30-day/50,000-operation history fixture at 200 held slots, p95 history below one second, and no material admission/cleanup regression under collection load. Fix the runner profile and regression threshold before implementation; these are test targets, not product SLAs.
-- [x] Retain the published rc.9 artifact manifest and document the intended candidate/source/schema matrix. Candidate coordinates remain unassigned; no rc.9 artifact is overwritten.
+- [x] Audit source-record retention/deletion paths and select the minimum additional persistence. Migration 039 adds only observations, continuity and read indexes, with bounded transactional locks. Native migration and replacement-database recovery passed.
+- [x] Freeze observer interval/concurrency/time budgets, bounded query limits, retention and reference scale. The technical contract records about 1,667 observation rows/day at the 50,000-operation/30-day fixture and measured relation/index sizes; production WAL/growth remains operator-owned.
+- [x] Establish repeatable baseline measurements on a disposable PostgreSQL runner. A 30-day/50,000-operation fixture at 200 holds measured p95 337 ms; three matched trials passed the 15% admission/cleanup budgets. These controlled targets are not product SLAs.
+- [x] Retain the published rc.9 artifact manifest and document the candidate/source/schema matrix. RC.10 is published under new coordinates; no rc.9 artifact is overwritten.
 - [x] Name the registry/storage follow-up contact in the operator runbook and specify required filesystem evidence. Physical headroom is unverified; no local infrastructure inspection or mutation is performed to manufacture that proof.
 
 **Exit gate**: A reviewable schema/API/example contract, bounded resource model and test matrix. Unmeasured CPU/billing and wider recovery promises remain excluded.
 
 ### Phase 1: Repair and Prove First-Run Onboarding
-**Status**: In Progress
+**Status**: Complete; source-native and published-artifact first-task gates passed
 
 - [x] Implement the catalog-aware first task and admin/member empty states in the existing onboarding route, reusing current template and readiness APIs.
 - [x] Preserve accepted identities through delayed readiness, errors, reload/re-entry where supported, cancellation and duplicate clicks; use existing command recovery rather than blind re-execution.
 - [x] Add focused pure/browser tests for empty catalog, renamed/non-Python template, archived/unready template, member handoff, pending readiness, capacity denial and ambiguous command completion. Readiness supplies the accepted runtime's working directory, overriding stale catalog metadata.
-- [x] Extend the isolated browser harness to encounter the empty catalog, perform the documented authorized import, return to onboarding, run the selected template's first task and inspect its result. Source written; native execution remains open below.
-- [ ] Verify the test owns and cleans up its key, sandbox and imported fixture through supported APIs. Preserve real OIDC/PKCE/logout coverage and secret-safe artifacts.
+- [x] Extend the isolated browser harness to encounter the empty catalog, perform the documented authorized import, return to onboarding, run the selected template's first task and inspect actual command logs. Native source and published executions passed.
+- [x] Verify the test owns and cleans up its key, sandbox and imported fixture through supported APIs. Source-native run 34707522766 passed OIDC/PKCE/logout, first-task termination, revocation and owned cleanup; published-run cleanup is recorded independently.
 
 **Exit gate**: The literal first-task button works on a clean supported install; clicking Open dashboard alone cannot satisfy this gate.
 
 ### Phase 2: Implement Durable History and Bounded Observation
-**Status**: PostgreSQL implementation and isolated concurrency/scale acceptance passed; native recovery pending
+**Status**: Complete for the bounded PostgreSQL and native recovery profile
 
 - [x] Add the minimum additive schema and typed services agreed in Phase 0. Migration 039 is additive and transaction-bounded; actual binary/schema acceptance remains a separate gate.
 - [x] Implement organization-scoped interval/window queries and operation counts with deterministic bucket boundaries, carry-in, open holds and terminal-outcome semantics.
@@ -217,7 +219,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: Truthful history can be queried after a restart with the browser closed; observer failures do not corrupt capacity or delay confirmed cleanup.
 
 ### Phase 3: Deliver the API, SDK, CLI and Usage Screen
-**Status**: Local implementation and contract/browser verification complete; native cross-surface proof pending
+**Status**: Complete; published SDK/CLI and public Usage smoke passed
 
 - [x] Add the history route, centralized authorization entry, validated query contract and shared types without changing legacy summary semantics.
 - [x] Add SDK transport tests and published-shape protocol generation; add CLI human/JSON output, help, scope errors and unsupported-server behavior.
@@ -228,28 +230,28 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: UI, SDK and CLI agree on the same underlying observations and quality information, with no invented values or tenant leaks.
 
 ### Phase 4: Add Optional Operator Monitoring and Close Automation Gaps
-**Status**: In Progress; local HTTP, Helm and Prometheus rule fixtures pass
+**Status**: Software path complete; physical Harbor filesystem evidence remains an operator follow-up
 
 - [x] Add bounded process metrics and chart settings for private opt-in scraping without installing an observability stack or granting new cluster-wide permissions.
 - [x] Provide storage-byte, inode, missing-metric and collection-lag alert examples with unit fixtures and diagnostic runbooks. Include deployment ownership and exporter prerequisites.
 - [x] Lint default and restricted chart profiles; render disabled and explicitly enabled monitoring, including missing-CRD/Secret and invalid-config failures. Defaults add no monitor CRDs or metrics ingress.
-- [ ] Test installation and explicitly enabled monitoring on the disposable native profile. Rendering fixtures do not prove an authenticated live scrape.
+- [x] Test installation and explicitly enabled monitoring on the disposable native profile. Authenticated live scraping passed in source run 34707522766 and published run 34708761898. Public-lab metrics remain disabled.
 - [x] Audit post-approval release instructions and extend existing source acceptance/receipt wiring only. Preserve protected credentials, immutable identities and resumable read-only verification; actual published-pair qualification remains Phase 7.
-- [x] Test transient npm metadata lag, partial publication, immutable-artifact conflicts and registry failure with local process fixtures. No live publication was attempted or retried.
+- [x] Test transient npm metadata lag, partial publication, immutable-artifact conflicts and registry failure with local process fixtures. Later RC.10 publication used the protected workflows and read-only verification, not overwrite retries.
 - [x] Record the named Harbor headroom follow-up and required dated bytes/inodes/quota/growth evidence. No claim of physical headroom is made without operator evidence.
 
 **Exit gate**: Alert behavior and the software monitoring path are proved; receipts distinguish that proof from any still-unverified infrastructure headroom.
 
 ### Phase 5: Run Isolated Feature, Migration and Recovery Acceptance
-**Status**: In Progress; first native run failed on an incorrect empty-catalog fixture assumption, corrected run pending
+**Status**: Bounded source-native profile passed; wider pause/resume and snapshot/restore native combinations remain open
 
 - [x] Extend the existing native amd64 harness using run-owned resources and candidate artifacts in a disposable environment. The opt-in `usage_source` workflow input builds unpublished artifacts only on its hosted runner.
 - [ ] Execute create, retry, concurrent denial, async readiness, pause/resume, restore and confirmed delete; assert unique operation counts, held intervals and declared readiness coverage against known test events.
-- [ ] Stop/restart the observer and interrupt provider access. Confirm gaps/censored samples, continued admission safety, eventual observation recovery and no replayed command.
-- [ ] Restore the application database onto replacement storage using the existing isolated recovery procedure. Verify historical values, retention boundaries, current collection epoch and organization separation after restore.
-- [ ] Run an additive-schema rehearsal with baseline capacity-aware binaries and candidate binaries, including old/new API-client combinations, mixed-writer coverage and re-upgrade. This rehearsal does not replace published-release acceptance.
-- [ ] Verify migrations do not invalidate capacity constraints, overload admission locks or require reverting migration 038. No untested destructive down-migration is permitted.
-- [ ] Retain allowlisted structured evidence, redacted screenshots, timings, versions and cleanup results. Failures must remain visible; never replace an earlier failure receipt with a broader success claim.
+- [x] Stop/restart the observer and interrupt provider access. Source-native rehearsal confirmed a collection gap, continued admission safety, recovery and no replayed command.
+- [x] Restore the application database onto replacement storage using the existing isolated recovery procedure. Historical fingerprint equality passed natively; retention and organization separation passed the independent PostgreSQL fixtures, not a claim about every restore topology.
+- [x] Run a source additive-schema rehearsal with rc.9 binaries, candidate clients and re-upgrade. Capacity and history were retained. Actual old published SDK/new-server proof remains in Phase 7, not implied by the source-only run.
+- [x] Verify migrations do not invalidate capacity constraints, overload admission locks or require reverting migration 038. Native admission preservation and controlled PostgreSQL budgets passed; no destructive down-migration was used.
+- [x] Retain allowlisted structured evidence, screenshots, timings, versions and cleanup results. Delivery records distinguish failed attempts, source-native results and published qualification.
 
 **Exit gate**: Feature and compatibility acceptance passes on the isolated reference profile, with resource/performance measurements and no local workload changes.
 
@@ -268,16 +270,16 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: A new operator/developer can follow public instructions without private notes, developer credentials or a maintainer silently repairing the environment.
 
 ### Phase 7: Qualify the Actual Release and Close the Milestone
-**Status**: Not Started; publication and any populated-lab deployment require separate owner authorization
+**Status**: RC.10 published, qualified and deployed; documentation follow-up merge/deployment in progress
 
-- [ ] Review source/tests/docs, select a previously unused version and resolve candidate artifact identities. Keep rc.9 artifacts and prior receipts immutable.
-- [ ] After approval, use the existing protected Harbor/npm workflows to publish the substantive candidate and verify anonymous chart/image/package consumption, integrity and provenance where actually provided.
-- [ ] On a fresh native amd64 runner, install the published rc.9 baseline, generate owned data, upgrade to the actual published candidate and exercise new history/onboarding behavior.
-- [ ] Perform the documented compatible binary/chart rollback, retaining additive schema where required; then re-upgrade. Prove capacity fencing, keys, workspace files and historical data remain consistent. Record observation gaps instead of filling them during old-version operation.
-- [ ] Re-run the relevant encrypted/provider recovery gates and first-work journey using published SDK/CLI, not workspace-linked packages. Record exact baseline/candidate versions, source SHAs, schema levels and image/chart/npm identities.
-- [ ] If compatibility cannot be proved, stop the rollback claim and release promotion; document the supported restore/roll-forward path and the specific failing gate. A same-version Helm values change is not a substitute.
+- [x] Review source/tests/docs, select unused RC.10 and resolve immutable artifact identities. PR 45 and all required checks passed; rc.9 artifacts remain unchanged.
+- [x] Use the authorized protected Harbor/npm workflows and verify anonymous chart/image/package consumption, checksums and actual npm signatures/attestations. Publication runs 34708369843 and 34708371576 passed.
+- [x] On a fresh native amd64 runner, install published rc.9, upgrade to published rc.10 and exercise actual history/onboarding behavior. Run 34708761898 passed those gates before its final harness compatibility failure; do not count the entire run as passed.
+- [x] Perform actual published rc.9 -> rc.10 -> rc.9 -> rc.10, retaining schema 039. Run 34709727741 preserved capacity, keys, files and historical fingerprint, with an explicit old-binary observation gap.
+- [x] Re-run encrypted/provider recovery and first-work journey using published SDK/CLI. The passing retained receipt records immutable baseline/candidate identities; cleanup passed.
+- [x] Withhold qualification after the failed published attempt, correct the harness and rerun the unchanged artifacts. Only the complete run 34709727741 establishes the bounded pair, not a same-version values change or schema downgrade.
 - [ ] Publish the qualification receipt and release notes only with the evidence actually obtained. An RC remains on `next`; stable `latest` promotion is a separate owner decision with an explicit supported-upgrade matrix.
-- [ ] If a populated lab deployment is separately requested, use explicit context/namespace UID guards, preserved operator values and a reviewed manifest diff. Recheck public web/API/auth origins and OIDC for loopback redirects. Do not run legacy dev deployment scripts or modify unrelated workloads.
+- [x] Perform the separately requested public-lab upgrade with kubeconfig/UID guards, encrypted pre-upgrade backup, preserved values and structured manifest diff. Helm revision 41 is RC.10; dependency specs and public origins are unchanged. SDK/CLI live work, history and cleanup passed; docs follow-up gets a separate web-only delivery.
 - [ ] Record delivered versus externally pending work and adopter feedback. Move this file to `completed/` only when required software, docs and release gates are satisfied, or explicitly re-scope with the owner; never mark an unresolved gate complete.
 
 **Exit gate**: A real, qualified application release exists with credible historical usage and an evidence-backed upgrade path. The next product decision is a focused Python SDK/adopter integration, not an indefinite observability expansion.
@@ -327,11 +329,11 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 | Item | Resolution point | Default direction |
 | --- | --- | --- |
 | Numeric priority and phase estimates | Owner/Phase 0 | Preserve the agreed Point 4 sequence; no invented urgency ranking. |
-| Observer cadence, query scale and retention budget | Source contract fixed; isolated measurements pending | Ten-second loop, two dedicated connections, bounded eight-probe passes, 30-day history and 1,500 buckets. Tune only from the prepared measurement fixture. |
+| Observer cadence, query scale and retention budget | Controlled PostgreSQL fixture passed | Ten-second loop, two dedicated connections, bounded eight-probe passes, 30-day history and 1,500 buckets. Production growth still needs operator measurement. |
 | Need for an additional lifecycle projection | Source audit completed | Reuse retained operation/reservation facts. Latest terminal outcomes are revisable, not an append-only attempt log; no duplicate lifecycle ledger added. |
 | Chart and process-metrics libraries | Resolved in implementation | Bounded CSS bars with equivalent accessible table; maintained Prometheus client on private opt-in listener. No mandatory monitoring service. |
 | Physical Harbor storage evidence | Operator with storage/exporter access | Track separately from HTTP availability and release checks; no automatic pruning or host changes. |
-| Candidate version and supported rollback target | Release preflight and Phase 7 | Next substantive unused candidate, with rc.9 as the capacity-aware baseline if source review confirms compatibility. |
+| Candidate version and supported rollback target | RC.10 published; Phase 7 qualification | rc.9 is the capacity-aware baseline. Keep schema 039 during the bounded binary rollback; no generic schema downgrade. |
 | Publication, deployment and stable promotion | Owner | Separate explicit decisions; writing or implementing this plan is not automatic authorization. |
 
 ## Decision Log
@@ -366,6 +368,10 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 | 2026-09-12 | Final browser regression and visual review passed. | 44 tests cover authorization, capacity, first-task readiness/recovery, Usage states and all public docs at 1440/390/320px. Updated old `/run`/history-placeholder fixtures; isolated Vite from SDK-rebuilding typechecks to prevent artificial reloads. Web unit tests: 96 passed. Workspace tests/typechecks and example/OpenAPI checks also passed. Screenshots are local fixture evidence, not live runtime proof. |
 | 2026-09-12 | Owner authorized commit, push, release and k0s deployment. | Explicit kubeconfig confirms the arm64 k0s node Ready and Harakiri rc.9 at Helm revision 40. Default kubecontext is CRC and must not be used. Proceed through hosted PostgreSQL/native gates before candidate publication; retain operator values and dependency versions. |
 | 2026-09-12 | PR 45 initial CI identified a database fixture error. | Run 34704935987 passed source/history scanning, browser contracts, image builds, chart, SDK/CLI conformance and release dry-run. The new PostgreSQL suite stopped in organization setup because its shared UUID/text parameter needed an explicit UUID cast. Corrected the fixture; no acceptance assertion was removed. Source-native run 34704934903 remains separate. |
+| 2026-09-12 | Final source qualification and delivery passed. | Source-native 34707522766 passed all 11 gates and cleanup. Final PR/main CI passed; PR 45 merged as 3ff2aaa. Protected Harbor 34708369843 and npm 34708371576 published RC.10; anonymous artifacts, npm integrity/signatures/attestations and strict consumer compilation passed. |
+| 2026-09-12 | Public k0s application upgrade and smoke passed. | Revision 41 preserves dependency specs and public origins, with encrypted pre-upgrade backup. A transient web 502 recovered without a tunnel restart. Actual SDK/CLI workload and history passed; owned runtime terminated/key revoked. Public logout/code-flow PKCE S256 login passed. |
+| 2026-09-12 | Published compatibility harness corrected, rerun pending. | Run 34708761898 passed through encrypted/provider recovery, then failed before final compatibility qualification. Old-SDK import also loaded a second Playwright runtime; 13cb97f separates SDK-only loading, with 30 safety/contracts passing. Run 34709727741 consumes the same immutable RC.10 bundle on a new disposable runner. |
+| 2026-09-12 | Published pair qualified. | Run 34709727741 passed all 11 gates and cleanup in 14m32s. Receipt retained in docs/operations/evidence. Updated public/internal recovery boundaries to the exact published pair with schema 039 retained; no generic downgrade claim. |
 
 ## Tech Debt Incurred
 
@@ -390,8 +396,16 @@ Release preparation (2026-09-12): selected unused `0.5.0-rc.10` coordinates afte
 
 Qualification checkpoint (2026-09-12): CI run 34705192495 passed every required job, including all 14 PostgreSQL scenarios. Ten history queries over 50,000 operations/200 open holds measured p95 337 ms; three matched observer trials stayed within the 15% admission/cleanup budget. Native run 34704934903 installed source images but its empty-catalog assertion timed out: migrations 004/008 create six built-ins independently of `SEED_ON_BOOT`. The harness now archives only those legacy seed versions in its guarded disposable database before testing empty-catalog setup. No production catalog was changed; native qualification is still pending.
 
-No new operational ledger is introduced. The observer deliberately ends first-ready observation after ten minutes and reports remaining cycles as unobserved; high-scale throughput must be measured before expanding the supported profile. Existing legacy numeric placeholders remain for wire compatibility. Source clients retain the existing package version until approved release preflight assigns a new version; they must not be published under the rc.9 identity. Missing physical Harbor evidence and published compatibility remain explicit open gates.
+No new operational ledger is introduced. The observer deliberately ends first-ready observation after ten minutes and reports remaining cycles as unobserved; high-scale throughput must be measured before expanding the supported profile. Existing legacy numeric placeholders remain for wire compatibility. Published clients use new RC.10 coordinates; rc.9 artifacts were not replaced. Missing physical Harbor evidence and wider native lifecycle combinations remain open; the bounded published compatibility gate passed.
 
 ## Completion Notes
 
-Not completed. Source implementation and local verification are present; this is not a release or native-acceptance receipt. The next authorized step, when the owner allows external work, is isolated PostgreSQL/source-native qualification, followed by any required fixes, explicit publication approval and actual published-pair acceptance. No local cluster or database is an acceptable substitute. Keep this plan in `active/` until its remaining gates are satisfied or explicitly re-scoped.
+RC.10 is committed, published and deployed; the delivery record carries exact
+identities and evidence. Both the bounded source-native suite and actual
+published-pair run 34709727741 passed all 11 gates and cleanup. The earlier
+failed compatibility attempt remains recorded; its SDK-only import fix required
+no application artifact replacement. Wider native pause/resume and
+snapshot/restore combinations, actual Harbor filesystem headroom, and the final
+documentation deployment remain explicit. Keep the plan in `active/`
+until its remaining gates are satisfied or explicitly re-scoped; release delivery
+does not silently mark every original scenario complete.

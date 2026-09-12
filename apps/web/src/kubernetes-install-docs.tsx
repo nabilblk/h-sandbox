@@ -38,6 +38,40 @@ helm show chart preview-charts/harakiri-0.5.0-rc.9.tgz`,
   -f infra/preview/.private/harakiri-values.json --wait --timeout 10m
 kubectl -n harakiri-preview get pods
 kubectl -n harakiri-preview-runtime get pods`,
+  upgradePrepare: `: "\${KUBECONFIG:?Set the reviewed reference-cluster kubeconfig}"
+helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \\
+  --version 0.5.0-rc.10 --destination preview-charts || exit 1
+curl --fail --location --silent --show-error \\
+  https://github.com/nabilblk/h-sandbox/releases/download/v0.5.0-rc.10/0.5.0-rc.10-values.yaml \\
+  --output preview-charts/0.5.0-rc.10-values.yaml || exit 1
+node --input-type=module <<'NODE' || exit 1
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const expected = {
+  'harakiri-0.5.0-rc.10.tgz': '9fb11b234041ef55c518850fb60572d66921f4441dc524bbaa67cae6c94428a7',
+  '0.5.0-rc.10-values.yaml': '09a1cf96511381bafe47e0e3b450e0bf311d7e5bf00c38a30e02180fd0d73f4a'
+};
+for (const [name, digest] of Object.entries(expected)) {
+  const actual = createHash('sha256').update(readFileSync('preview-charts/' + name)).digest('hex');
+  assert.equal(actual, digest, 'Release checksum mismatch: ' + name);
+}
+NODE
+umask 077
+helm get values harakiri --kubeconfig "$KUBECONFIG" \\
+  --namespace harakiri-preview --output yaml \\
+  > infra/preview/.private/before-rc10-values.yaml || exit 1
+helm template harakiri preview-charts/harakiri-0.5.0-rc.10.tgz \\
+  --namespace harakiri-preview \\
+  -f infra/preview/.private/before-rc10-values.yaml \\
+  -f preview-charts/0.5.0-rc.10-values.yaml \\
+  > infra/preview/.private/review-rc10.yaml || exit 1`,
+  upgradeApply: `: "\${KUBECONFIG:?Set the reviewed reference-cluster kubeconfig}"
+helm upgrade harakiri preview-charts/harakiri-0.5.0-rc.10.tgz \\
+  --kubeconfig "$KUBECONFIG" --namespace harakiri-preview \\
+  -f infra/preview/.private/before-rc10-values.yaml \\
+  -f preview-charts/0.5.0-rc.10-values.yaml --wait --timeout 10m
+kubectl --kubeconfig "$KUBECONFIG" -n harakiri-preview get pods`,
   webForward: `kubectl -n harakiri-preview port-forward --address=127.0.0.1 \\
   svc/harakiri-web 28480:80`,
   apiForward: `kubectl -n harakiri-preview port-forward --address=127.0.0.1 \\
@@ -48,7 +82,7 @@ kubectl -n harakiri-preview-runtime get pods`,
 curl --fail --silent --show-error \\
   http://127.0.0.1:28484/realms/harakiri/.well-known/openid-configuration \\
   | jq -e '.issuer == "http://127.0.0.1:28484/realms/harakiri"'`,
-  cli: `npm install --global @h-sandbox/cli@0.5.0-rc.9
+  cli: `npm install --global @h-sandbox/cli@0.5.0-rc.10
 harakiri --version
 export HARAKIRI_API_URL=http://127.0.0.1:28482
 read -r -s -p "Harakiri API key: " HARAKIRI_API_KEY
@@ -63,7 +97,7 @@ harakiri template inspect opencode`,
   consumer: `mkdir install-check
 cd install-check
 npm init -y
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9`,
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10`,
   execute: `node install-check.mjs
 unset HARAKIRI_API_KEY`,
   inspect: `kubectl -n harakiri-preview get pods,pvc
@@ -115,17 +149,17 @@ console.log("PASS: create, file write/read, command and termination");`;
 export const kubernetesInstallDocs: DocPage = {
   id: "install-kubernetes", section: "Self-hosting", title: "Install on Kubernetes",
   lede: "Self-host Harakiri on Kubernetes (K8s): install the control plane, identity, database and a real sandbox runtime with Helm. Finish with a checked SDK task, not just healthy pods.",
-  toc: ["Choose the deployment profile", "Prepare your cluster", "Generate private configuration", "Install PostgreSQL and Keycloak", "Install the runtime and control plane", "Connect and sign in", "Run a real sandbox task", "Configure public access", "Troubleshoot installation", "Upgrade and recovery", "Uninstall deliberately"],
+  toc: ["Choose the deployment profile", "Prepare your cluster", "Generate private configuration", "Install PostgreSQL and Keycloak", "Install the runtime and control plane", "Upgrade the baseline to rc.10", "Connect and sign in", "Run a real sandbox task", "Configure public access", "Troubleshoot installation", "Upgrade and recovery", "Uninstall deliberately"],
   body: <>
     <h2>Choose the deployment profile</h2>
     <p>This walkthrough uses the versioned <strong>native Kubernetes Developer Preview</strong>: an empty, operator-owned cluster, two namespaces and local browser access. Harakiri is the sandbox control plane; OpenSandbox supplies the current execution adapter. The application Helm chart does not bundle the database, identity service or runtime.</p>
     <table className="docs-data-table"><caption>Installed components</caption><thead><tr><th scope="col">Layer</th><th scope="col">Components and responsibility</th></tr></thead><tbody>
       <tr><td>Data and identity</td><td><strong>PostgreSQL 16.15 and Keycloak 26.7.3</strong>, from manifests. Separate application and identity databases; browser sign-in and a realm-scoped service account.</td></tr>
       <tr><td>Runtime</td><td><strong>OpenSandbox chart 0.2.2-harakiri.2.</strong> Controller, lifecycle server and gateway; executes sandbox workloads in a separate namespace.</td></tr>
-      <tr><td>Control plane</td><td><strong>Harakiri chart, API and web 0.5.0-rc.9.</strong> API, dashboard, scheduler and template worker use matching candidate artifacts.</td></tr>
-      <tr><td>Developer clients</td><td><strong>SDK and CLI 0.5.0-rc.9.</strong> Your application connects only to the Harakiri API.</td></tr>
+      <tr><td>Control plane</td><td><strong>Bootstrap 0.5.0-rc.9, then upgrade to 0.5.0-rc.10.</strong> The pinned operator inputs remain unchanged; the explicit upgrade selects matching published API, scheduler, builder and web images.</td></tr>
+      <tr><td>Developer clients</td><td><strong>SDK and CLI 0.5.0-rc.10.</strong> Your application connects only to the Harakiri API.</td></tr>
     </tbody></table>
-    <aside className="docs-notice"><p><strong>Scope matters.</strong> Native amd64 installation, CLI/SDK tasks and encrypted recovery passed on an isolated GitHub-hosted k0s 1.36.3 runner with local-path storage. The earlier arm64 reference uses Ubuntu 24.04, 8 CPUs, 16 GiB RAM and 80 GiB disk. These are evaluated profiles, not measured minimums, capacity guarantees or certification of every Kubernetes distribution. See the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/standalone-recovery.md">exact evidence and remaining gates</a>.</p><p>This is for trusted-team evaluation, not hostile multi-tenancy or HA. Organization execution slots are enforced; CPU, memory and storage quotas need infrastructure controls, and historical usage is not measured. Read <a href="#docs/developer-preview">the preview limits</a> before sharing access.</p></aside>
+    <aside className="docs-notice"><p><strong>Scope matters.</strong> Native amd64 installation, CLI/SDK tasks and encrypted recovery passed on an isolated GitHub-hosted k0s 1.36.3 runner with local-path storage. The earlier arm64 reference uses Ubuntu 24.04, 8 CPUs, 16 GiB RAM and 80 GiB disk. These are evaluated profiles, not measured minimums, capacity guarantees or certification of every Kubernetes distribution. See the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/standalone-recovery.md">exact evidence and remaining gates</a>.</p><p>This is for trusted-team evaluation, not hostile multi-tenancy or HA. Organization execution slots are enforced; CPU, memory and storage quotas need infrastructure controls. RC.10 adds <a href="#docs/usage-observations">historical control-plane observations</a>, not CPU utilization or billing. Read <a href="#docs/developer-preview">the preview limits</a> before sharing access.</p></aside>
     <p><strong>Already have PostgreSQL, OIDC and a runtime?</strong> Use the <a href={`${source}/infra/charts/harakiri/values.yaml`}>chart values reference</a> with your existing services and operator-owned Secret. Do not run the bundled dependency manifests against them. This walkthrough is the complete reference path, not a recipe for replacing an existing installation.</p>
     <p><strong>OpenShift or a disconnected registry?</strong> Review the standalone <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/install-openshift.md">OpenShift boundaries</a> and <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/airgap.md">artifact mirroring guide</a>. The native egress sidecar requires network privileges including <code>NET_ADMIN</code>; it does not fit an unchanged restricted OpenShift SCC. Do not relax SCCs to follow this guide. BackgroundAgent and customer deployment bundles are not prerequisites.</p>
 
@@ -163,6 +197,13 @@ export const kubernetesInstallDocs: DocPage = {
     <CodeBlock language="bash" filename="Install Harakiri second">{kubernetesInstallCommands.controlPlane}</CodeBlock>
     <p>The chart selects matching versioned API and web images; record their index and platform digests in your installation receipt. Do not apply an older release's image overlay. This profile supports importing existing template images; it supplies no registry writer and does not prove Dockerfile build support. Configure that workflow separately.</p>
 
+    <h2>Upgrade the baseline to rc.10</h2>
+    <p>The pinned configuration helper establishes rc.9 first. Apply this explicit second step to get current onboarding and usage history without changing database, identity or runtime dependencies. For an existing installation with data, capture a reviewed <a href="#docs/backup-recovery">recovery point</a> before the upgrade. These commands target only the reference namespaces selected earlier.</p>
+    <CodeBlock language="bash" filename="Verify artifacts and render privately">{kubernetesInstallCommands.upgradePrepare}</CodeBlock>
+    <p>Review <code>review-rc10.yaml</code> privately against the installed manifest. The release overlay changes only API/web image identities and the template-builder image. Keep public origins, Secret references, storage, provider configuration and replica settings unchanged. The new chart enables usage collection with 30-day retention; private metrics remain disabled. Stop on any unexplained difference. The checksums above pin the published archives, not a signing guarantee.</p>
+    <CodeBlock language="bash" filename="Apply the reviewed upgrade">{kubernetesInstallCommands.upgradeApply}</CodeBlock>
+    <p>Migration 039 adds observations and indexes while retaining capacity reservations. Upgrade API and scheduler together. Earlier history is not invented; a newly enabled collector starts with partial coverage. The <a href="https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.10">RC.10 release receipt</a> records artifact identities and the exact recovery/rollback qualification scope.</p>
+
     <h2>Connect and sign in</h2>
     <p>Open three terminals. Set the same <code>KUBECONFIG</code> in each and keep one forward running per terminal. They are loopback-only; no Cloudflare tunnel, DNS or public ingress is needed.</p>
     <CodeBlock language="bash" filename="Terminal 1: dashboard">{kubernetesInstallCommands.webForward}</CodeBlock>
@@ -179,7 +220,7 @@ export const kubernetesInstallDocs: DocPage = {
     <CodeBlock language="bash">{kubernetesInstallCommands.template}</CodeBlock>
     <p>This digest is the published multi-architecture index for Linux amd64 and arm64, produced by the <a href="https://github.com/nabilblk/h-sandbox/actions/runs/34347806269">catalog release workflow</a>. The native amd64 acceptance uses its AMD64 child manifest. A pullable image or an ARM64-only digest does not prove it can execute on an AMD64 node.</p>
     <p>The import must reach <code>success</code>. Check the reported capabilities and leave room for the template's 2 CPUs and 4 GiB memory in addition to platform services. Install the SDK in a separate consumer folder:</p>
-    <aside className="docs-notice"><p><strong>Available from rc.10, not part of this pinned rc.9 baseline:</strong> the updated onboarding task offers eligible installed templates. After import, return to onboarding, select <strong>Refresh templates</strong>, choose the template and run the first sandbox. A readiness wait keeps the accepted sandbox; <strong>Check first task</strong> resumes observation without repeating its command. The task uses the template's working directory and a five-minute lifetime. Historical observations and their separate scope are covered in the <a href="#docs/usage-tutorial">usage tutorial</a>. Follow the matching release's upgrade instructions to add history to the baseline installation.</p></aside>
+    <aside className="docs-notice"><p><strong>After the rc.10 upgrade:</strong> onboarding offers eligible installed templates. Eligibility is not image-policy approval; legacy migrations may include built-ins. After importing your approved image, return to onboarding, select <strong>Refresh templates</strong>, choose it and run the first sandbox. A readiness wait keeps the accepted sandbox; <strong>Check first task</strong> resumes observation without repeating its command. The task uses the template's working directory and a five-minute lifetime. See the <a href="#docs/usage-tutorial">usage tutorial</a> for historical observations and the additional <code>org:read</code> scope.</p></aside>
     <CodeBlock language="bash">{kubernetesInstallCommands.consumer}</CodeBlock>
     <CodeBlock language="javascript" filename="install-check.mjs">{kubernetesInstallCheck}</CodeBlock>
     <CodeBlock language="bash">{kubernetesInstallCommands.execute}</CodeBlock>
@@ -212,7 +253,7 @@ export const kubernetesInstallDocs: DocPage = {
     <p>Use the target release's migration order, downloaded chart, original operator values and matching image overlay. Do not use <code>helm upgrade --reuse-values</code> as a substitute for reviewing changes, mix npm <code>latest</code> with the candidate server, or regenerate the configuration directory.</p>
     <p>Before upgrading, quiesce writes and workers and back up both PostgreSQL databases, operator Secrets, encryption keyrings and detached workspace files from the same point in time. Test restoration into a disposable target. A database dump is not a workspace backup; retained files are not a process or memory snapshot.</p>
     <p>The isolated amd64 run restored both databases onto new storage, replaced the workspace volume from its archive and proved that encrypted Vault rows remained usable. Missing and incorrect wrapping keys rejected credential attachment; restoring the correct key restored actual HTTPS credential injection. This is not HA/CSI or external secret-store recovery certification. See <a href="#docs/workspace-operations">storage operations</a> and the <a href={`${source}/docs/credential-vault-operations.md`}>Vault recovery procedure</a>.</p>
-    <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/standalone-recovery.md">coordinated recovery and upgrade qualification runbook</a> records native execution and encrypted-recovery evidence, successful provider-state rehydration, logout, key revocation and configuration rollback. Its passing receipt is retained in Git. A Helm configuration rollback within the same release does not prove cross-release or schema rollback safety; a distinct compatible release pair remains untested.</p>
+    <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/standalone-recovery.md">coordinated recovery and upgrade qualification runbook</a> records native execution and encrypted-recovery evidence, successful provider-state rehydration, logout, key revocation and configuration rollback. A Helm configuration rollback within the same release does not prove cross-release or schema rollback safety. Separately, the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/evidence/standalone-34709727741.json">published RC.10 receipt</a> verifies the rc.9 to rc.10 upgrade, binary rollback and re-upgrade with schema 039 retained. Files, keys, capacity and history survived; old-binary collection time remained a gap. This qualifies that single-node amd64/local-path profile, not destructive schema rollback or arbitrary release pairs.</p>
 
     <h2>Uninstall deliberately</h2>
     <p>Confirm the target kubecontext, stop accepting tasks, terminate owned sandboxes through Harakiri and archive workspaces according to your retention policy. Secure backups before uninstalling. These commands remove only the two Helm releases; they are not a complete data erasure:</p>

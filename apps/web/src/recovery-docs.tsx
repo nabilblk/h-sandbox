@@ -2,6 +2,7 @@ import type { DocPage } from "./docs-content";
 import { CodeBlock } from "./components/docs-code";
 
 const evidence = "https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/evidence/standalone-34659892741.json";
+const usageEvidence = "https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/evidence/standalone-34709727741.json";
 const runbook = "https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/standalone-recovery.md";
 
 export const recoveryCommands = {
@@ -59,14 +60,16 @@ export const recoveryDocs: DocPage = {
 
     <h2>What has been verified</h2>
     <p>Published <code>0.5.0-rc.9</code> passed all seven configured acceptance gates on a fresh Linux amd64, k0s 1.36.3, local-path fixture. The tests used real browser OIDC and published SDK/CLI packages, not the development provider. The <a href={evidence}>retained receipt</a> records the exact artifacts and checks; <a href="https://github.com/nabilblk/h-sandbox/actions/runs/34661147374">the final repeat</a> also passed.</p>
+    <p><strong>RC.10 extends that evidence.</strong> A separate <a href={usageEvidence}>published-artifact receipt</a> records all 11 gates and cleanup passing for the rc.9 to rc.10 upgrade, binary rollback and re-upgrade. It uses the actual published images, charts and SDK/CLI, preserves schema 039, restores historical observations, and checks the older SDK against the newer server. The exact profile remains single-node Linux amd64, k0s and local-path storage.</p>
     <table className="docs-data-table"><caption>Verified outcomes and their boundaries</caption><thead><tr><th scope="col">Scenario</th><th scope="col">Observed result</th></tr></thead><tbody>
       <tr><td>Database and file loss</td><td>Both databases restored onto new storage, source database stopped, workspace restored into an empty replacement volume. Identity, API key and file checksums survived.</td></tr>
       <tr><td>Encrypted credential recovery</td><td>Missing and wrong wrapping keys rejected attachment without rewriting the envelope. The correct key restored real HTTPS credential injection.</td></tr>
       <tr><td>Provider interruption</td><td>A running command survived a control-plane restart. Execution capacity and workspace ownership stayed reserved; the command was not duplicated.</td></tr>
       <tr><td>Lost provider credential state</td><td>Inspection detected the missing binding. Explicit Harakiri rehydration restored credential use without replacing the runtime.</td></tr>
       <tr><td>Configuration rollback and cleanup</td><td>A same-release Helm change and rollback retained files, keys and admission. Key revocation, OIDC logout and private test-material cleanup passed.</td></tr>
+      <tr><td>rc.9 / rc.10 binary compatibility</td><td>Capacity, scoped keys, retained files and the historical fingerprint survived rollback and re-upgrade with schema 039 retained. Collection stopped under rc.9 and returned as an explicit gap, not fabricated history.</td></tr>
     </tbody></table>
-    <p>This is not HA, arbitrary CSI, full-cluster disaster recovery, restricted OpenShift or cross-release/schema rollback certification. The database restore was rehearsed on replacement storage inside the disposable cluster; it did not restore a live, ambiguous runtime inventory into another provider. Native OpenCode execution was model-free, not an LLM inference test.</p>
+    <p>This is not HA, arbitrary CSI, full-cluster disaster recovery, restricted OpenShift or arbitrary release-pair certification. No schema down-migration was tested. The database restore was rehearsed on replacement storage inside the disposable cluster; it did not restore a live, ambiguous runtime inventory into another provider. Native OpenCode execution was model-free, not an LLM inference test.</p>
 
     <h2>Capture a coherent recovery point</h2>
     <ol>
@@ -106,8 +109,9 @@ export const recoveryDocs: DocPage = {
     <p>Credential desired state can outlive a provider binding. Inspect through Harakiri, then explicitly rehydrate a missing binding when supported. The acceptance run proved that API path, not every background reconciliation timer or automatic process recovery. See <a href="#docs/credential-vault">Credential Vault</a>.</p>
 
     <h2>Upgrade and rollback</h2>
-    <p><strong>Same-release configuration rollback is verified; cross-release/schema rollback remains untested.</strong> Before changing application versions, select two explicit compatible release identities, review migrations, preserve operator values and keys, and rehearse with existing state in isolation.</p>
+    <p><strong>The published rc.9 to rc.10 upgrade, binary rollback and re-upgrade passed.</strong> Schema 039 remains installed throughout. This does not qualify destructive schema rollback or other version pairs. Before changing application versions, review their migrations, preserve operator values and keys, and rehearse with existing state in isolation.</p>
+    <p>Older rc.9 binaries do not collect observations. Keep the resulting interval as missing coverage, then verify the collector resumes after re-upgrade. Their unknown history route returns <code>403 forbidden</code> even to a valid reader; do not broaden key permissions to repair a missing server capability.</p>
     <p>Do not reopen pre-capacity rc.8 writers against migration 038. An older chart revision is not proof of a safe downgrade. Do not use <code>--reuse-values</code> in place of reviewing configuration, regenerate credentials, or remove workspace/Vault metadata needed by retained backups.</p>
-    <p>Use <a href="#docs/developer-preview">the supported preview profile</a> and <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.9.md">the rc.9 migration notes</a>. A documentation-only web image does not establish a new compatible application-release pair.</p>
+    <p>Use <a href="#docs/developer-preview">the supported preview profile</a> and <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.10-delivery.md">the RC.10 artifact and qualification record</a>. A documentation-only web image does not establish a new compatible application-release pair.</p>
   </>
 };

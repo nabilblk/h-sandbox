@@ -1,0 +1,189 @@
+{
+  "version": "0.5.0-rc.9",
+  "applicationSource": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+  "harnessSource": "42db7500cef8223330c78df0fa800c6ba75363de",
+  "runId": "34707522766-1",
+  "architecture": "amd64",
+  "clusterUid": "635088d1-7e81-492a-ad76-5bede0dd45f5",
+  "startedAt": "2026-09-12T17:13:11.328Z",
+  "results": [
+    {
+      "gate": "installation",
+      "status": "passed",
+      "durationMs": 136877,
+      "initialFreeMiB": 85834,
+      "evidence": {
+        "anonymousArtifacts": true,
+        "freshInstallation": true,
+        "nativeTemplateImage": true,
+        "templateManifestSha256": "9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3"
+      }
+    },
+    {
+      "gate": "source-usage-candidate",
+      "status": "passed",
+      "durationMs": 86123,
+      "initialFreeMiB": 81066,
+      "evidence": {
+        "sourceCandidate": true
+      }
+    },
+    {
+      "gate": "private-live-metrics",
+      "status": "passed",
+      "durationMs": 953,
+      "initialFreeMiB": 79140,
+      "evidence": {
+        "authenticatedMetrics": true
+      }
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "durationMs": 61743,
+      "initialFreeMiB": 79140,
+      "evidence": {
+        "oidcOnboarding": true,
+        "pkceS256": true,
+        "firstTask": true,
+        "emptyCatalog": true,
+        "firstTaskExactlyOnce": true,
+        "firstTaskCleaned": true
+      }
+    },
+    {
+      "gate": "source-client-workflow",
+      "status": "passed",
+      "durationMs": 49501,
+      "initialFreeMiB": 76830,
+      "evidence": {
+        "fileSha256": "4a50486031b5dc7a1ce41763832803267da98690dd9a0e0d385bb765e6b8d425",
+        "modelFreeOpenCode": true,
+        "publishedCli": false,
+        "publishedSdk": false,
+        "sourceClients": true,
+        "protectedRoute": true,
+        "capacityDenial": true,
+        "idempotency": true,
+        "reattachment": true
+      }
+    },
+    {
+      "gate": "real-usage-observations",
+      "status": "passed",
+      "durationMs": 9668,
+      "initialFreeMiB": 76863,
+      "evidence": {
+        "realUsage": true,
+        "uniqueUsageOperations": true,
+        "independentReadiness": true
+      }
+    },
+    {
+      "gate": "coordinated-encrypted-recovery",
+      "status": "passed",
+      "durationMs": 295159,
+      "initialFreeMiB": 76867,
+      "evidence": {
+        "databaseRestore": true,
+        "workspaceRestore": true,
+        "oidcIdentity": true,
+        "retainedApiKey": true,
+        "encryptedVaultUse": true,
+        "credentialBoundary": true,
+        "negativeCases": [
+          "missing",
+          "incorrect"
+        ],
+        "envelopeSha256": "287df860659b61f2e11db139f989d813394370478a6d544040f5ea977347569c",
+        "fileSha256": "4a50486031b5dc7a1ce41763832803267da98690dd9a0e0d385bb765e6b8d425"
+      }
+    },
+    {
+      "gate": "usage-database-recovery",
+      "status": "passed",
+      "durationMs": 10,
+      "initialFreeMiB": 76734,
+      "evidence": {
+        "usageDatabaseRestore": true
+      }
+    },
+    {
+      "gate": "provider-interruption-and-state-loss",
+      "status": "passed",
+      "durationMs": 46173,
+      "initialFreeMiB": 76734,
+      "evidence": {
+        "providerInterruption": true,
+        "controlPlaneRestart": true,
+        "retainedOwnership": true,
+        "noDuplicateExecution": true,
+        "explicitVaultRehydration": true,
+        "confirmedRelease": true
+      }
+    },
+    {
+      "gate": "source-binary-schema-rehearsal",
+      "status": "passed",
+      "durationMs": 109035,
+      "initialFreeMiB": 76768,
+      "evidence": {
+        "sourceBinaryRehearsal": true,
+        "publishedBinaryCompatibility": false,
+        "oldClientNewServer": false,
+        "usageRollbackGap": true,
+        "preservedKeys": true,
+        "preservedWorkspace": true
+      }
+    },
+    {
+      "gate": "logout-and-key-revocation",
+      "status": "passed",
+      "durationMs": 234,
+      "initialFreeMiB": 76764,
+      "evidence": {
+        "logout": true,
+        "keyRevoked": true
+      }
+    }
+  ],
+  "releaseCompatibility": {
+    "status": "not_tested",
+    "reason": "A distinct capacity-compatible published release pair has not been selected. Configuration rollback does not establish schema/image rollback safety."
+  },
+  "sourceCandidate": {
+    "source": "42db7500cef8223330c78df0fa800c6ba75363de",
+    "published": false,
+    "baseline": "0.5.0-rc.9",
+    "schema": 39,
+    "images": {
+      "api": {
+        "reference": "localhost/harakiri/harakiri-api:usage-34707522766-1",
+        "id": "sha256:fbcbfef1f1b4234f8c3ca6cff99f41605d860f3c25be2ed34fac927ab77346e4"
+      },
+      "web": {
+        "reference": "localhost/harakiri/harakiri-web:usage-34707522766-1",
+        "id": "sha256:8b6f608dd46e04a5d0b289420e63d5ebe2d7eec4020ee6f4263eacdd19f7737b"
+      }
+    }
+  },
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-09-12T17:26:40.859Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

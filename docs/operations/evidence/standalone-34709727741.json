@@ -1,0 +1,190 @@
+{
+  "version": "0.5.0-rc.9",
+  "applicationSource": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+  "harnessSource": "13cb97f39420ada7b531a5da8f2a5c43ba34f670",
+  "runId": "34709727741-1",
+  "architecture": "amd64",
+  "clusterUid": "63d8ba9d-232c-4024-97cc-852bbbe7950c",
+  "startedAt": "2026-09-12T17:57:53.344Z",
+  "results": [
+    {
+      "gate": "installation",
+      "status": "passed",
+      "durationMs": 130870,
+      "initialFreeMiB": 86376,
+      "evidence": {
+        "anonymousArtifacts": true,
+        "freshInstallation": true,
+        "nativeTemplateImage": true,
+        "templateManifestSha256": "9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3"
+      }
+    },
+    {
+      "gate": "published-usage-candidate",
+      "status": "passed",
+      "durationMs": 39904,
+      "initialFreeMiB": 81702,
+      "evidence": {
+        "publishedCandidate": true,
+        "publishedSdk": true,
+        "publishedCli": true,
+        "anonymousArtifacts": true
+      }
+    },
+    {
+      "gate": "private-live-metrics",
+      "status": "passed",
+      "durationMs": 799,
+      "initialFreeMiB": 81424,
+      "evidence": {
+        "authenticatedMetrics": true
+      }
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "durationMs": 55990,
+      "initialFreeMiB": 81424,
+      "evidence": {
+        "oidcOnboarding": true,
+        "pkceS256": true,
+        "firstTask": true,
+        "emptyCatalog": true,
+        "firstTaskExactlyOnce": true,
+        "firstTaskCleaned": true
+      }
+    },
+    {
+      "gate": "published-client-workflow",
+      "status": "passed",
+      "durationMs": 49776,
+      "initialFreeMiB": 79115,
+      "evidence": {
+        "fileSha256": "6d5d7f780eb1f01b70090e5a4a2d83c3f567b2b36ca2995125e88f9c98436191",
+        "modelFreeOpenCode": true,
+        "publishedCli": true,
+        "publishedSdk": true,
+        "sourceClients": false,
+        "protectedRoute": true,
+        "capacityDenial": true,
+        "idempotency": true,
+        "reattachment": true
+      }
+    },
+    {
+      "gate": "real-usage-observations",
+      "status": "passed",
+      "durationMs": 9645,
+      "initialFreeMiB": 79147,
+      "evidence": {
+        "realUsage": true,
+        "uniqueUsageOperations": true,
+        "independentReadiness": true
+      }
+    },
+    {
+      "gate": "coordinated-encrypted-recovery",
+      "status": "passed",
+      "durationMs": 284302,
+      "initialFreeMiB": 79151,
+      "evidence": {
+        "databaseRestore": true,
+        "workspaceRestore": true,
+        "oidcIdentity": true,
+        "retainedApiKey": true,
+        "encryptedVaultUse": true,
+        "credentialBoundary": true,
+        "negativeCases": [
+          "missing",
+          "incorrect"
+        ],
+        "envelopeSha256": "817059059e2754c53d4cbe374f190fb6a3f4dd16321f1f65aa8613148f430fe5",
+        "fileSha256": "6d5d7f780eb1f01b70090e5a4a2d83c3f567b2b36ca2995125e88f9c98436191"
+      }
+    },
+    {
+      "gate": "usage-database-recovery",
+      "status": "passed",
+      "durationMs": 10,
+      "initialFreeMiB": 79018,
+      "evidence": {
+        "usageDatabaseRestore": true
+      }
+    },
+    {
+      "gate": "provider-interruption-and-state-loss",
+      "status": "passed",
+      "durationMs": 56499,
+      "initialFreeMiB": 79018,
+      "evidence": {
+        "providerInterruption": true,
+        "controlPlaneRestart": true,
+        "retainedOwnership": true,
+        "noDuplicateExecution": true,
+        "explicitVaultRehydration": true,
+        "confirmedRelease": true
+      }
+    },
+    {
+      "gate": "published-binary-compatibility",
+      "status": "passed",
+      "durationMs": 98236,
+      "initialFreeMiB": 79051,
+      "evidence": {
+        "sourceBinaryRehearsal": false,
+        "publishedBinaryCompatibility": true,
+        "oldClientNewServer": true,
+        "usageRollbackGap": true,
+        "preservedKeys": true,
+        "preservedWorkspace": true
+      }
+    },
+    {
+      "gate": "logout-and-key-revocation",
+      "status": "passed",
+      "durationMs": 248,
+      "initialFreeMiB": 79052,
+      "evidence": {
+        "logout": true,
+        "keyRevoked": true
+      }
+    }
+  ],
+  "releaseCompatibility": {
+    "status": "passed",
+    "baseline": "0.5.0-rc.9",
+    "candidate": "0.5.0-rc.10",
+    "schema": 39,
+    "scope": "Owned single-node amd64 profile; additive schema retained during binary rollback and re-upgrade."
+  },
+  "publishedCandidate": {
+    "version": "0.5.0-rc.10",
+    "manifestSha256": "17febb4f31b9e09e1d98049fcaa39504bde2804950daf74231acf383ac3a69f3",
+    "source": "3ff2aaaffe6d92a8c2db7333f6d8c79a144c5207",
+    "baseline": "0.5.0-rc.9",
+    "schema": 39,
+    "images": {
+      "api": "sha256:aafd9f3e84cf0969f8f88cdc3ea11bb3615b6aef46826ce3d9b372f841f92b08",
+      "web": "sha256:be98e5dae0ec32ebc5fdce21532b40d665e54064f679beffb94c958a17195e88"
+    }
+  },
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-09-12T18:10:13.705Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

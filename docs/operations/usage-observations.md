@@ -1,6 +1,8 @@
 # Usage Observations: Implementation Contract
 
-Implementation in progress, September 12, 2026. Not yet a published feature.
+Published in Developer Preview `0.5.0-rc.10`, September 12, 2026. See the
+[delivery record](../release-notes/0.5.0-rc.10-delivery.md) for artifact identities,
+native evidence and the separate public-lab deployment.
 
 ## Sources and Boundaries
 
@@ -67,7 +69,12 @@ The qualification fixture is 50,000 accepted operations over 30 days with 200
 held slots. The provisional target is p95 history latency below one second,
 without more than a 15% increase in median admission latency over three matched
 baseline/observer trials on the same disposable PostgreSQL runner. These are
-acceptance budgets, not public latency guarantees. Hosted measurements are pending.
+acceptance budgets, not public latency guarantees. Hosted PostgreSQL run
+[34705192495](https://github.com/nabilblk/h-sandbox/actions/runs/34705192495)
+passed all 14 scenarios: ten history queries measured p95 **337 ms**, and the
+matched observer trials passed both admission and cleanup budgets. Final release
+CI [34708352422](https://github.com/nabilblk/h-sandbox/actions/runs/34708352422)
+also passed the required PostgreSQL gate.
 
 The PostgreSQL fixture is pinned to GitHub-hosted Ubuntu 24.04 and PostgreSQL
 16.15. It uses a separate observer pool, three alternating baseline/observer
@@ -76,11 +83,13 @@ cycles discarded, and compares the median of each pair's measured medians. Both
 admission and confirmed cleanup have a 15% regression budget. Ten measured
 history queries follow two warmups with 50,000 readiness rows as well as
 operation rows. Relation sizes including indexes are emitted as numeric evidence.
-These tests are written, **not executed** in this local-only session.
+Measured relation sizes including indexes were 18,513,920 bytes for readiness
+observations, 47,800,320 for the operational records and 434,176 for holds.
+Those controlled-fixture sizes are not production storage or WAL guarantees.
 
 At that reference scale, readiness storage adds about 1,667 rows/day before
-30-day retention. Its actual bytes/row and index/WAL overhead must be measured;
-no storage-size guarantee is inferred from the schema. In continuous service,
+30-day retention. Production index/WAL overhead and workload distribution still
+need operator measurements; no storage-size guarantee is inferred from the schema. In continuous service,
 coverage uses one extendable interval rather than 8,640 new rows per day. Discovery
 and pruning use fixed, database-clock cutoffs per pass so timestamp indexes remain
 usable. No timestamp-only discovery cursor can skip an earlier, late-committing
@@ -93,9 +102,10 @@ window. Backlogs expose pending count/age; they do not authorize more capacity.
 
 ## Compatibility and Failure Handling
 
-Migration 039 is additive. Existing capacity-aware rc.9 writers can continue
-using migration 038's contract; that compatibility still requires the planned
-published-release test. Never run rc.8 writers against these schemas. Migration
+Migration 039 is additive. Capacity-aware rc.9 writers retained migration 038's
+contract in the published rc.9/rc.10 compatibility test. Schema 039 stayed
+installed throughout rollback and re-upgrade; no down-migration was tested.
+Never run rc.8 writers against these schemas. Migration
 index locks are bounded to three seconds, statements to 30 seconds; migration
 failure rolls the transaction back. There is no generic down-migration promise.
 
@@ -119,14 +129,15 @@ authorization boundary. CPU consumption and billable compute remain unavailable.
 | Binary / schema / client combination | Contract and evidence |
 | --- | --- |
 | Published rc.9 / schema 038 / rc.9 clients | Previously qualified reference install; history absent. See the existing rc.9 receipts. |
-| Source candidate / schema 039 / source-packed clients | Local contract/browser checks; PostgreSQL and native execution pending. Not a published version. |
-| rc.9 binaries / schema 039 retained | Intended additive-schema rehearsal, not yet qualified. History endpoint absent and observer stopped. Never remove capacity schema 038. |
-| Source candidate re-upgraded / schema 039 | Must preserve previous observations and expose the old-binary interval as a gap. Prepared native test, not executed. |
-| Actual new published version / rc.9 binary rollback / published clients | Release gate still open. Source tarballs and same-version Helm configuration rollback do not satisfy it. |
+| Source candidate / schema 039 / source-packed clients | All 11 gates passed in native run 34707522766, including private metrics and real first-task output. Not published-artifact evidence. |
+| rc.9 binaries / schema 039 retained | Passed in the source-native rehearsal. History absent and observer stopped; existing capacity, keys and files retained. Never remove schema 038. |
+| Source candidate re-upgraded / schema 039 | Historical fingerprint preserved and old-binary interval exposed as a collection gap in that rehearsal. |
+| Published rc.10 / published clients | Installation, first task, CLI/SDK work, real history, encrypted recovery and provider-loss gates passed in run 34708761898. Its final compatibility check failed; that run is not full qualification. |
+| Published rc.9 -> rc.10 -> rc.9 -> rc.10 / schema 039 retained | All 11 gates and cleanup passed in run 34709727741. Older SDK/new API, keys, capacity, files and history preserved; old-binary interval remains a gap. Qualified only on the named single-node amd64/local-path fixture. |
 
-The initial implementation was verified locally without publication or deployment.
-The owner has now authorized hosted qualification and delivery. The native first-task,
-replacement-database, published compatibility and enabled private-monitoring
-profile still require evidence. Run only the isolated, guarded harness after
-approval; never use a populated lab as the destructive fixture. See [release operations](../ci-release.md#usage-candidate-qualification)
-and [the unreleased draft](../release-notes/usage-observations-draft.md).
+Source-native evidence is [run 34707522766](https://github.com/nabilblk/h-sandbox/actions/runs/34707522766).
+Published-pair evidence is [retained separately](evidence/standalone-34709727741.json).
+The compatibility harness imports the older SDK without initializing a second
+Playwright runtime; the rerun qualified the unchanged published bundle. Never use
+a populated lab as the destructive fixture. See
+[release operations](../ci-release.md#usage-candidate-qualification).

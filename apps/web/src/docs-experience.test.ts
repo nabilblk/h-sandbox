@@ -120,7 +120,7 @@ test("CLI quickstart extracts the ID from progress output and cleans up on comma
 
 test("vision distinguishes runtime ownership, metadata, files and current limitations", () => {
   const markup = renderToStaticMarkup(docPages.find((page) => page.id === "vision-architecture")!.body);
-  for (const phrase of ["OpenSandbox is the current integrated runtime provider", "RuntimeProvider contract", "one real execution adapter", "not a supported live migration", "not Kubernetes exec", "PostgreSQL", "metadata", "workspace volumes", "not an agent framework", "restricted OpenShift", "still pending", "0.5.0-rc.9"]) {
+  for (const phrase of ["OpenSandbox is the current integrated runtime provider", "RuntimeProvider contract", "one real execution adapter", "not a supported live migration", "not Kubernetes exec", "PostgreSQL", "metadata", "workspace volumes", "not an agent framework", "restricted OpenShift", "still pending", "0.5.0-rc.10"]) {
     assert.ok(markup.includes(phrase), phrase);
   }
   assert.equal([...markup.matchAll(/class="docs-diagram /g)].length, 2);
