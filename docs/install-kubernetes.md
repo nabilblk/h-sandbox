@@ -36,9 +36,12 @@ The public guide walks through:
 The reference pins Harakiri `0.5.0-rc.9` and OpenSandbox chart
 `0.2.2-harakiri.2`. See the [candidate notes](release-notes/0.5.0-rc.9.md)
 and artifact receipt attached to its GitHub release. Do not reuse rc.8 overlays.
-The native reference is Linux/arm64 on one k0s node with local-path storage.
-Multi-architecture images are not proof of native amd64 acceptance, HA or
-arbitrary CSI-driver compatibility.
+Native amd64 installation, published CLI/SDK workloads and encrypted recovery
+also passed on a disposable k0s runner; see the
+[coordinated recovery evidence](operations/standalone-recovery.md). The earlier
+arm64 reference uses one k0s node with local-path storage. The guide imports the
+published multi-architecture OpenCode index, not the earlier ARM64-only digest.
+Neither profile certifies HA or arbitrary CSI-driver compatibility.
 
 There is no customer bundle or BackgroundAgent dependency. The current runtime
 requires cluster-scoped CRDs/RBAC and network privileges for native egress. Do

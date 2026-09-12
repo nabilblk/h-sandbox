@@ -4,15 +4,15 @@ This is a qualification harness, not a second installer. It consumes the public
 reference configuration, published chart archives, immutable application image
 digests and integrity-checked npm tarballs pinned in `versions.json`.
 
-**Current evidence: native amd64 installation of published rc.9, real OIDC,
-published CLI/SDK tasks, admission denial, routes and workspace reuse pass.
-Coordinated database/workspace/encrypted Vault recovery passes, including
-missing/wrong-key rejection.** Run 34658975916 then stopped before provider
-state-loss injection because the harness expected a gateway header on a
-server-proxy endpoint. That fixture assumption is corrected; rehydration,
-configuration rollback and final revocation await qualification.
-See [PR 42](https://github.com/nabilblk/h-sandbox/pull/42)
-and its per-run receipts. Local contracts alone are not native acceptance evidence.
+**Current evidence: all seven configured native gates and cleanup passed in
+[run 34659892741](https://github.com/nabilblk/h-sandbox/actions/runs/34659892741).**
+This includes real OIDC, published CLI/SDK tasks, admission, routes, retained files,
+coordinated encrypted recovery, missing/wrong-key rejection, provider interruption,
+state rehydration, configuration rollback and revocation. The
+[receipt is retained in Git](../../docs/operations/evidence/standalone-34659892741.json).
+Distinct-release/schema rollback remains untested. See
+[PR 42](https://github.com/nabilblk/h-sandbox/pull/42); no new release or deployment
+is implied. Local contracts alone are not native acceptance evidence.
 
 ## Isolation
 

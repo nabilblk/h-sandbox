@@ -3,18 +3,29 @@
 This runbook defines the recovery contract for a standalone Harakiri installation.
 It does not certify a profile merely because its commands or tests exist.
 
-**Evidence status, September 11, 2026:** isolated native amd64 installation,
-browser OIDC onboarding, published CLI/SDK tasks, protected routes, admission
-denial and retained workspace reuse passed in
-[run 34658975916](https://github.com/nabilblk/h-sandbox/actions/runs/34658975916).
-Coordinated restoration of both databases and workspace storage also passed,
-including real encrypted Vault use and missing/wrong-key rejection. The next
-gate stopped before provider state-loss injection because the harness expected
-a gateway header on a server-proxy endpoint; that fixture assumption is being
-corrected. State rehydration, final revocation and configuration rollback are
-not yet qualified; see the per-run results in
-[PR 42](https://github.com/nabilblk/h-sandbox/pull/42). HA, arbitrary CSI
-drivers and unchanged restricted OpenShift remain outside this qualification.
+**Evidence status, September 12, 2026:** all seven configured native amd64 gates
+and cleanup passed in
+[run 34659892741](https://github.com/nabilblk/h-sandbox/actions/runs/34659892741),
+using published rc.9, the published AMD64 OpenCode image, k0s and local-path
+storage. The [passing receipt](evidence/standalone-34659892741.json) is retained
+in Git; the [earlier partial receipt](evidence/standalone-34658975916.json)
+preserves the server-proxy fixture failure beside its successful recovery checks.
+No application image was rebuilt or published to obtain these results.
+
+| Gate | Native result |
+| --- | --- |
+| Anonymous installation and identity | Passed: published artifacts, browser OIDC/S256 onboarding and scoped key |
+| Published clients | Passed: native OpenCode executable, CLI/SDK tasks, protected route, admission denial, idempotency and retained files |
+| Coordinated encrypted recovery | Passed: both databases on new storage, old database stopped, files restored to an empty replacement PVC, original identity/key retained |
+| Wrapping keys | Passed: missing/wrong keys reject attachment without changing the encrypted envelope; correct key restores actual HTTPS injection |
+| Provider interruption and state loss | Passed: surviving execution/ownership, once-only command, explicit rehydration of the removed provider binding |
+| Configuration upgrade/rollback | Passed within the same rc.9 chart/images, retaining keys, files and admission |
+| Logout, key revocation and cleanup | Passed, including removal of private runner material |
+| Distinct-release/schema rollback | **Not tested:** no safe capacity-compatible published pair has been selected |
+
+These results are in [PR 42](https://github.com/nabilblk/h-sandbox/pull/42), not
+a new release or live deployment. HA, arbitrary CSI drivers, complete cluster
+disaster recovery and unchanged restricted OpenShift remain outside this qualification.
 See [the delivery record](../release-notes/0.5.0-rc.9-delivery.md) and
 [the acceptance harness](../../infra/acceptance/README.md).
 
@@ -203,7 +214,8 @@ been qualified under all failures.
 | Workspace/Vault downgrade | Never remove metadata, attachment ownership or wrapping keys while retained state depends on them. |
 
 The current acceptance workflow exercises a genuine Helm resource-request
-change and rollback **within the same rc.9 images**. It must not be cited as
+change and rollback **within the same rc.9 images**, which passed in the native
+run above. It must not be cited as
 cross-release or schema rollback evidence. A distinct capacity-compatible
 published pair is still required; the receipt records this as `not_tested`.
 See [execution capacity maintenance](execution-capacity.md),

@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-11
 **Author**: Codex with the maintainer
-**Status**: In Progress; native client workflow and encrypted recovery passed, provider state-loss/rollback qualification running
+**Status**: In Progress; all configured native gates passed, distinct-release compatibility remains open
 **Priority**: Next owner-approved milestone
 **Estimated effort**: Several engineering sessions, bounded by real acceptance evidence
 
@@ -41,14 +41,14 @@ deployment is part of this milestone without separate authorization.
   file integrity and a real encrypted Vault source remain usable.
 - [x] Missing and incorrect wrapping keys fail closed without printing secret
   payloads, injecting credentials or silently replacing the encrypted source.
-- [ ] Provider interruption/state-loss and control-plane restarts preserve
+- [x] Provider interruption/state-loss and control-plane restarts preserve
   execution reservations and workspace ownership; recovery does not duplicate
   workloads or release capacity before authoritative absence.
 - [ ] A documented compatible upgrade/rollback path is exercised with existing
   state. No pre-capacity writer is reopened against migration 038.
 - [ ] Public operator documentation contains executable procedures, support
   limits and a sanitized receipt. Failures are retained beside corrections.
-- [ ] Test resources and credentials are cleaned; the public lab, tunnel and
+- [x] Test resources and credentials are cleaned; the public lab, tunnel and
   unrelated local processes remain untouched and their read-only health checks
   still pass.
 
@@ -77,7 +77,8 @@ deployment is part of this milestone without separate authorization.
    HTTP authorization URLs, encrypted backup payloads or access tokens.
 5. Runtime work uses Harakiri/provider APIs only. Kubernetes operator access is
    limited to platform installation, explicit fault injection, backup/restore
-   and read-only infrastructure evidence, not sandbox execution/files/logs.
+   and redacted startup diagnostics, never execution or file operations inside
+   sandbox pods. Detached archive helpers and PostgreSQL are operator resources.
 6. Destructive commands require the test cluster identity, recorded owned
    namespace/resource and a coherent backup when appropriate. No broad host
    pruning or cleanup of unidentified resources.
@@ -137,7 +138,7 @@ baseline, not an availability or resource-capacity guarantee.
 - [x] Demonstrate that a backup catalog alone does not satisfy this phase.
 
 ### Phase 3: Interruption and Provider-State Recovery
-**Status**: In Progress; interruption passed before the state-loss fixture stopped
+**Status**: Complete; native run 34659892741
 
 - [x] Implement guarded provider API interruption, writer restart, SQL/read API
   ownership observations, once-only command markers and owned binding loss.
@@ -146,13 +147,13 @@ baseline, not an availability or resource-capacity guarantee.
   components while a known owned runtime survives.
 - [x] Confirm capacity/workspace ownership remains held during uncertainty and
   no second execution is admitted or silently provisioned.
-- [ ] Remove only the owned provider Vault entry via its administrative API,
+- [x] Remove only the owned provider Vault entry via its administrative API,
   then prove normal inspection/rehydration restores the desired binding.
-- [ ] Verify native identity, first task and credential use after recovery,
+- [x] Verify native identity, first task and credential use after recovery,
   then confirmed termination and slot release.
 
 ### Phase 4: Upgrade, Documentation and Closure
-**Status**: Runbook and configuration-rollback harness implemented; release-pair gate open
+**Status**: Native configuration rollback passed; documentation prepared in PR; release-pair gate open
 
 - [x] Add a genuine Helm resource-request upgrade/rollback check within rc.9,
   explicitly separate from cross-release or schema compatibility evidence.
@@ -161,13 +162,14 @@ baseline, not an availability or resource-capacity guarantee.
 
 - [ ] Select a genuinely capacity-compatible rollback pair; do not infer
   compatibility from chart revision numbers or use pre-capacity rc.8.
-- [ ] Exercise preservation of keys/origins/state and explicit writer ordering.
+- [x] Exercise preservation of keys/origins/state and explicit writer ordering.
 - [ ] Publish technical/operator procedures and a current supported-profile
   table, with real commands and exact release evidence.
-- [ ] Correct defects with focused regression coverage. A changed source build
+- [x] Correct defects with focused regression coverage. A changed source build
   is recorded separately from acceptance of published rc.9 artifacts.
-- [ ] Verify cleanup, retained evidence and unchanged public-lab health; close
-  this new plan only when the criteria pass or the owner explicitly rescope them.
+- [x] Verify cleanup, retained evidence and unchanged public-lab health.
+- [ ] Close this new plan only when the release-compatibility criteria pass or
+  the owner explicitly rescope them; merge/deployment needs separate approval.
 
 ## Implementation Boundaries
 
@@ -253,6 +255,23 @@ browser state to unblock diagnostics.
   dedicated acceptance branch/PR and isolated runner; remote execution is next.
 
 ## Native Execution Log
+
+- [Run 34659892741](https://github.com/nabilblk/h-sandbox/actions/runs/34659892741)
+  passed all seven configured gates and both cleanup layers. Published-client
+  workflow took 78s, coordinated encrypted recovery 288s, provider interruption
+  and state rehydration 56s, and real Helm configuration upgrade/rollback 50s.
+  Logout and key revocation passed. No duplicate command, lost file, plaintext
+  source exposure, premature reservation release or changed wrapping key was
+  accepted. The [sanitized receipt](../../operations/evidence/standalone-34659892741.json)
+  is committed separately from expiring CI artifacts; the previous failed
+  receipt is retained too. No application/runtime image or chart was modified.
+  This establishes the tested single-node profile, not cross-release rollback,
+  HA/CSI recovery, process snapshots or unchanged restricted OpenShift support.
+- Documentation correction: the installation article also pinned the earlier
+  ARM64-only template. Use its already published multi-architecture index from
+  [catalog run 34347806269](https://github.com/nabilblk/h-sandbox/actions/runs/34347806269)
+  so both node architectures can resolve a matching image. The acceptance runner
+  pins and verifies the AMD64 child. No tag was replaced or artifact published.
 
 - [Run 34658975916](https://github.com/nabilblk/h-sandbox/actions/runs/34658975916)
   passed installation (132s), OIDC onboarding, published CLI/SDK workflow (83s)
@@ -365,14 +384,12 @@ browser state to unblock diagnostics.
   Regression coverage checks this without accessing a cluster; native recovery
   remains unexecuted until the first-runtime gate passes.
 
-## Completion Notes
-
 - [Run 34654783311](https://github.com/nabilblk/h-sandbox/actions/runs/34654783311)
   captured a provider HTTP 504 during the first creation, with Kubernetes image
   pulls/container starts and later cleanup. The earlier scheduler and permission
   warnings did not recur. The reference configuration left the provider's default
   60-second startup deadline implicit. A bounded 180-second deadline and read-only
-  startup observations are now under test; this is not yet a confirmed fix.
+  startup observations were subsequently tested; this was not a confirmed fix.
   The failed run cleaned both owned namespaces and private material successfully.
 - [Run 34656885037](https://github.com/nabilblk/h-sandbox/actions/runs/34656885037)
   disproved the longer-timeout hypothesis. At 21 seconds the main `sandbox`
@@ -381,10 +398,18 @@ browser state to unblock diagnostics.
   Removed the timeout experiment, added exit-code/bootstrap classifications and
   fail-fast SDK wait cancellation on a nonzero main-container exit. This is a
   failing gate, not an alternative successful execution path. Native recovery is
-  still unreached; runtime startup is the current investigation.
+  still unreached at that point; the architecture mismatch was identified later.
 
-In progress. Native installation, OIDC, scoped-client workflow and coordinated
-encrypted recovery have passed. The current run must still establish provider
-state rehydration, configuration rollback and final key revocation. The milestone remains
-in `active/` until those acceptance gates and the separately identified
-release-compatibility gate are closed or explicitly rescoped by the owner.
+## Completion Notes
+
+All configured native acceptance gates passed, including encrypted recovery,
+provider-state rehydration, configuration rollback and final revocation. Local
+contracts (31) and public documentation tests (6) pass; standard CI passed on
+the tested branch. Retained receipts passed a scoped secret scan. After the
+successful run, public web/API/OIDC all returned HTTP 200 with the public issuer,
+and the five original tunnel/forward PIDs were unchanged.
+Changes and retained receipts are prepared in PR 42, not merged, released or
+deployed. The public lab and its tunnel/forward processes were not modified.
+The plan remains in `active/` because a distinct capacity-compatible published
+upgrade/rollback pair is unavailable. Closing that gate requires a future
+compatible release or explicit owner rescoping, not rerunning pre-capacity rc.8.

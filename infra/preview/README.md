@@ -18,7 +18,7 @@ The configuration helper creates files only. Installation uses ordinary
 
 | Component | Selected version or requirement |
 | --- | --- |
-| Reference node | Linux/arm64, k0s `v1.36.3+k0s.2`, Ubuntu 24.04, 8 CPUs / 16 GiB RAM / 80 GiB disk |
+| Reference node | Linux/arm64, k0s `v1.36.3+k0s.2`, Ubuntu 24.04, 8 CPUs / 16 GiB RAM / 80 GiB disk; separate native amd64 hosted-runner evidence below |
 | Storage | `local-path` default StorageClass; single-node evaluation, not highly available storage |
 | Database | PostgreSQL `16.15-alpine`, separate Harakiri and Keycloak roles/databases |
 | Identity | Keycloak `26.7.3`, browser PKCE, explicit API audience, operator-owned credentials |
@@ -31,7 +31,9 @@ The configuration helper creates files only. Installation uses ordinary
 The listed hardware is a reference allocation, not a measured minimum or a
 concurrency guarantee. Image builds and larger agents require additional space
 and memory. The release receipt, not this configuration table, establishes which
-acceptance tests have passed. An arm64 test does not certify amd64 execution.
+acceptance tests have passed. An arm64 test does not certify amd64 execution;
+the [isolated acceptance record](../../docs/operations/standalone-recovery.md)
+now includes actual amd64 tasks and encrypted recovery.
 
 Use the [rc.9 release notes](../../docs/release-notes/0.5.0-rc.9.md) and attached
 artifact receipt. The chart selects matching versioned API/web images. Earlier
@@ -212,8 +214,9 @@ See the [storage recovery procedure](../../docs/persistent-workspace-operations.
 The [coordinated recovery runbook](../../docs/operations/standalone-recovery.md)
 covers identity, encrypted Vault sources, workspace storage, missing-key tests
 and upgrade boundaries together. The new [isolated amd64 acceptance harness](../acceptance/README.md)
-has passed fresh native installation and OIDC onboarding; native sandbox execution
-and destructive recovery are still under qualification. A green
+has passed fresh native installation, OIDC, CLI/SDK tasks, coordinated
+encrypted recovery, provider-state rehydration, configuration rollback and
+revocation, with a retained sanitized receipt. A green
 configuration-rollback test is not cross-release/schema compatibility evidence.
 
 Before installing any build containing migration 038, follow the

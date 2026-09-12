@@ -11,6 +11,7 @@
     "opensandbox": { "version": "0.2.2-harakiri.2", "digest": "sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34" }
   },
   "opencodeImage": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3",
+  "opencodeImageIndex": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:089f32fa775f6b5865a277da8bd00a2dc1d2784e55eb27a7072e22cf2ea1577b",
   "k0s": {
     "version": "v1.36.3+k0s.2",
     "url": "https://github.com/k0sproject/k0s/releases/download/v1.36.3%2Bk0s.2/k0s-v1.36.3%2Bk0s.2-amd64",
