@@ -17,7 +17,7 @@ test("Kubernetes installation is discoverable and exports the exact operator com
   expect(markdown).toContain("node install-check.mjs");
   expect(markdown).toContain("Native amd64 installation, CLI/SDK tasks and encrypted recovery passed");
   expect(markdown).toContain("docs/operations/standalone-recovery.md");
-  expect(markdown).toContain("a distinct compatible release pair remains untested");
+  expect(markdown).toContain("binary rollback and re-upgrade with schema 039 retained");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#docs/overview");
   await page.getByLabel("Browse docs").selectOption("install-kubernetes");
@@ -63,7 +63,7 @@ test("recovery is an operator guide with matching downloads and guarded commands
   await page.getByRole("navigation", { name: "Reading progression" }).getByRole("link", { name: /Next/ }).click();
   await expect(page).toHaveURL(/#docs\/backup-recovery$/);
   await expect(page.getByRole("heading", { name: "Backup and recovery", exact: true })).toBeVisible();
-  await expect(page.locator("article")).toContainText("cross-release/schema rollback remains untested");
+  await expect(page.locator("article")).toContainText("The published rc.9 to rc.10 upgrade, binary rollback and re-upgrade passed");
   const code = await page.locator(".doc-code").filter({ hasText: "Reference database restore" }).locator("pre code").textContent();
   expect(code).toContain('"$TARGET_CLUSTER_UID" != "$SOURCE_CLUSTER_UID"');
   const response = await request.get("/docs/backup-recovery.md");

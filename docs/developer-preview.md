@@ -12,8 +12,8 @@ future possibilities, not capabilities advertised by this preview.
 
 ## Select a Version
 
-The current candidate is **0.5.0-rc.9**. Use its
-[release notes](release-notes/0.5.0-rc.9.md) and attached artifact receipt for
+The current candidate is **0.5.0-rc.10**. Use its
+[release notes](release-notes/0.5.0-rc.10.md) and attached artifact receipt for
 coordinates and acceptance scope. API, web, chart and SDK/CLI must match.
 Candidates use `next`; `latest` remains `0.4.0`. Do not use the older stable tag
 as a substitute. Source changes are not automatically published or deployed.
@@ -34,12 +34,21 @@ source. Three isolated runs passed, including missing/wrong-key rejection,
 provider interruption, explicit credential rehydration and cleanup. See the
 [public backup and recovery guide](https://sb.harakiri.io/#docs/backup-recovery)
 and [retained receipt](operations/evidence/standalone-34659892741.json).
-Same-release configuration rollback passed; distinct-release/schema rollback
-remains untested. This supplements, rather than rewrites, the earlier evidence.
+Same-release configuration rollback passed in that historical run; it did not
+qualify a distinct application-release pair. The [RC.10 delivery record](release-notes/0.5.0-rc.10-delivery.md)
+separately records the new candidate, usage observations and compatibility checks.
+Published RC.10 qualification passed all 11 gates and cleanup in
+[run 34709727741](https://github.com/nabilblk/h-sandbox/actions/runs/34709727741):
+rc.9 upgrade, binary rollback and re-upgrade with schema 039 retained, older
+SDK/new API compatibility, real history, encrypted recovery and provider loss.
+No destructive schema downgrade, arbitrary release pair or wider storage
+topology is implied by that single-node native amd64 profile.
 
 ## Operator Path
 
-The [native Kubernetes installation guide](../infra/preview/README.md) contains
+The [public Kubernetes installation guide](https://sb.harakiri.io/#docs/install-kubernetes)
+starts from the pinned rc.9 bootstrap and shows a checksum-verified rc.10 upgrade,
+preserving operator values. The [versioned reference inputs](../infra/preview/README.md) contain
 the exact dependency manifests, private configuration generation, chart pulls,
 Helm commands and cleanup boundaries. It uses a separate cluster and no
 development passwords. Its release receipt records actual acceptance results.
@@ -77,8 +86,8 @@ Harakiri's API, never direct pod access. The private `@harakiri/shared` package
 is not a consumer dependency.
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
-npm install -g @h-sandbox/cli@0.5.0-rc.9
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install -g @h-sandbox/cli@0.5.0-rc.10
 harakiri --version
 ```
 
@@ -107,16 +116,19 @@ task times separately without assuming a predetermined time-to-first-task.
 | --- | --- |
 | Authorization | Human admin operations remain separate from scoped API-key principals. Key scopes do not grant more than the creator's current role |
 | Capacity | rc.9 enforces execution slots atomically. Existing organizations require migration 038 inventory activation; CPU/RAM/storage quotas remain infrastructure responsibilities |
-| Usage | Retained record counts are available. Historical peaks/concurrency, billed compute, measured runtime and cold-start observations are unavailable |
+| Usage | rc.10 adds unique accepted operations, held slot-seconds/peak and independently observed readiness with explicit coverage gaps. These are not billed compute, CPU measurements, exact runtime duration or a provider cold-start benchmark |
 | Workspace | Exclusive file-volume attachment; no retained processes, shared concurrent mount or automatic backup |
 | Vault/egress | Require provider-supported enforcement. No plaintext-secret or Kubernetes-exec fallback. Credential revocation does not erase existing files or cancel detached work |
 | Restricted OpenShift | No SCC modifications are promised. Vault/mutable egress requiring `NET_ADMIN` are unsupported; full restricted-profile acceptance remains pending |
 | Artifacts | Exact receipts and checksums, not blanket provenance/signature or vulnerability-free claims |
 
-The usage correction shipped in the current candidate adds `coverage` and empty `series` to
-`GET /v1/usage`. Deprecated numeric fields stay zero for compatibility; consult
-`coverage.unavailableMetrics` before rendering them. Missing coverage on older
-servers does not establish accurate history. See [API semantics](api.md).
+The legacy `GET /v1/usage` contract retains `coverage` and empty `series`.
+Deprecated numeric fields stay zero for compatibility; consult
+`coverage.unavailableMetrics` before rendering them. Use `GET /v1/usage/history`,
+SDK `usageHistory()` or CLI `harakiri usage` for the new observations, with an
+`org:read` key. Collection starts at its recorded epoch, without a fabricated
+backfill. See [usage observations](https://sb.harakiri.io/#docs/usage-observations)
+and [API semantics](api.md).
 
 ## Contribute and Report
 

@@ -47,6 +47,12 @@ test("installation pins reviewed artifacts, separates configuration and protects
   assert.doesNotMatch(commands.configure, /kubectl|helm/);
   assert.match(commands.runtime, /opensandbox-0.2.2-harakiri.2.tgz/);
   assert.match(commands.controlPlane, /harakiri-0.5.0-rc.9.tgz/);
+  assert.match(commands.upgradePrepare, /9fb11b234041ef55c518850fb60572d66921f4441dc524bbaa67cae6c94428a7/);
+  assert.match(commands.upgradePrepare, /09a1cf96511381bafe47e0e3b450e0bf311d7e5bf00c38a30e02180fd0d73f4a/);
+  assert.match(commands.upgradePrepare, /assert.equal\(actual, digest/);
+  assert.match(commands.upgradeApply, /before-rc10-values.yaml/);
+  assert.match(commands.upgradeApply, /0.5.0-rc.10-values.yaml/);
+  assert.doesNotMatch(commands.upgradeApply, /reuse-values|rollback/);
   assert.doesNotMatch(commands.controlPlane, /rc\.8-public-values/);
   const pins = JSON.parse(fs.readFileSync(new URL("../../../infra/acceptance/versions.json", import.meta.url), "utf8"));
   const image = commands.template.match(/core\.campus\.clusterdiali\.me\/harakiri\/templates\/opencode@sha256:[a-f0-9]{64}/)![0];
@@ -59,7 +65,7 @@ test("installation pins reviewed artifacts, separates configuration and protects
 
 test("profile limits and upgrade hazards stay visible instead of implying production certification", () => {
   const markdown = renderDocMarkdown(kubernetesInstallDocs);
-  for (const phrase of ["Native amd64 installation, CLI/SDK tasks and encrypted recovery passed", "execution slots are enforced", "historical usage is not measured", "NET_ADMIN", "does not fit an unchanged restricted OpenShift SCC", "local-path", "realm-scoped service account", "no application build", "does not contact Kubernetes", "not a complete data erasure", "encrypted Vault rows", "not expected behavior"]) {
+  for (const phrase of ["Native amd64 installation, CLI/SDK tasks and encrypted recovery passed", "execution slots are enforced", "historical control-plane observations", "not CPU utilization or billing", "NET_ADMIN", "does not fit an unchanged restricted OpenShift SCC", "local-path", "realm-scoped service account", "no application build", "does not contact Kubernetes", "not a complete data erasure", "encrypted Vault rows", "not expected behavior"]) {
     assert.ok(markdown.includes(phrase), phrase);
   }
   const chartReadme = fs.readFileSync(new URL("../../../infra/charts/harakiri/README.md", import.meta.url), "utf8");

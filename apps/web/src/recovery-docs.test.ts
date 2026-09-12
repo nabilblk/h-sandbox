@@ -46,15 +46,34 @@ test("recovery claims require retained evidence and preserve untested boundaries
   assert.equal(receipt.cleanup.status, "passed");
   assert.equal(receipt.releaseCompatibility.status, "not_tested");
   const markdown = renderDocMarkdown(recoveryDocs);
-  for (const phrase of ["not encrypted", "different cluster UID", "Unreachable is not absent", "cross-release/schema rollback remains untested", "pre-capacity rc.8 writers", "not an LLM inference test", "not processes or memory", "no uptime SLA", "does not establish a new compatible application-release pair"]) {
+  for (const phrase of ["not encrypted", "different cluster UID", "Unreachable is not absent", "No schema down-migration was tested", "pre-capacity rc.8 writers", "not an LLM inference test", "not processes or memory", "no uptime SLA", "does not establish a new compatible application-release pair"]) {
     assert.ok(markdown.includes(phrase), phrase);
   }
+});
+
+test("published binary compatibility claims match the immutable RC.10 receipt", () => {
+  const receipt = JSON.parse(fs.readFileSync(new URL("../../../docs/operations/evidence/standalone-34709727741.json", import.meta.url), "utf8"));
+  assert.equal(receipt.status, "configured_gates_passed");
+  assert.equal(receipt.results.length, 11);
+  assert.ok(receipt.results.every((result: { status: string }) => result.status === "passed"));
+  assert.equal(receipt.cleanup.status, "passed");
+  assert.equal(receipt.releaseCompatibility.status, "passed");
+  assert.equal(receipt.releaseCompatibility.baseline, "0.5.0-rc.9");
+  assert.equal(receipt.releaseCompatibility.candidate, "0.5.0-rc.10");
+  assert.equal(receipt.releaseCompatibility.schema, 39);
+  assert.equal(receipt.publishedCandidate.source, "3ff2aaaffe6d92a8c2db7333f6d8c79a144c5207");
+  assert.equal(receipt.publishedCandidate.manifestSha256, "17febb4f31b9e09e1d98049fcaa39504bde2804950daf74231acf383ac3a69f3");
+  const markdown = renderDocMarkdown(recoveryDocs);
+  assert.match(markdown, /The published rc\.9 to rc\.10 upgrade, binary rollback and re-upgrade passed/);
+  assert.match(markdown, /schema 039/i);
+  assert.match(markdown, /standalone-34709727741.json/);
+  assert.doesNotMatch(markdown, /cross-release\/schema rollback remains untested/);
 });
 
 test("entry points agree on the current candidate without rewriting release history", () => {
   for (const id of ["overview", "quickstart", "vision-architecture", "developer-preview"]) {
     const markdown = renderDocMarkdown(docPages.find(page => page.id === id)!);
-    assert.match(markdown, /0\.5\.0-rc\.9/, id);
+    assert.match(markdown, /0\.5\.0-rc\.10/, id);
     assert.doesNotMatch(markdown, /(?:current|recorded) Developer Preview is (?:\*\*)?0\.5\.0-rc\.8/i);
     assert.doesNotMatch(markdown, /@h-sandbox\/(?:sdk|cli)@0\.5\.0-rc\.8/);
     assert.match(markdown, /0\.4\.0/);

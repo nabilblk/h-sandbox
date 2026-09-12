@@ -2,11 +2,12 @@
 
 September 12, 2026. **Historical preparation checkpoint, not a delivery receipt.**
 Baseline: `8f25dfa2f1b9cd3e06db10e3eda87268f686917c`, published rc.9/schema 038.
-The candidate is now assigned `0.5.0-rc.10`; see [its product notes](0.5.0-rc.10.md).
+The candidate shipped as `0.5.0-rc.10`; see [its product notes](0.5.0-rc.10.md)
+and [the delivery record](0.5.0-rc.10-delivery.md) for current evidence.
 The local-only statements below describe the pre-authorization checkpoint, not
 the current publication or deployment status. CI run 34705192495 subsequently
-passed the real PostgreSQL suite and all eight required checks. Native source
-qualification is in progress; artifacts have not been published at this update.
+passed the real PostgreSQL suite and all eight required checks. The local-only
+and unpublished statements below are retained as historical preparation notes.
 
 ## Changes Prepared
 

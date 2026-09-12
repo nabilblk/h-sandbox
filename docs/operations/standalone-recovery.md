@@ -3,7 +3,7 @@
 This runbook defines the recovery contract for a standalone Harakiri installation.
 It does not certify a profile merely because its commands or tests exist.
 
-**Evidence status, September 12, 2026:** all seven configured native amd64 gates
+**Baseline evidence, September 12, 2026:** all seven configured native amd64 gates
 and cleanup passed in
 [run 34659892741](https://github.com/nabilblk/h-sandbox/actions/runs/34659892741),
 using published rc.9, the published AMD64 OpenCode image, k0s and local-path
@@ -21,7 +21,7 @@ No application image was rebuilt or published to obtain these results.
 | Provider interruption and state loss | Passed: surviving execution/ownership, once-only command, explicit rehydration of the removed provider binding |
 | Configuration upgrade/rollback | Passed within the same rc.9 chart/images, retaining keys, files and admission |
 | Logout, key revocation and cleanup | Passed, including removal of private runner material |
-| Distinct-release/schema rollback | **Not tested:** no safe capacity-compatible published pair has been selected |
+| Distinct-release/schema rollback | Not tested in this older rc.9 receipt; see the separately qualified pair below |
 
 These results merged in [PR 42](https://github.com/nabilblk/h-sandbox/pull/42).
 The [public recovery guide](https://sb.harakiri.io/#docs/backup-recovery) subsequently
@@ -32,13 +32,26 @@ See [the September 12 delivery record](../release-notes/2026-09-12-standalone-re
 [the original rc.9 delivery](../release-notes/0.5.0-rc.9-delivery.md) and
 [the acceptance harness](../../infra/acceptance/README.md).
 
+**Published RC.10 qualification:** all 11 gates and cleanup passed in
+[run 34709727741](https://github.com/nabilblk/h-sandbox/actions/runs/34709727741).
+The [retained receipt](evidence/standalone-34709727741.json) verifies actual
+published rc.9 -> rc.10 -> rc.9 -> rc.10, retaining schema 039. It adds real first
+UI task output, independent history, authenticated private metrics, recovery of
+the historical fingerprint, old SDK/new API compatibility and an explicit
+old-binary observation gap. It reruns encrypted/provider recovery and cleanup.
+This is a single-node Linux amd64, k0s/local-path qualification, not a destructive
+schema downgrade, arbitrary version-pair or cluster-wide disaster-recovery guarantee.
+
 ## One Recovery Point, Four Kinds of State
 
-The [unpublished usage source contract](usage-observations.md) adds migration 039
-observations and coverage windows to Harakiri's database recovery point. Its
-source-binary rehearsal is prepared, not executed or covered by the rc.9 receipt
-above. A source rehearsal is not published-release rollback qualification. Keep
-the candidate status and compatibility matrix separate from this older evidence.
+The [RC.10 usage contract](usage-observations.md) adds migration 039 observations
+and coverage windows to Harakiri's database recovery point. Its
+[source-native rehearsal](evidence/standalone-34707522766.json) passed all 11
+gates, including an unchanged historical fingerprint after replacement-database
+recovery and a visible collection gap across rc.9 binary rollback/re-upgrade.
+A source rehearsal is not published-release rollback qualification. See the
+[RC.10 delivery record](../release-notes/0.5.0-rc.10-delivery.md) for the separate
+published-artifact gates; the older rc.9 receipt is not rewritten.
 
 | State | Why it must be preserved |
 | --- | --- |
@@ -222,11 +235,15 @@ been qualified under all failures.
 | rc.9 database back to pre-capacity rc.8 writers | Not supported. Migration 038 reservations would not be enforced by older writers. |
 | Workspace/Vault downgrade | Never remove metadata, attachment ownership or wrapping keys while retained state depends on them. |
 
-The current acceptance workflow exercises a genuine Helm resource-request
-change and rollback **within the same rc.9 images**, which passed in the native
-run above. It must not be cited as
-cross-release or schema rollback evidence. A distinct capacity-compatible
-published pair is still required; the receipt records this as `not_tested`.
+The baseline acceptance mode exercises a genuine Helm resource-request change
+and rollback **within the same rc.9 images**. That old receipt remains
+`not_tested` for cross-release compatibility. The distinct published RC.10 mode
+now passes rc.9 -> rc.10 -> rc.9 -> rc.10 while retaining schema 039, source
+history, capacity reservations, workspace files and keys. Older rc.9 binaries
+stop collection; their interval must appear as a gap after re-upgrade. The
+unknown history route returns exact `403 forbidden` under rc.9's authorization
+pre-handler, not a reason to expand key scopes. No schema down-migration or
+different release pair is covered by this result.
 See [execution capacity maintenance](execution-capacity.md),
 [workspace operations](../persistent-workspace-operations.md) and
 [Vault operations](../credential-vault-operations.md).
