@@ -13,7 +13,7 @@ import { databaseEvidence, eventEvidence, logEvidence, podEvidence } from "./dia
 import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
 import { wrappingKeyCase } from "./recovery.mjs";
 import { observeStartup, runtimeStateEvidence } from "./startup.mjs";
-import { usageFingerprint } from "./usage-history.mjs";
+import { assertLegacyHistoryUnavailable, usageFingerprint } from "./usage-history.mjs";
 import { installUsageCandidate } from "./usage-candidate.mjs";
 import { prepareEmptyCatalog } from "./first-task.mjs";
 import { installPublishedUsage, publishedUsageIdentity } from "./usage-published.mjs";
@@ -31,6 +31,13 @@ test("published qualification requires immutable identity and cluster ownership"
 
 test("empty-catalog fixture cannot alter an unowned cluster", () => {
   assert.throws(() => prepareEmptyCatalog({ guard() { throw new Error("unowned cluster"); }, k() { assert.fail("No database mutation before ownership"); } }), /unowned cluster/);
+});
+
+test("rc.9 history absence requires its exact fail-closed route contract", () => {
+  assertLegacyHistoryUnavailable({ status: 403, code: "forbidden" });
+  for (const error of [{ status: 401, code: "unauthorized" }, { status: 500, code: "internal_error" }, { status: 403, code: "other" }, { status: 404, code: "not_found" }, new TypeError("fetch failed")]) {
+    assert.throws(() => assertLegacyHistoryUnavailable(error), /unexpected history error/);
+  }
 });
 
 test("all harness modules parse without bootstrapping a cluster", () => {

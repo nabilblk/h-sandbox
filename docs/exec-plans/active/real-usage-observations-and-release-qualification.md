@@ -369,6 +369,16 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 
 ## Tech Debt Incurred
 
+Native run 34706547877 passed installation, the real first UI task exactly once,
+authenticated private metrics, SDK/CLI workload, unique history, encrypted
+database/workspace recovery, historical fingerprint recovery and provider loss.
+Its final binary rollback check incorrectly expected 404 for rc.9's unknown
+history route. Source inspection and a read-only authenticated rc.9 lab probe
+confirm its fail-closed authorization returns `403 forbidden`, while legacy
+usage returns 200. The harness now checks that exact baseline contract, with
+negative tests rejecting unrelated failures; authorization is unchanged.
+The failed receipt and successful earlier gates are retained, not relabeled.
+
 Native run 34705729975 reached the literal first task and detected a real UI
 defect: detached command status stores no stdout, but the wizard read that field
 instead of the logs endpoint. The frontend now reads logs after terminal status

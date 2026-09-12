@@ -6,6 +6,12 @@ import { verifyOldClient } from "./usage-published.mjs";
 
 export const usageFingerprint = history => sha256(JSON.stringify({ window: history.window, summary: history.summary, buckets: history.buckets, gaps: history.coverage.gaps }));
 
+export function assertLegacyHistoryUnavailable(error) {
+  // rc.9 denies unknown routes in its authorization pre-handler, before 404.
+  // Call only after authenticated legacy usage/capacity reads have succeeded.
+  check(error.status === 403 && error.code === "forbidden", "Older API returned an unexpected history error");
+}
+
 export async function freezeUsage(ctx, operator) {
   const options = { from: ctx.read("first-task.json").from, to: new Date().toISOString(), resolution: "1m" };
   check(typeof operator.client.usageHistory === "function", "Source SDK lacks history support");
@@ -46,7 +52,7 @@ export async function usageBinaryRehearsal(ctx, operator) {
   check(Array.isArray(summary.series) && summary.series.length === 0, "Legacy usage summary was redefined");
   let absent = false;
   try { await client.usageHistory({ from: gapFrom, to: new Date().toISOString(), resolution: "1m" }); }
-  catch (error) { check(error.status === 404, "Older API returned an unexpected history error"); absent = true; }
+  catch (error) { assertLegacyHistoryUnavailable(error); absent = true; }
   check(absent, "Baseline unexpectedly claims the new history capability");
   await delay(35000);
   ctx.helm(["upgrade", "harakiri", ctx.candidateChart ?? "infra/charts/harakiri", "-n", platformNamespace, "-f", ctx.file("harakiri-values.json"), "--wait", "--timeout", "10m"]);
