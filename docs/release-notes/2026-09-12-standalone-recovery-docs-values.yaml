@@ -1,0 +1,7 @@
+# Optional web-only overlay for an already configured rc.9 installation.
+# Apply after preserved operator values and the original rc.9 digest overlay.
+# Review the rendered diff; no non-web resource/configuration should change.
+# Does not migrate the database, upgrade the API, or define a rollback release pair.
+image:
+  web:
+    tag: "docs-recovery-20260912-13de13ac37d5@sha256:517a3f41cf5d1a48226ce2bb0e152e9d0a5443a5331b8298d9a47181c5300cf7"

@@ -23,10 +23,13 @@ No application image was rebuilt or published to obtain these results.
 | Logout, key revocation and cleanup | Passed, including removal of private runner material |
 | Distinct-release/schema rollback | **Not tested:** no safe capacity-compatible published pair has been selected |
 
-These results are in [PR 42](https://github.com/nabilblk/h-sandbox/pull/42), not
-a new release or live deployment. HA, arbitrary CSI drivers, complete cluster
-disaster recovery and unchanged restricted OpenShift remain outside this qualification.
-See [the delivery record](../release-notes/0.5.0-rc.9-delivery.md) and
+These results merged in [PR 42](https://github.com/nabilblk/h-sandbox/pull/42).
+The [public recovery guide](https://sb.harakiri.io/#docs/backup-recovery) subsequently
+shipped in a web-only documentation image, not a new application bundle. HA,
+arbitrary CSI drivers, complete cluster disaster recovery and unchanged restricted
+OpenShift remain outside this qualification.
+See [the September 12 delivery record](../release-notes/2026-09-12-standalone-recovery-docs.md),
+[the original rc.9 delivery](../release-notes/0.5.0-rc.9-delivery.md) and
 [the acceptance harness](../../infra/acceptance/README.md).
 
 ## One Recovery Point, Four Kinds of State

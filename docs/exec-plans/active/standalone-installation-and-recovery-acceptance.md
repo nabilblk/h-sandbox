@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-11
 **Author**: Codex with the maintainer
-**Status**: In Progress; all configured native gates passed, distinct-release compatibility remains open
+**Status**: In Progress; native acceptance and public documentation delivered, distinct-release compatibility remains open
 **Priority**: Next owner-approved milestone
 **Estimated effort**: Several engineering sessions, bounded by real acceptance evidence
 
@@ -25,9 +25,9 @@ The owner explicitly requires no conflict with the running local k0s cluster or
 other machine processes. Destructive tests belong to a disposable remote runner,
 never the populated lab, customer cluster, local databases or Docker daemons.
 The owner approved a dedicated acceptance branch/PR and native amd64 tests on
-an isolated GitHub-hosted runner. This authorizes focused fixes and repeat runs
-on that branch, not merging it. No release, stable-tag promotion or public-lab
-deployment is part of this milestone without separate authorization.
+an isolated GitHub-hosted runner. That initial approval authorized focused fixes
+and repeat runs on the branch, not merging, releasing or deploying it. Separate
+delivery authorization and its outcome are recorded below.
 
 On September 12 the owner authorized merging, releasing the relevant components
 and updating public documentation. PR 42 merged as `6830fe5`. Phase 5 publishes
@@ -53,11 +53,11 @@ destructive local acceptance and unrelated process/infrastructure changes remain
   workloads or release capacity before authoritative absence.
 - [ ] A documented compatible upgrade/rollback path is exercised with existing
   state. No pre-capacity writer is reopened against migration 038.
-- [ ] Public operator documentation contains executable procedures, support
+- [x] Public operator documentation contains executable procedures, support
   limits and a sanitized receipt. Failures are retained beside corrections.
-- [x] Test resources and credentials are cleaned; the public lab, tunnel and
-  unrelated local processes remain untouched and their read-only health checks
-  still pass.
+- [x] Test resources and credentials are cleaned; destructive acceptance left
+  the public lab, tunnel and unrelated processes untouched. The separately
+  approved Phase 5 web update preserved non-web workloads and public origins.
 
 ## Non-Goals
 
@@ -160,38 +160,46 @@ baseline, not an availability or resource-capacity guarantee.
   then confirmed termination and slot release.
 
 ### Phase 4: Upgrade, Documentation and Closure
-**Status**: Native configuration rollback passed; documentation prepared in PR; release-pair gate open
+**Status**: Native configuration rollback passed; public documentation delivered in Phase 5; release-pair gate open
 
 - [x] Add a genuine Helm resource-request upgrade/rollback check within rc.9,
   explicitly separate from cross-release or schema compatibility evidence.
 - [x] Add coordinated recovery documentation and link it from the public
-  Kubernetes source article and reference installation guide. Not deployed.
+  Kubernetes article and reference installation guide; delivered in Phase 5.
 
 - [ ] Select a genuinely capacity-compatible rollback pair; do not infer
   compatibility from chart revision numbers or use pre-capacity rc.8.
 - [x] Exercise preservation of keys/origins/state and explicit writer ordering.
-- [ ] Publish technical/operator procedures and a current supported-profile
+- [x] Publish technical/operator procedures and a current supported-profile
   table, with real commands and exact release evidence.
 - [x] Correct defects with focused regression coverage. A changed source build
   is recorded separately from acceptance of published rc.9 artifacts.
 - [x] Verify cleanup, retained evidence and unchanged public-lab health.
 - [ ] Close this new plan only when the release-compatibility criteria pass or
-  the owner explicitly rescope them; merge/deployment needs separate approval.
+  the owner explicitly rescopes them. Documentation delivery does not close it.
 
 ### Phase 5: Owner-Approved Documentation Delivery
-**Status**: In progress
+**Status**: Complete; merged, published and verified live on September 12
 
 - [x] Merge PR 42 after all ten checks and three complete isolated native runs.
 - [x] Choose a component-only web image rather than republishing unchanged
   API/SDK/CLI/chart versions or overwriting immutable rc.9 artifacts.
-- [ ] Publish a first-class recovery guide, align current-version entry points,
+- [x] Publish a first-class recovery guide, align current-version entry points,
   record the qualification in the public changelog and test navigation/exports.
-- [ ] Merge reviewed documentation, publish the web image on hosted CI and
+- [x] Merge reviewed documentation, publish the web image on hosted CI and
   verify native manifests and source identity anonymously.
-- [ ] Deploy only the web image through the existing rc.9 chart and preserved
+- [x] Deploy only the web image through the existing rc.9 chart and preserved
   operator values; reject other rendered resource/configuration changes.
-- [ ] Verify public docs, downloads, responsive navigation and public OIDC;
+- [x] Verify public docs, downloads, responsive navigation and public OIDC;
   record the exact image, Helm revision and release-note addendum.
+
+PR 43 merged as `13de13a`; hosted publication run `34692615632` passed with chart
+publication skipped. The public lab moved from Helm revision 39 to 40 with exactly
+one rendered change, the web image. The [delivery receipt](../../release-notes/2026-09-12-standalone-recovery-docs.md)
+records immutable source/digests, unchanged operator state, browser checks and the
+brief supervised web-forward 502 handoff before recovery. The rc.9 GitHub release
+has a dated qualification addendum; original artifacts and npm channels remain
+unchanged. This does not create a distinct application release for Phase 4.
 
 ## Implementation Boundaries
 
@@ -226,6 +234,7 @@ credential use and sandbox lifecycle must remain behind their public contracts.
 | 2026-09-11 | Prefer a disposable native amd64 hosted runner | Real architecture proof without local k0s/process contention | Another local VM, emulated amd64, testing in populated lab |
 | 2026-09-11 | Published application bundle, separate versioned harness | Distinguish install evidence from unpublished code fixes | Rebuilding all images before acceptance |
 | 2026-09-11 | Owner authorized the isolated GitHub runner and dedicated branch/PR | Run destructive acceptance without touching the Mac or its services | Local or shared-cluster execution remains excluded |
+| 2026-09-12 | Owner authorized merge, relevant publication and public documentation | Deliver verified operator knowledge without manufacturing an API/npm/chart version | Web-only digest-pinned image; no immutable rc.9 artifact replacement |
 
 ## Sources
 
@@ -318,8 +327,9 @@ browser state to unblock diagnostics.
   architecture before installation. No image build, publication, runtime patch,
   privilege change or timeout extension is needed. Cleanup passed.
 
-- [PR 42](https://github.com/nabilblk/h-sandbox/pull/42) contains the dedicated
-  acceptance branch. No merge, publication or public-lab deployment is requested.
+- [PR 42](https://github.com/nabilblk/h-sandbox/pull/42) originally contained the
+  dedicated acceptance branch only. It subsequently merged on September 12 with
+  separate owner authorization; see Phase 5 for the bounded documentation delivery.
 - [Run 34649412463](https://github.com/nabilblk/h-sandbox/actions/runs/34649412463)
   failed before application installation: fresh k0s advertised the hosted VM's
   interface address instead of localhost. The guard refused it, and private
@@ -433,8 +443,14 @@ passing evidence and the explicit cross-release limitation. Retained receipts
 passed a scoped secret scan. After the
 successful run, public web/API/OIDC all returned HTTP 200 with the public issuer,
 and the five original tunnel/forward PIDs were unchanged.
-Changes and retained receipts are prepared in PR 42, not merged, released or
-deployed. The public lab and its tunnel/forward processes were not modified.
+PR 42 and the public documentation PR 43 are now merged. The subsequent web-only
+publication and Helm revision 40 deployment passed identity/diff guards and live
+documentation checks at 1440, 390 and 320 pixels. Public login still uses the
+expected issuer and PKCE S256. Existing Secret values, origins, non-web deployment
+specifications and non-web pod identities are unchanged. No local destructive
+acceptance or manual tunnel/API/auth restart was performed; the web forward
+briefly returned 502 during replacement and then recovered. The dated release
+addendum and delivery receipt preserve that failure and the original evidence.
 The plan remains in `active/` because a distinct capacity-compatible published
 upgrade/rollback pair is unavailable. Closing that gate requires a future
 compatible release or explicit owner rescoping, not rerunning pre-capacity rc.8.
