@@ -1,9 +1,12 @@
 # Usage Observations: Unreleased Draft
 
-September 12, 2026. **Local source implementation, not a delivery receipt.**
+September 12, 2026. **Historical preparation checkpoint, not a delivery receipt.**
 Baseline: `8f25dfa2f1b9cd3e06db10e3eda87268f686917c`, published rc.9/schema 038.
-Candidate version and immutable artifacts are unassigned. npm `latest`/`next`,
-running clusters and public origins are unchanged by this work.
+The candidate is now assigned `0.5.0-rc.10`; see [its product notes](0.5.0-rc.10.md).
+The local-only statements below describe the pre-authorization checkpoint, not
+the current publication or deployment status. CI run 34705192495 subsequently
+passed the real PostgreSQL suite and all eight required checks. Native source
+qualification is in progress; artifacts have not been published at this update.
 
 ## Changes Prepared
 

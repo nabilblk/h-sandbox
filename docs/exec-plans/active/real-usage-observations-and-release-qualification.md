@@ -204,7 +204,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: The literal first-task button works on a clean supported install; clicking Open dashboard alone cannot satisfy this gate.
 
 ### Phase 2: Implement Durable History and Bounded Observation
-**Status**: In Progress; implementation and local unit tests pass, PostgreSQL acceptance pending
+**Status**: PostgreSQL implementation and isolated concurrency/scale acceptance passed; native recovery pending
 
 - [x] Add the minimum additive schema and typed services agreed in Phase 0. Migration 039 is additive and transaction-bounded; actual binary/schema acceptance remains a separate gate.
 - [x] Implement organization-scoped interval/window queries and operation counts with deterministic bucket boundaries, carry-in, open holds and terminal-outcome semantics.
@@ -212,7 +212,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 - [x] Add bounded retention/projection maintenance, restart recovery and collector health signals. Observation cleanup never prunes operational holds or operations.
 - [x] Add real PostgreSQL tests for concurrent workers, claims/reclaims, partial commits, duplicate discovery, later operation updates, terminal races, source retention and restart gaps. They require an explicit isolated database and hosted-runner guard; they were not run locally.
 - [x] Run existing local admission/fault/readiness/lease/workspace regression suites. Live/isolated database tests remain skipped by their safety gates, not counted as passes.
-- [ ] Execute the PostgreSQL suite and measure database pool use, statement plans, collector throughput and maintenance delay against the frozen baseline. Replacement-database proof remains in native acceptance.
+- [x] Execute the PostgreSQL suite and measure bounded queries, collector passes and admission/cleanup delay against the frozen baseline. Run 34705192495 passed 14 scenarios, three matched trials and the 50,000-operation query budget. This is a controlled fixture, not production sizing. Replacement-database proof remains in native acceptance.
 
 **Exit gate**: Truthful history can be queried after a restart with the browser closed; observer failures do not corrupt capacity or delay confirmed cleanup.
 
@@ -241,7 +241,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: Alert behavior and the software monitoring path are proved; receipts distinguish that proof from any still-unverified infrastructure headroom.
 
 ### Phase 5: Run Isolated Feature, Migration and Recovery Acceptance
-**Status**: In Progress; guarded source rehearsal added, no native execution yet
+**Status**: In Progress; first native run failed on an incorrect empty-catalog fixture assumption, corrected run pending
 
 - [x] Extend the existing native amd64 harness using run-owned resources and candidate artifacts in a disposable environment. The opt-in `usage_source` workflow input builds unpublished artifacts only on its hosted runner.
 - [ ] Execute create, retry, concurrent denial, async readiness, pause/resume, restore and confirmed delete; assert unique operation counts, held intervals and declared readiness coverage against known test events.
@@ -254,7 +254,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: Feature and compatibility acceptance passes on the isolated reference profile, with resource/performance measurements and no local workload changes.
 
 ### Phase 6: Complete Documentation Across Audiences
-**Status**: In Progress; concept, tutorial, references and operator pages added as source previews
+**Status**: In Progress; public concepts/tutorial/references and rc.10 candidate documentation prepared, delivery evidence pending
 
 - [x] Add a first-class public Usage and capacity-observation concept page: metric definitions, units, examples, coverage, retention, scope and non-billing boundaries. It must not exist only inside a tutorial.
 - [x] Update installation/getting-started for the source-preview first-template workflow; add an executable SDK tutorial and isolated gap procedure. Examples typecheck, including against locally packed packages; live execution and cleanup remain acceptance gates.
@@ -368,6 +368,8 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 | 2026-09-12 | PR 45 initial CI identified a database fixture error. | Run 34704935987 passed source/history scanning, browser contracts, image builds, chart, SDK/CLI conformance and release dry-run. The new PostgreSQL suite stopped in organization setup because its shared UUID/text parameter needed an explicit UUID cast. Corrected the fixture; no acceptance assertion was removed. Source-native run 34704934903 remains separate. |
 
 ## Tech Debt Incurred
+
+Release preparation (2026-09-12): selected unused `0.5.0-rc.10` coordinates after anonymous npm/Harbor absence checks. Updated matching manifests, chart and public documentation. Added separately guarded published-manifest qualification and real private scrape checks; their receipt fields cannot be satisfied by the source-only mode. No registry artifact or local cluster was changed by these preparations.
 
 Qualification checkpoint (2026-09-12): CI run 34705192495 passed every required job, including all 14 PostgreSQL scenarios. Ten history queries over 50,000 operations/200 open holds measured p95 337 ms; three matched observer trials stayed within the 15% admission/cleanup budget. Native run 34704934903 installed source images but its empty-catalog assertion timed out: migrations 004/008 create six built-ins independently of `SEED_ON_BOOT`. The harness now archives only those legacy seed versions in its guarded disposable database before testing empty-catalog setup. No production catalog was changed; native qualification is still pending.
 

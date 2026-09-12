@@ -13,7 +13,7 @@ test("usage has discoverable concept, tutorial and operator docs with explicit r
     assert.ok(searchDocPages(docPages, page.title).some((doc) => doc.id === page.id));
   }
   const concept = renderToStaticMarkup(usageObservationsDocs.body).replace(/<[^>]*>/g, " ");
-  for (const term of ["not yet published", "slot-seconds", "sampleCount", "unobservedCount", "1,500", "org:read", "usage_history_limit_exceeded", "CPU", "billing"]) assert.ok(concept.includes(term), term);
+  for (const term of ["0.5.0-rc.10", "latest remains 0.4.0", "slot-seconds", "sampleCount", "unobservedCount", "1,500", "org:read", "usage_history_limit_exceeded", "CPU", "billing"]) assert.ok(concept.includes(term), term);
   const operator = renderToStaticMarkup(operatorMonitoringDocs.body).replace(/<[^>]*>/g, " ");
   for (const term of ["not a TLS endpoint", "free inodes", "physical disk", "qualified", "NetworkPolicy"]) assert.ok(operator.includes(term), term);
 });

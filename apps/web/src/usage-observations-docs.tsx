@@ -18,7 +18,7 @@ export const usageObservationsDocs: DocPage = {
   toc: ["Availability", "What is measured", "Time and coverage", "Read your history", "Interpret readiness", "Limits and errors", "Collection and recovery"],
   body: <>
     <h2>Availability</h2>
-    <aside className="docs-notice"><p><strong>Source preview, not yet published.</strong> Requires migration 039 and the corresponding API, scheduler, SDK and CLI. Published 0.5.0-rc.9 has current capacity but no history endpoint. Do not install rc.9 expecting this feature. A delivery receipt will identify the qualified release.</p></aside>
+    <aside className="docs-notice"><p><strong>Developer Preview: 0.5.0-rc.10.</strong> Requires migration 039 and matching API, scheduler, SDK and CLI versions. Earlier rc.9 provides current capacity but no history endpoint. Install the exact candidate or the npm next channel; stable latest remains 0.4.0. Read the <a href="https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.10">release notes and artifact receipt</a> for installation and qualification boundaries.</p></aside>
     <p>The dashboard's Usage page keeps live <a href="#docs/execution-capacity">execution capacity</a> separate from historical activity. Retained record totals are not the selected period's accepted work.</p>
     <h2>What is measured</h2>
     <table className="docs-data-table"><thead><tr><th scope="col">Metric</th><th scope="col">Meaning</th><th scope="col">Unit and source</th></tr></thead><tbody>
@@ -74,13 +74,13 @@ export const usageTutorialDocs: DocPage = {
   toc: ["Before you start", "Use the first-task wizard", "Create measured activity", "Check the observations", "Exercise a collection gap", "Clean up"],
   body: <>
     <h2>Before you start</h2>
-    <p>This tutorial needs the source-preview history build described in <a href="#docs/usage-observations">Usage observations</a>, matching SDK/CLI, an authorized key with <code>org:read</code>, <code>sandboxes:read</code>, <code>sandboxes:write</code> and <code>templates:read</code>, and one approved ready Linux template with a shell. Use a dedicated test organization; do not lower a shared organization's capacity.</p>
+    <p>This tutorial needs version 0.5.0-rc.10 or a compatible later release described in <a href="#docs/usage-observations">Usage observations</a>, matching SDK/CLI, an authorized key with <code>org:read</code>, <code>sandboxes:read</code>, <code>sandboxes:write</code> and <code>templates:read</code>, and one approved ready Linux template with a shell. Use a dedicated test organization; do not lower a shared organization's capacity.</p>
     <h2>Use the first-task wizard</h2>
-    <p>On an empty installation, Get started ends with an empty catalog. An admin follows <a href="#docs/install-kubernetes">the template import procedure</a>; a member asks an admin to import an approved image. Return to onboarding and refresh the catalog. Choose the installed template, which need not be named Python, and run the first task.</p>
+    <p>Get started lists eligible installed templates. Legacy installations may include built-ins; eligibility alone is not proof that an image meets your organization's policy. If there is no eligible template, an admin follows <a href="#docs/install-kubernetes">the template import procedure</a>; a member asks an admin to import an approved image. Return to onboarding and refresh the catalog. Choose the approved template, which need not be named Python, and run the first task.</p>
     <p>The task prints <code>Harakiri is ready</code> from the template's working directory. The sandbox has a five-minute lifetime. Check first task continues observing the same accepted sandbox and command after a timeout. Stop waiting only disconnects the wait; Open sandbox shows the runtime for inspection or explicit termination. When browser session storage is available, recovery is scoped to the current user and organization in the same browser tab. Without it, keep the page open and retain the displayed sandbox ID.</p>
     <h2>Create measured activity</h2>
     <p>For a programmatic check, use <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-usage-observations">the complete SDK usage example</a>. It creates one sandbox using a stable intent, retries the same create to verify identity, executes one finite command, waits for an observation, and confirms termination in a finally block.</p>
-    <CodeBlock language="bash">{`# From a checkout containing the source-preview example and matching packages:
+    <CodeBlock language="bash">{`# From the matching release checkout with dependencies installed:
 export HARAKIRI_TEMPLATE=your-approved-template
 pnpm --filter @harakiri/api exec tsx --tsconfig ../../examples/tsconfig.json ../../examples/sdk-usage-observations/index.ts
 harakiri usage --period 24h
@@ -102,7 +102,7 @@ export const operatorMonitoringDocs: DocPage = {
   toc: ["Two separate surfaces", "Enable private metrics", "Scrape and network boundaries", "Alerts and storage ownership", "Recovery and release qualification"],
   body: <>
     <h2>Two separate surfaces</h2>
-    <p>This page describes the source-preview implementation, not published rc.9. Product history uses PostgreSQL and organization authorization. Optional Prometheus process metrics use a separate private listener and a dedicated operator bearer token. Process counters reset on restart and cannot replace historical usage.</p>
+    <p>Available in the 0.5.0-rc.10 candidate. Product history uses PostgreSQL and organization authorization. Optional Prometheus process metrics use a separate private listener and a dedicated operator bearer token. Process counters reset on restart and cannot replace historical usage.</p>
     <h2>Enable private metrics</h2>
     <p>No monitor CRD, metrics service, ingress or extra credential is required by a default install. Collection itself is enabled independently. Add the following non-secret settings to your reviewed values file only after creating an operator-owned Secret with a random token of at least 32 characters. Do not put the token in Helm values or a public repository.</p>
     <CodeBlock language="yaml">{`usage:
