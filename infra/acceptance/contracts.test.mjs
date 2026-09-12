@@ -15,6 +15,11 @@ import { wrappingKeyCase } from "./recovery.mjs";
 import { observeStartup, runtimeStateEvidence } from "./startup.mjs";
 import { usageFingerprint } from "./usage-history.mjs";
 import { installUsageCandidate } from "./usage-candidate.mjs";
+import { prepareEmptyCatalog } from "./first-task.mjs";
+
+test("empty-catalog fixture cannot alter an unowned cluster", () => {
+  assert.throws(() => prepareEmptyCatalog({ guard() { throw new Error("unowned cluster"); }, k() { assert.fail("No database mutation before ownership"); } }), /unowned cluster/);
+});
 
 test("all harness modules parse without bootstrapping a cluster", () => {
   for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {

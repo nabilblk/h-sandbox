@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { check, origins, pinned } from "./context.mjs";
 import { platformNamespace } from "./operator.mjs";
+import { prepareEmptyCatalog } from "./first-task.mjs";
 
 // Invoked only after the existing runner/cluster ownership guard. Images and
 // tarballs stay on this disposable machine; no publish command is used.
@@ -41,6 +42,7 @@ export async function installUsageCandidate(ctx) {
   }
   ctx.execute("npm", ["install", "--prefix", ctx.consumer, "--ignore-scripts", "--no-audit", "--no-fund", ...archives], "Install isolated source consumer archives", { env: consumerEnv });
   ctx.candidateUsage = true;
+  prepareEmptyCatalog(ctx);
   const evidence = { source: process.env.GITHUB_SHA, published: false, baseline: pinned.version, schema: 39, images };
   ctx.save("usage-candidate.json", evidence);
   const response = await fetch(`${origins.api}/health`, { signal: AbortSignal.timeout(10000) });

@@ -1,4 +1,14 @@
 import { check, origins, pinned, until } from "./context.mjs";
+import { query } from "./operator.mjs";
+
+export function prepareEmptyCatalog(ctx) {
+  ctx.guard();
+  // Legacy migrations create built-ins even with SEED_ON_BOOT=0. Archive only
+  // those seed versions on this owned runner to exercise the empty-catalog UX.
+  query(ctx, `UPDATE templates t SET status = 'archived'
+    FROM template_versions v WHERE v.id = t.latest_version_id
+      AND t.organization_id IS NULL AND v.metadata->>'source' = 'seed';`);
+}
 
 export async function importAcceptanceTemplate(ctx, client) {
   const templateId = `acceptance-opencode-${ctx.identity.id}`;
@@ -13,6 +23,7 @@ export async function importAcceptanceTemplate(ctx, client) {
 }
 
 export async function firstTask(ctx, page, request) {
+  console.log("Browser step: verify explicit empty-catalog fixture");
   const empty = page.getByRole("link", { name: "Set up the first template", exact: true });
   await empty.waitFor();
   check(await page.getByRole("button", { name: "Run first sandbox", exact: true }).isDisabled(), "Empty catalog permits first execution");
@@ -22,6 +33,7 @@ export async function firstTask(ctx, page, request) {
     getTemplateBuild: id => request(`/v1/template-builds/${id}`)
   };
   const templateId = await importAcceptanceTemplate(ctx, client);
+  console.log("Browser step: run first task with imported native template");
   await page.getByRole("button", { name: "Refresh templates", exact: true }).click();
   await page.getByLabel("First sandbox template").selectOption(templateId);
   let commandPosts = 0, creates = 0;

@@ -28,7 +28,7 @@ export async function operatorSession(ctx) {
   let pkce = false;
   let step = "login";
   const responses = [];
-  const accountPaths = new Set(["/v1/me", "/v1/org/settings", "/v1/org/capacity", "/v1/api-keys", "/v1/me/onboarding/complete"]);
+  const accountPaths = new Set(["/v1/me", "/v1/org/settings", "/v1/org/capacity", "/v1/api-keys", "/v1/me/onboarding/complete", "/v1/templates"]);
   const mark = name => { step = name; console.log(`Browser step: ${name}`); };
   const keyIds = [];
   page.on("response", response => {
@@ -109,6 +109,7 @@ export async function operatorSession(ctx) {
     const onboardingKey = await keyResponse;
     check(onboardingKey.status() === 201, "Onboarding API key creation failed");
     keyIds.push((await onboardingKey.json()).key.id);
+    mark("first sandbox task");
     const taskEvidence = ctx.candidateUsage ? await firstTask(ctx, page, request) : {};
     // The standalone catalog is intentionally empty; import a verified template next.
     mark("complete onboarding and open dashboard");

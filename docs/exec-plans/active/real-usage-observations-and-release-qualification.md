@@ -369,6 +369,8 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 
 ## Tech Debt Incurred
 
+Qualification checkpoint (2026-09-12): CI run 34705192495 passed every required job, including all 14 PostgreSQL scenarios. Ten history queries over 50,000 operations/200 open holds measured p95 337 ms; three matched observer trials stayed within the 15% admission/cleanup budget. Native run 34704934903 installed source images but its empty-catalog assertion timed out: migrations 004/008 create six built-ins independently of `SEED_ON_BOOT`. The harness now archives only those legacy seed versions in its guarded disposable database before testing empty-catalog setup. No production catalog was changed; native qualification is still pending.
+
 No new operational ledger is introduced. The observer deliberately ends first-ready observation after ten minutes and reports remaining cycles as unobserved; high-scale throughput must be measured before expanding the supported profile. Existing legacy numeric placeholders remain for wire compatibility. Source clients retain the existing package version until approved release preflight assigns a new version; they must not be published under the rc.9 identity. Missing physical Harbor evidence and published compatibility remain explicit open gates.
 
 ## Completion Notes
