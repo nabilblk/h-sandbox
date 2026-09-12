@@ -46,6 +46,18 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            {{- if .Values.metrics.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+            {{- end }}
+          {{- if .Values.metrics.enabled }}
+          env:
+            - name: OPERATOR_METRICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metrics.tokenSecret.name | quote }}
+                  key: {{ .Values.metrics.tokenSecret.key | quote }}
+          {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "harakiri.configMapName" . }}

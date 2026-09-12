@@ -105,12 +105,17 @@ Run CI, inspect the diff and exclude secrets/private evidence. Commit and push
 reviewed source before creating its immutable tag:
 
 ```bash
-git tag -a v0.5.0-rc.8 -m 'Harakiri 0.5.0-rc.8'
-git push origin v0.5.0-rc.8
-gh workflow run release.yml --ref main -f release_ref=v0.5.0-rc.8 -f component=all
-gh workflow run npm-release.yml --ref main -f release_ref=v0.5.0-rc.8 -f tag=next
+: "${RELEASE_VERSION:?Set the reviewed, previously unused candidate version first}"
+git tag -a "v${RELEASE_VERSION}" -m "Harakiri ${RELEASE_VERSION}"
+git push origin "v${RELEASE_VERSION}"
+gh workflow run release.yml --ref main -f "release_ref=v${RELEASE_VERSION}" -f component=all
+gh workflow run npm-release.yml --ref main -f "release_ref=v${RELEASE_VERSION}" -f tag=next
 gh run list --limit 10
 ```
+
+`RELEASE_VERSION` must match the reviewed source manifests. Do not reuse rc.8,
+rc.9 or any other published tag. Check anonymous artifact absence and the current
+registry/package inventories in preflight; a failed lookup is not absence.
 
 The image workflow refuses an existing or unverifiable candidate API, web or
 chart version. It publishes version and source-SHA image tags; stable releases
@@ -145,9 +150,10 @@ original failed workflow green or authorize replacing an immutable version.
 ```bash
 npm view @h-sandbox/sdk dist-tags --json
 npm view @h-sandbox/cli dist-tags --json
-docker pull core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.8
-docker pull core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.8
-helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version 0.5.0-rc.8
+: "${RELEASE_VERSION:?Set the published candidate being verified}"
+docker pull "core.campus.clusterdiali.me/harakiri/harakiri-api:${RELEASE_VERSION}"
+docker pull "core.campus.clusterdiali.me/harakiri/harakiri-web:${RELEASE_VERSION}"
+helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri --version "${RELEASE_VERSION}"
 ```
 
 Repeat consumption with empty registry/npm configuration to prove anonymous
@@ -169,3 +175,43 @@ use versioned Helm artifacts and preserved operator values instead.
 The [launch review](oss-launch-review.md) separates publication safety,
 artifact delivery, clean installation, independent evaluation and announcement.
 Repository visibility and announcement remain separate owner decisions.
+
+## Usage Candidate Qualification
+
+The current usage changes are **unpublished source**, not an extension of the
+rc.9 delivery receipt. They retain the legacy summary and add migration 039,
+history clients, onboarding and optional private monitoring. Keep version
+selection, source/schema rehearsal and published qualification separate.
+
+1. Run ordinary CI, including the disposable PostgreSQL usage suite on Ubuntu
+   24.04/PostgreSQL 16.15, browser fixtures and private monitoring contracts.
+   Retain scale latency, source-table sizes and matched admission/cleanup trials.
+2. After separate hosted-run approval, run the existing standalone workflow with
+   `usage_source=true` on the exact reviewed branch. This builds unpublished
+   candidates on its disposable runner and tests schema 039, first-task execution
+   and replacement-database recovery. It does not prove a published release pair.
+3. Assign a new version only after these gates pass. Record anonymous artifact
+   identities and publish with the existing protected workflows after approval.
+   No extra publishing credential or general release orchestrator is needed.
+4. Pin **both actual published bundles** in the native qualification fixture:
+   rc.9/schema 038 and the new version/schema 039. Use downloaded charts/images and
+   independently installed npm tarballs, not source-built substitutes. Record
+   old client/new server and new client/old server behavior, compatible binary
+   rollback with schema retained, re-upgrade, preserved files/keys/capacity and
+   honest observer gaps. This published-pair fixture is still a required follow-up;
+   the source-mode receipt deliberately cannot mark it qualified.
+5. Attach the approved receipt using the fields in the [draft release record](release-notes/usage-observations-draft.md).
+   Never promote `latest` or mark a release rollback supported on fixture-only
+   evidence. Preserve earlier failed receipts; a later pass is separate evidence.
+
+Release-operation fixtures already cover immutable conflicts, unauthorized or
+unavailable registries, partial publication, transient npm metadata lag and
+bounded read-only verification. Keep these guards; do not retry successful writes
+because a later read failed. Failed image/chart publication needs a new candidate
+version. npm verification-only retries use the mode above and never publish.
+
+Harbor HTTP health and successful artifact writes do not establish physical
+headroom. The storage operator supplies timestamped volume identity, bytes,
+inodes, quota/growth and a named review. Contact: `nabilblk@gmail.com`. Keep this
+evidence explicitly unavailable until provided; no automated pruning or resizing.
+See [private monitoring and storage alerts](operations/operator-monitoring.md).

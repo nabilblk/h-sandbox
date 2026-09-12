@@ -9,7 +9,7 @@ import { documentationAssets, renderDocMarkdown } from "./docs-export.js";
 import { recoveryCommands, recoveryDocs } from "./recovery-docs.js";
 
 test("recovery is discoverable after installation and through operator search", () => {
-  assert.deepEqual(docGroups.find(group => group.title === "Self-hosting")?.pages, ["install-kubernetes", "backup-recovery"]);
+  assert.deepEqual(docGroups.find(group => group.title === "Self-hosting")?.pages.slice(0, 2), ["install-kubernetes", "backup-recovery"]);
   for (const query of ["backup", "wrapping key", "provider interruption", "restore PostgreSQL", "RTO RPO"]) {
     assert.ok(searchDocPages(docPages, query).some(page => page.id === "backup-recovery"), query);
   }

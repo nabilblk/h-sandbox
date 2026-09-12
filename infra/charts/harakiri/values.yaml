@@ -45,6 +45,24 @@ rbac:
   # ClusterRole: read nodes for hot-template image pre-pull (cluster-scoped).
   prepullClusterRole: true
 
+# Optional private process metrics. No public Service/Ingress is created.
+# Keep loopback unless an operator has approved pod-network scrape access.
+metrics:
+  enabled: false
+  host: "127.0.0.1"
+  port: 9130
+  tokenSecret:
+    name: ""
+    key: token
+  podMonitor:
+    enabled: false
+    labels: {}
+    interval: 30s
+
+usage:
+  observerEnabled: true
+  retentionDays: 30
+
 credentialVault:
   encryption:
     # New workspace credentials use envelope encryption with this wrapping-key

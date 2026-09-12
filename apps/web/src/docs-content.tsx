@@ -5,6 +5,7 @@ import { previewDocs } from "./preview-docs";
 import { kubernetesInstallDocs } from "./kubernetes-install-docs";
 import { recoveryDocs } from "./recovery-docs";
 import { capacityDocs } from "./capacity-docs";
+import { usageObservationsDocs, usageTutorialDocs, operatorMonitoringDocs } from "./usage-observations-docs";
 import { authorizationDocs } from "./authorization-docs";
 import { overviewDocs, quickstartDocs } from "./getting-started-docs";
 import { demoTutorialSections } from "./demo-tutorial";
@@ -52,6 +53,9 @@ export const docPages: DocPage[] = [
   kubernetesInstallDocs,
   recoveryDocs,
   capacityDocs,
+  usageObservationsDocs,
+  usageTutorialDocs,
+  operatorMonitoringDocs,
   overviewDocs,
   uiProductTourDocs,
   authorizationDocs,
@@ -361,6 +365,7 @@ try {
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</CodeBlock>
         <p>The CLI resolves explicit flags first, then environment variables, then saved config. Browser sign-in remains Keycloak-owned; CLI automation uses API keys.</p>
         <p><strong>Since 0.5.0-rc.9:</strong> <code>harakiri capacity --json</code> reports execution slots; create/resume accept explicit retry keys. Use a matching capacity-aware API. See <a href="#docs/execution-capacity">execution capacity</a> for the contract and runnable tutorial.</p>
+        <p><strong>Source preview:</strong> <code>harakiri usage --period 24h|7d|30d --json</code> reads historical observations. It requires the matching history API and <code>org:read</code>; it is not included in published rc.9. See <a href="#docs/usage-observations">Usage observations</a>.</p>
         <h2>Lifecycle</h2>
         <CodeBlock language="bash">{`harakiri create --template python-3.12-data --name agent-runner --ttl 600\nharakiri status sbx_... --json\nharakiri renew sbx_...\nharakiri capabilities\nharakiri kill sbx_...`}</CodeBlock>
         <h2>Processes</h2>
@@ -885,6 +890,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <p>Resource operations accept an organization-scoped API key in <code>x-api-key</code> or a valid Keycloak bearer token. Keep API keys on the trusted caller, not in frontend bundles or sandbox files. The organization comes from the authenticated identity.</p>
         <p>Start with <a href="#docs/quickstart">the quickstart</a> for connection setup, <a href="#docs/security-model">the security model</a> for access boundaries, and <a href="#docs/errors-troubleshooting">errors and troubleshooting</a> for failures. Workspace operations have a dedicated <a href="#docs/workspace-reference">API, SDK and CLI reference</a>.</p>
         <p><strong>Since 0.5.0-rc.9:</strong> <code>GET /v1/org/capacity</code> requires <code>org:read</code> and returns execution reservations for the authenticated organization. The <a href="#docs/execution-capacity">capacity reference</a> covers counting, idempotency and revision-checked limit edits.</p>
+        <p><strong>Source preview:</strong> <code>GET /v1/usage/history</code> requires <code>from</code>, <code>to</code>, <code>resolution</code> and <code>org:read</code>. It returns nullable measurements, coverage and UTC buckets; the existing summary remains unchanged. Read <a href="#docs/usage-observations">the metric contract and errors</a> before interpreting the numbers.</p>
         <h2>Templates</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>

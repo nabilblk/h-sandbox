@@ -8,6 +8,8 @@ import { interruption } from "./interruption.mjs";
 import { configurationUpgrade } from "./configuration-upgrade.mjs";
 import { finishReceipt, publicEvidence, publicFailure } from "./receipt.mjs";
 import { diagnostics } from "./diagnostics.mjs";
+import { installUsageCandidate } from "./usage-candidate.mjs";
+import { freezeUsage, verifyRestoredUsage, usageBinaryRehearsal } from "./usage-history.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -35,11 +37,18 @@ async function gate(name, action) {
 }
 try {
   await gate("installation", () => install(ctx));
+  if (process.env.HARAKIRI_USAGE_ACCEPTANCE === "1") {
+    await gate("source-usage-candidate", () => installUsageCandidate(ctx));
+    receipt.sourceCandidate = ctx.read("usage-candidate.json");
+  }
   operator = await gate("oidc-onboarding", () => operatorSession(ctx));
-  const state = await gate("published-client-workflow", () => workload(ctx, operator));
+  const state = await gate(ctx.candidateUsage ? "source-client-workflow" : "published-client-workflow", () => workload(ctx, operator));
+  if (ctx.candidateUsage) await gate("real-usage-observations", () => freezeUsage(ctx, operator));
   await gate("coordinated-encrypted-recovery", () => recovery(ctx, operator, state));
+  if (ctx.candidateUsage) await gate("usage-database-recovery", () => verifyRestoredUsage(ctx, operator));
   await gate("provider-interruption-and-state-loss", () => interruption(ctx, operator));
-  await gate("configuration-upgrade-and-rollback", () => configurationUpgrade(ctx, operator));
+  if (ctx.candidateUsage) await gate("source-binary-schema-rehearsal", () => usageBinaryRehearsal(ctx, operator));
+  else await gate("configuration-upgrade-and-rollback", () => configurationUpgrade(ctx, operator));
   await gate("logout-and-key-revocation", async () => {
     await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
     const response = await fetch(`${origins.api}/v1/templates`, { headers: { "x-api-key": ctx.read("client-key.json").token }, signal: AbortSignal.timeout(10000) });

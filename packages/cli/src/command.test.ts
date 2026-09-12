@@ -174,6 +174,33 @@ test("CLI capacity prints known counts, unknown state and machine-readable data"
   } finally { await api.close(); }
 });
 
+test("CLI usage preserves structured output, permission errors and old-server behavior", async () => {
+  let status = 200;
+  let body: unknown = { window: { timezone: "UTC" }, coverage: { status: "unavailable" }, buckets: [] };
+  const api = await startMockApi((request) => {
+    assert.equal(request.method, "GET");
+    const url = new URL(request.path, "http://fixture.test");
+    assert.equal(url.pathname, "/v1/usage/history");
+    assert.equal(url.searchParams.get("resolution"), "15m");
+    assert.equal(request.headers["x-api-key"], "hk_test_cli");
+    return { status, body };
+  });
+  try {
+    const result = await runCli(["usage", "--period", "7d", "--json"], { api });
+    assert.equal(result.exitCode, 0); assert.deepEqual(JSON.parse(result.stdout), body);
+    status = 403; body = { error: "forbidden", message: "Requires org:read" };
+    const denied = await runCli(["usage", "--period", "7d", "--json"], { api });
+    assert.equal(denied.exitCode, 1); assert.equal(denied.stdout, "");
+    assert.deepEqual(JSON.parse(denied.stderr), { ...(body as object), status: 403 });
+    status = 404; body = { error: "not_found" };
+    const old = await runCli(["usage", "--period", "7d"], { api });
+    assert.equal(old.exitCode, 1); assert.match(old.stderr, /unavailable on this server/);
+    const invalid = await runCli(["usage", "--period", "all"], { api });
+    assert.equal(invalid.exitCode, 1); assert.match(invalid.stderr, /Choose --period/);
+    assert.equal(api.requests.length, 3);
+  } finally { await api.close(); }
+});
+
 test("CLI create and resume propagate stable request keys and never hot-retry a conflict", async () => {
   const api = await startMockApi(() => ({ status: 409, body: { error: "organization_capacity_exceeded", message: "No execution slots available" } }));
   try {

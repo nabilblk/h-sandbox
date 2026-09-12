@@ -13,11 +13,26 @@ import { databaseEvidence, eventEvidence, logEvidence, podEvidence } from "./dia
 import { assertOperatorAccount, operatorRequestOptions } from "./browser.mjs";
 import { wrappingKeyCase } from "./recovery.mjs";
 import { observeStartup, runtimeStateEvidence } from "./startup.mjs";
+import { usageFingerprint } from "./usage-history.mjs";
+import { installUsageCandidate } from "./usage-candidate.mjs";
 
 test("all harness modules parse without bootstrapping a cluster", () => {
   for (const filename of fs.readdirSync(import.meta.dirname).filter(name => name.endsWith(".mjs"))) {
     execFileSync(process.execPath, ["--check", path.join(import.meta.dirname, filename)], { stdio: "pipe" });
   }
+});
+
+test("usage source rehearsal cannot bypass cluster ownership or claim published clients", async () => {
+  let guarded = false;
+  await assert.rejects(installUsageCandidate({ guard() { guarded = true; throw new Error("unowned cluster"); }, execute() { assert.fail("No image or cluster command before ownership"); } }), /unowned cluster/);
+  assert.equal(guarded, true);
+  const candidate = fs.readFileSync(new URL("./usage-candidate.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(candidate, /\["push"|\["publish"|helm.*--kubeconfig.*process\.env/);
+  assert.match(candidate, /published: false/);
+  const a = { window: { from: "a", to: "b" }, summary: { heldSlotSeconds: 1 }, buckets: [], coverage: { gaps: [], lastObservedAt: "before" } };
+  assert.equal(usageFingerprint(a), usageFingerprint({ ...a, coverage: { ...a.coverage, lastObservedAt: "after" } }));
+  assert.notEqual(usageFingerprint(a), usageFingerprint({ ...a, summary: { heldSlotSeconds: 2 } }));
+  assert.notEqual(usageFingerprint(a), usageFingerprint({ ...a, coverage: { gaps: [{ from: "a", to: "b" }] } }));
 });
 
 test("mutable entry points refuse an ordinary developer shell before running commands", () => {

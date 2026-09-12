@@ -4,11 +4,11 @@ import { Children, isValidElement, type ReactNode } from "react";
 // Ordering is editorial, independent of where a page's content is maintained.
 export const docGroups = [
   { title: "Getting started", pages: ["overview", "developer-preview", "ui-product-tour", "quickstart", "vision-architecture", "sdk-cli"] },
-  { title: "Self-hosting", pages: ["install-kubernetes", "backup-recovery"] },
-  { title: "Concepts", pages: ["execution-capacity", "workspaces", "authorization", "security-model"] },
+  { title: "Self-hosting", pages: ["install-kubernetes", "backup-recovery", "operator-monitoring"] },
+  { title: "Concepts", pages: ["execution-capacity", "usage-observations", "workspaces", "authorization", "security-model"] },
   { title: "Sandbox guides", pages: ["create-sandbox", "sandbox-lifecycle", "sandbox-processes", "filesystem-artifacts", "routes", "outbound-access", "credential-vault"] },
   { title: "Templates", pages: ["custom-templates", "template-builds", "sdk-usage", "opencode-template", "open-agents-template", "template-troubleshooting"] },
-  { title: "Tutorials", pages: ["hands-on-tutorials", "cli-live-preview", "persistent-workspaces"] },
+  { title: "Tutorials", pages: ["hands-on-tutorials", "cli-live-preview", "persistent-workspaces", "usage-tutorial"] },
   { title: "Agent workflows", pages: ["cli-agent-repair", "ui-agent-app", "sdk-agent-report", "browser-agent-qa"] },
   { title: "Reference", pages: ["api-reference", "cli-reference", "workspace-reference", "errors-troubleshooting"] },
   { title: "Administration", pages: ["team-members", "session-management", "workspace-operations"] }

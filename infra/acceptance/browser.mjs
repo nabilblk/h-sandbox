@@ -1,4 +1,5 @@
 import { check, origins, until } from "./context.mjs";
+import { firstTask } from "./first-task.mjs";
 
 const scopes = ["sandboxes:read", "sandboxes:write", "templates:read", "templates:write", "workspaces:read", "workspaces:write", "credentials:use", "credentials:manage", "org:read", "audit:read"];
 
@@ -108,6 +109,7 @@ export async function operatorSession(ctx) {
     const onboardingKey = await keyResponse;
     check(onboardingKey.status() === 201, "Onboarding API key creation failed");
     keyIds.push((await onboardingKey.json()).key.id);
+    const taskEvidence = ctx.candidateUsage ? await firstTask(ctx, page, request) : {};
     // The standalone catalog is intentionally empty; import a verified template next.
     mark("complete onboarding and open dashboard");
     await page.getByRole("button", { name: "Open dashboard" }).click();
@@ -128,7 +130,7 @@ export async function operatorSession(ctx) {
     const identity = await request("/v1/me");
     check(identity.user.onboardingCompletedAt, "Onboarding completion was not persisted");
     ctx.save("account.json", { userId: identity.user.id, organizationId: identity.organization.id, keyId: created.key.id });
-    return { browser, page, request, login, logout, client, keyIds, oidcOnboarding: true, pkceS256: true };
+    return { browser, page, request, login, logout, client, keyIds, oidcOnboarding: true, pkceS256: true, ...taskEvidence };
   } catch (error) {
     const visible = {};
     for (const heading of ["Welcome to Harakiri.", "Your workspace.", "Your first API key.", "Hello, sandbox."]) {

@@ -1,0 +1,39 @@
+{{- if .Values.metrics.podMonitor.enabled -}}
+{{- if not .Values.metrics.enabled -}}
+{{- fail "metrics.podMonitor.enabled requires metrics.enabled" -}}
+{{- end -}}
+{{- if ne .Values.metrics.host "0.0.0.0" -}}
+{{- fail "PodMonitor needs metrics.host=0.0.0.0 and operator-approved NetworkPolicy access" -}}
+{{- end -}}
+{{- if not (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor") -}}
+{{- fail "Install the operator-owned PodMonitor CRD before enabling metrics.podMonitor" -}}
+{{- end -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "harakiri.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" . | nindent 4 }}
+    {{- with .Values.metrics.podMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "harakiri.selectorLabels" . | nindent 6 }}
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [api, scheduler]
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: {{ .Values.metrics.podMonitor.interval | quote }}
+      scrapeTimeout: 5s
+      authorization:
+        type: Bearer
+        credentials:
+          name: {{ .Values.metrics.tokenSecret.name | quote }}
+          key: {{ .Values.metrics.tokenSecret.key | quote }}
+{{- end }}

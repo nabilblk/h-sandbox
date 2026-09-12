@@ -2,6 +2,11 @@ name: Standalone installation and recovery acceptance
 
 on:
   workflow_dispatch:
+    inputs:
+      usage_source:
+        description: Build an unpublished usage candidate and rehearse its schema on the disposable runner
+        type: boolean
+        default: false
   pull_request:
     paths:
       - "infra/acceptance/**"
@@ -20,6 +25,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 75
+    env:
+      HARAKIRI_USAGE_ACCEPTANCE: ${{ inputs.usage_source && '1' || '0' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -30,6 +37,11 @@ jobs:
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
       - name: Verify safety contracts without cluster access
         run: node --test infra/acceptance/*.test.mjs
+      - name: Install tooling for explicitly requested source rehearsal
+        if: inputs.usage_source
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
       - name: Bootstrap a fresh test-owned native k0s cluster
         run: node infra/acceptance/bootstrap.mjs
       - name: Consume the published bundle and exercise recovery sequentially

@@ -35,7 +35,7 @@ jobs:
           node scripts/check-secrets.mjs --history
 
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       capacity-postgres:
         image: postgres:16.15-alpine
@@ -106,6 +106,12 @@ jobs:
       - name: Web typecheck and tests
         run: pnpm --filter @harakiri/web typecheck && pnpm --filter @harakiri/web test
 
+      - name: Usage observations and query budget (disposable PostgreSQL)
+        env:
+          USAGE_TEST_REQUIRED: "1"
+          USAGE_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+        run: pnpm --filter @harakiri/api exec node --test --import tsx src/usage-postgres.test.ts
+
       - name: Demo contract and fixture tests (no live access)
         run: pnpm demo:test && pnpm --filter @harakiri/demo-video typecheck
 
@@ -141,7 +147,7 @@ jobs:
       - name: Verify documentation, authorization UI and preview states
         env:
           HARAKIRI_E2E_MANAGED_SERVER: "1"
-        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts tests/e2e/capacity.spec.ts
+        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts tests/e2e/capacity.spec.ts tests/e2e/usage-observations.spec.ts
 
   chart:
     name: Helm chart
@@ -159,6 +165,13 @@ jobs:
           helm lint infra/charts/harakiri
           helm lint infra/charts/harakiri -f infra/openshift/values-openshift.yaml
           helm lint infra/charts/opensandbox
+
+      - name: Optional private monitoring contracts
+        run: |
+          node --test infra/monitoring/chart.test.mjs
+          docker run --rm --network=none \
+            -v "$PWD/infra/monitoring:/rules:ro" -w /rules \
+            --entrypoint /bin/promtool prom/prometheus:v3.5.1 test rules alerts.test.yaml
 
       - name: Render chart (default + ingress)
         run: |

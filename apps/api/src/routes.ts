@@ -101,7 +101,7 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
     issuers: dynamicIssuers
   });
   await registerRegistryCredentialRoutes(app, { query, recordAudit: audit });
-  await registerUsageRoutes(app, { query });
+  await registerUsageRoutes(app, { query, transaction: dependencies.transaction });
   await registerWorkspaceRoutes(app, { query, runtimeProvider, recordAudit: audit });
   await registerCommandEventRoutes(app, { query, runtimeProvider });
   await registerOrgSettingsRoutes(app, { query, recordAudit: audit });

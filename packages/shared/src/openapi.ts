@@ -1386,6 +1386,25 @@ const schemas: Record<string, JsonSchema> = {
       concurrencyLimitEnforced: boolean
     })
   }, ["sandboxesSpawned", "computeHours", "avgColdStartMs", "avgRuntimeSeconds", "concurrentNow", "concurrentPeak", "series", "topTemplates", "statusBreakdown"]),
+  UsageCoverageStatus: { type: "string", enum: ["complete", "partial", "unavailable"] },
+  UsageOperationCounts: objectSchema({ create: integer, restore: integer, resume: integer }),
+  UsageOutcomeCounts: { ...objectSchema({ succeeded: integer, failed: integer, canceled: integer }), description: "Latest terminal operation records grouped by completed_at, not an append-only attempt log. A retried operation may revise an earlier outcome count." },
+  UsageHistoryBucket: objectSchema({
+    from: dateTime, to: dateTime, coverage: ref("UsageCoverageStatus"), coveredSeconds: number,
+    heldSlotSeconds: { type: ["number", "null"] }, averageHeldSlots: { type: ["number", "null"] }, peakHeldSlots: { type: ["integer", "null"] },
+    acceptedOperations: { anyOf: [ref("UsageOperationCounts"), { type: "null" }] }, outcomes: { anyOf: [ref("UsageOutcomeCounts"), { type: "null" }] }
+  }),
+  UsageHistoryResponse: objectSchema({
+    window: objectSchema({ from: dateTime, to: dateTime, resolution: { type: "string", enum: ["1m", "15m", "1h"] }, timezone: { type: "string", const: "UTC" } }),
+    coverage: objectSchema({ status: ref("UsageCoverageStatus"), source: { type: "string", const: "reservation_intervals_and_operations" }, availableFrom: dateTime,
+      lastObservedAt: { type: ["string", "null"], format: "date-time" }, retentionDays: { ...integer, minimum: 1, maximum: 30 },
+      observer: { type: "string", enum: ["active", "stale", "disabled", "not_started"] }, gaps: arrayOf(objectSchema({ from: dateTime, to: dateTime })) }),
+    summary: objectSchema({ coveredSeconds: number, heldSlotSeconds: { type: ["number", "null"] }, peakHeldSlots: { type: ["integer", "null"] },
+      acceptedOperations: { anyOf: [ref("UsageOperationCounts"), { type: "null" }] }, outcomes: { anyOf: [ref("UsageOutcomeCounts"), { type: "null" }] },
+      readiness: objectSchema({ coverage: ref("UsageCoverageStatus"), sampleCount: integer, unobservedCount: integer, unsupportedCount: integer,
+        p50Ms: { type: ["number", "null"] }, p95Ms: { type: ["number", "null"] }, observationIntervalMs: integer }) }),
+    buckets: { ...arrayOf(ref("UsageHistoryBucket")), maxItems: 1500 }
+  }),
   OrganizationSettings: objectSchema({
     id: string,
     name: string,
@@ -1856,6 +1875,13 @@ export const openApiDocument = {
     },
     "/v1/usage": {
       get: secured({ tags: ["Usage"], summary: "Read usage summary", operationId: "getUsage", responses: { ...ok("Usage summary", ref("UsageSummary")), ...authErrorResponses } })
+    },
+    "/v1/usage/history": {
+      get: secured({ tags: ["Usage"], summary: "Read historical usage observations", operationId: "getUsageHistory",
+        description: "Requires org:read. UTC half-open windows, at most 30 days and 1500 buckets. Null denotes missing coverage, not zero. Held slots are not CPU consumption or billable compute. Readiness is an observation upper bound, not a cold-start benchmark.",
+        parameters: [parameter("from", "query", dateTime, true), parameter("to", "query", dateTime, true), parameter("resolution", "query", { type: "string", enum: ["1m", "15m", "1h"] }, true)],
+        responses: { ...ok("Observed history and coverage", ref("UsageHistoryResponse")), ...authErrorResponses,
+          "503": jsonResponse("History unavailable or source query budget exceeded; choose a shorter window", ref("ApiErrorResponse")) } })
     },
     "/v1/org/members": {
       get: secured({ tags: ["Members"], summary: "List organization members", operationId: "listOrganizationMembers", responses: { ...ok("Organization members", ref("OrganizationMembersResponse")), ...authErrorResponses } }),
