@@ -405,7 +405,10 @@ browser state to unblock diagnostics.
 All configured native acceptance gates passed, including encrypted recovery,
 provider-state rehydration, configuration rollback and final revocation. Local
 contracts (31) and public documentation tests (6) pass; standard CI passed on
-the tested branch. Retained receipts passed a scoped secret scan. After the
+the tested harness branch. The documentation follow-up exposed one browser
+assertion still expecting the old pending-AMD64 notice; it now checks both the
+passing evidence and the explicit cross-release limitation. Retained receipts
+passed a scoped secret scan. After the
 successful run, public web/API/OIDC all returned HTTP 200 with the public issuer,
 and the five original tunnel/forward PIDs were unchanged.
 Changes and retained receipts are prepared in PR 42, not merged, released or
