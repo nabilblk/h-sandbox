@@ -76,7 +76,7 @@ This is **operational usage**, not an invoice, a CPU profiler, an agent-reasonin
 - [x] Operators can detect stale collection, exhausted capacity and low storage bytes/inodes using tested, optional integrations without extra core API privileges. Alert fixtures and native authenticated scraping passed; actual Harbor filesystem evidence remains external.
 - [x] Clean, isolated native amd64 acceptance includes first-run UI, real history, backup/restore and a distinct-release upgrade, supported rollback and re-upgrade. Published run 34709727741 passed all 11 gates and cleanup; schema 039 was retained.
 - [x] Release verification consumes actual published images, charts and packages by immutable identity, preserving npm `latest` until a separately approved stable decision. RC.10 was anonymously consumed; `latest` remains `0.4.0`.
-- [ ] Public and internal documentation, exported docs and the release receipt agree on delivered behavior and remaining limitations.
+- [x] Public and internal documentation, exported docs and the release receipt agree on delivered behavior and remaining limitations. PR 46 and web-only deployment at revision 42 are verified.
 - [x] No existing Mac VM, k0s/CRC cluster, tunnel, unrelated container or user workload is changed by development or destructive acceptance. The separately authorized public application upgrade preserved all dependency specs and cluster/tunnel processes.
 
 ## Design Contract
@@ -256,7 +256,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: Feature and compatibility acceptance passes on the isolated reference profile, with resource/performance measurements and no local workload changes.
 
 ### Phase 6: Complete Documentation Across Audiences
-**Status**: In Progress; public concepts/tutorial/references and rc.10 candidate documentation prepared, delivery evidence pending
+**Status**: Complete; public pages, exports, internal contracts and retained delivery evidence published
 
 - [x] Add a first-class public Usage and capacity-observation concept page: metric definitions, units, examples, coverage, retention, scope and non-billing boundaries. It must not exist only inside a tutorial.
 - [x] Update installation/getting-started for the source-preview first-template workflow; add an executable SDK tutorial and isolated gap procedure. Examples typecheck, including against locally packed packages; live execution and cleanup remain acceptance gates.
@@ -270,7 +270,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 **Exit gate**: A new operator/developer can follow public instructions without private notes, developer credentials or a maintainer silently repairing the environment.
 
 ### Phase 7: Qualify the Actual Release and Close the Milestone
-**Status**: RC.10 published, qualified and deployed; documentation follow-up merge/deployment in progress
+**Status**: Bounded RC.10 release delivery complete; broader milestone retains the explicit native lifecycle and Harbor operator follow-ups
 
 - [x] Review source/tests/docs, select unused RC.10 and resolve immutable artifact identities. PR 45 and all required checks passed; rc.9 artifacts remain unchanged.
 - [x] Use the authorized protected Harbor/npm workflows and verify anonymous chart/image/package consumption, checksums and actual npm signatures/attestations. Publication runs 34708369843 and 34708371576 passed.
@@ -278,9 +278,9 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 - [x] Perform actual published rc.9 -> rc.10 -> rc.9 -> rc.10, retaining schema 039. Run 34709727741 preserved capacity, keys, files and historical fingerprint, with an explicit old-binary observation gap.
 - [x] Re-run encrypted/provider recovery and first-work journey using published SDK/CLI. The passing retained receipt records immutable baseline/candidate identities; cleanup passed.
 - [x] Withhold qualification after the failed published attempt, correct the harness and rerun the unchanged artifacts. Only the complete run 34709727741 establishes the bounded pair, not a same-version values change or schema downgrade.
-- [ ] Publish the qualification receipt and release notes only with the evidence actually obtained. An RC remains on `next`; stable `latest` promotion is a separate owner decision with an explicit supported-upgrade matrix.
+- [x] Publish the qualification receipt and release notes with actual evidence. RC.10 remains on `next`; `latest` remains `0.4.0`. The public guide qualifies only the retained-schema rc.9/rc.10 pair.
 - [x] Perform the separately requested public-lab upgrade with kubeconfig/UID guards, encrypted pre-upgrade backup, preserved values and structured manifest diff. Helm revision 41 is RC.10; dependency specs and public origins are unchanged. SDK/CLI live work, history and cleanup passed; docs follow-up gets a separate web-only delivery.
-- [ ] Record delivered versus externally pending work and adopter feedback. Move this file to `completed/` only when required software, docs and release gates are satisfied, or explicitly re-scope with the owner; never mark an unresolved gate complete.
+- [x] Record delivered versus externally pending work. Release/public docs are delivered; wider native pause/resume and snapshot/restore combinations, actual Harbor filesystem headroom and new adopter feedback are not invented. Keep this plan active until remaining scenario gates are satisfied or explicitly re-scoped.
 
 **Exit gate**: A real, qualified application release exists with credible historical usage and an evidence-backed upgrade path. The next product decision is a focused Python SDK/adopter integration, not an indefinite observability expansion.
 
@@ -372,6 +372,7 @@ Existing image/chart and npm workflows remain the publication path. Preserve pro
 | 2026-09-12 | Public k0s application upgrade and smoke passed. | Revision 41 preserves dependency specs and public origins, with encrypted pre-upgrade backup. A transient web 502 recovered without a tunnel restart. Actual SDK/CLI workload and history passed; owned runtime terminated/key revoked. Public logout/code-flow PKCE S256 login passed. |
 | 2026-09-12 | Published compatibility harness corrected, rerun pending. | Run 34708761898 passed through encrypted/provider recovery, then failed before final compatibility qualification. Old-SDK import also loaded a second Playwright runtime; 13cb97f separates SDK-only loading, with 30 safety/contracts passing. Run 34709727741 consumes the same immutable RC.10 bundle on a new disposable runner. |
 | 2026-09-12 | Published pair qualified. | Run 34709727741 passed all 11 gates and cleanup in 14m32s. Receipt retained in docs/operations/evidence. Updated public/internal recovery boundaries to the exact published pair with schema 039 retained; no generic downgrade claim. |
+| 2026-09-12 | Public documentation deployed and verified. | PR 46 / fcb4588 merged after required CI. Web-only Harbor run 34710943583 published docs-usage-20260912-fcb4588d9643, index 1ca1ef978c98. Guarded Helm revision 42 changed only web. Public Markdown/browser checks and authenticated Usage reload passed; non-web deployments, dependencies and origins remain unchanged. |
 
 ## Tech Debt Incurred
 
@@ -405,7 +406,8 @@ identities and evidence. Both the bounded source-native suite and actual
 published-pair run 34709727741 passed all 11 gates and cleanup. The earlier
 failed compatibility attempt remains recorded; its SDK-only import fix required
 no application artifact replacement. Wider native pause/resume and
-snapshot/restore combinations, actual Harbor filesystem headroom, and the final
-documentation deployment remain explicit. Keep the plan in `active/`
+snapshot/restore combinations and actual Harbor filesystem headroom remain
+explicit. Public documentation is deployed at revision 42 with its receipt.
+Keep the plan in `active/`
 until its remaining gates are satisfied or explicitly re-scoped; release delivery
 does not silently mark every original scenario complete.
