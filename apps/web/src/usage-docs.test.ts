@@ -14,6 +14,7 @@ test("usage has discoverable concept, tutorial and operator docs with explicit r
   }
   const concept = renderToStaticMarkup(usageObservationsDocs.body).replace(/<[^>]*>/g, " ");
   for (const term of ["0.5.0-rc.10", "latest remains 0.4.0", "slot-seconds", "sampleCount", "unobservedCount", "1,500", "org:read", "usage_history_limit_exceeded", "CPU", "billing"]) assert.ok(concept.includes(term), term);
+  assert.ok(concept.includes("upgrade that server instead of broadening permissions"));
   const operator = renderToStaticMarkup(operatorMonitoringDocs.body).replace(/<[^>]*>/g, " ");
   for (const term of ["not a TLS endpoint", "free inodes", "physical disk", "qualified", "NetworkPolicy"]) assert.ok(operator.includes(term), term);
 });
