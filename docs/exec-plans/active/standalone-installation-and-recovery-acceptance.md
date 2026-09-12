@@ -29,6 +29,13 @@ an isolated GitHub-hosted runner. This authorizes focused fixes and repeat runs
 on that branch, not merging it. No release, stable-tag promotion or public-lab
 deployment is part of this milestone without separate authorization.
 
+On September 12 the owner authorized merging, releasing the relevant components
+and updating public documentation. PR 42 merged as `6830fe5`. Phase 5 publishes
+only a web/documentation image: API, workers, schema, npm packages and charts
+remain rc.9. The public lab's explicit kubeconfig/cluster UID must be checked;
+the machine's default context is CRC and must not be used. The prohibition on
+destructive local acceptance and unrelated process/infrastructure changes remains.
+
 ## Success Criteria
 
 - [x] A fresh native amd64 Kubernetes installation consumes published, verified
@@ -170,6 +177,21 @@ baseline, not an availability or resource-capacity guarantee.
 - [x] Verify cleanup, retained evidence and unchanged public-lab health.
 - [ ] Close this new plan only when the release-compatibility criteria pass or
   the owner explicitly rescope them; merge/deployment needs separate approval.
+
+### Phase 5: Owner-Approved Documentation Delivery
+**Status**: In progress
+
+- [x] Merge PR 42 after all ten checks and three complete isolated native runs.
+- [x] Choose a component-only web image rather than republishing unchanged
+  API/SDK/CLI/chart versions or overwriting immutable rc.9 artifacts.
+- [ ] Publish a first-class recovery guide, align current-version entry points,
+  record the qualification in the public changelog and test navigation/exports.
+- [ ] Merge reviewed documentation, publish the web image on hosted CI and
+  verify native manifests and source identity anonymously.
+- [ ] Deploy only the web image through the existing rc.9 chart and preserved
+  operator values; reject other rendered resource/configuration changes.
+- [ ] Verify public docs, downloads, responsive navigation and public OIDC;
+  record the exact image, Helm revision and release-note addendum.
 
 ## Implementation Boundaries
 

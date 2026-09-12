@@ -58,6 +58,23 @@ test("docs search, reading progression and section links preserve navigation", a
   await expect(page).toHaveURL(/#docs\/sdk-cli$/);
 });
 
+test("recovery is an operator guide with matching downloads and guarded commands", async ({ page, request }) => {
+  await page.goto("/#docs/install-kubernetes");
+  await page.getByRole("navigation", { name: "Reading progression" }).getByRole("link", { name: /Next/ }).click();
+  await expect(page).toHaveURL(/#docs\/backup-recovery$/);
+  await expect(page.getByRole("heading", { name: "Backup and recovery", exact: true })).toBeVisible();
+  await expect(page.locator("article")).toContainText("cross-release/schema rollback remains untested");
+  const code = await page.locator(".doc-code").filter({ hasText: "Reference database restore" }).locator("pre code").textContent();
+  expect(code).toContain('"$TARGET_CLUSTER_UID" != "$SOURCE_CLUSTER_UID"');
+  const response = await request.get("/docs/backup-recovery.md");
+  expect(response.ok()).toBe(true);
+  expect(await response.text()).toContain(code!);
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.getByLabel("Browse docs").selectOption("overview");
+  await page.getByLabel("Browse docs").selectOption("backup-recovery");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
 test("language selection stays consistent and copy preserves exact code", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/#docs/quickstart");

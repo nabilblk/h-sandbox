@@ -3,6 +3,7 @@ import { CodeBlock } from "./components/docs-code";
 import { visionDocs } from "./vision-docs";
 import { previewDocs } from "./preview-docs";
 import { kubernetesInstallDocs } from "./kubernetes-install-docs";
+import { recoveryDocs } from "./recovery-docs";
 import { capacityDocs } from "./capacity-docs";
 import { authorizationDocs } from "./authorization-docs";
 import { overviewDocs, quickstartDocs } from "./getting-started-docs";
@@ -49,6 +50,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 export const docPages: DocPage[] = [
   previewDocs,
   kubernetesInstallDocs,
+  recoveryDocs,
   capacityDocs,
   overviewDocs,
   uiProductTourDocs,
