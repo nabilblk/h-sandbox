@@ -126,8 +126,8 @@ of pruning a shared registry or Docker daemon.
   air-gapped installation, production ingress or external secret-provider
   recovery has passed. The profile uses local-path storage and privileged native
   egress enforcement in its own cluster.
-- Every onboarding button was tested. The reference starts with an empty
-  template catalog. The test creates/revokes the onboarding key, opens the
+- Every onboarding button was tested by the original rc.9 run. Legacy migrations
+  install built-in templates even with seeding disabled. The original test creates/revokes the onboarding key, opens the
   dashboard, imports OpenCode, then runs the actual first task through CLI/SDK.
   The hardcoded Python onboarding task is not exercised by this sequence.
 - Automatic background rehydration or byte-for-byte process restoration was
@@ -142,6 +142,39 @@ See [the coordinated recovery runbook](../../docs/operations/standalone-recovery
 and [the native reference installation](../preview/README.md).
 
 ## Usage Source Rehearsal
+
+The usage modes explicitly archive only legacy seed-template versions inside
+the owned disposable database before testing the empty-catalog handoff. They
+then import the pinned OpenCode image and exercise the literal wizard command.
+This fixture does not alter a production catalog or redefine a fresh install as
+having no built-ins.
+
+## Published Usage Qualification
+
+After both registries and the GitHub release assets are verified, select the
+candidate with its independently reviewed manifest checksum:
+
+```bash
+gh workflow run standalone-acceptance.yml --ref main \
+  -f usage_release=0.5.0-rc.10 \
+  -f usage_manifest_sha256=REVIEWED_ARTIFACT_MANIFEST_SHA256
+```
+
+This mode is mutually exclusive with `usage_source`. It downloads the manifest
+from this repository's release, verifies its SHA-256, exact image references,
+chart archive and npm integrity, and installs the published candidate over rc.9.
+It retains a separate installed rc.9 SDK for old-client/new-server checks. The
+existing recovery flow then exercises candidate -> rc.9 -> candidate with schema
+039 retained. Only this mode can populate `releaseCompatibility.status=passed`.
+The optional metrics listener is enabled with a generated runner-owned Secret;
+real API and scheduler scrapes require 401 for missing/wrong tokens and 200 for
+the correct token. No public metrics route or monitoring stack is installed.
+
+These commands describe the available gates, not a successful release receipt.
+The exact run and all remaining boundaries must be recorded before advertising
+qualified rollback. Physical Harbor storage remains separate operator evidence.
+
+### Source-Only Inputs
 
 The existing dispatch accepts `usage_source=true`. This mode first verifies and
 installs the immutable published rc.9 baseline, then builds API/web images and

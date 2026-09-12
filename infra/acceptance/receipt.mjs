@@ -1,6 +1,7 @@
 import { AcceptanceCheckError } from "./context.mjs";
 
 const flags = new Set([
+  "authenticatedMetrics", "publishedCandidate", "publishedBinaryCompatibility", "oldClientNewServer",
   "sourceCandidate", "sourceClients", "firstTask", "emptyCatalog", "firstTaskExactlyOnce", "firstTaskCleaned",
   "realUsage", "uniqueUsageOperations", "independentReadiness", "usageDatabaseRestore", "sourceBinaryRehearsal", "usageRollbackGap",
   "anonymousArtifacts", "nativeTemplateImage", "freshInstallation", "oidcOnboarding", "pkceS256", "modelFreeOpenCode", "publishedCli", "publishedSdk", "protectedRoute", "capacityDenial", "idempotency", "reattachment",

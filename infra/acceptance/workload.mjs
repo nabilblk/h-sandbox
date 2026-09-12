@@ -90,5 +90,6 @@ export async function workload(ctx, operator) {
   check(id !== second, "Persistence test did not replace the original runtime");
   await assertRetained(client, second, state);
   await released(client, second, state.workspaceId);
-  return { ...state, modelFreeOpenCode: true, publishedCli: !ctx.candidateUsage, publishedSdk: !ctx.candidateUsage, sourceClients: Boolean(ctx.candidateUsage), protectedRoute: true, capacityDenial: true, idempotency: true, reattachment: true };
+  const sourceClients = Boolean(ctx.candidateUsage && !ctx.publishedUsage);
+  return { ...state, modelFreeOpenCode: true, publishedCli: !sourceClients, publishedSdk: !sourceClients, sourceClients, protectedRoute: true, capacityDenial: true, idempotency: true, reattachment: true };
 }

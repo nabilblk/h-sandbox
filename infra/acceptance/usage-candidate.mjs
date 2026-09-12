@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { check, origins, pinned } from "./context.mjs";
 import { platformNamespace } from "./operator.mjs";
 import { prepareEmptyCatalog } from "./first-task.mjs";
+import { configureUsageMonitoring } from "./usage-monitoring.mjs";
 
 // Invoked only after the existing runner/cluster ownership guard. Images and
 // tarballs stay on this disposable machine; no publish command is used.
@@ -25,6 +26,7 @@ export async function installUsageCandidate(ctx) {
   const baseline = ctx.read("harakiri-values.json");
   ctx.save("baseline-harakiri-values.json", baseline);
   const values = structuredClone(baseline);
+  configureUsageMonitoring(ctx, values);
   values.image = { registry: "localhost", repository: "harakiri", pullPolicy: "IfNotPresent", api: { name: "harakiri-api", tag }, web: { name: "harakiri-web", tag } };
   values.config.TEMPLATE_BUILDER_JOB_IMAGE = images.api.reference;
   ctx.save("harakiri-values.json", values);

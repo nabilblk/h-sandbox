@@ -7,6 +7,14 @@ on:
         description: Build an unpublished usage candidate and rehearse its schema on the disposable runner
         type: boolean
         default: false
+      usage_release:
+        description: Published post-rc.9 usage candidate version (empty skips release-pair qualification)
+        type: string
+        default: ""
+      usage_manifest_sha256:
+        description: Reviewed SHA-256 of the candidate artifact-manifest.json
+        type: string
+        default: ""
   pull_request:
     paths:
       - "infra/acceptance/**"
@@ -27,6 +35,8 @@ jobs:
     timeout-minutes: 75
     env:
       HARAKIRI_USAGE_ACCEPTANCE: ${{ inputs.usage_source && '1' || '0' }}
+      HARAKIRI_USAGE_RELEASE: ${{ inputs.usage_release }}
+      HARAKIRI_USAGE_MANIFEST_SHA256: ${{ inputs.usage_manifest_sha256 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

@@ -16,6 +16,18 @@ import { observeStartup, runtimeStateEvidence } from "./startup.mjs";
 import { usageFingerprint } from "./usage-history.mjs";
 import { installUsageCandidate } from "./usage-candidate.mjs";
 import { prepareEmptyCatalog } from "./first-task.mjs";
+import { installPublishedUsage, publishedUsageIdentity } from "./usage-published.mjs";
+import { configureUsageMonitoring, verifyUsageMonitoring } from "./usage-monitoring.mjs";
+
+test("published qualification requires immutable identity and cluster ownership", async () => {
+  const env = { HARAKIRI_USAGE_RELEASE: "0.5.0-rc.10", HARAKIRI_USAGE_MANIFEST_SHA256: "a".repeat(64) };
+  assert.equal(publishedUsageIdentity(env).version, env.HARAKIRI_USAGE_RELEASE);
+  for (const invalid of [{ ...env, HARAKIRI_USAGE_ACCEPTANCE: "1" }, { ...env, HARAKIRI_USAGE_RELEASE: "../main" }, { ...env, HARAKIRI_USAGE_RELEASE: "0.5.0-rc.9" }, { ...env, HARAKIRI_USAGE_MANIFEST_SHA256: "" }]) assert.throws(() => publishedUsageIdentity(invalid));
+  const ctx = { guard() { throw new Error("unowned cluster"); }, execute() { assert.fail("No command before ownership"); } };
+  await assert.rejects(installPublishedUsage(ctx), /unowned cluster/);
+  assert.throws(() => configureUsageMonitoring(ctx, {}), /unowned cluster/);
+  assert.throws(() => verifyUsageMonitoring(ctx), /unowned cluster/);
+});
 
 test("empty-catalog fixture cannot alter an unowned cluster", () => {
   assert.throws(() => prepareEmptyCatalog({ guard() { throw new Error("unowned cluster"); }, k() { assert.fail("No database mutation before ownership"); } }), /unowned cluster/);

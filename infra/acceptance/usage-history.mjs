@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { check, sha256, until } from "./context.mjs";
 import { platformNamespace, replicas } from "./operator.mjs";
 import { assertRetained, createRuntime, denyAtCapacity, released } from "./workload.mjs";
+import { verifyOldClient } from "./usage-published.mjs";
 
 export const usageFingerprint = history => sha256(JSON.stringify({ window: history.window, summary: history.summary, buckets: history.buckets, gaps: history.coverage.gaps }));
 
@@ -31,6 +32,7 @@ export async function usageBinaryRehearsal(ctx, operator) {
   const { client } = operator;
   const state = ctx.read("recovered-workload.json");
   const id = await createRuntime(client, state, "usage-binary-compatibility");
+  if (ctx.publishedUsage) await verifyOldClient(ctx, state, id);
   const gapFrom = new Date().toISOString();
   await replicas(ctx, ["harakiri-scheduler"], 0);
   const baseline = ctx.read("baseline-harakiri-values.json");
@@ -47,7 +49,7 @@ export async function usageBinaryRehearsal(ctx, operator) {
   catch (error) { check(error.status === 404, "Older API returned an unexpected history error"); absent = true; }
   check(absent, "Baseline unexpectedly claims the new history capability");
   await delay(35000);
-  ctx.helm(["upgrade", "harakiri", "infra/charts/harakiri", "-n", platformNamespace, "-f", ctx.file("harakiri-values.json"), "--wait", "--timeout", "10m"]);
+  ctx.helm(["upgrade", "harakiri", ctx.candidateChart ?? "infra/charts/harakiri", "-n", platformNamespace, "-f", ctx.file("harakiri-values.json"), "--wait", "--timeout", "10m"]);
   await ctx.forwardAll();
   await assertRetained(client, id, state); await denyAtCapacity(client, state.templateId);
   check((await client.capacity()).capacity.inUse === 1, "Re-upgrade changed the surviving reservation");
@@ -57,5 +59,5 @@ export async function usageBinaryRehearsal(ctx, operator) {
     return history.coverage.observer === "active" && history.coverage.gaps.some(gap => Date.parse(gap.to) - Date.parse(gap.from) > 30000);
   }, 60000);
   await released(client, id, state.workspaceId);
-  return { sourceBinaryRehearsal: true, usageRollbackGap: true, preservedKeys: true, preservedWorkspace: true };
+  return { sourceBinaryRehearsal: !ctx.publishedUsage, publishedBinaryCompatibility: Boolean(ctx.publishedUsage), oldClientNewServer: Boolean(ctx.publishedUsage), usageRollbackGap: true, preservedKeys: true, preservedWorkspace: true };
 }
