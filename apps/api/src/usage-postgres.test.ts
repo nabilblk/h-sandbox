@@ -40,7 +40,7 @@ test("PostgreSQL usage observations, concurrency, retention and bounded queries"
   const deps = { query: observerQuery, transaction: inTransaction(observerPool), runtimeProvider };
   const org = async (limit = 200) => {
     const id = randomUUID();
-    await query("INSERT INTO organizations(id,name,slug,max_concurrency,created_at) VALUES ($1,'Usage test',$1::text,$2,now()-interval '31 days')", [id, limit]);
+    await query("INSERT INTO organizations(id,name,slug,max_concurrency,created_at) VALUES ($1::uuid,'Usage test',$1::text,$2,now()-interval '31 days')", [id, limit]);
     return id;
   };
   const admit = (organizationId: string, key = randomUUID()) => transaction(async (q) => {
