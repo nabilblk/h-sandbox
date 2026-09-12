@@ -1,4 +1,5 @@
 import { check, origins, until } from "./context.mjs";
+import { firstTask } from "./first-task.mjs";
 
 const scopes = ["sandboxes:read", "sandboxes:write", "templates:read", "templates:write", "workspaces:read", "workspaces:write", "credentials:use", "credentials:manage", "org:read", "audit:read"];
 
@@ -27,7 +28,7 @@ export async function operatorSession(ctx) {
   let pkce = false;
   let step = "login";
   const responses = [];
-  const accountPaths = new Set(["/v1/me", "/v1/org/settings", "/v1/org/capacity", "/v1/api-keys", "/v1/me/onboarding/complete"]);
+  const accountPaths = new Set(["/v1/me", "/v1/org/settings", "/v1/org/capacity", "/v1/api-keys", "/v1/me/onboarding/complete", "/v1/templates"]);
   const mark = name => { step = name; console.log(`Browser step: ${name}`); };
   const keyIds = [];
   page.on("response", response => {
@@ -108,6 +109,8 @@ export async function operatorSession(ctx) {
     const onboardingKey = await keyResponse;
     check(onboardingKey.status() === 201, "Onboarding API key creation failed");
     keyIds.push((await onboardingKey.json()).key.id);
+    mark("first sandbox task");
+    const taskEvidence = ctx.candidateUsage ? await firstTask(ctx, page, request) : {};
     // The standalone catalog is intentionally empty; import a verified template next.
     mark("complete onboarding and open dashboard");
     await page.getByRole("button", { name: "Open dashboard" }).click();
@@ -128,7 +131,7 @@ export async function operatorSession(ctx) {
     const identity = await request("/v1/me");
     check(identity.user.onboardingCompletedAt, "Onboarding completion was not persisted");
     ctx.save("account.json", { userId: identity.user.id, organizationId: identity.organization.id, keyId: created.key.id });
-    return { browser, page, request, login, logout, client, keyIds, oidcOnboarding: true, pkceS256: true };
+    return { browser, page, request, login, logout, client, keyIds, oidcOnboarding: true, pkceS256: true, ...taskEvidence };
   } catch (error) {
     const visible = {};
     for (const heading of ["Welcome to Harakiri.", "Your workspace.", "Your first API key.", "Hello, sandbox."]) {

@@ -76,8 +76,9 @@ cat >tsconfig.json <<'JSON'
 }
 JSON
 cp "${ROOT}/examples/sdk-typescript-quickstart/index.ts" index.ts
+cp "${ROOT}/examples/sdk-usage-observations/index.ts" usage-observations.ts
 ./node_modules/.bin/tsc --noEmit
-node -e 'import("@h-sandbox/sdk").then((sdk) => { if (!sdk.HarakiriClient) process.exit(1); })'
+node -e 'import("@h-sandbox/sdk").then((sdk) => { if (typeof sdk.HarakiriClient?.prototype.usageHistory !== "function") process.exit(1); })'
 
 CLI_PREFIX="${TMP_DIR}/cli-prefix"
 npm install --global --prefix "${CLI_PREFIX}" "${SDK_TGZ}" "${CLI_TGZ}" >/dev/null
@@ -92,5 +93,6 @@ if [[ "${ACTUAL_VERSION}" != "${EXPECTED_VERSION}" ]]; then
   exit 1
 fi
 "${CLI_PREFIX}/bin/harakiri" --help >/dev/null
+"${CLI_PREFIX}/bin/harakiri" usage --help >/dev/null
 
 echo "npm package smoke passed"

@@ -66,7 +66,7 @@ export const DashboardShellRoute = ({
         <div className="side-foot"><button className="btn btn-ghost" onClick={() => go("docs")}><Icon name="book" size={14} />Documentation</button></div>
       </aside>
       <main className="dash-main">
-        <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm" onClick={() => go("docs")} title="Open documentation" aria-label="Open documentation"><Icon name="book" size={13} /></button><AccountMenu compact profile={profile} workspace={org.slug} avatarLabel={orgInitial} onSignOut={onSignOut} /></div></div>
+        <div className="dash-top"><div className="dash-crumbs"><span style={{ color: "var(--muted)" }}>{org.slug}</span><Icon name="chevron" size={11} /><span style={{ textTransform: "capitalize" }}>{navItems.find(([key]) => key === route)?.[1] ?? sub}</span></div><div className="dash-top-r"><button className="btn btn-ghost btn-sm" onClick={() => go("docs")} title="Open documentation" aria-label="Open documentation"><Icon name="book" size={13} /></button><AccountMenu compact profile={profile} workspace={org.slug} avatarLabel={orgInitial} onSignOut={onSignOut} /></div></div>
         {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} canManage={account?.capabilities.canManageSettings === true} /> : null}
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
         {sub === "workspaces" ? <WorkspacesRoute openSandbox={openSandbox} /> : null}

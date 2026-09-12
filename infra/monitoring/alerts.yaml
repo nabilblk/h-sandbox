@@ -1,0 +1,67 @@
+groups:
+  - name: harakiri-control-plane
+    rules:
+      - alert: HarakiriUsageCollectionDelayed
+        expr: (time() - harakiri_observer_last_success_timestamp_seconds{component="scheduler"} > 60) and on(instance, job) (harakiri_observer_enabled{component="scheduler"} == 1)
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: Usage collection is delayed
+          description: Check scheduler database access and observer errors. Do not release execution slots from telemetry.
+      - alert: HarakiriUsageBacklog
+        expr: (time() - harakiri_observer_oldest_pending_timestamp_seconds{component="scheduler"} > 120) and on(instance, job) (harakiri_observer_pending{component="scheduler"} > 0)
+        for: 2m
+        labels: { severity: warning }
+        annotations:
+          summary: Readiness observations are behind
+          description: Inspect provider availability and collector throughput; readiness coverage may be incomplete.
+      - alert: HarakiriSchedulerDelayed
+        expr: time() - harakiri_scheduler_last_success_timestamp_seconds{component="scheduler"} > 120
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: Scheduler maintenance is delayed
+          description: Check capacity reconciliation, TTL cleanup and database connectivity before admitting more work.
+      - alert: HarakiriCapacityDenialPressure
+        expr: sum by(job) (rate(harakiri_admission_denial_attempts_total{reason="organization_capacity_exceeded"}[5m])) > 0.1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Sustained admission denial attempts
+          description: Repeated HTTP attempts are not unique jobs or a utilization percentage. Inspect organization capacity through the authenticated API.
+      - alert: HarakiriMetricsMissing
+        expr: harakiri_expected_metrics_target == 1 unless on(instance, job) harakiri_observer_enabled
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: Expected private metrics are missing
+          description: Check target discovery, dedicated bearer token and network access. An absent series does not mean healthy.
+  - name: harakiri-operator-storage
+    rules:
+      # Relabel only operator-selected registry/database/workspace filesystems with
+      # harakiri_storage="true". Expected-series gauges belong to the operator.
+      - alert: HarakiriStorageBytesLow
+        expr: (node_filesystem_avail_bytes{harakiri_storage="true"} / node_filesystem_size_bytes{harakiri_storage="true"}) < 0.15
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Storage free bytes are low
+          description: Identify the owning registry, database or workspace volume. Review capacity and retention; do not prune active data automatically.
+      - alert: HarakiriStorageInodesLow
+        expr: (node_filesystem_files_free{harakiri_storage="true"} / node_filesystem_files{harakiri_storage="true"}) < 0.10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: Storage free inodes are low
+          description: Free bytes can remain high while inodes are exhausted. Ask the volume owner to inspect file counts and retention.
+      - alert: HarakiriStorageMetricsMissing
+        expr: >-
+          (harakiri_expected_storage_filesystem == 1 unless on(instance, mountpoint) (node_filesystem_avail_bytes{harakiri_storage="true"} >= 0))
+          or (harakiri_expected_storage_filesystem == 1 unless on(instance, mountpoint) (node_filesystem_size_bytes{harakiri_storage="true"} > 0))
+          or (harakiri_expected_storage_filesystem == 1 unless on(instance, mountpoint) (node_filesystem_files_free{harakiri_storage="true"} >= 0))
+          or (harakiri_expected_storage_filesystem == 1 unless on(instance, mountpoint) (node_filesystem_files{harakiri_storage="true"} > 0))
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: Expected storage telemetry is missing
+          description: Check the operator exporter and filesystem mapping. Harbor HTTP health is not physical headroom evidence.

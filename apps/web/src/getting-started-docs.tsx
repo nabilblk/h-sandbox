@@ -64,6 +64,7 @@ export const overviewDocs: DocPage = {
       <div><dt><Icon name="file" />Workspace</dt><dd>Optional retained files that a later sandbox can reuse.<a href="#docs/workspaces">Understand persistence</a></dd></div>
     </dl>
     <p>Organization access, <a href="#docs/routes">preview routes</a>, <a href="#docs/outbound-access">outbound policy</a> and <a href="#docs/credential-vault">credentials</a> are separate controls. Begin with the <a href="#docs/security-model">security model</a> before handling sensitive data.</p>
+    <p><a href="#docs/execution-capacity">Execution capacity</a> controls admission. <a href="#docs/usage-observations">Usage observations</a> explains the rc.10 historical view, coverage and non-billing boundaries.</p>
     <h2>Build a complete workflow</h2>
     <ul className="docs-usecases">
       <li><a href="#docs/hands-on-tutorials"><strong>Learn the core operations</strong><span>Data jobs, private previews, Git, network policy and SDK integration.</span></a></li>

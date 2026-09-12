@@ -17,7 +17,8 @@ test("small dashboard routes render without dashboard shell coupling", () => {
   const vault = renderToStaticMarkup(createElement(VaultRoute));
 
   assert.match(usage, /Usage/);
-  assert.match(usage, /Concurrent sandboxes/);
+  assert.match(usage, /Execution slots/);
+  assert.match(usage, /Historical activity/);
   assert.match(keys, /API keys/);
   assert.match(keys, /Create key/);
   assert.match(members, /Members/);

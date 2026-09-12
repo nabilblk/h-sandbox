@@ -34,6 +34,12 @@ See [the September 12 delivery record](../release-notes/2026-09-12-standalone-re
 
 ## One Recovery Point, Four Kinds of State
 
+The [unpublished usage source contract](usage-observations.md) adds migration 039
+observations and coverage windows to Harakiri's database recovery point. Its
+source-binary rehearsal is prepared, not executed or covered by the rc.9 receipt
+above. A source rehearsal is not published-release rollback qualification. Keep
+the candidate status and compatibility matrix separate from this older evidence.
+
 | State | Why it must be preserved |
 | --- | --- |
 | Harakiri PostgreSQL | Organizations, scoped key hashes, templates, encrypted credentials, operations, execution reservations and workspace ownership |

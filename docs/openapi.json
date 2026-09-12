@@ -12945,6 +12945,159 @@
         }
       }
     },
+    "/v1/usage/history": {
+      "get": {
+        "security": [
+          {
+            "apiKey": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Read historical usage observations",
+        "operationId": "getUsageHistory",
+        "description": "Requires org:read. UTC half-open windows, at most 30 days and 1500 buckets. Null denotes missing coverage, not zero. Held slots are not CPU consumption or billable compute. Readiness is an observation upper bound, not a cold-start benchmark.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "resolution",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1m",
+                "15m",
+                "1h"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Observed history and coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageHistoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation or policy error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Execution capacity uses 409.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "History unavailable or source query budget exceeded; choose a shorter window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/org/members": {
       "get": {
         "security": [
@@ -20628,6 +20781,334 @@
           "series",
           "topTemplates",
           "statusBreakdown"
+        ],
+        "additionalProperties": false
+      },
+      "UsageCoverageStatus": {
+        "type": "string",
+        "enum": [
+          "complete",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "UsageOperationCounts": {
+        "type": "object",
+        "properties": {
+          "create": {
+            "type": "integer"
+          },
+          "restore": {
+            "type": "integer"
+          },
+          "resume": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "create",
+          "restore",
+          "resume"
+        ],
+        "additionalProperties": false
+      },
+      "UsageOutcomeCounts": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "canceled": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "succeeded",
+          "failed",
+          "canceled"
+        ],
+        "additionalProperties": false,
+        "description": "Latest terminal operation records grouped by completed_at, not an append-only attempt log. A retried operation may revise an earlier outcome count."
+      },
+      "UsageHistoryBucket": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/UsageCoverageStatus"
+          },
+          "coveredSeconds": {
+            "type": "number"
+          },
+          "heldSlotSeconds": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "averageHeldSlots": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "peakHeldSlots": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "acceptedOperations": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageOperationCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcomes": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageOutcomeCounts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "coverage",
+          "coveredSeconds",
+          "heldSlotSeconds",
+          "averageHeldSlots",
+          "peakHeldSlots",
+          "acceptedOperations",
+          "outcomes"
+        ],
+        "additionalProperties": false
+      },
+      "UsageHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "window": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "to": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "1m",
+                  "15m",
+                  "1h"
+                ]
+              },
+              "timezone": {
+                "type": "string",
+                "const": "UTC"
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "resolution",
+              "timezone"
+            ],
+            "additionalProperties": false
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "$ref": "#/components/schemas/UsageCoverageStatus"
+              },
+              "source": {
+                "type": "string",
+                "const": "reservation_intervals_and_operations"
+              },
+              "availableFrom": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastObservedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "retentionDays": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30
+              },
+              "observer": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "stale",
+                  "disabled",
+                  "not_started"
+                ]
+              },
+              "gaps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "to": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "status",
+              "source",
+              "availableFrom",
+              "lastObservedAt",
+              "retentionDays",
+              "observer",
+              "gaps"
+            ],
+            "additionalProperties": false
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "coveredSeconds": {
+                "type": "number"
+              },
+              "heldSlotSeconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "peakHeldSlots": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "acceptedOperations": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UsageOperationCounts"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "outcomes": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UsageOutcomeCounts"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "readiness": {
+                "type": "object",
+                "properties": {
+                  "coverage": {
+                    "$ref": "#/components/schemas/UsageCoverageStatus"
+                  },
+                  "sampleCount": {
+                    "type": "integer"
+                  },
+                  "unobservedCount": {
+                    "type": "integer"
+                  },
+                  "unsupportedCount": {
+                    "type": "integer"
+                  },
+                  "p50Ms": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "p95Ms": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "observationIntervalMs": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "coverage",
+                  "sampleCount",
+                  "unobservedCount",
+                  "unsupportedCount",
+                  "p50Ms",
+                  "p95Ms",
+                  "observationIntervalMs"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "coveredSeconds",
+              "heldSlotSeconds",
+              "peakHeldSlots",
+              "acceptedOperations",
+              "outcomes",
+              "readiness"
+            ],
+            "additionalProperties": false
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageHistoryBucket"
+            },
+            "maxItems": 1500
+          }
+        },
+        "required": [
+          "window",
+          "coverage",
+          "summary",
+          "buckets"
         ],
         "additionalProperties": false
       },

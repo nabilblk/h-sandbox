@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { CurrentAccountResponse, CreateApiKeyResponse } from "@harakiri/shared";
 import { api } from "../api";
-import { CapacitySummary, useOrganizationCapacity, useIntentKeys } from "../capacity";
+import { CapacitySummary, useOrganizationCapacity } from "../capacity";
+import { FirstSandboxTaskPanel } from "../components/first-sandbox-task";
 import type { UserProfile } from "../auth";
 import { Brand } from "../components/brand";
 import { Icon } from "../components/icon";
@@ -12,10 +13,8 @@ import type { GoToRoute } from "./types";
 export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: UserProfile | null }) => {
   const [step, setStep] = useState(0);
   const capacity = useOrganizationCapacity();
-  const intentKeys = useIntentKeys();
   const [createdKey, setCreatedKey] = useState<CreateApiKeyResponse | null>(null);
   const [account, setAccount] = useState<CurrentAccountResponse | null>(null);
-  const [out, setOut] = useState<string[]>([]);
   const [workspace, setWorkspace] = useState(defaultWorkspace(profile));
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -40,12 +39,6 @@ export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: User
     setStep(2);
   });
   const createKey = () => perform(async () => { setCreatedKey(await api.createKey("onboarding")); setStep(3); });
-  const run = () => perform(async () => {
-    const created = await api.createSandbox({ template: "python-3.12", ttlSeconds: 300, idempotencyKey: intentKeys.forIntent("onboarding") });
-    if (created.status === "pending") throw new Error(`Sandbox ${created.sandbox.id} is still starting. No command was submitted.`);
-    const result = await api.run(created.sandbox.id, { command: "python -c 'print(2+2)'" });
-    setOut([`POST /v1/sandboxes -> ${created.sandbox.id}`, result.result.stdout.trim(), "sandbox ready in dashboard"]);
-  });
   const openDashboard = () => perform(async () => { await api.completeOnboarding(); go("dashboard/sandboxes"); });
   return <div className="onb">
     <div className="onb-bar"><Brand /><div className="right"><a onClick={() => go("landing")}>Exit setup -&gt;</a></div></div>
@@ -71,8 +64,8 @@ export const OnboardingRoute = ({ go, profile }: { go: GoToRoute; profile?: User
           <CapacitySummary state={capacity} canManage={canManage} />
           <h1 className="onb-h">Hello, sandbox.</h1>
           {createdKey ? <div className="onb-section"><div className="field-l">API key. Shown once.</div><div className="key-secret"><code>{createdKey.token}</code><button className="btn btn-ghost btn-sm" aria-label="Copy API key" title="Copy API key" onClick={() => void navigator.clipboard.writeText(createdKey.token).catch(() => setError("Clipboard unavailable. Select the key to copy it."))}><Icon name="copy" /></button></div><p className="key-metadata">Expires {createdKey.key.expiresAt ? new Date(createdKey.key.expiresAt).toLocaleDateString() : "unknown"}</p></div> : null}
-          <div className="hterm card" style={{ maxWidth: 780 }}><div className="hterm-bar"><span className="hterm-title">first-sandbox.py</span></div><div className="hterm-body" style={{ minHeight: 160 }}>{out.length ? out.map((line) => <div key={line} className="hterm-line">{line}</div>) : <div className="hterm-line">print(2+2)</div>}</div></div>
-          <div className="onb-foot"><button className="btn btn-accent" disabled={busy} onClick={run}><Icon name="play" size={11} /> Run first sandbox</button><button className="btn btn-primary" disabled={busy} onClick={openDashboard}>Open dashboard <Icon name="arrowR" size={11} /></button></div>
+          {account ? <FirstSandboxTaskPanel key={`${account.auth.organizationId}:${account.user.id}`} account={account} onError={capacity.acceptError} /> : null}
+          <div className="onb-foot"><button className="btn btn-primary" disabled={busy} onClick={openDashboard}>Open dashboard <Icon name="arrowR" size={11} /></button></div>
         </div> : null}
       </div>
     </div>

@@ -12,6 +12,8 @@ import { cleanupTemplateRetention, type TemplateRetentionReport } from "./templa
 import { reconcileWorkspaces } from "./services/persistent-workspaces.js";
 import { normalizeRuntimeState, reconcileSandboxLease } from "./services/sandbox-lease.js";
 import { reconcileSandboxCapacity } from "./services/sandbox-capacity-reconciler.js";
+import { startUsageObserver } from "./services/usage-observer.js";
+import { operatorMetrics, startOperatorMetrics } from "./operator-metrics.js";
 
 export const normalizeState = normalizeRuntimeState;
 
@@ -94,14 +96,23 @@ export const tick = async (dependencies: SchedulerDependencies = {}) => {
 if (import.meta.url === `file://${process.argv[1]}`) {
   logDeprecatedConfigWarnings();
   console.log("harakiri scheduler started");
+  const metrics = await startOperatorMetrics("scheduler").catch(() => { console.error("Private metrics listener unavailable; check its configuration and port"); return null; });
+  const stopUsageObserver = config.usageObserverEnabled ? startUsageObserver({
+    runtimeProvider: defaultRuntimeProvider,
+    onReport: operatorMetrics.observerReport,
+    onProbe: operatorMetrics.probe,
+    onError: () => { operatorMetrics.observerError(); console.error("usage observation failed; historical coverage may be incomplete"); }
+  }) : async () => {};
   let activeTick: Promise<void> | undefined;
   const runTick = () => {
-    if (!activeTick) activeTick = tick().catch((error) => console.error(error)).finally(() => { activeTick = undefined; });
+    if (!activeTick) activeTick = tick().then(() => operatorMetrics.maintenance(true)).catch((error) => { operatorMetrics.maintenance(false); console.error(error); }).finally(() => { activeTick = undefined; });
   };
   const timer = setInterval(runTick, 10_000);
   runTick();
   const shutdown = async () => {
     clearInterval(timer);
+    await stopUsageObserver();
+    await metrics?.close();
     await activeTick;
     await closeDb();
     process.exit(0);

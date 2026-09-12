@@ -1,0 +1,138 @@
+rule_files: [alerts.yaml]
+evaluation_interval: 1m
+tests:
+  - name: bytes and inodes are independent
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="registry",mountpoint="/data",harakiri_storage="true"}'
+        values: '80+0x20'
+      - series: 'node_filesystem_size_bytes{instance="registry",mountpoint="/data",harakiri_storage="true"}'
+        values: '100+0x20'
+      - series: 'node_filesystem_files_free{instance="registry",mountpoint="/data",harakiri_storage="true"}'
+        values: '5+0x20'
+      - series: 'node_filesystem_files{instance="registry",mountpoint="/data",harakiri_storage="true"}'
+        values: '100+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HarakiriStorageBytesLow
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: HarakiriStorageInodesLow
+        exp_alerts:
+          - exp_labels: { instance: registry, mountpoint: /data, harakiri_storage: "true", severity: warning }
+            exp_annotations:
+              summary: Storage free inodes are low
+              description: Free bytes can remain high while inodes are exhausted. Ask the volume owner to inspect file counts and retention.
+  - name: sustained byte pressure
+    interval: 1m
+    input_series:
+      - series: 'node_filesystem_avail_bytes{instance="database",mountpoint="/pgdata",harakiri_storage="true"}'
+        values: '10+0x20'
+      - series: 'node_filesystem_size_bytes{instance="database",mountpoint="/pgdata",harakiri_storage="true"}'
+        values: '100+0x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HarakiriStorageBytesLow
+        exp_alerts:
+          - exp_labels: { instance: database, mountpoint: /pgdata, harakiri_storage: "true", severity: warning }
+            exp_annotations:
+              summary: Storage free bytes are low
+              description: Identify the owning registry, database or workspace volume. Review capacity and retention; do not prune active data automatically.
+  - name: missing exporter cannot be called healthy
+    interval: 1m
+    input_series:
+      - series: 'harakiri_expected_storage_filesystem{instance="registry",mountpoint="/data"}'
+        values: '1+0x10'
+      - series: 'harakiri_expected_metrics_target{job="harakiri",instance="scheduler"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HarakiriStorageMetricsMissing
+        exp_alerts:
+          - exp_labels: { instance: registry, mountpoint: /data, severity: warning }
+            exp_annotations:
+              summary: Expected storage telemetry is missing
+              description: Check the operator exporter and filesystem mapping. Harbor HTTP health is not physical headroom evidence.
+      - eval_time: 6m
+        alertname: HarakiriMetricsMissing
+        exp_alerts:
+          - exp_labels: { job: harakiri, instance: scheduler, severity: warning }
+            exp_annotations:
+              summary: Expected private metrics are missing
+              description: Check target discovery, dedicated bearer token and network access. An absent series does not mean healthy.
+  - name: sustained collector lag
+    interval: 1m
+    input_series:
+      - series: 'harakiri_observer_last_success_timestamp_seconds{job="harakiri",instance="scheduler",component="scheduler"}'
+        values: '0+0x10'
+      - series: 'harakiri_observer_enabled{job="harakiri",instance="scheduler",component="scheduler"}'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HarakiriUsageCollectionDelayed
+        exp_alerts:
+          - exp_labels: { job: harakiri, instance: scheduler, component: scheduler, severity: warning }
+            exp_annotations:
+              summary: Usage collection is delayed
+              description: Check scheduler database access and observer errors. Do not release execution slots from telemetry.
+  - name: missing storage denominators cannot suppress the missing-metrics alert
+    interval: 1m
+    input_series:
+      - series: 'harakiri_expected_storage_filesystem{instance="registry",mountpoint="/data"}'
+        values: '1+0x10'
+      - series: 'node_filesystem_avail_bytes{instance="registry",mountpoint="/data",harakiri_storage="true"}'
+        values: '80+0x10'
+      - series: 'node_filesystem_files_free{instance="registry",mountpoint="/data",harakiri_storage="true"}'
+        values: '80+0x10'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HarakiriStorageMetricsMissing
+        exp_alerts:
+          - exp_labels: { instance: registry, mountpoint: /data, severity: warning }
+            exp_annotations:
+              summary: Expected storage telemetry is missing
+              description: Check the operator exporter and filesystem mapping. Harbor HTTP health is not physical headroom evidence.
+  - name: sustained denial attempts survive counter restart
+    interval: 1m
+    input_series:
+      - series: 'harakiri_admission_denial_attempts_total{job="harakiri",instance="api",reason="organization_capacity_exceeded"}'
+        values: '0+12x10 0+12x15'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HarakiriCapacityDenialPressure
+        exp_alerts:
+          - exp_labels: { job: harakiri, severity: warning }
+            exp_annotations:
+              summary: Sustained admission denial attempts
+              description: Repeated HTTP attempts are not unique jobs or a utilization percentage. Inspect organization capacity through the authenticated API.
+  - name: reset without new denial attempts does not cause pressure
+    interval: 1m
+    input_series:
+      - series: 'harakiri_admission_denial_attempts_total{job="harakiri",instance="api",reason="organization_capacity_exceeded"}'
+        values: '600+0x10 0+0x15'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HarakiriCapacityDenialPressure
+        exp_alerts: []
+  - name: intentionally disabled observer
+    interval: 1m
+    input_series:
+      - series: 'harakiri_observer_last_success_timestamp_seconds{job="harakiri",instance="scheduler",component="scheduler"}'
+        values: '0+0x10'
+      - series: 'harakiri_observer_enabled{job="harakiri",instance="scheduler",component="scheduler"}'
+        values: '0+0x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HarakiriUsageCollectionDelayed
+        exp_alerts: []
+  - name: brief restart recovers without sustained-lag alert
+    interval: 1m
+    input_series:
+      - series: 'harakiri_observer_last_success_timestamp_seconds{job="harakiri",instance="scheduler",component="scheduler"}'
+        values: '0 60 120 0 240 300 360 420'
+      - series: 'harakiri_observer_enabled{job="harakiri",instance="scheduler",component="scheduler"}'
+        values: '1+0x7'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: HarakiriUsageCollectionDelayed
+        exp_alerts: []

@@ -21,8 +21,8 @@ They refuse macOS, ARM, self-hosted runners, inherited kubeconfigs, existing k0s
 state and occupied test ports. Every subsequent cluster operation checks a
 private kubeconfig, cluster UID and a unique run ownership label.
 
-The runner gets a fresh single-node k0s installation. It does not use Docker,
-Lima, a local cluster, Cloudflare, the public lab or customer credentials. A
+The runner gets a fresh single-node k0s installation. It does not use the
+maintainer's Docker, Lima, local cluster, Cloudflare, public lab or customer credentials. A
 second namespace in an existing cluster is not sufficient isolation for the
 provider's controllers and CRDs. No cluster-wide resources are installed on the
 maintainer's machine.
@@ -78,7 +78,8 @@ gh run download RUN_ID --repo nabilblk/h-sandbox --name standalone-acceptance-RU
 
 Replace the run ID and attempt number with the actual run. A reviewed
 same-repository PR touching this harness or the reference configuration also
-starts the native job. Never spoof runner environment variables to execute
+starts the source-candidate native job, so it tests the proposed application
+rather than only repeating the published baseline. Never spoof runner environment variables to execute
 these entry points on a shared Linux host.
 
 ## Evidence and Secrets
@@ -126,8 +127,8 @@ of pruning a shared registry or Docker daemon.
   air-gapped installation, production ingress or external secret-provider
   recovery has passed. The profile uses local-path storage and privileged native
   egress enforcement in its own cluster.
-- Every onboarding button was tested. The reference starts with an empty
-  template catalog. The test creates/revokes the onboarding key, opens the
+- Every onboarding button was tested by the original rc.9 run. Legacy migrations
+  install built-in templates even with seeding disabled. The original test creates/revokes the onboarding key, opens the
   dashboard, imports OpenCode, then runs the actual first task through CLI/SDK.
   The hardcoded Python onboarding task is not exercised by this sequence.
 - Automatic background rehydration or byte-for-byte process restoration was
@@ -140,3 +141,68 @@ of pruning a shared registry or Docker daemon.
 
 See [the coordinated recovery runbook](../../docs/operations/standalone-recovery.md)
 and [the native reference installation](../preview/README.md).
+
+## Usage Source Rehearsal
+
+The usage modes explicitly archive only legacy seed-template versions inside
+the owned disposable database before testing the empty-catalog handoff. They
+then import the pinned OpenCode image and exercise the literal wizard command.
+This fixture does not alter a production catalog or redefine a fresh install as
+having no built-ins.
+
+## Published Usage Qualification
+
+After both registries and the GitHub release assets are verified, select the
+candidate with its independently reviewed manifest checksum:
+
+```bash
+gh workflow run standalone-acceptance.yml --ref main \
+  -f usage_release=0.5.0-rc.10 \
+  -f usage_manifest_sha256=REVIEWED_ARTIFACT_MANIFEST_SHA256
+```
+
+This mode is mutually exclusive with `usage_source`. It downloads the manifest
+from this repository's release, verifies its SHA-256, exact image references,
+chart archive and npm integrity, and installs the published candidate over rc.9.
+It retains a separate installed rc.9 SDK for old-client/new-server checks. The
+existing recovery flow then exercises candidate -> rc.9 -> candidate with schema
+039 retained. Only this mode can populate `releaseCompatibility.status=passed`.
+The optional metrics listener is enabled with a generated runner-owned Secret;
+real API and scheduler scrapes require 401 for missing/wrong tokens and 200 for
+the correct token. No public metrics route or monitoring stack is installed.
+
+These commands describe the available gates, not a successful release receipt.
+The exact run and all remaining boundaries must be recorded before advertising
+qualified rollback. Physical Harbor storage remains separate operator evidence.
+
+### Source-Only Inputs
+
+The existing dispatch accepts `usage_source=true`. This mode first verifies and
+installs the immutable published rc.9 baseline, then builds API/web images and
+SDK/CLI tarballs from the exact checked-out source on the disposable runner. It
+uses the disposable runner's Docker builder, imports images directly into that
+owned containerd and never pushes a registry,
+publishes npm, or uses the maintainer's running cluster.
+
+Additional gates exercise the empty catalog, an approved template import, the
+literal first-task wizard button, exactly one command, confirmed cleanup, three
+unique native creates despite retries, independently observed readiness, a fixed
+historical window after replacement-database recovery, and candidate -> rc.9 ->
+candidate binary operation while retaining schema 039 and a live workspace.
+Older binaries must return 404 for history; their collection interval must be a
+gap on re-upgrade. Existing encrypted/provider recovery gates remain enabled.
+
+The receipt explicitly labels source-built clients and images as **unpublished**.
+The `releaseCompatibility` published-pair gate stays `not_tested`; this mode is a
+source/schema rehearsal, not permission to advertise released rollback support.
+The default dispatch continues to consume only the recorded published bundle.
+
+```bash
+# After a reviewed branch and explicit hosted-run authorization:
+gh workflow run standalone-acceptance.yml --ref YOUR_REVIEWED_BRANCH -f usage_source=true
+```
+
+Only the existing allowlisted receipt is uploaded. Generated credentials, raw
+commands, backup files, container env and browser state remain private and are
+removed by the guarded cleanup. Normal developer shells are rejected before
+mutable commands. Do not run this on a self-hosted runner or a populated cluster.

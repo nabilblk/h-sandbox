@@ -1,4 +1,18 @@
 {{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config -}}
+{{- if or (not (regexMatch "^[0-9]+$" (toString .Values.usage.retentionDays))) (lt (int .Values.usage.retentionDays) 1) (gt (int .Values.usage.retentionDays) 30) -}}
+{{- fail "usage.retentionDays must be an integer between 1 and 30" -}}
+{{- end -}}
+{{- if and .Values.metrics.enabled (or (not .Values.metrics.tokenSecret.name) (not .Values.metrics.tokenSecret.key)) -}}
+{{- fail "metrics.tokenSecret.name and key are required for private metrics" -}}
+{{- end -}}
+{{- if and .Values.metrics.enabled (or (not (regexMatch "^[0-9]+$" (toString .Values.metrics.port))) (lt (int .Values.metrics.port) 1024) (gt (int .Values.metrics.port) 65535) (eq (int .Values.metrics.port) 8080)) -}}
+{{- fail "metrics.port must be an integer between 1024 and 65535, distinct from API port 8080" -}}
+{{- end -}}
+{{- $_ := set $cfg "USAGE_OBSERVER_ENABLED" (ternary "1" "0" .Values.usage.observerEnabled) -}}
+{{- $_ := set $cfg "USAGE_HISTORY_RETENTION_DAYS" (toString .Values.usage.retentionDays) -}}
+{{- $_ := set $cfg "OPERATOR_METRICS_ENABLED" (ternary "1" "0" .Values.metrics.enabled) -}}
+{{- $_ := set $cfg "OPERATOR_METRICS_HOST" .Values.metrics.host -}}
+{{- $_ := set $cfg "OPERATOR_METRICS_PORT" (toString .Values.metrics.port) -}}
 {{- /* Default the builder Job image to the deployed api image. */ -}}
 {{- if not (index $cfg "TEMPLATE_BUILDER_JOB_IMAGE") -}}
 {{- $_ := set $cfg "TEMPLATE_BUILDER_JOB_IMAGE" (include "harakiri.image.api" .) -}}

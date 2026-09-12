@@ -1,5 +1,7 @@
 import { observeCommandStream, type CommandStreamOptions } from "./command-stream.js";
 import type { WorkspaceResponse, WorkspacesResponse, CreateWorkspaceBody } from "./workspaces.js";
+import type { UsageHistoryOptions, UsageHistoryResponse } from "./usage-history.js";
+export type { UsageHistoryOptions, UsageHistoryResolution, UsageHistoryResponse, UsageHistoryBucket, UsageCoverageStatus, UsageTimeRange, UsageOperationCounts, UsageOutcomeCounts } from "./usage-history.js";
 import type { OrganizationCapacityResponse, SandboxReadiness, SandboxReadinessResponse } from "./protocol.js";
 export type { OrganizationCapacity, OrganizationCapacityResponse, SandboxReadiness, SandboxReadinessResponse } from "./protocol.js";
 export { readCommandEvents, observeCommandStream, CommandStreamError, type CommandStreamOptions } from "./command-stream.js";
@@ -2709,6 +2711,13 @@ export class HarakiriClient {
 
   usage() {
     return this.request<UsageSummary>("/v1/usage");
+  }
+
+  /** Recorded execution-slot occupancy, not CPU consumption or billable compute. Requires org:read. */
+  usageHistory(options: UsageHistoryOptions, request: { signal?: AbortSignal } = {}) {
+    request.signal?.throwIfAborted();
+    const query = new URLSearchParams({ from: options.from, to: options.to, resolution: options.resolution });
+    return this.request<UsageHistoryResponse>(`/v1/usage/history?${query}`, { signal: request.signal });
   }
 }
 export type { ApiKeyScope, ApiKeySummary, CreateApiKeyBody, CreateApiKeyResponse } from "./protocol.js";

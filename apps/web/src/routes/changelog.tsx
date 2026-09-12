@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-12-v0-5-0-rc-10",
+    version: "v0.5.0-rc.10",
+    date: "September 12, 2026",
+    title: "Real usage observations and a complete first task",
+    items: [
+      "Record accepted operations, held execution-slot time and independently observed readiness in PostgreSQL. Collection gaps remain missing data, not invented zero activity or compute billing.",
+      "Add scoped usage history to the API, SDK and CLI, with accessible period views and coverage indicators in the dashboard.",
+      "Run the onboarding task against an eligible installed template. Preserve one creation intent and recover an uncertain command through reads, without resubmitting it.",
+      "Offer opt-in authenticated private metrics and operator alert examples. Add first-class usage concepts, a model-free tutorial, API references and monitoring guidance.",
+      "Migration 039 is additive. Match API, scheduler, chart, SDK and CLI candidate versions; consult the delivery receipt before binary rollback. Stable npm latest remains 0.4.0."
+    ]
+  },
+  {
     id: "2026-09-12-standalone-recovery",
     version: "Documentation update",
     date: "September 12, 2026",

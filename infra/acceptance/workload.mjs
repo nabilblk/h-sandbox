@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { check, origins, pinned, sha256, until } from "./context.mjs";
+import { check, origins, sha256, until } from "./context.mjs";
 import { observeStartup } from "./startup.mjs";
+import { importAcceptanceTemplate } from "./first-task.mjs";
 
 export const retainedPath = "/workspace/acceptance.txt";
 
@@ -50,14 +51,7 @@ export async function assertRetained(client, id, state) {
 export async function workload(ctx, operator) {
   const { client } = operator;
   console.log("Workload step: import published OpenCode template");
-  const templateId = `acceptance-opencode-${ctx.identity.id}`;
-  await client.createTemplate({ id: templateId, name: "Acceptance OpenCode", image: pinned.opencodeImage, visibility: "private", cpuCount: 1, memoryMb: 2048, workdir: "/workspace", defaultEntrypoint: ["sleep", "7200"], runtimeFamily: "custom" });
-  const { build } = await client.createTemplateBuild(templateId, { sourceType: "image", imageDestination: pinned.opencodeImage });
-  await until("Published OpenCode image import", async () => {
-    const result = await client.getTemplateBuild(build.id);
-    check(!["failed", "canceled"].includes(result.build.status), "Template image import failed");
-    return result.build.status === "success";
-  }, 600000);
+  const templateId = ctx.candidateUsage ? ctx.read("first-task.json").templateId : await importAcceptanceTemplate(ctx, client);
   console.log("Workload step: allocate persistent workspace and create native runtime");
   const { workspace } = await client.workspaces.create({ name: `acceptance-${ctx.identity.id}` });
   const bytes = `Retained state from ${ctx.identity.id}\n${randomUUID()}\n`;
@@ -96,5 +90,6 @@ export async function workload(ctx, operator) {
   check(id !== second, "Persistence test did not replace the original runtime");
   await assertRetained(client, second, state);
   await released(client, second, state.workspaceId);
-  return { ...state, modelFreeOpenCode: true, publishedCli: true, publishedSdk: true, protectedRoute: true, capacityDenial: true, idempotency: true, reattachment: true };
+  const sourceClients = Boolean(ctx.candidateUsage && !ctx.publishedUsage);
+  return { ...state, modelFreeOpenCode: true, publishedCli: !sourceClients, publishedSdk: !sourceClients, sourceClients, protectedRoute: true, capacityDenial: true, idempotency: true, reattachment: true };
 }

@@ -12,6 +12,7 @@ import { registerSandboxCommands } from "./commands/sandboxes.js";
 import { registerTemplateCommands } from "./commands/templates.js";
 import { registerVaultCommands } from "./commands/vault.js";
 import { registerWorkspaceCommands } from "./commands/workspaces.js";
+import { registerUsageCommands } from "./commands/usage.js";
 
 const program = new Command();
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
@@ -45,6 +46,7 @@ registerEgressCommands(program);
 registerRegistryCredentialCommands(program);
 registerVaultCommands(program);
 registerWorkspaceCommands(program);
+registerUsageCommands(program);
 
 program.parseAsync(process.argv).catch((error) => {
   if (error instanceof HarakiriApiError && (error.code?.startsWith("organization_capacity_") || error.code === "sandbox_transition_in_progress" || error.code === "idempotency_conflict")) {

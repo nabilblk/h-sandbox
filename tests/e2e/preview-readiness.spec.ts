@@ -22,6 +22,7 @@ async function setup(page: Page) {
 for (const width of [1440, 390, 320]) test(`usage loading, failure, retry and empty states fit ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   await setup(page);
+  await page.route("**/v1/usage/history?*", route => route.fulfill({ status: 404, json: { error: "not_found" } }));
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   let mode: "failed" | "loaded" | "empty" = "failed";
@@ -41,18 +42,19 @@ for (const width of [1440, 390, 320]) test(`usage loading, failure, retry and em
   await expect(page.locator(".usage-page > [role='status']")).toHaveText("Loading usage...");
   await expect(page.getByRole("button", { name: "Refreshing" })).toBeDisabled();
   release();
-  await expect(page.getByRole("alert")).toContainText("Usage temporarily unavailable");
+  await expect(page.getByRole("alert").filter({ hasText: "Usage temporarily unavailable" })).toBeVisible();
   await expect(page.locator(".usage-totals dd").first()).toHaveText("Unavailable");
   mode = "loaded";
   await page.getByRole("button", { name: "Retry" }).click();
   await expect(page.locator(".usage-totals dd")).toHaveText(["7", "5", "2"]);
-  await expect(page.locator(".usage-history")).toContainText("not measured");
+  await expect(page.locator(".usage-history")).toContainText("No historical observations are available");
+  await expect(page.getByRole("alert").filter({ hasText: "does not support usage history" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Execution capacity" })).toContainText("unavailable on this server");
   await expect(page.locator(".usage-history svg")).toHaveCount(0);
   await expect(page.locator(".usage-page")).not.toContainText("99999");
   mode = "failed";
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Showing the last successful response");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Showing the last successful response" })).toBeVisible();
   await expect(page.locator(".usage-totals dd").first()).toHaveText("7");
   await page.screenshot({ path: `docs/artifacts/oss-usage-${width}.png`, fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

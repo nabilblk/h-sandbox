@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { defaultApiKeyScopes, apiKeyScopes } from "../../packages/shared/src/authorization";
+import { TEMPLATES, type CurrentAccountResponse } from "../../packages/shared/src/index";
 import { defaultWorkspace } from "../../apps/web/src/workspace";
 
 // UI contract fixtures only. Signed JWTs, server policies and database ownership
@@ -7,7 +8,8 @@ import { defaultWorkspace } from "../../apps/web/src/workspace";
 async function setup(page: Page, role: "admin" | "member", onboarding = false) {
   const state = { patches: 0, creates: [] as Record<string, unknown>[], failCreate: false, failRevoke: false, keys: [] as Record<string, unknown>[] };
   const organization = defaultWorkspace({ email: "admin@example.test", name: "Example" });
-  const account = { user: { id: role, fullName: "Example User", email: `${role}@example.test`, onboardingCompletedAt: onboarding ? null : new Date().toISOString() }, membership: { role }, organization,
+  const account: CurrentAccountResponse = { user: { id: role, fullName: "Example User", email: `${role}@example.test`, onboardingCompletedAt: onboarding ? null : new Date().toISOString() },
+    auth: { userId: role, organizationId: organization.id, actorLabel: "Example User" }, role, organization,
     capabilities: { canManageMembers: role === "admin", canManageCredentialSecrets: role === "admin", canManageSettings: role === "admin", canManageAllApiKeys: role === "admin" } };
   await page.route("**/src/auth.ts", (route) => route.fulfill({ contentType: "text/javascript", body: `
     export class AuthSessionExpiredError extends Error {}
@@ -67,31 +69,50 @@ test("onboarding never submits its first command for a running but not ready san
   await setup(page, "member", true);
   let ready = false;
   let commands = 0;
+  let readinessChecks = 0;
   const keys: string[] = [];
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.route("**/v1/templates?*", route => route.fulfill({ json: { templates: [
+    { ...TEMPLATES[0], id: "first-shell", status: "ready", latestVersionId: "tplv_shell", workdir: "/app" }
+  ] } }));
   await page.route("**/v1/sandboxes", async route => {
     keys.push(route.request().postDataJSON().idempotencyKey);
-    await route.fulfill({ status: ready ? 201 : 202, json: {
-      sandbox: { id: "sbx_starting", status: "running" }, status: ready ? "created" : "pending",
-      readiness: { status: ready ? "ready" : "starting", checkedAt: new Date().toISOString() }
+    await route.fulfill({ status: 202, json: {
+      sandbox: { id: "sbx_starting", status: "running" }, status: "pending"
     } });
   });
-  await page.route("**/v1/sandboxes/sbx_starting/run", async route => {
-    commands++;
-    await route.fulfill({ json: { result: { exitCode: 0, stdout: "4\n" } } });
+  await page.route("**/v1/sandboxes/sbx_starting/readiness", route => {
+    readinessChecks++;
+    return route.fulfill({ json: { sandbox: { id: "sbx_starting", runtimeMetadata: { workdir: "/app" } },
+      readiness: { status: ready ? "ready" : "starting", checkedAt: new Date().toISOString() } } });
   });
+  const command = { id: "cmd_first", status: "succeeded", exitCode: 0, stdout: "", stderr: "" };
+  await page.route("**/v1/sandboxes/sbx_starting/commands", async route => {
+    commands++;
+    expect(ready).toBe(true);
+    expect(route.request().postDataJSON().cwd).toBe("/app");
+    await route.fulfill({ status: 201, json: { command } });
+  });
+  await page.route("**/v1/sandboxes/sbx_starting/commands/cmd_first", route => route.fulfill({ json: { command } }));
+  await page.route("**/v1/sandboxes/sbx_starting/commands/cmd_first/logs", route => route.fulfill({ json: { commandId: command.id, stdout: "Harakiri is ready\n", stderr: "" } }));
   await page.goto("/#onboarding");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Skip", exact: true }).click();
   await page.getByRole("button", { name: "Run first sandbox" }).click();
-  await expect(page.getByRole("alert")).toContainText("sbx_starting is still starting");
+  await expect.poll(() => readinessChecks).toBeGreaterThanOrEqual(2);
   expect(commands).toBe(0);
+  await page.getByRole("button", { name: "Stop waiting" }).click();
+  await expect(page.getByText(/Waiting paused/)).toBeVisible();
   ready = true;
-  await page.getByRole("button", { name: "Run first sandbox" }).click();
-  await expect(page.locator(".hterm-line", { hasText: /^4$/ })).toBeVisible();
+  await page.getByRole("button", { name: "Check first task" }).click();
+  await expect(page.getByText("First task completed.", { exact: true })).toBeVisible();
+  await expect(page.locator(".hterm-body pre")).toHaveText("Harakiri is ready\n");
   expect(commands).toBe(1);
-  expect(keys).toHaveLength(2);
-  expect(keys[0]).toBe(keys[1]);
+  expect(keys).toHaveLength(1);
+  expect(keys[0]).toBeTruthy();
+  expect(errors).toEqual([]);
 });
 
 test("admin saves settings; scoped key creation, clipboard and confirmed revocation handle errors", async ({ page, context }) => {

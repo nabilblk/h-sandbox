@@ -47,6 +47,17 @@ spec:
                 name: {{ include "harakiri.configMapName" . }}
             - secretRef:
                 name: {{ include "harakiri.secretName" . }}
+          {{- if .Values.metrics.enabled }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.metrics.port }}
+          env:
+            - name: OPERATOR_METRICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.metrics.tokenSecret.name | quote }}
+                  key: {{ .Values.metrics.tokenSecret.key | quote }}
+          {{- end }}
           {{- if .Values.credentialVault.encryption.keyringSecret.name }}
           volumeMounts:
             - name: credential-vault-keyring
