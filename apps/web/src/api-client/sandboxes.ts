@@ -8,6 +8,7 @@ import type {
   RunSandboxBody,
   RunSandboxResponse,
   SandboxCommandResponse,
+  SandboxCommandLogsResponse,
   SandboxCommandsResponse,
   SandboxEgressResponse,
   SandboxFilesResponse,
@@ -51,6 +52,7 @@ export const sandboxesApi = {
     }),
   commands: (id: string) => request<SandboxCommandsResponse>(`/v1/sandboxes/${id}/commands`),
   command: (id: string, commandId: string, signal?: AbortSignal) => request<SandboxCommandResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}`, { signal }),
+  commandLogs: (id: string, commandId: string, signal?: AbortSignal) => request<SandboxCommandLogsResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}/logs`, { signal }),
   startCommand: (id: string, command: string, cwd: string, options: { timeoutMs?: number } = {}) => request<SandboxCommandResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands`, {
     method: "POST", body: JSON.stringify({ command, cwd, detached: true, timeoutMs: options.timeoutMs ?? 300_000 })
   }),

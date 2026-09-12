@@ -30,7 +30,7 @@ async function setup(page: Page, role = "admin") {
       return json({ sandbox: { id: "sbx_first", status: "pending" }, status: "pending" }, 202);
     }
     if (path.endsWith("/readiness")) return json({ sandbox: { id: "sbx_first", runtimeMetadata: { workdir: "/app" } }, readiness: { status: ++state.readiness === 1 ? "starting" : "ready" } });
-    const command = { id: "cmd_first", command: "printf 'Harakiri is ready\\n'", cwd: "/app", status: "succeeded", stdout: "Harakiri is ready\n", stderr: "", exitCode: 0 };
+    const command = { id: "cmd_first", command: "printf 'Harakiri is ready\\n'", cwd: "/app", status: "succeeded", stdout: "", stderr: "", exitCode: 0 };
     if (path.endsWith("/commands") && request.method() === "POST") {
       state.commands++;
       expect(request.postDataJSON().cwd).toBe("/app");
@@ -38,6 +38,7 @@ async function setup(page: Page, role = "admin") {
     }
     if (path.endsWith("/commands")) return json({ commands: [command] });
     if (path.endsWith("/commands/cmd_first")) return json({ command });
+    if (path.endsWith("/commands/cmd_first/logs")) return json({ commandId: command.id, stdout: "Harakiri is ready\n", stderr: "" });
     if (path === "/v1/usage") return json({ sandboxesSpawned: 10, concurrentNow: 0, computeHours: 99999, avgColdStartMs: 99999, avgRuntimeSeconds: 99999, concurrentPeak: 99999,
       series: [99999], topTemplates: [], statusBreakdown: [] });
     if (path === "/v1/usage/history") {

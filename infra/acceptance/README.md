@@ -78,7 +78,8 @@ gh run download RUN_ID --repo nabilblk/h-sandbox --name standalone-acceptance-RU
 
 Replace the run ID and attempt number with the actual run. A reviewed
 same-repository PR touching this harness or the reference configuration also
-starts the native job. Never spoof runner environment variables to execute
+starts the source-candidate native job, so it tests the proposed application
+rather than only repeating the published baseline. Never spoof runner environment variables to execute
 these entry points on a shared Linux host.
 
 ## Evidence and Secrets

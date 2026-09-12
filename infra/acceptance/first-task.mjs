@@ -61,7 +61,9 @@ export async function firstTask(ctx, page, request) {
     }, 600000);
     const commands = await request(`/v1/sandboxes/${sandboxId}/commands`);
     check(commandPosts === 1 && creates === 1 && commands.commands.length === 1, "The first wizard task was duplicated");
-    check(commands.commands[0].stdout.trim() === "Harakiri is ready" && commands.commands[0].exitCode === 0, "First wizard output does not match");
+    const logs = await request(`/v1/sandboxes/${sandboxId}/commands/${commands.commands[0].id}/logs`);
+    check(logs.stdout.trim() === "Harakiri is ready" && commands.commands[0].exitCode === 0, "First wizard output does not match");
+    check((await page.locator(".hterm-body pre").textContent()).trim() === "Harakiri is ready", "Wizard did not display actual detached-command output");
     await until("First task independently observed before cleanup", async () => {
       const options = new URLSearchParams({ from, to: new Date().toISOString(), resolution: "1m" });
       const history = await request(`/v1/usage/history?${options}`);

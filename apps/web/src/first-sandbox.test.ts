@@ -5,13 +5,14 @@ import { firstSandboxCommand, firstTaskTemplates, readFirstTask, runFirstTask, t
 
 function fixture() {
   const state = { creates: 0, submissions: 0, probes: 0, lostResponse: false, pending: true };
-  const command = { id: "cmd_first", command: firstSandboxCommand, cwd: "/custom-work", status: "succeeded", stdout: "Harakiri is ready\n", stderr: "", exitCode: 0 } as SandboxCommandSummary;
+  const command = { id: "cmd_first", command: firstSandboxCommand, cwd: "/custom-work", status: "succeeded", stdout: "", stderr: "", exitCode: 0 } as SandboxCommandSummary;
   const client: FirstTaskClient = {
     createSandbox: async (body) => { state.creates++; assert.equal(body.template, "renamed-template"); assert.equal(body.ttlSeconds, 300); return { sandbox: { id: "sbx_first" }, status: "pending" } as Awaited<ReturnType<FirstTaskClient["createSandbox"]>>; },
     sandboxReadiness: async () => { state.probes++; return { sandbox: { runtimeMetadata: { workdir: "/custom-work" } }, readiness: { status: state.probes === 1 && state.pending ? "starting" : "ready" } } as Awaited<ReturnType<FirstTaskClient["sandboxReadiness"]>>; },
     startCommand: async (_id, submitted, cwd, options) => { state.submissions++; assert.equal(submitted, firstSandboxCommand); assert.equal(cwd, "/custom-work"); assert.equal(options.timeoutMs, 15_000); if (state.lostResponse) throw new Error("response lost"); return { command }; },
     commands: async () => ({ commands: state.submissions ? [command] : [] }),
-    command: async () => ({ command })
+    command: async () => ({ command }),
+    commandLogs: async () => ({ commandId: command.id, stdout: "Harakiri is ready\n", stderr: "" })
   };
   let saved: FirstSandboxTask = { templateId: "renamed-template", cwd: "/custom-work", intent: "stable-intent" };
   const dependencies = { client, save: (task: FirstSandboxTask) => { saved = task; }, signal: new AbortController().signal, pause: async () => {} };
@@ -34,6 +35,20 @@ test("lost command response is recovered by reading and never replayed", async (
   await assert.rejects(runFirstTask(f.saved(), f.dependencies), /response lost/);
   assert.equal(f.saved().submitted, true);
   await runFirstTask(f.saved(), f.dependencies);
+  assert.equal(f.saved().complete, true);
+  assert.equal(f.state.creates, 1);
+  assert.equal(f.state.submissions, 1);
+});
+
+test("log-read failure recovers output without another command or create", async () => {
+  const f = fixture(), logs = f.client.commandLogs;
+  f.client.commandLogs = async () => { throw new Error("logs unavailable"); };
+  await assert.rejects(runFirstTask(f.saved(), f.dependencies), /logs unavailable/);
+  assert.equal(f.saved().commandId, "cmd_first");
+  assert.equal(f.saved().complete, undefined);
+  f.client.commandLogs = logs;
+  await runFirstTask(f.saved(), f.dependencies);
+  assert.equal(f.saved().output, "Harakiri is ready\n");
   assert.equal(f.saved().complete, true);
   assert.equal(f.state.creates, 1);
   assert.equal(f.state.submissions, 1);

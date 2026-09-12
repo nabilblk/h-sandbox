@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 75
     env:
-      HARAKIRI_USAGE_ACCEPTANCE: ${{ inputs.usage_source && '1' || '0' }}
+      HARAKIRI_USAGE_ACCEPTANCE: ${{ (inputs.usage_source || github.event_name == 'pull_request') && '1' || '0' }}
       HARAKIRI_USAGE_RELEASE: ${{ inputs.usage_release }}
       HARAKIRI_USAGE_MANIFEST_SHA256: ${{ inputs.usage_manifest_sha256 }}
     steps:
@@ -48,7 +48,7 @@ jobs:
       - name: Verify safety contracts without cluster access
         run: node --test infra/acceptance/*.test.mjs
       - name: Install tooling for explicitly requested source rehearsal
-        if: inputs.usage_source
+        if: env.HARAKIRI_USAGE_ACCEPTANCE == '1'
         run: |
           corepack enable
           pnpm install --frozen-lockfile

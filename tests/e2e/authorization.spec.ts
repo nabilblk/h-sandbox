@@ -87,7 +87,7 @@ test("onboarding never submits its first command for a running but not ready san
     return route.fulfill({ json: { sandbox: { id: "sbx_starting", runtimeMetadata: { workdir: "/app" } },
       readiness: { status: ready ? "ready" : "starting", checkedAt: new Date().toISOString() } } });
   });
-  const command = { id: "cmd_first", status: "succeeded", exitCode: 0, stdout: "Harakiri is ready\n", stderr: "" };
+  const command = { id: "cmd_first", status: "succeeded", exitCode: 0, stdout: "", stderr: "" };
   await page.route("**/v1/sandboxes/sbx_starting/commands", async route => {
     commands++;
     expect(ready).toBe(true);
@@ -95,6 +95,7 @@ test("onboarding never submits its first command for a running but not ready san
     await route.fulfill({ status: 201, json: { command } });
   });
   await page.route("**/v1/sandboxes/sbx_starting/commands/cmd_first", route => route.fulfill({ json: { command } }));
+  await page.route("**/v1/sandboxes/sbx_starting/commands/cmd_first/logs", route => route.fulfill({ json: { commandId: command.id, stdout: "Harakiri is ready\n", stderr: "" } }));
   await page.goto("/#onboarding");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();

@@ -1,4 +1,4 @@
-import type { CreateSandboxResponse, SandboxCommandResponse, SandboxCommandsResponse, SandboxReadinessResponse, Template } from "@harakiri/shared";
+import type { CreateSandboxResponse, SandboxCommandResponse, SandboxCommandLogsResponse, SandboxCommandsResponse, SandboxReadinessResponse, Template } from "@harakiri/shared";
 
 export const firstSandboxCommand = "printf 'Harakiri is ready\\n'";
 export type FirstSandboxTask = {
@@ -39,6 +39,7 @@ export type FirstTaskClient = {
   startCommand: (id: string, command: string, cwd: string, options: { timeoutMs: number }) => Promise<SandboxCommandResponse>;
   commands: (id: string) => Promise<SandboxCommandsResponse>;
   command: (id: string, commandId: string, signal?: AbortSignal) => Promise<SandboxCommandResponse>;
+  commandLogs: (id: string, commandId: string, signal?: AbortSignal) => Promise<SandboxCommandLogsResponse>;
 };
 
 export const runFirstTask = async (initial: FirstSandboxTask, dependencies: {
@@ -88,7 +89,10 @@ export const runFirstTask = async (initial: FirstSandboxTask, dependencies: {
     signal.throwIfAborted();
     const { command } = await client.command(sandboxId, task.commandId!, signal);
     if (["succeeded", "failed", "killed"].includes(command.status)) {
-      save({ output: [command.stdout, command.stderr].filter(Boolean).join("\n") });
+      // Detached command status does not include its output. A failed log read
+      // leaves the saved command identity intact for the next observation.
+      const logs = await client.commandLogs(sandboxId, task.commandId!, signal);
+      save({ output: [logs.stdout, logs.stderr].filter(Boolean).join("\n") });
       if (command.status !== "succeeded" || command.exitCode !== 0) throw new Error("The first command did not succeed. Open the sandbox to inspect its output.");
       save({ complete: true });
       return task;
