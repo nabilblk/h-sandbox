@@ -1,0 +1,129 @@
+{
+  "sourceReceiptSha256": "48135bbc836a36a60d84193d2dc06a52f95a80f0e608d803f0573576831fe268",
+  "version": "0.5.0-rc.9",
+  "applicationSource": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+  "harnessSource": "92c6c74e1d710430a6bb46f1e2a7016f231eae8c",
+  "runId": "34659892741-1",
+  "architecture": "amd64",
+  "clusterUid": "53060dc1-3e9e-4fdd-a2a2-eaaceb1e9048",
+  "startedAt": "2026-09-11T23:57:10.349Z",
+  "results": [
+    {
+      "gate": "installation",
+      "status": "passed",
+      "durationMs": 166514,
+      "initialFreeMiB": 86566,
+      "evidence": {
+        "anonymousArtifacts": true,
+        "freshInstallation": true,
+        "nativeTemplateImage": true,
+        "templateManifestSha256": "9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3"
+      }
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "durationMs": 4108,
+      "initialFreeMiB": 81531,
+      "evidence": {
+        "oidcOnboarding": true,
+        "pkceS256": true
+      }
+    },
+    {
+      "gate": "published-client-workflow",
+      "status": "passed",
+      "durationMs": 77757,
+      "initialFreeMiB": 81502,
+      "evidence": {
+        "fileSha256": "22b44fb49e01c56d6c228af5e6fcb272cba19d0432b34dfd9a455a4608037f26",
+        "modelFreeOpenCode": true,
+        "publishedCli": true,
+        "publishedSdk": true,
+        "protectedRoute": true,
+        "capacityDenial": true,
+        "idempotency": true,
+        "reattachment": true
+      }
+    },
+    {
+      "gate": "coordinated-encrypted-recovery",
+      "status": "passed",
+      "durationMs": 287983,
+      "initialFreeMiB": 79254,
+      "evidence": {
+        "databaseRestore": true,
+        "workspaceRestore": true,
+        "oidcIdentity": true,
+        "retainedApiKey": true,
+        "encryptedVaultUse": true,
+        "credentialBoundary": true,
+        "negativeCases": [
+          "missing",
+          "incorrect"
+        ],
+        "envelopeSha256": "065c734992872412bb72fe2b0d37fe114eaf1164df91d87ccea60f600aee95b7",
+        "fileSha256": "22b44fb49e01c56d6c228af5e6fcb272cba19d0432b34dfd9a455a4608037f26"
+      }
+    },
+    {
+      "gate": "provider-interruption-and-state-loss",
+      "status": "passed",
+      "durationMs": 55574,
+      "initialFreeMiB": 79309,
+      "evidence": {
+        "providerInterruption": true,
+        "controlPlaneRestart": true,
+        "retainedOwnership": true,
+        "noDuplicateExecution": true,
+        "explicitVaultRehydration": true,
+        "confirmedRelease": true
+      }
+    },
+    {
+      "gate": "configuration-upgrade-and-rollback",
+      "status": "passed",
+      "durationMs": 50369,
+      "initialFreeMiB": 79329,
+      "evidence": {
+        "configurationUpgrade": true,
+        "configurationRollback": true,
+        "preservedKeys": true,
+        "preservedWorkspace": true
+      }
+    },
+    {
+      "gate": "logout-and-key-revocation",
+      "status": "passed",
+      "durationMs": 277,
+      "initialFreeMiB": 79332,
+      "evidence": {
+        "logout": true,
+        "keyRevoked": true
+      }
+    }
+  ],
+  "releaseCompatibility": {
+    "status": "not_tested",
+    "reason": "A distinct capacity-compatible published release pair has not been selected. Configuration rollback does not establish schema/image rollback safety."
+  },
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-09-12T00:08:06.986Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

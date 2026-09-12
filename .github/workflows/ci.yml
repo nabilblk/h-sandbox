@@ -83,7 +83,7 @@ jobs:
         run: pnpm templates:check
 
       - name: Standalone installation, template release and local supervision contracts
-        run: node --test scripts/deployment-boundary.test.mjs infra/keycloak/harakiri-realm.test.mjs infra/mirror/mirror-opensandbox-chart.test.mjs infra/templates/release.test.mjs infra/scripts/env/harakiri/local-services.test.mjs infra/preview/configure.test.mjs
+        run: node --test scripts/deployment-boundary.test.mjs infra/keycloak/harakiri-realm.test.mjs infra/mirror/mirror-opensandbox-chart.test.mjs infra/templates/release.test.mjs infra/scripts/env/harakiri/local-services.test.mjs infra/preview/configure.test.mjs infra/acceptance/*.test.mjs
 
       - name: Shared tests
         run: pnpm --filter @harakiri/shared test
@@ -101,7 +101,7 @@ jobs:
         env:
           CAPACITY_TEST_REQUIRED: "1"
           SANDBOX_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
-        run: pnpm --filter @harakiri/api exec node --test --test-concurrency=1 --import tsx src/organization-capacity.test.ts src/capacity-faults.test.ts
+        run: pnpm --filter @harakiri/api exec node --test --test-concurrency=1 --import tsx src/organization-capacity.test.ts src/capacity-faults.test.ts src/sandbox-queue-postgres.test.ts
 
       - name: Web typecheck and tests
         run: pnpm --filter @harakiri/web typecheck && pnpm --filter @harakiri/web test

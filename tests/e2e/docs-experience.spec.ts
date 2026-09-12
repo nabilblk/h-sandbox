@@ -15,7 +15,9 @@ test("Kubernetes installation is discoverable and exports the exact operator com
   const markdown = await response.text();
   expect(markdown).toContain(source!);
   expect(markdown).toContain("node install-check.mjs");
-  expect(markdown).toContain("Native amd64 acceptance is still pending");
+  expect(markdown).toContain("Native amd64 installation, CLI/SDK tasks and encrypted recovery passed");
+  expect(markdown).toContain("docs/operations/standalone-recovery.md");
+  expect(markdown).toContain("a distinct compatible release pair remains untested");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#docs/overview");
   await page.getByLabel("Browse docs").selectOption("install-kubernetes");
