@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-12-standalone-recovery",
+    version: "Documentation update",
+    date: "September 12, 2026",
+    title: "Verified native installation and recovery",
+    items: [
+      "Qualified published rc.9 on isolated native amd64 runners: browser OIDC, published CLI/SDK, protected routes, capacity admission and retained workspaces.",
+      "Restored both databases and workspace files onto replacement storage. Verified encrypted Vault recovery, missing/wrong-key rejection, provider interruption and explicit credential rehydration.",
+      "Added a first-class Backup and recovery guide, guarded operator commands and retained test receipts. Corrected the installation guide's ARM-only OpenCode image pin to the published multi-architecture index.",
+      "Same-release Helm configuration rollback, logout, key revocation and cleanup passed. Cross-release/schema rollback, HA/CSI and restricted OpenShift remain outside this qualification.",
+      "This is a web/documentation update, not a new API, SDK, CLI or chart version. Existing rc.9 artifacts and stable latest remain unchanged."
+    ]
+  },
+  {
     id: "2026-09-11-v0-5-0-rc-9",
     version: "v0.5.0-rc.9",
     date: "September 11, 2026",

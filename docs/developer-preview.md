@@ -28,6 +28,15 @@ verified after opening; the [launch review](oss-launch-review.md) records the
 checks and remaining operational limits. Source publication does not mean a
 social announcement or a stable release has happened.
 
+September 12 qualification adds a fresh **rc.9 native amd64** installation and
+coordinated recovery of both databases, retained files and an encrypted Vault
+source. Three isolated runs passed, including missing/wrong-key rejection,
+provider interruption, explicit credential rehydration and cleanup. See the
+[public backup and recovery guide](https://sb.harakiri.io/#docs/backup-recovery)
+and [retained receipt](operations/evidence/standalone-34659892741.json).
+Same-release configuration rollback passed; distinct-release/schema rollback
+remains untested. This supplements, rather than rewrites, the earlier evidence.
+
 ## Operator Path
 
 The [native Kubernetes installation guide](../infra/preview/README.md) contains
