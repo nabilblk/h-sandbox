@@ -49,7 +49,8 @@ export async function installPublishedUsage(ctx) {
 }
 
 export async function verifyOldClient(ctx, state, id) {
-  const { HarakiriClient } = await import(pathToFileURL(path.join(ctx.baselineConsumer, "acceptance-client.mjs")).href);
+  // Two installed SDK versions must not initialize two copies of Playwright.
+  const { HarakiriClient } = await import(pathToFileURL(path.join(ctx.baselineConsumer, "sdk-client.mjs")).href);
   const client = new HarakiriClient({ apiUrl: origins.api, apiKey: ctx.read("client-key.json").token });
   await assertRetained(client, id, state);
   await denyAtCapacity(client, state.templateId);

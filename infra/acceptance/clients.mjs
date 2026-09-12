@@ -8,6 +8,8 @@ export async function installClients(ctx, manifest) {
   fs.writeFileSync(path.join(ctx.consumer, "package.json"), JSON.stringify({ private: true, type: "module" }), { mode: 0o600 });
   fs.copyFileSync(new URL("./consumer.mjs", import.meta.url), path.join(ctx.consumer, "acceptance-client.mjs"));
   fs.chmodSync(path.join(ctx.consumer, "acceptance-client.mjs"), 0o600);
+  fs.copyFileSync(new URL("./sdk-consumer.mjs", import.meta.url), path.join(ctx.consumer, "sdk-client.mjs"));
+  fs.chmodSync(path.join(ctx.consumer, "sdk-client.mjs"), 0o600);
   ctx.save("npmrc", "");
   ctx.save("npmrc-global", "");
   const env = { ...process.env, NPM_CONFIG_USERCONFIG: ctx.file("npmrc"), NPM_CONFIG_GLOBALCONFIG: ctx.file("npmrc-global"), NPM_CONFIG_REGISTRY: "https://registry.npmjs.org", NPM_CONFIG_CACHE: path.join(ctx.consumer, "npm-cache") };

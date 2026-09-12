@@ -37,8 +37,13 @@ export async function verifyRestoredUsage(ctx, operator) {
 export async function usageBinaryRehearsal(ctx, operator) {
   const { client } = operator;
   const state = ctx.read("recovered-workload.json");
+  console.log("Compatibility step: create surviving runtime");
   const id = await createRuntime(client, state, "usage-binary-compatibility");
-  if (ctx.publishedUsage) await verifyOldClient(ctx, state, id);
+  if (ctx.publishedUsage) {
+    console.log("Compatibility step: old published SDK against new API");
+    await verifyOldClient(ctx, state, id);
+  }
+  console.log("Compatibility step: roll back binaries, retain additive schema");
   const gapFrom = new Date().toISOString();
   await replicas(ctx, ["harakiri-scheduler"], 0);
   const baseline = ctx.read("baseline-harakiri-values.json");
@@ -55,6 +60,7 @@ export async function usageBinaryRehearsal(ctx, operator) {
   catch (error) { assertLegacyHistoryUnavailable(error); absent = true; }
   check(absent, "Baseline unexpectedly claims the new history capability");
   await delay(35000);
+  console.log("Compatibility step: re-upgrade and verify retained history and coverage gap");
   ctx.helm(["upgrade", "harakiri", ctx.candidateChart ?? "infra/charts/harakiri", "-n", platformNamespace, "-f", ctx.file("harakiri-values.json"), "--wait", "--timeout", "10m"]);
   await ctx.forwardAll();
   await assertRetained(client, id, state); await denyAtCapacity(client, state.templateId);

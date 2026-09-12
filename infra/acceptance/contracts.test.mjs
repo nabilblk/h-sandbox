@@ -33,6 +33,16 @@ test("empty-catalog fixture cannot alter an unowned cluster", () => {
   assert.throws(() => prepareEmptyCatalog({ guard() { throw new Error("unowned cluster"); }, k() { assert.fail("No database mutation before ownership"); } }), /unowned cluster/);
 });
 
+test("old published SDK import cannot initialize a second browser test runtime", () => {
+  const sdk = fs.readFileSync(new URL("./sdk-consumer.mjs", import.meta.url), "utf8");
+  assert.equal(sdk.trim(), 'export { HarakiriClient } from "@h-sandbox/sdk";');
+  const clients = fs.readFileSync(new URL("./clients.mjs", import.meta.url), "utf8");
+  assert.match(clients, /copyFileSync\(new URL\("\.\/sdk-consumer\.mjs".*"sdk-client\.mjs"/);
+  const published = fs.readFileSync(new URL("./usage-published.mjs", import.meta.url), "utf8");
+  assert.match(published, /ctx\.baselineConsumer, "sdk-client\.mjs"/);
+  assert.doesNotMatch(published, /acceptance-client\.mjs|@playwright\/test/);
+});
+
 test("rc.9 history absence requires its exact fail-closed route contract", () => {
   assertLegacyHistoryUnavailable({ status: 403, code: "forbidden" });
   for (const error of [{ status: 401, code: "unauthorized" }, { status: 500, code: "internal_error" }, { status: 403, code: "other" }, { status: 404, code: "not_found" }, new TypeError("fetch failed")]) {
