@@ -16,7 +16,7 @@ const encode = (bytes: Uint8Array) => {
 
 const checksum = async (bytes: Uint8Array<ArrayBuffer>) => {
   const digest = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", bytes));
-  return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `sha256:${Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
 };
 
 export const runtimePath = (path: string, workdir: string) => {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import test from "node:test";
 import {
@@ -191,6 +192,8 @@ test("text and binary convenience methods use runtime paths and verify bytes", a
     if (init?.method === "PUT") return Response.json({ file: { path: JSON.parse(String(init.body)).path } });
     if (init?.method === "POST") {
       uploaded = JSON.parse(String(init.body));
+      const expected = `sha256:${createHash("sha256").update(Buffer.from(uploaded.contentBase64, "base64")).digest("hex")}`;
+      assert.equal(uploaded.sha256, expected, "Artifact checksum must use the public API's algorithm-prefixed format");
       return Response.json({ ...uploaded, file: { path: uploaded.path } });
     }
     if (String(url).includes("/files/read")) return Response.json({ content: "hello", encoding: "utf8" });

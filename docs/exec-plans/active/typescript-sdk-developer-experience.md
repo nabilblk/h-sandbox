@@ -194,3 +194,8 @@ bootstrap claims remain a separately documented API dependency.
   packaging, OIDC onboarding and template import; its first-task fixture failed.
   Runner cleanup and private-material removal passed. Corrected the fixture's
   line-oriented stdout expectation and create-request wait cap; rerun pending.
+- Native run 34730514985 passed finite and checked execution plus atomic capacity
+  rejection, then exposed a real binary-helper defect: the API requires an
+  algorithm-prefixed `sha256:` digest. Added an independent checksum assertion,
+  observed it fail locally, and corrected upload/download checksum formatting.
+  Runtime and private-material cleanup passed; full acceptance rerun pending.
