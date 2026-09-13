@@ -37,6 +37,9 @@ fails; cancelling observation never implies the runtime stopped.
 maintainer URL. Pass `{ env, fetch }` for dependency injection; the explicit
 constructor remains supported. Keep control-plane keys in server-side code.
 Use scoped, expiring service credentials, never a user password in the SDK.
+The control-plane key is a JavaScript private field, excluded from client and
+sandbox object serialization and ordinary Node inspection. This is not a reason
+to log raw handles: route tokens and workload data can still be sensitive.
 
 ## Choose the Execution Lifetime
 

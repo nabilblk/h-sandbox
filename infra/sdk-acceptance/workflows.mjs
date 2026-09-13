@@ -34,6 +34,8 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
       const sandbox = await create({ workspaceId: workspace.id, name: "sdk-first-task" });
       assert.equal(sandbox.creation.sandbox.id, sandbox.id);
       assert.equal(sandbox.readiness.status, "ready");
+      assert.equal(JSON.stringify(client).includes(apiKey), false);
+      assert.equal(JSON.stringify(sandbox).includes(apiKey), false);
       const result = await sandbox.run("python3 -c 'print(6 * 7)'", { check: true });
       assert.equal(result.stdout.trim(), "42");
       assert.equal((await sandbox.run("pwd", { check: true })).stdout.trim(), sandbox.runtimeMetadata.workdir);

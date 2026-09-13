@@ -239,3 +239,12 @@ bootstrap claims remain a separately documented API dependency.
   migration window, and capture feedback from an actual consuming integration
   before freezing the contract for Python. No merge, publication, production/lab
   deployment, local cluster changes or customer application work was performed.
+- Final source review reproduced a pre-existing control-plane-key serialization
+  leak: TypeScript `private apiKey` was an enumerable runtime field, reachable
+  through a sandbox's public client. A dummy-key regression failed before changing
+  it to a JavaScript `#apiKey` field. The regression checks JSON and Node inspection
+  of clients/sandboxes while confirming authenticated requests still work. Live
+  acceptance now checks those serialization boundaries too; this final hardening
+  requires another candidate run before the PR is ready for release review.
+  Local recheck passed: 94 SDK tests, 25 installed-tarball tests and public
+  declarations, CLI typecheck, example compilation, and 11 runner safety tests.

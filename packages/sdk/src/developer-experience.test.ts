@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createServer } from "node:http";
+import { inspect } from "node:util";
 import test from "node:test";
 import {
   HarakiriClient, HarakiriCommandEndedError, HarakiriRunError, HarakiriSandboxCreationError,
@@ -18,6 +19,19 @@ const route = (url = "https://api.example.invalid/route/one"): SandboxRouteRespo
   accessToken: "dummy-route-secret"
 });
 const clientFor = (fetch: typeof globalThis.fetch) => new HarakiriClient({ apiUrl: "https://control.example.invalid", apiKey: "dummy-api-secret", fetch });
+
+test("clients and sandbox handles do not serialize or inspect the control-plane key", async () => {
+  const client = clientFor(async (_url, init) => {
+    assert.equal(new Headers(init?.headers).get("x-api-key"), "dummy-api-secret");
+    return Response.json({ sandbox: sandboxSummary() });
+  });
+  const sandbox = await client.sandboxes.connect("sbx_dx");
+  assert.equal(sandbox.client, client);
+  for (const value of [client, sandbox]) {
+    assert.equal(JSON.stringify(value).includes("dummy-api-secret"), false);
+    assert.equal(inspect(value, { depth: null, showHidden: true }).includes("dummy-api-secret"), false);
+  }
+});
 
 test("scoped fetch rejects foreign origins and sibling or encoded paths before sending anything", async () => {
   let calls = 0;

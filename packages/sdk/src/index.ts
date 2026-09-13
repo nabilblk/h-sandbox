@@ -1303,14 +1303,14 @@ export class HarakiriSandbox {
 
 export class HarakiriClient {
   private readonly apiUrl: string;
-  private readonly apiKey: string;
+  readonly #apiKey: string;
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: HarakiriClientOptions) {
     if (!options.apiUrl) throw new Error("apiUrl is required");
     if (!options.apiKey) throw new Error("apiKey is required");
     this.apiUrl = options.apiUrl.replace(/\/+$/, "");
-    this.apiKey = options.apiKey;
+    this.#apiKey = options.apiKey;
     this.fetchImpl = options.fetch ?? fetch;
   }
 
@@ -1487,7 +1487,7 @@ export class HarakiriClient {
       ...init,
       headers: {
         ...(hasBody ? { "content-type": "application/json" } : {}),
-        "x-api-key": this.apiKey,
+        "x-api-key": this.#apiKey,
         ...(init.headers ?? {})
       }
     });
@@ -1510,7 +1510,7 @@ export class HarakiriClient {
     return observeCommandStream(async (cursor, signal) => {
       const url = new URL(`${this.apiUrl}/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}/events`);
       if (cursor) url.searchParams.set("cursor", cursor);
-      const response = await this.fetchImpl(url, { signal, headers: { "x-api-key": this.apiKey, accept: "text/event-stream" } });
+      const response = await this.fetchImpl(url, { signal, headers: { "x-api-key": this.#apiKey, accept: "text/event-stream" } });
       if (!response.ok) throw createHarakiriApiError(response.status, await response.text());
       return response;
     }, commandId, options);
@@ -2193,7 +2193,7 @@ export class HarakiriClient {
   createTerminalAttachRequest(id: string, options: TerminalAttachOptions = {}): TerminalAttachRequest {
     return {
       url: this.createTerminalAttachUrl(id, options),
-      headers: { "x-api-key": this.apiKey }
+      headers: { "x-api-key": this.#apiKey }
     };
   }
 
