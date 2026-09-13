@@ -102,7 +102,7 @@ Do not read or change unrelated `docs/cot/` material or Brain files.
 - [ ] Run the authorized model-free installed-package recipes against
   a disposable supported runtime, including nonzero exits, cancellation, output
   gaps, capacity denial, partial source preparation and unconfirmed cleanup.
-- [ ] Verify the installed package on minimum-supported Node 20 and publish the
+- [x] Verify the installed package on minimum-supported Node 20 and add the
   new API guide in the website source, explicitly marked unreleased.
 - [ ] Decide a deliberate preview release and migration window; no silent breaking
   return-type, wait or throw changes in a patch. Publish only after authorization.
@@ -189,3 +189,8 @@ bootstrap claims remain a separately documented API dependency.
 - Local recheck: 93 SDK tests, 83 CLI tests, 24 installed-package tests, 18 docs
   tests and 10 runner safety/receipt tests passed. Web typecheck and the focused
   browser scenario at 1440/390/320px passed. Hosted results are pending.
+- PR #48: Node 20 and 22 installed-package checks and every regular CI gate
+  passed on the first push. Native run 34730186835 passed installation, candidate
+  packaging, OIDC onboarding and template import; its first-task fixture failed.
+  Runner cleanup and private-material removal passed. Corrected the fixture's
+  line-oriented stdout expectation and create-request wait cap; rerun pending.

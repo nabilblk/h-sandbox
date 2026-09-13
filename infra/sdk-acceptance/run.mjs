@@ -7,7 +7,7 @@ import { replicas } from "../acceptance/operator.mjs";
 import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
 import { diagnostics } from "../acceptance/diagnostics.mjs";
 import { installSdkCandidate } from "./candidate.mjs";
-import { sdkGateReceipt, sdkGates } from "./receipt.mjs";
+import { fixtureFailureLocation, sdkGateReceipt, sdkGates } from "./receipt.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -50,7 +50,7 @@ try {
   receipt.status = "configured_gates_passed";
 } catch (error) {
   ctx.save("sdk-failure.json", { gate: activeGate, message: error.message, stack: error.stack, body: error.body });
-  receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });
+  receipt.results.push({ gate: activeGate, status: "failed", failure: { ...publicFailure(error), ...fixtureFailureLocation(error) } });
   receipt.infrastructure = diagnostics(ctx);
   receipt.status = "failed";
   process.exitCode = 1;

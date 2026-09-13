@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { runnerIdentity } from "../acceptance/safety.mjs";
-import { sdkGateReceipt, sdkGates } from "./receipt.mjs";
+import { fixtureFailureLocation, sdkGateReceipt, sdkGates } from "./receipt.mjs";
 
 test("SDK acceptance rejects the local host and self-hosted runners", () => {
   assert.throws(() => runnerIdentity({}, "darwin", "arm64"));
@@ -22,4 +22,10 @@ test("the installed runtime fixture uses only the public package and no local cl
   assert.doesNotMatch(source, /from ["']\.\.?\//);
   assert.doesNotMatch(source, /child_process|kubectl|k0s|KUBECONFIG|process\.env/);
   assert.match(source, /wait: true, timeoutMs: 180000/);
+});
+
+test("failure location exports only numeric fixture coordinates, never paths or exception content", () => {
+  assert.deepEqual(fixtureFailureLocation({ stack: "credential-value at file:///private/path/sdk-workflows.mjs:31:9" }), { fixtureLine: 31, fixtureColumn: 9 });
+  assert.deepEqual(fixtureFailureLocation({ stack: "credential-value at file:///other/module.mjs:8:12" }), {});
+  assert.deepEqual(fixtureFailureLocation(new Error("withheld")), {});
 });

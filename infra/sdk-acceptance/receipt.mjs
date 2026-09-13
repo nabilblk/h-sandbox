@@ -12,3 +12,8 @@ export function sdkGateReceipt(name, durationMs) {
   if (!Number.isFinite(durationMs) || durationMs < 0) throw new Error("Invalid gate duration");
   return { gate: name, status: "passed", durationMs };
 }
+
+export function fixtureFailureLocation(error) {
+  const location = /\/sdk-workflows\.mjs:(\d+):(\d+)/.exec(error?.stack ?? "");
+  return location ? { fixtureLine: Number(location[1]), fixtureColumn: Number(location[2]) } : {};
+}

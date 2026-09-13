@@ -30,7 +30,7 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
       const result = await sandbox.run("python3 -c 'print(6 * 7)'", { check: true });
       assert.equal(result.stdout.trim(), "42");
       assert.equal((await sandbox.run("pwd", { check: true })).stdout.trim(), sandbox.runtimeMetadata.workdir);
-      assert.equal((await sandbox.run({ command: "printf legacy" })).result.stdout, "legacy");
+      assert.equal((await sandbox.run({ command: "printf 'legacy\\n'" })).result.stdout, "legacy\n");
       assert.equal((await sandbox.run("exit 7")).exitCode, 7);
       await assert.rejects(sandbox.run("printf failure >&2; exit 7", { check: true }), error =>
         error instanceof HarakiriRunError && error.exitCode === 7 && error.stderr.includes("failure"));
@@ -122,7 +122,7 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
     await gate("partial-source-and-unconfirmed-cleanup", async () => {
       let failed;
       // Port 1 is closed inside this fresh sandbox. No third-party Git host or model is needed.
-      await assert.rejects(client.sandboxes.create({ template, ttlSeconds: 600, waitTimeoutMs: 600000,
+      await assert.rejects(client.sandboxes.create({ template, ttlSeconds: 600, waitTimeoutMs: 30000,
         source: { type: "git", url: "http://127.0.0.1:1/missing.git", targetPath: "/workspace/missing", timeoutMs: 10000 }
       }), error => {
         if (!(error instanceof HarakiriSandboxCreationError) || error.stage !== "source") return false;
