@@ -1,0 +1,43 @@
+{
+  "kind": "typescript-sdk-dx",
+  "baseline": "0.5.0-rc.9",
+  "applicationSource": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+  "candidateSource": "6518f797128087f1fa9bbb44f18ab52e3ffd0ad5",
+  "published": false,
+  "architecture": "amd64",
+  "node": "v22.23.2",
+  "runId": "34760627317-1",
+  "startedAt": "2026-09-13T13:44:44.834Z",
+  "results": [
+    { "gate": "published-installation", "status": "passed", "durationMs": 134905 },
+    { "gate": "candidate-package", "status": "passed", "durationMs": 4344 },
+    { "gate": "oidc-onboarding", "status": "passed", "durationMs": 2736 },
+    { "gate": "template-import", "status": "passed", "durationMs": 27488 },
+    { "gate": "creation-and-finite-tasks", "status": "passed", "durationMs": 22920 },
+    { "gate": "atomic-capacity-error", "status": "passed", "durationMs": 19 },
+    { "gate": "text-and-binary-files", "status": "passed", "durationMs": 5173 },
+    { "gate": "process-reconnect-and-cancellation", "status": "passed", "durationMs": 12515 },
+    { "gate": "protected-http-and-local-git", "status": "passed", "durationMs": 4392 },
+    { "gate": "retained-workspace-and-confirmed-release", "status": "passed", "durationMs": 28812 },
+    { "gate": "partial-source-recovery", "status": "passed", "durationMs": 6186 },
+    { "gate": "unconfirmed-cleanup-and-expiry", "status": "passed", "durationMs": 124267 },
+    { "gate": "key-revocation", "status": "passed", "durationMs": 10 }
+  ],
+  "limits": [
+    "No LLM inference",
+    "Unreplayable cursor contract, not a retention-expiry simulation",
+    "No distributed exactly-once Git bootstrap claim",
+    "No package publication or deployment outside this runner"
+  ],
+  "tarballSha256": "aa3b828cbf6147f9a30ec61742c564ab36f5fcce541b3e99cf7712e847bca7ed",
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      { "name": "browser", "status": "passed" },
+      { "name": "portForwards", "status": "passed" }
+    ]
+  },
+  "completedAt": "2026-09-13T13:51:09.203Z",
+  "cleanup": { "status": "passed", "privateMaterialRemoved": true }
+}

@@ -146,8 +146,8 @@ operator values, credentials, public OIDC origins and unrelated workloads.
   per-byte JavaScript array; retain size and checksum verification.
 - [x] Restore optional Anthropic credential propagation and execute the actual
   OpenCode example with/without a dummy provider key against a loopback fixture.
-- [ ] Pass local and hosted checks, push the fixes and merge PR 48.
-- [ ] Deploy the changed web/docs bundle with preserved Helm values; verify public
+- [x] Pass local and hosted checks, push the fixes and merge PR 48.
+- [x] Deploy the changed web/docs bundle with preserved Helm values; verify public
   endpoints and public OIDC redirects. Do not relabel unpublished SDK additions.
 
 Both regression fixtures failed against the reviewed implementation before the
@@ -155,6 +155,17 @@ fix: the provider environment was absent, and the 16 MiB artifact exhausted a
 128 MiB Node heap. They pass with the fixes. Local SDK tests (95), installed
 contracts (26), public types and examples pass. Installed consumer CI also runs
 the two new fixtures on Node 20 and 22. No actual model call is needed or claimed.
+
+[PR 48](https://github.com/nabilblk/h-sandbox/pull/48) merged as
+`72e16beec03bbc9696abc4a8edc7abf37de6e9c2` after all 12 checks passed. The final
+[native receipt](../../operations/evidence/sdk-dx-34760627317.json) records all
+13 gates and cleanup. Main CI and the web-only Harbor build also passed. Public
+Helm revision 43 changes only the web image; API, chart, credentials and operator
+configuration were preserved. Endpoint and desktop/mobile browser checks passed
+after reconnecting the existing tunnel following host-side QUIC network errors.
+See the [delivery receipt](../../release-notes/2026-09-13-typescript-sdk-delivery.md).
+The deliberate npm preview publication/migration decision and integration feedback
+remain open; this deployment does not publish the candidate SDK package.
 
 ## Decision Log
 
