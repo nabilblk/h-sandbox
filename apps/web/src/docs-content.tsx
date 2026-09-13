@@ -15,6 +15,7 @@ import { workspaceTutorialDocs } from "./workspace-tutorial-docs";
 import { workspaceReferenceDocs } from "./workspace-reference-docs";
 import { workspaceOperationsDocs } from "./workspace-operations-docs";
 import { uiProductTourDocs } from "./ui-product-tour-docs";
+import { typescriptSdkDocs } from "./typescript-sdk-docs";
 
 export type DocPage = {
   id: string;
@@ -59,6 +60,7 @@ export const docPages: DocPage[] = [
   overviewDocs,
   uiProductTourDocs,
   authorizationDocs,
+  typescriptSdkDocs,
   ...agentDemoTutorials.map((tutorial): DocPage => ({
     id: tutorial.id, section: "Agent demos", title: tutorial.title, lede: tutorial.lede,
     navTitle: ({ "cli-agent-repair": "CLI: repair code", "ui-agent-app": "UI: build an app", "sdk-agent-report": "SDK: generate a report", "browser-agent-qa": "SDK: browser QA" } as Record<string, string>)[tutorial.id],
@@ -301,6 +303,7 @@ try {
       <>
         <h2>Packages</h2>
         <p><code>{"@h-sandbox/sdk"}</code> is the TypeScript integration package. <code>{"@h-sandbox/cli"}</code> installs the <code>{"harakiri"}</code> executable for local development and CI scripts.</p>
+        <p>Evaluating the next SDK? The <a href="#docs/typescript-sdk">TypeScript candidate guide</a> covers task-oriented execution, process reconnect, native text/bytes and confirmed cleanup. Those additions are explicitly marked unreleased; the package commands here remain for the published version.</p>
         <CodeBlock language="bash">{`npm install @h-sandbox/sdk\nnpm install -g @h-sandbox/cli`}</CodeBlock>
         <h2>Configure</h2>
         <p>Create an API key in the dashboard, then pass it through environment variables or <code>{"harakiri login"}</code>. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
@@ -761,6 +764,7 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
     body: (
       <>
         <h2>JavaScript</h2>
+        <p>For the next SDK's object-oriented workflow and migration notes, read the <a href="#docs/typescript-sdk">TypeScript SDK candidate guide</a>. The calls below use the published API.</p>
         <CodeBlock language="typescript">{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst client = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await client.createSandbox({\n  template: "open-agents-dev:stable",\n  ttlSeconds: 300,\n  env: { HARAKIRI_ENV_SMOKE: "env-ok" }\n});\nawait client.runSandbox(sandbox.id, { command: "printenv HARAKIRI_ENV_SMOKE" });`}</CodeBlock>
         <h2>HTTP</h2>
         <CodeBlock language="bash">{`curl "$PUBLIC_API_URL/v1/sandboxes" \\\n  -H "x-api-key: $HK_KEY" \\\n  -H "content-type: application/json" \\\n  -d '{"template":"open-agents-dev:stable","ttlSeconds":300,"env":{"HARAKIRI_ENV_SMOKE":"env-ok"}}'`}</CodeBlock>

@@ -8,6 +8,39 @@ Read the public [SDK guide](https://sb.harakiri.io/#docs/sdk-usage) and
 [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 Repository contributors can also read [the integration contract](../../docs/sdk.md).
 
+## Unreleased TypeScript Improvements
+
+The working tree adds a task-oriented API on the existing sandbox object.
+**These additions are not yet in npm rc.10.** Build/install the workspace package
+to use the [six updated recipes and migration guide](../../docs/sdk-developer-experience.md).
+
+```ts
+import { HarakiriClient } from "@h-sandbox/sdk";
+
+const client = HarakiriClient.fromEnv();
+const sandbox = await client.sandboxes.create({ template: "python-3.12", wait: false });
+try {
+  await sandbox.wait({ timeoutMs: 180_000 });
+  await sandbox.files.write("hello.py", "print(2 + 2)\n");
+  const result = await sandbox.run("python hello.py", { check: true });
+  console.log(result.stdout);
+} finally {
+  await sandbox.kill({ wait: true, timeoutMs: 90_000 });
+}
+```
+
+`fromEnv()` requires your installation's `HARAKIRI_API_URL` and
+`HARAKIRI_API_KEY`. New process/route/workspace handles keep their existing
+response properties. Object-input `run` and file writes retain their response
+envelopes; the string overloads return domain results. `readBytes` verifies size
+and SHA-256 within the advertised buffered artifact limit.
+
+Route fetch now scopes credentials to the route origin/path and uses manual
+redirects. All polling waits bound in-flight reads and accept cancellation.
+Accepted creation failures retain their sandbox ID. These correctness changes
+and Git bootstrap's remaining distributed-replay limitation are documented in
+the migration guide. No mutation is automatically retried.
+
 ## Install
 
 ### Execution Capacity
@@ -24,9 +57,9 @@ use `sandbox.refresh()` and capacity reads for confirmation. See the
 and [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.9
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.10
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
 ```
 
 This pins the recorded Developer Preview; confirm the matching server with your
@@ -39,7 +72,7 @@ Configure the client with an API URL and a scoped, expiring key issued by Haraki
 import { HarakiriClient } from "@h-sandbox/sdk";
 
 const harakiri = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io",
+  apiUrl: process.env.HARAKIRI_API_URL!,
   apiKey: process.env.HARAKIRI_API_KEY!
 });
 ```
@@ -746,5 +779,6 @@ More complete examples are available under `examples/`, and runtime contract
 documentation is available in `docs/sdk.md`,
 `docs/integrations/building-with-harakiri.md`, and
 `docs/integrations/capabilities-and-limits.md`.
-The `examples/sdk-sandbox-object` example is the recommended starting point for
-adapter authors who want the high-level `HarakiriSandbox` object.
+The updated `examples/sdk-typescript-quickstart` is the first working-tree recipe;
+`examples/sdk-sandbox-object` adds a background task and reconnecting observer.
+Both currently require the unreleased additions described above.

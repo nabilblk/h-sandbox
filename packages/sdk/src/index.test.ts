@@ -1358,7 +1358,7 @@ test("HarakiriClient exposes typed wait timeouts", async () => {
     })
   });
 
-  await assert.rejects(() => client.waitForCommand("sbx_test", "cmd_test", { intervalMs: 0, timeoutMs: 0 }), (error) => {
+  await assert.rejects(() => client.waitForCommand("sbx_test", "cmd_test", { intervalMs: 0, timeoutMs: 30 }), (error) => {
     assert.ok(error instanceof HarakiriWaitTimeoutError);
     assert.equal(error.target, "command");
     assert.equal(error.id, "cmd_test");
@@ -1652,7 +1652,7 @@ test("waitForRouteHttp reports route timeout details", async () => {
     lastUsedAt: null,
     terminatedAt: null
   }, {
-    timeoutMs: 0,
+    timeoutMs: 30,
     intervalMs: 0,
     fetch: async () => new Response("not yet", { status: 503 })
   }), (error) => {
