@@ -1,41 +1,25 @@
+import assert from "node:assert/strict";
+import { setTimeout as delay } from "node:timers/promises";
 import { HarakiriClient } from "@h-sandbox/sdk";
 
-const harakiri = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL,
-  apiKey: process.env.HARAKIRI_API_KEY
+// Unreleased SDK recipe; see docs/sdk-developer-experience.md for package setup.
+const holdMs = Number(process.env.HARAKIRI_DEMO_HOLD_MS ?? 30_000);
+if (!Number.isSafeInteger(holdMs) || holdMs < 0 || holdMs > 60_000) throw new Error("HARAKIRI_DEMO_HOLD_MS must be 0..60000.");
+const client = HarakiriClient.fromEnv();
+const sandbox = await client.sandboxes.create({
+  template: process.env.HARAKIRI_TEMPLATE ?? "node-20", name: "sdk-protected-server", ttlSeconds: 300
 });
-
-let sandbox;
 try {
-  sandbox = (await harakiri.createSandbox({
-    template: "node-20",
-    name: "sdk-dev-server",
-    wait: true,
-    ttlSeconds: 900,
-    env: { NODE_ENV: "development" }
-  })).sandbox;
-
-  await harakiri.files.write(sandbox.id, {
-    path: "/workspace/package.json",
-    content: JSON.stringify({ type: "module", scripts: { dev: "node server.mjs" } }, null, 2),
-    createParents: true
-  });
-  await harakiri.files.write(sandbox.id, {
-    path: "/workspace/server.mjs",
-    content: "import http from 'node:http';\nhttp.createServer((_, res) => res.end('ready')).listen(3000, '0.0.0.0');\n"
-  });
-
-  const { command } = await harakiri.commands.start(sandbox.id, {
-    command: "npm run dev",
-    cwd: "/workspace",
-    detached: true
-  });
-  await harakiri.commands.wait(sandbox.id, command.id, { statuses: ["running"], timeoutMs: 30_000, intervalMs: 500 });
-
-  const route = await harakiri.routes.expose(sandbox.id, { port: 3000, accessMode: "token" });
-  console.log(route.route.url);
-  console.log(`${route.accessHeaderName}: ${route.accessToken}`);
-  await harakiri.renewSandbox(sandbox.id);
+  await sandbox.files.write("server.mjs", "import http from 'node:http';\nhttp.createServer((_, res) => res.end('ready')).listen(3000, '0.0.0.0');\n");
+  const server = await sandbox.processes.start({ command: "node server.mjs", timeoutMs: 120_000 });
+  await server.wait({ statuses: ["running"], timeoutMs: 30_000 });
+  const route = await sandbox.routes.expose({ port: 3000, accessMode: "token" });
+  const health = await route.waitForHttp({ timeoutMs: 30_000 });
+  assert.equal(await health.text(), "ready");
+  assert.equal(await (await route.fetch("/")).text(), "ready");
+  console.log(`Protected service verified in ${sandbox.id}. Keeping it up for ${holdMs}ms.`);
+  // A bare browser URL is insufficient; route.fetch supplies the scoped token.
+  await delay(holdMs);
 } finally {
-  if (sandbox) await harakiri.killSandbox(sandbox.id).catch(() => undefined);
+  await sandbox.kill({ wait: true, timeoutMs: 90_000 });
 }

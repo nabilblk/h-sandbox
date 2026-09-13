@@ -1,5 +1,34 @@
 import { expect, test } from "@playwright/test";
 
+test("TypeScript candidate guide is discoverable, copyable and exported on desktop and mobile", async ({ page, context, request }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/#docs/sdk-cli");
+  await page.locator("article").getByRole("link", { name: "TypeScript candidate guide", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "TypeScript SDK", exact: true })).toBeVisible();
+  await expect(page.locator("article")).toContainText("Unreleased SDK candidate");
+  await expect(page.locator("article")).toContainText("not in the published @h-sandbox/sdk@0.5.0-rc.10");
+  const block = page.locator(".doc-code").filter({ hasText: "first-task.mts" });
+  const raw = await block.locator("pre code").textContent();
+  await block.getByRole("button", { name: "Copy first-task.mts code" }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(raw);
+  await expect(block.locator(".hljs-keyword").first()).toBeVisible();
+  const markdown = await request.get("/docs/typescript-sdk.md");
+  expect(markdown.ok()).toBe(true);
+  expect(await markdown.text()).toContain(raw!);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/#docs/typescript-sdk");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.screenshot({ path: `test-results/typescript-sdk-${width}.png` });
+  }
+  await page.getByLabel("Browse docs").selectOption("sdk-cli");
+  await page.getByLabel("Browse docs").selectOption("typescript-sdk");
+  await page.locator(".docs-inline-toc summary").click();
+  await page.getByRole("navigation", { name: "Page sections" }).getByRole("link", { name: "Failure and cleanup", exact: true }).click();
+  await expect(page.locator("#failure-and-cleanup")).toBeFocused();
+});
+
 test("Kubernetes installation is discoverable and exports the exact operator commands", async ({ page, request }) => {
   await page.goto("/#docs/overview");
   await page.locator('article .docs-start-link[href="#docs/install-kubernetes"]').click();

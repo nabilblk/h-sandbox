@@ -1,38 +1,19 @@
+import assert from "node:assert/strict";
 import { HarakiriClient } from "@h-sandbox/sdk";
 
-const harakiri = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL,
-  apiKey: process.env.HARAKIRI_API_KEY
+// Unreleased SDK recipe; see docs/sdk-developer-experience.md for package setup.
+const client = HarakiriClient.fromEnv();
+const sandbox = await client.sandboxes.create({
+  template: process.env.HARAKIRI_TEMPLATE ?? "python-3.12", name: "sdk-files"
 });
-
-let sandbox;
 try {
-  sandbox = (await harakiri.createSandbox({ template: "python-3.12", name: "sdk-files", wait: true })).sandbox;
-
-  await harakiri.files.write(sandbox.id, {
-    path: "/workspace/input.txt",
-    content: "harakiri file API\n",
-    createParents: true
-  });
-
-  const read = await harakiri.files.read(sandbox.id, "/workspace/input.txt");
-  console.log(read.content.trim());
-
-  const uploaded = Buffer.from("binary artifact\n").toString("base64");
-  await harakiri.files.upload(sandbox.id, {
-    path: "/workspace/artifacts/out.bin",
-    contentBase64: uploaded,
-    sizeBytes: Buffer.byteLength("binary artifact\n"),
-    createParents: true
-  });
-
-  const downloaded = await harakiri.files.download(sandbox.id, "/workspace/artifacts/out.bin");
-  console.log(Buffer.from(downloaded.contentBase64, "base64").toString("utf8").trim());
-
-  const listing = await harakiri.files.list(sandbox.id, "/workspace");
-  console.log(listing.files.map((file) => file.path).join("\n"));
-
-  await harakiri.files.remove(sandbox.id, "/workspace/artifacts", { recursive: true });
+  await sandbox.files.write("input.txt", "harakiri file API\n");
+  assert.equal(await sandbox.files.readText("input.txt"), "harakiri file API\n");
+  await sandbox.files.write("input.bin", new Uint8Array([0, 1, 128, 255]));
+  await sandbox.run("python -c \"from pathlib import Path; Path('result.bin').write_bytes(Path('input.bin').read_bytes()[::-1])\"", { check: true });
+  const result = await sandbox.files.readBytes("result.bin");
+  assert.deepEqual(result, new Uint8Array([255, 128, 1, 0]));
+  console.log(`Verified ${result.byteLength} result bytes, including SHA-256 in the SDK.`);
 } finally {
-  if (sandbox) await harakiri.killSandbox(sandbox.id).catch(() => undefined);
+  await sandbox.kill({ wait: true, timeoutMs: 90_000 });
 }

@@ -7,6 +7,7 @@ import { CodeBlock, CodeTabs, codeLanguages, highlightCode } from "./components/
 import { docPages } from "./docs-content.js";
 import { docGroups, docSectionHref, docSectionId, groupDocPages, searchDocPages } from "./docs-navigation.js";
 import { quickstartCli, quickstartTypeScript } from "./getting-started-docs.js";
+import { sdkFirstTask, sdkProcess } from "./typescript-sdk-docs.js";
 import { isDocsRoute, isPublicRoute, routeFromHash } from "./routing.js";
 
 test("every page occurs exactly once in the editorial progression", () => {
@@ -15,6 +16,19 @@ test("every page occurs exactly once in the editorial progression", () => {
   assert.deepEqual([...ids].sort(), docPages.map((page) => page.id).sort());
   assert.equal(groupDocPages(docPages)[0].pages[0].id, "overview");
   assert.ok(docGroups.find((group) => group.title === "Reference")!.pages.includes("cli-reference"));
+});
+
+test("TypeScript candidate is discoverable, honest about availability and recovery, and syntactically valid", () => {
+  const page = docPages.find(page => page.id === "typescript-sdk")!;
+  const markup = renderToStaticMarkup(page.body);
+  for (const phrase of ["Unreleased SDK candidate", "not in the published", "Node.js 20", "not distributed exactly-once", "waitForTermination", "sandboxes:write", "manual", "not large-file streaming"]) {
+    assert.ok(markup.includes(phrase), phrase);
+  }
+  assert.ok(searchDocPages(docPages, "fromEnv readBytes").includes(page));
+  assert.ok(docGroups[0].pages.includes("typescript-sdk"));
+  for (const code of [sdkFirstTask, sdkProcess]) execFileSync(process.execPath, ["--input-type=module", "--check"], { input: code });
+  assert.match(sdkFirstTask, /wait: false/);
+  assert.match(sdkFirstTask, /finally\s*\{\s*await sandbox\.kill\(\{ wait: true/);
 });
 
 test("search covers page copy and code, ignores case and whitespace, and handles no matches", () => {
