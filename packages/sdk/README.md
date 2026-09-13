@@ -18,8 +18,9 @@ to use the [six updated recipes and migration guide](../../docs/sdk-developer-ex
 import { HarakiriClient } from "@h-sandbox/sdk";
 
 const client = HarakiriClient.fromEnv();
-const sandbox = await client.sandboxes.create({ template: "python-3.12" });
+const sandbox = await client.sandboxes.create({ template: "python-3.12", wait: false });
 try {
+  await sandbox.wait({ timeoutMs: 180_000 });
   await sandbox.files.write("hello.py", "print(2 + 2)\n");
   const result = await sandbox.run("python hello.py", { check: true });
   console.log(result.stdout);

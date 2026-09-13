@@ -5,9 +5,10 @@ import { HarakiriClient } from "@h-sandbox/sdk";
 const client = HarakiriClient.fromEnv();
 const sandbox = await client.sandboxes.create({
   template: process.env.HARAKIRI_TEMPLATE ?? "python-3.12",
-  name: "sdk-background-task", ttlSeconds: 300
+  name: "sdk-background-task", ttlSeconds: 300, wait: false
 });
 try {
+  await sandbox.wait({ timeoutMs: 180_000 });
   await sandbox.files.write("worker.py", "import time\nfor i in range(3):\n    print(f'step {i}', flush=True)\n    time.sleep(1)\n");
   const task = await sandbox.processes.start({ command: "python -u worker.py", timeoutMs: 30_000 });
   const reference = task.reference;

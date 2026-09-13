@@ -7,9 +7,10 @@ const holdMs = Number(process.env.HARAKIRI_DEMO_HOLD_MS ?? 30_000);
 if (!Number.isSafeInteger(holdMs) || holdMs < 0 || holdMs > 60_000) throw new Error("HARAKIRI_DEMO_HOLD_MS must be 0..60000.");
 const client = HarakiriClient.fromEnv();
 const sandbox = await client.sandboxes.create({
-  template: process.env.HARAKIRI_TEMPLATE ?? "node-20", name: "sdk-protected-server", ttlSeconds: 300
+  template: process.env.HARAKIRI_TEMPLATE ?? "node-20", name: "sdk-protected-server", ttlSeconds: 300, wait: false
 });
 try {
+  await sandbox.wait({ timeoutMs: 180_000 });
   await sandbox.files.write("server.mjs", "import http from 'node:http';\nhttp.createServer((_, res) => res.end('ready')).listen(3000, '0.0.0.0');\n");
   const server = await sandbox.processes.start({ command: "node server.mjs", timeoutMs: 120_000 });
   await server.wait({ statuses: ["running"], timeoutMs: 30_000 });

@@ -16,8 +16,9 @@ Use a sandbox object for ordinary work, and retain explicit IDs for recovery.
 import { HarakiriClient } from "@h-sandbox/sdk";
 
 const client = HarakiriClient.fromEnv();
-const sandbox = await client.sandboxes.create({ template: "python-3.12" });
+const sandbox = await client.sandboxes.create({ template: "python-3.12", wait: false });
 try {
+  await sandbox.wait({ timeoutMs: 180_000 });
   await sandbox.files.write("hello.py", "print(2 + 2)\n");
   const result = await sandbox.run("python hello.py", { check: true });
   console.log(result.stdout);
@@ -29,6 +30,8 @@ try {
 The template must exist in your installation. Relative paths in the new file
 helpers and command defaults use the runtime's advertised working directory,
 not an assumed `/workspace`. Retained workspace files explicitly use `/workspace`.
+Retaining the accepted handle before waiting keeps cleanup available if readiness
+fails; cancelling observation never implies the runtime stopped.
 
 `fromEnv()` requires `HARAKIRI_API_URL` and `HARAKIRI_API_KEY`. There is no implicit
 maintainer URL. Pass `{ env, fetch }` for dependency injection; the explicit
@@ -250,3 +253,11 @@ tests public declarations and synthetic API workflows. It includes real Fetch
 against a loopback redirect server. It does not contact a sandbox cluster or
 claim that a model executed successfully. Live installed-package recipes on a
 disposable runtime remain a separate release acceptance gate.
+
+On 2026-09-13, [native acceptance run 34731829328](https://github.com/nabilblk/h-sandbox/actions/runs/34731829328)
+passed all 13 gates against pinned API `0.5.0-rc.9`, using an unpublished candidate
+tarball and a disposable GitHub-hosted amd64 cluster. Node 20/22 consumer checks,
+provider-outage/expiry recovery, scoped-key revocation and private-material cleanup
+passed. This is model-free SDK evidence, not package publication or independent
+integration feedback. The [execution checkpoint](exec-plans/active/typescript-sdk-developer-experience.md#native-acceptance-completed-2026-09-13)
+records the exact tested source and tarball identities.

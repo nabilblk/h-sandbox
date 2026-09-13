@@ -8,16 +8,20 @@ const template = process.env.HARAKIRI_TEMPLATE || "python-3.12";
 const workspace = await client.workspaces.create({ name: `persistent-tutorial-${Date.now()}` });
 console.log(`Retained workspace: ${workspace.id}`);
 const owned = new Map();
+const deletionRequested = new Set();
 try {
-  const first = await client.sandboxes.create({ template, workspaceId: workspace.id, ttlSeconds: 600 });
+  const first = await client.sandboxes.create({ template, workspaceId: workspace.id, ttlSeconds: 600, wait: false });
   owned.set(first.id, first);
+  await first.wait({ timeoutMs: 180_000 });
   await first.files.write("/workspace/checkpoint.json", JSON.stringify({ step: 1, message: "retained" }));
+  deletionRequested.add(first.id);
   await first.kill({ wait: true, timeoutMs: 90_000 });
   owned.delete(first.id);
   await workspace.wait({ timeoutMs: 90_000 });
 
-  const second = await client.sandboxes.create({ template, workspaceId: workspace.id, ttlSeconds: 600 });
+  const second = await client.sandboxes.create({ template, workspaceId: workspace.id, ttlSeconds: 600, wait: false });
   owned.set(second.id, second);
+  await second.wait({ timeoutMs: 180_000 });
   assert.deepEqual(JSON.parse(await second.files.readText("/workspace/checkpoint.json")), { step: 1, message: "retained" });
   console.log("PASS: replacement sandbox read the checkpoint");
 
@@ -45,7 +49,10 @@ try {
 } finally {
   const errors = [];
   for (const sandbox of owned.values()) {
-    try { await sandbox.kill({ wait: true, timeoutMs: 90_000 }); }
+    try {
+      if (deletionRequested.has(sandbox.id)) await sandbox.waitForTermination({ timeoutMs: 90_000 });
+      else await sandbox.kill({ wait: true, timeoutMs: 90_000 });
+    }
     catch (error) { errors.push(error); }
   }
   if (errors.length) throw new AggregateError(errors, `Cleanup unconfirmed; inspect workspace ${workspace.id} before reuse.`);

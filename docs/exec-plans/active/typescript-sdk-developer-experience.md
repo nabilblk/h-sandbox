@@ -99,7 +99,7 @@ Do not read or change unrelated `docs/cot/` material or Brain files.
 - [x] Run SDK unit/type/build tests and affected CLI/example type checks locally.
 - [x] Pack/install the SDK in an isolated temporary directory and exercise the new
   workflows against a synthetic API; verify ESM/types and self-contained packaging.
-- [ ] Run the authorized model-free installed-package recipes against
+- [x] Run the authorized model-free installed-package recipes against
   a disposable supported runtime, including nonzero exits, cancellation, output
   gaps, capacity denial, partial source preparation and unconfirmed cleanup.
 - [x] Verify the installed package on minimum-supported Node 20 and add the
@@ -158,9 +158,10 @@ native argv execution are not supplied by SDK syntax.
 
 ## Completion Notes
 
-Local implementation and verification are complete; adoption acceptance remains
-in progress. Do not archive this plan or label the published SDK upgraded until
-Phase 4's live recipe checks and release decision are completed. Distributed Git
+Implementation, Node 20/22 installed-package verification, browser checks and
+model-free native runtime acceptance are complete. The plan remains active for
+the deliberate preview release/migration decision and integration feedback.
+Do not label the published SDK upgraded before publication. Distributed Git
 bootstrap claims remain a separately documented API dependency.
 
 ## Progress Checkpoint: 2026-09-13
@@ -208,3 +209,33 @@ bootstrap claims remain a separately documented API dependency.
   replay. Source recovery and uncertain cleanup now have separate evidence gates.
   Cleanup errors preserve the primary failure's numeric fixture location without
   publishing exception content. Runner cleanup passed; corrected rerun pending.
+
+### Native Acceptance Completed: 2026-09-13
+
+- [SDK acceptance run 34731829328](https://github.com/nabilblk/h-sandbox/actions/runs/34731829328)
+  passed all 13 configured gates, Node 20/22 installed-package checks, private
+  material removal, and browser/port-forward cleanup on GitHub-hosted amd64.
+- Tested branch commit: `c8e0abd`; checkout used PR merge source
+  `538c40bd3543b1a9a65ec0b75c1645407c3d0c84`. The unpublished tarball SHA-256 was
+  `b428b1282399008e9e188f118ec6e5f4249b999d83488e65bd2df1651e68efe9`.
+  Runtime verification used Node `v22.23.2` and pinned API `0.5.0-rc.9` from
+  `f626226e4a0a1f2c53274214842dca0e42d2b0cb`; no new API image was deployed.
+- Passed runtime coverage: OIDC onboarding and template import, finite/checked
+  tasks, typed filtering, atomic capacity rejection, binary/text files, durable
+  process reconnect, observation cancellation, incompatible cursor errors,
+  protected HTTP and Request semantics, local Git, retained workspace replacement,
+  partial source identity recovery, uncertain deletion followed by confirmed
+  provider expiry/absence, and API-key revocation. No LLM inference was attempted.
+- [Regular CI 34731829300](https://github.com/nabilblk/h-sandbox/actions/runs/34731829300)
+  and [demo checks 34731829317](https://github.com/nabilblk/h-sandbox/actions/runs/34731829317)
+  passed. All 12 PR checks were green before this evidence-only documentation and
+  recipe alignment follow-up. Raw receipts are retained as sanitized CI artifacts;
+  this checkpoint preserves the result and artifact identity beyond their retention.
+- Aligned the six recipes and introductory snippets with the native fixture's
+  accepted-ID-first pattern: `wait:false`, retain the handle, then readiness inside
+  cleanup protection. Workspace recovery observes an uncertain deletion instead
+  of resubmitting it. These documentation/example adjustments trigger CI again.
+- Still pending: approve and ship a deliberate preview release, choose its
+  migration window, and capture feedback from an actual consuming integration
+  before freezing the contract for Python. No merge, publication, production/lab
+  deployment, local cluster changes or customer application work was performed.

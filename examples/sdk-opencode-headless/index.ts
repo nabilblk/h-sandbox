@@ -19,12 +19,13 @@ try {
     template: process.env.HARAKIRI_TEMPLATE ?? "opencode",
     name: "sdk-opencode-headless",
     ttlSeconds: 1200,
-    wait: true,
+    wait: false,
     egress: {
       mode: "restricted",
       presets: ["git-hosting", "llm-apis", "node-package-install"]
     }
   });
+  await sandbox.wait({ timeoutMs: 180_000 });
   const cwd = repositoryUrl ? `${sandbox.runtimeMetadata.workdir}/project` : sandbox.runtimeMetadata.workdir;
   if (repositoryUrl) {
     await sandbox.git.clone(repositoryUrl, { targetPath: cwd, depth: 1, timeoutMs: 120_000 });
