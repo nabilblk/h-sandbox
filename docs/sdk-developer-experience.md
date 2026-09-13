@@ -242,6 +242,13 @@ attaching credentials. There are no separate command/file/route API-key scopes.
 Route application authentication is separate. Select egress presets/domains appropriate to the actual model service.
 Free-model availability is external, not a deterministic CI dependency.
 
+The headless OpenCode recipe explicitly forwards an optional `ANTHROPIC_API_KEY`
+to the sandbox when you select an Anthropic model. No other host environment
+variables are inherited, including your Harakiri API key. This development path
+makes the provider key readable by sandbox processes; use credential attachment
+for workloads requiring Vault-backed isolation. A model that needs no provider
+key can run without setting `ANTHROPIC_API_KEY`.
+
 Contributors can run:
 
 ```bash
@@ -253,7 +260,9 @@ pnpm exec tsc -p examples/tsconfig.json
 
 The package check builds a tarball, installs it in a temporary directory and
 tests public declarations and synthetic API workflows. It includes real Fetch
-against a loopback redirect server. It does not contact a sandbox cluster or
+against a loopback redirect server, a 16 MiB binary download under a 128 MiB Node
+heap, and the actual OpenCode recipe with and without a dummy provider key.
+It does not contact a sandbox cluster or
 claim that a model executed successfully. Live installed-package recipes on a
 disposable runtime remain a separate release acceptance gate.
 

@@ -3,6 +3,7 @@ import { HarakiriApiError, HarakiriClient, type HarakiriSandbox } from "@h-sandb
 // Unreleased SDK recipe; see docs/sdk-developer-experience.md for package setup.
 // Model availability is external; select a currently available model with `opencode models`.
 const model = process.env.OPENCODE_MODEL;
+const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
 const repositoryUrl = process.env.OPENCODE_REPOSITORY_URL;
 const prompt = process.env.OPENCODE_PROMPT ?? "Inspect the project and summarize the most important files.";
 
@@ -20,6 +21,7 @@ try {
     name: "sdk-opencode-headless",
     ttlSeconds: 1200,
     wait: false,
+    env: anthropicApiKey ? { ANTHROPIC_API_KEY: anthropicApiKey } : undefined,
     egress: {
       mode: "restricted",
       presets: ["git-hosting", "llm-apis", "node-package-install"]

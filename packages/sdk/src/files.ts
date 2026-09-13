@@ -61,8 +61,12 @@ export function createSandboxFiles(client: HarakiriClient, id: () => string, wor
       const result = await client.files.download(id(), runtimePath(path, workdir()));
       checkSize(result.sizeBytes);
       if (result.contentBase64.length > 4 * Math.ceil(result.sizeBytes / 3)) throw new Error("Downloaded artifact encoding exceeds its declared size.");
-      const bytes = Uint8Array.from(atob(result.contentBase64), (character) => character.charCodeAt(0));
-      if (bytes.length !== result.sizeBytes || await checksum(bytes) !== result.sha256) {
+      const decoded = atob(result.contentBase64);
+      if (decoded.length !== result.sizeBytes) throw new Error("Downloaded artifact checksum or size does not match.");
+      // Avoid the per-byte JavaScript array created by Uint8Array.from(string).
+      const bytes = new Uint8Array(decoded.length);
+      for (let index = 0; index < decoded.length; index++) bytes[index] = decoded.charCodeAt(index);
+      if (await checksum(bytes) !== result.sha256) {
         throw new Error("Downloaded artifact checksum or size does not match.");
       }
       return bytes;

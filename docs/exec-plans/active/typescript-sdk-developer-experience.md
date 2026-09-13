@@ -15,9 +15,10 @@ readiness, credential isolation or recovery guarantees. E2B, Vercel and Daytona
 inform the assessment, not a requirement to copy their APIs or capabilities.
 
 This plan is based on the current SDK and the assessment, not older active plans.
-The latest approval permits a dedicated branch/PR and acceptance on disposable
-GitHub-hosted runners. No publication, merge, deployment, customer application
-changes or operations against the running local clusters are authorized here.
+The latest approval permits fixing the review findings, committing/pushing,
+merging the acceptance PR after checks, and deploying to the existing public k0s
+lab. Hosted destructive acceptance stays isolated. Package publication, customer
+application changes and unrelated cluster operations are not part of this approval.
 Do not read or change unrelated `docs/cot/` material or Brain files.
 
 ## Success Criteria
@@ -135,8 +136,25 @@ loopback HTTP servers where needed to prove Fetch redirect and Request behavior.
 Test hanging fetches that ignore signals, body reads and async predicates, not
 only cooperative mocks. Keep existing compatibility tests. Type-check examples
 using the public entry point; packaging smoke must not import repository source.
-No local Kubernetes, background-agent installation, native destructive acceptance
-or broad docs scan that reads unrelated private material.
+No local destructive acceptance, background-agent installation or broad docs scan
+that reads unrelated private material. Public deployment must preserve existing
+operator values, credentials, public OIDC origins and unrelated workloads.
+
+### Review and Delivery Follow-Up
+
+- [x] Decode the supported 16 MiB artifact under a 128 MiB Node heap without a
+  per-byte JavaScript array; retain size and checksum verification.
+- [x] Restore optional Anthropic credential propagation and execute the actual
+  OpenCode example with/without a dummy provider key against a loopback fixture.
+- [ ] Pass local and hosted checks, push the fixes and merge PR 48.
+- [ ] Deploy the changed web/docs bundle with preserved Helm values; verify public
+  endpoints and public OIDC redirects. Do not relabel unpublished SDK additions.
+
+Both regression fixtures failed against the reviewed implementation before the
+fix: the provider environment was absent, and the 16 MiB artifact exhausted a
+128 MiB Node heap. They pass with the fixes. Local SDK tests (95), installed
+contracts (26), public types and examples pass. Installed consumer CI also runs
+the two new fixtures on Node 20 and 22. No actual model call is needed or claimed.
 
 ## Decision Log
 

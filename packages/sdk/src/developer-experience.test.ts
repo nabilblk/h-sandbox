@@ -226,6 +226,25 @@ test("text and binary convenience methods use runtime paths and verify bytes", a
   await assert.rejects(limited.files.write("large.bin", bytes), RangeError);
 });
 
+test("binary downloads accept empty artifacts and reject malformed or misdeclared content", async () => {
+  const empty = { contentBase64: "", sizeBytes: 0, sha256: `sha256:${createHash("sha256").digest("hex")}` };
+  let payload = empty;
+  const sandbox = clientFor(async () => Response.json(payload)).sandboxes.wrap(sandboxSummary());
+  assert.deepEqual(await sandbox.files.readBytes("empty.bin"), new Uint8Array(0));
+  for (const sizeBytes of [1, 3]) {
+    payload = { ...empty, contentBase64: "AAE=", sizeBytes };
+    await assert.rejects(sandbox.files.readBytes("wrong-size.bin"), /checksum or size/);
+  }
+  payload = { ...empty, contentBase64: "!!!!", sizeBytes: 3 };
+  await assert.rejects(sandbox.files.readBytes("invalid.bin"), { name: "InvalidCharacterError" });
+  payload = { ...empty, contentBase64: "AAE=", sizeBytes: 0 };
+  await assert.rejects(sandbox.files.readBytes("oversized-encoding.bin"), /encoding exceeds/);
+  for (const sizeBytes of [-1, 16_777_217]) {
+    payload = { ...empty, sizeBytes };
+    await assert.rejects(sandbox.files.readBytes("outside-limit.bin"), RangeError);
+  }
+});
+
 test("cleanup waits for this sandbox's release without checking unrelated organization usage", async () => {
   let reads = 0;
   const calls: string[] = [];
