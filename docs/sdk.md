@@ -1,5 +1,13 @@
 # Harakiri SDK
 
+## Next TypeScript Candidate
+
+The [task-oriented SDK guide](sdk-developer-experience.md) documents the unreleased
+TypeScript improvements, compatibility behavior, failure recovery and six updated
+recipes. Those examples require a build from this working tree; the additions
+are not present in npm `0.5.0-rc.10`. The installed-package smoke tests exercise
+the public ESM package and declarations without accessing a running cluster.
+
 For APIs using migration 037, SDK requests use the same scoped key contract as
 the CLI. Writes followed by polling normally need both read and write scopes.
 `listApiKeys()` requires human OIDC authentication, not a runtime key.
@@ -34,7 +42,7 @@ are not replayed. See the [full readiness contract](operations/execution-readine
 0.4.0 (`latest`) does not include them. Install the candidate explicitly:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
 ```
 
 See the [workspace and streaming guide](persistent-workspaces.md)
@@ -52,16 +60,16 @@ and provider-specific command transports.
 Install the public SDK from npm:
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.9
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.10
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.9
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
 ```
 
 ```ts
 import { HarakiriClient } from "@h-sandbox/sdk";
 
 const harakiri = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io",
+  apiUrl: process.env.HARAKIRI_API_URL!,
   apiKey: process.env.HARAKIRI_API_KEY!
 });
 ```

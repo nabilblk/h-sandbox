@@ -1,62 +1,56 @@
-import { HarakiriApiError, HarakiriClient } from "@h-sandbox/sdk";
+import { HarakiriApiError, HarakiriClient, type HarakiriSandbox } from "@h-sandbox/sdk";
 
-const apiUrl = process.env.HARAKIRI_API_URL ?? "https://sb-api.harakiri.io";
-const apiKey = process.env.HARAKIRI_API_KEY;
-const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-const model = process.env.OPENCODE_MODEL ?? "opencode/deepseek-v4-flash-free";
+// Unreleased SDK recipe; see docs/sdk-developer-experience.md for package setup.
+// Model availability is external; select a currently available model with `opencode models`.
+const model = process.env.OPENCODE_MODEL;
 const repositoryUrl = process.env.OPENCODE_REPOSITORY_URL;
 const prompt = process.env.OPENCODE_PROMPT ?? "Inspect the project and summarize the most important files.";
 
-if (!apiKey) throw new Error("Set HARAKIRI_API_KEY before running this example.");
+if (!model) throw new Error("Set OPENCODE_MODEL to a model available in your OpenCode installation.");
 
 const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 
-const harakiri = new HarakiriClient({ apiUrl, apiKey });
+const harakiri = HarakiriClient.fromEnv();
 
-let sandboxId: string | undefined;
+let sandbox: HarakiriSandbox | undefined;
 
 try {
-  const { sandbox } = await harakiri.createSandbox({
-    template: "opencode",
+  sandbox = await harakiri.sandboxes.create({
+    template: process.env.HARAKIRI_TEMPLATE ?? "opencode",
     name: "sdk-opencode-headless",
     ttlSeconds: 1200,
-    wait: true,
-    env: anthropicApiKey ? { ANTHROPIC_API_KEY: anthropicApiKey } : undefined,
+    wait: false,
     egress: {
       mode: "restricted",
       presets: ["git-hosting", "llm-apis", "node-package-install"]
     }
   });
-  sandboxId = sandbox.id;
-
+  await sandbox.wait({ timeoutMs: 180_000 });
+  const cwd = repositoryUrl ? `${sandbox.runtimeMetadata.workdir}/project` : sandbox.runtimeMetadata.workdir;
   if (repositoryUrl) {
-    const clone = await harakiri.runSandbox(sandbox.id, {
-      command: `rm -rf /workspace/project && git clone --depth 1 ${shellQuote(repositoryUrl)} /workspace/project`,
-      cwd: "/workspace",
-      timeoutMs: 120_000
-    });
-    if (clone.result.exitCode !== 0) throw new Error(clone.result.stderr || "git clone failed");
+    await sandbox.git.clone(repositoryUrl, { targetPath: cwd, depth: 1, timeoutMs: 120_000 });
   }
-
-  const cwd = repositoryUrl ? "/workspace/project" : "/workspace";
-  const run = await harakiri.runSandbox(sandbox.id, {
-    command: `opencode run --model ${shellQuote(model)} ${shellQuote(prompt)}`,
+  const run = await sandbox.run(`opencode run --model ${shellQuote(model)} ${shellQuote(prompt)}`, {
     cwd,
+    check: true,
     timeoutMs: 300_000
   });
-  if (run.result.exitCode !== 0) throw new Error(run.result.stderr || "opencode run failed");
-
-  console.log(run.result.stdout.trim());
+  console.log(run.stdout.trim());
 
   if (repositoryUrl) {
-    const diff = await harakiri.runSandbox(sandbox.id, {
-      command: "git diff -- . ':!node_modules'",
-      cwd: "/workspace/project",
+    console.log(await sandbox.git.status({ cwd }));
+    const diff = await sandbox.run("git diff -- . ':!node_modules'", {
+      cwd,
+      check: true,
       timeoutMs: 30_000
     });
-    if (diff.result.stdout.trim()) {
+    if (diff.stdout.trim()) {
       console.log("\n--- git diff ---\n");
-      console.log(diff.result.stdout);
+      console.log(diff.stdout);
+    }
+    // An agent response is not verification. Use a repository-owned test command.
+    if (process.env.OPENCODE_VERIFY_COMMAND) {
+      console.log((await sandbox.run(process.env.OPENCODE_VERIFY_COMMAND, { cwd, check: true, timeoutMs: 120_000 })).stdout);
     }
   }
 } catch (error) {
@@ -65,5 +59,5 @@ try {
   }
   throw error;
 } finally {
-  if (sandboxId) await harakiri.killSandbox(sandboxId).catch(() => undefined);
+  if (sandbox) await sandbox.kill({ wait: true, timeoutMs: 90_000 });
 }

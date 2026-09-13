@@ -1,0 +1,81 @@
+name: TypeScript SDK acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/sdk/**"
+      - "examples/sdk-*/**"
+      - "infra/sdk-acceptance/**"
+      - "scripts/test-sdk-package.mjs"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/sdk-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  installed-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node: ["20", "22"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Record consumer runtime
+        run: echo "HARAKIRI_SDK_TEST_NODE=$(node -p process.execPath)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install repository tooling
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Verify isolated public imports, runtime contracts and declarations
+        run: pnpm --filter @h-sandbox/sdk test:package
+      - name: Check runner safety and receipt contracts without cluster access
+        run: node --test infra/acceptance/safety.test.mjs infra/sdk-acceptance/*.test.mjs
+
+  native-runtime:
+    needs: installed-package
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - name: Install tooling and verify guards
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          node --test infra/acceptance/safety.test.mjs infra/sdk-acceptance/*.test.mjs
+      - name: Bootstrap only a fresh GitHub-hosted native amd64 cluster
+        run: node infra/acceptance/bootstrap.mjs
+      - name: Exercise unpublished SDK tarball against published runtime baseline
+        run: node infra/sdk-acceptance/run.mjs
+      - name: Clean only test-owned resources and credentials
+        if: always()
+        run: node infra/acceptance/cleanup.mjs
+      - name: Export only sanitized acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sdk-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: standalone-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 14

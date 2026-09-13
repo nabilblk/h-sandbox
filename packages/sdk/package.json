@@ -48,6 +48,8 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "node ../../scripts/assert-publish-worktree.mjs && pnpm build && node ../../scripts/assert-public-packages.mjs sdk",
     "test": "node --test --import tsx src/*.test.ts",
+    "test:types": "tsc -p tsconfig.type-tests.json",
+    "test:package": "node ../../scripts/test-sdk-package.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
