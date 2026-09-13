@@ -175,6 +175,10 @@ this sandbox is terminated and its capacity reservation is released. It never
 polls for organization-wide zero usage. A timeout is unconfirmed cleanup, not a
 successful deletion. `sandbox.waitForTermination()` resumes read-only observation
 without resubmitting DELETE. Retained workspace detachment is still separate.
+After a provider outage, connectivity alone cannot resolve an uncertain deletion.
+Capacity stays held until authoritative runtime absence is confirmed, for example
+after provider-enforced expiry or operator recovery. Neither local elapsed time
+nor a second DELETE is evidence that the runtime has stopped.
 
 Creation with Git `source` remains client orchestration. A recorded ready source
 is not cloned again; recorded cloning/failed sources require explicit recovery.

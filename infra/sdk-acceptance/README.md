@@ -15,7 +15,11 @@ capacity rejection, process reconnect and cancellation, a protected HTTP route,
 local Git clone, workspace reattachment and per-sandbox confirmed cleanup.
 Source bootstrap fails against a closed loopback port in the owned sandbox.
 Provider unavailability is injected only in the runner-owned deployment to prove
-that cleanup cannot falsely report released capacity.
+that cleanup cannot falsely report released capacity. The fault fixture requests
+deletion once, restores the provider, and uses read-only termination observation
+until the short-lived runtime expires and authoritative absence is confirmed.
+Restoring connectivity or reaching a local TTL alone is not a release proof;
+the suite does not replay an uncertain deletion or clear capacity records.
 
 A deliberately incompatible log cursor proves the public unreplayable-output
 error contract. It does **not** establish arbitrary provider log-retention bounds.

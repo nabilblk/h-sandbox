@@ -199,3 +199,12 @@ bootstrap claims remain a separately documented API dependency.
   algorithm-prefixed `sha256:` digest. Added an independent checksum assertion,
   observed it fail locally, and corrected upload/download checksum formatting.
   Runtime and private-material cleanup passed; full acceptance rerun pending.
+- Native run 34730900197 passed binary files, process reconnect/cancellation,
+  protected HTTP, local Git and retained workspace replacement in addition to
+  the earlier gates. The last fault fixture incorrectly expected connectivity
+  restoration to settle an uncertain dispatched deletion before its runtime TTL.
+  Corrected the test to request deletion once, retain capacity during the outage,
+  then observe provider-enforced expiry and authoritative absence without mutation
+  replay. Source recovery and uncertain cleanup now have separate evidence gates.
+  Cleanup errors preserve the primary failure's numeric fixture location without
+  publishing exception content. Runner cleanup passed; corrected rerun pending.

@@ -22,10 +22,19 @@ test("the installed runtime fixture uses only the public package and no local cl
   assert.doesNotMatch(source, /from ["']\.\.?\//);
   assert.doesNotMatch(source, /child_process|kubectl|k0s|KUBECONFIG|process\.env/);
   assert.match(source, /wait: true, timeoutMs: 180000/);
+  assert.match(source, /deletionRequested\.has\(sandbox\.id\)/);
+  assert.match(source, /retained\.waitForTermination\(\{ timeoutMs: 240000 \}\)/);
 });
 
 test("failure location exports only numeric fixture coordinates, never paths or exception content", () => {
   assert.deepEqual(fixtureFailureLocation({ stack: "credential-value at file:///private/path/sdk-workflows.mjs:31:9" }), { fixtureLine: 31, fixtureColumn: 9 });
   assert.deepEqual(fixtureFailureLocation({ stack: "credential-value at file:///other/module.mjs:8:12" }), {});
   assert.deepEqual(fixtureFailureLocation(new Error("withheld")), {});
+  const failure = new AggregateError([new Error("cleanup-secret")], "private-message", {
+    cause: { stack: "original-secret at file:///private/sdk-workflows.mjs:142:7" }
+  });
+  failure.stack = "private-path at file:///private/sdk-workflows.mjs:171:32";
+  assert.deepEqual(fixtureFailureLocation(failure), {
+    fixtureLine: 171, fixtureColumn: 32, cause: { fixtureLine: 142, fixtureColumn: 7 }
+  });
 });

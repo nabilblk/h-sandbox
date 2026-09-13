@@ -136,6 +136,7 @@ try {
     </tbody></table>
     <p>Execution <code>timeoutMs</code>, observation <code>timeoutMs</code> and sandbox <code>ttlSeconds</code> are separate budgets. Polling deadlines include requests and delays. Cancellation does not kill remote work or extend TTL.</p>
     <p><code>kill()</code> requests deletion. <code>kill({"{ wait: true }"})</code> additionally confirms this sandbox is terminated and its capacity is released, not that the whole organization is idle. After a timeout, <code>sandbox.waitForTermination()</code> resumes read-only confirmation without repeating DELETE. Workspace detachment is a separate observation.</p>
+    <p>After a provider outage, restored connectivity alone does not resolve an uncertain deletion. Capacity remains held until the control plane confirms runtime absence, for example after provider-enforced expiry or operator recovery. A local wait timeout never releases capacity.</p>
     <p>A lost command-submission response is ambiguous without a server deduplication contract. An API error's <code>retryable</code> flag is not authorization to replay mutations. Source cleanup is not performed for caller-supplied idempotency keys, which may resolve an existing sandbox.</p>
     <h2>Compatibility</h2>
     <table><thead><tr><th>Existing call</th><th>Candidate convenience</th></tr></thead><tbody>

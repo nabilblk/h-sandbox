@@ -9,7 +9,9 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
   const env = { HARAKIRI_API_URL: apiUrl, HARAKIRI_API_KEY: apiKey };
   const client = HarakiriClient.fromEnv({ env });
   const owned = new Map();
+  const deletionRequested = new Set();
   let workspace;
+  let primaryFailure;
   const create = async (options = {}) => {
     const sandbox = await client.sandboxes.create({ template, ttlSeconds: 1200, wait: false, ...options });
     owned.set(sandbox.id, sandbox);
@@ -17,7 +19,12 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
     return sandbox;
   };
   const release = async sandbox => {
-    await sandbox.kill({ wait: true, timeoutMs: 180000 });
+    if (deletionRequested.has(sandbox.id)) {
+      await sandbox.waitForTermination({ timeoutMs: 180000 });
+    } else {
+      deletionRequested.add(sandbox.id);
+      await sandbox.kill({ wait: true, timeoutMs: 180000 });
+    }
     assert.equal(sandbox.status, "terminated");
     owned.delete(sandbox.id);
   };
@@ -119,10 +126,10 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
       await release(replacement);
       await workspace.wait({ timeoutMs: 180000 });
     });
-    await gate("partial-source-and-unconfirmed-cleanup", async () => {
+    const retained = await gate("partial-source-recovery", async () => {
       let failed;
       // Port 1 is closed inside this fresh sandbox. No third-party Git host or model is needed.
-      await assert.rejects(client.sandboxes.create({ template, ttlSeconds: 600, waitTimeoutMs: 30000,
+      await assert.rejects(client.sandboxes.create({ template, ttlSeconds: 120, waitTimeoutMs: 30000,
         source: { type: "git", url: "http://127.0.0.1:1/missing.git", targetPath: "/workspace/missing", timeoutMs: 10000 }
       }), error => {
         if (!(error instanceof HarakiriSandboxCreationError) || error.stage !== "source") return false;
@@ -132,15 +139,27 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
       const retained = await client.sandboxes.connect(failed.sandboxId);
       owned.set(retained.id, retained);
       assert.equal((await client.getSandbox(retained.id)).sandbox.source.status, "failed");
+      return retained;
+    });
+    await gate("unconfirmed-cleanup-and-expiry", async () => {
       await setProviderAvailable(false);
       try {
+        deletionRequested.add(retained.id);
         await assert.rejects(retained.kill({ wait: true, timeoutMs: 1500 }));
         const { capacity } = await client.capacity();
         assert.equal(capacity.inUse, 1);
         assert.notEqual((await client.getSandbox(retained.id)).sandbox.capacityPhase, "released");
       } finally { await setProviderAvailable(true); }
-      await release(retained);
+      // Restoring the provider does not resolve a dispatched delete's unknown outcome.
+      // Observe provider-enforced expiry and authoritative absence; never replay DELETE.
+      await retained.waitForTermination({ timeoutMs: 240000 });
+      assert.equal(retained.status, "terminated");
+      assert.equal((await client.getSandbox(retained.id)).sandbox.capacityPhase, "released");
+      owned.delete(retained.id);
     });
+  } catch (error) {
+    primaryFailure = error;
+    throw error;
   } finally {
     const failures = [];
     for (const sandbox of owned.values()) {
@@ -150,6 +169,6 @@ export async function exerciseSdk({ apiUrl, apiKey, template, runId }, gate, set
       try { await workspace.wait({ timeoutMs: 180000 }); await workspace.archive(); }
       catch (error) { failures.push(error); }
     }
-    if (failures.length) throw new AggregateError(failures, "SDK acceptance cleanup was not confirmed");
+    if (failures.length) throw new AggregateError(failures, "SDK acceptance cleanup was not confirmed", { cause: primaryFailure });
   }
 }
