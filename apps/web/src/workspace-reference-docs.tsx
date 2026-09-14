@@ -1,6 +1,7 @@
 import { CodeBlock } from "./components/docs-code";
 import type { DocPage } from "./docs-content";
 import { WorkspaceReleaseNote } from "./workspace-docs";
+import { publishedSdkInstall, publishedCliInstall, publishedSdkVersion } from "./sdk-doc-examples";
 
 export const workspaceOperations = [
   ["GET", "/v1/workspaces", "List workspace records and the operator's storage policy. Returns { workspaces, policy }."],
@@ -32,13 +33,13 @@ export const workspaceReferenceDocs: DocPage = {
   toc: ["Distribution and prerequisites", "HTTP operations", "Parameters and responses", "SDK methods", "CLI commands", "Errors and recovery"],
   body: <div className="workspace-doc">
     <section><h2>Distribution and prerequisites</h2>
-      <p>This reference targets <code>0.5.0-rc.3</code>, published on npm under <code>next</code>. Pin the exact version for a reproducible installation. The stable <code>latest</code> channel is separate; an unversioned install of 0.4.0 does not contain workspaces.</p>
+      <p>This reference targets published <code>{publishedSdkVersion}</code> on npm <code>next</code>. Pin the exact version for a reproducible installation. The stable <code>latest</code> channel is separate; an unversioned install of 0.4.0 does not contain workspaces.</p>
       <p>In a fresh directory with Node.js 20 or newer:</p>
       <CodeBlock language="bash">{`npm init -y
-npm install @h-sandbox/sdk@0.5.0-rc.3
-npm install -g @h-sandbox/cli@0.5.0-rc.3
+${publishedSdkInstall}
+${publishedCliInstall}
 harakiri --version`}</CodeBlock>
-      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.3.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.3.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
+      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.10.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.10.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
       <p>The rest of these docs use <code>harakiri</code> for the installed executable. For a local install, use <code>./node_modules/.bin/harakiri</code>. Configure <code>HARAKIRI_API_URL</code> and <code>HARAKIRI_API_KEY</code> privately. The API/scheduler must run matching workspace-aware code and an enabled storage profile.</p>
       <p>For the mental model, start with <a href="#docs/workspaces">Workspaces</a>. For a complete exercise, use <a href="#docs/persistent-workspaces">Reuse files across sandboxes</a>.</p>
     </section>
@@ -70,13 +71,14 @@ harakiri --version`}</CodeBlock>
 const { workspace } = await client.workspaces.create({ name: "agent-project" });
 const inspected = await client.workspaces.get(workspace.id);
 const { sandbox } = await client.createSandbox({
-  template: "python-3.12", workspaceId: workspace.id, ttlSeconds: 600
+  template: "python-3.12", workspaceId: workspace.id, ttlSeconds: 600, wait: false
 });
 await client.waitForSandbox(sandbox.id);
 // Run work, then terminate and wait for workspace.status === "available".
 await client.killSandbox(sandbox.id);
 // Only after release:
 // await client.workspaces.archive(workspace.id);`}</CodeBlock>
+      <p>The <a href="#docs/typescript-sdk?section=retained-workspaces">unreleased candidate</a> also provides workspace handles, <code>connect(id)</code> and bounded <code>workspace.wait()</code>. rc.10 keeps the envelopes below; do not install it expecting those new helpers.</p>
       <p>These are method examples; the <a href="#docs/persistent-workspaces">complete tutorial</a> includes the client setup, bounded release polling, assertions and cleanup. <code>commands.stream(sandboxId, commandId, {"{ cursor, signal }"})</code> observes a tracked command, not a workspace. Resume the same command ID; never start it again merely to reconnect.</p>
     </section>
     <section><h2>CLI commands</h2>

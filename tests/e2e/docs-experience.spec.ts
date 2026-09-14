@@ -144,6 +144,21 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       expect(overflow, id).toBe(false);
       const brokenCode = await page.locator("article pre").evaluateAll((nodes) => nodes.some((node) => !node.closest(".doc-code[data-language]")));
       expect(brokenCode, id).toBe(false);
+      if (viewport.width === 1440) {
+        const response = await page.request.get(`/docs/${id}.md`);
+        expect(response.ok(), id).toBe(true);
+        const markdown = await response.text();
+        const checkCode = async () => {
+          for (const code of await page.locator("article pre code").allTextContents()) {
+            expect(markdown, `${id}: browser/export code mismatch`).toContain(code.trim());
+          }
+        };
+        await checkCode();
+        for (const tab of await page.locator("article [role=tab]").all()) {
+          await tab.click();
+          await checkCode();
+        }
+      }
       if (id === "vision-architecture") {
         const overflowedNodes = await page.locator("[data-diagram-node]").evaluateAll((nodes) => nodes.filter((node) => node.scrollWidth > node.clientWidth + 1).length);
         expect(overflowedNodes).toBe(0);

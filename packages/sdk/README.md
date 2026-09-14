@@ -4,7 +4,7 @@
 use Harakiri as an OSS sandbox provider. The SDK speaks to the Harakiri control
 plane only; callers should not depend on OpenSandbox or Kubernetes internals.
 
-Read the public [SDK guide](https://sb.harakiri.io/#docs/sdk-usage) and
+Read the public [SDK guide](https://sb.harakiri.io/#docs/sdk-cli) and
 [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 Repository contributors can also read [the integration contract](../../docs/sdk.md).
 
@@ -52,7 +52,8 @@ reads organization execution slots with `org:read`. Full admission returns
 and never hot-loop retries. Create generates one key per invocation; supply
 `idempotencyKey` for retries across restarts. Resume accepts the same option.
 `sandbox.kill()` no longer fabricates a terminated status from acknowledgement;
-use `sandbox.refresh()` and capacity reads for confirmation. See the
+observe `status: "terminated"` and `capacityPhase: "released"` on that sandbox
+for confirmation. Organization totals alone do not identify its reservation. See the
 [runnable capacity tutorial](https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-execution-capacity)
 and [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 
@@ -80,6 +81,11 @@ const harakiri = new HarakiriClient({
 The SDK is self-contained. Public applications should import only from
 `@h-sandbox/sdk`; internal monorepo packages such as `@harakiri/shared` are not
 part of the npm installation contract.
+
+The reference snippets below show individual operations on existing resources,
+not complete job ownership. Use the [published quickstart](https://sb.harakiri.io/#docs/quickstart)
+for accepted-ID tracking, result checks and confirmed cleanup. Raw object-input
+`run` still returns `{ result }`; new convenience methods require the candidate.
 
 ## Sandbox Object
 
@@ -609,6 +615,18 @@ or signed URL transfer is a planned scale-up path.
 
 ## Routes And Agent Servers
 
+**Version boundary:** the examples here use published rc.10 response envelopes.
+Its route adapter follows Fetch's redirect default and does not preserve every
+field of an input `Request`. Use trusted relative paths, explicitly reject
+redirects for credential-bearing requests, and bound the underlying Fetch.
+Do not pass arbitrary URLs to this legacy adapter.
+
+The **unreleased** candidate preserves Request method/body/headers, scopes
+credentials to the route origin/path and defaults to manual redirects.
+Process and route handles keep their response properties for compatibility.
+See [the candidate route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
+and the [published authenticated server program](https://sb.harakiri.io/#docs/opencode-template).
+
 Route helpers remove repetitive token-header and readiness-polling code from
 agent integrations:
 
@@ -619,12 +637,13 @@ const route = await harakiri.routes.exposeAndWait(sandbox.id, {
   labels: ["agent-server"]
 }, {
   path: "/health",
-  timeoutMs: 30_000
+  timeoutMs: 30_000,
+  fetch: (url, init) => fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(3000) })
 });
 
 const headers = harakiri.routes.headers(route);
 const routeFetch = harakiri.routes.fetch(route);
-await routeFetch("/health");
+await routeFetch("/health", { redirect: "error", signal: AbortSignal.timeout(5000) });
 ```
 
 `routes.headers` returns the one-time route token header when the route was just
@@ -633,83 +652,46 @@ accept `basicAuth` when the service behind the route also has its own password.
 
 ## OpenCode Agent Workflow
 
-The `opencode` template gives applications a coding-agent runtime without
-depending on OpenSandbox or Kubernetes internals.
+Use the complete [published OpenCode programs](https://sb.harakiri.io/#docs/opencode-template)
+with `@h-sandbox/sdk@0.5.0-rc.10`. Each creates its own sandbox, retains the
+accepted ID before waiting, verifies the result, and confirms termination and
+capacity release before reporting success. A cleanup failure preserves the ID
+and original task error; it is not swallowed.
 
-```ts
-const { sandbox } = await harakiri.createSandbox({
-  template: "opencode",
-  wait: true,
-  ttlSeconds: 1200,
-  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
-});
+For headless execution, select `OPENCODE_MODEL` explicitly. Host environment
+variables are not inherited: the program forwards an optional
+`ANTHROPIC_API_KEY`. This exposes the real key inside the sandbox; use a supported
+[Credential Vault binding](https://sb.harakiri.io/#docs/credential-vault) when
+the runtime must not receive it. Free model availability depends on the model
+catalog and provider, not the SDK release.
 
-try {
-  await harakiri.runSandbox(sandbox.id, {
-    command: "git clone --depth 1 https://github.com/acme/app /workspace/project",
-    timeoutMs: 120_000
-  });
+For the server integration:
 
-  const run = await harakiri.runSandbox(sandbox.id, {
-    command: 'opencode run --model opencode/deepseek-v4-flash-free "review the project and propose a patch"',
-    cwd: "/workspace/project",
-    timeoutMs: 300_000
-  });
+1. Set `OPENCODE_SERVER_PASSWORD` in a fresh sandbox.
+2. Wait for execution readiness and start a tracked `opencode serve` process.
+3. Expose a token-protected route on port 4096.
+4. Probe `/global/health` with both route-token and Basic authentication.
+5. Use the same password in the generated OpenCode client.
+6. Clean up only after the client operation has completed.
 
-  if (run.result.exitCode !== 0) throw new Error(run.result.stderr || "opencode failed");
-  console.log(run.result.stdout);
-} finally {
-  await harakiri.killSandbox(sandbox.id).catch(() => undefined);
-}
-```
-
-To connect OpenCode's HTTP server through a Harakiri route, start it on
-`0.0.0.0`, expose port `4096`, and give OpenCode's generated client a
-route-aware fetch implementation:
-
-```ts
-import { createOpencodeClient } from "@opencode-ai/sdk";
-
-const password = crypto.randomUUID();
-const { sandbox } = await harakiri.createSandbox({
-  template: "opencode",
-  wait: true,
-  env: {
-    OPENCODE_SERVER_PASSWORD: password
-  }
-});
-
-const { command } = await harakiri.commands.start(sandbox.id, {
-  command: "opencode serve --hostname 0.0.0.0 --port 4096",
-  cwd: "/workspace",
-  detached: true
-});
-await harakiri.commands.wait(sandbox.id, command.id, { statuses: ["running"] });
-
-const route = await harakiri.routes.exposeAndWait(sandbox.id, {
-  port: 4096,
-  accessMode: "token",
-  labels: ["opencode"]
-}, {
-  path: "/global/health",
-  basicAuth: { username: "opencode", password },
-  expect: async (response) => response.ok && (await response.clone().json()).healthy === true
-});
-
-const opencode = createOpencodeClient({
-  baseUrl: route.route.url,
-  fetch: harakiri.routes.fetch(route, {
-    basicAuth: { username: "opencode", password }
-  })
-});
-
-await opencode.config.get();
-```
-
-See `examples/sdk-opencode-headless` and `examples/sdk-opencode-server` for
-checked TypeScript examples.
+The published example pins `@opencode-ai/sdk@1.15.13` and uses a GET-only Fetch
+adapter for its configuration check. It rejects redirects and scopes credentials
+to the route. rc.10's generic route adapter does not preserve every `Request`
+field; do not advertise it as a full generated-client adapter. The
+[unreleased TypeScript guide](https://sb.harakiri.io/#docs/typescript-sdk)
+documents the full scoped adapter and updated headless recipe.
 
 ## Errors
+
+**Candidate migration:** accepted creation failures now use
+`HarakiriSandboxCreationError`, which is not a `HarakiriApiError`. Recover by
+`sandboxId` and inspect `stage`, `creation`, `cleanup` and `cause`; direct Git calls still
+raise Git errors. The string `run` overload with `check: true` adds
+`HarakiriRunError`; object-input calls keep `{ result }` and require
+an explicit exit-code check. Configuration and byte-integrity validation still use standard JavaScript
+errors, not new exported SDK error classes. Aborting a wait never kills the remote workload.
+See the [error and recovery contract](https://sb.harakiri.io/#docs/errors-troubleshooting).
+
 
 API failures throw `HarakiriApiError` subclasses. Use the class, `error.code`,
 and `error.retryable` instead of parsing text messages:

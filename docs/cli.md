@@ -27,12 +27,12 @@ command or write whose outcome is unknown. See the
 
 ## Workspace and Live Output Preview
 
-**Included in the recorded 0.5.0-rc.8 preview (`next`):** the following commands require the
+**Published preview baseline: 0.5.0-rc.10.** the following commands require the
 matching API. Stable npm 0.4.0 (`latest`) does not include them. Workspace
 allocation also requires operator opt-in.
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.9
+npm install -g @h-sandbox/cli@0.5.0-rc.10
 ```
 
 ```bash

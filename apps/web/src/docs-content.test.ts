@@ -7,6 +7,8 @@ import { execFileSync } from "node:child_process";
 import { workspaceStates } from "./workspace-docs.js";
 import { workspaceOperations } from "./workspace-reference-docs.js";
 import { workspaceTutorialSource } from "./workspace-tutorial-docs.js";
+import { publishedSdkVersion } from "./sdk-doc-examples.js";
+import { docSectionId } from "./docs-navigation.js";
 
 // Content assertions ignore presentation-only token spans.
 const renderToStaticMarkup = (...args: Parameters<typeof renderMarkup>) => renderMarkup(...args).replace(/<\/?span\b[^>]*>/g, "");
@@ -51,7 +53,7 @@ test("docs content exposes expected product pages and renderable body markup", (
   const sdkCli = docPages.find((page) => page.id === "sdk-cli");
   assert.ok(sdkCli);
   const sdkCliMarkup = renderToStaticMarkup(sdkCli.body);
-  assert.match(sdkCliMarkup, /npm install @h-sandbox\/sdk/);
+  assert.ok(sdkCliMarkup.includes(`npm install --save-exact @h-sandbox/sdk@${publishedSdkVersion}`));
   assert.match(sdkCliMarkup, /npm install -g @h-sandbox\/cli/);
   assert.match(sdkCliMarkup, /runSandbox/);
 
@@ -112,8 +114,12 @@ test("documentation navigation targets existing pages and section headings", () 
       const target = renderToStaticMarkup(createElement("h2", null, heading));
       assert.ok(markup.includes(target), `${page.id}: missing heading ${heading}`);
     }
-    for (const match of markup.matchAll(/href="#docs\/([a-z0-9-]+)"/g)) {
+    for (const match of markup.matchAll(/href="#docs\/([a-z0-9-]+)(?:\?section=([a-z0-9-]+))?"/g)) {
       assert.ok(ids.has(match[1]), `${page.id}: broken page link ${match[1]}`);
+      if (match[2]) {
+        const target = docPages.find((candidate) => candidate.id === match[1])!;
+        assert.ok(target.toc.map(docSectionId).includes(match[2]), `${page.id}: broken section link ${match[0]}`);
+      }
     }
   }
 });
@@ -129,7 +135,7 @@ test("workspaces have separate concept, tutorial, reference and operations pages
     assert.equal(page.section, section);
     const markup = renderToStaticMarkup(page.body);
     assert.doesNotMatch(markup, /href="https:\/\/github.com\/nabilblk\/h-sandbox/);
-    assert.match(markup, /0\.5\.0-rc\.3/);
+    assert.ok(markup.includes(`Published preview: ${publishedSdkVersion}`));
   }
   const concept = renderToStaticMarkup(docPages.find((page) => page.id === "workspaces")!.body);
   for (const [status] of workspaceStates) assert.ok(concept.includes(status));
@@ -149,6 +155,6 @@ test("public workspace scenario is complete, syntactically valid and checks one 
   assert.match(workspaceTutorialSource, /await client\.workspaces\.archive/);
   assert.match(workspaceTutorialSource, /assert\.deepEqual\(JSON\.parse\(checkpoint.content\)/);
   assert.match(workspaceTutorialSource, /runs\.txt/);
-  assert.match(workspaceTutorialSource, /commands\.stream\(second\.id, command\.id, \{ cursor \}\)/);
+  assert.match(workspaceTutorialSource, /commands\.stream\(second\.id, command\.id, \{ cursor, signal \}\)/);
   assert.doesNotMatch(workspaceTutorialSource, /job\.py|packages\/sdk\/dist/);
 });

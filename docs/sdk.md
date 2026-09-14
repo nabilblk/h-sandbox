@@ -22,7 +22,8 @@ slots; keys need `org:read`. Inspect `HarakiriApiError.code` for
 No automatic retry is performed. Create and resume accept `idempotencyKey`;
 persist an explicit key with the job for retries across restarts. Delete
 acknowledgement is not terminal-state confirmation: refresh the sandbox and
-poll capacity. Counts are null, not zero, when inventory is unverified.
+observe `status: "terminated"` and `capacityPhase: "released"` on that sandbox.
+Organization totals alone cannot prove that a particular reservation was released. Counts are null, not zero, when inventory is unverified.
 The [runnable tutorial](../examples/sdk-execution-capacity/README.md) verifies
 limit-one admission, conflict, cleanup and retry. Use matching API/SDK versions.
 
@@ -37,7 +38,7 @@ are not replayed. See the [full readiness contract](operations/execution-readine
 
 ## Workspace and Streaming Preview
 
-**Included in the recorded 0.5.0-rc.8 preview (`next`):** `client.workspaces`, `workspaceId` and
+**Published preview baseline: 0.5.0-rc.10.** `client.workspaces`, `workspaceId` and
 `client.commands.stream` require a matching operator-enabled API. Stable npm
 0.4.0 (`latest`) does not include them. Install the candidate explicitly:
 
@@ -46,7 +47,9 @@ npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
 ```
 
 See the [workspace and streaming guide](persistent-workspaces.md)
-and the [runnable two-sandbox tutorial](../examples/sdk-persistent-workspace/index.mjs).
+and the [published two-sandbox tutorial](https://sb.harakiri.io/#docs/persistent-workspaces).
+The repository's `sdk-persistent-workspace` recipe now requires the unreleased
+candidate; see the [versioned example index](../examples/README.md).
 Existing `commands.logs` remains supported; the new stream observes a tracked
 command and never re-executes it on reconnect.
 
@@ -79,6 +82,13 @@ Harakiri web app and Keycloak login flow rather than embedding API keys.
 The SDK is self-contained; external projects should import only from
 `@h-sandbox/sdk`. `@harakiri/shared` is an internal monorepo package and is not
 published as part of the public npm contract.
+
+The reference snippets below assume the named client and resources already exist.
+They are operation examples, not complete job owners. Use the
+[published first-task program](https://sb.harakiri.io/#docs/quickstart) for
+accepted-ID tracking, failure handling and confirmed cleanup. Object-input
+`run({ command })` continues to return `{ result }`; the new string overload
+and handle conveniences are candidate-only.
 
 ## Sandbox Object
 
@@ -599,11 +609,15 @@ and `files.download` remain compatible aliases, but `artifacts.*` communicates
 that the operation is checksum-verified binary transfer:
 
 ```ts
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+
+const archive = await readFile("./input.tar.gz");
 await harakiri.artifacts.upload(sandbox.id, {
   path: "/workspace/input.tar.gz",
   contentBase64: archive.toString("base64"),
   sizeBytes: archive.byteLength,
-  sha256: "sha256:...",
+  sha256: "sha256:" + createHash("sha256").update(archive).digest("hex"),
   createParents: true
 });
 
@@ -617,6 +631,18 @@ decoded size and optional `sha256` before writing, and every response includes
 `transfer.mode`, `transfer.encoding`, and `transfer.maxBytes`.
 
 ## Preview Routes
+
+**Version boundary:** the examples here use published rc.10 response envelopes.
+Its route adapter follows Fetch's redirect default and does not preserve every
+field of an input `Request`. Use trusted relative paths, explicitly reject
+redirects for credential-bearing requests, and bound the underlying Fetch.
+Do not pass arbitrary URLs to this legacy adapter.
+
+The **unreleased** candidate preserves Request method/body/headers, scopes
+credentials to the route origin/path and defaults to manual redirects.
+Process and route handles keep their response properties for compatibility.
+See [the candidate route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
+and the [published authenticated server program](https://sb.harakiri.io/#docs/opencode-template).
 
 Expose a sandbox port when a command starts a web server:
 
@@ -666,12 +692,13 @@ const route = await harakiri.routes.exposeAndWait(sandbox.id, {
   labels: ["agent-server"]
 }, {
   path: "/health",
-  timeoutMs: 30_000
+  timeoutMs: 30_000,
+  fetch: (url, init) => fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(3000) })
 });
 
 const headers = harakiri.routes.headers(route);
 const routeFetch = harakiri.routes.fetch(route);
-await routeFetch("/health");
+await routeFetch("/health", { redirect: "error", signal: AbortSignal.timeout(5000) });
 ```
 
 `routes.headers` returns the one-time route token header when the route was just
@@ -681,98 +708,34 @@ credentials.
 
 ## OpenCode SDK Integration
 
-The `opencode` template gives external applications a coding-agent runtime
-without depending on OpenSandbox or Kubernetes internals. It can use OpenCode
-Zen free models such as `opencode/deepseek-v4-flash-free`, or any configured
-provider key you pass through the sandbox environment. The core flow is:
+Use the complete [published OpenCode programs](https://sb.harakiri.io/#docs/opencode-template)
+with `@h-sandbox/sdk@0.5.0-rc.10`. Each creates its own sandbox, retains the
+accepted ID before waiting, verifies the result, and confirms termination and
+capacity release before reporting success. A cleanup failure preserves the ID
+and original task error; it is not swallowed.
 
-1. Create an `opencode` sandbox with restricted egress for Git and model APIs.
-2. Use `runSandbox` for `opencode run` when you want a headless result.
-3. Use commands plus routes when you want `opencode serve`.
-4. Use `routes.fetch` to connect generated clients through Harakiri route-token
-   auth.
+For headless execution, select `OPENCODE_MODEL` explicitly. Host environment
+variables are not inherited: the program forwards an optional
+`ANTHROPIC_API_KEY`. This exposes the real key inside the sandbox; use a supported
+[Credential Vault binding](https://sb.harakiri.io/#docs/credential-vault) when
+the runtime must not receive it. Free model availability depends on the model
+catalog and provider, not the SDK release.
 
-Headless run:
+For the server integration:
 
-```ts
-const { sandbox } = await harakiri.createSandbox({
-  template: "opencode",
-  wait: true,
-  ttlSeconds: 1200,
-  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }
-});
+1. Set `OPENCODE_SERVER_PASSWORD` in a fresh sandbox.
+2. Wait for execution readiness and start a tracked `opencode serve` process.
+3. Expose a token-protected route on port 4096.
+4. Probe `/global/health` with both route-token and Basic authentication.
+5. Use the same password in the generated OpenCode client.
+6. Clean up only after the client operation has completed.
 
-try {
-  await harakiri.runSandbox(sandbox.id, {
-    command: "git clone --depth 1 https://github.com/acme/app /workspace/project",
-    timeoutMs: 120_000
-  });
-
-  const run = await harakiri.runSandbox(sandbox.id, {
-    command: 'opencode run --model opencode/deepseek-v4-flash-free "review the project and summarize the risky files"',
-    cwd: "/workspace/project",
-    timeoutMs: 300_000
-  });
-  if (run.result.exitCode !== 0) throw new Error(run.result.stderr || "opencode failed");
-
-  const diff = await harakiri.runSandbox(sandbox.id, {
-    command: "git diff -- . ':!node_modules'",
-    cwd: "/workspace/project"
-  });
-  console.log(diff.result.stdout);
-} finally {
-  await harakiri.killSandbox(sandbox.id).catch(() => undefined);
-}
-```
-
-Server route with `@opencode-ai/sdk`:
-
-```ts
-import { createOpencodeClient } from "@opencode-ai/sdk";
-
-const password = crypto.randomUUID();
-const { sandbox } = await harakiri.createSandbox({
-  template: "opencode",
-  wait: true,
-  ttlSeconds: 1200,
-  env: {
-    OPENCODE_SERVER_PASSWORD: password
-  }
-});
-
-const { command } = await harakiri.commands.start(sandbox.id, {
-  command: "opencode serve --hostname 0.0.0.0 --port 4096",
-  cwd: "/workspace",
-  detached: true
-});
-await harakiri.commands.wait(sandbox.id, command.id, { statuses: ["running"] });
-
-const route = await harakiri.routes.exposeAndWait(sandbox.id, {
-  port: 4096,
-  accessMode: "token",
-  labels: ["opencode"]
-}, {
-  path: "/global/health",
-  basicAuth: { username: "opencode", password },
-  expect: async (response) => response.ok && (await response.clone().json()).healthy === true
-});
-
-const opencode = createOpencodeClient({
-  baseUrl: route.route.url,
-  fetch: harakiri.routes.fetch(route, {
-    basicAuth: { username: "opencode", password }
-  })
-});
-
-await opencode.config.get();
-```
-
-Common failures are easy to diagnose: paid or BYOK models fail if their
-provider credentials are missing inside the sandbox, `127.0.0.1` server binds
-make routes unreachable, missing `x-harakiri-route-token` headers return route
-auth errors, and mismatched `OPENCODE_SERVER_PASSWORD` values return OpenCode
-basic-auth errors. The checked examples live in `examples/sdk-opencode-headless`
-and `examples/sdk-opencode-server`.
+The published example pins `@opencode-ai/sdk@1.15.13` and uses a GET-only Fetch
+adapter for its configuration check. It rejects redirects and scopes credentials
+to the route. rc.10's generic route adapter does not preserve every `Request`
+field; do not advertise it as a full generated-client adapter. The
+[unreleased TypeScript guide](https://sb.harakiri.io/#docs/typescript-sdk)
+documents the full scoped adapter and updated headless recipe.
 
 ## Outbound Access
 
@@ -819,6 +782,16 @@ actions in product UI, and handle explicit provider unavailable errors when an
 installation uses a runtime mode that does not support snapshots.
 
 ## Errors
+
+**Candidate migration:** accepted creation failures now use
+`HarakiriSandboxCreationError`, which is not a `HarakiriApiError`. Recover by
+`sandboxId` and inspect `stage`, `creation`, `cleanup` and `cause`; direct Git calls still
+raise Git errors. The string `run` overload with `check: true` adds
+`HarakiriRunError`; object-input calls keep `{ result }` and require
+an explicit exit-code check. Configuration and byte-integrity validation still use standard JavaScript
+errors, not new exported SDK error classes. Aborting a wait never kills the remote workload.
+See the [error and recovery contract](https://sb.harakiri.io/#docs/errors-troubleshooting).
+
 
 API failures throw `HarakiriApiError` with:
 

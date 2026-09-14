@@ -16,6 +16,7 @@ import { workspaceReferenceDocs } from "./workspace-reference-docs";
 import { workspaceOperationsDocs } from "./workspace-operations-docs";
 import { uiProductTourDocs } from "./ui-product-tour-docs";
 import { typescriptSdkDocs } from "./typescript-sdk-docs";
+import { publishedSdkInstall, publishedCliInstall, publishedSdkVersion, publishedWorker, publishedArtifacts, publishedOpenCodeHeadless, publishedOpenCodeServer } from "./sdk-doc-examples";
 
 export type DocPage = {
   id: string;
@@ -100,7 +101,7 @@ export const docPages: DocPage[] = [
 
         <h2>Before you start</h2>
         <p>Install the public CLI, create an API key in the dashboard, and point the CLI at your deployment. The examples use <code>jq</code> where a generated route or snapshot ID must be read from JSON.</p>
-        <CodeBlock language="bash">{`npm install -g @h-sandbox/cli
+        <CodeBlock language="bash">{`${publishedCliInstall}
 
 export HARAKIRI_API_URL=https://sb-api.harakiri.io
 export HARAKIRI_API_KEY=hk_live_...
@@ -238,47 +239,10 @@ test "$(harakiri file-read "$RESTORED_ID" --path /workspace/checkpoint.txt)" = "
 
         <TutorialScenario number="06" title="Integrate Harakiri into a worker" meta="10 minutes - @h-sandbox/sdk - idempotent application flow">
           <p>Use the public SDK with a bounded wait, an idempotency key, explicit result validation, and cleanup in <code>finally</code>.</p>
-          <CodeBlock language="bash">{`npm install @h-sandbox/sdk`}</CodeBlock>
-          <CodeBlock language="javascript">{`import { randomUUID } from "node:crypto";
-import { HarakiriApiError, HarakiriClient } from "@h-sandbox/sdk";
-
-const client = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL,
-  apiKey: process.env.HARAKIRI_API_KEY
-});
-
-let sandboxId;
-const jobId = process.env.JOB_ID ?? randomUUID();
-try {
-  const created = await client.createSandbox({
-    template: "python-3.12-data",
-    name: "tutorial-sdk-worker",
-    ttlSeconds: 600,
-    wait: false,
-    idempotencyKey: \`tutorial-job-\${jobId}\`
-  });
-  sandboxId = created.sandbox.id;
-  await client.waitForSandbox(sandboxId, { timeoutMs: 90_000 });
-  await client.writeSandboxFile(sandboxId, {
-    path: "/workspace/task.py",
-    content: "print('sdk-worker-ready')\\n",
-    createParents: true
-  });
-  const run = await client.runSandbox(sandboxId, { command: "python /workspace/task.py" });
-  if (run.result.exitCode !== 0 || !run.result.stdout.includes("sdk-worker-ready")) {
-    throw new Error(run.result.stderr || "unexpected sandbox result");
-  }
-  console.log(\`PASS: \${sandboxId} completed the worker task\`);
-} catch (error) {
-  if (error instanceof HarakiriApiError) {
-    console.error({ code: error.code, retryable: error.retryable });
-  }
-  throw error;
-} finally {
-  if (sandboxId) await client.killSandbox(sandboxId).catch(() => undefined);
-}`}</CodeBlock>
+          <CodeBlock language="bash">{publishedSdkInstall}</CodeBlock>
+          <CodeBlock language="javascript" filename="worker.mjs">{publishedWorker}</CodeBlock>
           <CodeBlock language="bash">{`JOB_ID="$(date +%s)" node worker.mjs`}</CodeBlock>
-          <TutorialCheck>The worker prints a <code>PASS</code> line and the sandbox is terminated even when task validation throws.</TutorialCheck>
+          <TutorialCheck>PASS appears only after a checked result and confirmed termination plus capacity release. Readiness and task failures still enter cleanup; failures report the sandbox ID. Preserve a job ID for the same intent, but never run two owners for that intent concurrently.</TutorialCheck>
         </TutorialScenario>
 
         <h2>Troubleshooting</h2>
@@ -304,13 +268,15 @@ try {
         <h2>Packages</h2>
         <p><code>{"@h-sandbox/sdk"}</code> is the TypeScript integration package. <code>{"@h-sandbox/cli"}</code> installs the <code>{"harakiri"}</code> executable for local development and CI scripts.</p>
         <p>Evaluating the next SDK? The <a href="#docs/typescript-sdk">TypeScript candidate guide</a> covers task-oriented execution, process reconnect, native text/bytes and confirmed cleanup. Those additions are explicitly marked unreleased; the package commands here remain for the published version.</p>
-        <CodeBlock language="bash">{`npm install @h-sandbox/sdk\nnpm install -g @h-sandbox/cli`}</CodeBlock>
+        <CodeBlock language="bash">{`${publishedSdkInstall}\n${publishedCliInstall}`}</CodeBlock>
+        <p>These commands pin the published preview <code>{publishedSdkVersion}</code>. Unversioned npm installs select the older 0.4.0 stable package, which lacks workspaces, streaming, capacity and usage history. Use a matching operator deployment.</p>
         <h2>Configure</h2>
         <p>Create an API key in the dashboard, then pass it through environment variables or <code>{"harakiri login"}</code>. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"`}</CodeBlock>
         <h2>Sandbox object</h2>
         <p><code>{"HarakiriSandbox"}</code> wraps one sandbox ID and binds commands, files, routes, egress, logs, metrics, and lifecycle methods to that sandbox. Use <code>{"refresh()"}</code> or <code>{"wait()"}</code> when your code needs an updated cached summary.</p>
         <CodeBlock language="typescript">{`import { HarakiriClient, HarakiriSandbox } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({\n  apiUrl: process.env.HARAKIRI_API_URL!,\n  apiKey: process.env.HARAKIRI_API_KEY!\n});\n\nconst sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: false,\n  ttlSeconds: 600,\n  idempotencyKey: "job-123"\n});\n\nawait sandbox.wait();\nawait sandbox.files.write({\n  path: "/workspace/task.py",\n  content: "print(2 + 2)\\n",\n  createParents: true\n});\nconst run = await sandbox.run({ command: "python /workspace/task.py" });\nconsole.log(run.result.stdout);\n\nconst reconnected = await HarakiriSandbox.connect(harakiri, sandbox.id);\nconsole.log(reconnected.summary.status);\nawait sandbox.kill();`}</CodeBlock>
+        <p>The blocks in this reference illustrate individual operations. The <a href="#docs/quickstart">complete published quickstart</a> protects readiness and work with cleanup confirmation. Ordinary <code>kill()</code> is a request, not proof of termination.</p>
         <h2>Runtime metadata</h2>
         <p>Sandbox create, get, and list responses include <code>{"runtimeMetadata"}</code>, the resolved contract for workdir, user, shell, template version, default ports, exposed routes, egress mode, limits, TTL, and provider capability states. Use it instead of deriving runtime facts from template names.</p>
         <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({ template: "open-agents-dev" });\nconst runtime = sandbox.runtimeMetadata;\n\nconsole.log(runtime.workdir);\nconsole.log(runtime.ports.default);\nconsole.log(runtime.egress.mode);\nconsole.log(runtime.provider.capabilities);`}</CodeBlock>
@@ -320,6 +286,7 @@ try {
         <p>Use <code>source: {"{ type: \"git\" }"}</code> when a sandbox should start from a repository. The SDK creates the sandbox normally, sends only sanitized source provenance to the API, waits for readiness, and clones through the tracked command API. For restricted egress, the <code>git-hosting</code> preset is added automatically unless disabled.</p>
         <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({\n  template: "open-agents-dev",\n  egress: { mode: "restricted", presets: ["llm-apis"] },\n  source: {\n    type: "git",\n    url: "https://github.com/acme/project.git",\n    branch: "main",\n    targetPath: "/workspace/project",\n    shallow: true\n  }\n});\n\nconst status = await sandbox.git.status({ cwd: "/workspace/project" });\nconsole.log(status.branch, status.clean);`}</CodeBlock>
         <p>Private HTTPS repositories use one-shot token credentials by default. Command records store environment variable names, not token values, and the SDK resets <code>{"origin"}</code> to a credential-free URL after clone. The sandbox summary exposes a safe source status trail for dashboards and reconnect flows. Mutating Git helpers record <code>{"sandbox.git.*"}</code> audit entries with sanitized repository context.</p>
+        <p><strong>Unreleased candidate migration:</strong> source bootstrap after an accepted create now throws <code>HarakiriSandboxCreationError</code> with <code>sandboxId</code>, <code>stage</code>, <code>cleanup</code> and <code>cause</code>. Catch that wrapper before examining a Git error. A ready source is not recloned; failed or cloning checkpoints need explicit recovery, not another bootstrap retry. See <a href="#docs/typescript-sdk?section=git-and-agents">Git and agents</a>.</p>
         <h2>Git troubleshooting</h2>
         <p>If Git is unavailable, SDK calls throw <code>{"HarakiriGitUnsupportedRuntimeError"}</code> with code <code>{"git_runtime_unsupported"}</code>; use a template that includes the <code>{"git"}</code> binary, such as <code>{"open-agents-dev"}</code>, <code>{"opencode"}</code>, or a custom template that installs it. If private clone or push fails, verify the token scope and pass credentials as one-shot env values. If clone or pull is unreachable, <code>{"HarakiriGitNetworkAccessError"}</code> points to restricted egress and Git hostnames; add the <code>{"git-hosting"}</code> preset or allow the required Git hostnames. For commit failures, configure identity first with <code>{"sandbox.git.configureUser"}</code> or <code>{"harakiri git user"}</code>.</p>
         <h2>CLI flow</h2>
@@ -363,7 +330,7 @@ try {
     body: (
       <>
         <h2>Install</h2>
-        <CodeBlock language="bash">{`npm install -g @h-sandbox/cli\nharakiri --version`}</CodeBlock>
+        <CodeBlock language="bash">{`${publishedCliInstall}\nharakiri --version`}</CodeBlock>
         <h2>Configure</h2>
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</CodeBlock>
         <p>The CLI resolves explicit flags first, then environment variables, then saved config. Browser sign-in remains Keycloak-owned; CLI automation uses API keys.</p>
@@ -458,6 +425,7 @@ const { result } = await client.runSandbox(sandboxId, {
 });`}</CodeBlock>
         <p>Default SDK creation and <code>sandbox.wait()</code> require execution health. An explicit SDK <code>waitTimeoutMs</code> returns acceptance without another automatic wait. <code>HarakiriWaitTimeoutError.id</code> retains the sandbox ID; retry the read-only wait, not a command or file write whose outcome is unknown. Explicit waits for <code>paused</code> or <code>terminated</code> remain lifecycle-only.</p>
         <p>A successful probe is a point-in-time observation, not a guarantee against later failures. It does not prove your application, HTTP route, package registry or model provider is ready. Use <a href="#docs/routes">route HTTP readiness</a> for a server started inside the sandbox. Readiness polling does not renew TTL.</p>
+        <p><strong>Unreleased candidate:</strong> default creation can throw <code>HarakiriSandboxCreationError</code> after acknowledgement. Read <code>sandboxId</code> and <code>cause</code>, not <code>error.id</code>. A direct read-only wait still throws <code>HarakiriWaitTimeoutError</code>. The candidate also adds <code>kill({"{ wait: true }"})</code> and read-only <code>waitForTermination()</code> to confirm this sandbox's capacity release. See <a href="#docs/typescript-sdk?section=failure-and-cleanup">failure and cleanup</a>; published rc.10 callers use explicit observations as in <a href="#docs/quickstart">the quickstart</a>.</p>
         <h2>Supported operations</h2>
         <p>Create starts a runtime from a template or a ready snapshot. Reconnect looks up an existing sandbox by ID and refreshes its summary. Renew extends the TTL and updates <code>{"expiresAt"}</code>. Kill terminates the runtime and removes active route records. Pause and resume delegate to provider lifecycle operations when available.</p>
         <h2>TTL and activity</h2>
@@ -491,8 +459,9 @@ const { result } = await client.runSandbox(sandboxId, {
         <CodeBlock language="typescript">{`const sandbox = await harakiri.sandboxes.create({\n  template: "python-3.12-data",\n  wait: true,\n  ttlSeconds: 600\n});\n\nconst { command } = await sandbox.processes.start({\n  command: "python -m http.server 3000 --bind 0.0.0.0",\n  cwd: "/workspace"\n});\n\nawait sandbox.processes.wait(command.id, { statuses: ["running"] });\nconst logs = await sandbox.processes.tail(command.id, 100);\nawait sandbox.processes.kill(command.id);`}</CodeBlock>
         <h2>CLI</h2>
         <CodeBlock language="bash">{`harakiri process run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0" --detached --json\nharakiri command wait sbx_... cmd_... --status running\nharakiri command tail sbx_... cmd_... --lines 100\nharakiri command status sbx_... cmd_... --json\nharakiri command kill sbx_... cmd_...`}</CodeBlock>
+        <p>The <a href="#docs/typescript-sdk?section=processes-and-reconnect">unreleased process handles</a> add <code>reference</code>, <code>connect(id)</code>, <code>events()</code>, <code>wait()</code> and <code>kill()</code>. Existing command envelopes remain supported. Cancelling an observer does not kill its command; neither <code>commands.run</code> nor <code>processes.start</code> implies completion.</p>
         <h2>Failure modes</h2>
-        <p>SDK callers receive typed errors for missing commands, provider unavailability, unsupported command transport, wait timeouts, and commands that reach <code>{"failed"}</code> or <code>{"killed"}</code> before success. Invalid cursor or tail parameters return validation errors.</p>
+        <p>The SDK fragment assumes a sandbox owned by your application; use the <a href="#docs/quickstart">complete quickstart</a> for failure-safe sandbox cleanup. SDK callers receive typed errors for missing commands, provider unavailability, unsupported command transport, wait timeouts, and commands that reach <code>{"failed"}</code> or <code>{"killed"}</code> before success. Invalid cursor or tail parameters return validation errors.</p>
         <h2>Cleanup</h2>
         <p>Kill individual commands when a server should stop but the sandbox remains useful. Kill the sandbox when the integration owns the whole runtime lifecycle. Sandbox termination removes active route records.</p>
       </>
@@ -512,7 +481,9 @@ const { result } = await client.runSandbox(sandboxId, {
         <h2>Artifacts</h2>
         <p>Use artifacts for binary payloads, generated reports, and archives. The v1 transfer mode is <code>{"json-base64"}</code>; responses include <code>{"transfer.encoding=base64"}</code> and <code>{"transfer.maxBytes"}</code> so clients can reject unsupported modes before moving large files.</p>
         <h2>SDK</h2>
-        <CodeBlock language="typescript">{`await sandbox.files.write({\n  path: "/workspace/task.txt",\n  content: "ready\\n",\n  createParents: true\n});\n\nconst uploaded = await sandbox.artifacts.upload({\n  path: "/workspace/out.bin",\n  contentBase64: Buffer.from("ok").toString("base64"),\n  sizeBytes: 2,\n  sha256: "sha256:..."\n});\n\nconst artifact = await sandbox.artifacts.download("/workspace/out.bin");\nconsole.log(uploaded.transfer.mode, artifact.sha256);`}</CodeBlock>
+        <p>This complete rc.10 example validates the transfer envelope, bytes and SHA-256. Run it as <code>node artifacts.mjs</code> after <a href="#docs/sdk-cli">installing and configuring the published SDK</a>.</p>
+        <CodeBlock language="javascript" filename="artifacts.mjs">{publishedArtifacts}</CodeBlock>
+        <p>The <a href="#docs/typescript-sdk?section=files-and-artifacts">unreleased byte helpers</a> reduce this to <code>files.write(path, bytes)</code> and <code>readBytes(path)</code>, with validation inside the SDK. They are not available in npm rc.10. Raw <code>artifacts.upload/download</code> and object-input file calls remain supported.</p>
         <h2>CLI</h2>
         <CodeBlock language="bash">{`harakiri files sbx_... --path /workspace\nharakiri file-write sbx_... --path /workspace/task.txt --content ready --parents\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --to ./out.bin\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</CodeBlock>
         <h2>Dashboard</h2>
@@ -536,7 +507,8 @@ const { result } = await client.runSandbox(sandboxId, {
         <p>Route state tells you whether the provider route exists. It does not prove the application server inside the sandbox has booted. Bind the server to <code>{"0.0.0.0"}</code>, expose the matching port, then poll a health path.</p>
         <CodeBlock language="bash">{`harakiri run sbx_... --cmd "python -m http.server 3000 --bind 0.0.0.0 >/tmp/http.log 2>&1 &"\nharakiri expose sbx_... --port 3000 --wait --wait-path /`}</CodeBlock>
         <h2>SDK</h2>
-        <CodeBlock language="typescript">{`const route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 5173,\n  accessMode: "token",\n  labels: ["preview"]\n}, {\n  path: "/health",\n  timeoutMs: 30_000\n});\n\nconst routeFetch = harakiri.routes.fetch(route);\nawait routeFetch("/health");`}</CodeBlock>
+        <p><strong>Version boundary:</strong> the following uses published rc.10. Its route adapter follows native redirects unless you set <code>redirect: "error"</code> and does not preserve every field of an incoming <code>Request</code>. Use only trusted paths under this route. The <a href="#docs/typescript-sdk?section=protected-services">unreleased candidate</a> adds scoped route handles, preserves Request semantics and forces manual redirects, even on the existing adapter method. Health checks will no longer silently follow redirects; inspect the response instead.</p>
+        <CodeBlock language="typescript">{`const route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 5173,\n  accessMode: "token",\n  labels: ["preview"]\n}, {\n  path: "/health",\n  timeoutMs: 30_000,\n  fetch: (url, init) => fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(3000) })\n});\n\nconst routeFetch = harakiri.routes.fetch(route);\nawait routeFetch("/health", { redirect: "error", signal: AbortSignal.timeout(5000) });`}</CodeBlock>
         <p>If an adapter needs synchronous <code>{"domain(port)"}</code> behavior, pre-expose the route and cache the returned summary by sandbox ID and port. Keep the one-time token in your application if the route is token-protected.</p>
         <h2>CLI</h2>
         <CodeBlock language="bash">{`harakiri expose sbx_... --port 5173 --access token --label vite --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri open sbx_... --port 5173 --token "$HARAKIRI_ROUTE_TOKEN"`}</CodeBlock>
@@ -813,13 +785,34 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <p>Use the attached terminal for the OpenCode TUI. Use <code>{"opencode run"}</code> for automation. The example uses an OpenCode Zen free model; paid or bring-your-own-key models can still receive provider credentials as sandbox environment variables.</p>
         <h2>SDK</h2>
         <p>Use <code>{"@h-sandbox/sdk"}</code> to create the sandbox, run headless prompts, clone repositories, read diffs, and expose the OpenCode server without depending on OpenSandbox or Kubernetes internals.</p>
-        <CodeBlock language="typescript">{`import { HarakiriClient } from "@h-sandbox/sdk";\n\nconst harakiri = new HarakiriClient({ apiUrl: process.env.HARAKIRI_API_URL!, apiKey: process.env.HARAKIRI_API_KEY! });\nconst { sandbox } = await harakiri.createSandbox({\n  template: "opencode",\n  wait: true,\n  ttlSeconds: 1200,\n  egress: { mode: "restricted", presets: ["git-hosting", "llm-apis"] }\n});\n\nconst run = await harakiri.runSandbox(sandbox.id, {\n  command: 'opencode run --model opencode/deepseek-v4-flash-free "summarize this project"',\n  cwd: "/workspace",\n  timeoutMs: 300_000\n});\nconsole.log(run.result.stdout);\nawait harakiri.killSandbox(sandbox.id);`}</CodeBlock>
-        <p>For the server mode, start <code>{"opencode serve"}</code>, then use <code>{"routes.exposeAndWait"}</code>, <code>{"routes.headers"}</code>, and <code>{"routes.fetch"}</code> to pass Harakiri route-token auth and OpenCode basic auth to HTTP clients.</p>
-        <CodeBlock language="typescript">{`import { createOpencodeClient } from "@opencode-ai/sdk";\n\nconst password = crypto.randomUUID();\nconst route = await harakiri.routes.exposeAndWait(sandbox.id, {\n  port: 4096,\n  accessMode: "token",\n  labels: ["opencode"]\n}, {\n  path: "/global/health",\n  basicAuth: { username: "opencode", password },\n  expect: async (response) => response.ok && (await response.clone().json()).healthy === true\n});\n\nconst opencode = createOpencodeClient({\n  baseUrl: route.route.url,\n  fetch: harakiri.routes.fetch(route, {\n    basicAuth: { username: "opencode", password }\n  })\n});\nawait opencode.config.get();`}</CodeBlock>
+        <p>Install <code>@h-sandbox/sdk@{publishedSdkVersion}</code>, configure your API URL/key, and explicitly select <code>OPENCODE_MODEL</code> from <code>opencode models</code>. Run this separate example as <code>node opencode-headless.mjs</code>. Only an optional <code>ANTHROPIC_API_KEY</code> is forwarded for Anthropic models; host variables are not inherited. That development path exposes the provider key to sandbox processes. Use <a href="#docs/credential-vault">credential attachment</a> when isolation is required.</p>
+        <CodeBlock language="javascript" filename="opencode-headless.mjs">{publishedOpenCodeHeadless}</CodeBlock>
+        <p>For server mode, start <code>{"opencode serve"}</code> before probing HTTP health. Both the route token and the server password must reach the health probe and the client.</p>
+        <p>For this separate, model-free server check, also install <code>@opencode-ai/sdk@1.15.13</code>. Run <code>node opencode-server.mjs</code>. It creates its own sandbox, starts the server with one shared password, verifies both authentication layers, reads configuration and cleans up. The published adapter limitation requires the explicit GET-only Fetch adapter below; use the <a href="#docs/typescript-sdk?section=protected-services">candidate scoped adapter</a> for the newer full Request contract.</p>
+        <CodeBlock language="javascript" filename="opencode-server.mjs">{publishedOpenCodeServer}</CodeBlock>
         <h2>Server route</h2>
         <p>OpenCode's server defaults to loopback. Start it on <code>{"0.0.0.0"}</code> before exposing port <code>{"4096"}</code>, and protect the route with a Harakiri route token.</p>
-        <CodeBlock language="bash">{`harakiri create \\\n  --template opencode \\\n  --name opencode-server \\\n  --ttl 1200 \\\n  --env OPENCODE_SERVER_PASSWORD="$(openssl rand -hex 16)"\n\nharakiri run sbx_... --cwd /workspace --cmd \\\n  'nohup opencode serve --hostname 0.0.0.0 --port 4096 >/tmp/opencode.log 2>&1 &'\n\nharakiri expose sbx_... --port 4096 --access token --label opencode --wait --wait-path /global/health\nharakiri routes sbx_...`}</CodeBlock>
-        <p>The OpenCode username defaults to <code>{"opencode"}</code>. The CLI prints the route URL and token header once when a token-protected route is created; later route lists show only a token hint.</p>
+        <CodeBlock language="bash" filename="OpenCode server with the published CLI">{`set -euo pipefail
+
+PASSWORD="$(openssl rand -hex 16)"
+SBX_ID="$(harakiri create --template opencode --name opencode-server --ttl 600 \\
+  --env OPENCODE_SERVER_PASSWORD="$PASSWORD" | sed -n '/^sbx_/p')"
+test -n "$SBX_ID"
+printf 'Accepted sandbox: %s\\n' "$SBX_ID"
+trap 'harakiri kill "$SBX_ID"' EXIT
+
+harakiri command run "$SBX_ID" --detached --cwd /workspace \\
+  --cmd 'opencode serve --hostname 0.0.0.0 --port 4096'
+ROUTE_JSON="$(harakiri expose "$SBX_ID" --port 4096 --access token --label opencode --json)"
+ROUTE_URL="$(jq -r '.route.url | rtrimstr("/")' <<<"$ROUTE_JSON")"
+HEADER="$(jq -r '.accessHeaderName' <<<"$ROUTE_JSON")"
+TOKEN="$(jq -r '.accessToken' <<<"$ROUTE_JSON")"
+# rc.10 expose --wait cannot pass OpenCode basic auth; check both layers explicitly.
+curl --fail --silent --show-error --connect-timeout 3 --max-time 5 \\
+  --retry 10 --retry-all-errors --retry-delay 1 --retry-max-time 30 \\
+  --user "opencode:$PASSWORD" -H "$HEADER: $TOKEN" \\
+  "$ROUTE_URL/global/health" | jq -e '.healthy == true'`}</CodeBlock>
+        <p>Run this block in Bash with jq and curl. It checks health with both auth layers without following redirects; the exit trap requests cleanup. Retain the sandbox ID and verify termination and capacity in the dashboard. The OpenCode username defaults to <code>{"opencode"}</code>. The CLI prints the route URL and token header once when a token-protected route is created; later route lists show only a token hint.</p>
         <h2>Troubleshooting</h2>
         <p>If the route is not reachable, check that OpenCode was started with <code>{"--hostname 0.0.0.0"}</code>. If <code>{"opencode run"}</code> fails, verify the selected model and any provider keys required by that model. If the template is not runnable, inspect the latest build with <code>{"harakiri template builds --query opencode"}</code> and <code>{"harakiri template logs bld_..."}</code>.</p>
       </>
@@ -866,8 +859,10 @@ await sandbox.credentials.attachReference(external.reference.id);`}</CodeBlock>
         <p>Use HTTP status for coarse handling and the <code>{"error"}</code> field for product behavior. Do not parse human messages.</p>
         <h2>SDK classes</h2>
         <p>The SDK maps common responses to typed errors such as <code>{"HarakiriAuthenticationError"}</code>, <code>{"HarakiriValidationError"}</code>, <code>{"HarakiriNotFoundError"}</code>, <code>{"HarakiriProviderUnavailableError"}</code>, <code>{"HarakiriUnsupportedCapabilityError"}</code>, and <code>{"HarakiriCommandEndedError"}</code>.</p>
+        <p><strong>Unreleased candidate errors:</strong> <code>HarakiriRunError</code> is thrown only by the new string overload with <code>check: true</code>; object-input <code>run</code> still returns <code>{"{ result }"}</code> and requires checking the exit code. <code>HarakiriSandboxCreationError</code> wraps post-acknowledgement readiness or Git failures and retains <code>sandboxId</code>, <code>creation</code>, <code>operation</code>, <code>stage</code>, <code>cleanup</code> and <code>cause</code>. Neither class extends <code>HarakiriApiError</code>; catch them separately. See <a href="#docs/typescript-sdk?section=failure-and-cleanup">candidate recovery</a>.</p>
+        <p>Wait timeout or cancellation stops observation, not remote work. Keep accepted IDs. A failed cleanup must not be suppressed or turned into a success message; the <a href="#docs/quickstart">published quickstart</a> preserves both task and cleanup errors.</p>
         <h2>Retry</h2>
-        <p>Retry idempotent creates, waits, route readiness, and provider-unavailable reads with backoff. Do not blindly retry validation errors, auth failures, terminated sandboxes, resource-limit failures, or artifact checksum mismatches.</p>
+        <p>Retry an unacknowledged create with the same persisted intent key and input. Once an ID is known, resume read-only observation of that ID. Do not replay Git bootstrap or commands just because creation was idempotent. Retry route readiness and provider-unavailable reads with backoff. Do not blindly retry validation errors, auth failures, terminated sandboxes, resource-limit failures, or artifact checksum mismatches.</p>
         <p>Since 0.5.0-rc.9, <code>409 organization_capacity_exceeded</code> requires an available execution slot before a new intent can be admitted. <code>503 organization_capacity_unavailable</code> requires inventory recovery, not a hot retry loop. An unchanged already-accepted intent can be retried with its original key, even at full capacity. See <a href="#docs/execution-capacity">execution capacity</a> for settings conflicts, unknown counts and operator recovery.</p>
         <h2>Common fixes</h2>
         <p><code>{"sandbox_file_artifact_checksum_mismatch"}</code> means the caller must recompute <code>{"sha256"}</code> over raw bytes. <code>{"route_proxy_upstream_unreachable"}</code> usually means the server is not listening on <code>{"0.0.0.0"}</code> or the wrong port was exposed. <code>{"git_network_access_failed"}</code> usually needs the <code>{"git-hosting"}</code> egress preset or explicit host allow rules. <code>{"template_not_ready"}</code> requires a successful digest-pinned template build.</p>

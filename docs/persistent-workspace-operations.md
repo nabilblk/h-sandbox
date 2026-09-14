@@ -3,10 +3,12 @@
 Related: [workspace concepts](workspaces.md), [API/SDK/CLI reference](workspace-reference.md)
 and [the checkpoint/reconnect tutorial](persistent-workspaces.md).
 
-This is the `0.5.0-rc.3` preview. Restricted OpenShift acceptance and coherent
-restore validation remain open. Renewal/scheduler coordination is corrected in
-this candidate; stop the old scheduler, apply migration 036, deploy matching API
-and scheduler versions, then run the [live lease regression](sandbox-lease-operations.md).
+This guide targets the published `0.5.0-rc.10` preview. Restricted OpenShift
+storage acceptance remains open; database recovery alone does not prove recovery
+of retained volumes. Renewal/scheduler coordination was corrected in rc.3
+(migration 036). Apply all migrations shipped with the current release and deploy
+matching API and scheduler versions using the [installation guide](install-kubernetes.md),
+then run the [live lease regression](sandbox-lease-operations.md).
 
 ## Enable Deliberately
 

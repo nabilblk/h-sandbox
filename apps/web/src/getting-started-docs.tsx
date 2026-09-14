@@ -2,6 +2,7 @@ import type { DocPage } from "./docs-content";
 import { useState } from "react";
 import { CodeBlock, CodeTabs } from "./components/docs-code";
 import { Icon } from "./components/icon";
+import { publishedQuickstart, publishedSdkInstall, publishedCliInstall } from "./sdk-doc-examples";
 
 export const quickstartCli = `#!/usr/bin/env bash
 set -euo pipefail
@@ -19,33 +20,7 @@ harakiri run "$SBX_ID" \\
 harakiri kill "$SBX_ID"
 trap - EXIT`;
 
-export const quickstartTypeScript = `import assert from "node:assert/strict";
-import { HarakiriClient } from "@h-sandbox/sdk";
-
-const apiUrl = process.env.HARAKIRI_API_URL;
-const apiKey = process.env.HARAKIRI_API_KEY;
-if (!apiUrl || !apiKey) {
-  throw new Error("Set HARAKIRI_API_URL and HARAKIRI_API_KEY");
-}
-
-const client = new HarakiriClient({ apiUrl, apiKey });
-const sandbox = await client.sandboxes.create({
-  template: "python-3.12-data",
-  name: "first-task",
-  ttlSeconds: 600,
-  wait: true
-});
-
-try {
-  const { result } = await sandbox.run({
-    command: "python -c 'print(2 + 2)'"
-  });
-  assert.equal(result.exitCode, 0);
-  assert.equal(result.stdout.trim(), "4");
-  console.log(result.stdout.trim());
-} finally {
-  await sandbox.kill();
-}`;
+export const quickstartTypeScript = publishedQuickstart;
 
 export const overviewDocs: DocPage = {
   id: "overview", section: "Getting started", title: "Harakiri documentation", navTitle: "Overview",
@@ -91,23 +66,23 @@ const QuickstartBody = () => {
     <CodeBlock language="bash">{`export HARAKIRI_API_URL="https://sb-api.harakiri.io"
 # HARAKIRI_API_KEY must already be set privately.`}</CodeBlock>
     <CodeTabs label="Install method" value={method} onValueChange={setMethod} examples={[
-      { label: "CLI", language: "bash", code: `npm install -g @h-sandbox/cli@0.5.0-rc.10
+      { label: "CLI", language: "bash", code: `${publishedCliInstall}
 harakiri login --api-url "$HARAKIRI_API_URL"
 harakiri template list` },
       { label: "TypeScript", language: "bash", code: `# In a new example directory:
 npm init -y
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+${publishedSdkInstall}
 npm install --save-dev tsx typescript @types/node` }
     ]} />
     <p>The CLI reads <code>HARAKIRI_API_KEY</code> and stores the connection in its local configuration. It reports a missing-key error if the variable is not set. The SDK reads the same environment variables directly.</p>
     <h2>Run your first task</h2>
-    <p>This is a disposable task with a ten-minute TTL. The runtime is released after execution, with cleanup on failure as well. Run the shell example as <code>bash quickstart.sh</code>, or the TypeScript example as <code>npx tsx quickstart.mts</code>.</p>
+    <p>This is a disposable task with a ten-minute TTL. The TypeScript example retains the accepted ID before readiness and confirms termination plus capacity release. If cleanup fails, it exits with the resource ID instead of claiming success. Run the shell example as <code>bash quickstart.sh</code>, or the TypeScript example as <code>npx tsx quickstart.mts</code>.</p>
     <CodeTabs label="Quickstart implementation" value={method} onValueChange={setMethod} examples={[
       { label: "CLI", language: "bash", filename: "quickstart.sh", code: quickstartCli },
       { label: "TypeScript", language: "typescript", filename: "quickstart.mts", code: quickstartTypeScript }
     ]} />
     <h2>Verify and clean up</h2>
-    <p>The Python task prints <code>4</code>. The SDK also asserts the exit code and exact output. In the dashboard's sandbox history, confirm the runtime is terminated. The CLI's progress messages include the sandbox ID if you need to investigate.</p>
+    <p>The Python task prints <code>4</code>. The SDK asserts the exit code and exact output, and prints PASS only after cleanup confirmation. Its explicit helper uses rc.10 APIs; the <a href="#docs/typescript-sdk?section=failure-and-cleanup">unreleased candidate</a> adds <code>kill({"{ wait: true }"})</code>. The shell example requests deletion. In the dashboard's sandbox history, confirm the runtime is terminated. The CLI's progress messages include the sandbox ID if you need to investigate.</p>
     <p>A failed or interrupted client does not prove the runtime has stopped. Inspect its state and retry cleanup if necessary. TTL is the safety net, not an unlimited execution budget. See <a href="#docs/sandbox-lifecycle">lifecycle and renewal</a> for longer tasks.</p>
     <dl className="docs-definitions"><div><dt>401 or 403</dt><dd>Check the API URL, key and organization permissions. Do not use a dashboard URL as the API endpoint.</dd></div><div><dt>Template unavailable</dt><dd>Inspect the deployment's template catalog and choose a ready Python image.</dd></div><div><dt>Creation pending or failed</dt><dd>Inspect the sandbox and lifecycle operation before retrying. Do not assume a timed-out request created nothing.</dd></div></dl>
     <h2>Next steps</h2>

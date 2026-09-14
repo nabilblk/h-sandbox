@@ -1,75 +1,9 @@
 import { CodeBlock } from "./components/docs-code";
 import type { DocPage } from "./docs-content";
 import { WorkspaceReleaseNote } from "./workspace-docs";
+import { publishedWorkspace } from "./sdk-doc-examples";
 
-export const workspaceTutorialSource = String.raw`import assert from "node:assert/strict";
-import { setTimeout as delay } from "node:timers/promises";
-import { HarakiriClient } from "@h-sandbox/sdk";
-
-const client = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL,
-  apiKey: process.env.HARAKIRI_API_KEY
-});
-const { workspace } = await client.workspaces.create({
-  name: "checkpoint-demo-" + Date.now()
-});
-const sandboxIds = [];
-async function waitUntilAvailable() {
-  for (let attempt = 0; attempt < 90; attempt++) {
-    const { workspace: current } = await client.workspaces.get(workspace.id);
-    if (current.status === "available") return;
-    await delay(1000);
-  }
-  throw new Error("Workspace is still reserved. Ask the operator to reconcile it.");
-}
-
-try {
-  const input = { template: "python-3.12", workspaceId: workspace.id, ttlSeconds: 600 };
-  const { sandbox: first } = await client.createSandbox(input);
-  sandboxIds.push(first.id);
-  await client.waitForSandbox(first.id);
-  await client.files.write(first.id, {
-    path: "/workspace/checkpoint.json", content: JSON.stringify({ step: 1 })
-  });
-  await client.killSandbox(first.id);
-  await waitUntilAvailable();
-
-  const { sandbox: second } = await client.createSandbox(input);
-  sandboxIds.push(second.id);
-  await client.waitForSandbox(second.id);
-  const checkpoint = await client.files.read(second.id, "/workspace/checkpoint.json");
-  assert.deepEqual(JSON.parse(checkpoint.content), { step: 1 });
-  console.log("PASS: replacement sandbox read the checkpoint");
-
-  const { command } = await client.commands.start(second.id, {
-    command: "python -u -c 'import time; from pathlib import Path; Path(\"runs.txt\").open(\"a\").write(\"once\\n\"); [(print(i, flush=True), time.sleep(1)) for i in range(6)]'",
-    cwd: "/workspace", detached: true, timeoutMs: 30000
-  });
-  let cursor;
-  let output = "";
-  for await (const event of client.commands.stream(second.id, command.id)) {
-    cursor = event.cursor;
-    if (event.type === "output") { output += event.stdout; break; }
-  }
-  // Closing the iterator stops this viewer, not the running command.
-  let completed = false;
-  for await (const event of client.commands.stream(second.id, command.id, { cursor })) {
-    if (event.type === "output") output += event.stdout;
-    if (event.type === "complete") {
-      assert.equal(event.exitCode, 0);
-      completed = true;
-    }
-  }
-  assert.ok(completed);
-  assert.deepEqual(output.trim().split("\n"), ["0", "1", "2", "3", "4", "5"]);
-  assert.equal((await client.files.read(second.id, "/workspace/runs.txt")).content, "once\n");
-  console.log("PASS: reconnect returned each line once; command executed once");
-} finally {
-  for (const id of sandboxIds) await client.killSandbox(id);
-  await waitUntilAvailable();
-  await client.workspaces.archive(workspace.id);
-  console.log("Archived", workspace.id, "- storage and quota retained");
-}`;
+export const workspaceTutorialSource = publishedWorkspace;
 
 export const workspaceTutorialDocs: DocPage = {
   id: "persistent-workspaces",
@@ -81,7 +15,7 @@ export const workspaceTutorialDocs: DocPage = {
     <WorkspaceReleaseNote />
     <section><h2>Before you start</h2>
       <p>Read <a href="#docs/workspaces">Workspaces</a> for the storage model. This exercise requires no model provider or paid API key. Use an operator-enabled installation, a Python template and one free workspace allocation.</p>
-      <p>The SDK scenario needs your organization API key and the <a href="#docs/workspace-reference">matching candidate package</a>. The dashboard scenario requires neither a local SDK nor a repository checkout.</p>
+      <p>The SDK scenario needs your organization API key and the <a href="#docs/workspace-reference">published rc.10 package</a>. The dashboard scenario requires neither a local SDK nor a repository checkout.</p>
       <p>Allow about two minutes. The example uses an initial TTL of 600 seconds. Longer jobs must explicitly renew before expiry; following command output does not renew TTL. Arrange storage cleanup with your operator: archive does not delete the volume or recover the allocation slot.</p>
     </section>
     <section><h2>Try it in the dashboard</h2>
@@ -101,7 +35,7 @@ python -c 'from pathlib import Path; print(Path("checkpoint.json").read_text(), 
     <section><h2>Run the SDK scenario</h2>
       <p>Run this complete example as <code>workspace-demo.mjs</code> with Node.js, <code>HARAKIRI_API_URL</code> and <code>HARAKIRI_API_KEY</code> configured privately. All assertions use Harakiri APIs, not Kubernetes runtime access.</p>
       <CodeBlock language="javascript">{workspaceTutorialSource}</CodeBlock>
-      <p><strong>Expected result:</strong> both PASS messages followed by the archived workspace ID. A missing checkpoint, duplicated line or second execution fails the example. If cleanup cannot confirm release, contact the operator; do not force another mount.</p>
+      <p><strong>Expected result:</strong> a PASS message followed by the archived workspace ID. A missing checkpoint, duplicated line or second execution fails the example. If cleanup cannot confirm release, contact the operator; do not force another mount.</p>
     </section>
     <section><h2>Follow with the CLI</h2>
       <p>On a running Python sandbox, use its real sandbox ID. The working directory below assumes an attached persistent workspace:</p>
