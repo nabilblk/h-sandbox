@@ -73,15 +73,16 @@ egress policy or grant cluster access.
 
 ## Availability and Next Steps
 
-This describes `0.5.0-rc.3`, with opt-in native OpenSandbox support. k0s acceptance
-passed; restricted OpenShift acceptance remains pending. Stable npm 0.4.0 does
-not contain the feature. Verify candidate npm availability or install matching
-release archives. This candidate corrects the earlier renewal/scheduler defect;
-operators must apply migration 036 with matching API and scheduler versions.
-Following command output does not renew TTL. Explicitly renew long-running jobs.
+The published baseline is `0.5.0-rc.10`, with opt-in native OpenSandbox support.
+k0s acceptance passed; restricted OpenShift acceptance remains pending. Stable
+npm 0.4.0 does not contain the feature. Install the pinned packages from the
+[workspace reference](workspace-reference.md) with matching API and scheduler.
+The renewal fix originated in rc.3/migration 036; current installations require
+all migrations in the release. Following command output does not renew TTL.
+Explicitly renew long-running jobs.
 
 - [Tutorial: reuse files across sandboxes](persistent-workspaces.md).
 - [Workspace API, SDK and CLI](workspace-reference.md).
 - [Persistent storage operations](persistent-workspace-operations.md).
 - [Architecture decision](adr/0009-persistent-workspaces-and-command-streams.md).
-- [Release availability and known gates](release-notes/0.5.0-rc.3.md).
+- [Historical rc.3 renewal correction](release-notes/0.5.0-rc.3.md).

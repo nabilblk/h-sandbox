@@ -2,10 +2,15 @@
 
 Read [Workspaces](workspaces.md) for the model or use the
 [checkpoint/reconnect tutorial](persistent-workspaces.md) for a full scenario.
-This reference describes `0.5.0-rc.3`. API and scheduler must have workspace
-support enabled. Use matching SDK/CLI archives, or verify the exact npm candidate
-is available. See the [release notes](release-notes/0.5.0-rc.3.md) for installation
-and the required migration 036 upgrade order.
+This reference targets published `0.5.0-rc.10`. API and scheduler must have
+workspace support enabled. Install matching SDK/CLI packages and apply all
+migrations shipped with the release; the renewal fix originated in rc.3/migration
+036. Use the [current installation guide](install-kubernetes.md).
+
+```bash
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install -g @h-sandbox/cli@0.5.0-rc.10
+```
 
 ## HTTP Operations
 
@@ -49,9 +54,9 @@ a configuration/capability gate, not a live storage probe.
 
 SDK methods are `client.workspaces.list()`, `.create({ name })`, `.get(id)` and
 `.archive(id)`. They return the same envelopes as HTTP. Use
-`client.createSandbox({ template, workspaceId, ttlSeconds })` to attach, then wait
-for the sandbox. After kill, poll the workspace until available before reuse or
-archive. The [tutorial](persistent-workspaces.md) includes bounded polling.
+`client.createSandbox({ template, workspaceId, ttlSeconds, wait: false })` to attach, then wait
+for the sandbox inside the cleanup scope, retaining the accepted ID. After kill,
+poll the workspace until available before reuse or archive. The [tutorial](persistent-workspaces.md) includes bounded polling.
 
 ```bash
 harakiri workspace create --name agent-project --json
@@ -65,6 +70,11 @@ harakiri workspace archive wsp_... --retain-storage
 Create/list accept `--json`; inspect prints JSON. List JSON includes policy.
 Archive requires the retained-storage acknowledgment. For an archive-installed
 local CLI, use `./node_modules/.bin/harakiri`.
+
+The [unreleased SDK candidate](sdk-developer-experience.md) adds workspace
+handles, `connect(id)` and bounded `waitUntilAvailable()`. Existing `.workspace`
+response properties remain supported. Those handle methods are not in npm rc.10.
+Archive retains storage and quota in both versions; it is not physical deletion.
 
 ## Errors
 

@@ -21,6 +21,18 @@ integrations.
 
 ## Readiness
 
+**Version boundary:** the examples here use published rc.10 response envelopes.
+Its route adapter follows Fetch's redirect default and does not preserve every
+field of an input `Request`. Use trusted relative paths, explicitly reject
+redirects for credential-bearing requests, and bound the underlying Fetch.
+Do not pass arbitrary URLs to this legacy adapter.
+
+The **unreleased** candidate preserves Request method/body/headers, scopes
+credentials to the route origin/path and defaults to manual redirects.
+Process and route handles keep their response properties for compatibility.
+See [the candidate route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
+and the [published authenticated server program](https://sb.harakiri.io/#docs/opencode-template).
+
 Route creation records the provider readiness state as `ready`, `provisioning`,
 or `unhealthy`. That state tells you whether the provider route exists. It does
 not prove the application inside the sandbox has finished booting.
@@ -40,10 +52,11 @@ const route = await harakiri.routes.exposeAndWait(sandbox.id, {
   labels: ["preview"]
 }, {
   path: "/health",
-  timeoutMs: 30_000
+  timeoutMs: 30_000,
+  fetch: (url, init) => fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(3000) })
 });
 
-const response = await harakiri.routes.fetch(route)("/health");
+const response = await harakiri.routes.fetch(route)("/health", { redirect: "error", signal: AbortSignal.timeout(5000) });
 ```
 
 ## Adapter Caches

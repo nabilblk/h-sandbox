@@ -185,6 +185,61 @@ No new shortcuts accepted. Existing client-driven Git bootstrap needs an API
 operation claim before distributed replay guarantees; large-file streaming and
 native argv execution are not supplied by SDK syntax.
 
+## Public Documentation Audit: 2026-09-13
+
+Requested follow-up assessment after the candidate web deployment:
+
+- [x] Navigate all 43 public pages, including hidden code tabs, and compare their
+  Markdown/LLM exports with the current source renderer.
+- [x] Compare actual npm stable, workspace-guide rc.3 and current rc.10 packages
+  with the candidate; reproduce example/version and cleanup mismatches locally.
+- [x] Record findings and a version-aware correction order in the
+  [SDK documentation audit](../../sdk-documentation-audit.md).
+- [x] Align published/candidate installation guidance, tutorial cleanup,
+  artifacts, OpenCode server setup and migration references, with executable
+  documentation regressions. Approved and completed locally on 2026-09-14.
+
+### Documentation Correction Checkpoint: 2026-09-14
+
+- [x] Use rc.10 consistently for current published instructions; keep candidate
+  recipes and historical recordings separately labelled.
+- [x] Repair complete task, worker, workspace, artifact and OpenCode examples;
+  preserve accepted IDs and report unconfirmed cleanup truthfully.
+- [x] Add version-scoped migration guidance to domain and error references and
+  update public repository guides.
+- [x] Run exact examples against the installed published package with synthetic
+  failure cases, add CI coverage, regenerate exports and browser-check all pages.
+
+No package publication, cluster changes, push or deployment is part of this
+correction request. The public SDK version is an explicit documentation baseline,
+not inferred from the unreleased working-tree package metadata.
+
+The original audit's 18 structural tests passed despite the behavioral gaps.
+The correction adds 18 installed-registry-package scenarios, passed on Node
+20.20.2 and 22.23.2, plus version/source/link/CLI-auth regression guards.
+All 103 web tests, typecheck, build and nine Playwright tests passed. Browser
+coverage includes all 43 pages at desktop, 390px and 320px and exact Markdown/code
+parity through hidden tabs. The suite uses loopback fixtures, not a live runtime
+or model. No production deployment or package publication is claimed.
+
+Evidence and reproduction commands are in the
+[updated audit](../../sdk-documentation-audit.md#correction-results).
+The broader SDK release/feedback items remain open.
+
+### Documentation Delivery Checkpoint: 2026-09-14
+
+The user subsequently approved committing, pushing and deploying the corrections.
+This approval supersedes the correction-only scope above for a web-only delivery;
+it does not authorize a new npm package or backend release.
+
+- [ ] Commit the scoped corrections and pass protected-main PR checks, including
+  installed published-package examples on Node 20 and 22.
+- [ ] Build a source-pinned multiarchitecture web image through Harbor CI.
+- [ ] Deploy only that image to the existing public k0s release, preserving the
+  installed chart, backend specifications, credentials and public OIDC settings.
+- [ ] Verify public documentation, exports, responsive browser interactions and
+  public sign-in routing; record the artifact and deployment receipt.
+
 ## Completion Notes
 
 Implementation, Node 20/22 installed-package verification, browser checks and

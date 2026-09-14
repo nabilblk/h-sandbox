@@ -34,12 +34,43 @@ Every API response still uses the HTTP status code for coarse handling. The
 | `HarakiriProviderUnavailableError` | 502/503/504 | Runtime provider or provider sidecar is unavailable. |
 | `HarakiriCommandEndedError` | command terminal state | A waited command failed, exited, or was killed before the expected state. |
 
+## Candidate SDK Migration
+
+The existing API error classes above remain supported in published rc.10 and
+the candidate. The following additions are **unreleased**, not available by
+installing npm rc.10:
+
+| Class | When to handle it |
+| --- | --- |
+| `HarakiriSandboxCreationError` | The server accepted creation but readiness or Git bootstrap failed. Inspect `sandboxId`, `stage`, `creation`, `cleanup` and `cause`; do not blindly create another sandbox. |
+| `HarakiriRunError` | String-input `run(command, { check: true })` returned a nonzero exit; inspect the retained result. |
+
+`fromEnv()` configuration validation raises `Error`. Byte helpers raise
+`TypeError` for invalid inputs, `RangeError` for limits, and `Error` for invalid
+size/encoding/checksum responses; there is no dedicated integrity error class.
+Do not consume rejected bytes.
+
+`HarakiriSandboxCreationError` is not a `HarakiriApiError`. A previous catch
+for a direct readiness timeout or Git error must inspect its `cause` when
+using creation. Direct Git calls still raise Git errors. Object-input
+`run({ command })` retains the `{ result }` envelope and does not start throwing
+on nonzero exit; check `result.exitCode` yourself.
+
+Cancellation stops observation, not the remote command, sandbox or TTL.
+A cleanup error must not hide the task error: retain both (for example with an
+`AggregateError`) and report the sandbox ID for recovery. Ordinary deletion
+acknowledges a request. In rc.10 observe both terminal status and released
+capacity; the candidate also offers `kill({ wait: true })` and read-only
+`waitForTermination()`. See [migration and recovery](sdk-developer-experience.md).
+
 ## Retry Policy
 
 Retry with idempotency when:
 
-- sandbox create failed after a transient 502/503/504
-- `wait` timed out but the sandbox or command may still be running
+- an unacknowledged sandbox create failed after a transient 502/503/504: reuse
+  the same persisted idempotency key and input, under one job owner
+- a read-only `wait` timed out: reconnect to the existing ID and resume
+  observation; do not resubmit the command or create another sandbox
 - route readiness polling times out while the server may still be starting
 - provider logs, metrics, files, or egress sidecar are temporarily unavailable
 
@@ -50,6 +81,10 @@ Do not blindly retry when:
 - the sandbox status is `terminated`
 - template image policy or resource limit checks fail
 - authentication or authorization fails
+
+An accepted ID is a recovery checkpoint. Git bootstrap and external side effects
+are not exactly-once transactions; an idempotent create is not permission to
+replay a clone or job. Inspect source/command state before deciding to resume.
 
 ## Common Errors
 

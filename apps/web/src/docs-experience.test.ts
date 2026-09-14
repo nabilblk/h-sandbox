@@ -103,7 +103,9 @@ test("quickstart cleans up after execution and handles failures", () => {
   execFileSync(process.execPath, ["--input-type=module", "--check"], { input: quickstartTypeScript });
   assert.ok(quickstartCli.indexOf("trap '") < quickstartCli.indexOf('harakiri run "$SBX_ID"'));
   assert.ok(quickstartCli.lastIndexOf('harakiri kill "$SBX_ID"') > quickstartCli.indexOf('harakiri run "$SBX_ID"'));
-  assert.match(quickstartTypeScript, /finally\s*\{\s*await sandbox\.kill\(\)/);
+  assert.match(quickstartTypeScript, /finally\s*\{\s*await cleanupSandbox\(sandbox.id, failure\)/);
+  assert.match(quickstartTypeScript, /wait: false/);
+  assert.match(quickstartTypeScript, /status === "terminated" && sandbox.capacityPhase === "released"/);
   assert.match(quickstartTypeScript, /assert.equal\(result.exitCode, 0\)/);
 });
 

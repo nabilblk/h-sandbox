@@ -124,6 +124,32 @@ jobs:
       - name: API typecheck
         run: pnpm --filter @harakiri/api typecheck
 
+  published-sdk-docs:
+    name: Published SDK documentation (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install repository tooling with Node 22
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @harakiri/shared build
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Execute displayed programs with registry packages, not workspace links
+        working-directory: apps/web
+        run: node --import tsx ../../scripts/test-doc-sdk-examples.ts
+
   browser:
     name: Browser contracts (no live service credentials)
     runs-on: ubuntu-latest

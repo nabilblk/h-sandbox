@@ -1,18 +1,20 @@
 # Hands-on Tutorials
 
 These tutorials exercise Harakiri as an application developer would use it.
-They create real sandboxes, verify an observable result, and clean up every
-resource they create.
+They create real sandboxes, verify an observable result, and request cleanup for the
+resources they create. The SDK worker additionally confirms termination and
+capacity release before reporting success; retained workspace storage is archived,
+not erased.
 
-## Upcoming: Persistent Agent Projects
+## Persistent Agent Projects
 
-The [persistent workspace tutorial](persistent-workspaces.md) and
-[runnable acceptance example](../examples/sdk-persistent-workspace/index.mjs)
-write a checkpoint, replace the sandbox, read the same file, disconnect a live
-command viewer and resume its output without executing the job twice. They
-require unreleased matching source builds and operator-enabled storage, not npm
-0.4.0. Cleanup terminates sandboxes and archives the workspace, but does not
-physically erase retained storage.
+The [persistent workspace tutorial](persistent-workspaces.md) writes a checkpoint,
+replaces the sandbox, reads the same file, disconnects a live command viewer and
+resumes its output without executing the job twice. The published program targets
+API/SDK/CLI `0.5.0-rc.10` with operator-enabled storage, not stable npm `0.4.0`.
+The repository recipe on `main` uses the unreleased candidate; see the
+[example version matrix](../examples/README.md). Cleanup terminates sandboxes and
+archives the workspace, but does not physically erase retained storage.
 
 ## Before You Start
 
@@ -26,7 +28,7 @@ You need:
 Install and configure the CLI:
 
 ```bash
-npm install -g @h-sandbox/cli
+npm install -g @h-sandbox/cli@0.5.0-rc.10
 
 export HARAKIRI_API_URL=https://sb-api.harakiri.io
 export HARAKIRI_API_KEY=hk_live_...
@@ -335,64 +337,68 @@ implicitly delete snapshots created from it.
 
 ## Tutorial 6: Integrate Harakiri Into a Worker
 
-**Scenario:** use the public SDK from application code with idempotent create,
-bounded waits, explicit error handling, and guaranteed cleanup.
+**Scenario:** use the published SDK with idempotent creation, retained IDs,
+bounded readiness and cleanup observations, and an explicitly checked result.
 
 ```bash
 mkdir harakiri-worker && cd harakiri-worker
 npm init -y
-npm install @h-sandbox/sdk
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
 ```
 
 Create `worker.mjs`:
 
 ```js
-import { randomUUID } from "node:crypto";
-import { HarakiriApiError, HarakiriClient } from "@h-sandbox/sdk";
+import assert from "node:assert/strict";
+import { setTimeout as delay } from "node:timers/promises";
+import { HarakiriClient } from "@h-sandbox/sdk";
 
-const client = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL,
-  apiKey: process.env.HARAKIRI_API_KEY
+const apiUrl = process.env.HARAKIRI_API_URL;
+const apiKey = process.env.HARAKIRI_API_KEY;
+if (!apiUrl || !apiKey) throw new Error("Set HARAKIRI_API_URL and HARAKIRI_API_KEY");
+const client = new HarakiriClient({ apiUrl, apiKey });
+const jobId = process.env.JOB_ID ?? crypto.randomUUID();
+const { sandbox } = await client.createSandbox({
+  template: "python-3.12-data", name: "tutorial-sdk-worker", ttlSeconds: 600,
+  wait: false, idempotencyKey: "tutorial-job-" + jobId
 });
-
-let sandboxId;
-const jobId = process.env.JOB_ID ?? randomUUID();
-
+console.log("Accepted sandbox", sandbox.id);
+let failure;
 try {
-  const created = await client.createSandbox({
-    template: "python-3.12-data",
-    name: "tutorial-sdk-worker",
-    ttlSeconds: 600,
-    wait: false,
-    idempotencyKey: `tutorial-job-${jobId}`
+  await client.waitForSandbox(sandbox.id, { timeoutMs: 120_000 });
+  await client.files.write(sandbox.id, {
+    path: "/workspace/task.py", content: "print('sdk-worker-ready')\n", createParents: true
   });
-  sandboxId = created.sandbox.id;
-  await client.waitForSandbox(sandboxId, { timeoutMs: 90_000 });
-
-  await client.writeSandboxFile(sandboxId, {
-    path: "/workspace/task.py",
-    content: "print('sdk-worker-ready')\n",
-    createParents: true
-  });
-
-  const run = await client.runSandbox(sandboxId, {
-    command: "python /workspace/task.py",
-    timeoutMs: 30_000
-  });
-
-  if (run.result.exitCode !== 0) throw new Error(run.result.stderr);
-  if (!run.result.stdout.includes("sdk-worker-ready")) {
-    throw new Error("sandbox returned an unexpected result");
-  }
-
-  console.log(`PASS: ${sandboxId} completed the worker task`);
+  const { result } = await client.runSandbox(sandbox.id, { command: "python /workspace/task.py" });
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout.trim(), "sdk-worker-ready");
 } catch (error) {
-  if (error instanceof HarakiriApiError) {
-    console.error({ code: error.code, retryable: error.retryable });
-  }
+  failure = error;
   throw error;
 } finally {
-  if (sandboxId) await client.killSandbox(sandboxId).catch(() => undefined);
+  await cleanupSandbox(sandbox.id, failure);
+}
+console.log("PASS: worker result checked and cleanup confirmed");
+
+// A DELETE acknowledgement alone does not prove runtime absence or capacity release.
+async function cleanupSandbox(id, primaryError, requestDelete = true) {
+  const signal = AbortSignal.timeout(90_000);
+  const cleanupClient = new HarakiriClient({
+    apiUrl, apiKey,
+    fetch: (url, init) => fetch(url, { ...init, signal })
+  });
+  try {
+    if (requestDelete) await cleanupClient.killSandbox(id);
+    while (true) {
+      signal.throwIfAborted();
+      const { sandbox } = await cleanupClient.getSandbox(id);
+      if (sandbox.status === "terminated" && sandbox.capacityPhase === "released") return;
+      await delay(500, undefined, { signal });
+    }
+  } catch (error) {
+    const message = "Cleanup unconfirmed for " + id + "; inspect this ID before retrying.";
+    throw new AggregateError(primaryError ? [primaryError, error] : [error], message);
+  }
 }
 ```
 
@@ -402,9 +408,18 @@ Run it:
 JOB_ID="$(date +%s)" node worker.mjs
 ```
 
-The `finally` block is the application-level cleanup guarantee. TTL remains the
-platform safety net when a process crashes before cleanup runs. The same code
-is available as `examples/sdk-worker-tutorial/index.mjs` in the repository.
+PASS appears only after the task result and cleanup are confirmed. If readiness
+or execution fails, cleanup still runs. If deletion or its observation fails,
+the program exits nonzero with the sandbox ID and retains the original error.
+Inspect that ID before retrying; do not blindly create another sandbox.
+
+Persist the job ID for one intent across retries, but do not allow two workers
+to own the same intent concurrently. TTL is the platform safety net after a
+worker crash, not an application-level cleanup guarantee. The identical source
+is in [sdk-worker-tutorial](../examples/sdk-worker-tutorial/index.mjs) and the
+[public tutorial](https://sb.harakiri.io/#docs/hands-on-tutorials?section=integrate-harakiri-into-a-worker).
+The documentation package check verifies all three copies and executes the program
+with the pinned registry SDK against success and failure fixtures.
 
 ## Troubleshooting
 

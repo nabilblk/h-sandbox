@@ -1,62 +1,100 @@
 # Harakiri SDK Examples
 
-These examples show the public integration surface expected by external
-applications. They use only `@h-sandbox/sdk` and environment variables.
+Choose the SDK version before choosing a recipe. The current published preview
+is `0.5.0-rc.10`; unversioned npm installation selects stable `0.4.0`, which lacks
+workspaces, execution readiness and capacity APIs. Examples on `main` can also
+use **unreleased** TypeScript additions. They are not all rc.10 examples.
 
-Set:
-
-```bash
-export HARAKIRI_API_URL=http://127.0.0.1:18082
-export HARAKIRI_API_KEY=hk_live_...
-```
-
-Run an example from a project that has `@h-sandbox/sdk` installed:
+Use your installation's API and a server-side scoped key, never browser credentials:
 
 ```bash
-pnpm add @h-sandbox/sdk
-node examples/sdk-basic-command/index.mjs
+export HARAKIRI_API_URL=https://sandbox-api.example.com
+export HARAKIRI_API_KEY=hk_your_scoped_key
 ```
 
-The OpenCode server example also uses OpenCode's generated client:
+## Published SDK
 
 ```bash
-pnpm add @h-sandbox/sdk @opencode-ai/sdk
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
 ```
 
-Available examples:
+Start with the complete, published-package-tested programs in the public docs:
 
-- `sdk-basic-command`: create, wait, run a command, inspect logs, cleanup.
-- `sdk-files`: write, read, list, upload, download, and remove files.
-- `sdk-preview-route`: start a dev server and expose a token-protected route.
-- `sdk-restricted-egress`: apply outbound access policy and test it.
-- `sdk-dev-server`: full agent-style flow with setup, detached server, preview.
-- `sdk-template-build`: create and build a custom Dockerfile template.
-- `sdk-typescript-quickstart`: TypeScript compile smoke for SDK consumers.
-- `sdk-sandbox-object`: object-oriented `HarakiriSandbox` flow for adapters.
-- `sdk-worker-tutorial`: idempotent application worker with bounded waits, result checks, and guaranteed cleanup.
-- `sdk-git-workflow`: create from a Git source, inspect status, stage and commit a sandbox-local change.
-- `sdk-credential-vault`: attach a built-in provider preset without copying low-level binding fields, verify the fake env value, and test provider-side injection.
-- `sdk-private-api-vault`: bind one exact private API host and header through the same provider-neutral Vault contract.
-- `sdk-opencode-headless`: run `opencode run` in an `opencode` sandbox, with an optional repository clone and diff readback.
-- `sdk-opencode-server`: start `opencode serve`, expose port 4096, wait for health, and connect `@opencode-ai/sdk` through Harakiri route auth.
+- [First task](https://sb.harakiri.io/#docs/quickstart): retain the accepted ID, wait for execution readiness, verify a result and confirm cleanup.
+- [Worker](https://sb.harakiri.io/#docs/hands-on-tutorials?section=integrate-harakiri-into-a-worker): idempotent creation, task verification and explicit cleanup failures. Source: `sdk-worker-tutorial/index.mjs`.
+- [Files and artifacts](https://sb.harakiri.io/#docs/filesystem-artifacts): compute a real SHA-256 and verify downloaded bytes.
+- [Persistent workspace](https://sb.harakiri.io/#docs/persistent-workspaces): reuse a checkpoint across two sandboxes, reconnect output without resubmitting work, then archive retained storage.
+- [OpenCode](https://sb.harakiri.io/#docs/opencode-template): independent headless and authenticated server programs, with explicit model and credential setup.
 
-Maintainers can run the OpenCode examples as live smokes against a deployed
-Harakiri API:
+These programs print success only after checking their result and observing
+sandbox termination **and capacity release**. Failed cleanup reports the ID to
+inspect. A crashed process still needs TTL, reconciliation and operator recovery;
+`finally` cannot guarantee deletion during an outage.
+
+The server program also pins `@opencode-ai/sdk@1.15.13`. Its rc.10 example is
+deliberately GET-only because the legacy route adapter does not preserve every
+Fetch `Request` field. The unreleased adapter below addresses that limitation.
+Headless inference requires a model available in your OpenCode installation:
+set `OPENCODE_MODEL`; optional `ANTHROPIC_API_KEY` is explicitly forwarded. Free
+model availability is not guaranteed. Never log model credentials or raw agent output.
+
+For an immutable snapshot of the older repository examples, use the
+[v0.5.0-rc.10 tag](https://github.com/nabilblk/h-sandbox/tree/v0.5.0-rc.10/examples),
+not moving `main`. The corrected tutorials above supersede old cleanup patterns.
+Recorded agent demos use their documented historical `0.4.0` setup; their videos
+and evidence are not demonstrations of the new SDK.
+
+## Unreleased TypeScript Recipes
+
+The following recipes on `main` require the built candidate, **not npm rc.10**:
+
+| Recipe | Task |
+| --- | --- |
+| `sdk-typescript-quickstart` | Environment configuration, checked command results and confirmed cleanup |
+| `sdk-files` | Text and verified byte helpers |
+| `sdk-sandbox-object` | Reconnect to and operate on a sandbox handle |
+| `sdk-dev-server` | Tracked process, HTTP readiness and scoped route fetch |
+| `sdk-opencode-headless` | Checked agent execution with optional provider credentials |
+| `sdk-persistent-workspace` | Workspace handles and resumable output observation |
+
+From the repository root:
 
 ```bash
-export HARAKIRI_API_URL=https://sb-api.harakiri.io
-export HARAKIRI_API_KEY=hk_live_...
-export OPENCODE_MODEL=opencode/deepseek-v4-flash-free
-
-pnpm exec tsx examples/sdk-opencode-headless/index.ts
-pnpm exec tsx examples/sdk-opencode-server/index.ts
+pnpm install --frozen-lockfile
+pnpm --filter @h-sandbox/sdk build
+mkdir -p /tmp/harakiri-sdk-candidate
+pnpm --filter @h-sandbox/sdk pack --pack-destination /tmp/harakiri-sdk-candidate
 ```
 
-Template examples live under `examples/templates`:
+Install the resulting tarball in your consuming project. Its filename/version
+may still say rc.10; **the local archive, not that version string, identifies the
+candidate**. Do not replace it with an npm install of the same version.
 
-- `base-linux`: small general-purpose Linux devbox.
-- `python-3.12-data`: Python data and analysis runtime.
-- `node-20-app`: Node web app and API runtime.
-- `browser-chromium`: headless Chromium automation runtime.
-- `open-agents-dev`: browser-capable coding-agent runtime.
-- `opencode`: OpenCode coding-agent runtime with a route-ready server.
+```bash
+npm install /tmp/harakiri-sdk-candidate/h-sandbox-sdk-0.5.0-rc.10.tgz
+```
+
+See the [migration and failure-recovery guide](../docs/sdk-developer-experience.md)
+for response compatibility, typed creation errors, cancellation, redirects and
+Git bootstrap replay limits. No mutation is automatically retried.
+
+## Other Reference Examples
+
+The repository also includes `sdk-basic-command`, `sdk-preview-route`,
+`sdk-restricted-egress`, `sdk-template-build`, `sdk-git-workflow`,
+`sdk-credential-vault`, `sdk-private-api-vault`, `sdk-opencode-server` and
+`sdk-execution-capacity`. These demonstrate individual integration contracts;
+check their prerequisites and use the complete tutorials for cleanup ownership.
+Do not treat a successful `killSandbox` response as confirmation of runtime absence.
+
+Template sources live under `examples/templates`: `base-linux`,
+`python-3.12-data`, `node-20-app`, `browser-chromium`, `open-agents-dev`, and
+`opencode`.
+
+## Documentation Regression Checks
+
+`pnpm --filter @harakiri/web docs:test-sdk` installs the pinned public packages
+in a temporary consumer and executes the exact displayed programs against a
+loopback HTTP fixture. It tests API contracts and failure handling, not a live
+runtime or model. CI runs the check on Node 20 and 22; installed candidate
+package tests remain a separate gate.

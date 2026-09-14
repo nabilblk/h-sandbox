@@ -7,6 +7,7 @@
     "build": "pnpm docs:export && vite build",
     "dev": "pnpm docs:export && vite --host 0.0.0.0",
     "docs:export": "tsx scripts/export-docs.ts",
+    "docs:test-sdk": "pnpm --filter @harakiri/shared build && tsx ../../scripts/test-doc-sdk-examples.ts",
     "lint": "tsc -p tsconfig.json --noEmit",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test --import tsx src/*.test.ts",

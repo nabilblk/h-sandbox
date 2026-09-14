@@ -4,16 +4,20 @@ Start with [Workspaces](workspaces.md) for the concept, ownership and lifecycle.
 Use [Workspace API, SDK and CLI](workspace-reference.md) for the reference contract
 and [Persistent storage operations](persistent-workspace-operations.md) for enablement and recovery.
 
-**Availability:** Release candidate `0.5.0-rc.3`. Use matching API, SDK and CLI
-versions; stable `0.4.0` does not include this feature. Operators must explicitly
-enable a tested storage profile. k0s acceptance is passing; clean restricted
-OpenShift storage validation is still pending.
+**Published baseline:** `0.5.0-rc.10`. Use matching API, SDK and CLI versions;
+stable `0.4.0` does not include this feature. Operators must explicitly enable a
+tested storage profile. k0s acceptance is passing; clean restricted OpenShift
+storage validation is still pending.
 
-Obtain matching archives from your operator, or verify the exact npm candidate
-is published; see the [release notes](release-notes/0.5.0-rc.3.md).
-This candidate corrects the renewal/scheduler defect in earlier releases.
-Apply migration 036 and deploy matching API/scheduler versions. Following output
-alone does not renew TTL; explicitly renew long-running jobs before expiry.
+```bash
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install -g @h-sandbox/cli@0.5.0-rc.10
+```
+
+The renewal/scheduler correction originated in rc.3 (migration 036). For a current
+deployment apply all migrations shipped with rc.10 and deploy matching API and
+scheduler versions; follow the [installation and upgrade guide](install-kubernetes.md).
+Following output alone does not renew TTL. Explicitly renew long-running jobs.
 
 ## Choose the Right State
 
@@ -33,46 +37,31 @@ sandbox can own a workspace, including while paused or provisioning. Check
 
 ## SDK
 
-```ts
-import { HarakiriClient } from "@h-sandbox/sdk";
+Use the complete [published two-sandbox program](https://sb.harakiri.io/#docs/persistent-workspaces).
+It retains each accepted sandbox ID before waiting, writes its own checkpoint
+and command instead of assuming a pre-existing `job.py`, and validates six
+output lines plus a one-execution marker.
 
-const client = new HarakiriClient({
-  apiUrl: process.env.HARAKIRI_API_URL!,
-  apiKey: process.env.HARAKIRI_API_KEY!
-});
-const { workspace } = await client.workspaces.create({ name: "agent-project" });
-const { sandbox } = await client.createSandbox({
-  template: "python-3.12", workspaceId: workspace.id, ttlSeconds: 600
-});
-await client.waitForSandbox(sandbox.id);
-await client.files.write(sandbox.id, {
-  path: "/workspace/checkpoint.json", content: '{"step":1}'
-});
-const { command } = await client.commands.start(sandbox.id, {
-  command: "python -u job.py", cwd: "/workspace", detached: true
-});
-const controller = new AbortController();
-let cursor: string | undefined;
-for await (const event of client.commands.stream(sandbox.id, command.id, {
-  signal: controller.signal, cursor
-})) {
-  cursor = event.cursor;
-  if (event.type === "output") process.stdout.write(event.stdout);
-  if (event.type === "complete" && event.exitCode !== 0) {
-    throw new Error(`Command ${event.status}, exit ${event.exitCode}`);
-  }
-}
-```
+The published methods return response envelopes: `client.workspaces.create`
+returns `{ workspace }` and `client.commands.start` returns `{ command }`.
+Create with `wait: false`, retain the returned ID, then explicitly observe
+execution readiness inside your cleanup scope.
 
-Upload `job.py` before running the snippet. To resume observation, call
-`commands.stream` with the same IDs and the last **consumed** cursor; never call
-`commands.start` again. The SDK retries transport interruptions, not revoked
-credentials, invalid cursors, or explicit provider stream errors.
+To resume observation, call `commands.stream` with the same IDs and the last
+**consumed** cursor; never call `commands.start` again. The SDK retries transport
+interruptions, not revoked credentials, invalid cursors, or explicit stream errors.
+A cancelled observer does not terminate the command.
 
-After `killSandbox`, wait until `workspaces.get(id).workspace.status` is
-`available` before creating the replacement. Release is asynchronous and needs
-the scheduler plus provider-confirmed deletion. Do not clear a reservation to
-work around 409 responses.
+After `killSandbox`, confirm the sandbox is terminated and its capacity released,
+then wait until `workspaces.get(id).workspace.status` is `available` before
+creating the replacement. Release needs the scheduler and provider-confirmed
+deletion. Do not clear a reservation or repeat an uncertain mutation to work
+around a conflict.
+
+The [unreleased handle-based recipe](../examples/sdk-persistent-workspace/index.mjs)
+adds `workspaces.connect`, `waitUntilAvailable` and process handles. It requires
+a candidate tarball as described in the [example index](../examples/README.md),
+not npm rc.10.
 
 ## CLI and Dashboard
 
@@ -97,21 +86,25 @@ The bounded browser viewer keeps the latest 200,000 characters.
 
 ## Run the Verified Scenario
 
-From the repository, build the SDK and run the
-[two-sandbox tutorial](../examples/sdk-persistent-workspace/index.mjs):
+Set your installation's API URL and scoped key, install the pinned SDK above,
+and run the `workspace-demo.mjs` program from the public tutorial:
 
 ```bash
-pnpm --filter @h-sandbox/sdk build
-export HARAKIRI_API_URL=https://your-api.example.com
-export HARAKIRI_API_KEY=hk_live_...
-HARAKIRI_TEMPLATE=python-3.12 node examples/sdk-persistent-workspace/index.mjs
+export HARAKIRI_API_URL=https://sandbox-api.example.com
+export HARAKIRI_API_KEY=hk_your_scoped_key
+node workspace-demo.mjs
 ```
 
 Assertions check checkpoint reuse, all six output lines exactly once, completion
-with exit 0, and a one-execution marker despite reconnecting. Both sandboxes are
-terminated; the workspace is archived **but its volume is retained**. Allocate
-space for this test and arrange operator cleanup. No paid model or Kubernetes
-runtime access is required by the tutorial.
+with exit 0, and a one-execution marker despite reconnecting. Success is printed
+only after both sandboxes are confirmed terminated and the workspace is archived
+**with its volume retained**. Cleanup failures include the affected IDs and do
+not hide the original task failure. Allocate space and arrange operator cleanup.
+
+`pnpm --filter @harakiri/web docs:test-sdk` executes the exact displayed program
+with npm rc.10 against a local HTTP fixture, including failed readiness and an
+uncertain deletion. That is a package/protocol regression check, not live
+storage acceptance. The tutorial itself uses no paid model or Kubernetes access.
 
 ## Limits
 
