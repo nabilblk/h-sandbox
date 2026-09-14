@@ -2,8 +2,9 @@
 
 **Audit date:** 2026-09-13. **Correction date:** 2026-09-14.
 The seven findings below are the original observations, preserved for traceability.
-All seven are now corrected locally; publication and deployment are not part of
-this follow-up. Historical demo recordings and release notes were not relabelled.
+All seven are corrected and deployed through the subsequently approved web-only
+[delivery](release-notes/2026-09-14-sdk-documentation-delivery.md). No new npm package
+was published. Historical demo recordings and release notes were not relabelled.
 
 ## Correction Results
 
@@ -45,10 +46,12 @@ Implementation: [shared displayed examples](../apps/web/src/sdk-doc-examples.ts)
 [browser checks](../tests/e2e/docs-experience.spec.ts).
 Run `pnpm --filter @harakiri/web docs:test-sdk` for the package/protocol suite.
 
-These are documentation and consumer-contract checks, not new live storage,
-sandbox, model or production acceptance runs. No cluster, tunnel, authentication,
-npm tag, published artifact or Brain content was changed. The candidate remains
-unreleased even though its working-tree metadata also says rc.10.
+The correction checks above are documentation and consumer-contract checks, not
+new live storage, sandbox or model acceptance runs. The subsequent authorized
+delivery passed hosted native acceptance, published only a web image and verified
+the public documentation on k0s; its evidence and scope are in the delivery receipt.
+Authentication settings, npm tags and Brain content were unchanged. The SDK
+candidate remains unreleased even though its source metadata also says rc.10.
 
 ## Original Audit Scope
 

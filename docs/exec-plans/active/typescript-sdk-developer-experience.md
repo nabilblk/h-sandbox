@@ -232,13 +232,23 @@ The user subsequently approved committing, pushing and deploying the corrections
 This approval supersedes the correction-only scope above for a web-only delivery;
 it does not authorize a new npm package or backend release.
 
-- [ ] Commit the scoped corrections and pass protected-main PR checks, including
+- [x] Commit the scoped corrections and pass protected-main PR checks, including
   installed published-package examples on Node 20 and 22.
-- [ ] Build a source-pinned multiarchitecture web image through Harbor CI.
-- [ ] Deploy only that image to the existing public k0s release, preserving the
+- [x] Build a source-pinned multiarchitecture web image through Harbor CI.
+- [x] Deploy only that image to the existing public k0s release, preserving the
   installed chart, backend specifications, credentials and public OIDC settings.
-- [ ] Verify public documentation, exports, responsive browser interactions and
+- [x] Verify public documentation, exports, responsive browser interactions and
   public sign-in routing; record the artifact and deployment receipt.
+
+PR #50 merged as `35084f1b0084542702993f85a5089ba7e9674113` after all 14 checks
+passed. Main CI and Harbor web publication passed. Helm revision 44 changes only
+the web image; structured preflight and post-deployment checks preserved backend
+and operator configuration. All nine public browser tests and exact parity for
+all 47 documentation exports passed, along with public endpoint and OIDC checks.
+The existing supervisor recovered a brief web pod/port-forward 502 handoff without
+manual tunnel changes. See the
+[delivery receipt](../../release-notes/2026-09-14-sdk-documentation-delivery.md).
+The candidate npm release and integration feedback remain open.
 
 ## Completion Notes
 
