@@ -154,7 +154,7 @@ jobs:
         run: pnpm --filter @h-sandbox/deepagents test:package
 
   published-sdk-docs:
-    name: Published SDK documentation (Node ${{ matrix.node }})
+    name: SDK documentation (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -172,10 +172,14 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
           pnpm --filter @harakiri/shared build
+          pnpm --filter @h-sandbox/sdk build
+          pnpm --filter @h-sandbox/sdk pack --pack-destination "$RUNNER_TEMP"
+          VERSION=$(node -p 'require("./packages/sdk/package.json").version')
+          echo "HARAKIRI_DOCS_SDK_TARBALL=$RUNNER_TEMP/h-sandbox-sdk-${VERSION}.tgz" >> "$GITHUB_ENV"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Execute displayed programs with registry packages, not workspace links
+      - name: Execute displayed programs with the release archive, not workspace links
         working-directory: apps/web
         run: node --import tsx ../../scripts/test-doc-sdk-examples.ts
 

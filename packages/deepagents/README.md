@@ -52,8 +52,8 @@ npm install "$SDK_TARBALL" "$DEEPAGENTS_TARBALL" \
   @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
 ```
 
-The SDK tarball still has rc.10 metadata; the reviewed **archive** identifies
-the candidate. Do not substitute its npm version. Deep Agents is an exact peer
+The adapter requires SDK rc.11 or newer. The reviewed **archive** identifies
+this adapter candidate. Deep Agents is an exact peer
 dependency because its sandbox protocol is evolving. Commit your application's
 lockfile. Other framework versions need a fresh compatibility run.
 

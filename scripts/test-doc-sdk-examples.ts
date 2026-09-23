@@ -4,11 +4,11 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { publishedSdkExamples, publishedSdkVersion } from "../apps/web/src/sdk-doc-examples.js";
 import { fileUploadSchema } from "../apps/api/src/routes/sandbox-runtime.schema.js";
 
-// Run the exact displayed programs with registry packages, never workspace links,
+// Run displayed programs with installed registry packages or an explicit archive, never workspace links,
 // maintainer credentials, a live sandbox, or an LLM. The fixture is protocol-only.
 const directory = await mkdtemp(join(tmpdir(), "harakiri-doc-sdk-"));
 const env = { PATH: process.env.PATH, HOME: directory, TMPDIR: directory };
@@ -203,7 +203,7 @@ async function check(scenario: Scenario) {
     }
     if (["readiness", "both"].includes(scenario.fault ?? "")) {
       assert.equal(calls.filter((call) => /\/(run|commands)$/.test(call.path)).length, 0);
-      assert.match(result.stderr, /before becoming ready/);
+      assert.match(result.stderr, /reached error before the requested state/);
     }
     if (scenario.fault === "both") assert.match(result.stderr, /fixture_cleanup_failure/);
     if (scenario.example === "workspace") {
@@ -223,11 +223,13 @@ async function check(scenario: Scenario) {
 
 try {
   await writeFile(join(directory, "package.json"), JSON.stringify({ private: true, type: "module" }));
-  const install = await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org", `@h-sandbox/sdk@${publishedSdkVersion}`, "@opencode-ai/sdk@1.15.13"]);
+  const archive = process.env.HARAKIRI_DOCS_SDK_TARBALL;
+  if (archive) assert.ok(isAbsolute(archive) && archive.endsWith(".tgz"), "Use an explicit absolute SDK archive path.");
+  const install = await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org", archive ?? `@h-sandbox/sdk@${publishedSdkVersion}`, "@opencode-ai/sdk@1.15.13"]);
   assert.equal(install.code, 0, install.stderr);
   const installed = JSON.parse(await readFile(join(directory, "node_modules/@h-sandbox/sdk/package.json"), "utf8"));
   assert.equal(installed.version, publishedSdkVersion);
-  console.log("Registry SDK", installed.version, "Node", process.version);
+  console.log(archive ? "Archive SDK" : "Registry SDK", installed.version, "Node", process.version);
   for (const [name, source] of Object.entries(publishedSdkExamples)) await writeFile(join(directory, name + ".mjs"), source);
   // Exercise the actual timeout wiring without waiting 90 seconds per fault test.
   await writeFile(join(directory, "deadline.mjs"), `

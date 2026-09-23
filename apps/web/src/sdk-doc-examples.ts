@@ -1,5 +1,5 @@
-// Explicit published baseline: the workspace package also contains unreleased APIs.
-export const publishedSdkVersion = "0.5.0-rc.10";
+// Pin documentation to the coordinated release; CI tests its installed archive before publication.
+export const publishedSdkVersion = "0.5.0-rc.11";
 export const publishedSdkInstall = `npm install --save-exact @h-sandbox/sdk@${publishedSdkVersion}`;
 export const publishedCliInstall = `npm install -g @h-sandbox/cli@${publishedSdkVersion}`;
 
@@ -12,7 +12,7 @@ const apiKey = process.env.HARAKIRI_API_KEY;
 if (!apiUrl || !apiKey) throw new Error("Set HARAKIRI_API_URL and HARAKIRI_API_KEY");
 const client = new HarakiriClient({ apiUrl, apiKey });`;
 
-// rc.10 has no kill({ wait:true }); confirmation must observe this sandbox's reservation.
+// Explicit observations also work with older rc.10 installations.
 const cleanup = `
 // A DELETE acknowledgement alone does not prove runtime absence or capacity release.
 async function cleanupSandbox(id, primaryError, requestDelete = true) {

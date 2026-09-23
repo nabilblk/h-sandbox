@@ -8,11 +8,11 @@ Read the public [SDK guide](https://sb.harakiri.io/#docs/sdk-cli) and
 [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 Repository contributors can also read [the integration contract](../../docs/sdk.md).
 
-## Unreleased TypeScript Improvements
+## Task-Oriented TypeScript API
 
-The working tree adds a task-oriented API on the existing sandbox object.
-**These additions are not yet in npm rc.10.** Build/install the workspace package
-to use the [six updated recipes and migration guide](../../docs/sdk-developer-experience.md).
+Version **0.5.0-rc.11** adds a task-oriented API on the existing sandbox object.
+These helpers are not present in rc.10. See the
+[six updated recipes and migration guide](../../docs/sdk-developer-experience.md).
 
 ```ts
 import { HarakiriClient } from "@h-sandbox/sdk";
@@ -58,9 +58,9 @@ for confirmation. Organization totals alone do not identify its reservation. See
 and [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.10
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.11
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 ```
 
 This pins the recorded Developer Preview; confirm the matching server with your
@@ -85,7 +85,7 @@ part of the npm installation contract.
 The reference snippets below show individual operations on existing resources,
 not complete job ownership. Use the [published quickstart](https://sb.harakiri.io/#docs/quickstart)
 for accepted-ID tracking, result checks and confirmed cleanup. Raw object-input
-`run` still returns `{ result }`; new convenience methods require the candidate.
+`run` still returns `{ result }`; new convenience methods require rc.11 or newer.
 
 ## Sandbox Object
 
@@ -615,16 +615,12 @@ or signed URL transfer is a planned scale-up path.
 
 ## Routes And Agent Servers
 
-**Version boundary:** the examples here use published rc.10 response envelopes.
-Its route adapter follows Fetch's redirect default and does not preserve every
-field of an input `Request`. Use trusted relative paths, explicitly reject
-redirects for credential-bearing requests, and bound the underlying Fetch.
-Do not pass arbitrary URLs to this legacy adapter.
-
-The **unreleased** candidate preserves Request method/body/headers, scopes
-credentials to the route origin/path and defaults to manual redirects.
+**Version boundary:** rc.11 preserves Request method/body/headers, scopes
+credentials to the route origin/path and forces manual redirects. Older rc.10
+does not preserve every Request field and follows native redirect defaults.
+Upgrade before passing generated-client Requests to the generic route adapter.
 Process and route handles keep their response properties for compatibility.
-See [the candidate route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
+See [the route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
 and the [published authenticated server program](https://sb.harakiri.io/#docs/opencode-template).
 
 Route helpers remove repetitive token-header and readiness-polling code from
@@ -653,7 +649,7 @@ accept `basicAuth` when the service behind the route also has its own password.
 ## OpenCode Agent Workflow
 
 Use the complete [published OpenCode programs](https://sb.harakiri.io/#docs/opencode-template)
-with `@h-sandbox/sdk@0.5.0-rc.10`. Each creates its own sandbox, retains the
+with `@h-sandbox/sdk@0.5.0-rc.11`. Each creates its own sandbox, retains the
 accepted ID before waiting, verifies the result, and confirms termination and
 capacity release before reporting success. A cleanup failure preserves the ID
 and original task error; it is not swallowed.
@@ -678,12 +674,12 @@ The published example pins `@opencode-ai/sdk@1.15.13` and uses a GET-only Fetch
 adapter for its configuration check. It rejects redirects and scopes credentials
 to the route. rc.10's generic route adapter does not preserve every `Request`
 field; do not advertise it as a full generated-client adapter. The
-[unreleased TypeScript guide](https://sb.harakiri.io/#docs/typescript-sdk)
+[TypeScript guide](https://sb.harakiri.io/#docs/typescript-sdk)
 documents the full scoped adapter and updated headless recipe.
 
 ## Errors
 
-**Candidate migration:** accepted creation failures now use
+**rc.11 migration:** accepted creation failures now use
 `HarakiriSandboxCreationError`, which is not a `HarakiriApiError`. Recover by
 `sandboxId` and inspect `stage`, `creation`, `cleanup` and `cause`; direct Git calls still
 raise Git errors. The string `run` overload with `check: true` adds

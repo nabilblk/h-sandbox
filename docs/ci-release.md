@@ -5,6 +5,12 @@ TypeScript SDK and CLI. API, scheduler and template-builder share the API image.
 Candidates use npm `next`, without replacing stable `latest`. Published version
 tags and candidate artifacts are immutable.
 
+The optional Deep Agents package remains private/source-only until its initial
+npm publication and package-specific trusted publisher are configured. Do not
+interpret an SDK/CLI release as publishing that adapter. The rc.11 documentation
+tests install the candidate SDK archive before publication; the npm publisher
+then repeats the displayed programs against the actual registry package.
+
 ## Publishing Boundary
 
 Publishing workflows run from `main` in the explicitly enabled repository.

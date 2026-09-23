@@ -28,7 +28,7 @@ export class HarakiriSandboxBackend extends BaseSandbox {
   constructor(sandbox: HarakiriSandbox, options: HarakiriSandboxBackendOptions = {}) {
     super();
     if (typeof sandbox.files.readBytes !== "function" || typeof sandbox.processes.connect !== "function") {
-      throw new TypeError("This adapter requires the matching Harakiri SDK source candidate, not npm rc.10.");
+      throw new TypeError("This adapter requires Harakiri SDK 0.5.0-rc.11 or newer, not npm rc.10.");
     }
     this.#sandbox = sandbox;
     this.#execution = executionOptions(sandbox, options);

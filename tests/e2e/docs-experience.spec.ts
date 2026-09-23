@@ -34,10 +34,10 @@ test("Deep Agents guide exposes candidate setup, highlighted programs and owners
 test("TypeScript candidate guide is discoverable, copyable and exported on desktop and mobile", async ({ page, context, request }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/#docs/sdk-cli");
-  await page.locator("article").getByRole("link", { name: "TypeScript candidate guide", exact: true }).click();
+  await page.locator("article").getByRole("link", { name: "TypeScript SDK guide", exact: true }).click();
   await expect(page.getByRole("heading", { name: "TypeScript SDK", exact: true })).toBeVisible();
-  await expect(page.locator("article")).toContainText("Unreleased SDK candidate");
-  await expect(page.locator("article")).toContainText("not in the published @h-sandbox/sdk@0.5.0-rc.10");
+  await expect(page.locator("article")).toContainText("TypeScript SDK 0.5.0-rc.11");
+  await expect(page.locator("article")).toContainText("rc.10 does not include them");
   const block = page.locator(".doc-code").filter({ hasText: "first-task.mts" });
   const raw = await block.locator("pre code").textContent();
   await block.getByRole("button", { name: "Copy first-task.mts code" }).click();

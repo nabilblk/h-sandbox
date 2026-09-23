@@ -138,7 +138,7 @@ const agent = createDeepAgent({
     <p>This is a <strong>sandbox-backed agent</strong>, not an agent process hosted inside a sandbox. Planning, model requests and checkpoints stay in your application. Custom tools that you register yourself are not automatically sandboxed: a local filesystem or shell callback still runs on your application host.</p>
 
     <h2>Candidate installation</h2>
-    <p>Use Node 22+ for repository tooling and Node 20+ for the consuming application. Build both archives from one reviewed checkout, then install those exact files. The SDK archive still has rc.10 metadata; a registry installation of that version is not the candidate.</p>
+    <p>Use Node 22+ for repository tooling and Node 20+ for the consuming application. Build both archives from one reviewed checkout, then install those exact files. The adapter requires SDK rc.11 or newer; npm rc.10 is not compatible.</p>
     <CodeBlock language="bash" filename="Build both candidates">{`pnpm install --frozen-lockfile
 pnpm --filter @h-sandbox/deepagents build
 mkdir -p /tmp/harakiri-framework-candidate
