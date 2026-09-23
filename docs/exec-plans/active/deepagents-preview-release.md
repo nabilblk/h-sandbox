@@ -15,12 +15,12 @@ packages and release notes must describe the same availability and limitations.
 
 ## Success Criteria
 
-- [ ] Reviewed source and documentation merged after CI.
+- [x] Reviewed source and documentation merged after CI.
 - [ ] Native adapter and real-model repair evidence from a disposable runner.
-- [ ] Matching SDK/CLI prerelease available anonymously, without changing latest.
+- [x] Matching SDK/CLI prerelease available anonymously, without changing latest.
 - [ ] Adapter preview available anonymously with a compatible SDK peer.
-- [ ] GitHub release, repository receipt and public changelog report actual evidence.
-- [ ] Private research, customer installations and running local services untouched.
+- [x] GitHub release, repository receipt and public changelog report actual evidence.
+- [x] Private research, customer installations and running local services untouched.
 
 ## Phases
 
@@ -38,13 +38,13 @@ packages and release notes must describe the same availability and limitations.
 - [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
 - [x] Test public programs against the packed SDK before publication and registry after publication.
 - [ ] Bootstrap adapter publication and configure its package-specific publisher; private guard retained meanwhile.
-- [ ] Merge source and create immutable release tag.
-- [ ] Publish and anonymously verify packages and release artifacts.
+- [x] Merge source and create immutable release tag.
+- [x] Publish and anonymously verify core packages and release artifacts.
 
 ### Phase 3: Documentation and Closure
-**Status**: Not Started
-- [ ] Publish factual GitHub notes, public changelog and repository delivery receipt.
-- [ ] Record remaining external blockers explicitly, without announcing unpublished packages.
+**Status**: Core delivery complete; adapter qualification and publication remain open
+- [x] Publish factual GitHub notes, public changelog and repository delivery receipt.
+- [x] Record remaining external blockers explicitly, without announcing unpublished packages.
 - [ ] Archive only after the requested delivery is complete.
 
 ## Decision Log
@@ -64,7 +64,13 @@ not grounds to bypass qualification or publish misleading installation steps.
 
 ## Completion Notes
 
-Pending. PR #52 contains the implementation and rc.11 documentation. All 105 web
+Core delivery complete. PR #52 merged as 55940e1, tagged v0.5.0-rc.11.
+SDK/CLI publication 35910822977 passed via OIDC, including post-publication
+installed-package and 18 public-program checks. Stable latest remains 0.4.0.
+Harbor publication 35910819414 passed for both architectures and the chart.
+The GitHub prerelease contains seven anonymously verified assets; the delivery
+receipt records digests and provenance-metadata checks. No live deployment.
+The implementation and rc.11 documentation passed all 105 web
 tests, 18 exact documentation scenarios and 10 browser tests passed locally;
 Node 20/22 installed framework/documentation checks passed in CI. Initial native
 run 35905669810 passed the SDK/runtime and framework tool gates, but failed the
@@ -75,3 +81,8 @@ The sanitized evidence does not establish the underlying cause. No successful
 model-driven repair is claimed; qualification remains open for the adapter.
 Local npm authentication returned 401; user asked to refresh credentials locally
 without sharing secrets. SDK/CLI trusted publishing verified successfully.
+
+The plan remains active, not complete. To release the optional adapter: diagnose
+the failed independent model-repair verification, obtain a passing receipt
+without weakening its checks, bootstrap the new npm package, configure its own
+trusted publisher and extend the guarded release/installed-consumer workflow.
