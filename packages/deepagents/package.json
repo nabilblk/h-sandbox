@@ -1,0 +1,44 @@
+{
+  "name": "@h-sandbox/deepagents",
+  "version": "0.1.0-rc.0",
+  "private": true,
+  "description": "Deep Agents sandbox backend for the Harakiri control plane.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "publishConfig": { "access": "public" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nabilblk/h-sandbox.git",
+    "directory": "packages/deepagents"
+  },
+  "engines": { "node": ">=20" },
+  "sideEffects": false,
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "pnpm --filter @h-sandbox/sdk build && tsc -p tsconfig.json",
+    "typecheck": "pnpm build && tsc -p tsconfig.tests.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm build && node --test --import tsx test/*.test.ts",
+    "test:package": "node ../../scripts/test-deepagents-package.mjs",
+    "test:native": "pnpm build && tsx test/native.mts"
+  },
+  "peerDependencies": {
+    "@h-sandbox/sdk": "workspace:*",
+    "deepagents": "1.14.0"
+  },
+  "devDependencies": {
+    "@h-sandbox/sdk": "workspace:*",
+    "deepagents": "1.14.0",
+    "@langchain/core": "1.2.12",
+    "@langchain/langgraph": "1.4.17",
+    "langchain": "1.5.11",
+    "langsmith": "0.9.0",
+    "zod": "4.4.3",
+    "tsx": "^4.23.13"
+  }
+}

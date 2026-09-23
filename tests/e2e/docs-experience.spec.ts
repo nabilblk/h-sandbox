@@ -1,5 +1,36 @@
 import { expect, test } from "@playwright/test";
 
+test("Deep Agents guide exposes candidate setup, highlighted programs and ownership guidance", async ({ page, context, request }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/#docs/typescript-sdk");
+  await page.locator("article").getByRole("link", { name: "Deep Agents and LangGraph integration" }).click();
+  await expect(page.getByRole("heading", { name: "Deep Agents and LangGraph", exact: true })).toBeVisible();
+  await expect(page.locator("article")).toContainText("Unreleased integration candidate");
+  const first = page.locator("article .doc-code").first();
+  await expect(first).toContainText('import { createDeepAgent } from "deepagents"');
+  await expect(first).toContainText("backend: new HarakiriSandboxBackend(sandbox)");
+  const block = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: /^run-repair\.ts$/ }) });
+  const raw = await block.locator("pre code").textContent();
+  await block.getByRole("button", { name: "Copy run-repair.ts code" }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(raw);
+  await expect(block.locator(".hljs-keyword").first()).toBeVisible();
+  const response = await request.get("/docs/deepagents.md");
+  expect(response.ok()).toBe(true);
+  expect(await response.text()).toContain(raw!);
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/#docs/deepagents");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.screenshot({ path: `test-results/deepagents-${width}.png` });
+  }
+  await page.getByLabel("Browse docs").selectOption("typescript-sdk");
+  await page.getByLabel("Browse docs").selectOption("deepagents");
+  await page.locator(".docs-inline-toc summary").click();
+  await page.getByRole("navigation", { name: "Page sections" }).getByRole("link", { name: "Approval and reconnect", exact: true }).click();
+  await expect(page.locator("#approval-and-reconnect")).toBeFocused();
+});
+
 test("TypeScript candidate guide is discoverable, copyable and exported on desktop and mobile", async ({ page, context, request }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/#docs/sdk-cli");

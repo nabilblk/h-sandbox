@@ -9,6 +9,19 @@ test("SDK acceptance rejects the local host and self-hosted runners", () => {
   assert.throws(() => runnerIdentity({ GITHUB_ACTIONS: "true", RUNNER_ENVIRONMENT: "self-hosted" }, "linux", "x64"));
 });
 
+test("framework acceptance is runner-owned, loopback-only and uses the documented repair", () => {
+  const source = fs.readFileSync(new URL("./framework.mjs", import.meta.url), "utf8");
+  assert.match(source, /ctx\.guard\(\)/);
+  assert.match(source, /127\.0\.0\.1:11434:11434/);
+  assert.match(source, /OLLAMA_NO_CLOUD=1/);
+  assert.match(source, /examples\/run-repair\.ts/);
+  assert.match(source, /Model digest drift/);
+  assert.match(source, /Refuse unrelated model cleanup/);
+  const fixture = fs.readFileSync(new URL("./model-repair.mts", import.meta.url), "utf8");
+  assert.match(fixture, /await repairRepository\(/);
+  assert.doesNotMatch(fixture, /child_process|kubectl|k0s|KUBECONFIG/);
+});
+
 test("public SDK evidence cannot include clients, credentials or arbitrary gate names", () => {
   assert.equal(new Set(sdkGates).size, sdkGates.length);
   for (const name of sdkGates) assert.deepEqual(sdkGateReceipt(name, 12, { token: "never-exported" }), { gate: name, status: "passed", durationMs: 12 });

@@ -7,6 +7,7 @@ export const docGroups = [
   { title: "Self-hosting", pages: ["install-kubernetes", "backup-recovery", "operator-monitoring"] },
   { title: "Concepts", pages: ["execution-capacity", "usage-observations", "workspaces", "authorization", "security-model"] },
   { title: "Sandbox guides", pages: ["create-sandbox", "sandbox-lifecycle", "sandbox-processes", "filesystem-artifacts", "routes", "outbound-access", "credential-vault"] },
+  { title: "Integrations", pages: ["deepagents"] },
   { title: "Templates", pages: ["custom-templates", "template-builds", "sdk-usage", "opencode-template", "open-agents-template", "template-troubleshooting"] },
   { title: "Tutorials", pages: ["hands-on-tutorials", "cli-live-preview", "persistent-workspaces", "usage-tutorial"] },
   { title: "Agent workflows", pages: ["cli-agent-repair", "ui-agent-app", "sdk-agent-report", "browser-agent-qa"] },

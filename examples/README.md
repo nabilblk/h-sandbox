@@ -78,6 +78,24 @@ See the [migration and failure-recovery guide](../docs/sdk-developer-experience.
 for response compatibility, typed creation errors, cancellation, redirects and
 Git bootstrap replay limits. No mutation is automatically retried.
 
+## Framework Integration Candidate
+
+The optional [Deep Agents TypeScript backend](../packages/deepagents/README.md)
+adds sandbox tools to the existing LangChain/LangGraph ecosystem. It is an
+**unreleased source candidate**, requiring the SDK and adapter tarballs from the
+same checkout. It is not bundled into the SDK or available through npm yet.
+
+Start with [run-repair.ts](../packages/deepagents/examples/run-repair.ts): one
+file imports the real Deep Agents SDK, attaches Harakiri, lets your chosen model
+repair a tiny Git repository, verifies the original tests and retrieves a diff
+before confirmed cleanup. Agent reasoning stays in your application; only its
+sandbox-backed tools run remotely. Custom tools are not automatically sandboxed.
+
+Examples live in `packages/deepagents/examples` so optional framework dependencies
+stay separate. The secondary `run-checkpoint.ts` example demonstrates model-free
+approval and command reconnection, not agent reasoning. See the
+[architecture and operational boundaries](../docs/integrations/deepagents.md).
+
 ## Other Reference Examples
 
 The repository also includes `sdk-basic-command`, `sdk-preview-route`,

@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "packages/sdk/**"
+      - "packages/deepagents/**"
       - "examples/sdk-*/**"
       - "infra/sdk-acceptance/**"
       - "scripts/test-sdk-package.mjs"
