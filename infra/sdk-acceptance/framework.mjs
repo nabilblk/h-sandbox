@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { check, origins, sha256, until } from "../acceptance/context.mjs";
+import { AcceptanceCheckError, check, origins, sha256, until } from "../acceptance/context.mjs";
+import { modelFailure } from "./model-failure.mjs";
 
 export const model = Object.freeze({
   image: "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
@@ -30,6 +31,7 @@ export async function exerciseFramework(ctx, template, gate) {
     fs.copyFileSync(new URL(name, pkg), path.join(ctx.consumer, path.basename(name)));
   }
   fs.copyFileSync(new URL("./model-repair.mts", import.meta.url), path.join(ctx.consumer, "model-repair.mts"));
+  fs.copyFileSync(new URL("./model-failure.mjs", import.meta.url), path.join(ctx.consumer, "model-failure.mjs"));
   const run = file => ctx.execute("node", ["--import", "tsx", file], "Framework runtime verification", { cwd: ctx.consumer, env });
   await gate("framework-native-tools", () => run("native.mts"));
 
@@ -51,7 +53,16 @@ export async function exerciseFramework(ctx, template, gate) {
       check(response.ok, "Cannot verify model digest");
       const models = (await response.json()).models;
       check(models.some(item => item.name === model.name && item.digest === model.digest), "Model digest drift");
-      run("model-repair.mts");
+      try { run("model-repair.mts"); }
+      catch (error) {
+        const file = path.join(ctx.consumer, "model-failure.json");
+        if (!fs.existsSync(file)) throw error;
+        const failure = JSON.parse(fs.readFileSync(file, "utf8"));
+        // Validate again at the public evidence boundary, including fixed stage names.
+        const safe = modelFailure(failure);
+        if (Number.isSafeInteger(failure.repairLine) && failure.repairLine > 0 && failure.repairLine < 1000) safe.repairLine = failure.repairLine;
+        throw new AcceptanceCheckError(`Model repair: ${JSON.stringify(safe)}`);
+      }
     } finally {
       if (container && /^[a-f0-9]{64}$/.test(container)) {
         const owned = JSON.parse(ctx.execute("docker", ["inspect", container], "Inspect owned model container"))[0];
