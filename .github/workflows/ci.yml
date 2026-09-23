@@ -124,8 +124,37 @@ jobs:
       - name: API typecheck
         run: pnpm --filter @harakiri/api typecheck
 
+  deepagents:
+    name: Deep Agents consumer (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Record consumer runtime
+        run: echo "HARAKIRI_DEEPAGENTS_TEST_NODE=$(node -p process.execPath)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install repository tooling
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Check adapter and examples
+        run: pnpm --filter @h-sandbox/deepagents typecheck
+      - name: Test real frameworks and public declarations through installed tarballs
+        run: pnpm --filter @h-sandbox/deepagents test:package
+
   published-sdk-docs:
-    name: Published SDK documentation (Node ${{ matrix.node }})
+    name: SDK documentation (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -143,10 +172,14 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
           pnpm --filter @harakiri/shared build
+          pnpm --filter @h-sandbox/sdk build
+          pnpm --filter @h-sandbox/sdk pack --pack-destination "$RUNNER_TEMP"
+          VERSION=$(node -p 'require("./packages/sdk/package.json").version')
+          echo "HARAKIRI_DOCS_SDK_TARBALL=$RUNNER_TEMP/h-sandbox-sdk-${VERSION}.tgz" >> "$GITHUB_ENV"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Execute displayed programs with registry packages, not workspace links
+      - name: Execute displayed programs with the release archive, not workspace links
         working-directory: apps/web
         run: node --import tsx ../../scripts/test-doc-sdk-examples.ts
 

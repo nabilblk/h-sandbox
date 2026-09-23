@@ -56,13 +56,13 @@ not a public issue or discussion. The maintainer is
 
 ## Run Your First Task
 
-An operator provides your API URL and a scoped, expiring key. The last delivered
-candidate is `0.5.0-rc.10`; `latest` still selects the older `0.4.0` release. Pin
+An operator provides your API URL and a scoped, expiring key. The release
+candidate is `0.5.0-rc.11`; `latest` still selects the older `0.4.0` release. Pin
 the version compatible with your installation:
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.10
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install -g @h-sandbox/cli@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 harakiri --version
 ```
 
@@ -108,6 +108,7 @@ All public interface contracts should stay aligned through
 - `apps/web` - React dashboard and website docs using the mockup design system.
 - `packages/cli` - command-line client.
 - `packages/sdk` - TypeScript SDK.
+- `packages/deepagents` - optional Deep Agents/LangGraph integration (unreleased source candidate).
 - `packages/shared` - shared contracts, template metadata, and OpenAPI source.
 - `db/migrations` - PostgreSQL schema.
 - `infra/k0s` - local k0s bootstrap.
@@ -291,6 +292,7 @@ OpenSandbox `dns+nft` requirement.
 - [docs/extensions.md](docs/extensions.md) - provider and extension interfaces
 - [docs/api.md](docs/api.md) - HTTP API reference
 - [docs/sdk.md](docs/sdk.md) - TypeScript SDK guide
+- [docs/integrations/deepagents.md](docs/integrations/deepagents.md) - optional TypeScript framework backend, ownership and recovery
 - [docs/cli.md](docs/cli.md) - CLI reference
 - [docs/errors.md](docs/errors.md) - error handling and troubleshooting
 - [docs/credential-vault.md](docs/credential-vault.md) - secure credential

@@ -1,10 +1,10 @@
 # Harakiri SDK
 
-## Next TypeScript Candidate
+## Task-Oriented TypeScript API
 
-The [task-oriented SDK guide](sdk-developer-experience.md) documents the unreleased
+The [task-oriented SDK guide](sdk-developer-experience.md) documents rc.11's
 TypeScript improvements, compatibility behavior, failure recovery and six updated
-recipes. Those examples require a build from this working tree; the additions
+recipes. Those examples require `0.5.0-rc.11` or newer; the additions
 are not present in npm `0.5.0-rc.10`. The installed-package smoke tests exercise
 the public ESM package and declarations without accessing a running cluster.
 
@@ -38,18 +38,18 @@ are not replayed. See the [full readiness contract](operations/execution-readine
 
 ## Workspace and Streaming Preview
 
-**Published preview baseline: 0.5.0-rc.10.** `client.workspaces`, `workspaceId` and
+**Preview baseline: 0.5.0-rc.11.** `client.workspaces`, `workspaceId` and
 `client.commands.stream` require a matching operator-enabled API. Stable npm
 0.4.0 (`latest`) does not include them. Install the candidate explicitly:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 ```
 
 See the [workspace and streaming guide](persistent-workspaces.md)
 and the [published two-sandbox tutorial](https://sb.harakiri.io/#docs/persistent-workspaces).
-The repository's `sdk-persistent-workspace` recipe now requires the unreleased
-candidate; see the [versioned example index](../examples/README.md).
+The repository's `sdk-persistent-workspace` recipe requires rc.11;
+see the [versioned example index](../examples/README.md).
 Existing `commands.logs` remains supported; the new stream observes a tracked
 command and never re-executes it on reconnect.
 
@@ -63,9 +63,9 @@ and provider-specific command transports.
 Install the public SDK from npm:
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.10
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.11
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 ```
 
 ```ts
@@ -88,7 +88,7 @@ They are operation examples, not complete job owners. Use the
 [published first-task program](https://sb.harakiri.io/#docs/quickstart) for
 accepted-ID tracking, failure handling and confirmed cleanup. Object-input
 `run({ command })` continues to return `{ result }`; the new string overload
-and handle conveniences are candidate-only.
+and handle conveniences require rc.11 or newer.
 
 ## Sandbox Object
 
@@ -632,16 +632,12 @@ decoded size and optional `sha256` before writing, and every response includes
 
 ## Preview Routes
 
-**Version boundary:** the examples here use published rc.10 response envelopes.
-Its route adapter follows Fetch's redirect default and does not preserve every
-field of an input `Request`. Use trusted relative paths, explicitly reject
-redirects for credential-bearing requests, and bound the underlying Fetch.
-Do not pass arbitrary URLs to this legacy adapter.
-
-The **unreleased** candidate preserves Request method/body/headers, scopes
-credentials to the route origin/path and defaults to manual redirects.
+**Version boundary:** rc.11 preserves Request method/body/headers, scopes
+credentials to the route origin/path and forces manual redirects. Older rc.10
+does not preserve every Request field and follows native redirect defaults.
+Upgrade before passing generated-client Requests to the generic route adapter.
 Process and route handles keep their response properties for compatibility.
-See [the candidate route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
+See [the route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services)
 and the [published authenticated server program](https://sb.harakiri.io/#docs/opencode-template).
 
 Expose a sandbox port when a command starts a web server:
@@ -709,7 +705,7 @@ credentials.
 ## OpenCode SDK Integration
 
 Use the complete [published OpenCode programs](https://sb.harakiri.io/#docs/opencode-template)
-with `@h-sandbox/sdk@0.5.0-rc.10`. Each creates its own sandbox, retains the
+with `@h-sandbox/sdk@0.5.0-rc.11`. Each creates its own sandbox, retains the
 accepted ID before waiting, verifies the result, and confirms termination and
 capacity release before reporting success. A cleanup failure preserves the ID
 and original task error; it is not swallowed.
@@ -734,7 +730,7 @@ The published example pins `@opencode-ai/sdk@1.15.13` and uses a GET-only Fetch
 adapter for its configuration check. It rejects redirects and scopes credentials
 to the route. rc.10's generic route adapter does not preserve every `Request`
 field; do not advertise it as a full generated-client adapter. The
-[unreleased TypeScript guide](https://sb.harakiri.io/#docs/typescript-sdk)
+[TypeScript guide](https://sb.harakiri.io/#docs/typescript-sdk)
 documents the full scoped adapter and updated headless recipe.
 
 ## Outbound Access

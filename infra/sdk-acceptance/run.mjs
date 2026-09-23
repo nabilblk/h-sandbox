@@ -8,6 +8,7 @@ import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
 import { diagnostics } from "../acceptance/diagnostics.mjs";
 import { installSdkCandidate } from "./candidate.mjs";
 import { fixtureFailureLocation, sdkGateReceipt, sdkGates } from "./receipt.mjs";
+import { exerciseFramework } from "./framework.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -16,7 +17,7 @@ const receipt = {
   kind: "typescript-sdk-dx", baseline: pinned.version, applicationSource: pinned.source,
   candidateSource: process.env.GITHUB_SHA, published: false, architecture: "amd64",
   node: process.version, runId: ctx.identity.id, startedAt: new Date().toISOString(), results: [],
-  limits: ["No LLM inference", "Unreplayable cursor contract, not a retention-expiry simulation", "No distributed exactly-once Git bootstrap claim", "No package publication or deployment outside this runner"]
+  limits: ["One small real-model repair, not a model-quality benchmark", "Unreplayable cursor contract, not a retention-expiry simulation", "No distributed exactly-once Git bootstrap claim", "No package publication or deployment outside this runner"]
 };
 const publish = () => fs.writeFileSync("standalone-acceptance-report.json", `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
 let activeGate = "published-installation";
@@ -42,6 +43,7 @@ try {
   const { exerciseSdk } = await import(candidate.fixture);
   await exerciseSdk({ apiUrl: origins.api, apiKey: ctx.read("client-key.json").token, template, runId: ctx.identity.id }, gate,
     available => replicas(ctx, ["opensandbox-server"], available ? 1 : 0));
+  receipt.integration = await exerciseFramework(ctx, template, gate);
   await gate("key-revocation", async () => {
     await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
     const response = await fetch(`${origins.api}/v1/templates`, { headers: { "x-api-key": ctx.read("client-key.json").token }, signal: AbortSignal.timeout(10000) });

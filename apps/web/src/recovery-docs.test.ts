@@ -73,7 +73,7 @@ test("published binary compatibility claims match the immutable RC.10 receipt", 
 test("entry points agree on the current candidate without rewriting release history", () => {
   for (const id of ["overview", "quickstart", "vision-architecture", "developer-preview"]) {
     const markdown = renderDocMarkdown(docPages.find(page => page.id === id)!);
-    assert.match(markdown, /0\.5\.0-rc\.10/, id);
+    assert.match(markdown, /0\.5\.0-rc\.11/, id);
     assert.doesNotMatch(markdown, /(?:current|recorded) Developer Preview is (?:\*\*)?0\.5\.0-rc\.8/i);
     assert.doesNotMatch(markdown, /@h-sandbox\/(?:sdk|cli)@0\.5\.0-rc\.8/);
     assert.match(markdown, /0\.4\.0/);

@@ -18,10 +18,10 @@ test("every page occurs exactly once in the editorial progression", () => {
   assert.ok(docGroups.find((group) => group.title === "Reference")!.pages.includes("cli-reference"));
 });
 
-test("TypeScript candidate is discoverable, honest about availability and recovery, and syntactically valid", () => {
+test("TypeScript release is discoverable, versioned and explicit about recovery", () => {
   const page = docPages.find(page => page.id === "typescript-sdk")!;
   const markup = renderToStaticMarkup(page.body);
-  for (const phrase of ["Unreleased SDK candidate", "not in the published", "Node.js 20", "not distributed exactly-once", "waitForTermination", "sandboxes:write", "manual", "not large-file streaming"]) {
+  for (const phrase of ["TypeScript SDK 0.5.0-rc.11", "rc.10 does not include", "Node.js 20", "not distributed exactly-once", "waitForTermination", "sandboxes:write", "manual", "not large-file streaming"]) {
     assert.ok(markup.includes(phrase), phrase);
   }
   assert.ok(searchDocPages(docPages, "fromEnv readBytes").includes(page));
@@ -136,7 +136,7 @@ test("CLI quickstart extracts the ID from progress output and cleans up on comma
 
 test("vision distinguishes runtime ownership, metadata, files and current limitations", () => {
   const markup = renderToStaticMarkup(docPages.find((page) => page.id === "vision-architecture")!.body);
-  for (const phrase of ["OpenSandbox is the current integrated runtime provider", "RuntimeProvider contract", "one real execution adapter", "not a supported live migration", "not Kubernetes exec", "PostgreSQL", "metadata", "workspace volumes", "not an agent framework", "restricted OpenShift", "still pending", "0.5.0-rc.10"]) {
+  for (const phrase of ["OpenSandbox is the current integrated runtime provider", "RuntimeProvider contract", "one real execution adapter", "not a supported live migration", "not Kubernetes exec", "PostgreSQL", "metadata", "workspace volumes", "not an agent framework", "restricted OpenShift", "still pending", "0.5.0-rc.11"]) {
     assert.ok(markup.includes(phrase), phrase);
   }
   assert.equal([...markup.matchAll(/class="docs-diagram /g)].length, 2);

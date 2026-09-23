@@ -168,3 +168,6 @@ jobs:
 
       - name: Verify published packages
         run: pnpm publish:postcheck
+
+      - name: Verify public examples against the actual registry SDK
+        run: pnpm --filter @harakiri/web docs:test-sdk

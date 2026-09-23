@@ -12,8 +12,8 @@ future possibilities, not capabilities advertised by this preview.
 
 ## Select a Version
 
-The current candidate is **0.5.0-rc.10**. Use its
-[release notes](release-notes/0.5.0-rc.10.md) and attached artifact receipt for
+The current candidate is **0.5.0-rc.11**. Use its
+[release notes](release-notes/0.5.0-rc.11.md) and attached artifact receipt for
 coordinates and acceptance scope. API, web, chart and SDK/CLI must match.
 Candidates use `next`; `latest` remains `0.4.0`. Do not use the older stable tag
 as a substitute. Source changes are not automatically published or deployed.
@@ -86,8 +86,8 @@ Harakiri's API, never direct pod access. The private `@harakiri/shared` package
 is not a consumer dependency.
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
-npm install -g @h-sandbox/cli@0.5.0-rc.10
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install -g @h-sandbox/cli@0.5.0-rc.11
 harakiri --version
 ```
 

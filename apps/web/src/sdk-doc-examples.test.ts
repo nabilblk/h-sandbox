@@ -38,12 +38,13 @@ test("current install guidance consistently pins the published preview", () => {
   for (const page of docPages.filter((page) => page.section !== "Agent demos" && page.id !== "cli-live-preview")) {
     const markdown = assets.get(`docs/${page.id}.md`)!;
     for (const install of markdown.matchAll(/(?:npm install|pnpm add)[^\n]*@h-sandbox\/(?:sdk|cli)([^\s\n]*)/g)) {
-      assert.equal(install[1], "@" + publishedSdkVersion, `${page.id}: ${install[0]}`);
+      const version = page.id === "install-kubernetes" ? "0.5.0-rc.10" : publishedSdkVersion;
+      assert.equal(install[1], "@" + version, `${page.id}: ${install[0]}`);
     }
   }
   const candidate = assets.get("docs/typescript-sdk.md")!;
-  assert.match(candidate, /Unreleased SDK candidate/);
-  assert.match(candidate, /not in the published/);
+  assert.match(candidate, /TypeScript SDK 0.5.0-rc.11/);
+  assert.match(candidate, /rc.10 does not include/);
   assert.ok(assets.get("docs/errors-troubleshooting.md")!.includes("HarakiriSandboxCreationError"));
   assert.ok(!assets.get("docs/template-builds.md")!.includes("HarakiriSandboxCreationError"));
 });

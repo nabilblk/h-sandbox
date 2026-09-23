@@ -15,9 +15,9 @@ Harakiri surface:
 - `@h-sandbox/sdk@X.Y.Z`
 - `@h-sandbox/cli@X.Y.Z`
 
-The current source chart keeps placeholder versions in `Chart.yaml`; the release
-workflow overrides chart `version` and `appVersion` from the git tag or manual
-workflow input.
+The source chart tracks the coordinated release version. The release workflow
+validates and sets chart `version` and `appVersion` from the reviewed source.
+See the [rc.11 receipt](release-notes/0.5.0-rc.11-delivery.md) for publication state.
 
 ## Harakiri-Owned Artifacts
 
@@ -28,6 +28,7 @@ workflow input.
 | Helm chart | `oci://core.campus.clusterdiali.me/harakiri/charts/harakiri` | `.github/workflows/release.yml` | Deploys only the Harakiri control plane; PostgreSQL, Keycloak, and OpenSandbox are external prerequisites. |
 | TypeScript SDK | `@h-sandbox/sdk` | `.github/workflows/npm-release.yml` | Public npm package for API integrations. |
 | CLI | `@h-sandbox/cli` | `.github/workflows/npm-release.yml` | Installs the `harakiri` executable. |
+| Deep Agents adapter candidate | `packages/deepagents` | Source/installed-archive CI only | Not published by the SDK/CLI workflow; initial npm publication and package-specific trust remain separate gates. |
 | Runtime templates | `core.campus.clusterdiali.me/harakiri/templates/<name>:sha-<commit>-<run>-<attempt>` | `.github/workflows/template-release.yml` | New workflow; both native architectures must pass before manifest publication. Runtime acceptance/promotion is separate. |
 | Maintained OpenSandbox chart | `oci://core.campus.clusterdiali.me/harakiri/charts/opensandbox` | `.github/workflows/opensandbox-chart-release.yml` | Reviewed vendored upstream sources with configurable non-root server port; independent chart version. |
 

@@ -1,7 +1,7 @@
 # TypeScript: Task-Oriented SDK
 
-**Status: unreleased working-tree changes, 2026-09-13.** These additions are not
-in the published `0.5.0-rc.10` package. This guide is for the next SDK candidate.
+**Version: 0.5.0-rc.11.** These additions require this Developer Preview or newer;
+they are not in `0.5.0-rc.10`. Stable npm `latest` remains unchanged.
 The existing API baseline is Harakiri `0.5.0-rc.9` or newer with capacity and
 execution readiness enabled; workspaces additionally require operator support.
 No new provider transport, Kubernetes access or backend migration is introduced.
@@ -215,15 +215,12 @@ into application logs. Use process `reference` for durable job records.
 
 ## Runnable Recipes and Verification
 
-Use the working-tree package until a candidate containing these changes is
-published. Build and pack it, then install the resulting `.tgz` in your consuming
-project. Keep the API URL/key in your environment, not command history.
+Install the versioned package in your consuming project. Keep the API URL/key
+in your environment, not command history. Repository tooling requires Node 22;
+installed packages support Node 20/22.
 
 ```bash
-pnpm --filter @h-sandbox/sdk build
-mkdir -p /tmp/harakiri-sdk-preview
-pnpm --filter @h-sandbox/sdk pack --pack-destination /tmp/harakiri-sdk-preview
-# In your consuming project, install the resulting .tgz path with npm install.
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 ```
 
 | Recipe | Runtime prerequisites |

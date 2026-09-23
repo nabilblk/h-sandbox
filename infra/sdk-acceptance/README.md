@@ -23,8 +23,13 @@ the suite does not replay an uncertain deletion or clear capacity records.
 
 A deliberately incompatible log cursor proves the public unreplayable-output
 error contract. It does **not** establish arbitrary provider log-retention bounds.
-OpenCode's pinned image is used model-free: no LLM keys, free-model dependency or
-inference-quality claim. Git's distributed bootstrap claim remains out of scope.
+The SDK gates use OpenCode's pinned image without inference. Additional framework
+gates install the adapter archive, exercise native Deep Agents shell/file tools,
+then run the exact documented repair through LangChain's Ollama integration.
+Qwen3 4B and the CPU-only Ollama container are digest-pinned in `framework.mjs`.
+The model listens on runner loopback only; cloud inference is disabled. No LLM
+keys or paid provider are used. This small repair is not a model-quality benchmark.
+Git's distributed bootstrap claim remains out of scope.
 
 The companion package job builds with the repo-required Node 22 and executes
 the installed consumer tests and declarations under both Node 20 and Node 22.

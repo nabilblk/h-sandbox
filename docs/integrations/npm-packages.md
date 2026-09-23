@@ -9,17 +9,20 @@ Harakiri publishes two public npm packages:
 not part of the public compatibility contract. Public examples, adapters, and
 third-party applications should import only from `@h-sandbox/sdk`.
 
+The optional [Deep Agents adapter](deepagents.md) is a separate source candidate.
+It is not included in these two published packages or the current publishing job.
+
 ## Install
 
 ```bash
-pnpm add @h-sandbox/sdk
-npm install -g @h-sandbox/cli
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install -g @h-sandbox/cli@0.5.0-rc.11
 ```
 
 Configure both with an API key issued by Harakiri:
 
 ```bash
-export HARAKIRI_API_URL=https://sb-api.harakiri.io
+export HARAKIRI_API_URL=https://sandbox-api.example.com
 export HARAKIRI_API_KEY=hk_live_...
 
 harakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"

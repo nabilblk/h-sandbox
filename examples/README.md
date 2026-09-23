@@ -1,9 +1,9 @@
 # Harakiri SDK Examples
 
 Choose the SDK version before choosing a recipe. The current published preview
-is `0.5.0-rc.10`; unversioned npm installation selects stable `0.4.0`, which lacks
-workspaces, execution readiness and capacity APIs. Examples on `main` can also
-use **unreleased** TypeScript additions. They are not all rc.10 examples.
+is `0.5.0-rc.11`; unversioned npm installation selects stable `0.4.0`, which lacks
+workspaces, execution readiness and capacity APIs. Task-oriented recipes require
+rc.11. The optional Deep Agents adapter has separate source-candidate availability.
 
 Use your installation's API and a server-side scoped key, never browser credentials:
 
@@ -15,7 +15,7 @@ export HARAKIRI_API_KEY=hk_your_scoped_key
 ## Published SDK
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.10
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 ```
 
 Start with the complete, published-package-tested programs in the public docs:
@@ -33,7 +33,7 @@ inspect. A crashed process still needs TTL, reconciliation and operator recovery
 
 The server program also pins `@opencode-ai/sdk@1.15.13`. Its rc.10 example is
 deliberately GET-only because the legacy route adapter does not preserve every
-Fetch `Request` field. The unreleased adapter below addresses that limitation.
+Fetch `Request` field. The rc.11 scoped adapter addresses that limitation.
 Headless inference requires a model available in your OpenCode installation:
 set `OPENCODE_MODEL`; optional `ANTHROPIC_API_KEY` is explicitly forwarded. Free
 model availability is not guaranteed. Never log model credentials or raw agent output.
@@ -44,9 +44,9 @@ not moving `main`. The corrected tutorials above supersede old cleanup patterns.
 Recorded agent demos use their documented historical `0.4.0` setup; their videos
 and evidence are not demonstrations of the new SDK.
 
-## Unreleased TypeScript Recipes
+## Task-Oriented TypeScript Recipes
 
-The following recipes on `main` require the built candidate, **not npm rc.10**:
+The following recipes require **SDK rc.11 or newer**, not npm rc.10:
 
 | Recipe | Task |
 | --- | --- |
@@ -66,17 +66,35 @@ mkdir -p /tmp/harakiri-sdk-candidate
 pnpm --filter @h-sandbox/sdk pack --pack-destination /tmp/harakiri-sdk-candidate
 ```
 
-Install the resulting tarball in your consuming project. Its filename/version
-may still say rc.10; **the local archive, not that version string, identifies the
-candidate**. Do not replace it with an npm install of the same version.
+For source evaluation, install the resulting tarball in your consuming project.
+Otherwise use the pinned npm package above. A local archive may contain changes
+beyond a published version; record its source commit when reporting issues.
 
 ```bash
-npm install /tmp/harakiri-sdk-candidate/h-sandbox-sdk-0.5.0-rc.10.tgz
+npm install /tmp/harakiri-sdk-candidate/h-sandbox-sdk-0.5.0-rc.11.tgz
 ```
 
 See the [migration and failure-recovery guide](../docs/sdk-developer-experience.md)
 for response compatibility, typed creation errors, cancellation, redirects and
 Git bootstrap replay limits. No mutation is automatically retried.
+
+## Framework Integration Candidate
+
+The optional [Deep Agents TypeScript backend](../packages/deepagents/README.md)
+adds sandbox tools to the existing LangChain/LangGraph ecosystem. It is an
+**unreleased source candidate**, requiring the SDK and adapter tarballs from the
+same checkout. It is not bundled into the SDK or available through npm yet.
+
+Start with [run-repair.ts](../packages/deepagents/examples/run-repair.ts): one
+file imports the real Deep Agents SDK, attaches Harakiri, lets your chosen model
+repair a tiny Git repository, verifies the original tests and retrieves a diff
+before confirmed cleanup. Agent reasoning stays in your application; only its
+sandbox-backed tools run remotely. Custom tools are not automatically sandboxed.
+
+Examples live in `packages/deepagents/examples` so optional framework dependencies
+stay separate. The secondary `run-checkpoint.ts` example demonstrates model-free
+approval and command reconnection, not agent reasoning. See the
+[architecture and operational boundaries](../docs/integrations/deepagents.md).
 
 ## Other Reference Examples
 

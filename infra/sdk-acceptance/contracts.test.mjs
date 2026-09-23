@@ -3,10 +3,34 @@ import fs from "node:fs";
 import test from "node:test";
 import { runnerIdentity } from "../acceptance/safety.mjs";
 import { fixtureFailureLocation, sdkGateReceipt, sdkGates } from "./receipt.mjs";
+import { modelFailure } from "./model-failure.mjs";
 
 test("SDK acceptance rejects the local host and self-hosted runners", () => {
   assert.throws(() => runnerIdentity({}, "darwin", "arm64"));
   assert.throws(() => runnerIdentity({ GITHUB_ACTIONS: "true", RUNNER_ENVIRONMENT: "self-hosted" }, "linux", "x64"));
+});
+
+test("framework acceptance is runner-owned, loopback-only and uses the documented repair", () => {
+  const source = fs.readFileSync(new URL("./framework.mjs", import.meta.url), "utf8");
+  assert.match(source, /ctx\.guard\(\)/);
+  assert.match(source, /127\.0\.0\.1:11434:11434/);
+  assert.match(source, /OLLAMA_NO_CLOUD=1/);
+  assert.match(source, /examples\/run-repair\.ts/);
+  assert.match(source, /Model digest drift/);
+  assert.match(source, /Refuse unrelated model cleanup/);
+  const fixture = fs.readFileSync(new URL("./model-repair.mts", import.meta.url), "utf8");
+  assert.match(fixture, /await repairRepository\(/);
+  assert.doesNotMatch(fixture, /child_process|kubectl|k0s|KUBECONFIG/);
+});
+
+test("model failure diagnostics cannot serialize prompts, credentials or arbitrary error fields", () => {
+  const error = new Error("private-model-output", { cause: new TypeError("secret") });
+  error.stage = "readiness";
+  error.status = 503;
+  error.apiKey = "never-exported";
+  error.stack = "secret at file:///private/run-repair.ts:71:4";
+  assert.deepEqual(modelFailure(error), { name: "Error", stage: "readiness", status: 503, repairLine: 71, cause: { name: "TypeError" } });
+  assert.deepEqual(modelFailure({ name: "secret", stage: "secret", message: "secret" }), { name: "unknown" });
 });
 
 test("public SDK evidence cannot include clients, credentials or arbitrary gate names", () => {

@@ -39,7 +39,7 @@ export const workspaceReferenceDocs: DocPage = {
 ${publishedSdkInstall}
 ${publishedCliInstall}
 harakiri --version`}</CodeBlock>
-      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.10.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.10.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
+      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.11.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.11.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
       <p>The rest of these docs use <code>harakiri</code> for the installed executable. For a local install, use <code>./node_modules/.bin/harakiri</code>. Configure <code>HARAKIRI_API_URL</code> and <code>HARAKIRI_API_KEY</code> privately. The API/scheduler must run matching workspace-aware code and an enabled storage profile.</p>
       <p>For the mental model, start with <a href="#docs/workspaces">Workspaces</a>. For a complete exercise, use <a href="#docs/persistent-workspaces">Reuse files across sandboxes</a>.</p>
     </section>
@@ -78,7 +78,7 @@ await client.waitForSandbox(sandbox.id);
 await client.killSandbox(sandbox.id);
 // Only after release:
 // await client.workspaces.archive(workspace.id);`}</CodeBlock>
-      <p>The <a href="#docs/typescript-sdk?section=retained-workspaces">unreleased candidate</a> also provides workspace handles, <code>connect(id)</code> and bounded <code>workspace.wait()</code>. rc.10 keeps the envelopes below; do not install it expecting those new helpers.</p>
+      <p>The <a href="#docs/typescript-sdk?section=retained-workspaces">rc.11 SDK</a> also provides workspace handles, <code>connect(id)</code> and bounded <code>workspace.wait()</code>. Older rc.10 keeps the envelopes below; do not install it expecting those new helpers.</p>
       <p>These are method examples; the <a href="#docs/persistent-workspaces">complete tutorial</a> includes the client setup, bounded release polling, assertions and cleanup. <code>commands.stream(sandboxId, commandId, {"{ cursor, signal }"})</code> observes a tracked command, not a workspace. Resume the same command ID; never start it again merely to reconnect.</p>
     </section>
     <section><h2>CLI commands</h2>

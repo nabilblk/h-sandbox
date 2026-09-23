@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-23-v0-5-0-rc-11",
+    version: "v0.5.0-rc.11",
+    date: "September 23, 2026",
+    title: "Task-oriented TypeScript and a framework-first integration",
+    items: [
+      "Add environment configuration, checked command results, verified text and byte helpers, reconnectable process handles, scoped route fetch and retained-workspace handles to the TypeScript SDK.",
+      "Preserve accepted sandbox IDs during readiness failures, bound cancellable observation and confirm runtime termination plus capacity release. Commands and mutations are never automatically replayed.",
+      "Add an optional Deep Agents 1.14.0 backend and a complete model-driven repair example. Agent reasoning stays in the application; sandbox-backed shell and file tools execute remotely. Custom local tools are not automatically isolated.",
+      "Keep abnormal command termination, truncated search results and completed transfer paths visible. Separate framework-free SDK dependencies from the optional integration.",
+      "SDK and CLI target npm next. Deep Agents remains an unpublished source candidate: native tool checks passed, but the Qwen3 4B repair failed independent final verification. Real-model qualification and package-specific publishing remain open. No database migration or stable-channel promotion is included."
+    ]
+  },
+  {
     id: "2026-09-12-v0-5-0-rc-10",
     version: "v0.5.0-rc.10",
     date: "September 12, 2026",

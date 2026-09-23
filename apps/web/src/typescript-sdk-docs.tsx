@@ -46,17 +46,11 @@ export const typescriptSdkDocs: DocPage = {
   toc: ["Availability", "Connect", "First task", "Processes and reconnect", "Files and artifacts", "Protected services", "Retained workspaces", "Git and agents", "Failure and cleanup", "Compatibility", "Recipes and evidence"],
   body: <>
     <h2>Availability</h2>
-    <aside className="docs-notice"><p><strong>Unreleased SDK candidate.</strong> The conveniences on this page are not in the published <code>@h-sandbox/sdk@0.5.0-rc.10</code> package. Use a candidate tarball to evaluate them. The <a href="#docs/sdk-cli">published SDK and CLI guide</a> remains the installation path for the released API.</p></aside>
-    <p>The candidate targets Node.js 20 or newer and Harakiri API 0.5.0-rc.9 or newer with execution readiness and capacity admission. Templates must exist in your installation; retained workspaces also require operator-enabled storage. This is a server-side SDK, not a way to expose control-plane keys to a browser.</p>
+    <aside className="docs-notice"><p><strong>TypeScript SDK 0.5.0-rc.11.</strong> These conveniences require <code>@h-sandbox/sdk@0.5.0-rc.11</code>; npm rc.10 does not include them. This remains a Developer Preview on the <code>next</code> channel, not a stable-release promotion. See the <a href="https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.11">release notes</a>.</p></aside>
+    <p>The SDK targets Node.js 20 or newer and Harakiri API 0.5.0-rc.9 or newer with execution readiness and capacity admission. Usage history additionally requires rc.10 or newer. Templates must exist in your installation; retained workspaces also require operator-enabled storage. This is a server-side SDK, not a way to expose control-plane keys to a browser.</p>
     <h2>Connect</h2>
-    <p>Install the candidate archive in your application. Set <code>SDK_TARBALL</code> to its actual path, not to the released npm package. Building the archive from a reviewed checkout requires the repository's Node 22 tooling.</p>
-    <CodeBlock language="bash" filename="Install the candidate">{`# In a reviewed source checkout:
-pnpm install --frozen-lockfile
-pnpm --filter @h-sandbox/sdk build
-pnpm --filter @h-sandbox/sdk pack --pack-destination /tmp/harakiri-sdk-candidate
-
-# In your application, using the resulting archive path:
-npm install "$SDK_TARBALL"
+    <p>Pin the SDK in your server-side application and commit its lockfile. Unversioned installation still selects the older stable channel.</p>
+    <CodeBlock language="bash" filename="Install the SDK">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 npm install --save-dev tsx
 export HARAKIRI_API_URL="https://sandbox-api.example.com"
 export HARAKIRI_TEMPLATE="python-3.12"
@@ -124,6 +118,7 @@ try {
 }`}</CodeBlock>
     <p><code>client.workspaces.connect(id)</code> observes existing storage. <code>recovery_required</code> is not permission to silently create another workspace. Archival does not physically delete storage. Read <a href="#docs/workspaces">the workspace lifecycle</a> before building retention policies.</p>
     <h2>Git and agents</h2>
+    <p>For framework-led agents, the optional <a href="#docs/deepagents">Deep Agents and LangGraph integration</a> supplies sandbox tools over this SDK. The adapter is a separate source candidate, not a core SDK dependency or a published npm package yet.</p>
     <p>Harakiri supplies execution and lifecycle control, not an agent framework. Use a template with the required tools, prepare a repository with <code>sandbox.git.clone()</code>, then run your agent as finite or background work. OpenCode requires an explicitly selected model and appropriate network access; free-model availability is not an SDK guarantee.</p>
     <p>Create-time Git <code>source</code> is still client orchestration. A recorded ready source is not cloned again; cloning or failed checkpoints require explicit recovery. It is not distributed exactly-once bootstrap. For recoverable jobs, separate sandbox creation, repository preparation and agent execution. The <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-opencode-headless">headless OpenCode recipe</a> shows the command, quoting and optional verification task.</p>
     <h2>Failure and cleanup</h2>
@@ -147,9 +142,9 @@ try {
     </tbody></table>
     <p><code>commands.run</code> remains a submission alias, not a completion helper. Legacy <code>getUrl</code> and <code>getHost</code> create public exposures; use explicit <code>routes.expose()</code> followed by <code>route.url</code>. Handle methods, checked errors, stricter deadlines and manual redirects require a deliberate preview migration.</p>
     <h2>Recipes and evidence</h2>
-    <p>Complete examples cover <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-typescript-quickstart">finite tasks</a>, <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-files">binary files</a>, <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-sandbox-object">process reconnect</a>, <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-dev-server">protected HTTP</a> and <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-persistent-workspace">retained workspaces</a>. Use examples from the same reviewed candidate checkout as the archive.</p>
+    <p>Complete examples cover <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-typescript-quickstart">finite tasks</a>, <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-files">binary files</a>, <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-sandbox-object">process reconnect</a>, <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-dev-server">protected HTTP</a> and <a href="https://github.com/nabilblk/h-sandbox/tree/main/examples/sdk-persistent-workspace">retained workspaces</a>. Use the release tag for an immutable copy of these examples.</p>
     <p>The <a href="https://github.com/nabilblk/h-sandbox/actions/workflows/sdk-acceptance.yml">SDK acceptance workflow</a> tests installed tarballs on Node 20 and 22, then runs model-free workflows against a disposable native amd64 installation. A passing run is required evidence, not a claim that every provider or LLM was tested. Package publication and independent integration feedback remain separate release gates.</p>
-    <p><a href="https://github.com/nabilblk/h-sandbox/actions/runs/34731829328">The 2026-09-13 acceptance run</a> passed all 13 gates, including provider-outage recovery, confirmed capacity release, workspace replacement and key revocation. Node 20/22 package checks and removal of test resources and credentials also passed. The candidate is still unpublished.</p>
+    <p><a href="https://github.com/nabilblk/h-sandbox/actions/runs/34731829328">The 2026-09-13 SDK acceptance run</a> passed all 13 gates, including provider-outage recovery, confirmed capacity release, workspace replacement and key revocation. Node 20/22 package checks and removal of test resources and credentials also passed. See the release receipt for final publication and integration qualification.</p>
     <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/sdk-developer-experience.md">technical migration guide</a> contains the full contract and known boundaries. This page is also available as <a href="/docs/typescript-sdk.md">Markdown</a>.</p>
   </>
 };
