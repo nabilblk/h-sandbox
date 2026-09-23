@@ -19,7 +19,8 @@ test("framework integration is a searchable first-class guide with matching code
   for (const contract of ["Unreleased integration candidate", "same source checkout", "capacity release",
     "A working directory is not a filesystem jail", "MemorySaver", "exactly-once", "sandbox storage",
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
-    "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files"]) assert.ok(markdown.includes(contract), contract);
+    "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
+    "failed at the independent final test command", "not yet qualified"]) assert.ok(markdown.includes(contract), contract);
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
   assert.doesNotMatch(markdown, /npm install @h-sandbox\/deepagents/);
 });

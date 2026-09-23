@@ -228,6 +228,13 @@ execution against an explicitly chosen tool-capable model is needed for real
 inference evidence. Neither acceptance command is run against the maintainer's
 lab by default or by the local contract suite.
 
+September 23 qualification: installed Node 20/22 contracts and native tools
+passed on an isolated GitHub-hosted amd64 runner. The Qwen3 4B repair reached
+the independent final test command, which failed with `HarakiriRunError`.
+Cleanup passed. This is not a successful real-model repair receipt; the
+sanitized evidence does not establish the underlying cause. See the
+[rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md).
+
 Before publishing: obtain native and real-model receipts; choose coordinated
 SDK/adapter versions; replace the workspace SDK peer with the tested released
 version; remove `private`; extend release/version/artifact guards; configure npm

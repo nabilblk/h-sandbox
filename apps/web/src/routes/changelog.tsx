@@ -14,7 +14,7 @@ const entries = [
       "Preserve accepted sandbox IDs during readiness failures, bound cancellable observation and confirm runtime termination plus capacity release. Commands and mutations are never automatically replayed.",
       "Add an optional Deep Agents 1.14.0 backend and a complete model-driven repair example. Agent reasoning stays in the application; sandbox-backed shell and file tools execute remotely. Custom local tools are not automatically isolated.",
       "Keep abnormal command termination, truncated search results and completed transfer paths visible. Separate framework-free SDK dependencies from the optional integration.",
-      "SDK and CLI target npm next. The Deep Agents adapter remains a source candidate pending its first npm publication and trusted-publisher setup. No database migration or stable-channel promotion is included."
+      "SDK and CLI target npm next. Deep Agents remains an unpublished source candidate: native tool checks passed, but the Qwen3 4B repair failed independent final verification. Real-model qualification and package-specific publishing remain open. No database migration or stable-channel promotion is included."
     ]
   },
   {

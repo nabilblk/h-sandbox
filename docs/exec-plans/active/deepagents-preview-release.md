@@ -28,13 +28,16 @@ packages and release notes must describe the same availability and limitations.
 **Status**: In Progress
 - [x] Inspect release guards and current package availability.
 - [x] Confirm SDK/CLI trusted publishing exists; new adapter requires npm bootstrap.
-- [ ] Commit framework integration and run isolated CI/native acceptance.
+- [x] Commit framework integration and run isolated CI/native acceptance.
+- [x] Verify real shell/files/search and reconnect through the installed adapter.
 - [ ] Record real-model repair and confirmed cleanup evidence.
 
 ### Phase 2: Coordinated Publication
-**Status**: Not Started
-- [ ] Select unused versions and align manifests, installation guides and checks.
-- [ ] Extend package verification and adapter publication guards.
+**Status**: In Progress
+- [x] Select unused versions and align manifests, installation guides and checks.
+- [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
+- [x] Test public programs against the packed SDK before publication and registry after publication.
+- [ ] Bootstrap adapter publication and configure its package-specific publisher; private guard retained meanwhile.
 - [ ] Merge source and create immutable release tag.
 - [ ] Publish and anonymously verify packages and release artifacts.
 
@@ -51,6 +54,8 @@ packages and release notes must describe the same availability and limitations.
 | 2026-09-23 | Native checks on disposable GitHub-hosted runners only | Preserve running k0s and host processes | Local live acceptance rejected |
 | 2026-09-23 | Keep stable npm latest unchanged | This is a developer preview with an exact framework compatibility target | Premature stable promotion rejected |
 | 2026-09-23 | No cluster deployment implied | User requests commit, push, release and documentation, not production rollout | Reusing old deployment permissions rejected |
+| 2026-09-23 | Core rc.11 and adapter availability documented separately | Existing SDK/CLI OIDC works; new-package npm authentication returned 401 | Advertising an unavailable adapter package rejected |
+| 2026-09-23 | Release verified core clients; keep adapter a source-only preview | Native tools passed, but Qwen3 4B repair failed at independent final verification; adapter npm access also unresolved | Weakening verification or claiming a successful repair rejected |
 
 ## Tech Debt Incurred
 
@@ -59,6 +64,14 @@ not grounds to bypass qualification or publish misleading installation steps.
 
 ## Completion Notes
 
-Pending. Local npm authentication returned 401; user asked to refresh credentials
-locally without sharing secrets in chat. Existing source/contract checks passed
-in the preceding implementation session; CI and native evidence remain required.
+Pending. PR #52 contains the implementation and rc.11 documentation. All 105 web
+tests, 18 exact documentation scenarios and 10 browser tests passed locally;
+Node 20/22 installed framework/documentation checks passed in CI. Initial native
+run 35905669810 passed the SDK/runtime and framework tool gates, but failed the
+real-model repair gate. Owned runtime and private-material cleanup passed. A
+replacement run 35907737905 passed native tools and cleanup but failed with
+HarakiriRunError at the final independent test command (run-repair.ts:67).
+The sanitized evidence does not establish the underlying cause. No successful
+model-driven repair is claimed; qualification remains open for the adapter.
+Local npm authentication returned 401; user asked to refresh credentials locally
+without sharing secrets. SDK/CLI trusted publishing verified successfully.
