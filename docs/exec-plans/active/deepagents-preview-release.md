@@ -113,3 +113,19 @@ field instead of JavaScript's `think`. Corrected that setting and added an
 actual invocation-parameter assertion; model, budget and outcome checks unchanged.
 Replacement native qualification is required. Core SDK/CLI trust-only run
 35998089098 succeeded; stable latest remains 0.4.0 and next remains rc.11.
+
+The corrected native run is 35999003913 on 0ea7863; general CI 35999004042
+passed. A separate anonymous installation of @langchain/ollama 1.3.0 confirmed,
+without inference, that `reasoning: false` leaves request `think` undefined and
+`think: false` sends false. The account owner enabled npm auth-and-writes 2FA;
+an interactive CLI login is being refreshed before package-settings operations.
+The adapter remains unpublished/private until the native gate passes. Read-only
+registry verification now explicitly allowlists the new package; unknown names
+fail before any request. Source/channel/OIDC/registry tests: 16 passed locally.
+
+Run 35999003913 passed the 13 native/tool gates and cleanup, but the model run
+now fails after a read_file request (one non-truncated response). Added bounded
+framework-error categories and deeper cause traversal to diagnose the actual
+failure without exporting tool arguments, model content or credentials. The
+refreshed npm login succeeds; security administration now requests interactive
+2FA rather than the previous permission denial. No adapter publication yet.

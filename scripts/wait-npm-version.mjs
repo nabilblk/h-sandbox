@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 export async function waitForNpmVersion(name, version, {
   request = fetch, now = Date.now, sleep = delay, timeoutMs = 120_000, intervalMs = 2_000
 } = {}) {
-  assert.match(name, /^@h-sandbox\/(sdk|cli)$/);
+  assert.match(name, /^@h-sandbox\/(sdk|cli|deepagents)$/);
   assert.match(version, /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/);
   const deadline = now() + timeoutMs;
   while (now() < deadline) {

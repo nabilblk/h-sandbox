@@ -55,6 +55,22 @@ test("Ollama uses the supported JavaScript thinking flag and verifies the actual
   assert.ok(fixture.indexOf("await repairRepository(") < fixture.indexOf('writeFileSync("model-result.json"'));
 });
 
+test("nested framework diagnostics classify errors without exporting tool arguments or paths", () => {
+  const toolError = new Error("Received tool input did not match expected schema: private-argument");
+  let error = Object.assign(new Error("private-argument"), {
+    "~brand": "ToolInvocationError", toolError,
+    toolCall: { args: { secret: "private-argument" } }
+  });
+  for (let i = 0; i < 5; i++) error = new Error("private-argument", { cause: error });
+  const result = modelFailure(error);
+  assert.equal(result.cause.cause.cause.cause.cause.toolError.reason, "tool_schema");
+  assert.ok(!JSON.stringify(result).includes("private-argument"));
+  assert.deepEqual(modelFailure(JSON.parse(JSON.stringify(result))), result);
+  assert.deepEqual(modelFailure({ name: "Error", reason: "private", component: "private", brand: "private" }), { name: "Error" });
+  error.cause = error;
+  assert.ok(JSON.stringify(modelFailure(error)).length < 1000);
+});
+
 test("model counters expose only known tool names and bounded counts, never prompts or arguments", () => {
   const observer = modelObserver();
   observer.handleLLMEnd({ generations: [[{ message: {

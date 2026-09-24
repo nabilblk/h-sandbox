@@ -39,6 +39,8 @@ changing global tools: `npm exec --yes --package=npm@11.19.1 -- npm <command>`.
 For interactive `npm trust`, npm requires account 2FA and package write access;
 bypass-2FA granular tokens are not accepted for that endpoint. See
 [npm trust prerequisites](https://docs.npmjs.com/cli/v11/commands/npm-trust/).
+Enable account 2FA before refreshing the interactive login. A pre-existing token
+does not acquire package-settings permissions when account security changes.
 
 ## Existing Packages: Publish Through CI
 

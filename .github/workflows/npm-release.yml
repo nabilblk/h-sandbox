@@ -214,9 +214,11 @@ jobs:
     if: ${{ always() && !inputs.verify_only && inputs.package_set == 'deepagents' && needs.validate.result == 'success' && (inputs.verify_published_only || needs.publish.result == 'success') }}
     needs: [validate, publish]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         node: ["20", "22"]
     steps:
