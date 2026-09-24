@@ -195,5 +195,8 @@ Read-only verification confirms adapter `next: 0.1.0-rc.1` and
 Install `@h-sandbox/deepagents@next` or exact `0.1.0-rc.1`. There is no stable
 adapter release, regardless of the registry-created alias. No versions were
 deleted, tags repointed, publishers changed or successful publications retried.
-The requested next-only tag state was not achieved. Further resolution requires
-an npm-side change or an explicit channel-policy decision, not another approval loop.
+The requested next-only tag state was not achieved. The owner explicitly accepted
+keeping these tags and closing the release plan. The limitation is recorded in
+the [completed plan](../exec-plans/completed/deepagents-preview-release.md).
+Any future change requires npm-side resolution or an explicit channel-policy
+decision, not another approval loop.

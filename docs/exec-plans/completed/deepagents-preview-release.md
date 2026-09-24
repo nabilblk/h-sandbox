@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-23
 **Author**: Codex
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1
 **Estimated effort**: One release session plus external npm setup
 
@@ -52,7 +52,8 @@ passed. One transitional 502 recovered automatically; do not claim zero downtime
 API, scheduler, database, Keycloak, providers, customer installations, unrelated
 host processes and private research were not modified. The release and public
 documentation are delivered. The requested adapter-only latest-tag removal was
-not achieved; leave its resolution explicit rather than repeatedly requesting approval.
+not achieved. The owner explicitly accepted the existing tags and instructed
+closure with that limitation documented. No tag was moved or version deleted.
 
 ## Success Criteria
 
@@ -90,10 +91,10 @@ not achieved; leave its resolution explicit rather than repeatedly requesting ap
 - [x] Publish and anonymously verify core packages and release artifacts.
 
 ### Phase 3: Documentation and Closure
-**Status**: In Progress; delivery complete, registry channel cleanup and final receipt pending
+**Status**: Complete
 - [x] Publish factual GitHub notes, public changelog and repository delivery receipt.
 - [x] Record remaining external blockers explicitly, without announcing unpublished packages.
-- [ ] Archive only after the requested delivery is complete.
+- [x] Archive after verified delivery and the owner's explicit acceptance of the registry limitation.
 
 ### Phase 4: Authorized Public Documentation Deployment
 **Status**: Complete
@@ -104,11 +105,11 @@ not achieved; leave its resolution explicit rather than repeatedly requesting ap
 - [x] Record rollback identity and deployed digest.
 
 ### Phase 5: Registry Channel Cleanup
-**Status**: Blocked by registry rejection, not authentication; delivery is complete
+**Status**: Closed by owner decision; tag removal was rejected, existing aliases retained
 - [x] Obtain fresh browser approval and attempt only the adapter latest-tag removal.
-- [ ] Achieve next-only adapter tags or obtain an explicit decision accepting the registry limitation; npm returned HTTP 400 and tags are unchanged.
+- [x] Obtain an explicit decision accepting the registry limitation; npm returned HTTP 400 and the owner chose to keep the tags and close this plan.
 - [x] Verify adapter next remains rc.1 and SDK/CLI stable tags remain unchanged.
-- [ ] Merge the final delivery receipt; retain this plan until channel cleanup is resolved or explicitly deferred.
+- [x] Record the final delivery receipt and archive this plan in the closure PR.
 
 ## Decision Log
 
@@ -123,6 +124,7 @@ not achieved; leave its resolution explicit rather than repeatedly requesting ap
 | 2026-09-24 | Pin the explicit Qwen3 4B Instruct artifact for bounded model acceptance | The hybrid template opens a thinking block and produced token-limited, tool-free responses; the instruction-only artifact does not depend on reasoning suppression | Raising output limits, accepting an unverified model claim, or hard-coding the repair rejected |
 | 2026-09-24 | Resume publication and deploy only the web/documentation image | Owner explicitly resumed both; the API implementation is unchanged from the deployed baseline | Unnecessary database, identity, provider or API restarts rejected |
 | 2026-09-24 | Stop approval retries after authenticated tag removal returned HTTP 400 | The registry rejected the operation; another login or approval cannot be assumed to fix it | Deleting a published version, repointing latest without authorization or claiming successful cleanup rejected |
+| 2026-09-24 | Owner accepted existing tags and requested release-plan closure | Publication, actual CI delivery and public deployment are verified; install guidance explicitly selects the qualified preview | Keeping delivery open for an unsupported registry operation or moving the default alias rejected |
 
 ## Tech Debt Incurred
 
@@ -132,7 +134,29 @@ upstream integration supports blocks. It is not part of the published adapter.
 New-package npm credentials/trust are an external release dependency, not grounds
 to bypass qualification or publish misleading installation steps.
 
+Accepted registry limitation: adapter `latest` remains at qualified bootstrap
+rc.0 while `next` points to CI-published rc.1. The owner approved retaining that
+state. Revisit through npm support or a future explicit channel policy, not a
+repeated approval loop. A transient 502 during the web pod replacement also means
+this lab rollout is not zero-downtime evidence; origin-forwarding continuity is
+a separate operational improvement, not a reason to restart unrelated services.
+
 ## Completion Notes
+
+September 24 final delivery: rc.0 bootstrapped successfully, the adapter-specific
+Trusted Publisher is configured, and run 36034957121 published rc.1 through OIDC
+with passing anonymous Node 20/22 consumers. Fresh native run 36032828432 passed
+all 15 gates and cleanup. The GitHub prerelease's five assets passed anonymous
+download and byte verification. PR #57 supplies the deployed public docs; Harbor
+run 36036807550 produced the web index
+`sha256:8b6bd56e969b33925b341f618afd7d3883cbad4780cb42c350db5670b9af68b4`.
+Guarded k0s Helm revision 45 changed only the web image from revision 44.
+Public docs, inventory, search, code copying, responsive screenshots, changelog
+and authentication origins passed. All public endpoints returned HTTP 200 after
+one transient rollout 502. The owner accepted the npm tag-removal limitation
+and requested closure. Full artifact and rollout details are retained in
+`docs/release-notes/deepagents-0.1.0-delivery.md`. The following earlier checkpoint
+notes are historical, not current blockers.
 
 Core delivery complete. PR #52 merged as 55940e1, tagged v0.5.0-rc.11.
 SDK/CLI publication 35910822977 passed via OIDC, including post-publication
