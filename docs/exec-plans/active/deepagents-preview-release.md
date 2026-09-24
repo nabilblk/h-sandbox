@@ -40,12 +40,16 @@ adapter latest still points to bootstrap rc.0 because separate tag-removal
 approval expired without a write. Core stable channels are unchanged.
 
 Archive-only instructions have been replaced with verified npm availability.
-Finish the GitHub release and publish a separately tagged web image, then
-upgrade only the web image using the
-existing chart and retained values. Use the explicit k0s kubeconfig: the default
-context is customer OpenShift. API/chart differences from deployed rc.10 are
-version metadata only. Do not change API, scheduler, database, Keycloak, providers,
-customer installations, unrelated host processes or private research.
+The GitHub adapter prerelease is published; all five assets passed anonymous
+download and byte comparison. PR #57 merged as a44243675047d551c8e7843ab5fde8ea8ab2504a
+after CI 36036079748 passed. Harbor run 36036807550 published a web-only image.
+The guarded upgrade changed only the web image using the existing chart and
+retained values, moving k0s Helm revision 44 to 45. Public Markdown/inventory,
+browser navigation, copying, desktop/mobile layout, changelog and SSO origins
+passed. One transitional 502 recovered automatically; do not claim zero downtime.
+API, scheduler, database, Keycloak, providers, customer installations, unrelated
+host processes and private research were not modified. Separate adapter-only
+latest-tag cleanup still needs a successful npm security approval.
 
 ## Success Criteria
 
@@ -54,9 +58,9 @@ customer installations, unrelated host processes or private research.
 - [x] Matching SDK/CLI prerelease available anonymously, without changing latest.
 - [x] Adapter preview available anonymously with a compatible SDK peer.
 - [x] Core GitHub release, repository receipt and public changelog report actual evidence.
-- [ ] Adapter GitHub release and public changelog record verified npm publication.
+- [x] Adapter GitHub release and public changelog record verified npm publication.
 - [x] Private research, customer installations and unrelated local services untouched.
-- [ ] Reviewed public documentation deployed and browser-verified on the k0s lab.
+- [x] Reviewed public documentation deployed and browser-verified on the k0s lab.
 
 ## Phases
 
@@ -83,18 +87,24 @@ customer installations, unrelated host processes or private research.
 - [x] Publish and anonymously verify core packages and release artifacts.
 
 ### Phase 3: Documentation and Closure
-**Status**: In Progress; adapter published, GitHub release and final closure pending
+**Status**: In Progress; delivery complete, registry channel cleanup and final receipt pending
 - [x] Publish factual GitHub notes, public changelog and repository delivery receipt.
 - [x] Record remaining external blockers explicitly, without announcing unpublished packages.
 - [ ] Archive only after the requested delivery is complete.
 
 ### Phase 4: Authorized Public Documentation Deployment
-**Status**: In Progress
+**Status**: Complete
 - [x] Confirm explicit authorization, the k0s target and current Helm/image baseline.
-- [ ] Publish an immutable web-only image from reviewed source, preserving core versions.
-- [ ] Preserve the installed chart, values and public origins; change only the web image.
-- [ ] Verify rollout, public Markdown, guide navigation, responsive layout, changelog and login origin.
-- [ ] Record rollback identity and deployed digest, then archive this plan.
+- [x] Publish an immutable web-only image from reviewed source, preserving core versions.
+- [x] Preserve the installed chart, values and public origins; change only the web image.
+- [x] Verify rollout, public Markdown, guide navigation, responsive layout, changelog and login origin.
+- [x] Record rollback identity and deployed digest.
+
+### Phase 5: Registry Channel Cleanup
+**Status**: In Progress
+- [ ] Remove only the adapter latest alias after a fresh npm security approval.
+- [ ] Verify adapter next remains rc.1 and SDK/CLI stable tags remain unchanged.
+- [ ] Merge the final delivery receipt and archive this plan when all requested work is done.
 
 ## Decision Log
 
