@@ -237,16 +237,21 @@ execution against an explicitly chosen tool-capable model is needed for real
 inference evidence. Neither acceptance command is run against the maintainer's
 lab by default or by the local contract suite.
 
-September 24 qualification: [run 36004058904](https://github.com/nabilblk/h-sandbox/actions/runs/36004058904)
-passed all native framework tools and the documented real-model repair using
-digest-pinned Qwen3 4B Instruct. The independent tests, original-test hash, patch
-and cleanup checks passed. Five model responses contained no invalid tool calls
-or truncation. The full suite then failed key revocation because its captured
-operator token had expired; the harness now renews through browser SSO before
-submitting a mutation, without retrying it. Full-suite requalification and npm
-publication remain pending. The earlier failures remain in the historical
-[rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md); they are not
-rewritten as successes. One small repair does not establish model quality.
+September 24 qualification: [run 36007730164](https://github.com/nabilblk/h-sandbox/actions/runs/36007730164)
+passed all 15 SDK/framework gates, including the documented real-model repair,
+key revocation and confirmed cleanup/private-material removal. Digest-pinned
+Qwen3 4B Instruct produced five responses with no invalid tool calls or truncation.
+The independent tests, original-test hash and patch checks passed. Shared
+[installation/recovery acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/36007730084)
+also passed all 11 gates. These runs use the pinned published API baseline
+`0.5.0-rc.9`; they do not certify a new published server pair or OpenShift profile.
+
+Npm publication remains pending. The [adapter delivery receipt](../release-notes/deepagents-0.1.0-delivery.md)
+records the reviewed source, artifact identity and unfinished publication gates.
+Earlier failures remain in the historical [rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md);
+they are not rewritten as successes. The captured operator-token expiry was
+fixed by renewing through real browser SSO before a mutation, without replaying
+it. One small repair does not establish model quality.
 
 Use the [npm release runbook](npm-packages.md) for the new-package bootstrap,
 package-specific Trusted Publisher, independent adapter versions and anonymous
