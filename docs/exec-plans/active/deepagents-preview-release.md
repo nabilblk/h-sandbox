@@ -36,8 +36,10 @@ deepagents-v0.1.0-rc.1. Fresh native run 36032828432 passed all 15 gates and
 cleanup, using the same source tree as the final merge. Actual OIDC publication
 36034957121 passed, including anonymous Node 20/22 installed consumers. The
 published archive matches the native-qualified SHA-256. npm next is rc.1;
-adapter latest still points to bootstrap rc.0 because separate tag-removal
-approval expired without a write. Core stable channels are unchanged.
+adapter latest still points to bootstrap rc.0. After earlier approvals expired,
+the owner completed a fresh browser approval, but npm rejected the actual tag
+deletion with HTTP 400 (also reported in npm/cli #8490). This is a registry
+restriction, not an outstanding authentication step. Core stable channels are unchanged.
 
 Archive-only instructions have been replaced with verified npm availability.
 The GitHub adapter prerelease is published; all five assets passed anonymous
@@ -48,8 +50,9 @@ retained values, moving k0s Helm revision 44 to 45. Public Markdown/inventory,
 browser navigation, copying, desktop/mobile layout, changelog and SSO origins
 passed. One transitional 502 recovered automatically; do not claim zero downtime.
 API, scheduler, database, Keycloak, providers, customer installations, unrelated
-host processes and private research were not modified. Separate adapter-only
-latest-tag cleanup still needs a successful npm security approval.
+host processes and private research were not modified. The release and public
+documentation are delivered. The requested adapter-only latest-tag removal was
+not achieved; leave its resolution explicit rather than repeatedly requesting approval.
 
 ## Success Criteria
 
@@ -101,10 +104,11 @@ latest-tag cleanup still needs a successful npm security approval.
 - [x] Record rollback identity and deployed digest.
 
 ### Phase 5: Registry Channel Cleanup
-**Status**: In Progress
-- [ ] Remove only the adapter latest alias after a fresh npm security approval.
-- [ ] Verify adapter next remains rc.1 and SDK/CLI stable tags remain unchanged.
-- [ ] Merge the final delivery receipt and archive this plan when all requested work is done.
+**Status**: Blocked by registry rejection, not authentication; delivery is complete
+- [x] Obtain fresh browser approval and attempt only the adapter latest-tag removal.
+- [ ] Achieve next-only adapter tags or obtain an explicit decision accepting the registry limitation; npm returned HTTP 400 and tags are unchanged.
+- [x] Verify adapter next remains rc.1 and SDK/CLI stable tags remain unchanged.
+- [ ] Merge the final delivery receipt; retain this plan until channel cleanup is resolved or explicitly deferred.
 
 ## Decision Log
 
@@ -118,6 +122,7 @@ latest-tag cleanup still needs a successful npm security approval.
 | 2026-09-24 | Extend the existing npm workflow with an independent adapter target | Reuse protected OIDC, without republishing immutable SDK/CLI or coupling framework versions to server/chart releases | Duplicating a release workflow or bumping all products rejected |
 | 2026-09-24 | Pin the explicit Qwen3 4B Instruct artifact for bounded model acceptance | The hybrid template opens a thinking block and produced token-limited, tool-free responses; the instruction-only artifact does not depend on reasoning suppression | Raising output limits, accepting an unverified model claim, or hard-coding the repair rejected |
 | 2026-09-24 | Resume publication and deploy only the web/documentation image | Owner explicitly resumed both; the API implementation is unchanged from the deployed baseline | Unnecessary database, identity, provider or API restarts rejected |
+| 2026-09-24 | Stop approval retries after authenticated tag removal returned HTTP 400 | The registry rejected the operation; another login or approval cannot be assumed to fix it | Deleting a published version, repointing latest without authorization or claiming successful cleanup rejected |
 
 ## Tech Debt Incurred
 

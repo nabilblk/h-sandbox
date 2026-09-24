@@ -181,8 +181,19 @@ replacement. It recovered automatically before the public checks, without
 restarting the tunnel or other services. This rollout is not zero-downtime
 evidence; the lab's origin forwarding still warrants attention for that guarantee.
 
-Registry channel caveat: npm also created `latest` pointing to the first rc.0
-bootstrap. Removing that adapter-only alias requires a separate npm security
-approval, which expired without a write. Install `@h-sandbox/deepagents@next`
-or the exact rc.1 version; neither version is promoted to stable. Core SDK/CLI
-`latest` remains `0.4.0`. Do not repeat a successful publication to change a tag.
+## Registry Channel Limitation
+
+npm also created `latest` pointing to the first rc.0 bootstrap. Earlier cleanup
+approvals expired. On the final attempt the owner completed browser approval,
+but npm rejected the actual `DELETE /-/package/@h-sandbox%2fdeepagents/dist-tags/latest`
+with HTTP 400. This is not another expired approval or a failed publication.
+The same first-publication/default-tag behavior and removal error are reported
+in [npm/cli #8490](https://github.com/npm/cli/issues/8490).
+
+Read-only verification confirms adapter `next: 0.1.0-rc.1` and
+`latest: 0.1.0-rc.0`; SDK/CLI retain `next: 0.5.0-rc.11` and `latest: 0.4.0`.
+Install `@h-sandbox/deepagents@next` or exact `0.1.0-rc.1`. There is no stable
+adapter release, regardless of the registry-created alias. No versions were
+deleted, tags repointed, publishers changed or successful publications retried.
+The requested next-only tag state was not achieved. Further resolution requires
+an npm-side change or an explicit channel-policy decision, not another approval loop.
