@@ -60,7 +60,6 @@ export async function exerciseFramework(ctx, template, gate) {
         const failure = JSON.parse(fs.readFileSync(file, "utf8"));
         // Validate again at the public evidence boundary, including fixed stage names.
         const safe = modelFailure(failure);
-        if (Number.isSafeInteger(failure.repairLine) && failure.repairLine > 0 && failure.repairLine < 1000) safe.repairLine = failure.repairLine;
         throw new AcceptanceCheckError(`Model repair: ${JSON.stringify(safe)}`);
       }
     } finally {

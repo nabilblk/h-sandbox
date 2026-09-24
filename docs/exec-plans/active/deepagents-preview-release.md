@@ -9,7 +9,7 @@
 ## Context
 
 Publish the reviewed framework-first integration and its required TypeScript
-SDK improvements. The current npm SDK rc.10 predates the convenience API. The
+SDK improvements. SDK/CLI rc.11 was published during the first delivery; the
 new adapter has never been published. Source, public documentation, installed
 packages and release notes must describe the same availability and limitations.
 
@@ -31,6 +31,7 @@ packages and release notes must describe the same availability and limitations.
 - [x] Commit framework integration and run isolated CI/native acceptance.
 - [x] Verify real shell/files/search and reconnect through the installed adapter.
 - [ ] Record real-model repair and confirmed cleanup evidence.
+- [ ] Retain bounded exit/TAP/model-call diagnostics to diagnose the failed repair.
 
 ### Phase 2: Coordinated Publication
 **Status**: In Progress
@@ -38,6 +39,8 @@ packages and release notes must describe the same availability and limitations.
 - [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
 - [x] Test public programs against the packed SDK before publication and registry after publication.
 - [ ] Bootstrap adapter publication and configure its package-specific publisher; private guard retained meanwhile.
+- [ ] Add a separately versioned adapter target to the existing protected npm workflow and its guards.
+- [ ] Verify both local bootstrap and the first OIDC adapter release, including anonymous Node 20/22 consumers.
 - [x] Merge source and create immutable release tag.
 - [x] Publish and anonymously verify core packages and release artifacts.
 
@@ -56,6 +59,7 @@ packages and release notes must describe the same availability and limitations.
 | 2026-09-23 | No cluster deployment implied | User requests commit, push, release and documentation, not production rollout | Reusing old deployment permissions rejected |
 | 2026-09-23 | Core rc.11 and adapter availability documented separately | Existing SDK/CLI OIDC works; new-package npm authentication returned 401 | Advertising an unavailable adapter package rejected |
 | 2026-09-23 | Release verified core clients; keep adapter a source-only preview | Native tools passed, but Qwen3 4B repair failed at independent final verification; adapter npm access also unresolved | Weakening verification or claiming a successful repair rejected |
+| 2026-09-24 | Extend the existing npm workflow with an independent adapter target | Reuse protected OIDC, without republishing immutable SDK/CLI or coupling framework versions to server/chart releases | Duplicating a release workflow or bumping all products rejected |
 
 ## Tech Debt Incurred
 
@@ -86,3 +90,8 @@ The plan remains active, not complete. To release the optional adapter: diagnose
 the failed independent model-repair verification, obtain a passing receipt
 without weakening its checks, bootstrap the new npm package, configure its own
 trusted publisher and extend the guarded release/installed-consumer workflow.
+
+September 24 continuation: local npm authentication now succeeds as nabilblk,
+and npm reports owner access to h-sandbox. GitHub authentication is available.
+Work continues on release/deepagents-publication. No cluster access, global
+tooling changes, publication or trust mutation occurred during initial diagnosis.
