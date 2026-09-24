@@ -46,3 +46,35 @@ test("publication validates the repository, workflow ref, source ancestry, versi
     assert.throws(() => releaseSource({ ...input, sourceRef: mismatched }, root), /versions must match/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test("adapter releases are separately versioned, reviewed, public and SDK-pinned", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "harakiri-adapter-release-"));
+  const env = { ...process.env, HOME: root, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
+  const git = (...args) => execFileSync("git", args, { cwd: root, env, encoding: "utf8", stdio: "pipe" }).trim();
+  const manifest = { name: "@h-sandbox/deepagents", version: "0.1.0-rc.0", publishConfig: { access: "public" }, peerDependencies: { "@h-sandbox/sdk": "0.5.0-rc.11" } };
+  const input = { repository: "example/sandbox", allowedRepository: "example/sandbox", workflowRef: "refs/heads/main", packageSet: "deepagents", distTag: "next" };
+  const commit = (value) => {
+    fs.writeFileSync(path.join(root, "packages/deepagents/package.json"), JSON.stringify(value));
+    git("add", "."); git("commit", "-m", "Adapter source");
+    const sha = git("rev-parse", "HEAD");
+    git("update-ref", "refs/remotes/origin/main", sha);
+    return { ...input, sourceRef: sha };
+  };
+  try {
+    git("init", "-b", "main"); git("config", "user.name", "Release Test"); git("config", "user.email", "release@example.test");
+    fs.mkdirSync(path.join(root, "packages/deepagents"), { recursive: true });
+    const valid = commit(manifest);
+    assert.equal(releaseSource(valid, root).version, "0.1.0-rc.0");
+    git("tag", "deepagents-v0.1.0-rc.0");
+    assert.equal(releaseSource({ ...valid, sourceRef: "deepagents-v0.1.0-rc.0" }, root).sha, valid.sourceRef);
+    assert.throws(() => releaseSource({ ...valid, packageSet: "other" }, root), /package set/);
+    assert.throws(() => releaseSource({ ...valid, packageSet: "core", sourceRef: "deepagents-v0.1.0-rc.0" }, root), /version tag/);
+    assert.throws(() => releaseSource({ ...valid, sourceRef: "v0.5.0-rc.11" }, root), /version tag/);
+    assert.throws(() => releaseSource({ ...valid, distTag: "latest" }, root), /Prereleases/);
+    assert.throws(() => releaseSource({ ...valid, imageTag: "adapter" }, root), /server artifacts/);
+    assert.throws(() => releaseSource(commit({ ...manifest, private: true }), root), /not qualified/);
+    assert.throws(() => releaseSource(commit({ ...manifest, peerDependencies: { "@h-sandbox/sdk": "workspace:*" } }), root), /exact released SDK/);
+    assert.throws(() => releaseSource(commit({ ...manifest, peerDependencies: { "@h-sandbox/sdk": "^0.5.0" } }), root), /exact released SDK/);
+    assert.throws(() => releaseSource(commit({ ...manifest, publishConfig: { access: "restricted" } }), root), /public/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

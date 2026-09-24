@@ -33,29 +33,28 @@ verifies the original tests and returns a diff after confirmed cleanup.
 
 ## Availability
 
-**Unreleased source candidate.** This package is intentionally private until a
-coordinated SDK/adapter release. It requires the SDK from the same reviewed
-checkout, not `@h-sandbox/sdk@0.5.0-rc.10` from npm. Both archives must be installed
-together. Node 20+ is the consumer target; repository tooling uses Node 22+.
+**Unpublished release candidate.** Native tools and an independently verified
+model repair have passed; final release checks and npm publication are pending.
+Evaluate the adapter archive with the exact published SDK below. Node 20+ is
+the consumer target; repository tooling uses Node 22+.
 
 ```bash
 # In a reviewed Harakiri checkout:
 pnpm install --frozen-lockfile
 pnpm --filter @h-sandbox/deepagents build
 mkdir -p /tmp/harakiri-framework-candidate
-pnpm --filter @h-sandbox/sdk pack --pack-destination /tmp/harakiri-framework-candidate
 pnpm --filter @h-sandbox/deepagents pack --pack-destination /tmp/harakiri-framework-candidate
 
-# In your server-side application, using the two resulting archive paths:
-npm install "$SDK_TARBALL" "$DEEPAGENTS_TARBALL" \
+# In your server-side application, using the resulting adapter archive path:
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11 "$DEEPAGENTS_TARBALL" \
   deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \
   @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
 ```
 
-The adapter requires SDK rc.11 or newer. The reviewed **archive** identifies
-this adapter candidate. Deep Agents is an exact peer
-dependency because its sandbox protocol is evolving. Commit your application's
-lockfile. Other framework versions need a fresh compatibility run.
+The tested peers are **SDK 0.5.0-rc.11 and Deep Agents 1.14.0**, both exact because
+these preview contracts are evolving. The reviewed archive identifies this
+adapter candidate. Commit your application's lockfile. Other framework or SDK
+versions need a fresh compatibility run.
 
 ## Connect an Existing Sandbox
 
@@ -116,7 +115,7 @@ From this reviewed checkout after building:
 # Requires your explicit API URL/key and installed template, not a maintainer URL.
 export HARAKIRI_TEMPLATE="your-linux-template"
 # Install and configure the chosen LangChain model integration first.
-export HARAKIRI_AGENT_MODEL="ollama:your-tool-capable-model"
+export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
 pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts
 
 # Secondary, model-free lifecycle example, not an agent-reasoning demo:
@@ -143,6 +142,14 @@ inside the sandbox. A local/self-hosted model is supported through LangChain;
 model availability, tool quality and zero cost are not guaranteed.
 Blocked sandbox egress does not block model calls from the application.
 
+Choose a provider integration that supports the framework's text-block tool
+results. `@langchain/ollama@1.3.0` rejects those blocks before making a model
+request, so it is not a drop-in choice for this example. The disposable
+[Ollama acceptance harness](https://github.com/nabilblk/h-sandbox/blob/main/infra/sdk-acceptance/README.md)
+uses strict text-only normalization and `think: false`; this compatibility
+handling is not installed by the Harakiri adapter. Applications can call the
+exported `repairRepository(client, model, template)` with their configured model.
+
 ```bash
 pnpm --filter @h-sandbox/deepagents typecheck
 pnpm --filter @h-sandbox/deepagents test
@@ -156,7 +163,14 @@ HARAKIRI_DEEPAGENTS_ACCEPTANCE=disposable-runtime \
 Local contract tests use the actual Deep Agents and LangGraph libraries with a
 scripted model and synthetic API, not real inference or a runtime. The native
 command exercises remote shell/file operations with scripted decisions. Real
-model acceptance and coordinated publication are separate gates.
+model acceptance and publication are separate gates. On September 24, the
+digest-pinned Qwen3 4B Instruct model completed this repair on an isolated amd64
+runner: five responses, no truncated responses or invalid tool calls, unchanged
+original tests, a verified patch and confirmed cleanup. The overall run then
+failed its final operator-key revocation check after the captured browser token
+expired. See [the qualification run](https://github.com/nabilblk/h-sandbox/actions/runs/36004058904).
+The full suite must pass before publication. This is one small repair, not a
+model-quality or production reliability benchmark.
 
 ## Boundaries
 

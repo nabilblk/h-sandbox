@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AcceptanceCheckError, check, origins, sha256, until } from "../acceptance/context.mjs";
-import { modelFailure } from "./model-failure.mjs";
+import { modelCounters, modelFailure } from "./model-failure.mjs";
 
 export const model = Object.freeze({
   image: "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
-  name: "qwen3:4b",
-  digest: "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
+  name: "qwen3:4b-instruct",
+  digest: "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
 });
 
 export async function exerciseFramework(ctx, template, gate) {
@@ -32,8 +32,13 @@ export async function exerciseFramework(ctx, template, gate) {
   }
   fs.copyFileSync(new URL("./model-repair.mts", import.meta.url), path.join(ctx.consumer, "model-repair.mts"));
   fs.copyFileSync(new URL("./model-failure.mjs", import.meta.url), path.join(ctx.consumer, "model-failure.mjs"));
+  for (const name of ["text-tool-model.mts", "text-tool-model.test.mts"]) {
+    fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
+  }
+  ctx.execute("node", ["--import", "tsx", "--test", "text-tool-model.test.mts"], "Verify model transport compatibility", { cwd: ctx.consumer, env });
   const run = file => ctx.execute("node", ["--import", "tsx", file], "Framework runtime verification", { cwd: ctx.consumer, env });
   await gate("framework-native-tools", () => run("native.mts"));
+  let modelCalls;
 
   await gate("framework-model-repair", async () => {
     ctx.guard();
@@ -60,9 +65,12 @@ export async function exerciseFramework(ctx, template, gate) {
         const failure = JSON.parse(fs.readFileSync(file, "utf8"));
         // Validate again at the public evidence boundary, including fixed stage names.
         const safe = modelFailure(failure);
-        if (Number.isSafeInteger(failure.repairLine) && failure.repairLine > 0 && failure.repairLine < 1000) safe.repairLine = failure.repairLine;
         throw new AcceptanceCheckError(`Model repair: ${JSON.stringify(safe)}`);
       }
+      const result = JSON.parse(fs.readFileSync(path.join(ctx.consumer, "model-result.json"), "utf8"));
+      check(result.status === "verified", "Model repair did not record independent verification");
+      modelCalls = modelCounters(result.model);
+      check(modelCalls.responses > 0, "Model repair did not call the model");
     } finally {
       if (container && /^[a-f0-9]{64}$/.test(container)) {
         const owned = JSON.parse(ctx.execute("docker", ["inspect", container], "Inspect owned model container"))[0];
@@ -71,5 +79,5 @@ export async function exerciseFramework(ctx, template, gate) {
       }
     }
   });
-  return { adapterTarballSha256: sha256(fs.readFileSync(archive)), framework: manifest.peerDependencies.deepagents, model };
+  return { adapterTarballSha256: sha256(fs.readFileSync(archive)), framework: manifest.peerDependencies.deepagents, model, modelCalls };
 }

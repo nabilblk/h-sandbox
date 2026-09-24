@@ -108,7 +108,7 @@ All public interface contracts should stay aligned through
 - `apps/web` - React dashboard and website docs using the mockup design system.
 - `packages/cli` - command-line client.
 - `packages/sdk` - TypeScript SDK.
-- `packages/deepagents` - optional Deep Agents/LangGraph integration (unreleased source candidate).
+- `packages/deepagents` - optional Deep Agents/LangGraph integration (unpublished release candidate).
 - `packages/shared` - shared contracts, template metadata, and OpenAPI source.
 - `db/migrations` - PostgreSQL schema.
 - `infra/k0s` - local k0s bootstrap.

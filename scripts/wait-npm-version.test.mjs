@@ -25,6 +25,19 @@ test("public visibility waits through 404 and stale metadata without sending cre
   assert.equal(calls, 3);
 });
 
+test("adapter visibility is independently versioned and unknown package names never fetch", async () => {
+  const adapter = "@h-sandbox/deepagents", adapterVersion = "0.1.0-rc.0";
+  const metadata = { version: adapterVersion };
+  assert.deepEqual(await waitForNpmVersion(adapter, adapterVersion, options(async (url, init) => {
+    assert.equal(url, "https://registry.npmjs.org/%40h-sandbox%2Fdeepagents");
+    assert.equal(init.headers.authorization, undefined);
+    return Response.json({ versions: { [adapterVersion]: metadata } });
+  })), metadata);
+  for (const invalid of ["other-package", "@h-sandbox/private", "@h-sandbox/deepagents/../../credential", "https://example.test"]) {
+    await assert.rejects(waitForNpmVersion(invalid, adapterVersion, options(async () => assert.fail("must not fetch"))));
+  }
+});
+
 test("transient network and registry failures are bounded reads", async () => {
   let calls = 0;
   await waitForNpmVersion(name, version, options(async () => {

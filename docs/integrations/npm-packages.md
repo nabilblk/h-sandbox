@@ -1,136 +1,150 @@
 # NPM Packages
 
-Harakiri publishes two public npm packages:
+Harakiri publishes `@h-sandbox/sdk` and `@h-sandbox/cli`. The optional
+[Deep Agents adapter](deepagents.md) has an independent version and release
+target; it is not implicitly published by an SDK/CLI release. Check its guide
+for current availability and the exact supported framework/SDK pair.
 
-- `@h-sandbox/sdk` for application integrations.
-- `@h-sandbox/cli` for local and CI command-line workflows.
-
-`@harakiri/shared` is an internal monorepo package. It is not published and is
-not part of the public compatibility contract. Public examples, adapters, and
-third-party applications should import only from `@h-sandbox/sdk`.
-
-The optional [Deep Agents adapter](deepagents.md) is a separate source candidate.
-It is not included in these two published packages or the current publishing job.
+`@harakiri/shared` stays internal. Applications use public SDK and adapter
+exports, not monorepo source paths. No framework dependencies enter the core SDK.
 
 ## Install
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 npm install -g @h-sandbox/cli@0.5.0-rc.11
 ```
 
-Configure both with an API key issued by Harakiri:
+Prereleases use `next`. Stable `latest` does not automatically follow them.
+Configure `HARAKIRI_API_URL` and `HARAKIRI_API_KEY` for **your installation**.
+Supply API keys through server secret configuration, never browser code or Git.
+
+## Local Authentication
+
+For a maintainer's interactive release or package-settings change:
 
 ```bash
-export HARAKIRI_API_URL=https://sandbox-api.example.com
-export HARAKIRI_API_KEY=hk_live_...
-
-harakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"
+npm login --registry=https://registry.npmjs.org/ --auth-type=web
+npm whoami --registry=https://registry.npmjs.org/
+npm org ls h-sandbox --json
 ```
 
-## Local Package Verification
+Complete the browser/2FA prompt yourself. Do not paste credentials into chat,
+command history, repository files or CI logs. `whoami` proves identity, not
+publish permission or permission to change package security settings. Do not
+print your npm configuration to diagnose an authentication failure.
 
-Before publishing, run the package smoke check from the repository root:
+Use npm 11.19.1 for the commands below, matching CI. A one-off invocation avoids
+changing global tools: `npm exec --yes --package=npm@11.19.1 -- npm <command>`.
+For interactive `npm trust`, npm requires account 2FA and package write access;
+bypass-2FA granular tokens are not accepted for that endpoint. See
+[npm trust prerequisites](https://docs.npmjs.com/cli/v11/commands/npm-trust/).
+Enable account 2FA before refreshing the interactive login. A pre-existing token
+does not acquire package-settings permissions when account security changes.
+Login and a sensitive package operation can require separate browser approvals.
+Run `npm trust` in an interactive terminal without `--json` so npm can display
+its approval link; approve it in the browser, never by sharing a code in chat.
+
+## Existing Packages: Publish Through CI
+
+Use [the protected release workflow](../ci-release.md), not a stored npm token.
+It runs on reviewed `main` with the `npm` environment and `id-token: write`.
+Source ancestry, immutable version selection and prerelease channels are checked
+before entering that environment. A tag push alone does not publish.
 
 ```bash
-pnpm publish:local-check
+# SDK and CLI share the platform version. Supply a reviewed tag or full SHA.
+gh workflow run npm-release.yml --ref main -f package_set=core \
+  -f release_ref=v0.5.0-rc.N -f verify_only=true -f tag=next
+
+# Only after trust, CI and release qualification pass:
+gh workflow run npm-release.yml --ref main -f package_set=core \
+  -f release_ref=v0.5.0-rc.N -f tag=next
 ```
 
-The smoke check builds SDK and CLI tarballs, verifies that neither package
-references `@harakiri/shared`, installs the SDK in a clean TypeScript project,
-installs the CLI with a clean npm prefix, and runs `harakiri --version` and
-`harakiri --help`.
+Replace the illustrative `rc.N` with a real, previously unused reviewed version.
+Trust verification only exchanges package-scoped credentials; it does not
+publish or change tags. Actual publication must succeed before declaring delivery.
 
-For publish dry-runs:
+## New Adapter: One-Time Bootstrap
+
+The npm package must exist before configuring its Trusted Publisher. Publish the
+**qualified implementation**, never an empty placeholder to reserve the name.
+Native tools, independent model-result verification and confirmed runtime cleanup
+must have passing receipts first. Keep the manifest private until those checks
+pass; the publication PR pins the released SDK and removes the guard. Merge and
+publish only after the complete native suite and required CI pass.
+
+From a clean checkout of merged, reviewed source:
 
 ```bash
-pnpm publish:dry-run
+pnpm install --frozen-lockfile
+pnpm --filter @h-sandbox/deepagents typecheck
+pnpm --filter @h-sandbox/deepagents test
+node scripts/test-deepagents-package.mjs --release-candidate
+node scripts/assert-publish-worktree.mjs
+PACKAGE_DIR="$(mktemp -d)"
+pnpm --filter @h-sandbox/deepagents pack --pack-destination "$PACKAGE_DIR"
+npm publish "$PACKAGE_DIR"/h-sandbox-deepagents-*.tgz --access public --tag next
+node scripts/test-deepagents-package.mjs --published
 ```
 
-## Release Checklist
+The manifest must have `private` removed and an exact, published SDK peer.
+The candidate test installs that SDK from npm, not a workspace replacement.
+`--published` installs both packages anonymously and runs the actual framework,
+public declarations and displayed examples. These local contracts do not call
+a model or runtime; native acceptance is separate.
 
-1. Confirm npm identity and org ownership:
+Then configure only this new package's publisher:
 
-   ```bash
-   npm whoami
-   npm org ls h-sandbox
-   ```
+```bash
+npm trust github @h-sandbox/deepagents \
+  --repo nabilblk/h-sandbox --file npm-release.yml --env npm --allow-publish
+npm trust list @h-sandbox/deepagents
+```
 
-2. Confirm package names are available or at the expected current version:
+Use the equivalent npm package Settings form if interactive CLI authentication
+is unavailable. The owner is **nabilblk** (GitHub), not **h-sandbox** (npm scope).
+Allow direct `npm publish`; a stage-only permission does not authorize it. Do not
+replace the SDK/CLI publishers or add a broad publishing token to GitHub.
 
-   ```bash
-   npm view @h-sandbox/sdk version
-   npm view @h-sandbox/cli version
-   ```
+## Subsequent Adapter Releases
 
-3. Run local quality gates:
+Bump only the adapter version. Preserve the explicitly tested SDK/framework
+peers unless a new compatibility run qualifies another pair. Use an immutable
+`deepagents-v<version>` tag or the full merged commit SHA:
 
-   ```bash
-   pnpm openapi:check
-   pnpm examples:check
-   pnpm --filter @h-sandbox/sdk test
-   pnpm --filter @h-sandbox/sdk typecheck
-   pnpm --filter @h-sandbox/cli test
-   pnpm --filter @h-sandbox/cli typecheck
-   pnpm publish:local-check
-   pnpm publish:dry-run
-   ```
+```bash
+gh workflow run npm-release.yml --ref main -f package_set=deepagents \
+  -f release_ref=deepagents-v0.1.0-rc.N -f verify_only=true -f tag=next
+gh workflow run npm-release.yml --ref main -f package_set=deepagents \
+  -f release_ref=deepagents-v0.1.0-rc.N -f tag=next
+```
 
-4. Publish in order with pnpm from each package directory. This matters in the
-   monorepo because pnpm rewrites internal `workspace:*` dependencies to the
-   published package version in the packed manifest.
+The workflow publishes only the adapter, generates public-source provenance and
+checks anonymous registry consumers on Node 20 and 22. No chart, server image,
+cluster rollout or SDK/CLI republishing is involved.
 
-   ```bash
-   cd packages/sdk
-   pnpm publish --access public
+## Recover a Verification Failure
 
-   cd ../cli
-   pnpm publish --access public
-   ```
+Do not retry a successful publish because a later read failed. Preserve the
+original evidence and rerun read-only verification with the **same source**:
 
-   Both packages declare `publishConfig.access=public`, so no extra access flag
-   is required. Passing `--access public` is still safe.
+```bash
+gh workflow run npm-release.yml --ref main -f package_set=deepagents \
+  -f release_ref=deepagents-v0.1.0-rc.N -f verify_published_only=true -f tag=next
+```
 
-   If npm 2FA is enabled for publishing, pass the current one-time code:
+This job has no publishing environment or OIDC write permission. A new source
+change needs a new version; never overwrite a tag or move `latest` to bypass an
+authentication or qualification failure.
 
-   ```bash
-   pnpm publish --access public --otp 123456
-   ```
-
-   For non-interactive publishing, configure npm with a granular access token
-   that has package publish permission for the `h-sandbox` organization and is
-   allowed to bypass 2FA for publish operations. A token that only proves
-   identity will pass `npm whoami` but still fail publish with:
-
-   ```text
-   E403: Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.
-   ```
-
-5. Verify from npm in clean projects:
-
-   ```bash
-   pnpm publish:postcheck
-   ```
-
-   This installs the published SDK and CLI from the npm registry into clean
-   temporary locations, compiles the TypeScript quickstart, verifies the CLI
-   binary, and confirms neither install pulls `@harakiri/shared`.
-
-6. Tag the release and update release notes.
-
-## Troubleshooting
-
-- `ENEEDAUTH`: run `npm login`.
-- `E403` on publish: confirm the npm user is an owner of the `h-sandbox` org.
-- `E403` mentioning 2FA or bypass 2FA: use `--otp` with a current npm 2FA code,
-  or replace the configured token with a granular publish token that can bypass
-  2FA for the `h-sandbox` org.
-- Package install tries to fetch `@harakiri/shared`: the package boundary is
-  broken; run `pnpm publish:local-check` and inspect packed manifests.
-- `harakiri` binary missing after install: verify `packages/cli/package.json`
-  still has `bin.harakiri = dist/index.js` and that `node scripts/chmod.mjs`
-  ran during the CLI build.
-- `pnpm publish:postcheck` cannot find a version: npm registry propagation may
-  need a short delay, or the publish failed before that package reached npm.
-- Public API calls fail after install: run `harakiri config` and confirm
-  `HARAKIRI_API_URL` or saved config points to `https://sb-api.harakiri.io`.
+- `401` / `ENEEDAUTH` locally: refresh the interactive npm login.
+- `403` for trust settings: verify account 2FA, package write access and the
+  authentication method. A token can pass `whoami` and still lack this permission.
+- CI OIDC failure: compare the package's GitHub owner, repository, workflow filename,
+  environment and direct-publish permission. Local login cannot repair CI trust.
+- Public package pulls `@harakiri/shared` or a `workspace:` dependency: stop the
+  release and inspect the packed manifest.
+- Public metadata is temporarily missing: use bounded read-only verification,
+  never another publish attempt.

@@ -16,6 +16,25 @@ export function operatorRequestOptions(bearer, method, body) {
   };
 }
 
+export function operatorTokenIsFresh(bearer, now = Date.now()) {
+  // This is only an expiry hint for the harness; the API still verifies the JWT.
+  try {
+    if (!bearer.startsWith("Bearer ")) return false;
+    const segments = bearer.slice(7).split(".");
+    if (segments.length !== 3) return false;
+    const { exp } = JSON.parse(Buffer.from(segments[1], "base64url").toString("utf8"));
+    return Number.isSafeInteger(exp) && exp * 1000 > now + 60000;
+  } catch { return false; }
+}
+
+export async function freshOperatorBearer(readBearer, renewSession, now = Date.now) {
+  check(readBearer(), "Browser has not authenticated");
+  if (!operatorTokenIsFresh(readBearer(), now())) await renewSession();
+  const bearer = readBearer();
+  check(operatorTokenIsFresh(bearer, now()), "Browser operator session did not renew");
+  return bearer;
+}
+
 export async function operatorSession(ctx) {
   console.log("Browser step: import published clients");
   const { chromium } = await ctx.loadClients();
@@ -50,8 +69,13 @@ export async function operatorSession(ctx) {
   });
   const request = async (route, method = "GET", body, expected = 200) => {
     check(route.startsWith("/v1/"), "Operator request outside the installed API");
-    check(bearer, "Browser has not authenticated");
-    const response = await fetch(`${origins.api}${route}`, operatorRequestOptions(bearer, method, body));
+    const authorization = await freshOperatorBearer(() => bearer, async () => {
+      // Long synchronous runtime checks can outlive the last observed browser token.
+      // Renew through the real SSO flow before the mutation, never replay a request.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await until("Browser operator session renewal", () => operatorTokenIsFresh(bearer), 60000);
+    });
+    const response = await fetch(`${origins.api}${route}`, operatorRequestOptions(authorization, method, body));
     check(response.status === expected, `Operator ${method} ${route}: HTTP ${response.status}, expected ${expected}`);
     return response.status === 204 ? null : response.json();
   };

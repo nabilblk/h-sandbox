@@ -45,7 +45,7 @@ jobs:
       - name: Verify isolated public imports, runtime contracts and declarations
         run: pnpm --filter @h-sandbox/sdk test:package
       - name: Check runner safety and receipt contracts without cluster access
-        run: node --test infra/acceptance/safety.test.mjs infra/sdk-acceptance/*.test.mjs
+        run: node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/sdk-acceptance/*.test.mjs
 
   native-runtime:
     needs: installed-package
@@ -64,7 +64,7 @@ jobs:
         run: |
           corepack enable
           pnpm install --frozen-lockfile
-          node --test infra/acceptance/safety.test.mjs infra/sdk-acceptance/*.test.mjs
+          node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/sdk-acceptance/*.test.mjs
       - name: Bootstrap only a fresh GitHub-hosted native amd64 cluster
         run: node infra/acceptance/bootstrap.mjs
       - name: Exercise unpublished SDK tarball against published runtime baseline

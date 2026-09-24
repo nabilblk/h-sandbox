@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { runnerIdentity } from "../acceptance/safety.mjs";
 import { fixtureFailureLocation, sdkGateReceipt, sdkGates } from "./receipt.mjs";
-import { modelFailure } from "./model-failure.mjs";
+import { modelFailure, modelObserver, modelCounters } from "./model-failure.mjs";
 
 test("SDK acceptance rejects the local host and self-hosted runners", () => {
   assert.throws(() => runnerIdentity({}, "darwin", "arm64"));
@@ -17,9 +17,12 @@ test("framework acceptance is runner-owned, loopback-only and uses the documente
   assert.match(source, /OLLAMA_NO_CLOUD=1/);
   assert.match(source, /examples\/run-repair\.ts/);
   assert.match(source, /Model digest drift/);
+  assert.match(source, /name: "qwen3:4b-instruct"/);
+  assert.match(source, /0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0/);
   assert.match(source, /Refuse unrelated model cleanup/);
   const fixture = fs.readFileSync(new URL("./model-repair.mts", import.meta.url), "utf8");
   assert.match(fixture, /await repairRepository\(/);
+  assert.match(fixture, /model: "qwen3:4b-instruct"/);
   assert.doesNotMatch(fixture, /child_process|kubectl|k0s|KUBECONFIG/);
 });
 
@@ -31,6 +34,62 @@ test("model failure diagnostics cannot serialize prompts, credentials or arbitra
   error.stack = "secret at file:///private/run-repair.ts:71:4";
   assert.deepEqual(modelFailure(error), { name: "Error", stage: "readiness", status: 503, repairLine: 71, cause: { name: "TypeError" } });
   assert.deepEqual(modelFailure({ name: "secret", stage: "secret", message: "secret" }), { name: "unknown" });
+});
+
+test("serialized model failures retain bounded recovery diagnostics across both receipt boundaries", () => {
+  const command = Object.assign(new Error("private output"), {
+    name: "HarakiriRunError", result: { exitCode: 1, stdout: "private\n# tests 3\n# pass 1\n# fail 2\n", stderr: "private" },
+    stack: "at file:///private/run-repair.ts:67:4"
+  });
+  const raw = new AggregateError([command], "cleanup private");
+  const first = modelFailure(raw);
+  assert.deepEqual(first.errors, [{ name: "HarakiriRunError", exitCode: 1, repairLine: 67, tests: { tests: 3, pass: 1, fail: 2 } }]);
+  assert.deepEqual(modelFailure(JSON.parse(JSON.stringify(first))), first);
+  assert.equal(modelFailure({ name: "Error", exitCode: null }).exitCode, null);
+  assert.deepEqual(modelFailure({ name: "Error", exitCode: "private", repairLine: 99999, tests: { pass: "private" } }), { name: "Error" });
+});
+
+test("Ollama uses the supported JavaScript thinking flag and verifies the actual invocation", () => {
+  const fixture = fs.readFileSync(new URL("./model-repair.mts", import.meta.url), "utf8");
+  assert.match(fixture, /think: false/);
+  assert.doesNotMatch(fixture, /reasoning: false/);
+  assert.match(fixture, /assert.equal\(model.invocationParams\(\).think, false/);
+  assert.ok(fixture.indexOf("model.invocationParams()") < fixture.indexOf("await repairRepository("));
+  assert.ok(fixture.indexOf("await repairRepository(") < fixture.indexOf('writeFileSync("model-result.json"'));
+});
+
+test("nested framework diagnostics classify errors without exporting tool arguments or paths", () => {
+  const toolError = new Error("Received tool input did not match expected schema: private-argument");
+  let error = Object.assign(new Error("private-argument"), {
+    "~brand": "ToolInvocationError", toolError,
+    toolCall: { args: { secret: "private-argument" } }
+  });
+  for (let i = 0; i < 5; i++) error = new Error("private-argument", { cause: error });
+  const result = modelFailure(error);
+  assert.equal(result.cause.cause.cause.cause.cause.toolError.reason, "tool_schema");
+  assert.ok(!JSON.stringify(result).includes("private-argument"));
+  assert.deepEqual(modelFailure(JSON.parse(JSON.stringify(result))), result);
+  assert.deepEqual(modelFailure({ name: "Error", reason: "private", component: "private", brand: "private" }), { name: "Error" });
+  error.cause = error;
+  assert.ok(JSON.stringify(modelFailure(error)).length < 1000);
+});
+
+test("model counters expose only known tool names and bounded counts, never prompts or arguments", () => {
+  const observer = modelObserver();
+  observer.handleLLMEnd({ generations: [[{ message: {
+    content: "private", response_metadata: { done_reason: "length", secret: "private" },
+    tool_calls: [{ name: "edit_file", args: { private: true } }, { name: "private", args: {} }],
+    invalid_tool_calls: [{ error: "private" }]
+  } }]] });
+  const snapshot = observer.snapshot();
+  assert.equal(snapshot.responses, 1);
+  assert.equal(snapshot.requestedTools.edit_file, 1);
+  assert.equal(snapshot.requestedTools.other, 1);
+  assert.equal(snapshot.truncatedResponses, 1);
+  assert.equal(snapshot.invalidToolCalls, 1);
+  assert.ok(!JSON.stringify(snapshot).includes("private"));
+  assert.deepEqual(modelCounters(JSON.parse(JSON.stringify(snapshot))), snapshot);
+  assert.equal(modelCounters({ responses: Infinity, requestedTools: { execute: -1 } }).responses, 0);
 });
 
 test("public SDK evidence cannot include clients, credentials or arbitrary gate names", () => {
