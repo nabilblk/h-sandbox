@@ -5,9 +5,10 @@ TypeScript SDK and CLI. API, scheduler and template-builder share the API image.
 Candidates use npm `next`, without replacing stable `latest`. Published version
 tags and candidate artifacts are immutable.
 
-The optional Deep Agents package remains private/source-only until its initial
-npm publication and package-specific trusted publisher are configured. Do not
-interpret an SDK/CLI release as publishing that adapter. The rc.11 documentation
+The optional Deep Agents package has its own version and explicit `deepagents`
+target in the npm workflow. Do not interpret an SDK/CLI release as publishing
+that adapter. Its [integration guide](integrations/deepagents.md) records current
+qualification and availability. The rc.11 documentation
 tests install the candidate SDK archive before publication; the npm publisher
 then repeats the displayed programs against the actual registry package.
 
@@ -19,8 +20,11 @@ without this variable, release secrets or access to the live cluster.
 
 The image/chart and npm workflows first resolve a version tag or full commit
 SHA in an unprivileged job. They verify the commit belongs to `origin/main`
-and all six package versions agree. Only then does a publishing job check out
-that SHA and enter its credential environment. A tag push alone does not publish.
+and, for core releases, all six package versions agree. Adapter releases instead
+check their public manifest and exact released SDK peer, accepting only a full
+merged SHA or `deepagents-v<version>` tag. They cannot select image/chart overrides.
+Only then does a publishing job check out that SHA and enter its credential
+environment. A tag push alone does not publish.
 
 Configure the `harbor` and `npm` environments to permit only the `main` branch.
 Add required reviewers where the repository plan supports them. On September 9
@@ -64,7 +68,8 @@ upgrade. New origins require neither an image rebuild nor document-root writes.
 ## npm Trusted Publishing
 
 Configure a GitHub Actions trusted publisher on **each package**:
-`@h-sandbox/sdk` and `@h-sandbox/cli`. Match the repository,
+`@h-sandbox/sdk`, `@h-sandbox/cli` and, after bootstrap, `@h-sandbox/deepagents`.
+Match the repository,
 `npm-release.yml` workflow filename and `npm` environment exactly. GitHub login
 or `npm whoami` does not prove the OIDC association works.
 
@@ -79,14 +84,16 @@ source. Provenance is enabled only when the source repository is public.
 See [npm trusted publishers](https://docs.npmjs.com/trusted-publishers/).
 If OIDC is unconfigured, stop and configure it or use an explicitly approved
 short-lived token from a clean checkout. Never silently add a broad token to CI
-or move the stable dist-tag to work around authentication.
+or move the stable dist-tag to work around authentication. New packages first
+need a qualified local publication, then their own publisher configuration.
+Follow [local authentication and adapter bootstrap](integrations/npm-packages.md).
 
 ### Verify Trust Without Publishing
 
 After saving both package publishers, run this from reviewed `main`:
 
 ```bash
-gh workflow run npm-release.yml --ref main -f verify_only=true
+gh workflow run npm-release.yml --ref main -f package_set=core -f verify_only=true
 gh run list --workflow npm-release.yml --limit 3
 ```
 
@@ -94,7 +101,8 @@ Approve the `npm` environment when required. Verification uses the same
 workflow identity and environment as publishing, but the publishing job is
 skipped entirely. It requests a GitHub identity for audience
 `npm:registry.npmjs.org` and calls the official package-scoped
-[npm OIDC exchange endpoint](https://api-docs.npmjs.com/) for both packages.
+[npm OIDC exchange endpoint](https://api-docs.npmjs.com/) for the selected package
+set: SDK/CLI for `core`, only the adapter for `deepagents`.
 The short-lived exchange tokens are neither printed, persisted nor used for
 package writes. Versions, archives and dist-tags remain unchanged.
 
@@ -103,6 +111,22 @@ publication or that direct publishing is allowed instead of staging only.
 Verify those with the actual candidate workflow after the release gates pass.
 A local `npm trust list` 403 can reflect local token restrictions; it does not
 by itself disprove a package publisher configured in the npm website.
+
+### Independently Versioned Adapter
+
+`package_set=deepagents` packs and publishes only `@h-sandbox/deepagents`. It tests
+the candidate against the **published** exact SDK peer, then repeats anonymous
+registry-consumer tests on Node 20 and 22 after publication. The installed tests
+cover real framework tools with deterministic fixtures, strict TypeScript
+declarations and the exact public example; native runtime/model qualification
+is separate. Core versions, charts, images and cluster deployments are untouched.
+
+Supply a full reviewed commit or immutable `deepagents-v<version>` tag for
+`release_ref`. Use `verify_only=true` for package-scoped OIDC verification and
+`verify_published_only=true` for read-only consumption of that exact release.
+These modes are mutually exclusive and never publish. The adapter's read-only
+job has no npm environment or `id-token: write`; it uses tests and examples from
+the selected source so a later framework change cannot silently change the test.
 
 ## Cut a Candidate
 

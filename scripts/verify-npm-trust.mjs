@@ -1,9 +1,11 @@
 import { pathToFileURL } from "node:url";
 
-const packages = ["@h-sandbox/sdk", "@h-sandbox/cli"];
+const packageSets = { core: ["@h-sandbox/sdk", "@h-sandbox/cli"], deepagents: ["@h-sandbox/deepagents"] };
 class VerificationError extends Error {}
 
 export async function verifyNpmTrust({ env = process.env, fetchImpl = fetch, log = console.log } = {}) {
+  const packageSet = env.RELEASE_PACKAGE_SET || "core";
+  if (!Object.hasOwn(packageSets, packageSet)) throw new VerificationError("Unknown release package set.");
   if (env.GITHUB_ACTIONS !== "true" || !env.ACTIONS_ID_TOKEN_REQUEST_TOKEN || !env.ACTIONS_ID_TOKEN_REQUEST_URL) {
     throw new VerificationError("Run verification in the protected npm-release.yml workflow with id-token: write.");
   }
@@ -35,7 +37,7 @@ export async function verifyNpmTrust({ env = process.env, fetchImpl = fetch, log
   if (typeof identity?.value !== "string" || !identity.value.trim()) throw new VerificationError("GitHub did not return an OIDC identity.");
 
   const verified = [];
-  for (const name of packages) {
+  for (const name of packageSets[packageSet]) {
     const result = await json(
       `https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/${encodeURIComponent(name)}`,
       { method: "POST", headers: { authorization: `Bearer ${identity.value}` } },

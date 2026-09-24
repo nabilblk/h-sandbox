@@ -37,13 +37,24 @@ test("trust verification exchanges both package identities without publishing or
 
 test("verification requires GitHub OIDC and refuses credential-forwarding URLs before fetching", async () => {
   for (const badEnv of [
-    {}, { ...env, GITHUB_ACTIONS: "false" }, { ...env, ACTIONS_ID_TOKEN_REQUEST_TOKEN: "" },
+    {}, { ...env, GITHUB_ACTIONS: "false" }, { ...env, ACTIONS_ID_TOKEN_REQUEST_TOKEN: "" }, { ...env, RELEASE_PACKAGE_SET: "constructor" },
     ...["invalid", "http://run.actions.githubusercontent.com/idtoken", "https://attacker.example/idtoken",
       "https://actions.githubusercontent.com.attacker.example/idtoken", "https://user@run.actions.githubusercontent.com/idtoken",
       "https://run.actions.githubusercontent.com:8443/idtoken"].map(ACTIONS_ID_TOKEN_REQUEST_URL => ({ ...env, ACTIONS_ID_TOKEN_REQUEST_URL }))
   ]) {
     await assert.rejects(verifyNpmTrust({ env: badEnv, fetchImpl: async () => assert.fail("must not fetch"), log: () => assert.fail("must not log") }));
   }
+});
+
+test("adapter trust checks only the independently published package", async () => {
+  const calls = [];
+  const result = await verifyNpmTrust({ env: { ...env, RELEASE_PACKAGE_SET: "deepagents" }, log: () => {}, fetchImpl: async url => {
+    calls.push(String(url));
+    return calls.length === 1 ? Response.json({ value: identity }) : Response.json(exchange(), { status: 201 });
+  } });
+  assert.deepEqual(result, ["@h-sandbox/deepagents"]);
+  assert.equal(calls.length, 2);
+  assert.match(calls[1], /%40h-sandbox%2Fdeepagents$/);
 });
 
 test("OIDC and npm failures fail closed without logging credential-bearing response bodies", async () => {
@@ -114,4 +125,23 @@ test("verification and publication are mutually exclusive protected workflow job
   }
   assert.match(verification, /node scripts\/verify-npm-trust\.mjs/);
   assert.doesNotMatch(verification, /npm publish|pnpm publish|dist-tag|NODE_AUTH_TOKEN|NPM_TOKEN/);
+});
+
+test("adapter publishing and anonymous verification cannot republish the core packages", () => {
+  const workflow = readFileSync(new URL("../.github/workflows/npm-release.yml", import.meta.url), "utf8");
+  assert.match(workflow, /package_set:[\s\S]*?options: \[core, deepagents\]/);
+  assert.match(workflow, /RELEASE_PACKAGE_SET: \$\{\{ inputs.package_set \}\}/);
+  for (const name of ["SDK", "CLI"]) {
+    assert.match(workflow, new RegExp(`name: Publish ${name}\\s+if: inputs.package_set == 'core'`));
+  }
+  assert.match(workflow, /name: Publish Deep Agents adapter\s+if: inputs.package_set == 'deepagents'/);
+  assert.match(workflow, /node scripts\/test-deepagents-package.mjs --release-candidate/);
+  const verify = workflow.split("\n  verify-adapter:\n")[1];
+  assert.ok(verify);
+  assert.match(verify, /needs.publish.result == 'success'/);
+  assert.match(verify, /inputs.verify_published_only/);
+  assert.match(verify, /node: \["20", "22"\]/);
+  assert.match(verify, /ref: \$\{\{ needs.validate.outputs.sha \}\}/);
+  assert.match(verify, /node scripts\/test-deepagents-package.mjs --published/);
+  assert.doesNotMatch(verify, /environment: npm|id-token: write|npm publish|NODE_AUTH_TOKEN|NPM_TOKEN/);
 });

@@ -31,7 +31,7 @@ packages and release notes must describe the same availability and limitations.
 - [x] Commit framework integration and run isolated CI/native acceptance.
 - [x] Verify real shell/files/search and reconnect through the installed adapter.
 - [ ] Record real-model repair and confirmed cleanup evidence.
-- [ ] Retain bounded exit/TAP/model-call diagnostics to diagnose the failed repair.
+- [x] Retain bounded exit/TAP/model-call diagnostics to diagnose the failed repair.
 
 ### Phase 2: Coordinated Publication
 **Status**: In Progress
@@ -39,7 +39,7 @@ packages and release notes must describe the same availability and limitations.
 - [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
 - [x] Test public programs against the packed SDK before publication and registry after publication.
 - [ ] Bootstrap adapter publication and configure its package-specific publisher; private guard retained meanwhile.
-- [ ] Add a separately versioned adapter target to the existing protected npm workflow and its guards.
+- [x] Add a separately versioned adapter target to the existing protected npm workflow and its guards.
 - [ ] Verify both local bootstrap and the first OIDC adapter release, including anonymous Node 20/22 consumers.
 - [x] Merge source and create immutable release tag.
 - [x] Publish and anonymously verify core packages and release artifacts.
@@ -95,3 +95,12 @@ September 24 continuation: local npm authentication now succeeds as nabilblk,
 and npm reports owner access to h-sandbox. GitHub authentication is available.
 Work continues on release/deepagents-publication. No cluster access, global
 tooling changes, publication or trust mutation occurred during initial diagnosis.
+
+PR #54 starts with sanitized diagnostics and reruns native acceptance on a fresh
+GitHub-hosted runner (35996978520). The local release guard suite passes 15 tests;
+38 anonymous installed-adapter contracts and strict declarations pass. The npm
+workflow now has an independent adapter target, exact published SDK peer check
+and read-only registry verification on Node 20/22. These workflow changes still
+need merge and real CI publication evidence. Local authentication was refreshed,
+but npm reports account 2FA disabled and rejects trust administration (403).
+The account owner must enable 2FA privately; no credentials are requested in chat.

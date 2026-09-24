@@ -3,6 +3,12 @@ name: NPM Release
 on:
   workflow_dispatch:
     inputs:
+      package_set:
+        description: "Independently versioned packages to publish or verify"
+        type: choice
+        options: [core, deepagents]
+        default: core
+        required: true
       verify_only:
         description: "Verify GitHub-to-npm trust without publishing or changing dist-tags"
         type: boolean
@@ -51,6 +57,7 @@ jobs:
           RELEASE_REPOSITORY: ${{ vars.RELEASE_REPOSITORY }}
           RELEASE_SOURCE_REF: ${{ inputs.release_ref }}
           RELEASE_DIST_TAG: ${{ inputs.tag }}
+          RELEASE_PACKAGE_SET: ${{ inputs.package_set }}
         run: node scripts/check-release-source.mjs
       - name: Reject conflicting verification modes
         env:
@@ -59,7 +66,7 @@ jobs:
         run: node -e 'if(process.env.VERIFY_TRUST === "true" && process.env.VERIFY_PUBLISHED === "true") throw new Error("Choose one verification mode")'
 
   verify-published:
-    if: ${{ inputs.verify_published_only }}
+    if: ${{ inputs.verify_published_only && inputs.package_set == 'core' }}
     needs: validate
     runs-on: ubuntu-latest
     permissions:
@@ -94,6 +101,8 @@ jobs:
         with:
           node-version: "22"
       - name: Verify package-scoped OIDC exchanges without publishing
+        env:
+          RELEASE_PACKAGE_SET: ${{ inputs.package_set }}
         run: node scripts/verify-npm-trust.mjs
 
   publish:
@@ -121,6 +130,7 @@ jobs:
           npm install --global npm@11.19.1
 
       - name: Guard release channel and package versions
+        if: inputs.package_set == 'core'
         env:
           RELEASE_DIST_TAG: ${{ inputs.tag }}
         run: |
@@ -137,6 +147,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify packages
+        if: inputs.package_set == 'core'
         run: |
           pnpm openapi:check
           pnpm examples:check
@@ -145,14 +156,30 @@ jobs:
           pnpm publish:local-check
           pnpm publish:dry-run
 
+      - name: Verify adapter against the published SDK, not a workspace substitute
+        if: inputs.package_set == 'deepagents'
+        run: |
+          pnpm --filter @h-sandbox/deepagents typecheck
+          pnpm --filter @h-sandbox/deepagents test
+          node scripts/test-deepagents-package.mjs --release-candidate
+
       - name: Pack verified public archives
+        env:
+          RELEASE_PACKAGE_SET: ${{ inputs.package_set }}
         run: |
           node scripts/assert-publish-worktree.mjs
           mkdir -p "$RUNNER_TEMP/public-packages"
-          pnpm --filter @h-sandbox/sdk pack --pack-destination "$RUNNER_TEMP/public-packages"
-          pnpm --filter @h-sandbox/cli pack --pack-destination "$RUNNER_TEMP/public-packages"
+          case "$RELEASE_PACKAGE_SET" in
+            core)
+              pnpm --filter @h-sandbox/sdk pack --pack-destination "$RUNNER_TEMP/public-packages"
+              pnpm --filter @h-sandbox/cli pack --pack-destination "$RUNNER_TEMP/public-packages"
+              ;;
+            deepagents) pnpm --filter @h-sandbox/deepagents pack --pack-destination "$RUNNER_TEMP/public-packages" ;;
+            *) exit 1 ;;
+          esac
 
       - name: Publish SDK
+        if: inputs.package_set == 'core'
         env:
           RELEASE_DIST_TAG: ${{ inputs.tag }}
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
@@ -160,14 +187,54 @@ jobs:
         run: npm publish "$RUNNER_TEMP/public-packages/h-sandbox-sdk-${RELEASE_VERSION}.tgz" --access public --tag "$RELEASE_DIST_TAG"
 
       - name: Publish CLI
+        if: inputs.package_set == 'core'
         env:
           RELEASE_DIST_TAG: ${{ inputs.tag }}
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
           NPM_CONFIG_PROVENANCE: ${{ !github.event.repository.private }}
         run: npm publish "$RUNNER_TEMP/public-packages/h-sandbox-cli-${RELEASE_VERSION}.tgz" --access public --tag "$RELEASE_DIST_TAG"
 
+      - name: Publish Deep Agents adapter
+        if: inputs.package_set == 'deepagents'
+        env:
+          RELEASE_DIST_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          NPM_CONFIG_PROVENANCE: ${{ !github.event.repository.private }}
+        run: npm publish "$RUNNER_TEMP/public-packages/h-sandbox-deepagents-${RELEASE_VERSION}.tgz" --access public --tag "$RELEASE_DIST_TAG"
+
       - name: Verify published packages
+        if: inputs.package_set == 'core'
         run: pnpm publish:postcheck
 
       - name: Verify public examples against the actual registry SDK
+        if: inputs.package_set == 'core'
         run: pnpm --filter @harakiri/web docs:test-sdk
+
+  verify-adapter:
+    if: ${{ always() && !inputs.verify_only && inputs.package_set == 'deepagents' && needs.validate.result == 'success' && (inputs.verify_published_only || needs.publish.result == 'success') }}
+    needs: [validate, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        node: ["20", "22"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Record consumer runtime
+        run: echo "HARAKIRI_DEEPAGENTS_TEST_NODE=$(node -p process.execPath)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install repository tooling
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Verify anonymous registry installation, public imports and documented examples
+        run: node scripts/test-deepagents-package.mjs --published
