@@ -5,7 +5,7 @@ test("Deep Agents guide exposes candidate setup, highlighted programs and owners
   await page.goto("/#docs/typescript-sdk");
   await page.locator("article").getByRole("link", { name: "Deep Agents and LangGraph integration" }).click();
   await expect(page.getByRole("heading", { name: "Deep Agents and LangGraph", exact: true })).toBeVisible();
-  await expect(page.locator("article")).toContainText("Unreleased integration candidate");
+  await expect(page.locator("article .docs-notice")).toContainText("SDK 0.5.0-rc.11");
   const first = page.locator("article .doc-code").first();
   await expect(first).toContainText('import { createDeepAgent } from "deepagents"');
   await expect(first).toContainText("backend: new HarakiriSandboxBackend(sandbox)");
