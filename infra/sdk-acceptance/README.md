@@ -29,6 +29,11 @@ then run the exact documented repair through LangChain's Ollama integration.
 Qwen3 4B and the CPU-only Ollama container are digest-pinned in `framework.mjs`.
 The model listens on runner loopback only; cloud inference is disabled. No LLM
 keys or paid provider are used. This small repair is not a model-quality benchmark.
+The pinned JavaScript integration disables extended thinking with `think: false`,
+verified against its actual invocation parameters before inference. Python's
+`reasoning` option is not recognized here. Bounded response/tool-call counters
+and exit/TAP counts can appear in sanitized evidence, never model text or tool
+arguments. Independent tests and unchanged-test hashes still decide success.
 Git's distributed bootstrap claim remains out of scope.
 
 The companion package job builds with the repo-required Node 22 and executes

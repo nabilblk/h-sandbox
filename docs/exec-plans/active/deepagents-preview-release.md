@@ -104,3 +104,12 @@ and read-only registry verification on Node 20/22. These workflow changes still
 need merge and real CI publication evidence. Local authentication was refreshed,
 but npm reports account 2FA disabled and rejects trust administration (403).
 The account owner must enable 2FA privately; no credentials are requested in chat.
+
+Run 35996978520 completed with 13 passing gates and confirmed private-material
+cleanup. The new diagnostics identify one model response ending at the token
+limit, zero tool calls, and unchanged failing tests (1 pass / 2 fail). Inspection
+of @langchain/ollama 1.3.0 found the harness used Python's unsupported `reasoning`
+field instead of JavaScript's `think`. Corrected that setting and added an
+actual invocation-parameter assertion; model, budget and outcome checks unchanged.
+Replacement native qualification is required. Core SDK/CLI trust-only run
+35998089098 succeeded; stable latest remains 0.4.0 and next remains rc.11.

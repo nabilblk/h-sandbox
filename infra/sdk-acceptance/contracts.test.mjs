@@ -46,6 +46,15 @@ test("serialized model failures retain bounded recovery diagnostics across both 
   assert.deepEqual(modelFailure({ name: "Error", exitCode: "private", repairLine: 99999, tests: { pass: "private" } }), { name: "Error" });
 });
 
+test("Ollama uses the supported JavaScript thinking flag and verifies the actual invocation", () => {
+  const fixture = fs.readFileSync(new URL("./model-repair.mts", import.meta.url), "utf8");
+  assert.match(fixture, /think: false/);
+  assert.doesNotMatch(fixture, /reasoning: false/);
+  assert.match(fixture, /assert.equal\(model.invocationParams\(\).think, false/);
+  assert.ok(fixture.indexOf("model.invocationParams()") < fixture.indexOf("await repairRepository("));
+  assert.ok(fixture.indexOf("await repairRepository(") < fixture.indexOf('writeFileSync("model-result.json"'));
+});
+
 test("model counters expose only known tool names and bounded counts, never prompts or arguments", () => {
   const observer = modelObserver();
   observer.handleLLMEnd({ generations: [[{ message: {
