@@ -27,7 +27,9 @@ Shared installation/recovery run 36007730084 passed all 11 gates and cleanup.
 The adapter pins published SDK 0.5.0-rc.11. A clean merged checkout passed the
 anonymous release-candidate contracts again. The local bootstrap's separate npm
 browser approval expired at 14:15 UTC without publication; local identity remains
-valid. Reopen publication only when the account owner is present. Remaining gates:
+valid. A fresh attempt was cancelled before approval when the owner chose to
+finish documentation and publish later; the registry still returned 404. Do not
+restart publication until the owner resumes it. Remaining gates:
 registry verification, adapter-specific trust, actual OIDC publication and
 anonymous Node 20/22 verification. The first publish attempt was cancelled
 before approval while verifying archive metadata; no package existed afterward.
@@ -207,3 +209,9 @@ declarations against the registry SDK. Packing with Node 22.23.2 yields payload
 identical to the native archive: changing only gzip's OS header byte in memory
 reproduces the native SHA-256. Publish the unmodified Mac archive; record its
 distinct compressed digest rather than claiming byte-identical gzip wrappers.
+
+The owner deferred publication while the qualification documentation was being
+finished. PR #55 updates public guide source, technical guidance and a factual
+delivery receipt, without claiming registry availability. No live deployment is
+part of this documentation follow-up. The prepared bootstrap archive and its
+clean source checkout remain available for an explicitly resumed release.

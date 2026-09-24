@@ -1,8 +1,9 @@
 # Deep Agents 0.1.0 Preview Delivery
 
-Status on September 24, 2026: implementation qualified and merged; npm bootstrap
-is pending. Its separate browser approval expired without publication; local
-login remains valid. Actual CI publication is also unfinished. This receipt
+Status on September 24, 2026: implementation qualified and merged; npm publication
+is deferred at the maintainer's request. Local login works. A separate publication
+approval expired and a fresh attempt was cancelled before approval; the registry
+still reports no package. Actual CI publication is also unfinished. This receipt
 does not announce npm availability yet.
 
 ## Scope
