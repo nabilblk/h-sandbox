@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-test("Deep Agents guide exposes candidate setup, highlighted programs and ownership guidance", async ({ page, context, request }) => {
+test("Deep Agents guide exposes npm setup, highlighted programs and ownership guidance", async ({ page, context, request }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/#docs/typescript-sdk");
   await page.locator("article").getByRole("link", { name: "Deep Agents and LangGraph integration" }).click();
   await expect(page.getByRole("heading", { name: "Deep Agents and LangGraph", exact: true })).toBeVisible();
   await expect(page.locator("article .docs-notice")).toContainText("SDK 0.5.0-rc.11");
+  await expect(page.locator("article .docs-notice")).toContainText("Developer preview on npm");
+  await expect(page.locator("article")).toContainText("npm install --save-exact @h-sandbox/deepagents@next");
   const first = page.locator("article .doc-code").first();
   await expect(first).toContainText('import { createDeepAgent } from "deepagents"');
   await expect(first).toContainText("backend: new HarakiriSandboxBackend(sandbox)");

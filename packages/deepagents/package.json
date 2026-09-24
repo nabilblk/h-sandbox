@@ -1,6 +1,6 @@
 {
   "name": "@h-sandbox/deepagents",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "description": "Deep Agents sandbox backend for the Harakiri control plane.",
   "license": "Apache-2.0",
   "type": "module",

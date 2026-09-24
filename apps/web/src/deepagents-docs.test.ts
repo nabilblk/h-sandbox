@@ -13,23 +13,23 @@ test("framework integration is a searchable first-class guide with matching code
   const markdown = documentationAssets().get("docs/deepagents.md")!;
   assert.ok(markdown.includes(deepagentsFirstTask));
   assert.ok(markdown.includes(deepagentsAgentTask));
-  assert.ok(markdown.indexOf('import { createDeepAgent } from "deepagents"') < markdown.indexOf("## Candidate installation"));
+  assert.ok(markdown.indexOf('import { createDeepAgent } from "deepagents"') < markdown.indexOf("## Installation"));
   assert.ok(markdown.indexOf(deepagentsAgentTask) < markdown.indexOf(deepagentsFirstTask));
   assert.equal(deepagentsAgentTask, readFileSync(new URL("../../../packages/deepagents/examples/run-repair.ts", import.meta.url), "utf8").trimEnd());
-  for (const contract of ["Unpublished release candidate", "SDK 0.5.0-rc.11", "capacity release",
+  for (const contract of ["Developer preview on npm", "SDK 0.5.0-rc.11", "capacity release",
     "A working directory is not a filesystem jail", "MemorySaver", "exactly-once", "sandbox storage",
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
     "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
     "completed the real-model repair", "qualification run passed all 15 gates",
-    "qualifies the candidate, not its npm publication"]) assert.ok(markdown.includes(contract), contract);
-  assert.doesNotMatch(markdown, /full-suite requalification is pending/);
+    "Runtime qualification and registry publication are separate checks"]) assert.ok(markdown.includes(contract), contract);
+  assert.doesNotMatch(markdown, /full-suite requalification is pending|Unpublished release candidate|DEEPAGENTS_TARBALL/);
   const receipt = new URL("../../../docs/release-notes/deepagents-0.1.0-delivery.md", import.meta.url);
   assert.ok(readFileSync(receipt, "utf8").includes("actions/runs/36007730164"));
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
-  assert.doesNotMatch(markdown, /npm install @h-sandbox\/deepagents/);
+  assert.ok(markdown.includes("npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11"));
 });
 
-test("framework release candidate pins its published SDK peer and keeps framework dependencies separate", () => {
+test("framework preview pins its published SDK peer and keeps framework dependencies separate", () => {
   const root = new URL("../../../", import.meta.url);
   const manifest = JSON.parse(readFileSync(new URL("packages/deepagents/package.json", root), "utf8"));
   assert.notEqual(manifest.private, true);
@@ -42,7 +42,8 @@ test("framework release candidate pins its published SDK peer and keeps framewor
   for (const path of ["packages/deepagents/README.md", "docs/integrations/deepagents.md", "examples/README.md"]) {
     const file = new URL(path, root);
     const source = readFileSync(file, "utf8");
-    assert.match(source, /unpublished release candidate/i);
+    assert.match(source, /developer preview on npm/i);
+    assert.doesNotMatch(source, /unpublished release candidate/i);
     for (const [, href] of source.matchAll(/\]\(([^\s)]+)\)/g)) {
       if (!/^(?:[a-z]+:|#|\/)/.test(href)) assert.ok(existsSync(new URL(href.split(/[?#]/)[0], file)), `${path}: ${href}`);
     }
