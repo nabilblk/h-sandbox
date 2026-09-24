@@ -116,7 +116,7 @@ From this reviewed checkout after building:
 # Requires your explicit API URL/key and installed template, not a maintainer URL.
 export HARAKIRI_TEMPLATE="your-linux-template"
 # Install and configure the chosen LangChain model integration first.
-export HARAKIRI_AGENT_MODEL="ollama:your-tool-capable-model"
+export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
 pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts
 
 # Secondary, model-free lifecycle example, not an agent-reasoning demo:
@@ -142,6 +142,14 @@ requires enforcement support in your installation. It downloads no dependencies
 inside the sandbox. A local/self-hosted model is supported through LangChain;
 model availability, tool quality and zero cost are not guaranteed.
 Blocked sandbox egress does not block model calls from the application.
+
+Choose a provider integration that supports the framework's text-block tool
+results. `@langchain/ollama@1.3.0` rejects those blocks before making a model
+request, so it is not a drop-in choice for this example. The disposable
+[Ollama acceptance harness](https://github.com/nabilblk/h-sandbox/blob/main/infra/sdk-acceptance/README.md)
+uses strict text-only normalization and `think: false`; this compatibility
+handling is not installed by the Harakiri adapter. Applications can call the
+exported `repairRepository(client, model, template)` with their configured model.
 
 ```bash
 pnpm --filter @h-sandbox/deepagents typecheck

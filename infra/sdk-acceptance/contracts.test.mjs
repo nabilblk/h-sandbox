@@ -17,9 +17,12 @@ test("framework acceptance is runner-owned, loopback-only and uses the documente
   assert.match(source, /OLLAMA_NO_CLOUD=1/);
   assert.match(source, /examples\/run-repair\.ts/);
   assert.match(source, /Model digest drift/);
+  assert.match(source, /name: "qwen3:4b-instruct"/);
+  assert.match(source, /0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0/);
   assert.match(source, /Refuse unrelated model cleanup/);
   const fixture = fs.readFileSync(new URL("./model-repair.mts", import.meta.url), "utf8");
   assert.match(fixture, /await repairRepository\(/);
+  assert.match(fixture, /model: "qwen3:4b-instruct"/);
   assert.doesNotMatch(fixture, /child_process|kubectl|k0s|KUBECONFIG/);
 });
 

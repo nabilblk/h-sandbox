@@ -60,6 +60,7 @@ packages and release notes must describe the same availability and limitations.
 | 2026-09-23 | Core rc.11 and adapter availability documented separately | Existing SDK/CLI OIDC works; new-package npm authentication returned 401 | Advertising an unavailable adapter package rejected |
 | 2026-09-23 | Release verified core clients; keep adapter a source-only preview | Native tools passed, but Qwen3 4B repair failed at independent final verification; adapter npm access also unresolved | Weakening verification or claiming a successful repair rejected |
 | 2026-09-24 | Extend the existing npm workflow with an independent adapter target | Reuse protected OIDC, without republishing immutable SDK/CLI or coupling framework versions to server/chart releases | Duplicating a release workflow or bumping all products rejected |
+| 2026-09-24 | Pin the explicit Qwen3 4B Instruct artifact for bounded model acceptance | The hybrid template opens a thinking block and produced token-limited, tool-free responses; the instruction-only artifact does not depend on reasoning suppression | Raising output limits, accepting an unverified model claim, or hard-coding the repair rejected |
 
 ## Tech Debt Incurred
 
@@ -141,3 +142,22 @@ Three offline contracts cover identity preservation, rejection of non-text
 content, and actual invoke/stream/event transport paths. Interactive npm security
 approval succeeded: SDK trust lists the expected repository/workflow/environment
 with publish permission. No token or 2FA code was copied into the repository.
+
+General CI 36001593735 on d8d216d passed all eight required checks. The corrected
+native run is 36001593931. Diagnostic run 36001115538 was superseded after the
+offline transport reproduction; its owned cleanup passed and private material
+was removed. Its receipt also records a token-limited first response with no
+tool calls, so fixing transport alone is not a real-model success guarantee.
+The qualification gate remains mandatory. Public guidance now names the pinned
+Ollama limitation rather than suggesting it works unchanged. A separate clean
+publication worktree is prepared under an owned temporary directory; private
+research and local services remain untouched. No adapter has been published.
+
+The official Ollama registry metadata was inspected without downloading weights
+or running inference locally. The old pinned template unconditionally opens
+`<think>`; qwen3:4b-instruct has a non-thinking template and independently verified
+manifest digest 0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0.
+Pin that explicit instruction variant with unchanged CPU/memory/context/output
+limits and all outcome checks. Sources: https://ollama.com/library/qwen3:4b-instruct
+and https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507. A full passing native receipt
+is still required for this exact setup before publication.

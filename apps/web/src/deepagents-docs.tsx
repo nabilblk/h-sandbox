@@ -156,10 +156,11 @@ export HARAKIRI_TEMPLATE="your-linux-template"
 
     <h2>Repair a repository</h2>
     <p>The agent receives a tiny repository with a real bug: invoice totals ignore quantity. It must inspect the code, repair the implementation and run the tests. Your application verifies that the tests were not changed, reruns them and retrieves the diff before reporting success. This is one executable file, not a launcher hiding the agent in another module.</p>
-    <p>Choose a tool-capable model and install its LangChain integration package in the application. <code>HARAKIRI_AGENT_MODEL</code> is explicit; there is no paid-model default. For example, a self-hosted Ollama setup uses the <code>@langchain/ollama</code> package and <code>ollama:your-model-name</code>. Configure that provider's URL and credentials in the application, outside the sandbox.</p>
+    <p>Choose a tool-capable model and install its LangChain integration package in the application. <code>HARAKIRI_AGENT_MODEL</code> is explicit; there is no paid-model default. Configure that provider's URL and credentials in the application, outside the sandbox. Its integration must support the framework's text-block tool results.</p>
+    <p><code>@langchain/ollama@1.3.0</code> rejects text-block tool results and is not a drop-in choice for this example. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/infra/sdk-acceptance/README.md">self-hosted Ollama acceptance harness</a> applies strict text-only normalization and disables extended thinking. That compatibility handling is not part of the adapter. The exported <code>repairRepository(client, model, template)</code> accepts your configured model directly.</p>
     <p>Select a template with Node.js, Git, bash and GNU file tools, on an installation supporting enforced blocked egress. The example installs nothing inside the sandbox. Blocked sandbox egress does not block model calls from your application. Local-model availability, tool quality and zero cost are not guaranteed.</p>
     <CodeBlock language="bash" filename="Run the agent example">{`# Install and configure your chosen model provider in this application first.
-export HARAKIRI_AGENT_MODEL="ollama:your-tool-capable-model"
+export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
 npx tsx run-repair.ts
 # From the reviewed repository instead:
 # pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts`}</CodeBlock>

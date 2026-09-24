@@ -77,6 +77,14 @@ Zod 4.4.3. Keep Zod aligned with the framework tree: duplicate peer instances
 can produce nominally incompatible LangGraph `Command` types. Consumers target
 Node 20/22; repository tools run on Node 22+. This package is server-side only.
 
+Model transport compatibility is separate from the sandbox backend contract.
+Deep Agents returns text-block ToolMessages from `read_file`, which
+`@langchain/ollama@1.3.0` rejects. The runner-only model harness converts strictly
+text-only blocks to strings, preserves message identity and rejects non-text
+content; it also uses the JavaScript `think: false` option. This compatibility
+class is not shipped in the adapter. The documented repair accepts an explicitly
+configured model so applications can select a compatible provider integration.
+
 See [package installation and examples](../../packages/deepagents/README.md).
 Build and install **both source tarballs**. The adapter manifest's `private`
 flag deliberately prevents publication before SDK version alignment. Framework

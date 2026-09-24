@@ -10,7 +10,7 @@ if (process.env.HARAKIRI_DEEPAGENTS_ACCEPTANCE !== "disposable-runtime" || !proc
 }
 const observer = modelObserver();
 const model = new TextToolChatOllama({
-  baseUrl: "http://127.0.0.1:11434", model: "qwen3:4b", temperature: 0,
+  baseUrl: "http://127.0.0.1:11434", model: "qwen3:4b-instruct", temperature: 0,
   think: false, numCtx: 8192, numPredict: 1024, numThread: 3,
   callbacks: [{ name: "acceptance-metadata", handleLLMEnd: observer.handleLLMEnd }]
 });

@@ -5,8 +5,8 @@ import { modelCounters, modelFailure } from "./model-failure.mjs";
 
 export const model = Object.freeze({
   image: "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
-  name: "qwen3:4b",
-  digest: "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7"
+  name: "qwen3:4b-instruct",
+  digest: "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
 });
 
 export async function exerciseFramework(ctx, template, gate) {
