@@ -1,5 +1,5 @@
 import { HarakiriClient } from "@h-sandbox/sdk";
-import { ChatOllama } from "@langchain/ollama";
+import { TextToolChatOllama } from "./text-tool-model.mjs";
 import { repairRepository } from "./run-repair.js";
 import { writeFileSync } from "node:fs";
 import { modelFailure, modelObserver } from "./model-failure.mjs";
@@ -9,7 +9,7 @@ if (process.env.HARAKIRI_DEEPAGENTS_ACCEPTANCE !== "disposable-runtime" || !proc
   throw new Error("Use only the explicit disposable acceptance environment.");
 }
 const observer = modelObserver();
-const model = new ChatOllama({
+const model = new TextToolChatOllama({
   baseUrl: "http://127.0.0.1:11434", model: "qwen3:4b", temperature: 0,
   think: false, numCtx: 8192, numPredict: 1024, numThread: 3,
   callbacks: [{ name: "acceptance-metadata", handleLLMEnd: observer.handleLLMEnd }]

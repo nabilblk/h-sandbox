@@ -34,6 +34,12 @@ verified against its actual invocation parameters before inference. Python's
 `reasoning` option is not recognized here. Bounded response/tool-call counters
 and exit/TAP counts can appear in sanitized evidence, never model text or tool
 arguments. Independent tests and unchanged-test hashes still decide success.
+The acceptance-only `TextToolChatOllama` converts text-only tool content blocks
+to strings, preserving tool IDs and metadata: `@langchain/ollama@1.3.0` rejects
+the standard text blocks returned by Deep Agents `read_file`. Other content is
+rejected, never silently dropped. Offline transport contracts cover invocation
+and both streaming paths. This does not alter the Harakiri adapter or documented
+repair; remove the compatibility class when the pinned provider supports blocks.
 Git's distributed bootstrap claim remains out of scope.
 
 The companion package job builds with the repo-required Node 22 and executes

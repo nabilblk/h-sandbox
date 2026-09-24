@@ -8,6 +8,7 @@ const reasons = new Map([
   ["tool_schema", /tool input did not match expected schema|Failed to parse structured output/i],
   ["tool_response", /Invalid response from "wrapToolCall"|Tool response format/],
   ["tool_call_id", /Tool call ID is required|tool_call_id.*required/i],
+  ["tool_content", /Non string tool message content is not supported|Unsupported content type/],
   ["context_limit", /context length|context window|input length.*exceed/i],
   ["network", /fetch failed|ECONNREFUSED|ECONNRESET|socket hang up/i],
   ["model_memory", /out of memory|requires more system memory/i],

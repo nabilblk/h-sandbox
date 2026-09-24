@@ -63,8 +63,11 @@ packages and release notes must describe the same availability and limitations.
 
 ## Tech Debt Incurred
 
-None. New-package npm credentials/trust are an external release dependency,
-not grounds to bypass qualification or publish misleading installation steps.
+The disposable Ollama harness normalizes text-only tool blocks for the pinned
+provider, which rejects them. Remove this tested compatibility class when the
+upstream integration supports blocks. It is not part of the published adapter.
+New-package npm credentials/trust are an external release dependency, not grounds
+to bypass qualification or publish misleading installation steps.
 
 ## Completion Notes
 
@@ -129,3 +132,12 @@ framework-error categories and deeper cause traversal to diagnose the actual
 failure without exporting tool arguments, model content or credentials. The
 refreshed npm login succeeds; security administration now requests interactive
 2FA rather than the previous permission denial. No adapter publication yet.
+
+Offline reproduction identified the post-tool failure: @langchain/ollama 1.3.0
+rejects Deep Agents' text-block ToolMessage before network access. Added a
+strict text-only normalization at the acceptance model transport, with no
+changes to the published adapter, canonical repair or independent verification.
+Three offline contracts cover identity preservation, rejection of non-text
+content, and actual invoke/stream/event transport paths. Interactive npm security
+approval succeeded: SDK trust lists the expected repository/workflow/environment
+with publish permission. No token or 2FA code was copied into the repository.

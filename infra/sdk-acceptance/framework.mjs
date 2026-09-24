@@ -32,6 +32,10 @@ export async function exerciseFramework(ctx, template, gate) {
   }
   fs.copyFileSync(new URL("./model-repair.mts", import.meta.url), path.join(ctx.consumer, "model-repair.mts"));
   fs.copyFileSync(new URL("./model-failure.mjs", import.meta.url), path.join(ctx.consumer, "model-failure.mjs"));
+  for (const name of ["text-tool-model.mts", "text-tool-model.test.mts"]) {
+    fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
+  }
+  ctx.execute("node", ["--import", "tsx", "--test", "text-tool-model.test.mts"], "Verify model transport compatibility", { cwd: ctx.consumer, env });
   const run = file => ctx.execute("node", ["--import", "tsx", file], "Framework runtime verification", { cwd: ctx.consumer, env });
   await gate("framework-native-tools", () => run("native.mts"));
   let modelCalls;
