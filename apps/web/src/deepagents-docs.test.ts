@@ -25,6 +25,10 @@ test("framework integration is a searchable first-class guide with matching code
   assert.doesNotMatch(markdown, /full-suite requalification is pending|Unpublished release candidate|DEEPAGENTS_TARBALL/);
   const receipt = new URL("../../../docs/release-notes/deepagents-0.1.0-delivery.md", import.meta.url);
   assert.ok(readFileSync(receipt, "utf8").includes("actions/runs/36007730164"));
+  for (const run of ["36032828432", "36034957121"]) {
+    assert.ok(markdown.includes(`actions/runs/${run}`));
+    assert.ok(readFileSync(receipt, "utf8").includes(`actions/runs/${run}`));
+  }
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
   assert.ok(markdown.includes("npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11"));
 });

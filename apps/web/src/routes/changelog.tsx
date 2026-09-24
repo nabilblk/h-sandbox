@@ -6,14 +6,14 @@ import type { GoToRoute } from "./types";
 const entries = [
   {
     id: "2026-09-24-deepagents-preview",
-    version: "Deep Agents 0.1.0-rc.0",
+    version: "Deep Agents 0.1.0-rc.1",
     date: "September 24, 2026",
     title: "Deep Agents is available on npm",
     items: [
       "Publish @h-sandbox/deepagents on npm next as an optional, independently versioned backend for Deep Agents 1.14.0 and Harakiri SDK 0.5.0-rc.11. Install directly from npm without building the monorepo.",
       "Run framework shell and filesystem tools in Harakiri while keeping the agent loop, model credentials and LangGraph checkpoints in your application. Custom local tools are not automatically sandboxed.",
       "Qualify native tools and an independently verified repository repair with digest-pinned Qwen3 4B Instruct on an isolated amd64 runner. All 15 gates passed, including key revocation and confirmed cleanup. One small repair is not a model-quality benchmark.",
-      "Verify the published package with anonymous installation, 38 framework contracts and strict TypeScript declarations. Configure the package-specific GitHub Trusted Publisher and verify OIDC separately from publication.",
+      "Publish rc.1 from GitHub through the package-specific Trusted Publisher, without a stored npm token. Anonymous Node 20 and 22 consumers passed 38 framework contracts and strict TypeScript declaration checks. The registry archive matches the native-qualified build and includes npm provenance metadata.",
       "Keep the core SDK and CLI stable channel unchanged. This client integration requires no database migration, new runtime provider or API deployment. Earlier failed qualification attempts remain recorded in the September 23 release history."
     ]
   },

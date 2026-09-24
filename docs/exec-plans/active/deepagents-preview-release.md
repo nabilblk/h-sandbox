@@ -10,7 +10,7 @@
 
 Publish the reviewed framework-first integration and its required TypeScript
 SDK improvements. SDK/CLI rc.11 was published during the first delivery; the
-new adapter has never been published. Source, public documentation, installed
+new adapter was initially unpublished. Source, public documentation, installed
 packages and release notes must describe the same availability and limitations.
 
 ## Current Checkpoint
@@ -31,9 +31,17 @@ contracts and strict declarations. Its package-specific Trusted Publisher is
 configured; OIDC-only run 36032236601 passed. A first registry-index read timed
 out, then a read-only retry succeeded; publication was not replayed.
 
-Prepare a distinct rc.1 for actual CI publication and Node 20/22 verification.
-Replace archive-only install instructions with verified npm availability, then
-publish a separately tagged web image and upgrade only the web image using the
+PR #56 merged as 4ea4bd4e51cd3e7614c3d8dcbec0d9b5f9675fe7 and is tagged
+deepagents-v0.1.0-rc.1. Fresh native run 36032828432 passed all 15 gates and
+cleanup, using the same source tree as the final merge. Actual OIDC publication
+36034957121 passed, including anonymous Node 20/22 installed consumers. The
+published archive matches the native-qualified SHA-256. npm next is rc.1;
+adapter latest still points to bootstrap rc.0 because separate tag-removal
+approval expired without a write. Core stable channels are unchanged.
+
+Archive-only instructions have been replaced with verified npm availability.
+Finish the GitHub release and publish a separately tagged web image, then
+upgrade only the web image using the
 existing chart and retained values. Use the explicit k0s kubeconfig: the default
 context is customer OpenShift. API/chart differences from deployed rc.10 are
 version metadata only. Do not change API, scheduler, database, Keycloak, providers,
@@ -64,18 +72,18 @@ customer installations, unrelated host processes or private research.
 - [x] Retain bounded exit/TAP/model-call diagnostics to diagnose the failed repair.
 
 ### Phase 2: Coordinated Publication
-**Status**: In Progress
+**Status**: Complete
 - [x] Select unused versions and align manifests, installation guides and checks.
 - [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
 - [x] Test public programs against the packed SDK before publication and registry after publication.
 - [x] Bootstrap adapter publication and configure its package-specific publisher after full native CI.
 - [x] Add a separately versioned adapter target to the existing protected npm workflow and its guards.
-- [ ] Verify both local bootstrap and the first OIDC adapter release, including anonymous Node 20/22 consumers.
+- [x] Verify both local bootstrap and the first OIDC adapter release, including anonymous Node 20/22 consumers.
 - [x] Merge source and create immutable release tag.
 - [x] Publish and anonymously verify core packages and release artifacts.
 
 ### Phase 3: Documentation and Closure
-**Status**: Core delivery and adapter qualification complete; adapter publication remains open
+**Status**: In Progress; adapter published, GitHub release and final closure pending
 - [x] Publish factual GitHub notes, public changelog and repository delivery receipt.
 - [x] Record remaining external blockers explicitly, without announcing unpublished packages.
 - [ ] Archive only after the requested delivery is complete.

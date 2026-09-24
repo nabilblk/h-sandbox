@@ -240,7 +240,7 @@ execution against an explicitly chosen tool-capable model is needed for real
 inference evidence. Neither acceptance command is run against the maintainer's
 lab by default or by the local contract suite.
 
-September 24 qualification: [run 36007730164](https://github.com/nabilblk/h-sandbox/actions/runs/36007730164)
+September 24 rc.1 qualification: [run 36032828432](https://github.com/nabilblk/h-sandbox/actions/runs/36032828432)
 passed all 15 SDK/framework gates, including the documented real-model repair,
 key revocation and confirmed cleanup/private-material removal. Digest-pinned
 Qwen3 4B Instruct produced five responses with no invalid tool calls or truncation.
@@ -249,7 +249,11 @@ The independent tests, original-test hash and patch checks passed. Shared
 also passed all 11 gates. These runs use the pinned published API baseline
 `0.5.0-rc.9`; they do not certify a new published server pair or OpenShift profile.
 
-The initial adapter preview is available on npm. The
+The adapter preview `0.1.0-rc.1` is available on npm `next`.
+[CI publication](https://github.com/nabilblk/h-sandbox/actions/runs/36034957121)
+used the package-specific GitHub Trusted Publisher and verified anonymous
+installed consumers on Node 20 and 22. The published archive matches the
+native-qualified rc.1 archive. The
 [adapter delivery receipt](../release-notes/deepagents-0.1.0-delivery.md)
 records reviewed source, artifact identity and the separate local/CI publishing evidence.
 Earlier failures remain in the historical [rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md);
