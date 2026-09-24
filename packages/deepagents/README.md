@@ -33,28 +33,22 @@ verifies the original tests and returns a diff after confirmed cleanup.
 
 ## Availability
 
-**Unpublished release candidate.** Native tools and an independently verified
-model repair have passed; final release checks and npm publication are pending.
-Evaluate the adapter archive with the exact published SDK below. Node 20+ is
-the consumer target; repository tooling uses Node 22+.
+**Developer preview on npm.** Install `@h-sandbox/deepagents@next` with the exact
+SDK and framework peers below. Native tools and an independently verified model
+repair have passed. Node 20+ is the consumer target; repository tooling uses
+Node 22+. This optional package has its own release cycle, separate from the SDK.
 
 ```bash
-# In a reviewed Harakiri checkout:
-pnpm install --frozen-lockfile
-pnpm --filter @h-sandbox/deepagents build
-mkdir -p /tmp/harakiri-framework-candidate
-pnpm --filter @h-sandbox/deepagents pack --pack-destination /tmp/harakiri-framework-candidate
-
-# In your server-side application, using the resulting adapter archive path:
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11 "$DEEPAGENTS_TARBALL" \
+# In your server-side application:
+npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11 \
   deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \
   @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
 ```
 
 The tested peers are **SDK 0.5.0-rc.11 and Deep Agents 1.14.0**, both exact because
-these preview contracts are evolving. The reviewed archive identifies this
-adapter candidate. Commit your application's lockfile. Other framework or SDK
-versions need a fresh compatibility run.
+these preview contracts are evolving. `--save-exact` resolves the moving `next`
+channel to a concrete version; commit your application's lockfile. Other
+framework or SDK versions need a fresh compatibility run.
 
 ## Connect an Existing Sandbox
 
@@ -166,11 +160,12 @@ command exercises remote shell/file operations with scripted decisions. Real
 model acceptance and publication are separate gates. On September 24, the
 digest-pinned Qwen3 4B Instruct model completed this repair on an isolated amd64
 runner: five responses, no truncated responses or invalid tool calls, unchanged
-original tests, a verified patch and confirmed cleanup. The overall run then
-failed its final operator-key revocation check after the captured browser token
-expired. See [the qualification run](https://github.com/nabilblk/h-sandbox/actions/runs/36004058904).
-The full suite must pass before publication. This is one small repair, not a
-model-quality or production reliability benchmark.
+original tests, a verified patch and confirmed cleanup. The
+[full qualification run](https://github.com/nabilblk/h-sandbox/actions/runs/36007730164)
+passed all 15 gates, including operator-key revocation. This is one small repair,
+not a model-quality or production reliability benchmark. The
+[delivery receipt](https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/deepagents-0.1.0-delivery.md)
+distinguishes native qualification from package publication and deployment.
 
 ## Boundaries
 

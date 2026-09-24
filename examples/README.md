@@ -78,13 +78,14 @@ See the [migration and failure-recovery guide](../docs/sdk-developer-experience.
 for response compatibility, typed creation errors, cancellation, redirects and
 Git bootstrap replay limits. No mutation is automatically retried.
 
-## Framework Integration Candidate
+## Framework Integration
 
 The optional [Deep Agents TypeScript backend](../packages/deepagents/README.md)
-adds sandbox tools to the existing LangChain/LangGraph ecosystem. It is an
-**unpublished release candidate**, requiring an adapter archive and the exact
-published SDK 0.5.0-rc.11. It is not bundled into the SDK or available through npm
-yet. Its native tools and real-model repair passed; final release checks remain.
+adds sandbox tools to the existing LangChain/LangGraph ecosystem. This
+**developer preview on npm** uses `@h-sandbox/deepagents@next` with the exact
+published SDK 0.5.0-rc.11 and Deep Agents 1.14.0. It is not bundled into the SDK.
+Its native tools and independently verified real-model repair passed. Follow
+the package guide's pinned dependency set and commit your application's lockfile.
 
 Start with [run-repair.ts](../packages/deepagents/examples/run-repair.ts): one
 file imports the real Deep Agents SDK, attaches Harakiri, lets your chosen model

@@ -24,26 +24,31 @@ PR #54 merged as 7511609752f5cc06cc282efb3532c140103c544b after required CI
 36008399126 passed. Native run 36007730164 passed all 15 gates, including the
 digest-pinned Qwen3 4B Instruct repair, key revocation and confirmed cleanup.
 Shared installation/recovery run 36007730084 passed all 11 gates and cleanup.
-The adapter pins published SDK 0.5.0-rc.11. A clean merged checkout passed the
-anonymous release-candidate contracts again. The local bootstrap's separate npm
-browser approval expired at 14:15 UTC without publication; local identity remains
-valid. A fresh attempt was cancelled before approval when the owner chose to
-finish documentation and publish later; the registry still returned 404. Do not
-restart publication until the owner resumes it. Remaining gates:
-registry verification, adapter-specific trust, actual OIDC publication and
-anonymous Node 20/22 verification. The first publish attempt was cancelled
-before approval while verifying archive metadata; no package existed afterward.
-No running lab services or private research files are part of this work.
+The adapter pins published SDK 0.5.0-rc.11. The owner has now resumed the release
+and explicitly authorized deployment of the public documentation to k0s. The
+qualified rc.0 bootstrap was published once and passes all 38 anonymous installed
+contracts and strict declarations. Its package-specific Trusted Publisher is
+configured; OIDC-only run 36032236601 passed. A first registry-index read timed
+out, then a read-only retry succeeded; publication was not replayed.
+
+Prepare a distinct rc.1 for actual CI publication and Node 20/22 verification.
+Replace archive-only install instructions with verified npm availability, then
+publish a separately tagged web image and upgrade only the web image using the
+existing chart and retained values. Use the explicit k0s kubeconfig: the default
+context is customer OpenShift. API/chart differences from deployed rc.10 are
+version metadata only. Do not change API, scheduler, database, Keycloak, providers,
+customer installations, unrelated host processes or private research.
 
 ## Success Criteria
 
 - [x] Reviewed source and documentation merged after CI.
 - [x] Native adapter and real-model repair evidence from a disposable runner.
 - [x] Matching SDK/CLI prerelease available anonymously, without changing latest.
-- [ ] Adapter preview available anonymously with a compatible SDK peer.
+- [x] Adapter preview available anonymously with a compatible SDK peer.
 - [x] Core GitHub release, repository receipt and public changelog report actual evidence.
 - [ ] Adapter GitHub release and public changelog record verified npm publication.
-- [x] Private research, customer installations and running local services untouched.
+- [x] Private research, customer installations and unrelated local services untouched.
+- [ ] Reviewed public documentation deployed and browser-verified on the k0s lab.
 
 ## Phases
 
@@ -63,7 +68,7 @@ No running lab services or private research files are part of this work.
 - [x] Select unused versions and align manifests, installation guides and checks.
 - [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
 - [x] Test public programs against the packed SDK before publication and registry after publication.
-- [ ] Bootstrap adapter publication and configure its package-specific publisher after full native CI.
+- [x] Bootstrap adapter publication and configure its package-specific publisher after full native CI.
 - [x] Add a separately versioned adapter target to the existing protected npm workflow and its guards.
 - [ ] Verify both local bootstrap and the first OIDC adapter release, including anonymous Node 20/22 consumers.
 - [x] Merge source and create immutable release tag.
@@ -74,6 +79,14 @@ No running lab services or private research files are part of this work.
 - [x] Publish factual GitHub notes, public changelog and repository delivery receipt.
 - [x] Record remaining external blockers explicitly, without announcing unpublished packages.
 - [ ] Archive only after the requested delivery is complete.
+
+### Phase 4: Authorized Public Documentation Deployment
+**Status**: In Progress
+- [x] Confirm explicit authorization, the k0s target and current Helm/image baseline.
+- [ ] Publish an immutable web-only image from reviewed source, preserving core versions.
+- [ ] Preserve the installed chart, values and public origins; change only the web image.
+- [ ] Verify rollout, public Markdown, guide navigation, responsive layout, changelog and login origin.
+- [ ] Record rollback identity and deployed digest, then archive this plan.
 
 ## Decision Log
 
@@ -86,6 +99,7 @@ No running lab services or private research files are part of this work.
 | 2026-09-23 | Release verified core clients; keep adapter a source-only preview | Native tools passed, but Qwen3 4B repair failed at independent final verification; adapter npm access also unresolved | Weakening verification or claiming a successful repair rejected |
 | 2026-09-24 | Extend the existing npm workflow with an independent adapter target | Reuse protected OIDC, without republishing immutable SDK/CLI or coupling framework versions to server/chart releases | Duplicating a release workflow or bumping all products rejected |
 | 2026-09-24 | Pin the explicit Qwen3 4B Instruct artifact for bounded model acceptance | The hybrid template opens a thinking block and produced token-limited, tool-free responses; the instruction-only artifact does not depend on reasoning suppression | Raising output limits, accepting an unverified model claim, or hard-coding the repair rejected |
+| 2026-09-24 | Resume publication and deploy only the web/documentation image | Owner explicitly resumed both; the API implementation is unchanged from the deployed baseline | Unnecessary database, identity, provider or API restarts rejected |
 
 ## Tech Debt Incurred
 

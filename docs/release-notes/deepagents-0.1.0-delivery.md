@@ -1,10 +1,11 @@
 # Deep Agents 0.1.0 Preview Delivery
 
-Status on September 24, 2026: implementation qualified and merged; npm publication
-is deferred at the maintainer's request. Local login works. A separate publication
-approval expired and a fresh attempt was cancelled before approval; the registry
-still reports no package. Actual CI publication is also unfinished. This receipt
-does not announce npm availability yet.
+Status on September 24, 2026: the maintainer resumed publication and authorized
+the public-docs deployment. The qualified `0.1.0-rc.0` bootstrap is published and
+passes anonymous installed-package checks. Its own Trusted Publisher is configured;
+[OIDC verification](https://github.com/nabilblk/h-sandbox/actions/runs/36032236601)
+passed. A distinct `0.1.0-rc.1` CI publication and the live documentation rollout
+remain in progress, not completed claims.
 
 ## Scope
 
@@ -16,8 +17,11 @@ Agents `1.14.0`; Node 20 and 22 are the qualified consumer targets.
 
 This is an independently versioned client integration, not a server, chart or
 database release. SDK/CLI `next` remains `0.5.0-rc.11`; `latest` remains `0.4.0`.
-No lab/customer deployment, local cluster, external model credential or private
-research file is part of this delivery.
+The subsequently authorized lab rollout is limited to the web/documentation
+image on `harakiri-k0s`. API and chart changes since the deployed rc.10 baseline
+are version metadata only, so no API, scheduler, database, identity or runtime
+restart is needed. Customer installations, external model credentials and private
+research remain outside this delivery.
 
 ## Reviewed Source and Tests
 
@@ -66,19 +70,29 @@ The two adapter archives have identical contents. With the same Node version,
 changing only gzip's macOS/Linux OS header byte **in memory** reproduces the
 native digest. The publication archive is not edited to hide its build origin.
 Node 26 also produces a different compression stream; local tooling was not
-globally changed. Publication identity and postpublication checks are recorded
-only after the registry accepts the package.
+globally changed.
+
+The registry accepted the unmodified rc.0 bootstrap archive with SHA-1
+`c74a0eeacca7697e878f4e73df2286f64373786a` and integrity
+`sha512-6EIYNQKbwkYNPxmGFwCXmY9MJJ0HN+i8QtgY7JelUv39vxkbJhRS2CAmNBExBjCjWMFfQC+W7qAEv1ssNvL5yA==`.
+The first public metadata wait timed out while the registry's package index
+propagated. A read-only retry passed anonymous installation, all 38 contracts
+and strict declarations. Publication was not retried. This local check ran on
+Node 26; the CI release must additionally verify Node 20 and 22.
 
 ## Publication Gates
 
-1. Publish qualified rc.0 once through the maintainer's interactive npm session.
-2. Verify the package anonymously and configure its own GitHub Trusted Publisher:
+1. Complete: publish qualified rc.0 once through the maintainer's interactive npm session.
+2. Complete: verify the package anonymously and configure its own GitHub Trusted Publisher:
    repository `nabilblk/h-sandbox`, workflow `npm-release.yml`, environment `npm`,
    direct publishing permission. Existing SDK/CLI publishers are unchanged.
-3. Publish a distinct adapter-only rc.1 through OIDC. Verify actual anonymous
+3. Pending: publish a distinct adapter-only rc.1 through OIDC. Verify actual anonymous
    registry consumers on Node 20/22; do not mistake trust exchange for publication.
-4. Record the registry integrity, release source and real publication run, then
-   publish release notes and replace candidate-only installation instructions.
+4. In progress: record registry integrity, release source and real publication run,
+   publish release notes and replace archive-only installation instructions.
+5. Pending: deploy the reviewed web image by immutable digest, preserve the live
+   installation's values and public authentication origins, then verify the guide,
+   Markdown, navigation, responsive layout and changelog through the public URL.
 
 The [npm runbook](../integrations/npm-packages.md) covers authentication, bootstrap,
 source/channel guards, package-specific OIDC and read-only failure recovery.

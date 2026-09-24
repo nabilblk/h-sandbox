@@ -10,7 +10,7 @@ export const previewDocs: DocPage = {
     <p><strong>Developers:</strong> obtain an API URL and a scoped, expiring key from your operator. Follow <a href="#docs/quickstart">the deterministic quickstart</a>, then add <a href="#docs/workspaces">retained files</a> or <a href="#docs/opencode-template">OpenCode</a>. An agent or model-provider account is not required for the first task.</p>
     <p><strong>Operators:</strong> begin with <a href="#docs/install-kubernetes">Install on Kubernetes</a> for the complete reference path: dependencies, configuration, two Helm charts, sign-in and a checked native task. Review image digests, storage and runtime privileges before deploying. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/developer-preview.md">evaluation checklist</a> distinguishes installation checks from production guarantees.</p>
     <h2>Version and distribution</h2>
-    <p>The current candidate is <code>0.5.0-rc.11</code>. SDK and CLI packages use the <code>next</code> channel; <code>latest</code> still identifies the older <code>0.4.0</code> release. The optional Deep Agents adapter is a separate source candidate until its first npm publication.</p>
+    <p>The current candidate is <code>0.5.0-rc.11</code>. SDK and CLI packages use the <code>next</code> channel; <code>latest</code> still identifies the older <code>0.4.0</code> release. The optional <a href="#docs/deepagents">Deep Agents adapter</a> is independently versioned and available on npm through its own <code>next</code> channel.</p>
     <CodeBlock language="bash">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
 npm install -g @h-sandbox/cli@0.5.0-rc.11
 harakiri --version`}</CodeBlock>

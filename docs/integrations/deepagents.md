@@ -1,7 +1,10 @@
 # Deep Agents TypeScript Integration
 
-Status: unpublished release candidate for Deep Agents 1.14.0 and the published
+Status: developer preview on npm for Deep Agents 1.14.0 and the published
 Harakiri SDK 0.5.0-rc.11. Earlier SDK versions are not compatible with this adapter.
+Install `@h-sandbox/deepagents@next` using the
+[package guide's pinned dependency set](../../packages/deepagents/README.md#availability).
+Keep `--save-exact` and commit the application lockfile.
 
 ## Architecture
 
@@ -246,8 +249,9 @@ The independent tests, original-test hash and patch checks passed. Shared
 also passed all 11 gates. These runs use the pinned published API baseline
 `0.5.0-rc.9`; they do not certify a new published server pair or OpenShift profile.
 
-Npm publication remains pending. The [adapter delivery receipt](../release-notes/deepagents-0.1.0-delivery.md)
-records the reviewed source, artifact identity and unfinished publication gates.
+The initial adapter preview is available on npm. The
+[adapter delivery receipt](../release-notes/deepagents-0.1.0-delivery.md)
+records reviewed source, artifact identity and the separate local/CI publishing evidence.
 Earlier failures remain in the historical [rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md);
 they are not rewritten as successes. The captured operator-token expiry was
 fixed by renewing through real browser SSO before a mutation, without replaying
@@ -257,7 +261,8 @@ Use the [npm release runbook](npm-packages.md) for the new-package bootstrap,
 package-specific Trusted Publisher, independent adapter versions and anonymous
 Node 20/22 verification. The SDK/CLI release target does **not** publish this
 adapter. No chart, API migration or cluster rollout is required for a client-only
-integration. Replace candidate instructions only after registry verification.
+integration. Installation instructions use the verified npm preview, not a
+monorepo build or an unpublished archive.
 
 ## Sources
 
