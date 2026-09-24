@@ -45,6 +45,15 @@ Login and a sensitive package operation can require separate browser approvals.
 Run `npm trust` in an interactive terminal without `--json` so npm can display
 its approval link; approve it in the browser, never by sharing a code in chat.
 
+Browser approvals expire. Finish qualification and archive preparation before
+requesting approval, and keep the originating CLI command running while the
+owner approves its current link. An expired `/-/v1/done?authId=...` poll is not
+evidence that the login failed. Check `npm whoami` rather than repeating account
+setup. Before restarting publication, inspect the version anonymously: if it
+exists, verify it instead of publishing again. Only retry an unpublished version
+with the same reviewed archive after the previous command has ended. Publisher
+settings can require another approval; do not reuse an old link.
+
 ## Existing Packages: Publish Through CI
 
 Use [the protected release workflow](../ci-release.md), not a stored npm token.

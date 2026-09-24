@@ -20,7 +20,11 @@ test("framework integration is a searchable first-class guide with matching code
     "A working directory is not a filesystem jail", "MemorySaver", "exactly-once", "sandbox storage",
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
     "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
-    "completed the real-model repair", "full-suite requalification is pending"]) assert.ok(markdown.includes(contract), contract);
+    "completed the real-model repair", "qualification run passed all 15 gates",
+    "qualifies the candidate, not its npm publication"]) assert.ok(markdown.includes(contract), contract);
+  assert.doesNotMatch(markdown, /full-suite requalification is pending/);
+  const receipt = new URL("../../../docs/release-notes/deepagents-0.1.0-delivery.md", import.meta.url);
+  assert.ok(readFileSync(receipt, "utf8").includes("actions/runs/36007730164"));
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
   assert.doesNotMatch(markdown, /npm install @h-sandbox\/deepagents/);
 });

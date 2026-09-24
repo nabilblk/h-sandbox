@@ -20,37 +20,42 @@ succeed. The SDK publisher is readable and points to `nabilblk/h-sandbox`,
 `npm-release.yml`, environment `npm`, with direct publish permission. Core
 trust-only CI also passes. Do not repeat account setup or replace core publishers.
 
-PR #54 contains the independent adapter release path and native harness fixes.
-General CI 36004059020 passed on 412706d. Native run 36004058904 passed 14 gates,
-including the digest-pinned Qwen3 4B Instruct repair and confirmed cleanup. Its
-final key-revocation check failed because the captured operator token expired.
-The harness now renews through browser SSO before submitting a mutation, never
-replaying it. The publication PR removes `private` and pins the released SDK
-0.5.0-rc.11, but the package remains absent from npm. Required next gates: passing
-full native receipt; reviewed local bootstrap; adapter-specific trust; actual
-OIDC publication and anonymous verification. Do not merge/publish before CI.
+PR #54 merged as 7511609752f5cc06cc282efb3532c140103c544b after required CI
+36008399126 passed. Native run 36007730164 passed all 15 gates, including the
+digest-pinned Qwen3 4B Instruct repair, key revocation and confirmed cleanup.
+Shared installation/recovery run 36007730084 passed all 11 gates and cleanup.
+The adapter pins published SDK 0.5.0-rc.11. A clean merged checkout passed the
+anonymous release-candidate contracts again. The local bootstrap's separate npm
+browser approval expired at 14:15 UTC without publication; local identity remains
+valid. A fresh attempt was cancelled before approval when the owner chose to
+finish documentation and publish later; the registry still returned 404. Do not
+restart publication until the owner resumes it. Remaining gates:
+registry verification, adapter-specific trust, actual OIDC publication and
+anonymous Node 20/22 verification. The first publish attempt was cancelled
+before approval while verifying archive metadata; no package existed afterward.
 No running lab services or private research files are part of this work.
 
 ## Success Criteria
 
 - [x] Reviewed source and documentation merged after CI.
-- [ ] Native adapter and real-model repair evidence from a disposable runner.
+- [x] Native adapter and real-model repair evidence from a disposable runner.
 - [x] Matching SDK/CLI prerelease available anonymously, without changing latest.
 - [ ] Adapter preview available anonymously with a compatible SDK peer.
-- [x] GitHub release, repository receipt and public changelog report actual evidence.
+- [x] Core GitHub release, repository receipt and public changelog report actual evidence.
+- [ ] Adapter GitHub release and public changelog record verified npm publication.
 - [x] Private research, customer installations and running local services untouched.
 
 ## Phases
 
 ### Phase 1: Qualification
-**Status**: In Progress
+**Status**: Complete
 - [x] Inspect release guards and current package availability.
 - [x] Confirm SDK/CLI trusted publishing exists; new adapter requires npm bootstrap.
 - [x] Verify refreshed local web login, account 2FA and separate security approval.
 - [x] Commit framework integration and run isolated CI/native acceptance.
 - [x] Verify real shell/files/search and reconnect through the installed adapter.
 - [x] Record real-model repair and confirmed cleanup evidence (36004058904).
-- [ ] Requalify the full suite after fixing expired operator-token capture.
+- [x] Requalify the full suite after fixing expired operator-token capture.
 - [x] Retain bounded exit/TAP/model-call diagnostics to diagnose the failed repair.
 
 ### Phase 2: Coordinated Publication
@@ -65,7 +70,7 @@ No running lab services or private research files are part of this work.
 - [x] Publish and anonymously verify core packages and release artifacts.
 
 ### Phase 3: Documentation and Closure
-**Status**: Core delivery complete; adapter qualification and publication remain open
+**Status**: Core delivery and adapter qualification complete; adapter publication remains open
 - [x] Publish factual GitHub notes, public changelog and repository delivery receipt.
 - [x] Record remaining external blockers explicitly, without announcing unpublished packages.
 - [ ] Archive only after the requested delivery is complete.
@@ -192,3 +197,21 @@ retried afterward. Four focused session tests and 40 existing safety/contracts
 pass. The rc.0 candidate now pins npm SDK 0.5.0-rc.11; anonymous candidate install,
 38 framework/example contracts and strict declarations pass with that published
 SDK. Required CI and a fully passing native rerun still precede merge/publication.
+
+Final qualification passed in 36007730164 (15 SDK/framework gates) and
+36007730084 (11 shared installation/recovery gates); both confirmed cleanup
+and private-material removal. CI 36008399126 passed all required checks and all
+46 browser tests. The only change after the native-tested commit was one browser
+assertion matching current documentation, so queued duplicate native runs were
+cancelled before provisioning. PR #54 merged normally, without protection bypass.
+The clean merged worktree passed all 38 release-candidate contracts and strict
+declarations against the registry SDK. Packing with Node 22.23.2 yields payload
+identical to the native archive: changing only gzip's OS header byte in memory
+reproduces the native SHA-256. Publish the unmodified Mac archive; record its
+distinct compressed digest rather than claiming byte-identical gzip wrappers.
+
+The owner deferred publication while the qualification documentation was being
+finished. PR #55 updates public guide source, technical guidance and a factual
+delivery receipt, without claiming registry availability. No live deployment is
+part of this documentation follow-up. The prepared bootstrap archive and its
+clean source checkout remain available for an explicitly resumed release.
