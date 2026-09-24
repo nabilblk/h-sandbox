@@ -104,6 +104,15 @@ The candidate test installs that SDK from npm, not a workspace replacement.
 public declarations and displayed examples. These local contracts do not call
 a model or runtime; native acceptance is separate.
 
+Inspect the package's tags after the first publication, even when using `--tag
+next`. npm created both `next` and `latest` for this adapter. Its documented
+`dist-tag rm` command reached the registry after successful browser approval but
+the `latest` deletion returned HTTP 400, matching
+[npm/cli #8490](https://github.com/npm/cli/issues/8490). Do not mistake this for
+expired authentication or repeatedly request approval. Keep preview installation
+instructions explicit (`@next` or an exact qualified prerelease), record the
+actual tags and obtain a separate decision before moving the default alias.
+
 Then configure only this new package's publisher:
 
 ```bash

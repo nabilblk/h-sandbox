@@ -3,8 +3,8 @@
 Status on September 24, 2026: `@h-sandbox/deepagents@0.1.0-rc.1` is published
 on npm `next` through GitHub Trusted Publishing. Anonymous Node 20 and 22
 installation checks passed. Native qualification and the published archive
-match. The maintainer authorized a web-only public-docs rollout; that deployment
-remains in progress, not a completed claim.
+match. The authorized web-only public-docs rollout is deployed and verified at
+the public URL. API, database, identity and runtime configuration are unchanged.
 
 ## Scope
 
@@ -116,9 +116,9 @@ metadata visibility; read-only polling succeeded without repeating publication.
    anonymous registry consumers on Node 20/22. The preceding
    [trust-only check](https://github.com/nabilblk/h-sandbox/actions/runs/36032236601)
    is not substituted for publication evidence.
-4. In progress: record registry integrity, release source and real publication run,
+4. Complete: record registry integrity, release source and real publication run,
    publish release notes and replace archive-only installation instructions.
-5. Pending: deploy the reviewed web image by immutable digest, preserve the live
+5. Complete: deploy the reviewed web image by immutable digest, preserve the live
    installation's values and public authentication origins, then verify the guide,
    Markdown, navigation, responsive layout and changelog through the public URL.
 
@@ -126,8 +126,77 @@ The [npm runbook](../integrations/npm-packages.md) covers authentication, bootst
 source/channel guards, package-specific OIDC and read-only failure recovery.
 No npm token is added to CI, and no successful publish is blindly retried.
 
-Registry channel caveat: npm also created `latest` pointing to the first rc.0
-bootstrap. Removing that adapter-only alias requires a separate npm security
-approval, which expired without a write. Install `@h-sandbox/deepagents@next`
-or the exact rc.1 version; neither version is promoted to stable. Core SDK/CLI
-`latest` remains `0.4.0`. Do not repeat a successful publication to change a tag.
+The [GitHub prerelease](https://github.com/nabilblk/h-sandbox/releases/tag/deepagents-v0.1.0-rc.1)
+contains the actual npm tarball, rc.1 native receipt, earlier installation/recovery
+receipt, npm artifact identity and `SHA256SUMS`. All five assets were downloaded
+anonymously and compared with their local source bytes. The checksums file has
+SHA-256 `98bdadbab3843c02e30e2fdfbbeb1d57e80643a84ce38dda51944c2be7dbd51d`.
+[PR #57](https://github.com/nabilblk/h-sandbox/pull/57), merged as
+`a44243675047d551c8e7843ab5fde8ea8ab2504a` after
+[all checks passed](https://github.com/nabilblk/h-sandbox/actions/runs/36036079748),
+records the public guide and changelog. Immutable package contents were not
+changed after tagging/publication.
+
+## Public Documentation Deployment
+
+[Harbor run 36036807550](https://github.com/nabilblk/h-sandbox/actions/runs/36036807550)
+published only the web image from reviewed source
+`a44243675047d551c8e7843ab5fde8ea8ab2504a`. Both Linux architectures carry that
+source revision. No API image, chart or npm package was republished by this run.
+
+| Deployment identity | Value |
+| --- | --- |
+| Web tag | `core.campus.clusterdiali.me/harakiri/harakiri-web:deepagents-docs-20260924-a44243675047` |
+| Pinned multi-architecture index | `sha256:8b6bd56e969b33925b341f618afd7d3883cbad4780cb42c350db5670b9af68b4` |
+| Linux arm64 child | `sha256:ff11919631ff7286aeae2f260d205a2de99d81ce8502706a39369b281bc2db17` |
+| Linux amd64 child | `sha256:4d09cb7dfd78ca93a5c727d3067d49ff1f132e9a5055fba1ebcdadc485c4cf5e` |
+| Target | Existing `harakiri-k0s` lab, release/namespace `harakiri` |
+| Helm revision | `45`, deployed; previous revision `44` |
+| Retained chart | `harakiri-0.5.0-rc.10` |
+| Previous web index | `sha256:075fa297d9a86a515d56c13194d906c8b6ddac2861fe5762ce8f2cd3c5f7f664` |
+
+An explicit k0s kubeconfig and pinned node identity protected against the default
+customer OpenShift context. A structured Helm server-side dry run required the
+web container image to be the only resource-field change. The upgrade retained
+all values and used automatic rollback on failure. Post-rollout verification
+confirmed all six deployments ready, unchanged non-web deployment specifications,
+shared/web runtime configuration, application secret and every other Helm value.
+The previous chart archive and private deployment backup were retained outside Git.
+Rollback target `44` is specific to this deployment; recheck current history
+before using it after any later upgrade. No rollback was needed or tested here.
+
+The [live guide](https://sb.harakiri.io/#docs/deepagents),
+[Markdown](https://sb.harakiri.io/docs/deepagents.md), 44-page inventory and
+[changelog](https://sb.harakiri.io/#changelog) contain the released integration.
+Browser checks covered search-result navigation, highlighted TypeScript, copying
+the installation command and desktop/mobile layout at 1440, 390 and 320 pixels,
+with no document-level horizontal overflow or browser errors. Desktop and mobile
+screenshots were visually inspected. Anonymous Sign in still targets
+`https://sb-auth.harakiri.io/realms/harakiri/protocol/openid-connect/auth` with
+`https://sb.harakiri.io/` as redirect URI; no credentials were submitted.
+The website, API health and OIDC discovery endpoints all returned HTTP 200.
+
+One browser request observed a transient Cloudflare 502 during the web-pod
+replacement. It recovered automatically before the public checks, without
+restarting the tunnel or other services. This rollout is not zero-downtime
+evidence; the lab's origin forwarding still warrants attention for that guarantee.
+
+## Registry Channel Limitation
+
+npm also created `latest` pointing to the first rc.0 bootstrap. Earlier cleanup
+approvals expired. On the final attempt the owner completed browser approval,
+but npm rejected the actual `DELETE /-/package/@h-sandbox%2fdeepagents/dist-tags/latest`
+with HTTP 400. This is not another expired approval or a failed publication.
+The same first-publication/default-tag behavior and removal error are reported
+in [npm/cli #8490](https://github.com/npm/cli/issues/8490).
+
+Read-only verification confirms adapter `next: 0.1.0-rc.1` and
+`latest: 0.1.0-rc.0`; SDK/CLI retain `next: 0.5.0-rc.11` and `latest: 0.4.0`.
+Install `@h-sandbox/deepagents@next` or exact `0.1.0-rc.1`. There is no stable
+adapter release, regardless of the registry-created alias. No versions were
+deleted, tags repointed, publishers changed or successful publications retried.
+The requested next-only tag state was not achieved. The owner explicitly accepted
+keeping these tags and closing the release plan. The limitation is recorded in
+the [completed plan](../exec-plans/completed/deepagents-preview-release.md).
+Any future change requires npm-side resolution or an explicit channel-policy
+decision, not another approval loop.
