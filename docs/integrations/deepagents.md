@@ -1,7 +1,7 @@
 # Deep Agents TypeScript Integration
 
-Status: unreleased source candidate, implemented against Deep Agents 1.14.0.
-No claim of compatibility with the published Harakiri SDK rc.10 convenience API.
+Status: unpublished release candidate for Deep Agents 1.14.0 and the published
+Harakiri SDK 0.5.0-rc.11. Earlier SDK versions are not compatible with this adapter.
 
 ## Architecture
 
@@ -86,10 +86,11 @@ class is not shipped in the adapter. The documented repair accepts an explicitly
 configured model so applications can select a compatible provider integration.
 
 See [package installation and examples](../../packages/deepagents/README.md).
-Build and install **both source tarballs**. The adapter manifest's `private`
-flag deliberately prevents publication before SDK version alignment. Framework
-packages are optional peers/development dependencies here, never dependencies
-of the core SDK, CLI, API or dashboard runtime.
+Build the adapter archive and install it alongside the exact published SDK.
+Release-candidate checks install SDK 0.5.0-rc.11 anonymously, not a workspace
+substitute. Framework packages are peers/development dependencies here, never
+dependencies of the core SDK, CLI, API or dashboard runtime. Publication remains
+gated on reviewed source and the complete native acceptance receipt.
 
 ## Ownership
 
@@ -236,20 +237,22 @@ execution against an explicitly chosen tool-capable model is needed for real
 inference evidence. Neither acceptance command is run against the maintainer's
 lab by default or by the local contract suite.
 
-September 23 qualification: installed Node 20/22 contracts and native tools
-passed on an isolated GitHub-hosted amd64 runner. The Qwen3 4B repair reached
-the independent final test command, which failed with `HarakiriRunError`.
-Cleanup passed. This is not a successful real-model repair receipt; the
-sanitized evidence does not establish the underlying cause. See the
-[rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md).
+September 24 qualification: [run 36004058904](https://github.com/nabilblk/h-sandbox/actions/runs/36004058904)
+passed all native framework tools and the documented real-model repair using
+digest-pinned Qwen3 4B Instruct. The independent tests, original-test hash, patch
+and cleanup checks passed. Five model responses contained no invalid tool calls
+or truncation. The full suite then failed key revocation because its captured
+operator token had expired; the harness now renews through browser SSO before
+submitting a mutation, without retrying it. Full-suite requalification and npm
+publication remain pending. The earlier failures remain in the historical
+[rc.11 delivery receipt](../release-notes/0.5.0-rc.11-delivery.md); they are not
+rewritten as successes. One small repair does not establish model quality.
 
-Before publishing: obtain native and real-model receipts; choose coordinated
-SDK/adapter versions; replace the workspace SDK peer with the tested released
-version; remove `private`; extend release/version/artifact guards; configure npm
-trusted publishing for the new package; publish/verify on Node 20/22; then replace
-candidate installation instructions everywhere. The existing SDK/CLI publisher
-does **not** publish this adapter. No chart, API migration or cluster rollout is
-required for a client-only integration.
+Use the [npm release runbook](npm-packages.md) for the new-package bootstrap,
+package-specific Trusted Publisher, independent adapter versions and anonymous
+Node 20/22 verification. The SDK/CLI release target does **not** publish this
+adapter. No chart, API migration or cluster rollout is required for a client-only
+integration. Replace candidate instructions only after registry verification.
 
 ## Sources
 

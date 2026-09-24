@@ -118,7 +118,7 @@ export const deepagentsDocs: DocPage = {
   toc: ["Your agent, Harakiri tools", "Candidate installation", "Repair a repository", "Model-free smoke test", "Approval and reconnect", "Ownership and failures", "Limits and evidence"],
   body: <>
     <h2>Your agent, Harakiri tools</h2>
-    <aside className="docs-notice"><p><strong>Unreleased integration candidate.</strong> Evaluate the adapter and SDK from the same source checkout. Neither an npm adapter release nor compatibility with the published SDK rc.10 helpers is claimed here.</p></aside>
+    <aside className="docs-notice"><p><strong>Unpublished release candidate.</strong> Native tools and an independently verified model repair have passed. Evaluate the adapter archive with SDK 0.5.0-rc.11; final release checks and npm publication are pending.</p></aside>
     <p><code>@h-sandbox/deepagents</code> is an optional TypeScript sandbox backend for <a href="https://docs.langchain.com/oss/javascript/deepagents/sandboxes">Deep Agents</a>, built on LangChain and LangGraph. It reuses the framework's tools through the public Harakiri SDK. It does not replace your agent, select a model or connect directly to a runtime provider.</p>
     <p>Start with the normal Deep Agents SDK. Attach a Harakiri backend to send the framework's file and shell tools to your sandbox. The integration point is <code>backend</code>:</p>
     <CodeBlock language="typescript" filename="The integration point">{`import { createDeepAgent } from "deepagents";
@@ -138,14 +138,13 @@ const agent = createDeepAgent({
     <p>This is a <strong>sandbox-backed agent</strong>, not an agent process hosted inside a sandbox. Planning, model requests and checkpoints stay in your application. Custom tools that you register yourself are not automatically sandboxed: a local filesystem or shell callback still runs on your application host.</p>
 
     <h2>Candidate installation</h2>
-    <p>Use Node 22+ for repository tooling and Node 20+ for the consuming application. Build both archives from one reviewed checkout, then install those exact files. The adapter requires SDK rc.11 or newer; npm rc.10 is not compatible.</p>
-    <CodeBlock language="bash" filename="Build both candidates">{`pnpm install --frozen-lockfile
+    <p>Use Node 22+ for repository tooling and Node 20+ for the consuming application. Build the adapter archive from a reviewed checkout. The tested peers are exactly SDK 0.5.0-rc.11 and Deep Agents 1.14.0; npm rc.10 is not compatible.</p>
+    <CodeBlock language="bash" filename="Build the adapter candidate">{`pnpm install --frozen-lockfile
 pnpm --filter @h-sandbox/deepagents build
 mkdir -p /tmp/harakiri-framework-candidate
-pnpm --filter @h-sandbox/sdk pack --pack-destination /tmp/harakiri-framework-candidate
 pnpm --filter @h-sandbox/deepagents pack --pack-destination /tmp/harakiri-framework-candidate`}</CodeBlock>
-    <p>In your server-side application, set <code>SDK_TARBALL</code> and <code>DEEPAGENTS_TARBALL</code> to the resulting archive paths. This is the tested framework version set; keep the application lockfile.</p>
-    <CodeBlock language="bash" filename="Install in your application">{`npm install "$SDK_TARBALL" "$DEEPAGENTS_TARBALL" \\
+    <p>In your server-side application, set <code>DEEPAGENTS_TARBALL</code> to the resulting adapter archive path. Install the SDK from npm. This is the tested framework version set; keep the application lockfile.</p>
+    <CodeBlock language="bash" filename="Install in your application">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11 "$DEEPAGENTS_TARBALL" \\
   deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \\
   @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
 npm install --save-dev tsx
@@ -166,7 +165,7 @@ npx tsx run-repair.ts
 # pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts`}</CodeBlock>
     <CodeBlock language="typescript" filename="run-repair.ts">{deepagentsAgentTask}</CodeBlock>
     <p><code>withHarakiriSandbox()</code> creates one sandbox, waits for readiness and supplies its backend to <code>createDeepAgent()</code>. It confirms termination and capacity release before returning. The expected result is three passing tests, an implementation diff including quantity, and the cleaned-up sandbox ID. The initial failing test run is deliberate.</p>
-    <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/run-repair.ts">runnable source</a> and displayed program are checked for equality. Contract tests invoke its real Deep Agents graph with scripted decisions, test success and verification failures, and check cleanup. Native shell, file, search and reconnect checks passed on an isolated amd64 runner. The September 23 real-model run with Qwen3 4B failed at the independent final test command; a successful model-driven repair is not yet qualified. See the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.11-delivery.md">qualification receipt</a>. Production jobs should verify artifacts independently of an agent's final message; graph state, prompts and tool output can contain sensitive data.</p>
+    <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/run-repair.ts">runnable source</a> and displayed program are checked for equality. Contract tests invoke its real Deep Agents graph with scripted decisions and test verification failures and cleanup. Native shell, file, search and reconnect checks passed on an isolated amd64 runner. On September 24, Qwen3 4B Instruct completed the real-model repair: unchanged original tests, independently verified results, an implementation diff and confirmed cleanup. The <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36004058904">qualification run</a> then failed its final operator-key revocation check because the captured login token expired; full-suite requalification is pending. One small repair is not a model-quality benchmark. Production jobs should verify artifacts independently of an agent's final message; graph state, prompts and tool output can contain sensitive data.</p>
 
     <h2>Model-free smoke test</h2>
     <p>Use this smaller diagnostic to isolate connection, permissions or runtime problems from model behavior. It is not an agent example: it executes one fixed shell command without calling an LLM. Run it with <code>npx tsx first-tools.mts</code>; the expected output is <code>hello from Harakiri</code>.</p>

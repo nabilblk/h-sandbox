@@ -41,6 +41,9 @@ bypass-2FA granular tokens are not accepted for that endpoint. See
 [npm trust prerequisites](https://docs.npmjs.com/cli/v11/commands/npm-trust/).
 Enable account 2FA before refreshing the interactive login. A pre-existing token
 does not acquire package-settings permissions when account security changes.
+Login and a sensitive package operation can require separate browser approvals.
+Run `npm trust` in an interactive terminal without `--json` so npm can display
+its approval link; approve it in the browser, never by sharing a code in chat.
 
 ## Existing Packages: Publish Through CI
 
@@ -68,7 +71,9 @@ publish or change tags. Actual publication must succeed before declaring deliver
 The npm package must exist before configuring its Trusted Publisher. Publish the
 **qualified implementation**, never an empty placeholder to reserve the name.
 Native tools, independent model-result verification and confirmed runtime cleanup
-must have passing receipts first. Keep the manifest private until qualified.
+must have passing receipts first. Keep the manifest private until those checks
+pass; the publication PR pins the released SDK and removes the guard. Merge and
+publish only after the complete native suite and required CI pass.
 
 From a clean checkout of merged, reviewed source:
 

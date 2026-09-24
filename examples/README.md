@@ -3,7 +3,7 @@
 Choose the SDK version before choosing a recipe. The current published preview
 is `0.5.0-rc.11`; unversioned npm installation selects stable `0.4.0`, which lacks
 workspaces, execution readiness and capacity APIs. Task-oriented recipes require
-rc.11. The optional Deep Agents adapter has separate source-candidate availability.
+rc.11. The optional Deep Agents adapter has separate release-candidate availability.
 
 Use your installation's API and a server-side scoped key, never browser credentials:
 
@@ -82,8 +82,9 @@ Git bootstrap replay limits. No mutation is automatically retried.
 
 The optional [Deep Agents TypeScript backend](../packages/deepagents/README.md)
 adds sandbox tools to the existing LangChain/LangGraph ecosystem. It is an
-**unreleased source candidate**, requiring the SDK and adapter tarballs from the
-same checkout. It is not bundled into the SDK or available through npm yet.
+**unpublished release candidate**, requiring an adapter archive and the exact
+published SDK 0.5.0-rc.11. It is not bundled into the SDK or available through npm
+yet. Its native tools and real-model repair passed; final release checks remain.
 
 Start with [run-repair.ts](../packages/deepagents/examples/run-repair.ts): one
 file imports the real Deep Agents SDK, attaches Harakiri, lets your chosen model

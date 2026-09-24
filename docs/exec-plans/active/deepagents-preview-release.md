@@ -13,6 +13,24 @@ SDK improvements. SDK/CLI rc.11 was published during the first delivery; the
 new adapter has never been published. Source, public documentation, installed
 packages and release notes must describe the same availability and limitations.
 
+## Current Checkpoint
+
+As of September 24, local web login and separate npm security approval both
+succeed. The SDK publisher is readable and points to `nabilblk/h-sandbox`,
+`npm-release.yml`, environment `npm`, with direct publish permission. Core
+trust-only CI also passes. Do not repeat account setup or replace core publishers.
+
+PR #54 contains the independent adapter release path and native harness fixes.
+General CI 36004059020 passed on 412706d. Native run 36004058904 passed 14 gates,
+including the digest-pinned Qwen3 4B Instruct repair and confirmed cleanup. Its
+final key-revocation check failed because the captured operator token expired.
+The harness now renews through browser SSO before submitting a mutation, never
+replaying it. The publication PR removes `private` and pins the released SDK
+0.5.0-rc.11, but the package remains absent from npm. Required next gates: passing
+full native receipt; reviewed local bootstrap; adapter-specific trust; actual
+OIDC publication and anonymous verification. Do not merge/publish before CI.
+No running lab services or private research files are part of this work.
+
 ## Success Criteria
 
 - [x] Reviewed source and documentation merged after CI.
@@ -28,9 +46,11 @@ packages and release notes must describe the same availability and limitations.
 **Status**: In Progress
 - [x] Inspect release guards and current package availability.
 - [x] Confirm SDK/CLI trusted publishing exists; new adapter requires npm bootstrap.
+- [x] Verify refreshed local web login, account 2FA and separate security approval.
 - [x] Commit framework integration and run isolated CI/native acceptance.
 - [x] Verify real shell/files/search and reconnect through the installed adapter.
-- [ ] Record real-model repair and confirmed cleanup evidence.
+- [x] Record real-model repair and confirmed cleanup evidence (36004058904).
+- [ ] Requalify the full suite after fixing expired operator-token capture.
 - [x] Retain bounded exit/TAP/model-call diagnostics to diagnose the failed repair.
 
 ### Phase 2: Coordinated Publication
@@ -38,7 +58,7 @@ packages and release notes must describe the same availability and limitations.
 - [x] Select unused versions and align manifests, installation guides and checks.
 - [x] Verify SDK/CLI npm trust without publishing (run 35906616877).
 - [x] Test public programs against the packed SDK before publication and registry after publication.
-- [ ] Bootstrap adapter publication and configure its package-specific publisher; private guard retained meanwhile.
+- [ ] Bootstrap adapter publication and configure its package-specific publisher after full native CI.
 - [x] Add a separately versioned adapter target to the existing protected npm workflow and its guards.
 - [ ] Verify both local bootstrap and the first OIDC adapter release, including anonymous Node 20/22 consumers.
 - [x] Merge source and create immutable release tag.
@@ -161,3 +181,14 @@ Pin that explicit instruction variant with unchanged CPU/memory/context/output
 limits and all outcome checks. Sources: https://ollama.com/library/qwen3:4b-instruct
 and https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507. A full passing native receipt
 is still required for this exact setup before publication.
+
+Run 36004058904 completed the documented repair successfully: five model
+responses, no invalid tool calls or truncated responses, two reads and one edit.
+Original tests and the independent patch/test checks passed; cleanup removed
+owned resources and private material. Only the final API-key revocation gate
+failed (operator HTTP 401). Captured browser credentials now have a conservative
+expiry check and are renewed through the real SSO flow before a mutation, never
+retried afterward. Four focused session tests and 40 existing safety/contracts
+pass. The rc.0 candidate now pins npm SDK 0.5.0-rc.11; anonymous candidate install,
+38 framework/example contracts and strict declarations pass with that published
+SDK. Required CI and a fully passing native rerun still precede merge/publication.

@@ -16,19 +16,20 @@ test("framework integration is a searchable first-class guide with matching code
   assert.ok(markdown.indexOf('import { createDeepAgent } from "deepagents"') < markdown.indexOf("## Candidate installation"));
   assert.ok(markdown.indexOf(deepagentsAgentTask) < markdown.indexOf(deepagentsFirstTask));
   assert.equal(deepagentsAgentTask, readFileSync(new URL("../../../packages/deepagents/examples/run-repair.ts", import.meta.url), "utf8").trimEnd());
-  for (const contract of ["Unreleased integration candidate", "same source checkout", "capacity release",
+  for (const contract of ["Unpublished release candidate", "SDK 0.5.0-rc.11", "capacity release",
     "A working directory is not a filesystem jail", "MemorySaver", "exactly-once", "sandbox storage",
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
     "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
-    "failed at the independent final test command", "not yet qualified"]) assert.ok(markdown.includes(contract), contract);
+    "completed the real-model repair", "full-suite requalification is pending"]) assert.ok(markdown.includes(contract), contract);
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
   assert.doesNotMatch(markdown, /npm install @h-sandbox\/deepagents/);
 });
 
-test("framework package, guide and CI agree on source-only availability and separate dependencies", () => {
+test("framework release candidate pins its published SDK peer and keeps framework dependencies separate", () => {
   const root = new URL("../../../", import.meta.url);
   const manifest = JSON.parse(readFileSync(new URL("packages/deepagents/package.json", root), "utf8"));
-  assert.equal(manifest.private, true);
+  assert.notEqual(manifest.private, true);
+  assert.equal(manifest.peerDependencies["@h-sandbox/sdk"], "0.5.0-rc.11");
   assert.equal(manifest.peerDependencies.deepagents, "1.14.0");
   for (const path of ["packages/sdk", "packages/cli", "apps/api", "apps/web"]) {
     const pkg = JSON.parse(readFileSync(new URL(`${path}/package.json`, root), "utf8"));
@@ -37,7 +38,7 @@ test("framework package, guide and CI agree on source-only availability and sepa
   for (const path of ["packages/deepagents/README.md", "docs/integrations/deepagents.md", "examples/README.md"]) {
     const file = new URL(path, root);
     const source = readFileSync(file, "utf8");
-    assert.match(source, /source candidate/i);
+    assert.match(source, /unpublished release candidate/i);
     for (const [, href] of source.matchAll(/\]\(([^\s)]+)\)/g)) {
       if (!/^(?:[a-z]+:|#|\/)/.test(href)) assert.ok(existsSync(new URL(href.split(/[?#]/)[0], file)), `${path}: ${href}`);
     }

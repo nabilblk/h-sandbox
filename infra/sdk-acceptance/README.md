@@ -45,6 +45,9 @@ is deliberate: the previously pinned hybrid model's template opens a thinking
 block and runs hit the output limit without tool calls. The instruction model
 keeps the same 4B footprint, 8K context and 1,024-token response budget. Neither
 model selection nor transport normalization weakens the outcome checks.
+After long model runs, the harness renews an expired captured operator token
+through browser SSO before submitting the final key-revocation request. It does
+not retry mutations, extend realm token lifetimes or bypass API authentication.
 Git's distributed bootstrap claim remains out of scope.
 
 The companion package job builds with the repo-required Node 22 and executes
