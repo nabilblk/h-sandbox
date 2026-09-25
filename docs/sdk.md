@@ -1,5 +1,16 @@
 # Harakiri SDK
 
+## Unreleased Reliability Work
+
+The [Reliable Framework Workflows guide](integrations/reliable-framework-workflows.md)
+documents new source-level request deadlines, cancellation and durable application
+examples. These are not in the published `0.5.0-rc.11` SDK. JSON requests now have
+a configurable `requestTimeoutMs` (120 seconds by default), covering body reads;
+runtime command/file calls also accept per-call options. Local timeout errors are
+`HarakiriRequestTimeoutError`, not evidence that a remote mutation failed.
+Neither deadlines nor cancellation introduce automatic retries. Use the source
+SDK and adapter together until a separately qualified publication.
+
 ## Task-Oriented TypeScript API
 
 The [task-oriented SDK guide](sdk-developer-experience.md) documents rc.11's

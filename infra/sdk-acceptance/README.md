@@ -51,7 +51,7 @@ not retry mutations, extend realm token lifetimes or bypass API authentication.
 Git's distributed bootstrap claim remains out of scope.
 
 The companion package job builds with the repo-required Node 22 and executes
-the installed consumer tests and declarations under both Node 20 and Node 22.
+the installed consumer tests and declarations under Node 22/24 and legacy Node 20.
 Public evidence contains only allowlisted gate names, statuses, durations and
 artifact/source identities. Raw exceptions, credentials and kubeconfigs remain
 private and are removed by the always-run cleanup step.
@@ -64,3 +64,19 @@ pnpm --filter @h-sandbox/sdk test:package
 ```
 
 Package publication, merging and release acceptance remain separate decisions.
+
+## Persistent Framework Gate
+
+The `framework-durable-recovery` gate runs the documented PostgreSQL/Deep Agents
+workflow with separate Node workers, scripted tool decisions and native sandbox
+commands. It verifies approval before effects, worker death after acknowledgement,
+read-only command recovery, actual server-side TTL cleanup and retained files in
+a new runtime. It does not equate a local clock deadline with confirmed expiry
+or claim exactly-once effects. The existing real-model repair is a separate gate.
+
+Checkpoint PostgreSQL runs in a labelled, test-owned container on a dynamically
+assigned loopback port. Cleanup checks ownership before removing that container.
+No checkpoint service is installed into the product or the developer's cluster.
+The public receipt reports only the gate result, not database URLs, prompts or
+checkpoint contents. The configured suite now has 16 gates; historical 15-gate
+receipts are not evidence for the new recovery scenario.

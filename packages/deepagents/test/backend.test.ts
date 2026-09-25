@@ -194,10 +194,21 @@ test("between-file cancellation preserves completed uploads and downloads and th
       const f = fixture(); const controller = new AbortController();
       const bytes = new Uint8Array([1]);
       f.files.set("/app/a", bytes);
-      f.state.override = request => {
-        if (request.url.pathname.endsWith(operation === "upload" ? "/upload" : "/download")) controller.abort(reason);
-        return undefined;
-      };
+      // Cancel after the first verified transfer, not while its HTTP response is in flight.
+      if (operation === "upload") f.sandbox.files.write = new Proxy(f.sandbox.files.write, {
+        apply: async (target, receiver, args) => {
+          const result = await Reflect.apply(target, receiver, args);
+          controller.abort(reason);
+          return result;
+        }
+      });
+      else f.sandbox.files.readBytes = new Proxy(f.sandbox.files.readBytes, {
+        apply: async (target, receiver, args) => {
+          const result = await Reflect.apply(target, receiver, args);
+          controller.abort(reason);
+          return result;
+        }
+      });
       const backend = new HarakiriSandboxBackend(f.sandbox, { signal: controller.signal });
       const transfer = operation === "upload"
         ? backend.uploadFiles([["a", bytes], ["b", bytes], ["c", bytes]])

@@ -24,11 +24,13 @@ export async function withHarakiriSandbox<T>(
   const cleanupTimeoutMs = positiveInteger("cleanupTimeoutMs", options.cleanupTimeoutMs ?? 90_000);
   options.backend?.signal?.throwIfAborted();
   // Retain the accepted handle before readiness so failures still enter cleanup.
-  const sandbox = await client.sandboxes.create({ ...input, wait: false });
+  const sandbox = await client.sandboxes.create({ ...input, wait: false }, {
+    signal: options.backend?.signal, requestTimeoutMs: options.backend?.requestTimeoutMs
+  });
   let result!: T;
   const failures: unknown[] = [];
   try {
-    await sandbox.wait({ timeoutMs: readinessTimeoutMs, signal: options.backend?.signal });
+    await sandbox.wait({ timeoutMs: readinessTimeoutMs, signal: options.backend?.signal, requestTimeoutMs: options.backend?.requestTimeoutMs });
     const backend = new HarakiriSandboxBackend(sandbox, options.backend);
     result = await task({ sandbox, backend });
   } catch (error) {

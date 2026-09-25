@@ -98,6 +98,14 @@ stay separate. The secondary `run-checkpoint.ts` example demonstrates model-free
 approval and command reconnection, not agent reasoning. See the
 [architecture and operational boundaries](../docs/integrations/deepagents.md).
 
+The [Reliable Framework Workflows guide](../docs/integrations/reliable-framework-workflows.md)
+adds an **unreleased source example** using real Deep Agents and PostgreSQL-backed
+LangGraph checkpoints. It covers separate workers, exact-checkpoint approval,
+recorded command observation after a crash and explicit retained-file recovery.
+Build both source packages together; these request controls are not in the
+published SDK rc.11/adapter rc.1 pair. The application, not Harakiri, owns the
+checkpoint database and authenticated tenant/thread mapping.
+
 ## Other Reference Examples
 
 The repository also includes `sdk-basic-command`, `sdk-preview-route`,
@@ -116,5 +124,5 @@ Template sources live under `examples/templates`: `base-linux`,
 `pnpm --filter @harakiri/web docs:test-sdk` installs the pinned public packages
 in a temporary consumer and executes the exact displayed programs against a
 loopback HTTP fixture. It tests API contracts and failure handling, not a live
-runtime or model. CI runs the check on Node 20 and 22; installed candidate
+runtime or model. CI is configured for Node 22/24 and legacy Node 20; installed candidate
 package tests remain a separate gate.

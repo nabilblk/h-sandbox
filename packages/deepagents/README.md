@@ -35,8 +35,20 @@ verifies the original tests and returns a diff after confirmed cleanup.
 
 **Developer preview on npm.** Install `@h-sandbox/deepagents@next` with the exact
 SDK and framework peers below. Native tools and an independently verified model
-repair have passed. Node 20+ is the consumer target; repository tooling uses
-Node 22+. This optional package has its own release cycle, separate from the SDK.
+repair have passed. Use Node 22 LTS for the published preview. Source checks also
+cover Node 24 LTS; Node 20 remains a legacy compatibility target, not a supported
+Node.js production line. This optional package has its
+own release cycle, separate from the SDK.
+
+Minimal backend installation:
+
+```bash
+npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11 deepagents@1.14.0
+```
+
+For the complete model and checkpoint examples, start with the full direct
+dependency set together. Adding older framework pins after auto-installed peers
+can leave duplicate LangGraph types in a pnpm lockfile.
 
 ```bash
 # In your server-side application:
@@ -129,6 +141,12 @@ checkpointer, pause for approval and retrieve one command's result. It does not
 claim process-restart durability. Production applications supply a persistent
 checkpointer and their own authorized sandbox lookup.
 
+The **unreleased source** [persistent workflow guide](https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/reliable-framework-workflows.md)
+adds a real `createDeepAgent`/PostgresSaver application with separate worker
+processes, checkpoint-bound approval, acknowledged-command observation and
+explicit retained-file recovery. Build both packages from the same checkout;
+the registry versions above do not contain its new request controls.
+
 The repair example requires **Node.js, Git,
 bash and GNU file tools** in the selected template. Its blocked egress policy
 requires enforcement support in your installation. It downloads no dependencies
@@ -176,10 +194,13 @@ distinguishes native qualification from package publication and deployment.
   exits are ordinary tool results. The adapter never retries a mutation.
   A framework or model can still request the same action again; approval and
   idempotent application operations are required where repeat effects matter.
-- Execution timeout, status-polling timeout and sandbox TTL are separate.
-  Cancellation stops polling/between-file work, not a running remote command.
-  Submission, file and log HTTP requests use the SDK transport; supply bounded
-  `fetch` in client configuration if you need per-request transport deadlines.
+- In the unreleased source, HTTP `requestTimeoutMs`, execution timeout,
+  observation timeout and sandbox TTL are separate. JSON HTTP requests default
+  to 120 seconds, including body reads. Per-call options and caller cancellation
+  also cover submissions, logs and transfers; the adapter's observation budget
+  includes final logs. None of these kill a remote command or authorize a retry.
+  Published rc.1 instead requires a bounded custom `fetch` for per-request
+  deadlines and its observation budget excludes final logs.
 - Output is stdout followed by stderr, not a chronological merge. The default
   combined UTF-8 log limit is 64 KiB; provider truncation flags remain visible.
   A fixed-size termination notice is outside that limit so timeouts/kills are

@@ -78,5 +78,5 @@ export function fixture(id = "sbx_framework") {
     throw new Error(`Unexpected fixture request: ${request.method} ${path}`);
   };
   const client = new HarakiriClient({ apiUrl: "https://harakiri.example.invalid", apiKey: "synthetic-framework-key", fetch });
-  return { ...state, client, state, sandbox: client.sandboxes.wrap(summary) };
+  return { ...state, client, state, fetch, sandbox: client.sandboxes.wrap(summary) };
 }

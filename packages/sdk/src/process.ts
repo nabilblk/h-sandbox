@@ -2,6 +2,7 @@ import type { HarakiriClient, WaitForCommandOptions, GetCommandLogsOptions } fro
 import type { SandboxCommandResponse, SandboxCommandSummary } from "./protocol.js";
 import type { CommandStreamOptions } from "./command-stream.js";
 import { HarakiriCommandEndedError } from "./operation-errors.js";
+import type { RequestOptions } from "./request.js";
 
 /** A durable command reference. Reconnecting never submits the command again. */
 export class HarakiriProcess implements SandboxCommandResponse {
@@ -17,8 +18,8 @@ export class HarakiriProcess implements SandboxCommandResponse {
   /** Safe to persist in an application job record. Contains no authentication material. */
   get reference() { return { sandboxId: this.sandboxId, commandId: this.id }; }
 
-  async refresh() {
-    this.command = (await this.#client.getCommand(this.sandboxId, this.id)).command;
+  async refresh(options: RequestOptions = {}) {
+    this.command = (await this.#client.getCommand(this.sandboxId, this.id, options)).command;
     return this;
   }
 
@@ -43,8 +44,8 @@ export class HarakiriProcess implements SandboxCommandResponse {
     return this.#client.streamCommand(this.sandboxId, this.id, options);
   }
 
-  async kill() {
-    this.command = (await this.#client.killCommand(this.sandboxId, this.id)).command;
+  async kill(options: RequestOptions = {}) {
+    this.command = (await this.#client.killCommand(this.sandboxId, this.id, options)).command;
     return this.command;
   }
 }

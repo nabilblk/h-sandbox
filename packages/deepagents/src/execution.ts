@@ -1,17 +1,18 @@
-import type { HarakiriSandbox, SandboxCommandLogsResponse, SandboxCommandSummary } from "@h-sandbox/sdk";
+import type { HarakiriSandbox, RequestOptions, SandboxCommandLogsResponse, SandboxCommandSummary } from "@h-sandbox/sdk";
+import { HarakiriWaitTimeoutError } from "@h-sandbox/sdk";
 import type { ExecuteResponse } from "deepagents";
 import { HarakiriExecutionError, type CommandReference } from "./errors.js";
 
-export type ExecutionOptions = {
+export type ExecutionOptions = RequestOptions & {
   /** Remote execution budget. Defaults to the runtime's advertised command timeout. */
   timeoutMs?: number;
-  /** Command-status polling budget, excluding log download; never extends TTL. */
+  /** Total observation budget, including final log download; never extends TTL. */
   observationTimeoutMs?: number;
   /** Combined UTF-8 log limit, excluding a fixed termination notice. Default 64 KiB; at most 1 MiB. */
   maxOutputBytes?: number;
   /** Must be absolute. This is a working directory, not a security boundary. */
   cwd?: string;
-  /** Stops observation. It does not kill the remote command. */
+  /** Cancels local requests/observation. It does not kill the remote command. */
   signal?: AbortSignal;
   /** Persist the acknowledged reference before waiting. Never receives credentials. */
   onCommandStarted?: (reference: CommandReference) => void | Promise<void>;
@@ -33,9 +34,10 @@ export function executionOptions(sandbox: HarakiriSandbox, options: ExecutionOpt
   const cwd = options.cwd ?? sandbox.runtimeMetadata.workdir;
   if (!cwd.startsWith("/") || cwd.includes("\0")) throw new TypeError("cwd must be an absolute path without NUL characters.");
   const timeoutMs = positiveInteger("timeoutMs", options.timeoutMs ?? sandbox.runtimeMetadata.limits.commandTimeoutMs);
+  if (options.requestTimeoutMs !== undefined) positiveInteger("requestTimeoutMs", options.requestTimeoutMs, 2_147_483_647);
   return {
     ...options, cwd, timeoutMs,
-    observationTimeoutMs: positiveInteger("observationTimeoutMs", options.observationTimeoutMs ?? timeoutMs + 10_000),
+    observationTimeoutMs: positiveInteger("observationTimeoutMs", options.observationTimeoutMs ?? timeoutMs + 10_000, 2_147_483_647),
     maxOutputBytes: positiveInteger("maxOutputBytes", options.maxOutputBytes ?? 65_536, 1_048_576)
   };
 }
@@ -81,13 +83,28 @@ export async function observeCommand(
   }
   try {
     options.signal?.throwIfAborted();
+    const deadline = Date.now() + options.observationTimeoutMs;
     const { command } = await sandbox.processes.wait(reference.commandId, {
       statuses: ["succeeded", "failed", "killed"],
       timeoutMs: options.observationTimeoutMs,
+      requestTimeoutMs: options.requestTimeoutMs,
       signal: options.signal
     });
     options.signal?.throwIfAborted();
-    const logs = await sandbox.processes.logs(reference.commandId);
+    const remainingMs = deadline - Date.now();
+    const timeout = () => new HarakiriWaitTimeoutError("Observation deadline elapsed during log retrieval. Reconnect using the command reference.", "command", reference.commandId, command.status);
+    if (remainingMs <= 0) throw timeout();
+    const controller = new AbortController();
+    const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
+    const timer = setTimeout(() => controller.abort(timeout()), remainingMs);
+    let logs: SandboxCommandLogsResponse;
+    try {
+      logs = await sandbox.processes.logs(reference.commandId, {
+        signal, requestTimeoutMs: options.requestTimeoutMs
+      });
+      signal.throwIfAborted();
+      if (Date.now() >= deadline) throw timeout();
+    } finally { clearTimeout(timer); }
     options.signal?.throwIfAborted();
     const result = commandOutput(logs, options.maxOutputBytes);
     const notice = terminationNotice(command);

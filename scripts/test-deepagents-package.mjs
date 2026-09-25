@@ -14,6 +14,8 @@ const tooling = createRequire(join(root, "package.json"));
 const ts = tooling("typescript");
 const consumerNode = process.env.HARAKIRI_DEEPAGENTS_TEST_NODE ?? process.execPath;
 const mode = process.argv[2] ?? "--source";
+const packageManager = process.env.HARAKIRI_DEEPAGENTS_PACKAGE_MANAGER ?? "npm";
+assert.ok(["npm", "pnpm"].includes(packageManager), "Consumer package manager must be npm or pnpm");
 assert.ok(process.argv.length <= 3 && ["--source", "--release-candidate", "--published"].includes(mode), "Unknown package verification mode");
 const directory = mkdtempSync(join(tmpdir(), "harakiri-deepagents-package-"));
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(npm_config_|npm_token$|node_auth_token$)/i.test(key)));
@@ -46,12 +48,33 @@ try {
     assert.equal(archives.length, mode === "--source" ? 2 : 1, "Unexpected candidate archives");
     packages.push(...archives.map(file => join(directory, file)));
   }
-  const dependencies = Object.fromEntries(Object.entries(manifest.devDependencies)
-    .filter(([name]) => name !== "@h-sandbox/sdk" && name !== "tsx"));
-  writeFileSync(join(directory, "package.json"), JSON.stringify({ private: true, type: "module", dependencies }));
-  run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org",
-    ...packages], directory);
-  run("npm", ["ls", "@h-sandbox/sdk", "@h-sandbox/deepagents", "deepagents", "@langchain/langgraph"], directory);
+  const install = values => run(packageManager, packageManager === "npm"
+    ? ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org", ...values]
+    : ["add", "--ignore-scripts", "--registry=https://registry.npmjs.org", ...values], directory);
+  // First prove the minimal consumer, before adding dependencies used by the larger reference app.
+  writeFileSync(join(directory, "package.json"), JSON.stringify({ private: true, type: "module" }));
+  install([...packages, `deepagents@${manifest.peerDependencies.deepagents}`]);
+  writeFileSync(join(directory, "minimal.ts"), `
+import assert from "node:assert/strict";
+import { HarakiriClient, type HarakiriSandbox, type SandboxSummary } from "@h-sandbox/sdk";
+import { HarakiriSandboxBackend } from "@h-sandbox/deepagents";
+import { createDeepAgent } from "deepagents";
+export const attach = (sandbox: HarakiriSandbox) => createDeepAgent({ backend: new HarakiriSandboxBackend(sandbox) });
+const client = new HarakiriClient({ apiUrl: "https://fixture.invalid", apiKey: "fixture", fetch: async url =>
+  String(url).endsWith("/logs") ? Response.json({ stdout: "verified", stderr: "" }) :
+  Response.json({ command: { id: "cmd_minimal", sandboxId: "sbx_minimal", status: "succeeded", exitCode: 0, finishReason: "exit" } }) });
+const sandbox = client.sandboxes.wrap({ id: "sbx_minimal", runtimeMetadata: { workdir: "/workspace", limits: { commandTimeoutMs: 1000 } } } as SandboxSummary);
+assert.equal((await new HarakiriSandboxBackend(sandbox).execute("true")).output, "verified");
+`);
+  run(consumerNode, [resolve(root, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
+    "--module", "NodeNext", "--typeRoots", resolve(root, "node_modules/@types"), "--outDir", "minimal-dist", "minimal.ts"], directory);
+  run(consumerNode, ["minimal-dist/minimal.js"], directory);
+  const dependencies = Object.entries(manifest.devDependencies).filter(([name]) => name !== "@h-sandbox/sdk" && name !== "tsx");
+  // Qualify a clean full application too; do not retain auto-installed minimal-example peers.
+  for (const name of ["node_modules", "package-lock.json", "pnpm-lock.yaml"]) rmSync(join(directory, name), { recursive: true, force: true });
+  writeFileSync(join(directory, "package.json"), JSON.stringify({ private: true, type: "module", dependencies: Object.fromEntries(dependencies) }));
+  install(packages);
+  run(packageManager, [packageManager === "npm" ? "ls" : "list", "@h-sandbox/sdk", "@h-sandbox/deepagents", "deepagents", "@langchain/langgraph"], directory);
 
   const installed = join(directory, "node_modules/@h-sandbox/deepagents");
   const installedManifest = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"));
@@ -80,6 +103,8 @@ try {
   for (const file of readdirSync(join(integration, "examples")).filter(file => file.endsWith(".ts"))) {
     writeFileSync(join(directory, "examples", file), readFileSync(join(integration, "examples", file)));
   }
+  // Typecheck the runner-only scenario against installed packages without executing it locally.
+  writeFileSync(join(directory, "durable-workflows.mts"), readFileSync(join(root, "infra/sdk-acceptance/durable-workflows.mts")));
   // Compile the exact displayed programs, not a hand-maintained imitation.
   const docs = ts.createSourceFile("deepagents-docs.tsx", readFileSync(join(root, "apps/web/src/deepagents-docs.tsx"), "utf8"),
     ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -127,8 +152,8 @@ test("the exact documented model-free program confirms cleanup", async () => {
   const programs = ["test", "examples"].flatMap(folder => readdirSync(join(directory, folder))
     .filter(file => file.endsWith(".ts")).map(file => `${folder}/${file}`));
   run(consumerNode, [resolve(root, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--skipLibCheck",
-    "--target", "ES2022", "--module", "NodeNext", "--typeRoots", resolve(root, "node_modules/@types"), ...programs], directory);
-  console.log(`Installed Deep Agents adapter ${manifest.version} (${mode}): anonymous install, framework behavior, public exports and examples passed. No live runtime or model was used.`);
+    "--target", "ES2022", "--module", "NodeNext", "--typeRoots", resolve(root, "node_modules/@types"), "durable-workflows.mts", ...programs], directory);
+  console.log(`Installed Deep Agents adapter ${manifest.version} (${mode}, ${packageManager}): minimal anonymous install, framework behavior, public exports and examples passed. No live runtime or model was used.`);
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

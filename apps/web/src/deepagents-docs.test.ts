@@ -21,6 +21,8 @@ test("framework integration is a searchable first-class guide with matching code
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
     "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
     "completed the real-model repair", "qualification run passed all 15 gates",
+    "Persistent workflows", "PostgresSaver", "WORKFLOW_CHECKPOINT_ID", "Unreleased source example",
+    "three direct packages", "npm and pnpm", "requestTimeoutMs", "synthetic",
     "Runtime qualification and registry publication are separate checks"]) assert.ok(markdown.includes(contract), contract);
   assert.doesNotMatch(markdown, /full-suite requalification is pending|Unpublished release candidate|DEEPAGENTS_TARBALL/);
   const receipt = new URL("../../../docs/release-notes/deepagents-0.1.0-delivery.md", import.meta.url);

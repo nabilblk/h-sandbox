@@ -125,13 +125,14 @@ jobs:
         run: pnpm --filter @harakiri/api typecheck
 
   deepagents:
-    name: Deep Agents consumer (Node ${{ matrix.node }})
+    name: Deep Agents consumer (Node ${{ matrix.node }}, ${{ matrix.package-manager }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "22"]
+        node: ["20", "22", "24"]
+        package-manager: ["npm", "pnpm"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -151,7 +152,41 @@ jobs:
       - name: Check adapter and examples
         run: pnpm --filter @h-sandbox/deepagents typecheck
       - name: Test real frameworks and public declarations through installed tarballs
+        env:
+          HARAKIRI_DEEPAGENTS_PACKAGE_MANAGER: ${{ matrix.package-manager }}
         run: pnpm --filter @h-sandbox/deepagents test:package
+
+  durable-framework:
+    name: Persistent framework recovery (PostgreSQL, separate workers)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.15-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+      - name: Install and build
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @h-sandbox/deepagents build
+      - name: Prove restart, approval, observation and explicit recovery boundaries
+        env:
+          HARAKIRI_WORKFLOW_TEST_REQUIRED: "1"
+          HARAKIRI_WORKFLOW_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+        run: pnpm --filter @h-sandbox/deepagents exec node --test --import tsx test/durable-postgres.test.ts
 
   published-sdk-docs:
     name: SDK documentation (Node ${{ matrix.node }})
@@ -159,7 +194,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "22"]
+        node: ["20", "22", "24"]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

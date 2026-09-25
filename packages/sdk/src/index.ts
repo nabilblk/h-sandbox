@@ -5,6 +5,8 @@ import { HarakiriProcess } from "./process.js";
 import { HarakiriRoute } from "./route.js";
 import { HarakiriWorkspace } from "./workspace.js";
 import { createSandboxFiles } from "./files.js";
+import { requestJson, defaultRequestTimeoutMs, validateRequestTimeout, type RequestOptions } from "./request.js";
+export { HarakiriRequestTimeoutError, type RequestOptions } from "./request.js";
 export { HarakiriProcess } from "./process.js";
 export { HarakiriRoute } from "./route.js";
 export { HarakiriWorkspace } from "./workspace.js";
@@ -373,6 +375,8 @@ export type HarakiriClientOptions = {
   apiUrl: string;
   apiKey: string;
   fetch?: typeof fetch;
+  /** Default local HTTP deadline, including body reads. Defaults to 120000 ms. */
+  requestTimeoutMs?: number;
 };
 
 export type GitCredentialPersistence = "one-shot" | "dangerously-store-in-remote";
@@ -414,13 +418,13 @@ export type CreateSandboxInput = CreateSandboxBody & {
 };
 
 export type RunSandboxInput = RunSandboxBody;
-export type RunOptions = Omit<RunSandboxBody, "command"> & {
+export type RunOptions = Omit<RunSandboxBody, "command"> & RequestOptions & {
   /** Throw HarakiriRunError on a nonzero exit; false by default. */
   check?: boolean;
   /** Stops waiting for the HTTP response; does not stop remote execution. */
   signal?: AbortSignal;
 };
-export type KillSandboxOptions = ObservationOptions & { wait?: boolean };
+export type KillSandboxOptions = ObservationOptions & RequestOptions & { wait?: boolean };
 export type ListSandboxesOptions = {
   status?: SandboxStatus | "all";
   q?: string;
@@ -428,7 +432,7 @@ export type ListSandboxesOptions = {
   templateVersionId?: string;
   limit?: number;
 };
-export type WaitForWorkspaceOptions = ObservationOptions & {
+export type WaitForWorkspaceOptions = ObservationOptions & RequestOptions & {
   statuses?: WorkspaceResponse["workspace"]["status"][];
 };
 export type CreateSandboxCommandInput = CreateSandboxCommandBody;
@@ -442,28 +446,28 @@ export type TerminalAttachRequest = {
 
 export type ExposePortInput = ExposeSandboxRouteBody;
 
-export type WaitForSandboxOptions = {
+export type WaitForSandboxOptions = RequestOptions & {
   timeoutMs?: number;
   intervalMs?: number;
   statuses?: SandboxStatus[];
   signal?: AbortSignal;
 };
 
-export type WaitForCommandOptions = {
+export type WaitForCommandOptions = RequestOptions & {
   timeoutMs?: number;
   intervalMs?: number;
   statuses?: SandboxCommandStatus[];
   signal?: AbortSignal;
 };
 
-export type WaitForSnapshotOptions = {
+export type WaitForSnapshotOptions = RequestOptions & {
   timeoutMs?: number;
   intervalMs?: number;
   statuses?: SandboxSnapshotStatus[];
   signal?: AbortSignal;
 };
 
-export type GetCommandLogsOptions = {
+export type GetCommandLogsOptions = RequestOptions & {
   cursor?: number;
   tail?: number;
 };
@@ -476,7 +480,7 @@ export type GitCommandOptions = {
   env?: Record<string, string>;
 };
 
-export type GitCloneOptions = {
+export type GitCloneOptions = RequestOptions & {
   branch?: string;
   commit?: string;
   targetPath?: string;
@@ -1062,13 +1066,13 @@ export class HarakiriSandbox {
       () => this.runtimeMetadata.limits.fileArtifactMaxBytes);
   }
 
-  static async create(client: HarakiriClient, input: CreateSandboxInput = {}) {
-    const result = await client.createSandbox(input);
+  static async create(client: HarakiriClient, input: CreateSandboxInput = {}, options: RequestOptions = {}) {
+    const result = await client.createSandbox(input, options);
     return new HarakiriSandbox({ client, sandbox: result.sandbox, creation: result });
   }
 
-  static async connect(client: HarakiriClient, id: string) {
-    const result = await client.getSandbox(id);
+  static async connect(client: HarakiriClient, id: string, options: RequestOptions = {}) {
+    const result = await client.getSandbox(id, options);
     return new HarakiriSandbox({ client, sandbox: result.sandbox });
   }
 
@@ -1113,8 +1117,8 @@ export class HarakiriSandbox {
     return this.current.expiresAt;
   }
 
-  async refresh() {
-    const result = await this.client.getSandbox(this.id);
+  async refresh(options: RequestOptions = {}) {
+    const result = await this.client.getSandbox(this.id, options);
     this.current = result.sandbox;
     this.currentReadiness = undefined;
     return this;
@@ -1128,7 +1132,7 @@ export class HarakiriSandbox {
   }
 
   /** Read-only confirmation after an earlier delete acknowledgement or an interrupted cleanup wait. */
-  async waitForTermination(options: ObservationOptions = {}) {
+  async waitForTermination(options: ObservationOptions & RequestOptions = {}) {
     const result = await this.client.waitForSandboxTermination(this.id, options);
     this.current = result.sandbox;
     this.currentReadiness = undefined;
@@ -1141,8 +1145,8 @@ export class HarakiriSandbox {
     return result;
   }
 
-  reconnect() {
-    return this.refresh();
+  reconnect(options: RequestOptions = {}) {
+    return this.refresh(options);
   }
 
   /** Requests deletion; wait:true additionally confirms this sandbox's capacity release. */
@@ -1174,15 +1178,15 @@ export class HarakiriSandbox {
   }
 
   /** Compatibility overload: preserves the existing response envelope. */
-  run(input: RunSandboxInput): Promise<RunSandboxResponse>;
+  run(input: RunSandboxInput, options?: RequestOptions): Promise<RunSandboxResponse>;
   /** Executes finite shell work in the runtime workdir and returns output directly. */
   run(command: string, options?: RunOptions): Promise<RunSandboxResponse["result"]>;
   async run(input: RunSandboxInput | string, options: RunOptions = {}) {
-    if (typeof input !== "string") return this.client.runSandbox(this.id, input);
+    if (typeof input !== "string") return this.client.runSandbox(this.id, input, options);
     if (!input.trim()) throw new TypeError("An explicit nonempty command is required.");
-    const { check = false, signal, ...body } = options;
+    const { check = false, signal, requestTimeoutMs, ...body } = options;
     signal?.throwIfAborted();
-    const { result } = await this.client.runSandbox(this.id, { ...body, command: input, cwd: body.cwd ?? this.runtimeMetadata.workdir }, { signal });
+    const { result } = await this.client.runSandbox(this.id, { ...body, command: input, cwd: body.cwd ?? this.runtimeMetadata.workdir }, { signal, requestTimeoutMs });
     if (check && result.exitCode !== 0) throw new HarakiriRunError(result);
     return result;
   }
@@ -1196,14 +1200,14 @@ export class HarakiriSandbox {
   }
 
   readonly commands = {
-    start: (input: CreateSandboxCommandInput) => this.client.commands.start(this.id, input),
+    start: (input: CreateSandboxCommandInput, options: RequestOptions = {}) => this.client.commands.start(this.id, input, options),
     stream: (commandId: string, options: CommandStreamOptions = {}) => this.client.commands.stream(this.id, commandId, options),
     /** @deprecated An alias for submission, not completion. Use sandbox.run or processes.start. */
-    run: (input: CreateSandboxCommandInput) => this.client.commands.run(this.id, input),
-    list: () => this.client.commands.list(this.id),
-    get: (commandId: string) => this.client.commands.get(this.id, commandId),
+    run: (input: CreateSandboxCommandInput, options: RequestOptions = {}) => this.client.commands.run(this.id, input, options),
+    list: (options: RequestOptions = {}) => this.client.commands.list(this.id, options),
+    get: (commandId: string, options: RequestOptions = {}) => this.client.commands.get(this.id, commandId, options),
     logs: (commandId: string, options: GetCommandLogsOptions = {}) => this.client.commands.logs(this.id, commandId, options),
-    kill: (commandId: string) => this.client.commands.kill(this.id, commandId),
+    kill: (commandId: string, options: RequestOptions = {}) => this.client.commands.kill(this.id, commandId, options),
     wait: (commandId: string, options: WaitForCommandOptions = {}) => this.client.commands.wait(this.id, commandId, options),
     sessions: {
       create: (input: CreateSandboxCommandSessionInput = {}) => this.client.commands.sessions.create(this.id, input),
@@ -1214,19 +1218,19 @@ export class HarakiriSandbox {
 
   readonly processes = {
     /** Starts once. Save the returned reference before observing long-running work. */
-    start: async (input: CreateSandboxCommandInput) => {
-      const result = await this.client.processes.start(this.id, { ...input, cwd: input.cwd ?? this.runtimeMetadata.workdir, detached: input.detached ?? true });
+    start: async (input: CreateSandboxCommandInput, options: RequestOptions = {}) => {
+      const result = await this.client.processes.start(this.id, { ...input, cwd: input.cwd ?? this.runtimeMetadata.workdir, detached: input.detached ?? true }, options);
       return new HarakiriProcess(this.client, result.command);
     },
     /** Observes an existing command; never resubmits it or resumes the sandbox. */
-    connect: async (processId: string) => new HarakiriProcess(this.client, (await this.client.getCommand(this.id, processId)).command),
+    connect: async (processId: string, options: RequestOptions = {}) => new HarakiriProcess(this.client, (await this.client.getCommand(this.id, processId, options)).command),
     stream: (processId: string, options: CommandStreamOptions = {}) => this.client.processes.stream(this.id, processId, options),
-    list: () => this.client.processes.list(this.id),
-    get: (processId: string) => this.client.processes.get(this.id, processId),
+    list: (options: RequestOptions = {}) => this.client.processes.list(this.id, options),
+    get: (processId: string, options: RequestOptions = {}) => this.client.processes.get(this.id, processId, options),
     logs: (processId: string, options: GetCommandLogsOptions = {}) => this.client.processes.logs(this.id, processId, options),
-    tail: (processId: string, lines = 100) => this.client.processes.tail(this.id, processId, lines),
+    tail: (processId: string, lines = 100, options: RequestOptions = {}) => this.client.processes.tail(this.id, processId, lines, options),
     wait: (processId: string, options: WaitForCommandOptions = {}) => this.client.processes.wait(this.id, processId, options),
-    kill: (processId: string) => this.client.processes.kill(this.id, processId)
+    kill: (processId: string, options: RequestOptions = {}) => this.client.processes.kill(this.id, processId, options)
   };
 
   readonly terminal = {
@@ -1236,8 +1240,8 @@ export class HarakiriSandbox {
   };
 
   readonly artifacts = {
-    upload: (input: SandboxFileUploadBody) => this.client.artifacts.upload(this.id, input),
-    download: (path: string) => this.client.artifacts.download(this.id, path)
+    upload: (input: SandboxFileUploadBody, options: RequestOptions = {}) => this.client.artifacts.upload(this.id, input, options),
+    download: (path: string, options: RequestOptions = {}) => this.client.artifacts.download(this.id, path, options)
   };
 
   readonly routes = {
@@ -1305,6 +1309,7 @@ export class HarakiriClient {
   private readonly apiUrl: string;
   readonly #apiKey: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly requestTimeoutMs: number;
 
   constructor(options: HarakiriClientOptions) {
     if (!options.apiUrl) throw new Error("apiUrl is required");
@@ -1312,6 +1317,7 @@ export class HarakiriClient {
     this.apiUrl = options.apiUrl.replace(/\/+$/, "");
     this.#apiKey = options.apiKey;
     this.fetchImpl = options.fetch ?? fetch;
+    this.requestTimeoutMs = validateRequestTimeout(options.requestTimeoutMs ?? defaultRequestTimeoutMs);
   }
 
   /** Configures a self-hosted client from HARAKIRI_API_URL and HARAKIRI_API_KEY. */
@@ -1321,12 +1327,12 @@ export class HarakiriClient {
 
   readonly commands = {
     stream: (id: string, commandId: string, options: CommandStreamOptions = {}) => this.streamCommand(id, commandId, options),
-    start: (id: string, input: CreateSandboxCommandInput) => this.startCommand(id, input),
-    run: (id: string, input: CreateSandboxCommandInput) => this.runCommand(id, input),
-    list: (id: string) => this.listCommands(id),
-    get: (id: string, commandId: string) => this.getCommand(id, commandId),
+    start: (id: string, input: CreateSandboxCommandInput, options: RequestOptions = {}) => this.startCommand(id, input, options),
+    run: (id: string, input: CreateSandboxCommandInput, options: RequestOptions = {}) => this.runCommand(id, input, options),
+    list: (id: string, options: RequestOptions = {}) => this.listCommands(id, options),
+    get: (id: string, commandId: string, options: RequestOptions = {}) => this.getCommand(id, commandId, options),
     logs: (id: string, commandId: string, options: GetCommandLogsOptions = {}) => this.getCommandLogs(id, commandId, options),
-    kill: (id: string, commandId: string) => this.killCommand(id, commandId),
+    kill: (id: string, commandId: string, options: RequestOptions = {}) => this.killCommand(id, commandId, options),
     wait: (id: string, commandId: string, options: WaitForCommandOptions = {}) => this.waitForCommand(id, commandId, options),
     sessions: {
       create: (id: string, input: CreateSandboxCommandSessionInput = {}) => this.createCommandSession(id, input),
@@ -1336,14 +1342,14 @@ export class HarakiriClient {
   };
 
   readonly processes = {
-    start: (id: string, input: CreateSandboxCommandInput) => this.startCommand(id, { ...input, detached: input.detached ?? true }),
+    start: (id: string, input: CreateSandboxCommandInput, options: RequestOptions = {}) => this.startCommand(id, { ...input, detached: input.detached ?? true }, options),
     stream: (id: string, commandId: string, options: CommandStreamOptions = {}) => this.streamCommand(id, commandId, options),
-    list: (id: string) => this.listCommands(id),
-    get: (id: string, processId: string) => this.getCommand(id, processId),
+    list: (id: string, options: RequestOptions = {}) => this.listCommands(id, options),
+    get: (id: string, processId: string, options: RequestOptions = {}) => this.getCommand(id, processId, options),
     logs: (id: string, processId: string, options: GetCommandLogsOptions = {}) => this.getCommandLogs(id, processId, options),
-    tail: (id: string, processId: string, lines = 100) => this.getCommandLogs(id, processId, { tail: lines }),
+    tail: (id: string, processId: string, lines = 100, options: RequestOptions = {}) => this.getCommandLogs(id, processId, { ...options, tail: lines }),
     wait: (id: string, processId: string, options: WaitForCommandOptions = {}) => this.waitForCommand(id, processId, options),
-    kill: (id: string, processId: string) => this.killCommand(id, processId)
+    kill: (id: string, processId: string, options: RequestOptions = {}) => this.killCommand(id, processId, options)
   };
 
   readonly terminal = {
@@ -1353,20 +1359,20 @@ export class HarakiriClient {
   };
 
   readonly files = {
-    list: (id: string, path?: string) => this.listSandboxFiles(id, path),
-    stat: (id: string, path: string) => this.statSandboxFile(id, path),
-    read: (id: string, path: string, options: { encoding?: "utf8" | "base64" } = {}) => this.readSandboxFile(id, path, options),
-    write: (id: string, input: SandboxFileWriteBody) => this.writeSandboxFile(id, input),
-    mkdir: (id: string, input: SandboxFileMkdirBody) => this.mkdirSandboxFile(id, input),
-    remove: (id: string, path: string, options: { recursive?: boolean } = {}) => this.removeSandboxFile(id, path, options),
-    rename: (id: string, input: SandboxFileRenameBody) => this.renameSandboxFile(id, input),
-    upload: (id: string, input: SandboxFileUploadBody) => this.uploadSandboxFile(id, input),
-    download: (id: string, path: string) => this.downloadSandboxFile(id, path)
+    list: (id: string, path?: string, options: RequestOptions = {}) => this.listSandboxFiles(id, path, options),
+    stat: (id: string, path: string, options: RequestOptions = {}) => this.statSandboxFile(id, path, options),
+    read: (id: string, path: string, options: RequestOptions & { encoding?: "utf8" | "base64" } = {}) => this.readSandboxFile(id, path, options),
+    write: (id: string, input: SandboxFileWriteBody, options: RequestOptions = {}) => this.writeSandboxFile(id, input, options),
+    mkdir: (id: string, input: SandboxFileMkdirBody, options: RequestOptions = {}) => this.mkdirSandboxFile(id, input, options),
+    remove: (id: string, path: string, options: RequestOptions & { recursive?: boolean } = {}) => this.removeSandboxFile(id, path, options),
+    rename: (id: string, input: SandboxFileRenameBody, options: RequestOptions = {}) => this.renameSandboxFile(id, input, options),
+    upload: (id: string, input: SandboxFileUploadBody, options: RequestOptions = {}) => this.uploadSandboxFile(id, input, options),
+    download: (id: string, path: string, options: RequestOptions = {}) => this.downloadSandboxFile(id, path, options)
   };
 
   readonly artifacts = {
-    upload: (id: string, input: SandboxFileUploadBody) => this.uploadSandboxFile(id, input),
-    download: (id: string, path: string) => this.downloadSandboxFile(id, path)
+    upload: (id: string, input: SandboxFileUploadBody, options: RequestOptions = {}) => this.uploadSandboxFile(id, input, options),
+    download: (id: string, path: string, options: RequestOptions = {}) => this.downloadSandboxFile(id, path, options)
   };
 
   readonly routes = {
@@ -1459,13 +1465,13 @@ export class HarakiriClient {
   };
 
   readonly sandboxes = {
-    create: (input: CreateSandboxInput = {}) => HarakiriSandbox.create(this, input),
-    connect: (id: string) => HarakiriSandbox.connect(this, id),
+    create: (input: CreateSandboxInput = {}, options: RequestOptions = {}) => HarakiriSandbox.create(this, input, options),
+    connect: (id: string, options: RequestOptions = {}) => HarakiriSandbox.connect(this, id, options),
     wrap: (sandbox: SandboxSummary) => HarakiriSandbox.wrap(this, sandbox),
     list: (params: string | ListSandboxesOptions = {}) => this.listSandboxes(params),
-    get: (id: string) => this.getSandbox(id),
-    readiness: (id: string, options: { signal?: AbortSignal } = {}) => this.getSandboxReadiness(id, options),
-    reconnect: (id: string) => HarakiriSandbox.connect(this, id),
+    get: (id: string, options: RequestOptions = {}) => this.getSandbox(id, options),
+    readiness: (id: string, options: RequestOptions = {}) => this.getSandboxReadiness(id, options),
+    reconnect: (id: string, options: RequestOptions = {}) => HarakiriSandbox.connect(this, id, options),
     wait: (id: string, options: WaitForSandboxOptions = {}) => this.waitForSandbox(id, options),
     renew: (id: string) => this.renewSandbox(id),
     kill: (id: string, options: KillSandboxOptions = {}) => this.killSandbox(id, options),
@@ -1481,29 +1487,27 @@ export class HarakiriClient {
     wait: (id: string, options: WaitForSnapshotOptions = {}) => this.waitForSnapshot(id, options)
   };
 
-  private async request<T>(path: string, init: RequestInit = {}) {
+  private async request<T>(path: string, init: RequestInit = {}, options: RequestOptions = {}) {
     const hasBody = init.body !== undefined;
-    const response = await this.fetchImpl(`${this.apiUrl}${path}`, {
+    return requestJson<T>(this.fetchImpl, `${this.apiUrl}${path}`, {
       ...init,
       headers: {
         ...(hasBody ? { "content-type": "application/json" } : {}),
         "x-api-key": this.#apiKey,
         ...(init.headers ?? {})
       }
-    });
-    if (!response.ok) throw createHarakiriApiError(response.status, await response.text());
-    return (await response.json()) as T;
+    }, { ...options, requestTimeoutMs: options.requestTimeoutMs ?? this.requestTimeoutMs }, createHarakiriApiError);
   }
 
   readonly workspaces = {
-    list: () => this.request<WorkspacesResponse>("/v1/workspaces"),
-    create: async (input: CreateWorkspaceBody) => new HarakiriWorkspace(this,
-      (await this.request<WorkspaceResponse>("/v1/workspaces", { method: "POST", body: JSON.stringify(input) })).workspace),
-    connect: async (id: string): Promise<HarakiriWorkspace> => new HarakiriWorkspace(this, (await this.workspaces.get(id)).workspace),
-    get: (id: string) => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}`),
+    list: (options: RequestOptions = {}) => this.request<WorkspacesResponse>("/v1/workspaces", {}, options),
+    create: async (input: CreateWorkspaceBody, options: RequestOptions = {}) => new HarakiriWorkspace(this,
+      (await this.request<WorkspaceResponse>("/v1/workspaces", { method: "POST", body: JSON.stringify(input) }, options)).workspace),
+    connect: async (id: string, options: RequestOptions = {}): Promise<HarakiriWorkspace> => new HarakiriWorkspace(this, (await this.workspaces.get(id, options)).workspace),
+    get: (id: string, options: RequestOptions = {}) => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}`, {}, options),
     /** Wait for detached, reusable storage; does not create, attach or archive anything. */
     wait: (id: string, options: WaitForWorkspaceOptions = {}) => this.waitForWorkspace(id, options),
-    archive: (id: string) => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}/archive`, { method: "POST" })
+    archive: (id: string, options: RequestOptions = {}) => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}/archive`, { method: "POST" }, options)
   };
 
   streamCommand(id: string, commandId: string, options: CommandStreamOptions = {}) {
@@ -1592,7 +1596,7 @@ export class HarakiriClient {
     return this.request<OrganizationCapacityResponse>("/v1/org/capacity");
   }
 
-  async createSandbox(input: CreateSandboxInput = {}) {
+  async createSandbox(input: CreateSandboxInput = {}, options: RequestOptions = {}) {
     const { source, cleanupOnSourceError, ...createInput } = input;
     const createCredentialCount = (createInput.credentials?.length ?? 0) + (createInput.credentialMappings?.length ?? 0);
     if (source && createInput.wait === false) {
@@ -1624,11 +1628,11 @@ export class HarakiriClient {
         wait: createInput.wait,
         waitTimeoutMs: createInput.waitTimeoutMs
       })
-    });
+    }, options);
     if (!source) {
       if (createInput.wait === false || createInput.waitTimeoutMs !== undefined || result.readiness?.status === "ready") return result;
       try {
-        const ready = await this.waitForSandbox(result.sandbox.id);
+        const ready = await this.waitForSandbox(result.sandbox.id, options);
         return { ...result, ...ready, status: "created" as const, message: undefined };
       } catch (cause) {
         throw new HarakiriSandboxCreationError(result, "readiness", cause);
@@ -1640,7 +1644,7 @@ export class HarakiriClient {
     try {
       const ready = result.readiness?.status === "ready"
         ? { sandbox: result.sandbox, readiness: result.readiness }
-        : await this.waitForSandbox(result.sandbox.id, { timeoutMs: Math.max(createInput.waitTimeoutMs ?? 0, 60_000) });
+        : await this.waitForSandbox(result.sandbox.id, { ...options, timeoutMs: Math.max(createInput.waitTimeoutMs ?? 0, 60_000) });
       stage = "source";
       const checkpoint = ready.sandbox.source ?? result.sandbox.source;
       if (checkpoint?.status === "ready") {
@@ -1653,7 +1657,7 @@ export class HarakiriClient {
       const started = Date.now();
       await this.updateSandboxSource(ready.sandbox.id, {
         source: gitSourceProvenance(source, "cloning", { startedAt })
-      });
+      }, options);
       sourceStarted = true;
       await this.cloneGitRepository(ready.sandbox.id, source.url, {
         branch: source.branch,
@@ -1665,14 +1669,14 @@ export class HarakiriClient {
         credentials: source.credentials,
         credentialPersistence: source.credentialPersistence,
         timeoutMs: source.timeoutMs
-      });
+      }, options);
       const completed = await this.updateSandboxSource(ready.sandbox.id, {
         source: gitSourceProvenance(source, "ready", {
           startedAt,
           completedAt: new Date().toISOString(),
           durationMs: Date.now() - started
         })
-      });
+      }, options);
       return { ...result, sandbox: completed.sandbox, readiness: ready.readiness, status: "created" as const, message: undefined };
     } catch (error) {
       if (sourceStarted) await this.updateSandboxSource(result.sandbox.id, {
@@ -1699,19 +1703,19 @@ export class HarakiriClient {
     };
   }
 
-  getSandbox(id: string) {
-    return this.request<SandboxResponse>(`/v1/sandboxes/${id}`);
+  getSandbox(id: string, options: RequestOptions = {}) {
+    return this.request<SandboxResponse>(`/v1/sandboxes/${id}`, {}, options);
   }
 
-  getSandboxReadiness(id: string, options: { signal?: AbortSignal } = {}) {
-    return this.request<SandboxReadinessResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/readiness`, { signal: options.signal });
+  getSandboxReadiness(id: string, options: RequestOptions = {}) {
+    return this.request<SandboxReadinessResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/readiness`, {}, options);
   }
 
-  updateSandboxSource(id: string, input: PatchSandboxSourceBody) {
+  updateSandboxSource(id: string, input: PatchSandboxSourceBody, options: RequestOptions = {}) {
     return this.request<SandboxSourceResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/source`, {
       method: "PATCH",
       body: JSON.stringify(input)
-    });
+    }, options);
   }
 
   async waitForSandbox(id: string, options: WaitForSandboxOptions = {}): Promise<SandboxResponse & { readiness?: SandboxReadiness }> {
@@ -1724,8 +1728,9 @@ export class HarakiriClient {
       return new HarakiriWaitTimeoutError(`Timed out waiting for sandbox ${id}${suffix}`, "sandbox", id, last?.sandbox.status);
     }, async ({ signal, run, pause }) => {
       while (true) {
-        const health = needsReadiness ? await run(() => this.getSandboxReadiness(id, { signal })) : null;
-        const observation = health ?? await run(() => this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}`, { signal }));
+        const request = { signal, requestTimeoutMs: options.requestTimeoutMs };
+        const health = needsReadiness ? await run(() => this.getSandboxReadiness(id, request)) : null;
+        const observation = health ?? await run(() => this.getSandbox(id, request));
         last = observation;
         readiness = health?.readiness;
         if (needsReadiness && (!readiness || readiness.status === "unsupported")) {
@@ -1770,8 +1775,8 @@ export class HarakiriClient {
     return this.request<SandboxSnapshotsResponse>(`/v1/snapshots${params}`);
   }
 
-  getSnapshot(id: string, options: { signal?: AbortSignal } = {}) {
-    return this.request<SandboxSnapshotResponse>(`/v1/snapshots/${encodeURIComponent(id)}`, { signal: options.signal });
+  getSnapshot(id: string, options: RequestOptions = {}) {
+    return this.request<SandboxSnapshotResponse>(`/v1/snapshots/${encodeURIComponent(id)}`, {}, options);
   }
 
   getSandboxSnapshot(id: string) {
@@ -1794,7 +1799,7 @@ export class HarakiriClient {
       return new HarakiriWaitTimeoutError(`Timed out waiting for snapshot ${id}${suffix}`, "snapshot", id, last?.snapshot.status);
     }, async ({ signal, run, pause }) => {
       while (true) {
-        last = await run(() => this.getSnapshot(id, { signal }));
+        last = await run(() => this.getSnapshot(id, { signal, requestTimeoutMs: options.requestTimeoutMs }));
         if (targetStatuses.has(last.snapshot.status as SandboxSnapshotStatus)) return last;
         if (last.snapshot.status === "deleted" ||
           (["failed", "expired"].includes(last.snapshot.status) && !targetStatuses.has("deleted") && !targetStatuses.has("deleting"))) {
@@ -1809,12 +1814,11 @@ export class HarakiriClient {
     return this.request<RuntimeCapabilitiesResponse>("/v1/runtime/capabilities");
   }
 
-  runSandbox(id: string, input: RunSandboxInput, options: { signal?: AbortSignal } = {}) {
+  runSandbox(id: string, input: RunSandboxInput, options: RequestOptions = {}) {
     return this.request<RunSandboxResponse>(`/v1/sandboxes/${id}/run`, {
       method: "POST",
-      body: JSON.stringify(input),
-      signal: options.signal
-    });
+      body: JSON.stringify(input)
+    }, options);
   }
 
   runSandboxCommand(id: string, input: RunSandboxInput) {
@@ -1826,9 +1830,10 @@ export class HarakiriClient {
     operation: string,
     input: RunSandboxInput,
     secrets: string[] = [],
-    metadata?: SandboxCommandMetadata
+    metadata?: SandboxCommandMetadata,
+    options: RequestOptions = {}
   ): Promise<GitCommandRunResult> {
-    const response = await this.runSandbox(id, metadata ? { ...input, metadata } : input);
+    const response = await this.runSandbox(id, metadata ? { ...input, metadata } : input, options);
     const result = runResultWithRedaction(response, secrets);
     if (result.exitCode !== 0) {
       if (missingGitBinary(result)) {
@@ -1847,7 +1852,7 @@ export class HarakiriClient {
     return result;
   }
 
-  cloneGitRepository(id: string, url: string, options: GitCloneOptions = {}): Promise<GitCloneResult> {
+  cloneGitRepository(id: string, url: string, options: GitCloneOptions = {}, request: RequestOptions = options): Promise<GitCloneResult> {
     const built = buildGitCloneCommand(url, options);
     return this.executeGitCommand(id, "clone", {
       command: built.command,
@@ -1860,7 +1865,7 @@ export class HarakiriClient {
       ref: options.commit,
       credentialPersistence: options.credentialPersistence ?? (options.credentials ? "one-shot" : undefined),
       hasCredentials: Boolean(options.credentials)
-    })).then((result) => ({
+    }), request).then((result) => ({
       ...result,
       path: built.targetPath,
       url: sanitizeGitUrl(url)
@@ -2064,31 +2069,31 @@ export class HarakiriClient {
     }, [], gitCommandMetadata("configure-user", { cwd, configKey: "user.name,user.email" }));
   }
 
-  startCommand(id: string, input: CreateSandboxCommandInput) {
+  startCommand(id: string, input: CreateSandboxCommandInput, options: RequestOptions = {}) {
     return this.request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands`, {
       method: "POST",
       body: JSON.stringify(input)
-    });
+    }, options);
   }
 
-  createSandboxCommand(id: string, input: CreateSandboxCommandInput) {
-    return this.startCommand(id, input);
+  createSandboxCommand(id: string, input: CreateSandboxCommandInput, options: RequestOptions = {}) {
+    return this.startCommand(id, input, options);
   }
 
-  runCommand(id: string, input: CreateSandboxCommandInput) {
-    return this.startCommand(id, input);
+  runCommand(id: string, input: CreateSandboxCommandInput, options: RequestOptions = {}) {
+    return this.startCommand(id, input, options);
   }
 
-  listCommands(id: string) {
-    return this.request<SandboxCommandsResponse>(`/v1/sandboxes/${id}/commands`);
+  listCommands(id: string, options: RequestOptions = {}) {
+    return this.request<SandboxCommandsResponse>(`/v1/sandboxes/${id}/commands`, {}, options);
   }
 
   listSandboxCommands(id: string) {
     return this.listCommands(id);
   }
 
-  getCommand(id: string, commandId: string, options: { signal?: AbortSignal } = {}) {
-    return this.request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, { signal: options.signal });
+  getCommand(id: string, commandId: string, options: RequestOptions = {}) {
+    return this.request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, {}, options);
   }
 
   getSandboxCommand(id: string, commandId: string) {
@@ -2103,7 +2108,7 @@ export class HarakiriClient {
       return new HarakiriWaitTimeoutError(`Timed out waiting for command ${commandId}${suffix}`, "command", commandId, last?.command.status);
     }, async ({ signal, run, pause }) => {
       while (true) {
-        last = await run(() => this.getCommand(id, commandId, { signal }));
+        last = await run(() => this.getCommand(id, commandId, { signal, requestTimeoutMs: options.requestTimeoutMs }));
         if (targetStatuses.has(last.command.status)) return last;
         if (["failed", "killed", "succeeded"].includes(last.command.status)) {
           throw new HarakiriCommandEndedError(`Command ${commandId} reached ${last.command.status} before the requested state`, id, commandId, last.command);
@@ -2118,7 +2123,7 @@ export class HarakiriClient {
     if (options.cursor !== undefined) params.set("cursor", String(options.cursor));
     if (options.tail !== undefined) params.set("tail", String(options.tail));
     const suffix = params.size ? `?${params.toString()}` : "";
-    return this.request<SandboxCommandLogsResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}/logs${suffix}`);
+    return this.request<SandboxCommandLogsResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}/logs${suffix}`, {}, options);
   }
 
   getSandboxCommandLogs(id: string, commandId: string, options: GetCommandLogsOptions = {}) {
@@ -2129,8 +2134,8 @@ export class HarakiriClient {
     return this.getCommandLogs(id, commandId, options);
   }
 
-  killCommand(id: string, commandId: string) {
-    return this.request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, { method: "DELETE" });
+  killCommand(id: string, commandId: string, options: RequestOptions = {}) {
+    return this.request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, { method: "DELETE" }, options);
   }
 
   killSandboxCommand(id: string, commandId: string) {
@@ -2215,56 +2220,56 @@ export class HarakiriClient {
     return this.request<SandboxLogsResponse>(`/v1/sandboxes/${id}/logs`);
   }
 
-  listSandboxFiles(id: string, path?: string) {
-    return this.request<SandboxFilesResponse>(`/v1/sandboxes/${id}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`);
+  listSandboxFiles(id: string, path?: string, options: RequestOptions = {}) {
+    return this.request<SandboxFilesResponse>(`/v1/sandboxes/${id}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`, {}, options);
   }
 
-  statSandboxFile(id: string, path: string) {
-    return this.request<SandboxFileStatResponse>(`/v1/sandboxes/${id}/files/stat?path=${encodeURIComponent(path)}`);
+  statSandboxFile(id: string, path: string, options: RequestOptions = {}) {
+    return this.request<SandboxFileStatResponse>(`/v1/sandboxes/${id}/files/stat?path=${encodeURIComponent(path)}`, {}, options);
   }
 
-  readSandboxFile(id: string, path: string, options: { encoding?: "utf8" | "base64" } = {}) {
+  readSandboxFile(id: string, path: string, options: RequestOptions & { encoding?: "utf8" | "base64" } = {}) {
     const params = new URLSearchParams({ path });
     if (options.encoding) params.set("encoding", options.encoding);
-    return this.request<SandboxFileReadResponse>(`/v1/sandboxes/${id}/files/read?${params.toString()}`);
+    return this.request<SandboxFileReadResponse>(`/v1/sandboxes/${id}/files/read?${params.toString()}`, {}, options);
   }
 
-  writeSandboxFile(id: string, input: SandboxFileWriteBody) {
+  writeSandboxFile(id: string, input: SandboxFileWriteBody, options: RequestOptions = {}) {
     return this.request<SandboxFileWriteResponse>(`/v1/sandboxes/${id}/files`, {
       method: "PUT",
       body: JSON.stringify(input)
-    });
+    }, options);
   }
 
-  uploadSandboxFile(id: string, input: SandboxFileUploadBody) {
+  uploadSandboxFile(id: string, input: SandboxFileUploadBody, options: RequestOptions = {}) {
     return this.request<SandboxFileUploadResponse>(`/v1/sandboxes/${id}/files/upload`, {
       method: "POST",
       body: JSON.stringify(input)
-    });
+    }, options);
   }
 
-  downloadSandboxFile(id: string, path: string) {
-    return this.request<SandboxFileDownloadResponse>(`/v1/sandboxes/${id}/files/download?path=${encodeURIComponent(path)}`);
+  downloadSandboxFile(id: string, path: string, options: RequestOptions = {}) {
+    return this.request<SandboxFileDownloadResponse>(`/v1/sandboxes/${id}/files/download?path=${encodeURIComponent(path)}`, {}, options);
   }
 
-  mkdirSandboxFile(id: string, input: SandboxFileMkdirBody) {
+  mkdirSandboxFile(id: string, input: SandboxFileMkdirBody, options: RequestOptions = {}) {
     return this.request<SandboxFileMkdirResponse>(`/v1/sandboxes/${id}/files/mkdir`, {
       method: "POST",
       body: JSON.stringify(input)
-    });
+    }, options);
   }
 
-  removeSandboxFile(id: string, path: string, options: { recursive?: boolean } = {}) {
+  removeSandboxFile(id: string, path: string, options: RequestOptions & { recursive?: boolean } = {}) {
     const params = new URLSearchParams({ path });
     if (options.recursive !== undefined) params.set("recursive", String(options.recursive));
-    return this.request<SandboxFileRemoveResponse>(`/v1/sandboxes/${id}/files?${params.toString()}`, { method: "DELETE" });
+    return this.request<SandboxFileRemoveResponse>(`/v1/sandboxes/${id}/files?${params.toString()}`, { method: "DELETE" }, options);
   }
 
-  renameSandboxFile(id: string, input: SandboxFileRenameBody) {
+  renameSandboxFile(id: string, input: SandboxFileRenameBody, options: RequestOptions = {}) {
     return this.request<SandboxFileRenameResponse>(`/v1/sandboxes/${id}/files/rename`, {
       method: "POST",
       body: JSON.stringify(input)
-    });
+    }, options);
   }
 
   getSandboxMetrics(id: string) {
@@ -2272,24 +2277,24 @@ export class HarakiriClient {
   }
 
   killSandbox(id: string, options: KillSandboxOptions = {}) {
-    if (!options.wait) return this.request<OkResponse>(`/v1/sandboxes/${id}`, { method: "DELETE", signal: options.signal });
+    if (!options.wait) return this.request<OkResponse>(`/v1/sandboxes/${id}`, { method: "DELETE" }, options);
     return observe(options, { timeoutMs: 60_000, intervalMs: 1_000 },
       () => new HarakiriWaitTimeoutError(`Deletion of sandbox ${id} is unconfirmed; reconnect and inspect it.`, "sandbox", id),
       async ({ signal, run }) => {
-        const result = await run(() => this.request<OkResponse>(`/v1/sandboxes/${encodeURIComponent(id)}`, { method: "DELETE", signal }));
+        const result = await run(() => this.request<OkResponse>(`/v1/sandboxes/${encodeURIComponent(id)}`, { method: "DELETE" }, { ...options, signal }));
         await run(() => this.waitForSandboxTermination(id, { ...options, signal }));
         return result;
       });
   }
 
   /** Waits for this sandbox's recorded termination and released capacity, never organization-wide zero usage. */
-  waitForSandboxTermination(id: string, options: ObservationOptions = {}) {
+  waitForSandboxTermination(id: string, options: ObservationOptions & RequestOptions = {}) {
     let last: SandboxSummary | undefined;
     return observe(options, { timeoutMs: 60_000, intervalMs: 1_000 },
       () => new HarakiriWaitTimeoutError(`Termination of sandbox ${id} is unconfirmed`, "sandbox", id, last?.capacityPhase ?? last?.status),
       async ({ signal, run, pause }) => {
         while (true) {
-          const result = await run(() => this.request<SandboxResponse>(`/v1/sandboxes/${encodeURIComponent(id)}`, { signal }));
+          const result = await run(() => this.getSandbox(id, { signal, requestTimeoutMs: options.requestTimeoutMs }));
           last = result.sandbox;
           if (last.status === "terminated" && last.capacityPhase === "released") return result;
           await pause();
@@ -2304,7 +2309,7 @@ export class HarakiriClient {
       () => new HarakiriWaitTimeoutError(`Timed out waiting for workspace ${id}`, "workspace", id, last?.status),
       async ({ signal, run, pause }) => {
         while (true) {
-          const result = await run(() => this.request<WorkspaceResponse>(`/v1/workspaces/${encodeURIComponent(id)}`, { signal }));
+          const result = await run(() => this.workspaces.get(id, { signal, requestTimeoutMs: options.requestTimeoutMs }));
           last = result.workspace;
           if (statuses.has(last.status)) return result;
           if (last.status === "archived" || last.status === "recovery_required") {

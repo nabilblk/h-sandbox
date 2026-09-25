@@ -46,7 +46,7 @@ export class HarakiriSandboxBackend extends BaseSandbox {
     try {
       const process = await this.#sandbox.processes.start({
         command, cwd: this.#execution.cwd, timeoutMs: this.#execution.timeoutMs, detached: true
-      });
+      }, { signal: this.#execution.signal, requestTimeoutMs: this.#execution.requestTimeoutMs });
       reference = process.reference;
     } catch (cause) {
       throw new HarakiriExecutionError("submission", this.id, undefined, cause);
@@ -81,7 +81,9 @@ export class HarakiriSandboxBackend extends BaseSandbox {
       try {
         this.#execution.signal?.throwIfAborted();
         if (!validPath(path)) { results.push({ path, error: "invalid_path" }); continue; }
-        await this.#sandbox.files.write(this.#path(path), content, { createParents: true });
+        await this.#sandbox.files.write(this.#path(path), content, {
+          createParents: true, signal: this.#execution.signal, requestTimeoutMs: this.#execution.requestTimeoutMs
+        });
         results.push({ path, error: null });
       } catch (cause) {
         const error = this.#execution.signal?.aborted ? null : fileError(cause);
@@ -101,13 +103,14 @@ export class HarakiriSandboxBackend extends BaseSandbox {
         this.#execution.signal?.throwIfAborted();
         if (!validPath(path)) { results.push({ path, content: null, error: "invalid_path" }); continue; }
         const absolute = this.#path(path);
-        const { file } = await this.#sandbox.files.stat(absolute);
+        const request = { signal: this.#execution.signal, requestTimeoutMs: this.#execution.requestTimeoutMs };
+        const { file } = await this.#sandbox.files.stat(absolute, request);
         if (file.type === "directory" || file.type === "dir") {
           results.push({ path, content: null, error: "is_directory" });
           continue;
         }
         this.#checkBytes(bytes + file.size);
-        const content = await this.#sandbox.files.readBytes(absolute);
+        const content = await this.#sandbox.files.readBytes(absolute, request);
         bytes += content.byteLength;
         this.#checkBytes(bytes);
         results.push({ path, content, error: null });

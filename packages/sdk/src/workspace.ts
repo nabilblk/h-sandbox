@@ -1,5 +1,6 @@
 import type { HarakiriClient, WaitForWorkspaceOptions } from "./index.js";
 import type { WorkspaceResponse, WorkspaceSummary } from "./workspaces.js";
+import type { RequestOptions } from "./request.js";
 
 /** Retained storage has a separate lifetime from the sandbox currently attached to it. */
 export class HarakiriWorkspace implements WorkspaceResponse {
@@ -9,8 +10,8 @@ export class HarakiriWorkspace implements WorkspaceResponse {
   get id() { return this.workspace.id; }
   get status() { return this.workspace.status; }
 
-  async refresh() {
-    this.workspace = (await this.#client.workspaces.get(this.id)).workspace;
+  async refresh(options: RequestOptions = {}) {
+    this.workspace = (await this.#client.workspaces.get(this.id, options)).workspace;
     return this;
   }
 
@@ -20,8 +21,8 @@ export class HarakiriWorkspace implements WorkspaceResponse {
   }
 
   /** Archives the record after detachment; does not physically reclaim retained storage. */
-  async archive() {
-    this.workspace = (await this.#client.workspaces.archive(this.id)).workspace;
+  async archive(options: RequestOptions = {}) {
+    this.workspace = (await this.#client.workspaces.archive(this.id, options)).workspace;
     return this.workspace;
   }
 }

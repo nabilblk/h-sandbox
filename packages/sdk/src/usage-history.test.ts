@@ -6,17 +6,21 @@ import { HarakiriClient, HarakiriApiError } from "./index.js";
 const options = { from: "2026-09-11T00:00:00Z", to: "2026-09-12T00:00:00Z", resolution: "1h" as const };
 test("usage history forwards the typed window and abort signal without mutations", async () => {
   const controller = new AbortController();
+  let forwarded: AbortSignal | undefined;
   const client = new HarakiriClient({ apiUrl: "https://sandbox.test", apiKey: "test", fetch: async (url, init) => {
     const parsed = new URL(String(url));
     assert.equal(parsed.pathname, "/v1/usage/history");
     assert.deepEqual(Object.fromEntries(parsed.searchParams), options);
     assert.equal(init?.method ?? "GET", "GET");
-    assert.equal(init?.signal, controller.signal);
+    assert.ok(init?.signal);
+    forwarded = init.signal;
+    assert.equal(forwarded.aborted, false);
     return Response.json({ coverage: { status: "unavailable" }, buckets: [] });
   } });
   const result = await client.usageHistory(options, { signal: controller.signal });
   assert.equal(result.coverage.status, "unavailable");
   controller.abort();
+  assert.equal(forwarded?.reason, controller.signal.reason);
   assert.throws(() => client.usageHistory(options, { signal: controller.signal }), { name: "AbortError" });
 });
 
