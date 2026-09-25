@@ -203,9 +203,13 @@ Local PostgreSQL tests use the real framework and real checkpoints with an HTTP
 protocol fixture, not sandbox runtime enforcement. The runner-only
 `framework-durable-recovery` native gate additionally verifies actual command
 effects, server-side expiry and retained files on replacement. Its model decisions
-are scripted; the real-model repair remains a separate gate. See
-[milestone evidence](../release-notes/reliable-framework-workflows.md) for what was
-actually run, rather than treating configured CI as a passing receipt.
+are scripted; the real-model repair remains a separate gate.
+[Native qualification on September 25](https://github.com/nabilblk/h-sandbox/actions/runs/36137161754)
+passed all 16 gates and cleanup against published API baseline `0.5.0-rc.9`,
+including both recovery and real-model repair. See the
+[milestone evidence and retained receipt](../release-notes/reliable-framework-workflows.md)
+for source identity, artifact hashes and scope. These source changes are still
+unreleased; passing native acceptance does not publish packages or deploy docs.
 
 References: [LangGraph persistence](https://docs.langchain.com/oss/javascript/langgraph/persistence),
 [interrupts](https://docs.langchain.com/oss/javascript/langgraph/interrupts),

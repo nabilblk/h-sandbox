@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-25
 **Author**: Codex
-**Status**: Remote Qualification In Progress
+**Status**: Completed
 **Priority**: User-selected next milestone
 **Estimated effort**: Multi-session, cross-package implementation and qualification
 
@@ -54,7 +54,7 @@ durable recovery. Installed consumer CI covers Node 20/22 although Node 20 is EO
   cancellation, durable recovery, expiry, limitations and verification commands.
 - [x] Qualification records distinguish local contracts/real PostgreSQL from
   native runtime/model acceptance, with no unsupported completion claims.
-- [ ] The new native recovery gate passes on an isolated authorized runner and
+- [x] The new native recovery gate passes on an isolated authorized runner and
   produces a reviewed receipt before the milestone is closed.
 
 ## Phases
@@ -67,25 +67,25 @@ durable recovery. Installed consumer CI covers Node 20/22 although Node 20 is EO
 - [x] Run SDK, adapter, type-contract and regression tests.
 
 ### Phase 2: Persistent Workflow Reference
-**Status**: Implemented; native acceptance pending
+**Status**: Complete
 - [x] Inspect official persistent checkpointer and interrupt contracts.
 - [x] Implement an independently runnable persistent example with explicit ownership.
 - [x] Add separate-process PostgreSQL tests for interruption/resumption and failures.
 - [x] Connect the scenario to isolated native acceptance without touching the lab.
-- [ ] Run and review the native gate on an authorized disposable GitHub runner.
+- [x] Run and review the native gate on an authorized disposable GitHub runner.
 
 ### Phase 3: Compatibility And Packaging
-**Status**: Complete Locally; Remote CI Pending
+**Status**: Complete
 - [x] Test a minimal direct dependency set rather than requiring unnecessary pins.
 - [x] Qualify npm/pnpm consumers and Node 22/24; document Node 20 legacy status.
 - [x] Add bounded scheduled upstream compatibility checks with no publishing rights.
 
 ### Phase 4: Documentation And Acceptance
-**Status**: Documentation And Local Checks Complete; Native Acceptance Pending
+**Status**: Complete
 - [x] Update SDK/adapter READMEs, integration guide and public docs.
 - [x] Add technical recovery/compatibility guidance and unreleased delivery notes.
 - [x] Run package, documentation and workflow checks; inspect the final diff.
-- [ ] Record remaining acceptance evidence honestly and archive only when complete.
+- [x] Record acceptance evidence and archive the completed implementation plan.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |
@@ -106,12 +106,24 @@ existing boundary, not something this milestone can promise away.
 
 Implementation and local qualification are complete. See the
 [delivery record](../../release-notes/reliable-framework-workflows.md) for counts,
-runtime versions, commands and evidence boundaries. No deployment, publication,
-push or native runtime acceptance has been performed for this milestone.
+runtime versions, commands and evidence boundaries. [PR #59](https://github.com/nabilblk/h-sandbox/pull/59)
+contains the implementation on `codex/reliable-framework-workflows` at
+`f1906749a19c17e8e2794b4d4fea20f6de17f227`. All 18 jobs in the
+[CI run](https://github.com/nabilblk/h-sandbox/actions/runs/36137161697) passed,
+including real PostgreSQL, clean npm/pnpm consumers on Node 20/22/24, browser
+contracts, documentation and image builds without publication. Product demo
+checks and the isolated SDK installation matrix also passed. No merge,
+deployment or publication has been performed for this milestone.
 
 The user approved a dedicated branch/PR and disposable GitHub-hosted acceptance
-on 2026-09-25. The remaining gate is the new isolated native-runtime scenario.
-Do not use the running lab as a substitute. Keep this plan active until that
-receipt passes. This approval does not authorize merging, publication or deployment.
+on 2026-09-25. [Native run 36137161754](https://github.com/nabilblk/h-sandbox/actions/runs/36137161754)
+passed all 16 gates, including persistent approvals, worker-crash observation
+without resubmission, real server-side expiry, retained-file recovery and the
+separate digest-pinned real-model repair. The reviewed
+[receipt](../../release-notes/reliable-framework-workflows.acceptance.json)
+confirms cleanup and private-material removal. The tested PR merge candidate
+and pushed implementation have the same tree. The k0s lab was not accessed.
+This closes implementation and qualification, not a release or deployment.
+Approval did not authorize merging, publication or deployment.
 Release versioning and publication require a separate SDK-first release; unchanged
 package version numbers do not mean registry artifacts contain these changes.
