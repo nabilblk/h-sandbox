@@ -1,7 +1,7 @@
 # Harakiri SDK Examples
 
 Choose the SDK version before choosing a recipe. The current published preview
-is `0.5.0-rc.11`; unversioned npm installation selects stable `0.4.0`, which lacks
+is `0.5.0-rc.12`; unversioned npm installation selects stable `0.4.0`, which lacks
 workspaces, execution readiness and capacity APIs. Task-oriented recipes require
 rc.11. The optional Deep Agents adapter has separate release-candidate availability.
 
@@ -15,7 +15,7 @@ export HARAKIRI_API_KEY=hk_your_scoped_key
 ## Published SDK
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
 ```
 
 Start with the complete, published-package-tested programs in the public docs:
@@ -71,7 +71,7 @@ Otherwise use the pinned npm package above. A local archive may contain changes
 beyond a published version; record its source commit when reporting issues.
 
 ```bash
-npm install /tmp/harakiri-sdk-candidate/h-sandbox-sdk-0.5.0-rc.11.tgz
+npm install /tmp/harakiri-sdk-candidate/h-sandbox-sdk-0.5.0-rc.12.tgz
 ```
 
 See the [migration and failure-recovery guide](../docs/sdk-developer-experience.md)
@@ -83,7 +83,7 @@ Git bootstrap replay limits. No mutation is automatically retried.
 The optional [Deep Agents TypeScript backend](../packages/deepagents/README.md)
 adds sandbox tools to the existing LangChain/LangGraph ecosystem. This
 **developer preview on npm** uses `@h-sandbox/deepagents@next` with the exact
-published SDK 0.5.0-rc.11 and Deep Agents 1.14.0. It is not bundled into the SDK.
+published SDK 0.5.0-rc.12 and Deep Agents 1.14.0. It is not bundled into the SDK.
 Its native tools and independently verified real-model repair passed. Follow
 the package guide's pinned dependency set and commit your application's lockfile.
 

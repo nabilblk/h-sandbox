@@ -1,21 +1,21 @@
 # Harakiri SDK
 
-## Unreleased Reliability Work
+## Reliability In SDK rc.12
 
 The [Reliable Framework Workflows guide](integrations/reliable-framework-workflows.md)
-documents new source-level request deadlines, cancellation and durable application
-examples. These are not in the published `0.5.0-rc.11` SDK. JSON requests now have
+documents request deadlines, cancellation and durable application examples for
+SDK `0.5.0-rc.12` and adapter `0.1.0-rc.2`. JSON requests now have
 a configurable `requestTimeoutMs` (120 seconds by default), covering body reads;
 runtime command/file calls also accept per-call options. Local timeout errors are
 `HarakiriRequestTimeoutError`, not evidence that a remote mutation failed.
-Neither deadlines nor cancellation introduce automatic retries. Use the source
-SDK and adapter together until a separately qualified publication.
+Neither deadlines nor cancellation introduce automatic retries. Use the exact
+package pair above. Long foreground commands need enough request time or detached execution.
 
 ## Task-Oriented TypeScript API
 
 The [task-oriented SDK guide](sdk-developer-experience.md) documents rc.11's
 TypeScript improvements, compatibility behavior, failure recovery and six updated
-recipes. Those examples require `0.5.0-rc.11` or newer; the additions
+recipes. Those task-oriented helpers were introduced in `0.5.0-rc.11`; the additions
 are not present in npm `0.5.0-rc.10`. The installed-package smoke tests exercise
 the public ESM package and declarations without accessing a running cluster.
 
@@ -49,12 +49,12 @@ are not replayed. See the [full readiness contract](operations/execution-readine
 
 ## Workspace and Streaming Preview
 
-**Preview baseline: 0.5.0-rc.11.** `client.workspaces`, `workspaceId` and
+**Preview baseline: 0.5.0-rc.12.** `client.workspaces`, `workspaceId` and
 `client.commands.stream` require a matching operator-enabled API. Stable npm
 0.4.0 (`latest`) does not include them. Install the candidate explicitly:
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
 ```
 
 See the [workspace and streaming guide](persistent-workspaces.md)
@@ -74,9 +74,9 @@ and provider-specific command transports.
 Install the public SDK from npm:
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.11
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.12
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
 ```
 
 ```ts
@@ -716,7 +716,7 @@ credentials.
 ## OpenCode SDK Integration
 
 Use the complete [published OpenCode programs](https://sb.harakiri.io/#docs/opencode-template)
-with `@h-sandbox/sdk@0.5.0-rc.11`. Each creates its own sandbox, retains the
+with `@h-sandbox/sdk@0.5.0-rc.12`. Each creates its own sandbox, retains the
 accepted ID before waiting, verifies the result, and confirms termination and
 capacity release before reporting success. A cleanup failure preserves the ID
 and original task error; it is not swallowed.

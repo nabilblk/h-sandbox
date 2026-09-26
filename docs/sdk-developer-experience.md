@@ -1,6 +1,6 @@
 # TypeScript: Task-Oriented SDK
 
-**Version: 0.5.0-rc.11.** These additions require this Developer Preview or newer;
+**Version: 0.5.0-rc.12.** These additions require this Developer Preview or newer;
 they are not in `0.5.0-rc.10`. Stable npm `latest` remains unchanged.
 The existing API baseline is Harakiri `0.5.0-rc.9` or newer with capacity and
 execution readiness enabled; workspaces additionally require operator support.
@@ -157,12 +157,13 @@ Archival is separate from termination and does not physically reclaim storage.
 
 ## Understand Failure and Recovery
 
-**Unreleased source addition:** shared JSON requests now default to a 120-second
+**Added in SDK rc.12:** shared JSON requests now default to a 120-second
 local deadline, including the response body. Client and primary command, file and
 lifecycle calls accept `requestTimeoutMs` and `signal`. A
 `HarakiriRequestTimeoutError` does not prove a mutation failed remotely. There is
-no automatic replay. SDK rc.11 does not contain these additions; build the SDK
-and any adapter from the same reviewed checkout until a new version is published.
+no automatic replay. SDK rc.11 does not contain these additions. Pair SDK
+`0.5.0-rc.12` with adapter `0.1.0-rc.2` for framework workflows.
+Long foreground commands need a sufficiently large request deadline or detached execution.
 SSE streams and raw route requests retain their separate timeout controls.
 
 | Budget | Meaning |
@@ -228,7 +229,7 @@ in your environment, not command history. Use Node 22 LTS for the published
 preview. Source checks cover Node 22/24 and retain Node 20 as a legacy check.
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
 ```
 
 | Recipe | Runtime prerequisites |

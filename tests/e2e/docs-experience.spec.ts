@@ -5,7 +5,7 @@ test("Deep Agents guide exposes npm setup, highlighted programs and ownership gu
   await page.goto("/#docs/typescript-sdk");
   await page.locator("article").getByRole("link", { name: "Deep Agents and LangGraph integration" }).click();
   await expect(page.getByRole("heading", { name: "Deep Agents and LangGraph", exact: true })).toBeVisible();
-  await expect(page.locator("article .docs-notice").first()).toContainText("SDK 0.5.0-rc.11");
+  await expect(page.locator("article .docs-notice").first()).toContainText("SDK 0.5.0-rc.12");
   await expect(page.locator("article .docs-notice").first()).toContainText("Developer preview on npm");
   await expect(page.locator("article")).toContainText("npm install --save-exact @h-sandbox/deepagents@next");
   const first = page.locator("article .doc-code").first();
@@ -45,7 +45,7 @@ test("TypeScript candidate guide is discoverable, copyable and exported on deskt
   await page.goto("/#docs/sdk-cli");
   await page.locator("article").getByRole("link", { name: "TypeScript SDK guide", exact: true }).click();
   await expect(page.getByRole("heading", { name: "TypeScript SDK", exact: true })).toBeVisible();
-  await expect(page.locator("article")).toContainText("TypeScript SDK 0.5.0-rc.11");
+  await expect(page.locator("article")).toContainText("TypeScript SDK 0.5.0-rc.12");
   await expect(page.locator("article")).toContainText("rc.10 does not include them");
   const block = page.locator(".doc-code").filter({ hasText: "first-task.mts" });
   const raw = await block.locator("pre code").textContent();

@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-26-reliable-framework-workflows",
+    version: "v0.5.0-rc.12 / Deep Agents 0.1.0-rc.2",
+    date: "September 26, 2026",
+    title: "Reliable framework workflows",
+    items: [
+      "Bound SDK JSON requests, including response bodies, with a configurable 120-second default. Primary command, file and lifecycle calls accept deadlines and cancellation. Long foreground commands need enough request time or detached execution; timeouts never authorize automatic replay.",
+      "Include final logs in the Deep Agents observation budget. Preserve acknowledged command references, original failure causes and completed transfer paths; cleanup uses a separate cancellation context.",
+      "Add an application-owned PostgreSQL checkpoint example using real Deep Agents and LangGraph: checkpoint-bound approvals, separate worker processes, read-only crash recovery and explicit retained-file replacement. This is not a hosted workflow engine or an exactly-once shell guarantee.",
+      "Qualify worker-crash observation, actual server-side expiry, retained-file recovery and a separately verified real-model repair on isolated native amd64 runners. All 16 source gates and cleanup passed against the published rc.9 API baseline; this does not certify restricted OpenShift or a new server pair.",
+      "Pair SDK/CLI 0.5.0-rc.12 with adapter 0.1.0-rc.2 on npm next. Keep stable tags unchanged. This client-focused release adds no API behavior, database migration or runtime provider requirement. Publication and deployment evidence are recorded separately in the release receipt."
+    ]
+  },
+  {
     id: "2026-09-24-deepagents-preview",
     version: "Deep Agents 0.1.0-rc.1",
     date: "September 24, 2026",

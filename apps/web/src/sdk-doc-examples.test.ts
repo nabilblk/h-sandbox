@@ -43,7 +43,7 @@ test("current install guidance consistently pins the published preview", () => {
     }
   }
   const candidate = assets.get("docs/typescript-sdk.md")!;
-  assert.match(candidate, /TypeScript SDK 0.5.0-rc.11/);
+  assert.match(candidate, /TypeScript SDK 0.5.0-rc.12/);
   assert.match(candidate, /rc.10 does not include/);
   assert.ok(assets.get("docs/errors-troubleshooting.md")!.includes("HarakiriSandboxCreationError"));
   assert.ok(!assets.get("docs/template-builds.md")!.includes("HarakiriSandboxCreationError"));

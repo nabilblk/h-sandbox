@@ -10,7 +10,7 @@ Repository contributors can also read [the integration contract](../../docs/sdk.
 
 ## Task-Oriented TypeScript API
 
-Version **0.5.0-rc.11** adds a task-oriented API on the existing sandbox object.
+Version **0.5.0-rc.12** extends the task-oriented API with bounded request controls.
 These helpers are not present in rc.10. See the
 [six updated recipes and migration guide](../../docs/sdk-developer-experience.md).
 
@@ -43,14 +43,14 @@ the migration guide. No mutation is automatically retried.
 
 ## Install
 
-### Unreleased Request Controls
+### Bounded Request Controls
 
-The current source adds `requestTimeoutMs` to client configuration and runtime
+SDK rc.12 adds `requestTimeoutMs` to client configuration and runtime
 request options. JSON requests default to 120 seconds, including response-body
 reads, and throw `HarakiriRequestTimeoutError` on a local deadline. Command
 submission, file operations and final logs accept per-call deadlines/signals.
-These controls are **not in published 0.5.0-rc.11**; use a matching source build
-until the next release. SSE and route fetch keep their separate controls.
+These controls require **0.5.0-rc.12**. Long foreground commands need a larger
+request budget or detached execution. SSE and route fetch keep their separate controls.
 
 ```ts
 const client = HarakiriClient.fromEnv({ requestTimeoutMs: 30_000 });
@@ -84,9 +84,9 @@ for confirmation. Organization totals alone do not identify its reservation. See
 and [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 
 ```bash
-pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.11
+pnpm add --save-exact @h-sandbox/sdk@0.5.0-rc.12
 # or
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
 ```
 
 This pins the recorded Developer Preview; confirm the matching server with your
@@ -675,7 +675,7 @@ accept `basicAuth` when the service behind the route also has its own password.
 ## OpenCode Agent Workflow
 
 Use the complete [published OpenCode programs](https://sb.harakiri.io/#docs/opencode-template)
-with `@h-sandbox/sdk@0.5.0-rc.11`. Each creates its own sandbox, retains the
+with `@h-sandbox/sdk@0.5.0-rc.12`. Each creates its own sandbox, retains the
 accepted ID before waiting, verifies the result, and confirms termination and
 capacity release before reporting success. A cleanup failure preserves the ID
 and original task error; it is not swallowed.
@@ -785,4 +785,4 @@ documentation is available in `docs/sdk.md`,
 `docs/integrations/capabilities-and-limits.md`.
 The updated `examples/sdk-typescript-quickstart` is the first working-tree recipe;
 `examples/sdk-sandbox-object` adds a background task and reconnecting observer.
-Both currently require the unreleased additions described above.
+Use SDK `0.5.0-rc.12` with adapter `0.1.0-rc.2` for these request controls.
