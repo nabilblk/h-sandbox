@@ -140,7 +140,7 @@ test("adapter publishing and anonymous verification cannot republish the core pa
   assert.ok(verify);
   assert.match(verify, /needs.publish.result == 'success'/);
   assert.match(verify, /inputs.verify_published_only/);
-  assert.match(verify, /node: \["20", "22"\]/);
+  assert.match(verify, /node: \["20", "22", "24"\]/);
   assert.match(verify, /ref: \$\{\{ needs.validate.outputs.sha \}\}/);
   assert.match(verify, /node scripts\/test-deepagents-package.mjs --published/);
   assert.doesNotMatch(verify, /environment: npm|id-token: write|npm publish|NODE_AUTH_TOKEN|NPM_TOKEN/);
