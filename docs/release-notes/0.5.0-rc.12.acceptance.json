@@ -1,0 +1,145 @@
+{
+  "kind": "typescript-sdk-dx",
+  "baseline": "0.5.0-rc.9",
+  "applicationSource": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+  "candidateSource": "d1907e47736fdc64e306ccd3062189245cffe7f3",
+  "published": false,
+  "architecture": "amd64",
+  "node": "v22.23.2",
+  "runId": "36251529001-1",
+  "startedAt": "2026-09-26T15:32:52.247Z",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "passed",
+      "durationMs": 184653
+    },
+    {
+      "gate": "candidate-package",
+      "status": "passed",
+      "durationMs": 4632
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "durationMs": 2968
+    },
+    {
+      "gate": "template-import",
+      "status": "passed",
+      "durationMs": 26196
+    },
+    {
+      "gate": "creation-and-finite-tasks",
+      "status": "passed",
+      "durationMs": 25951
+    },
+    {
+      "gate": "atomic-capacity-error",
+      "status": "passed",
+      "durationMs": 22
+    },
+    {
+      "gate": "text-and-binary-files",
+      "status": "passed",
+      "durationMs": 5178
+    },
+    {
+      "gate": "process-reconnect-and-cancellation",
+      "status": "passed",
+      "durationMs": 12651
+    },
+    {
+      "gate": "protected-http-and-local-git",
+      "status": "passed",
+      "durationMs": 4468
+    },
+    {
+      "gate": "retained-workspace-and-confirmed-release",
+      "status": "passed",
+      "durationMs": 27807
+    },
+    {
+      "gate": "partial-source-recovery",
+      "status": "passed",
+      "durationMs": 6199
+    },
+    {
+      "gate": "unconfirmed-cleanup-and-expiry",
+      "status": "passed",
+      "durationMs": 124190
+    },
+    {
+      "gate": "framework-native-tools",
+      "status": "passed",
+      "durationMs": 25400
+    },
+    {
+      "gate": "framework-durable-recovery",
+      "status": "passed",
+      "durationMs": 188634
+    },
+    {
+      "gate": "framework-model-repair",
+      "status": "passed",
+      "durationMs": 387540
+    },
+    {
+      "gate": "key-revocation",
+      "status": "passed",
+      "durationMs": 119
+    }
+  ],
+  "limits": [
+    "One small real-model repair, not a model-quality benchmark",
+    "Unreplayable cursor contract, not a retention-expiry simulation",
+    "No distributed exactly-once Git bootstrap claim",
+    "No package publication or deployment outside this runner"
+  ],
+  "tarballSha256": "3f7625a1000c75c58a2b96df921339db5d270c6f02325d96b61dfb48e64d5fa0",
+  "integration": {
+    "adapterTarballSha256": "a2c106301f73ec472a2ad01263565521edf453b8321382accba47effdd89cc8d",
+    "framework": "1.14.0",
+    "model": {
+      "image": "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
+      "name": "qwen3:4b-instruct",
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
+    },
+    "modelCalls": {
+      "responses": 5,
+      "invalidToolCalls": 0,
+      "truncatedResponses": 0,
+      "requestedTools": {
+        "ls": 1,
+        "read_file": 2,
+        "write_file": 0,
+        "edit_file": 1,
+        "glob": 0,
+        "grep": 0,
+        "execute": 0,
+        "write_todos": 0,
+        "task": 0,
+        "other": 0
+      }
+    }
+  },
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-09-26T15:50:26.424Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

@@ -2,6 +2,11 @@
 
 This is a source delivery record, not an npm release or deployment receipt.
 
+**September 26 delivery update:** SDK/CLI rc.12 and adapter rc.2 are now published,
+and public documentation is deployed. See the
+[release delivery receipt](0.5.0-rc.12-delivery.md). The original source-stage
+evidence and its unreleased-at-the-time scope below are preserved.
+
 ## Changes
 
 - Shared JSON transport deadlines include response bodies, with a configurable
