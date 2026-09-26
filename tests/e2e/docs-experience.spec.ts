@@ -33,7 +33,8 @@ test("Deep Agents guide exposes npm setup, highlighted programs and ownership gu
   await expect(page.locator("#approval-and-reconnect")).toBeFocused();
   await page.goto("/#docs/deepagents?section=persistent-workflows");
   await expect(page.locator("#persistent-workflows")).toBeFocused();
-  await expect(page.locator("article .docs-notice").last()).toContainText("Unreleased source example");
+  await expect(page.locator("article .docs-notice").last()).toContainText("Persistent application example");
+  await expect(page.locator("article .docs-notice").last()).toContainText("adapter 0.1.0-rc.2");
   const durable = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: /^Separate worker invocations$/ }) });
   await durable.getByRole("button", { name: "Copy Separate worker invocations code" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(await durable.locator("pre code").textContent());

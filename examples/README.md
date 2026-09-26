@@ -99,11 +99,11 @@ approval and command reconnection, not agent reasoning. See the
 [architecture and operational boundaries](../docs/integrations/deepagents.md).
 
 The [Reliable Framework Workflows guide](../docs/integrations/reliable-framework-workflows.md)
-adds an **unreleased source example** using real Deep Agents and PostgreSQL-backed
+provides an application example using real Deep Agents and PostgreSQL-backed
 LangGraph checkpoints. It covers separate workers, exact-checkpoint approval,
 recorded command observation after a crash and explicit retained-file recovery.
-Build both source packages together; these request controls are not in the
-published SDK rc.11/adapter rc.1 pair. The application, not Harakiri, owns the
+Use the published SDK rc.12/adapter rc.2 pair and the guide's versioned example
+modules, without building the monorepo. The application, not Harakiri, owns the
 checkpoint database and authenticated tenant/thread mapping.
 
 ## Other Reference Examples
