@@ -17,8 +17,10 @@ Harakiri surface:
 
 The source chart tracks the coordinated release version. The release workflow
 validates and sets chart `version` and `appVersion` from the reviewed source.
-See the [rc.12 release notes](release-notes/0.5.0-rc.12.md) for the current candidate
-and the [rc.11 receipt](release-notes/0.5.0-rc.11-delivery.md) for earlier publication evidence.
+See the [rc.12 release notes](release-notes/0.5.0-rc.12.md) and
+[verified delivery receipt](release-notes/0.5.0-rc.12-delivery.md) for the current
+preview's npm packages, multi-architecture images, charts and local rollout.
+The [rc.11 receipt](release-notes/0.5.0-rc.11-delivery.md) retains earlier evidence.
 
 ## Harakiri-Owned Artifacts
 
