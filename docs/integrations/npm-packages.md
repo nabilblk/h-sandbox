@@ -11,8 +11,8 @@ exports, not monorepo source paths. No framework dependencies enter the core SDK
 ## Install
 
 ```bash
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
-npm install -g @h-sandbox/cli@0.5.0-rc.11
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
+npm install -g @h-sandbox/cli@0.5.0-rc.12
 ```
 
 Prereleases use `next`. Stable `latest` does not automatically follow them.
@@ -140,7 +140,7 @@ gh workflow run npm-release.yml --ref main -f package_set=deepagents \
 ```
 
 The workflow publishes only the adapter, generates public-source provenance and
-checks anonymous registry consumers on Node 20 and 22. No chart, server image,
+checks anonymous registry consumers on Node 22 and 24, plus legacy Node 20. No chart, server image,
 cluster rollout or SDK/CLI republishing is involved.
 
 ## Recover a Verification Failure

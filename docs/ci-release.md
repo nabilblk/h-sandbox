@@ -116,7 +116,7 @@ by itself disprove a package publisher configured in the npm website.
 
 `package_set=deepagents` packs and publishes only `@h-sandbox/deepagents`. It tests
 the candidate against the **published** exact SDK peer, then repeats anonymous
-registry-consumer tests on Node 20 and 22 after publication. The installed tests
+registry-consumer tests on Node 22 and 24, plus legacy Node 20, after publication. The installed tests
 cover real framework tools with deterministic fixtures, strict TypeScript
 declarations and the exact public example; native runtime/model qualification
 is separate. Core versions, charts, images and cluster deployments are untouched.

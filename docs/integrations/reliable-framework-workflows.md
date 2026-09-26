@@ -1,9 +1,10 @@
 # Reliable Framework Workflows
 
-Status: **unreleased source milestone**. Build the SDK and adapter from the same
-reviewed checkout. The published SDK `0.5.0-rc.11` and adapter `0.1.0-rc.1` do not
-contain the new request controls. Package version bumps, registry publication,
-native qualification and deployment are separate release steps.
+Status: **developer preview**, using SDK `0.5.0-rc.12` and adapter `0.1.0-rc.2`.
+The packages contain the request controls. The three workflow modules below are
+application reference code, deliberately not a persistence service shipped in
+the SDK. Package publication, native qualification and deployment remain separate
+checks; see the [release notes](../release-notes/0.5.0-rc.12.md).
 
 ## What Runs Where
 
@@ -33,11 +34,24 @@ application-owned sandbox. The selected template needs bash, GNU tools and Pytho
 not in the sandbox. The existing [model compatibility caveat](deepagents.md#contract-and-dependencies)
 still applies; this example does not silently install an Ollama transport shim.
 
-Build the reviewed source, using the committed lockfile:
+Start in a new application directory. Install all direct framework dependencies
+together, then download the three application modules from the pinned release.
+Review them before running; do not fetch mutable `main` into a production worker.
+This does not build the monorepo or install PostgreSQL into your sandbox:
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm --filter @h-sandbox/deepagents build
+npm init -y
+npm pkg set type=module
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12 @h-sandbox/deepagents@0.1.0-rc.2 \
+  deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \
+  @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3 \
+  @langchain/langgraph-checkpoint-postgres@1.0.5 pg@8.21.0
+npm install --save-dev --save-exact tsx@4.23.13 @types/pg@8.20.0
+for file in durable-store durable-workflow run-durable; do
+  curl --fail --show-error --location \
+    "https://raw.githubusercontent.com/nabilblk/h-sandbox/deepagents-v0.1.0-rc.2/packages/deepagents/examples/${file}.ts" \
+    --output "${file}.ts"
+done
 ```
 
 Supply `HARAKIRI_API_KEY`, `WORKFLOW_DATABASE_URL` and any model credentials
@@ -52,8 +66,8 @@ export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
 export WORKFLOW_TENANT_ID="team-one"
 export WORKFLOW_THREAD_ID="report-one"
 
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts setup
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts bind
+npx tsx run-durable.ts setup
+npx tsx run-durable.ts bind
 ```
 
 Create the sandbox with a retained workspace first when files must survive TTL.
@@ -67,7 +81,7 @@ of access. Never share a sandbox between untrusted tenants.
 
 ```sh
 export WORKFLOW_PROMPT="Create report.txt in the working directory, then verify its contents. Request one tool action at a time."
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts start
+npx tsx run-durable.ts start
 ```
 
 Expected: `phase: approval`, a checkpoint ID and the pending action. The worker
@@ -75,9 +89,9 @@ exits, leaving the application-owned sandbox and database intact. Another proces
 can inspect the saved state:
 
 ```sh
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts inspect
+npx tsx run-durable.ts inspect
 export WORKFLOW_CHECKPOINT_ID="the-checkpoint-id-you-reviewed"
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts approve
+npx tsx run-durable.ts approve
 # Or choose reject instead of approve.
 ```
 
@@ -107,9 +121,9 @@ If a worker exits after acknowledgement, a replacement can inspect the persisted
 command ID and retrieve its result without invoking the agent again:
 
 ```sh
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts inspect
+npx tsx run-durable.ts inspect
 export WORKFLOW_COMMAND_ID="the-recorded-command-id"
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts observe
+npx tsx run-durable.ts observe
 ```
 
 An uncertain `invoking` phase deliberately blocks automatic graph replay. Even if
@@ -131,7 +145,7 @@ raise `WorkflowRecoveryRequired` instead of silently creating a replacement.
 After confirmed termination, capacity release and workspace availability:
 
 ```sh
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts recover-files
+npx tsx run-durable.ts recover-files
 ```
 
 This explicit action creates a new sandbox on the recorded workspace using a
@@ -175,9 +189,9 @@ Minimal model-free backend installation needs the adapter, SDK and `deepagents`.
 An application importing LangChain models or LangGraph adds those direct packages.
 The full checkpoint example additionally needs
 `@langchain/langgraph-checkpoint-postgres@1.0.5` and `pg@8.21.0`.
-The repository lockfile records the tested graph of dependencies. Build/install
-the unreleased SDK and adapter together; do not install this source adapter over
-the older published SDK when testing the new options.
+The repository lockfile records the tested graph of dependencies. Keep the exact
+published SDK/adapter pair together; do not install the new adapter over an older
+SDK when testing the new options.
 
 The framework consumer CI matrix covers npm and pnpm on Node 22/24, retaining
 Node 20 only as a legacy compatibility check, not a recommended production runtime.
@@ -208,8 +222,8 @@ are scripted; the real-model repair remains a separate gate.
 passed all 16 gates and cleanup against published API baseline `0.5.0-rc.9`,
 including both recovery and real-model repair. See the
 [milestone evidence and retained receipt](../release-notes/reliable-framework-workflows.md)
-for source identity, artifact hashes and scope. These source changes are still
-unreleased; passing native acceptance does not publish packages or deploy docs.
+for source identity, artifact hashes and scope. Passing native acceptance alone
+does not publish packages or deploy docs; consult the release delivery record.
 
 References: [LangGraph persistence](https://docs.langchain.com/oss/javascript/langgraph/persistence),
 [interrupts](https://docs.langchain.com/oss/javascript/langgraph/interrupts),

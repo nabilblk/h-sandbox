@@ -16,16 +16,16 @@ test("framework integration is a searchable first-class guide with matching code
   assert.ok(markdown.indexOf('import { createDeepAgent } from "deepagents"') < markdown.indexOf("## Installation"));
   assert.ok(markdown.indexOf(deepagentsAgentTask) < markdown.indexOf(deepagentsFirstTask));
   assert.equal(deepagentsAgentTask, readFileSync(new URL("../../../packages/deepagents/examples/run-repair.ts", import.meta.url), "utf8").trimEnd());
-  for (const contract of ["Developer preview on npm", "SDK 0.5.0-rc.11", "capacity release",
+  for (const contract of ["Developer preview on npm", "SDK 0.5.0-rc.12", "capacity release",
     "A working directory is not a filesystem jail", "MemorySaver", "exactly-once", "sandbox storage",
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
     "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
     "completed the real-model repair", "qualification run passed all 15 gates",
-    "Persistent workflows", "PostgresSaver", "WORKFLOW_CHECKPOINT_ID", "Unreleased source example",
+    "Persistent workflows", "PostgresSaver", "WORKFLOW_CHECKPOINT_ID", "Persistent application example",
     "three direct packages", "npm and pnpm", "requestTimeoutMs", "synthetic",
     "September 25 native qualification passed all 16 gates", "server-side expiry",
     "Runtime qualification and registry publication are separate checks"]) assert.ok(markdown.includes(contract), contract);
-  assert.doesNotMatch(markdown, /full-suite requalification is pending|Unpublished release candidate|DEEPAGENTS_TARBALL/);
+  assert.doesNotMatch(markdown, /full-suite requalification is pending|Unpublished release candidate|DEEPAGENTS_TARBALL|Unreleased source example/);
   const receipt = new URL("../../../docs/release-notes/deepagents-0.1.0-delivery.md", import.meta.url);
   assert.ok(readFileSync(receipt, "utf8").includes("actions/runs/36007730164"));
   for (const run of ["36032828432", "36034957121"]) {
@@ -40,14 +40,14 @@ test("framework integration is a searchable first-class guide with matching code
   assert.ok(workflowReceipt.results.every((result: { status: string }) => result.status === "passed"));
   assert.equal(workflowReceipt.cleanup.status, "passed");
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
-  assert.ok(markdown.includes("npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11"));
+  assert.ok(markdown.includes("npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12"));
 });
 
 test("framework preview pins its published SDK peer and keeps framework dependencies separate", () => {
   const root = new URL("../../../", import.meta.url);
   const manifest = JSON.parse(readFileSync(new URL("packages/deepagents/package.json", root), "utf8"));
   assert.notEqual(manifest.private, true);
-  assert.equal(manifest.peerDependencies["@h-sandbox/sdk"], "0.5.0-rc.11");
+  assert.equal(manifest.peerDependencies["@h-sandbox/sdk"], "0.5.0-rc.12");
   assert.equal(manifest.peerDependencies.deepagents, "1.14.0");
   for (const path of ["packages/sdk", "packages/cli", "apps/api", "apps/web"]) {
     const pkg = JSON.parse(readFileSync(new URL(`${path}/package.json`, root), "utf8"));

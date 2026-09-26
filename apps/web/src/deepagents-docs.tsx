@@ -118,7 +118,7 @@ export const deepagentsDocs: DocPage = {
   toc: ["Your agent, Harakiri tools", "Installation", "Repair a repository", "Model-free smoke test", "Approval and reconnect", "Persistent workflows", "Ownership and failures", "Limits and evidence"],
   body: <>
     <h2>Your agent, Harakiri tools</h2>
-    <aside className="docs-notice"><p><strong>Developer preview on npm.</strong> Install <code>@h-sandbox/deepagents@next</code> with SDK 0.5.0-rc.11 and Deep Agents 1.14.0. Native tools and an independently verified model repair have passed. The adapter is independently versioned; these preview contracts are not a stable compatibility promise.</p></aside>
+    <aside className="docs-notice"><p><strong>Developer preview on npm.</strong> Install <code>@h-sandbox/deepagents@next</code> with SDK 0.5.0-rc.12 and Deep Agents 1.14.0. Native tools and an independently verified model repair have passed. The adapter is independently versioned; these preview contracts are not a stable compatibility promise.</p></aside>
     <p><code>@h-sandbox/deepagents</code> is an optional TypeScript sandbox backend for <a href="https://docs.langchain.com/oss/javascript/deepagents/sandboxes">Deep Agents</a>, built on LangChain and LangGraph. It reuses the framework's tools through the public Harakiri SDK. It does not replace your agent, select a model or connect directly to a runtime provider.</p>
     <p>Start with the normal Deep Agents SDK. Attach a Harakiri backend to send the framework's file and shell tools to your sandbox. The integration point is <code>backend</code>:</p>
     <CodeBlock language="typescript" filename="The integration point">{`import { createDeepAgent } from "deepagents";
@@ -138,11 +138,11 @@ const agent = createDeepAgent({
     <p>This is a <strong>sandbox-backed agent</strong>, not an agent process hosted inside a sandbox. Planning, model requests and checkpoints stay in your application. Custom tools that you register yourself are not automatically sandboxed: a local filesystem or shell callback still runs on your application host.</p>
 
     <h2>Installation</h2>
-    <p>Use Node 22 LTS for the published preview. Node 24 LTS is also included in the source compatibility matrix; Node 20 is retained as a legacy check, not a recommendation for new applications. Install the adapter and SDK directly from npm; no repository checkout or local build is required for the published examples. The tested peers are exactly SDK 0.5.0-rc.11 and Deep Agents 1.14.0; SDK rc.10 is not compatible.</p>
+    <p>Use Node 22 or 24 LTS. Node 20 is retained as a legacy compatibility check, not a recommendation for new applications. Install the adapter and SDK directly from npm; no monorepo build is required. Adapter 0.1.0-rc.2 uses exactly SDK 0.5.0-rc.12 and Deep Agents 1.14.0. Earlier SDK versions do not include all required request controls.</p>
     <p>The backend integration needs three direct packages. <code>--save-exact</code> records the concrete version resolved from <code>next</code>; commit your application's lockfile.</p>
-    <CodeBlock language="bash" filename="Minimal integration">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11 deepagents@1.14.0`}</CodeBlock>
+    <CodeBlock language="bash" filename="Minimal integration">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 deepagents@1.14.0`}</CodeBlock>
     <p>The full repair example also imports model and framework APIs directly. Declare this complete dependency set together in a clean application, especially with pnpm; do not mix independent framework version ranges or bypass peer errors.</p>
-    <CodeBlock language="bash" filename="Install in your application">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11 \\
+    <CodeBlock language="bash" filename="Install in your application">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 \\
   deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \\
   @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
 npm install --save-dev tsx
@@ -189,7 +189,7 @@ const backend = new HarakiriSandboxBackend(sandbox, {
     <p>Do not wrap a real approval pause in <code>withHarakiriSandbox()</code>: a paused graph returns control and would trigger cleanup. Checkpoint state and sandbox storage also have different lifetimes. Use <a href="#docs/workspaces">retained workspaces</a> explicitly when files must outlive a runtime.</p>
 
     <h2>Persistent workflows</h2>
-    <aside className="docs-notice"><p><strong>Unreleased source example.</strong> The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/reliable-framework-workflows.md">Reliable Framework Workflows guide</a> adds persistent approvals and worker recovery. Build the SDK and adapter from the same reviewed source checkout. The request controls below are not in SDK rc.11 or adapter rc.1; installing the current npm preview alone does not enable them.</p></aside>
+    <aside className="docs-notice"><p><strong>Persistent application example.</strong> The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/reliable-framework-workflows.md">Reliable Framework Workflows guide</a> runs persistent approvals and worker recovery against SDK 0.5.0-rc.12 and adapter 0.1.0-rc.2. Download its three versioned application modules and install the pinned npm dependencies. The example is application code, not a workflow service inside the adapter.</p></aside>
     <p>The example uses the real <code>createDeepAgent()</code> API and LangGraph's official <code>PostgresSaver</code>. Your application owns the checkpoint database, authenticated tenant/thread mapping and approvals. Harakiri owns sandbox execution and retained files. PostgreSQL remains an application dependency, not a dependency of the core SDK or the installed adapter.</p>
     <ol>
       <li>Bind an application-authorized, ready sandbox to the authenticated tenant and thread. Retained files need an explicitly attached workspace.</li>
@@ -198,22 +198,22 @@ const backend = new HarakiriSandboxBackend(sandbox, {
       <li>After a worker crash, inspect recorded command references and observe acknowledged work without submitting it again.</li>
       <li>If the runtime expired, wait for confirmed termination and available storage before explicitly creating a replacement for file recovery. Never transfer old command IDs or automatically replay the old graph.</li>
     </ol>
-    <CodeBlock language="bash" filename="Separate worker invocations">{`# Complete the source guide's private database, model and sandbox setup first.
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts bind
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts start
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts inspect
+    <CodeBlock language="bash" filename="Separate worker invocations">{`# Complete the workflow guide's application, database, model and sandbox setup first.
+npx tsx run-durable.ts bind
+npx tsx run-durable.ts start
+npx tsx run-durable.ts inspect
 # Review the pending action, then use its exact checkpointId.
 export WORKFLOW_CHECKPOINT_ID="the-checkpoint-you-reviewed"
-pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts approve
+npx tsx run-durable.ts approve
 # Use reject instead of approve to decline the pending action.`}</CodeBlock>
     <p>There is no transaction spanning a remote shell effect and a graph checkpoint. An invocation left in an uncertain state requires reconciliation, not automatic retry. Application callbacks, model calls and database operations need their own deadlines. Checkpoint data and tool arguments may be sensitive; keep the database private and never serialize SDK clients or API keys into graph state.</p>
-    <table className="docs-data-table"><caption>Four independent budgets in the unreleased source</caption><thead><tr><th scope="col">Budget</th><th scope="col">Meaning</th></tr></thead><tbody>
+    <table className="docs-data-table"><caption>Four independent budgets</caption><thead><tr><th scope="col">Budget</th><th scope="col">Meaning</th></tr></thead><tbody>
       <tr><td><code>requestTimeoutMs</code></td><td>One SDK JSON request, including its response body. Default 120 seconds; no automatic replay.</td></tr>
       <tr><td><code>timeoutMs</code></td><td>The runtime's execution limit for a command.</td></tr>
       <tr><td><code>observationTimeoutMs</code></td><td>Adapter waiting for completion and final logs. Local cancellation does not kill the task.</td></tr>
       <tr><td><code>ttlSeconds</code></td><td>Sandbox lifetime, independent of a paused graph or application worker.</td></tr>
     </tbody></table>
-    <p>Real PostgreSQL tests exercise separate worker processes, approval/rejection, stale decisions, crash recovery, tenant boundaries and expiry responses. API/runtime responses in those tests are synthetic. The <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36137161754">September 25 native qualification passed all 16 gates</a>, including real command effects, worker-crash observation without resubmission, server-side expiry and retained-file recovery into a replacement sandbox. Recovery decisions were scripted; a separate real-model repair also passed. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/reliable-framework-workflows.md">source delivery record</a> retains the sanitized receipt, artifact hashes and confirmed cleanup. This qualifies the source changes against the published rc.9 API baseline; it does not make these changes available in the current npm preview.</p>
+    <p>Real PostgreSQL tests exercise separate worker processes, approval/rejection, stale decisions, crash recovery, tenant boundaries and expiry responses. API/runtime responses in those tests are synthetic. The <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36137161754">September 25 native qualification passed all 16 gates</a>, including real command effects, worker-crash observation without resubmission, server-side expiry and retained-file recovery into a replacement sandbox. Recovery decisions were scripted; a separate real-model repair also passed. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/reliable-framework-workflows.md">source delivery record</a> retains the sanitized receipt, artifact hashes and confirmed cleanup. It qualifies the source against the published rc.9 API baseline, not a new server pair or restricted OpenShift. Package delivery is tracked separately in the <a href="https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.12">rc.12 release</a>.</p>
 
     <h2>Ownership and failures</h2>
     <table className="docs-data-table"><caption>Lifecycle and failure handling</caption><thead><tr><th scope="col">Situation</th><th scope="col">Behavior</th></tr></thead><tbody>
@@ -229,7 +229,7 @@ pnpm --filter @h-sandbox/deepagents exec tsx examples/run-durable.ts approve
     <p>A working directory is not a filesystem jail. Shell tools can access the runtime's permitted filesystem; do not share a sandbox across untrusted tenants. Upstream edits are read/modify/write and need serialization when writers conflict.</p>
     <p>Logs default to 64 KiB of combined UTF-8 text, stdout followed by stderr. A fixed termination notice is added outside that budget so even a tiny log limit cannot hide failure. Grep keeps complete matches only when output is clipped and reports incomplete results; narrow the search or increase the backend's byte limit. The pinned framework's generic incomplete-search note mentions match counts even when the byte limit was responsible.</p>
     <p>Files use checksum-verified buffered transfers, not streaming. Batches are sequential, at most 64 paths and 32 MiB decoded by default; runtime per-file limits still apply.</p>
-    <p>In the published adapter rc.1, remote execution, status polling and sandbox TTL are separate budgets; the polling deadline excludes log download. Configure bounded Fetch when that version needs a per-request deadline. The unreleased request controls above bound body reads and include final logs in the observation budget. Neither version treats cancellation as proof that a remote command stopped. Streaming and route-fetch APIs retain their own controls.</p>
+    <p>In adapter rc.2 with SDK rc.12, the per-request deadline bounds body reads and the observation budget includes final logs. Earlier adapter rc.1 needs a bounded custom Fetch for per-request deadlines and excludes logs from its polling budget. Neither version treats cancellation as proof that a remote command stopped. Streaming and route-fetch APIs retain their own controls.</p>
     <p>Tests exercise the actual Deep Agents and LangGraph libraries with scripted model decisions and synthetic API responses. Installed-tarball checks compile consumer examples and run contracts from clean npm and pnpm applications. Source CI is configured for Node 22/24 and legacy Node 20, plus a weekly upstream compatibility probe that does not publish or silently widen supported versions. Native runtime and real-model acceptance are separate gates, not implied by these tests.</p>
     <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/deepagents.md">technical guide</a> includes an explicitly gated native acceptance command, architecture, failure contracts and the publication checklist. This is a client integration: installing the package does not change your cluster or runtime profile. This page is also available as <a href="/docs/deepagents.md">Markdown</a>.</p>
   </>

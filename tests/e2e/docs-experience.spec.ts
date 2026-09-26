@@ -5,7 +5,7 @@ test("Deep Agents guide exposes npm setup, highlighted programs and ownership gu
   await page.goto("/#docs/typescript-sdk");
   await page.locator("article").getByRole("link", { name: "Deep Agents and LangGraph integration" }).click();
   await expect(page.getByRole("heading", { name: "Deep Agents and LangGraph", exact: true })).toBeVisible();
-  await expect(page.locator("article .docs-notice").first()).toContainText("SDK 0.5.0-rc.11");
+  await expect(page.locator("article .docs-notice").first()).toContainText("SDK 0.5.0-rc.12");
   await expect(page.locator("article .docs-notice").first()).toContainText("Developer preview on npm");
   await expect(page.locator("article")).toContainText("npm install --save-exact @h-sandbox/deepagents@next");
   const first = page.locator("article .doc-code").first();
@@ -33,7 +33,8 @@ test("Deep Agents guide exposes npm setup, highlighted programs and ownership gu
   await expect(page.locator("#approval-and-reconnect")).toBeFocused();
   await page.goto("/#docs/deepagents?section=persistent-workflows");
   await expect(page.locator("#persistent-workflows")).toBeFocused();
-  await expect(page.locator("article .docs-notice").last()).toContainText("Unreleased source example");
+  await expect(page.locator("article .docs-notice").last()).toContainText("Persistent application example");
+  await expect(page.locator("article .docs-notice").last()).toContainText("adapter 0.1.0-rc.2");
   const durable = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: /^Separate worker invocations$/ }) });
   await durable.getByRole("button", { name: "Copy Separate worker invocations code" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(await durable.locator("pre code").textContent());
@@ -45,7 +46,7 @@ test("TypeScript candidate guide is discoverable, copyable and exported on deskt
   await page.goto("/#docs/sdk-cli");
   await page.locator("article").getByRole("link", { name: "TypeScript SDK guide", exact: true }).click();
   await expect(page.getByRole("heading", { name: "TypeScript SDK", exact: true })).toBeVisible();
-  await expect(page.locator("article")).toContainText("TypeScript SDK 0.5.0-rc.11");
+  await expect(page.locator("article")).toContainText("TypeScript SDK 0.5.0-rc.12");
   await expect(page.locator("article")).toContainText("rc.10 does not include them");
   const block = page.locator(".doc-code").filter({ hasText: "first-task.mts" });
   const raw = await block.locator("pre code").textContent();

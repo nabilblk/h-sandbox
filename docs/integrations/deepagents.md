@@ -1,15 +1,15 @@
 # Deep Agents TypeScript Integration
 
 Status: developer preview on npm for Deep Agents 1.14.0 and the published
-Harakiri SDK 0.5.0-rc.11. Earlier SDK versions are not compatible with this adapter.
+Harakiri SDK 0.5.0-rc.12. Earlier SDK versions are not compatible with this adapter.
 Install `@h-sandbox/deepagents@next` using the
 [package guide's pinned dependency set](../../packages/deepagents/README.md#availability).
 Keep `--save-exact` and commit the application lockfile.
 
-**Unreleased source changes:** [Reliable Framework Workflows](reliable-framework-workflows.md)
-adds bounded SDK requests and a persistent application reference. Build the SDK
-and adapter from the same checkout for these features. The registry preview and
-its historical qualification below do not include them.
+**Adapter rc.2 / SDK rc.12:** [Reliable Framework Workflows](reliable-framework-workflows.md)
+adds bounded SDK requests and a persistent application reference. Install the exact
+published pair; PostgreSQL and workflow ownership remain in your application.
+The historical rc.1 qualification below predates these changes.
 
 ## Architecture
 
@@ -97,7 +97,7 @@ configured model so applications can select a compatible provider integration.
 
 See [package installation and examples](../../packages/deepagents/README.md).
 Build the adapter archive and install it alongside the exact published SDK.
-Release-candidate checks install SDK 0.5.0-rc.11 anonymously, not a workspace
+Release-candidate checks install SDK 0.5.0-rc.12 anonymously, not a workspace
 substitute. Framework packages are peers/development dependencies here, never
 dependencies of the core SDK, CLI, API or dashboard runtime. Publication remains
 gated on reviewed source and the complete native acceptance receipt.
@@ -148,14 +148,14 @@ ID and makes only read requests. It does not restart work or extend TTL.
 | --- | --- | --- |
 | `cwd` | Runtime metadata workdir | Absolute working directory, not a jail |
 | `timeoutMs` | Runtime command timeout | Remote execution budget |
-| `observationTimeoutMs` | Execution timeout + 10s | Source: status polling plus final logs; published rc.1: polling only |
-| `requestTimeoutMs` (unreleased) | SDK client default, 120s | Per JSON HTTP request including body reads |
+| `observationTimeoutMs` | Execution timeout + 10s | Status polling plus final logs |
+| `requestTimeoutMs` | SDK client default, 120s | Per JSON HTTP request including body reads |
 | `maxOutputBytes` | 65,536; max 1,048,576 | Combined log text, UTF-8 safe truncation; fixed termination notice excluded |
 | `maxBatchBytes` | 33,554,432; max 268,435,456 | Cumulative decoded bytes per file batch |
-| `signal` | None | Source: cancel in-flight requests and observation; never kill remote execution |
+| `signal` | None | Cancel in-flight requests and observation; never kill remote execution |
 
-In source, the SDK transport bounds submission, file and final log requests with
-`requestTimeoutMs`. Published rc.1 requires a bounded custom Fetch implementation
+SDK rc.12 bounds submission, file and final log requests with
+`requestTimeoutMs`. Earlier adapter rc.1 requires a bounded custom Fetch implementation
 instead. A submission timeout is still ambiguous and must not trigger automatic
 replay. The callback that persists command IDs also belongs to the application
 and needs its own database deadline.
@@ -266,7 +266,7 @@ The independent tests, original-test hash and patch checks passed. Shared
 also passed all 11 gates. These runs use the pinned published API baseline
 `0.5.0-rc.9`; they do not certify a new published server pair or OpenShift profile.
 
-The adapter preview `0.1.0-rc.1` is available on npm `next`.
+The earlier adapter preview `0.1.0-rc.1` was published on npm `next`.
 [CI publication](https://github.com/nabilblk/h-sandbox/actions/runs/36034957121)
 used the package-specific GitHub Trusted Publisher and verified anonymous
 installed consumers on Node 20 and 22. The published archive matches the
@@ -280,12 +280,16 @@ it. One small repair does not establish model quality.
 
 Use the [npm release runbook](npm-packages.md) for the new-package bootstrap,
 package-specific Trusted Publisher, independent adapter versions and anonymous
-Node 20/22 verification. The SDK/CLI release target does **not** publish this
+Node 22/24 verification, with Node 20 retained as a legacy check. The SDK/CLI release target does **not** publish this
 adapter. No chart, API migration or cluster rollout is required for a client-only
 integration. Installation instructions use the verified npm preview, not a
 monorepo build or an unpublished archive.
 
 ## Sources
+
+The current pair is adapter `0.1.0-rc.2` and SDK `0.5.0-rc.12`. See
+[the rc.12 release notes](../release-notes/0.5.0-rc.12.md) for request-control
+migration, durable workflow examples and the separate publication record.
 
 - [Deep Agents sandbox backends](https://docs.langchain.com/oss/javascript/deepagents/sandboxes)
 - [Deep Agents backend contract](https://docs.langchain.com/oss/javascript/deepagents/backends)

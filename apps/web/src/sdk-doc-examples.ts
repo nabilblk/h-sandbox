@@ -1,5 +1,5 @@
 // Pin documentation to the coordinated release; CI tests its installed archive before publication.
-export const publishedSdkVersion = "0.5.0-rc.11";
+export const publishedSdkVersion = "0.5.0-rc.12";
 export const publishedSdkInstall = `npm install --save-exact @h-sandbox/sdk@${publishedSdkVersion}`;
 export const publishedCliInstall = `npm install -g @h-sandbox/cli@${publishedSdkVersion}`;
 

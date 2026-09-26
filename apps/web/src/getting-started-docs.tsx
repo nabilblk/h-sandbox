@@ -50,7 +50,7 @@ export const overviewDocs: DocPage = {
     <p><a href="#demos">Watch the recorded workflows</a>, or follow <a href="#docs/persistent-workspaces">the workspace tutorial</a> to reuse files across sandbox lifetimes.</p>
     <h2>Integrate and operate</h2>
     <p>Use the <a href="#docs/api-reference">API reference</a> and <a href="#docs/cli-reference">CLI reference</a> for exact operations. Operators start with <a href="#docs/install-kubernetes">Kubernetes installation</a>, then <a href="#docs/backup-recovery">backup and recovery</a>, <a href="#docs/workspace-operations">storage operations</a> and <a href="#docs/errors-troubleshooting">error handling</a>.</p>
-    <aside className="docs-notice"><p><strong>Choose your release deliberately.</strong> The Developer Preview is <code>0.5.0-rc.11</code> on npm <code>next</code>, with matching server requirements. The older <code>latest</code> channel is 0.4.0. Check <a href="#docs/developer-preview">preview scope and prerequisites</a>; the optional Deep Agents adapter has its own source-candidate availability.</p><p><a href="#changelog">Read the release notes</a></p></aside>
+    <aside className="docs-notice"><p><strong>Choose your release deliberately.</strong> The Developer Preview is <code>0.5.0-rc.12</code> on npm <code>next</code>, with matching server requirements. The older <code>latest</code> channel is 0.4.0. Check <a href="#docs/developer-preview">preview scope and prerequisites</a>; the optional Deep Agents adapter is independently versioned as 0.1.0-rc.2 on npm next.</p><p><a href="#changelog">Read the release notes</a></p></aside>
   </>
 };
 
@@ -60,7 +60,7 @@ const QuickstartBody = () => {
     <h2>Before you start</h2>
     <p>No deployment yet? Follow <a href="#docs/install-kubernetes">Install on Kubernetes</a> first. Installing the SDK or CLI does not install the server or runtime.</p>
     <ul><li>A running Harakiri deployment, its API URL and an organization API key from the dashboard's <strong>API keys</strong> page.</li><li>A ready <code>python-3.12-data</code> template. Ask your operator for an equivalent Python template if the catalog differs.</li><li>Node.js 20 or newer on your machine. The shell example uses Bash. Python runs inside the sandbox, not on your machine.</li></ul>
-    <p>The examples below pin <code>0.5.0-rc.11</code>. Standard tasks require API rc.9 or newer; usage history requires rc.10 or newer. Unversioned installs still select the older <code>0.4.0</code> stable channel. Review <a href="#docs/developer-preview">version and runtime limits</a> first.</p>
+    <p>The examples below pin <code>0.5.0-rc.12</code>. Standard tasks require API rc.9 or newer; usage history requires rc.10 or newer. Unversioned installs still select the older <code>0.4.0</code> stable channel. Review <a href="#docs/developer-preview">version and runtime limits</a> first.</p>
     <h2>Install and authenticate</h2>
     <p>Set <code>HARAKIRI_API_URL</code> to your deployment's control-plane API, not the dashboard URL. Provide <code>HARAKIRI_API_KEY</code> privately through your shell or secret manager. Keep that key on the caller's machine, out of sandbox files and source control.</p>
     <CodeBlock language="bash">{`export HARAKIRI_API_URL="https://sb-api.harakiri.io"

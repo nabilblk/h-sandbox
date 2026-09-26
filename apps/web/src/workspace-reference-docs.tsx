@@ -39,7 +39,7 @@ export const workspaceReferenceDocs: DocPage = {
 ${publishedSdkInstall}
 ${publishedCliInstall}
 harakiri --version`}</CodeBlock>
-      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.11.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.11.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
+      <p>For disconnected environments, obtain <code>h-sandbox-sdk-0.5.0-rc.12.tgz</code>, <code>h-sandbox-cli-0.5.0-rc.12.tgz</code> and their release checksums from your operator. Install both archives together because the CLI depends on the matching SDK; all other npm dependencies must also be available in your internal registry or cache.</p>
       <p>The rest of these docs use <code>harakiri</code> for the installed executable. For a local install, use <code>./node_modules/.bin/harakiri</code>. Configure <code>HARAKIRI_API_URL</code> and <code>HARAKIRI_API_KEY</code> privately. The API/scheduler must run matching workspace-aware code and an enabled storage profile.</p>
       <p>For the mental model, start with <a href="#docs/workspaces">Workspaces</a>. For a complete exercise, use <a href="#docs/persistent-workspaces">Reuse files across sandboxes</a>.</p>
     </section>

@@ -57,12 +57,12 @@ not a public issue or discussion. The maintainer is
 ## Run Your First Task
 
 An operator provides your API URL and a scoped, expiring key. The release
-candidate is `0.5.0-rc.11`; `latest` still selects the older `0.4.0` release. Pin
+candidate is `0.5.0-rc.12`; `latest` still selects the older `0.4.0` release. Pin
 the version compatible with your installation:
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.11
-npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11
+npm install -g @h-sandbox/cli@0.5.0-rc.12
+npm install --save-exact @h-sandbox/sdk@0.5.0-rc.12
 harakiri --version
 ```
 
