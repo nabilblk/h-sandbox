@@ -1,11 +1,20 @@
 import {
   HarakiriClient, type HarakiriSandbox, type SandboxCommandResponse,
   type SandboxRouteResponse, type WorkspaceResponse, type RunSandboxResponse,
-  type SandboxFileWriteResponse
+  HarakiriRequestTimeoutError, type RequestOptions, type SandboxFileWriteResponse
 } from "@h-sandbox/sdk";
 
 // Compiled through the package's public .d.ts entry point; this function is never executed.
 export async function checkPublicTypes(sandbox: HarakiriSandbox) {
+  const request: RequestOptions = { requestTimeoutMs: 15_000, signal: new AbortController().signal };
+  await sandbox.run({ command: "pwd" }, request);
+  await sandbox.run("pwd", { ...request, timeoutMs: 10_000 });
+  await sandbox.files.write({ path: "/input.txt", content: "text" }, request);
+  await sandbox.files.write("input.txt", "text", request);
+  await sandbox.files.readBytes("result.bin", request);
+  await sandbox.processes.start({ command: "worker" }, request);
+  await sandbox.waitForTermination({ ...request, timeoutMs: 1000 });
+  const timeout: false = new HarakiriRequestTimeoutError(15_000, "POST").retryable;
   const result: RunSandboxResponse["result"] = await sandbox.run("pwd", { check: true });
   const envelope: RunSandboxResponse = await sandbox.run({ command: "pwd" });
   const text: string = await sandbox.files.readText("input.txt");
@@ -15,7 +24,9 @@ export async function checkPublicTypes(sandbox: HarakiriSandbox) {
   const task = await sandbox.processes.start({ command: "node worker.mjs" });
   const legacyCommand: SandboxCommandResponse = task;
   const legacyRoute: SandboxRouteResponse = await sandbox.routes.expose({ port: 3000, accessMode: "token" });
-  const client = HarakiriClient.fromEnv({ env: { HARAKIRI_API_URL: "https://api.example.invalid", HARAKIRI_API_KEY: "dummy" } });
+  const client = HarakiriClient.fromEnv({ env: { HARAKIRI_API_URL: "https://api.example.invalid", HARAKIRI_API_KEY: "dummy" }, requestTimeoutMs: 15_000 });
+  await client.sandboxes.create({ template: "selected", wait: false }, request);
+  await client.sandboxes.connect("authorized-id", request);
   const workspace = await client.workspaces.create({ name: "retained" });
   const legacyWorkspace: WorkspaceResponse = workspace;
   await workspace.wait({ timeoutMs: 1000, signal: AbortSignal.abort() });
@@ -36,5 +47,5 @@ export async function checkPublicTypes(sandbox: HarakiriSandbox) {
   await sandbox.files.write("input", { arbitrary: true });
   // @ts-expect-error A file write needs content.
   await sandbox.files.write("input");
-  return { result, envelope, legacyWrite, filePath, legacyCommand, legacyRoute, legacyWorkspace };
+  return { result, envelope, legacyWrite, filePath, legacyCommand, legacyRoute, legacyWorkspace, timeout };
 }

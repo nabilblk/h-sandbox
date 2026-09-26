@@ -2,6 +2,8 @@ export type EnvironmentClientOptions = {
   /** Defaults to process.env in Node. Explicit values also support browser/test environments. */
   env?: Readonly<Record<string, string | undefined>>;
   fetch?: typeof fetch;
+  /** Local HTTP deadline, including response bodies. Does not change command timeouts. */
+  requestTimeoutMs?: number;
 };
 
 export function clientOptionsFromEnv(options: EnvironmentClientOptions = {}) {
@@ -17,5 +19,5 @@ export function clientOptionsFromEnv(options: EnvironmentClientOptions = {}) {
     throw new Error("HARAKIRI_API_URL must be HTTP(S), without credentials, a query or a fragment.");
   }
   if (/[\r\n]/.test(apiKey)) throw new Error("HARAKIRI_API_KEY must not contain line breaks.");
-  return { apiUrl: url.toString(), apiKey, fetch: options.fetch };
+  return { apiUrl: url.toString(), apiKey, fetch: options.fetch, requestTimeoutMs: options.requestTimeoutMs };
 }

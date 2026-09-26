@@ -4,7 +4,7 @@ export const sdkGates = Object.freeze([
   "creation-and-finite-tasks", "atomic-capacity-error", "text-and-binary-files",
   "process-reconnect-and-cancellation", "protected-http-and-local-git",
   "retained-workspace-and-confirmed-release", "partial-source-recovery", "unconfirmed-cleanup-and-expiry",
-  "framework-native-tools", "framework-model-repair", "key-revocation"
+  "framework-native-tools", "framework-durable-recovery", "framework-model-repair", "key-revocation"
 ]);
 
 export function sdkGateReceipt(name, durationMs) {

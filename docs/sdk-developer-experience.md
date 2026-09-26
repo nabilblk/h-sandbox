@@ -157,6 +157,14 @@ Archival is separate from termination and does not physically reclaim storage.
 
 ## Understand Failure and Recovery
 
+**Unreleased source addition:** shared JSON requests now default to a 120-second
+local deadline, including the response body. Client and primary command, file and
+lifecycle calls accept `requestTimeoutMs` and `signal`. A
+`HarakiriRequestTimeoutError` does not prove a mutation failed remotely. There is
+no automatic replay. SDK rc.11 does not contain these additions; build the SDK
+and any adapter from the same reviewed checkout until a new version is published.
+SSE streams and raw route requests retain their separate timeout controls.
+
 | Budget | Meaning |
 | --- | --- |
 | `run`/process `timeoutMs` | Remote execution budget |
@@ -216,8 +224,8 @@ into application logs. Use process `reference` for durable job records.
 ## Runnable Recipes and Verification
 
 Install the versioned package in your consuming project. Keep the API URL/key
-in your environment, not command history. Repository tooling requires Node 22;
-installed packages support Node 20/22.
+in your environment, not command history. Use Node 22 LTS for the published
+preview. Source checks cover Node 22/24 and retain Node 20 as a legacy check.
 
 ```bash
 npm install --save-exact @h-sandbox/sdk@0.5.0-rc.11

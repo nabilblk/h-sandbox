@@ -21,7 +21,7 @@ test("every page occurs exactly once in the editorial progression", () => {
 test("TypeScript release is discoverable, versioned and explicit about recovery", () => {
   const page = docPages.find(page => page.id === "typescript-sdk")!;
   const markup = renderToStaticMarkup(page.body);
-  for (const phrase of ["TypeScript SDK 0.5.0-rc.11", "rc.10 does not include", "Node.js 20", "not distributed exactly-once", "waitForTermination", "sandboxes:write", "manual", "not large-file streaming"]) {
+  for (const phrase of ["TypeScript SDK 0.5.0-rc.11", "rc.10 does not include", "Node.js 22 LTS", "Node 24 LTS", "Unreleased request controls", "HarakiriRequestTimeoutError", "not distributed exactly-once", "waitForTermination", "sandboxes:write", "manual", "not large-file streaming"]) {
     assert.ok(markup.includes(phrase), phrase);
   }
   assert.ok(searchDocPages(docPages, "fromEnv readBytes").includes(page));

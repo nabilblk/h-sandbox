@@ -99,6 +99,19 @@ test("public SDK evidence cannot include clients, credentials or arbitrary gate 
   assert.throws(() => sdkGateReceipt(sdkGates[0], -1));
 });
 
+test("durable acceptance separates checkpoint storage, workers and sandbox runtime effects", () => {
+  const source = fs.readFileSync(new URL("./framework.mjs", import.meta.url), "utf8");
+  assert.match(source, /framework-durable-recovery/);
+  assert.match(source, /127\.0\.0\.1::5432/);
+  assert.match(source, /Refuse unrelated workflow database cleanup/);
+  const fixture = fs.readFileSync(new URL("./durable-workflows.mts", import.meta.url), "utf8");
+  assert.match(fixture, /test\/durable-worker\.ts/);
+  assert.match(fixture, /waitForTermination/);
+  assert.match(fixture, /recoverWorkflowFiles/);
+  assert.doesNotMatch(fixture, /kubectl|k0s|KUBECONFIG/);
+  assert.ok(sdkGates.includes("framework-durable-recovery"));
+});
+
 test("the installed runtime fixture uses only the public package and no local cluster access", () => {
   const source = fs.readFileSync(new URL("./workflows.mjs", import.meta.url), "utf8");
   assert.match(source, /from "@h-sandbox\/sdk"/);

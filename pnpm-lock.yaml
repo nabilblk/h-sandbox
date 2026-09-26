@@ -204,6 +204,12 @@ importers:
       '@langchain/langgraph':
         specifier: 1.4.17
         version: 1.4.17(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(zod@4.4.3)
+      '@langchain/langgraph-checkpoint-postgres':
+        specifier: 1.0.5
+        version: 1.0.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0)))
+      '@types/pg':
+        specifier: 8.20.0
+        version: 8.20.0
       deepagents:
         specifier: 1.14.0
         version: 1.14.0(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0)))(@langchain/langgraph-sdk@1.11.2(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@langchain/langgraph@1.4.17(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(zod@4.4.3))(langchain@1.5.11(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(@opentelemetry/api@1.9.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(ws@8.21.0))(langsmith@0.9.0(@opentelemetry/api@1.9.1)(ws@8.21.0))
@@ -213,6 +219,9 @@ importers:
       langsmith:
         specifier: 0.9.0
         version: 0.9.0(@opentelemetry/api@1.9.1)(ws@8.21.0)
+      pg:
+        specifier: 8.21.0
+        version: 8.21.0
       tsx:
         specifier: ^4.23.13
         version: 4.23.13
@@ -904,6 +913,13 @@ packages:
   '@langchain/core@1.2.12':
     resolution: {integrity: sha512-DvNsrN5Gz+bgEy/B/kK1AvxxcrwdrflI8hZJxqo/DtA17FMUeWM5k0o1c6G8ChH8+sIakV2UsDudFmNZJp1ugQ==}
     engines: {node: '>=20'}
+
+  '@langchain/langgraph-checkpoint-postgres@1.0.5':
+    resolution: {integrity: sha512-kCpp9pOidYDexhOvpWN4Z6G4npr4+OH8Qe/2oo38NLbRa+AzMcuZDiEI8y9bh4v5fcMy/dhlJClCSQzl86ddUw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': ^1.1.44
+      '@langchain/langgraph-checkpoint': ^1.1.4
 
   '@langchain/langgraph-checkpoint@1.1.5':
     resolution: {integrity: sha512-BwDwl5VeTOh6CVuiIPgsUgfK51vTJDMSbFcSCUfjJWsl8/DPdK/mbv+ejxJstkSk/BlSPMP4JfXWcN6jD2ea2Q==}
@@ -2391,6 +2407,15 @@ packages:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
 
+  pg@8.20.0:
+    resolution: {integrity: sha512-ldhMxz2r8fl/6QkXnBD3CR9/xg694oT6DZQ2s6c/RI28OjtSOpxnPrUCGOBJ46RCUxcWdx3p6kw/xnDHjKvaRA==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      pg-native: '>=3.0.1'
+    peerDependenciesMeta:
+      pg-native:
+        optional: true
+
   pg@8.21.0:
     resolution: {integrity: sha512-AUP1EYJuHraQGsVoCQVIcM7TEJVGtDzxWtGFZd8rds9d+CCXlU5Js1rYgfLNvxy9iJrpHjGrRjoi/3BT9fRyiA==}
     engines: {node: '>= 16.0.0'}
@@ -3488,6 +3513,14 @@ snapshots:
       - '@opentelemetry/sdk-trace-base'
       - openai
       - ws
+
+  '@langchain/langgraph-checkpoint-postgres@1.0.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0)))':
+    dependencies:
+      '@langchain/core': 1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0)
+      '@langchain/langgraph-checkpoint': 1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))
+      pg: 8.20.0
+    transitivePeerDependencies:
+      - pg-native
 
   '@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))':
     dependencies:
@@ -5033,6 +5066,10 @@ snapshots:
 
   pg-int8@1.0.1: {}
 
+  pg-pool@3.14.0(pg@8.20.0):
+    dependencies:
+      pg: 8.20.0
+
   pg-pool@3.14.0(pg@8.21.0):
     dependencies:
       pg: 8.21.0
@@ -5046,6 +5083,16 @@ snapshots:
       postgres-bytea: 1.0.1
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
+
+  pg@8.20.0:
+    dependencies:
+      pg-connection-string: 2.13.0
+      pg-pool: 3.14.0(pg@8.20.0)
+      pg-protocol: 1.14.0
+      pg-types: 2.2.0
+      pgpass: 1.0.5
+    optionalDependencies:
+      pg-cloudflare: 1.4.0
 
   pg@8.21.0:
     dependencies:

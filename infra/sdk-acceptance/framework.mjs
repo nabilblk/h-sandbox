@@ -38,6 +38,37 @@ export async function exerciseFramework(ctx, template, gate) {
   ctx.execute("node", ["--import", "tsx", "--test", "text-tool-model.test.mts"], "Verify model transport compatibility", { cwd: ctx.consumer, env });
   const run = file => ctx.execute("node", ["--import", "tsx", file], "Framework runtime verification", { cwd: ctx.consumer, env });
   await gate("framework-native-tools", () => run("native.mts"));
+  await gate("framework-durable-recovery", async () => {
+    ctx.guard();
+    for (const directory of ["test", "examples"]) fs.mkdirSync(path.join(ctx.consumer, directory), { recursive: true });
+    for (const name of ["test/durable-worker.ts", "test/scripted-model.ts", "examples/durable-store.ts", "examples/durable-workflow.ts"]) {
+      fs.copyFileSync(new URL(name, pkg), path.join(ctx.consumer, name));
+    }
+    fs.copyFileSync(new URL("./durable-workflows.mts", import.meta.url), path.join(ctx.consumer, "durable-workflows.mts"));
+    let container;
+    try {
+      container = ctx.execute("docker", ["run", "--detach", "--name", `harakiri-framework-pg-${ctx.identity.id}`,
+        "--label", `harakiri.acceptance=${ctx.identity.id}`, "--publish", "127.0.0.1::5432",
+        "--memory", "256m", "--cpus", "1", "--env", "POSTGRES_HOST_AUTH_METHOD=trust", "postgres:16.15-alpine"],
+      "Start isolated workflow checkpoint database").trim();
+      check(/^[a-f0-9]{64}$/.test(container), "Invalid owned workflow database identity");
+      const address = ctx.execute("docker", ["port", container, "5432/tcp"], "Resolve isolated workflow database").trim();
+      check(/^127\.0\.0\.1:\d+$/.test(address), "Workflow database must be runner-loopback only");
+      await until("Workflow PostgreSQL readiness", async () => {
+        try { ctx.execute("docker", ["exec", container, "pg_isready", "-U", "postgres"], "Check isolated database"); return true; }
+        catch { return false; }
+      });
+      ctx.execute("node", ["--import", "tsx", "durable-workflows.mts"], "Verify native workflow recovery", {
+        cwd: ctx.consumer, env: { ...env, WORKFLOW_DATABASE_URL: `postgresql://postgres@${address}/postgres` }
+      });
+    } finally {
+      if (container && /^[a-f0-9]{64}$/.test(container)) {
+        const owned = JSON.parse(ctx.execute("docker", ["inspect", container], "Inspect owned workflow database"))[0];
+        check(owned.Config.Labels["harakiri.acceptance"] === ctx.identity.id, "Refuse unrelated workflow database cleanup");
+        ctx.execute("docker", ["rm", "--force", container], "Remove owned workflow database");
+      }
+    }
+  });
   let modelCalls;
 
   await gate("framework-model-repair", async () => {

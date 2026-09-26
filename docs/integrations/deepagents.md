@@ -6,6 +6,11 @@ Install `@h-sandbox/deepagents@next` using the
 [package guide's pinned dependency set](../../packages/deepagents/README.md#availability).
 Keep `--save-exact` and commit the application lockfile.
 
+**Unreleased source changes:** [Reliable Framework Workflows](reliable-framework-workflows.md)
+adds bounded SDK requests and a persistent application reference. Build the SDK
+and adapter from the same checkout for these features. The registry preview and
+its historical qualification below do not include them.
+
 ## Architecture
 
 ```text
@@ -77,8 +82,10 @@ searches require narrowing the query or raising `maxOutputBytes` instead.
 The compatibility fixture pins Deep Agents 1.14.0, LangChain 1.5.11,
 `@langchain/core` 1.2.12, `@langchain/langgraph` 1.4.17, LangSmith 0.9.0 and
 Zod 4.4.3. Keep Zod aligned with the framework tree: duplicate peer instances
-can produce nominally incompatible LangGraph `Command` types. Consumers target
-Node 20/22; repository tools run on Node 22+. This package is server-side only.
+can produce nominally incompatible LangGraph `Command` types. Use Node 22/24;
+Node 20 is retained only as a legacy compatibility test. This package is
+server-side only. Minimal consumers need only the two Harakiri packages and
+Deep Agents; full model/checkpoint examples require the additional direct imports.
 
 Model transport compatibility is separate from the sandbox backend contract.
 Deep Agents returns text-block ToolMessages from `read_file`, which
@@ -141,16 +148,17 @@ ID and makes only read requests. It does not restart work or extend TTL.
 | --- | --- | --- |
 | `cwd` | Runtime metadata workdir | Absolute working directory, not a jail |
 | `timeoutMs` | Runtime command timeout | Remote execution budget |
-| `observationTimeoutMs` | Execution timeout + 10s | Status-polling budget, not total HTTP time |
+| `observationTimeoutMs` | Execution timeout + 10s | Source: status polling plus final logs; published rc.1: polling only |
+| `requestTimeoutMs` (unreleased) | SDK client default, 120s | Per JSON HTTP request including body reads |
 | `maxOutputBytes` | 65,536; max 1,048,576 | Combined log text, UTF-8 safe truncation; fixed termination notice excluded |
 | `maxBatchBytes` | 33,554,432; max 268,435,456 | Cumulative decoded bytes per file batch |
-| `signal` | None | Stop observation and between-file work; not remote execution |
+| `signal` | None | Source: cancel in-flight requests and observation; never kill remote execution |
 
-The SDK transport still controls submission, file and final log requests. For a
-strict per-request timeout, inject a Fetch implementation into `HarakiriClient`
-that combines the caller's signal with its own deadline. A submission timeout is
-still ambiguous and must not trigger automatic replay. The callback that persists
-command IDs also belongs to the application and needs its own database deadline.
+In source, the SDK transport bounds submission, file and final log requests with
+`requestTimeoutMs`. Published rc.1 requires a bounded custom Fetch implementation
+instead. A submission timeout is still ambiguous and must not trigger automatic
+replay. The callback that persists command IDs also belongs to the application
+and needs its own database deadline.
 
 The framework's tool layer can format an adapter exception as a tool error, and
 a model can issue another tool call. This adapter cannot promise exactly-once
@@ -180,6 +188,14 @@ commands can change directories. Do not present `cwd` or a framework composite
 backend as a host/tenant isolation boundary.
 
 ## Checkpoints and Security
+
+For real process restarts, use the [persistent workflow reference](reliable-framework-workflows.md).
+It uses the official PostgreSQL checkpointer with a real Deep Agents graph,
+checkpoint-bound approval, an application tenant/thread binding and command ID
+records. Local tests forcibly exit a worker after acknowledgement, then observe
+from a replacement process without replay. Native runtime proof remains a
+separate gate. Its conservative `invoking` state requires reconciliation after
+worker loss rather than promising exactly-once effects.
 
 The LangGraph reference workflow submits a command **outside** a resumable graph.
 It checkpoints IDs, interrupts before any observation and resolves an authorized
@@ -216,7 +232,8 @@ pnpm --filter @h-sandbox/deepagents test:package
 These exercise the real framework against a deterministic model/API fixture;
 they do not prove native shell compatibility or model quality. Installed-package
 checks use ESM imports and strict declaration compilation in a clean consumer,
-including the public examples. CI repeats this on Node 20 and 22.
+including the public examples. CI is configured for npm/pnpm on Node 22/24 and
+legacy Node 20. PostgreSQL restart tests run separately from synthetic package tests.
 Regressions inspect actual framework ToolMessages for abnormal termination and
 incomplete searches, exercise concurrent grep calls and cancelled transfer
 batches, and invoke the single-file repair workflow with scripted decisions.

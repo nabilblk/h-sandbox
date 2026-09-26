@@ -21,6 +21,9 @@ test("framework integration is a searchable first-class guide with matching code
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
     "Custom tools", "not automatically sandboxed", "termination notice", "cancellation between files",
     "completed the real-model repair", "qualification run passed all 15 gates",
+    "Persistent workflows", "PostgresSaver", "WORKFLOW_CHECKPOINT_ID", "Unreleased source example",
+    "three direct packages", "npm and pnpm", "requestTimeoutMs", "synthetic",
+    "September 25 native qualification passed all 16 gates", "server-side expiry",
     "Runtime qualification and registry publication are separate checks"]) assert.ok(markdown.includes(contract), contract);
   assert.doesNotMatch(markdown, /full-suite requalification is pending|Unpublished release candidate|DEEPAGENTS_TARBALL/);
   const receipt = new URL("../../../docs/release-notes/deepagents-0.1.0-delivery.md", import.meta.url);
@@ -29,6 +32,13 @@ test("framework integration is a searchable first-class guide with matching code
     assert.ok(markdown.includes(`actions/runs/${run}`));
     assert.ok(readFileSync(receipt, "utf8").includes(`actions/runs/${run}`));
   }
+  const workflowReceipt = JSON.parse(readFileSync(new URL("../../../docs/release-notes/reliable-framework-workflows.acceptance.json", import.meta.url), "utf8"));
+  assert.ok(markdown.includes(`actions/runs/${workflowReceipt.runId.split("-")[0]}`));
+  assert.equal(workflowReceipt.status, "configured_gates_passed");
+  assert.equal(workflowReceipt.published, false);
+  assert.equal(workflowReceipt.results.length, 16);
+  assert.ok(workflowReceipt.results.every((result: { status: string }) => result.status === "passed"));
+  assert.equal(workflowReceipt.cleanup.status, "passed");
   assert.match(renderToStaticMarkup(deepagentsDocs.body), /hljs-keyword/);
   assert.ok(markdown.includes("npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.11"));
 });

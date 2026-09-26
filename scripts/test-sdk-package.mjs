@@ -25,13 +25,15 @@ try {
   const tests = readFileSync(join(sdk, "src/developer-experience.test.ts"), "utf8");
   if (!tests.includes('from "./index.js"')) throw new Error("Public import rewrite marker is missing.");
   writeFileSync(join(directory, "installed.test.ts"), tests.replace('from "./index.js"', 'from "@h-sandbox/sdk"'));
+  writeFileSync(join(directory, "request.test.ts"), readFileSync(join(sdk, "src/request.test.ts"), "utf8")
+    .replace('from "./index.js"', 'from "@h-sandbox/sdk"'));
   writeFileSync(join(directory, "api.ts"), readFileSync(join(sdk, "type-tests/api.ts")));
   for (const fixture of ["large-artifact.mjs", "opencode-recipe.mjs"]) {
     writeFileSync(join(directory, fixture), readFileSync(join(sdk, "fixtures", fixture)));
   }
   writeFileSync(join(directory, "opencode-headless.ts"), readFileSync(join(root, "examples/sdk-opencode-headless/index.ts")));
   run(consumerNode, ["--version"], directory);
-  run(consumerNode, ["--import", pathToFileURL(require.resolve("tsx")).href, "--test", "installed.test.ts"], directory);
+  run(consumerNode, ["--import", pathToFileURL(require.resolve("tsx")).href, "--test", "installed.test.ts", "request.test.ts"], directory);
   run(consumerNode, ["opencode-recipe.mjs", pathToFileURL(require.resolve("tsx")).href], directory);
   run(consumerNode, ["--max-old-space-size=128", "large-artifact.mjs"], directory);
   run(consumerNode, [resolve(root, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2022",

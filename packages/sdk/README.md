@@ -43,6 +43,32 @@ the migration guide. No mutation is automatically retried.
 
 ## Install
 
+### Unreleased Request Controls
+
+The current source adds `requestTimeoutMs` to client configuration and runtime
+request options. JSON requests default to 120 seconds, including response-body
+reads, and throw `HarakiriRequestTimeoutError` on a local deadline. Command
+submission, file operations and final logs accept per-call deadlines/signals.
+These controls are **not in published 0.5.0-rc.11**; use a matching source build
+until the next release. SSE and route fetch keep their separate controls.
+
+```ts
+const client = HarakiriClient.fromEnv({ requestTimeoutMs: 30_000 });
+const sandbox = await client.sandboxes.connect(job.sandboxId);
+const process = await sandbox.processes.start(
+  { command: "python3 report.py", timeoutMs: 90_000 },
+  { requestTimeoutMs: 10_000, signal }
+);
+// Persist before waiting. Cancellation does not stop this remote command.
+await jobs.saveCommand(job.id, process.reference);
+const logs = await process.logs({ requestTimeoutMs: 10_000, signal });
+```
+
+There are no automatic mutation retries. A lost submission response remains
+ambiguous. HTTP deadlines do not extend remote command timeout or sandbox TTL;
+foreground commands longer than the HTTP budget need an explicit override or
+detached execution. See the [persistent framework guide](https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/reliable-framework-workflows.md).
+
 ### Execution Capacity
 
 Included in 0.5.0-rc.9; requires matching server migration 038. `client.capacity()`
