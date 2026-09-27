@@ -41,6 +41,11 @@ passed before merge; the additional isolated native check was still running.
 The shared PostgreSQL timing budget failed once and passed on an unchanged
 rerun. No thresholds, API source or workflow gates were modified.
 
+The native run subsequently passed all 16 gates and cleanup, bringing PR #62
+to 23 passing checks. Its candidate `b4a7b841aa2f15eb9fcebb0fc230874f170db713`
+has the same tree as the deployed merge. The native workload, including a small
+model-driven repair, ran only on the disposable GitHub-hosted amd64 runner.
+
 Web-only publication passed in Actions `36341547268`, using tag
 `0.5.0-rc.12-deepagents-docs.4751990` and index digest
 `sha256:21919e0988dd97be84768f2a82e63e5be9d8a3fa8476116381b2b33a5901160f`.

@@ -17,8 +17,15 @@ changed. Both [PR CI](https://github.com/nabilblk/h-sandbox/actions/runs/3634087
 and [merged-source CI](https://github.com/nabilblk/h-sandbox/actions/runs/36341526014)
 passed. The automatically triggered
 [native SDK run](https://github.com/nabilblk/h-sandbox/actions/runs/36340877241)
-is separate qualification evidence; it was still running at merge. This delivery
-does not claim a new live-model or local-cluster runtime acceptance exercise.
+was still running at merge and subsequently passed all 16 gates and cleanup,
+bringing the PR to 23 passing checks. Its candidate commit,
+`b4a7b841aa2f15eb9fcebb0fc230874f170db713`, has the same tree as the deployed
+merge: `79d8cb8b88ff25c2b449a8cbdf7933bfe39aeb74`.
+
+That isolated amd64 run includes native framework tools, PostgreSQL recovery,
+retained files, expiry and one small model-driven repair. It is regression
+evidence, not a model-quality benchmark or distributed exactly-once guarantee.
+No model or runtime acceptance workload ran on the maintainer's k0s installation.
 
 ## What Is Live
 
