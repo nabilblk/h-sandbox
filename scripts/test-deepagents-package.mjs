@@ -69,7 +69,7 @@ assert.equal((await new HarakiriSandboxBackend(sandbox).execute("true")).output,
   run(consumerNode, [resolve(root, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "NodeNext", "--typeRoots", resolve(root, "node_modules/@types"), "--outDir", "minimal-dist", "minimal.ts"], directory);
   run(consumerNode, ["minimal-dist/minimal.js"], directory);
-  const dependencies = Object.entries(manifest.devDependencies).filter(([name]) => name !== "@h-sandbox/sdk" && name !== "tsx");
+  const dependencies = Object.entries(manifest.devDependencies).filter(([name]) => name !== "@h-sandbox/sdk");
   // Qualify a clean full application too; do not retain auto-installed minimal-example peers.
   for (const name of ["node_modules", "package-lock.json", "pnpm-lock.yaml"]) rmSync(join(directory, name), { recursive: true, force: true });
   writeFileSync(join(directory, "package.json"), JSON.stringify({ private: true, type: "module", dependencies: Object.fromEntries(dependencies) }));
@@ -117,12 +117,15 @@ assert.equal((await new HarakiriSandboxBackend(sandbox).execute("true")).output,
       }
     }
   }
-  for (const name of ["deepagentsFirstTask", "deepagentsAgentTask"]) {
+  for (const name of ["deepagentsFirstTask", "deepagentsAgentTask", "deepagentsLocalTask", "deepagentsSandboxTask", "deepagentsModelSetup"]) {
     assert.ok(programsByName.has(name), `Missing complete documentation program: ${name}`);
     writeFileSync(join(directory, "examples", `${name}.ts`), programsByName.get(name));
   }
-  assert.equal(programsByName.get("deepagentsAgentTask"), readFileSync(join(integration, "examples/run-repair.ts"), "utf8").trimEnd(),
-    "The displayed real-agent program must be the same single-file example tested through Deep Agents.");
+  for (const [name, filename] of [["deepagentsAgentTask", "run-repair.ts"], ["deepagentsLocalTask", "first-local.ts"],
+    ["deepagentsSandboxTask", "first-sandbox.ts"], ["deepagentsModelSetup", "first-model.ts"]]) {
+    assert.equal(programsByName.get(name), readFileSync(join(integration, "examples", filename), "utf8").trimEnd(),
+      `The displayed ${filename} must be the same program tested through Deep Agents.`);
+  }
   writeFileSync(join(directory, "test", "docs.test.ts"), `
 import assert from "node:assert/strict";
 import test from "node:test";

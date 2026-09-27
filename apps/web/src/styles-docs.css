@@ -92,6 +92,19 @@
 .doc-code-tabs [role="tab"][aria-selected="true"] { border-color: var(--docs-accent); color: var(--docs-accent); }
 .doc-code-tabs .doc-code { margin-top: 16px; }
 
+.docs-code-comparison { container-type: inline-size; margin: 28px 0; }
+.docs-code-comparison-grid { display: grid; gap: 24px; align-items: start; }
+.docs-code-comparison section { min-width: 0; }
+.docs-app .docs-code-comparison h3 { margin: 0 0 8px; }
+.docs-app .docs-code-comparison p { font-size: 14px; margin-bottom: 16px; }
+.docs-code-comparison .doc-code { display: flex; flex-direction: column; margin: 0; }
+.docs-app .docs-code-comparison pre { flex: 1; padding: 16px; }
+@container (min-width: 760px) {
+  /* Shared rows align captions and code without fixing content heights. */
+  .docs-code-comparison-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto auto 1fr; gap: 0 20px; align-items: stretch; }
+  .docs-code-comparison section { display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+}
+
 /* Editorial navigation and conceptual content stay unframed. */
 .docs-start-link { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 0; border-top: 1px solid var(--docs-line); border-bottom: 1px solid var(--docs-line); color: var(--docs-accent); text-decoration: none; }
 .docs-start-link strong { display: block; font-size: 18px; font-weight: 600; }

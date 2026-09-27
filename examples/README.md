@@ -87,11 +87,21 @@ published SDK 0.5.0-rc.12 and Deep Agents 1.14.0. It is not bundled into the SDK
 Its native tools and independently verified real-model repair passed. Follow
 the package guide's pinned dependency set and commit your application's lockfile.
 
-Start with [run-repair.ts](../packages/deepagents/examples/run-repair.ts): one
-file imports the real Deep Agents SDK, attaches Harakiri, lets your chosen model
-repair a tiny Git repository, verifies the original tests and retrieves a diff
-before confirmed cleanup. Agent reasoning stays in your application; only its
-sandbox-backed tools run remotely. Custom tools are not automatically sandboxed.
+Start with [first-local.ts](../packages/deepagents/examples/first-local.ts) and
+[first-sandbox.ts](../packages/deepagents/examples/first-sandbox.ts): the same
+Deep Agent, model and task, with different backends. Both print the model's reply;
+independent result verification is covered by the repair example below.
+The optional local baseline is unrestricted host execution, not isolation; run
+it only in a disposable environment. Both import the explicit
+[first-model.ts](../packages/deepagents/examples/first-model.ts) configuration.
+The [public guide](https://sb.harakiri.io/#docs/deepagents) includes a side-by-side
+comparison, exact downloads, model setup, commands and the expected result.
+
+Then use [run-repair.ts](../packages/deepagents/examples/run-repair.ts) for a
+larger task: repair a tiny Git repository, verify its original tests and retrieve
+a diff before confirmed cleanup. Agent reasoning stays in your application;
+only its sandbox-backed tools run remotely. Custom tools are not automatically
+sandboxed.
 
 Examples live in `packages/deepagents/examples` so optional framework dependencies
 stay separate. The secondary `run-checkpoint.ts` example demonstrates model-free

@@ -8,9 +8,23 @@ test("Deep Agents guide exposes npm setup, highlighted programs and ownership gu
   await expect(page.locator("article .docs-notice").first()).toContainText("SDK 0.5.0-rc.12");
   await expect(page.locator("article .docs-notice").first()).toContainText("Developer preview on npm");
   await expect(page.locator("article")).toContainText("npm install --save-exact @h-sandbox/deepagents@next");
-  const first = page.locator("article .doc-code").first();
-  await expect(first).toContainText('import { createDeepAgent } from "deepagents"');
-  await expect(first).toContainText("backend: new HarakiriSandboxBackend(sandbox)");
+  const comparison = page.locator(".docs-code-comparison");
+  await expect(comparison.getByRole("region", { name: "Without a sandbox" })).toContainText("LocalShellBackend.create");
+  await expect(comparison.getByRole("region", { name: "With Harakiri" })).toContainText("withHarakiriSandbox");
+  const markdown = await (await request.get("/docs/deepagents.md")).text();
+  for (const name of ["first-local", "first-sandbox", "first-model"]) {
+    const program = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: new RegExp(`^${name}\\.ts$`) }) });
+    const source = await program.locator("pre code").textContent();
+    await program.getByRole("button", { name: `Copy ${name}.ts code` }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(source);
+    expect(markdown).toContain(source!);
+    const download = await request.get(`/docs/examples/deepagents/${name}.ts`);
+    expect(download.ok()).toBe(true);
+    expect((await download.text()).trimEnd()).toBe(source);
+    const fileEvent = page.waitForEvent("download");
+    await page.getByRole("link", { name: `${name}.ts`, exact: true }).click();
+    expect((await fileEvent).suggestedFilename()).toBe(`${name}.ts`);
+  }
   const block = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: /^run-repair\.ts$/ }) });
   const raw = await block.locator("pre code").textContent();
   await block.getByRole("button", { name: "Copy run-repair.ts code" }).click();
@@ -39,6 +53,78 @@ test("Deep Agents guide exposes npm setup, highlighted programs and ownership gu
   await durable.getByRole("button", { name: "Copy Separate worker invocations code" }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(await durable.locator("pre code").textContent());
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test("Deep Agents comparison aligns code panels and keeps long lines readable", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/#docs/deepagents");
+  const comparison = page.locator(".docs-code-comparison");
+  const local = comparison.getByRole("region", { name: "Without a sandbox" });
+  const remote = comparison.getByRole("region", { name: "With Harakiri" });
+  await expect(local).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+
+  const expectAlignedRows = async () => {
+    for (const selector of ["h3", "p", ".doc-code", ".doc-code-bar", "pre"]) {
+      const a = (await local.locator(selector).boundingBox())!;
+      const b = (await remote.locator(selector).boundingBox())!;
+      expect(Math.abs(a.y - b.y), `${selector} top`).toBeLessThan(1);
+      expect(Math.abs(a.width - b.width), `${selector} width`).toBeLessThan(1);
+      expect(Math.abs(a.height - b.height), `${selector} height`).toBeLessThan(1);
+    }
+  };
+
+  for (const width of [1680, 1440, 1366, 1320, 1310, 1200, 1050, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await comparison.evaluate(node => window.scrollTo(0, node.getBoundingClientRect().top + scrollY - 110));
+    const a = (await local.boundingBox())!;
+    const b = (await remote.boundingBox())!;
+    if ((await comparison.boundingBox())!.width >= 760) {
+      expect(b.x).toBeGreaterThan(a.x + a.width);
+      await expectAlignedRows();
+    } else {
+      expect(Math.abs(a.x - b.x)).toBeLessThan(1);
+      expect(b.y).toBeGreaterThan(a.y + a.height);
+      // Stacked code stays adjacent to its toolbar, with no hidden vertical overflow.
+      for (const panel of [local, remote]) {
+        const bar = (await panel.locator(".doc-code-bar").boundingBox())!;
+        const code = (await panel.locator("pre").boundingBox())!;
+        expect(Math.abs(code.y - bar.y - bar.height)).toBeLessThan(1);
+        expect(await panel.locator("pre").evaluate(node => node.scrollHeight - node.clientHeight)).toBeLessThan(2);
+      }
+    }
+    for (const panel of [local, remote]) {
+      const code = panel.locator("pre");
+      await expect(code.locator("code")).toHaveCSS("white-space", "pre");
+      await expect(code).toHaveCSS("overflow-x", "auto");
+      if (await code.evaluate(node => node.scrollWidth > node.clientWidth)) {
+        await code.focus();
+        await page.keyboard.press("ArrowRight");
+        await expect.poll(() => code.evaluate(node => node.scrollLeft)).toBeGreaterThan(0);
+        await code.evaluate(node => { node.scrollLeft = 0; });
+      }
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.screenshot({ path: `test-results/deepagents-comparison-${width}.png` });
+  }
+
+  // Intrinsic row sizing must survive longer copy, not rely on matching sentences.
+  await page.setViewportSize({ width: 1366, height: 1100 });
+  await comparison.evaluate(node => { (node as HTMLElement).style.width = "760px"; });
+  await remote.locator("p").evaluate(node => {
+    node.textContent = "Tools run remotely. The helper waits for readiness and cleans up after the agent has finished its work.";
+  });
+  await expectAlignedRows();
+  await remote.getByRole("button", { name: "Copy first-sandbox.ts code" }).click();
+  await expect(remote.getByRole("status")).toHaveText("Copied");
+  await expectAlignedRows();
+  await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new Error("Clipboard blocked"); }; });
+  await local.getByRole("button", { name: "Copy first-local.ts code" }).click();
+  await expect(local.getByRole("status")).toHaveText("Copy unavailable");
+  await expectAlignedRows();
+  await remote.getByRole("button", { name: "Copy first-sandbox.ts code" }).click();
+  await expect(remote.getByRole("status")).toHaveText("Copy unavailable");
+  await expectAlignedRows();
 });
 
 test("TypeScript candidate guide is discoverable, copyable and exported on desktop and mobile", async ({ page, context, request }) => {

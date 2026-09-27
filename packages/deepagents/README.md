@@ -26,10 +26,27 @@ sandbox. It does not deploy your entire agent process into the sandbox. Custom
 tools you register yourself are not automatically isolated: local shell or file
 callbacks still run on your application host.
 
-For a complete, executable workflow, start with
-[the single-file repository repair](https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/run-repair.ts).
-It imports the real Deep Agents SDK, receives a Harakiri backend, fixes a bug,
-verifies the original tests and returns a diff after confirmed cleanup.
+For the smallest complete workflow, start with the
+[side-by-side public guide](https://sb.harakiri.io/#docs/deepagents):
+
+| Without a sandbox | With Harakiri |
+| --- | --- |
+| [first-local.ts](https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/first-local.ts) | [first-sandbox.ts](https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/first-sandbox.ts) |
+| `LocalShellBackend.create(...)` | `withHarakiriSandbox(..., ({ backend }) => ...)` |
+| Shell runs on the host; files remain locally | Shell runs remotely; helper confirms runtime cleanup |
+
+Both programs visibly import `createDeepAgent`, use the same model and prompt,
+then print the agent's reply. Only backend setup and
+ownership differ. Default Deep Agents state-backed files do not provide shell
+execution; this comparison deliberately uses `LocalShellBackend`.
+**Local shell access is not isolation.** Run the baseline only in a disposable
+environment, or go directly to the Harakiri example. `inheritEnv: false` avoids
+automatically forwarding model credentials but does not restrict host access.
+
+Progress from this first task to [an existing sandbox](#connect-an-existing-sandbox),
+then [ownership and recovery](#ownership-and-recovery). The larger
+[repository repair](https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/run-repair.ts)
+adds Git, unchanged-test verification and patch retrieval after cleanup.
 
 ## Availability
 
@@ -60,6 +77,61 @@ The tested peers are **SDK 0.5.0-rc.12 and Deep Agents 1.14.0**, both exact beca
 these preview contracts are evolving. `--save-exact` resolves the moving `next`
 channel to a concrete version; commit your application's lockfile. Other
 framework or SDK versions need a fresh compatibility run.
+
+## Run the First Task
+
+Use the complete dependency set above, plus `tsx` and your chosen LangChain
+model-provider integration. The three files live together in
+`packages/deepagents/examples`, or can be downloaded from the public guide into
+an ESM application (`npm pkg set type=module`). No custom tool implementation is
+required. Select a template with bash and GNU file tools and a writable workdir.
+
+[first-model.ts](https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/first-model.ts)
+contains only explicit model configuration:
+
+```ts
+import { initChatModel } from "langchain/chat_models/universal";
+
+const name = process.env.HARAKIRI_AGENT_MODEL;
+if (!name) throw new Error("Set HARAKIRI_AGENT_MODEL to your tool-capable model.");
+
+// Install and configure your model provider in this application, not the sandbox.
+export const model = await initChatModel(name);
+```
+
+An existing application can export its own configured model instead. There is
+no paid-model default. Choose a transport that supports tool calls and text-block
+tool results; self-hosted/free endpoints still need that compatibility. The
+[technical guide](https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/deepagents.md#contract-and-dependencies)
+records the tested local-model transport limitations.
+
+```bash
+export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
+export HARAKIRI_API_URL="https://sandbox-api.example.com"
+export HARAKIRI_TEMPLATE="your-linux-template"
+# Supply HARAKIRI_API_KEY and model credentials privately in the application.
+npx tsx first-sandbox.ts
+# Optional local baseline, only in a disposable environment:
+npx tsx first-local.ts
+```
+
+Each program prints the model's final reply through the framework's `.text`
+accessor, which handles both string and structured text content. The requested
+script output is `hello from Deep Agents`; the model's wording can vary. The
+sandbox reply is printed only after confirmed termination and capacity release.
+The local program leaves its files in `deepagents-local/`: `close()` does not
+delete them. Do not wrap human approval pauses in the disposable helper; use an
+application-owned sandbox instead.
+
+**A model reply is not proof of a correct artifact.** These minimal programs show
+the integration. Use the repository-repair example for independent test and patch
+verification before reporting a job as successful.
+
+Exact-program tests use real Deep Agents with scripted decisions, a temporary
+local shell and synthetic remote API responses. Tests independently check the
+local artifact and cover structured text, replies without tool use, model failure,
+missing configuration and cleanup failure. This is not a new live-model
+qualification; native and real-model evidence below belongs to the repair example.
 
 ## Connect an Existing Sandbox
 
@@ -121,6 +193,9 @@ From this reviewed checkout after building:
 export HARAKIRI_TEMPLATE="your-linux-template"
 # Install and configure the chosen LangChain model integration first.
 export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
+pnpm --filter @h-sandbox/deepagents exec tsx examples/first-sandbox.ts
+
+# Larger workflow with Git and an independently verified repair:
 pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts
 
 # Secondary, model-free lifecycle example, not an agent-reasoning demo:

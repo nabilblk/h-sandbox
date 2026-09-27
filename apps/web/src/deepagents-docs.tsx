@@ -1,6 +1,63 @@
 import type { DocPage } from "./docs-content";
 import { CodeBlock } from "./components/docs-code";
 
+export const deepagentsLocalTask = `import { createDeepAgent, LocalShellBackend } from "deepagents";
+import { model } from "./first-model.js";
+
+const prompt = \`Write hello.sh that prints "hello from Deep Agents".
+Run it with bash and report the output.\`;
+
+// Local shell access is not isolation.
+const backend = await LocalShellBackend.create({
+  rootDir: "./deepagents-local",
+  inheritEnv: false
+});
+
+try {
+  const agent = createDeepAgent({ model, backend });
+  const { messages } = await agent.invoke(
+    { messages: [["user", prompt]] },
+    { recursionLimit: 12 }
+  );
+
+  console.log(messages.at(-1)?.text);
+} finally {
+  await backend.close();
+}`;
+
+export const deepagentsSandboxTask = `import { createDeepAgent } from "deepagents";
+import { HarakiriClient } from "@h-sandbox/sdk";
+import { withHarakiriSandbox } from "@h-sandbox/deepagents";
+import { model } from "./first-model.js";
+
+const prompt = \`Write hello.sh that prints "hello from Deep Agents".
+Run it with bash and report the output.\`;
+
+const template = process.env.HARAKIRI_TEMPLATE;
+if (!template) throw new Error("Set HARAKIRI_TEMPLATE.");
+
+const { messages } = await withHarakiriSandbox(
+  HarakiriClient.fromEnv(),
+  { template, ttlSeconds: 300 },
+  ({ backend }) => {
+    const agent = createDeepAgent({ model, backend });
+    return agent.invoke(
+      { messages: [["user", prompt]] },
+      { recursionLimit: 12 }
+    );
+  }
+);
+
+console.log(messages.at(-1)?.text);`;
+
+export const deepagentsModelSetup = `import { initChatModel } from "langchain/chat_models/universal";
+
+const name = process.env.HARAKIRI_AGENT_MODEL;
+if (!name) throw new Error("Set HARAKIRI_AGENT_MODEL to your tool-capable model.");
+
+// Install and configure your model provider in this application, not the sandbox.
+export const model = await initChatModel(name);`;
+
 export const deepagentsFirstTask = `import { HarakiriClient } from "@h-sandbox/sdk";
 import { withHarakiriSandbox } from "@h-sandbox/deepagents";
 
@@ -114,13 +171,65 @@ export const deepagentsDocs: DocPage = {
   section: "Integrations",
   title: "Deep Agents and LangGraph",
   navTitle: "Deep Agents",
-  lede: "Let your framework plan the work. Run its shell and file tools in a Harakiri sandbox, with explicit ownership and recoverable task IDs.",
-  toc: ["Your agent, Harakiri tools", "Installation", "Repair a repository", "Model-free smoke test", "Approval and reconnect", "Persistent workflows", "Ownership and failures", "Limits and evidence"],
+  lede: "Same Deep Agent. Same model and task. Move shell and file tools from your machine to a Harakiri sandbox by changing the backend.",
+  toc: ["Your agent, Harakiri tools", "Installation", "Run your first task", "Use an existing sandbox", "Approval and reconnect", "Persistent workflows", "Repair a repository", "Model-free smoke test", "Ownership and failures", "Limits and evidence"],
   body: <>
     <h2>Your agent, Harakiri tools</h2>
     <aside className="docs-notice"><p><strong>Developer preview on npm.</strong> Install <code>@h-sandbox/deepagents@next</code> with SDK 0.5.0-rc.12 and Deep Agents 1.14.0. Native tools and an independently verified model repair have passed. The adapter is independently versioned; these preview contracts are not a stable compatibility promise.</p></aside>
     <p><code>@h-sandbox/deepagents</code> is an optional TypeScript sandbox backend for <a href="https://docs.langchain.com/oss/javascript/deepagents/sandboxes">Deep Agents</a>, built on LangChain and LangGraph. It reuses the framework's tools through the public Harakiri SDK. It does not replace your agent, select a model or connect directly to a runtime provider.</p>
-    <p>Start with the normal Deep Agents SDK. Attach a Harakiri backend to send the framework's file and shell tools to your sandbox. The integration point is <code>backend</code>:</p>
+    <p>Ask an agent to write and run <code>hello.sh</code>. Both programs use the same <code>createDeepAgent</code> call and prompt, then print the agent's reply. Only the backend setup and lifecycle change. Both import the same explicit model configuration, shown below.</p>
+    <p><strong>The local example runs shell commands on your machine.</strong> Its working directory is not a security boundary. Run it only in a disposable environment, or skip directly to Harakiri. Deep Agents' default state-backed filesystem has no equivalent shell executor; <code>LocalShellBackend</code> makes this a like-for-like comparison.</p>
+    <div className="docs-code-comparison">
+      <div className="docs-code-comparison-grid">
+        <section aria-label="Without a sandbox">
+          <h3>Without a sandbox</h3>
+          <p>Tools run on your machine.</p>
+          <CodeBlock language="typescript" filename="first-local.ts">{deepagentsLocalTask}</CodeBlock>
+        </section>
+        <section aria-label="With Harakiri">
+          <h3>With Harakiri</h3>
+          <p>Tools run in a Harakiri sandbox.</p>
+          <CodeBlock language="typescript" filename="first-sandbox.ts">{deepagentsSandboxTask}</CodeBlock>
+        </section>
+      </div>
+    </div>
+    <p><code>withHarakiriSandbox()</code> waits for readiness, supplies the backend and returns the agent's result after confirming termination and capacity release. If the task or cleanup fails, the error propagates instead. The local backend's <code>close()</code> leaves <code>deepagents-local/</code> and its files in place.</p>
+    <p>This is a <strong>sandbox-backed agent</strong>, not an agent process hosted inside a sandbox. Planning, model requests and checkpoints stay in your application. Custom tools that you register yourself are not automatically sandboxed: a local filesystem or shell callback still runs on your application host. Model credentials and the Harakiri API key are not forwarded into the sandbox.</p>
+
+    <h2>Installation</h2>
+    <p>Use Node 22 or 24 LTS. Node 20 is retained as a legacy compatibility check, not a recommendation for new applications. Install the adapter and SDK directly from npm; no monorepo build is required. Adapter 0.1.0-rc.2 uses exactly SDK 0.5.0-rc.12 and Deep Agents 1.14.0. Earlier SDK versions do not include all required request controls.</p>
+    <p>The backend integration needs three direct packages. <code>--save-exact</code> records the concrete version resolved from <code>next</code>; commit your application's lockfile.</p>
+    <CodeBlock language="bash" filename="Minimal integration">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 deepagents@1.14.0`}</CodeBlock>
+    <p>For the runnable programs on this page, add the model factory and its compatible framework peers together in a clean application. This explicit set also supports the later repair example; do not mix independent framework version ranges or bypass peer errors.</p>
+    <CodeBlock language="bash" filename="Install in your application">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 \\
+  deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \\
+  @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
+npm install --save-dev tsx
+npm pkg set type=module
+export HARAKIRI_API_URL="https://sandbox-api.example.com"
+export HARAKIRI_TEMPLATE="your-linux-template"
+# Supply HARAKIRI_API_KEY through your private server configuration.`}</CodeBlock>
+    <p>Use an expiring service key with <code>sandboxes:read</code> and <code>sandboxes:write</code>. Select a Linux template containing bash and GNU file tools; add Python 3 or Node.js for your task. Repository repair also needs Git. This package is server-side only: never expose the control-plane key in browser code.</p>
+
+    <h2>Run your first task</h2>
+    <p><code>first-model.ts</code> is the only shared module. It selects your model, not your agent. If you already have a configured LangChain chat model, export that instance instead. Install its provider integration in the application and configure its credentials there. There is no paid-model default.</p>
+    <CodeBlock language="typescript" filename="first-model.ts">{deepagentsModelSetup}</CodeBlock>
+    <p>Use a model that supports tool calls and framework text-block results. A self-hosted or free endpoint can work when its LangChain transport supports both; a model being free does not establish compatibility. See the <a href="#docs/deepagents?section=repair-a-repository">model compatibility notes</a> for the tested local-model path.</p>
+    <p>Download the matching files into one application directory: <a download href="/docs/examples/deepagents/first-model.ts">first-model.ts</a>, <a download href="/docs/examples/deepagents/first-local.ts">first-local.ts</a> and <a download href="/docs/examples/deepagents/first-sandbox.ts">first-sandbox.ts</a>. The displayed, downloadable and tested programs are checked for equality.</p>
+    <CodeBlock language="bash" filename="Run the same task">{`# Install and configure your chosen LangChain model-provider package first.
+export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
+
+# Optional baseline: only in a disposable local environment.
+npx tsx first-local.ts
+
+# Your configured Harakiri installation and API key are required for this run.
+npx tsx first-sandbox.ts`}</CodeBlock>
+    <p>Both print the model's final reply as plain text, including when the provider returns structured text blocks. The requested script output is <code>hello from Deep Agents</code>; the model's wording can vary. Harakiri confirms cleanup before the reply is printed.</p>
+    <p><strong>A model reply is not proof of a correct artifact.</strong> These first-use programs demonstrate integration, not independent result verification. For that next step, use the <a href="#docs/deepagents?section=repair-a-repository">verified repository repair</a>, which reruns the original tests and checks the patch before reporting success.</p>
+    <p>These new entry programs are checked using the real framework with scripted model decisions: a real local shell in a temporary directory, and synthetic remote API responses. That verifies integration and failure handling, not a fresh live-model or native-runtime run. The later repair example has separate recorded native and real-model evidence.</p>
+
+    <h2>Use an existing sandbox</h2>
+    <p>Already manage sandbox creation in your application? Reuse that ready sandbox and add only the backend. Do not create a new runtime for every message in a conversation.</p>
     <CodeBlock language="typescript" filename="The integration point">{`import { createDeepAgent } from "deepagents";
 import { HarakiriSandboxBackend } from "@h-sandbox/deepagents";
 
@@ -129,47 +238,12 @@ const agent = createDeepAgent({
   model,
   backend: new HarakiriSandboxBackend(sandbox)
 });`}</CodeBlock>
+    <p>The constructor borrows the sandbox; it does not create or destroy it. Keep its ID in your authenticated tenant/thread record, then reconnect as shown below. For one disposable task use the helper; for human approval or a persistent conversation use application ownership.</p>
     <table className="docs-data-table"><caption>Integration responsibilities</caption><thead><tr><th scope="col">Layer</th><th scope="col">Responsibility</th></tr></thead><tbody>
       <tr><td>Your application</td><td>Identity, model selection, authorized task mapping, checkpoints and outcome verification</td></tr>
       <tr><td>Deep Agents / LangGraph</td><td>Planning, tool calls, approval and graph state</td></tr>
       <tr><td>Harakiri</td><td>Sandbox execution, files, lifecycle, capacity and runtime policy</td></tr>
     </tbody></table>
-    <p>Model calls stay in your trusted application. Shell and file operations run in the selected sandbox. Model credentials and the Harakiri API key do not need to enter that sandbox. The core SDK, API, CLI and dashboard do not depend on LangChain.</p>
-    <p>This is a <strong>sandbox-backed agent</strong>, not an agent process hosted inside a sandbox. Planning, model requests and checkpoints stay in your application. Custom tools that you register yourself are not automatically sandboxed: a local filesystem or shell callback still runs on your application host.</p>
-
-    <h2>Installation</h2>
-    <p>Use Node 22 or 24 LTS. Node 20 is retained as a legacy compatibility check, not a recommendation for new applications. Install the adapter and SDK directly from npm; no monorepo build is required. Adapter 0.1.0-rc.2 uses exactly SDK 0.5.0-rc.12 and Deep Agents 1.14.0. Earlier SDK versions do not include all required request controls.</p>
-    <p>The backend integration needs three direct packages. <code>--save-exact</code> records the concrete version resolved from <code>next</code>; commit your application's lockfile.</p>
-    <CodeBlock language="bash" filename="Minimal integration">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 deepagents@1.14.0`}</CodeBlock>
-    <p>The full repair example also imports model and framework APIs directly. Declare this complete dependency set together in a clean application, especially with pnpm; do not mix independent framework version ranges or bypass peer errors.</p>
-    <CodeBlock language="bash" filename="Install in your application">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 \\
-  deepagents@1.14.0 langchain@1.5.11 @langchain/core@1.2.12 \\
-  @langchain/langgraph@1.4.17 langsmith@0.9.0 zod@4.4.3
-npm install --save-dev tsx
-export HARAKIRI_API_URL="https://sandbox-api.example.com"
-export HARAKIRI_TEMPLATE="your-linux-template"
-# Supply HARAKIRI_API_KEY through your private server configuration.`}</CodeBlock>
-    <p>Use an expiring service key with <code>sandboxes:read</code> and <code>sandboxes:write</code>. Select a Linux template containing bash and GNU file tools; add Python 3 or Node.js for your task. Repository repair also needs Git. This package is server-side only: never expose the control-plane key in browser code.</p>
-
-    <h2>Repair a repository</h2>
-    <p>The agent receives a tiny repository with a real bug: invoice totals ignore quantity. It must inspect the code, repair the implementation and run the tests. Your application verifies that the tests were not changed, reruns them and retrieves the diff before reporting success. This is one executable file, not a launcher hiding the agent in another module.</p>
-    <p>Choose a tool-capable model and install its LangChain integration package in the application. <code>HARAKIRI_AGENT_MODEL</code> is explicit; there is no paid-model default. Configure that provider's URL and credentials in the application, outside the sandbox. Its integration must support the framework's text-block tool results.</p>
-    <p><code>@langchain/ollama@1.3.0</code> rejects text-block tool results and is not a drop-in choice for this example. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/infra/sdk-acceptance/README.md">self-hosted Ollama acceptance harness</a> applies strict text-only normalization and disables extended thinking. That compatibility handling is not part of the adapter. The exported <code>repairRepository(client, model, template)</code> accepts your configured model directly.</p>
-    <p>Select a template with Node.js, Git, bash and GNU file tools, on an installation supporting enforced blocked egress. The example installs nothing inside the sandbox. Blocked sandbox egress does not block model calls from your application. Local-model availability, tool quality and zero cost are not guaranteed.</p>
-    <CodeBlock language="bash" filename="Run the agent example">{`# Install and configure your chosen model provider in this application first.
-export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
-npx tsx run-repair.ts
-# From the reviewed repository instead:
-# pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts`}</CodeBlock>
-    <CodeBlock language="typescript" filename="run-repair.ts">{deepagentsAgentTask}</CodeBlock>
-    <p><code>withHarakiriSandbox()</code> creates one sandbox, waits for readiness and supplies its backend to <code>createDeepAgent()</code>. It confirms termination and capacity release before returning. The expected result is three passing tests, an implementation diff including quantity, and the cleaned-up sandbox ID. The initial failing test run is deliberate.</p>
-    <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/run-repair.ts">runnable source</a> and displayed program are checked for equality. Contract tests invoke its real Deep Agents graph with scripted decisions and test verification failures and cleanup. On September 24, the isolated amd64 <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36032828432">qualification run passed all 15 gates</a>, including native shell, file, search, reconnect and key revocation checks. Digest-pinned Qwen3 4B Instruct completed the real-model repair: unchanged original tests, independently verified results, an implementation diff and confirmed cleanup. Runtime qualification and registry publication are separate checks. The <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36034957121">rc.1 publication run</a> published through GitHub Trusted Publishing and verified anonymous installation on Node 20 and 22. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/deepagents-0.1.0-delivery.md">delivery receipt</a> records source, artifact identity and publication evidence.</p>
-    <p>One small repair is not a model-quality benchmark. Production jobs should verify artifacts independently of an agent's final message; graph state, prompts and tool output can contain sensitive data.</p>
-
-    <h2>Model-free smoke test</h2>
-    <p>Use this smaller diagnostic to isolate connection, permissions or runtime problems from model behavior. It is not an agent example: it executes one fixed shell command without calling an LLM. Run it with <code>npx tsx first-tools.mts</code>; the expected output is <code>hello from Harakiri</code>.</p>
-    <CodeBlock language="typescript" filename="first-tools.mts">{deepagentsFirstTask}</CodeBlock>
-    <p><code>execute()</code> returns output, exit code, truncation status and a command reference. A nonzero shell exit is a tool result. A transport, authorization or observation failure is an exception, not a fabricated shell result. A timeout or killed command retains its nullable exit code and includes a termination notice visible to the agent.</p>
 
     <h2>Approval and reconnect</h2>
     <p>A long-lived or checkpointed agent should borrow an application-owned sandbox. Resolve its ID from an authenticated tenant/thread record. A caller-provided ID is not an authorization decision.</p>
@@ -214,6 +288,26 @@ npx tsx run-durable.ts approve
       <tr><td><code>ttlSeconds</code></td><td>Sandbox lifetime, independent of a paused graph or application worker.</td></tr>
     </tbody></table>
     <p>Real PostgreSQL tests exercise separate worker processes, approval/rejection, stale decisions, crash recovery, tenant boundaries and expiry responses. API/runtime responses in those tests are synthetic. The <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36137161754">September 25 native qualification passed all 16 gates</a>, including real command effects, worker-crash observation without resubmission, server-side expiry and retained-file recovery into a replacement sandbox. Recovery decisions were scripted; a separate real-model repair also passed. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/reliable-framework-workflows.md">source delivery record</a> retains the sanitized receipt, artifact hashes and confirmed cleanup. It qualifies the source against the published rc.9 API baseline, not a new server pair or restricted OpenShift. Package delivery is tracked separately in the <a href="https://github.com/nabilblk/h-sandbox/releases/tag/v0.5.0-rc.12">rc.12 release</a>.</p>
+
+    <h2>Repair a repository</h2>
+    <p>The agent receives a tiny repository with a real bug: invoice totals ignore quantity. It must inspect the code, repair the implementation and run the tests. Your application verifies that the tests were not changed, reruns them and retrieves the diff before reporting success. This is one executable file, not a launcher hiding the agent in another module.</p>
+    <p>Choose a tool-capable model and install its LangChain integration package in the application. <code>HARAKIRI_AGENT_MODEL</code> is explicit; there is no paid-model default. Configure that provider's URL and credentials in the application, outside the sandbox. Its integration must support the framework's text-block tool results.</p>
+    <p><code>@langchain/ollama@1.3.0</code> rejects text-block tool results and is not a drop-in choice for this example. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/infra/sdk-acceptance/README.md">self-hosted Ollama acceptance harness</a> applies strict text-only normalization and disables extended thinking. That compatibility handling is not part of the adapter. The exported <code>repairRepository(client, model, template)</code> accepts your configured model directly.</p>
+    <p>Select a template with Node.js, Git, bash and GNU file tools, on an installation supporting enforced blocked egress. The example installs nothing inside the sandbox. Blocked sandbox egress does not block model calls from your application. Local-model availability, tool quality and zero cost are not guaranteed.</p>
+    <CodeBlock language="bash" filename="Run the agent example">{`# Install and configure your chosen model provider in this application first.
+export HARAKIRI_AGENT_MODEL="provider:your-tool-capable-model"
+npx tsx run-repair.ts
+# From the reviewed repository instead:
+# pnpm --filter @h-sandbox/deepagents exec tsx examples/run-repair.ts`}</CodeBlock>
+    <CodeBlock language="typescript" filename="run-repair.ts">{deepagentsAgentTask}</CodeBlock>
+    <p><code>withHarakiriSandbox()</code> creates one sandbox, waits for readiness and supplies its backend to <code>createDeepAgent()</code>. It confirms termination and capacity release before returning. The expected result is three passing tests, an implementation diff including quantity, and the cleaned-up sandbox ID. The initial failing test run is deliberate.</p>
+    <p>The <a href="https://github.com/nabilblk/h-sandbox/blob/main/packages/deepagents/examples/run-repair.ts">runnable source</a> and displayed program are checked for equality. Contract tests invoke its real Deep Agents graph with scripted decisions and test verification failures and cleanup. On September 24, the isolated amd64 <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36032828432">qualification run passed all 15 gates</a>, including native shell, file, search, reconnect and key revocation checks. Digest-pinned Qwen3 4B Instruct completed the real-model repair: unchanged original tests, independently verified results, an implementation diff and confirmed cleanup. Runtime qualification and registry publication are separate checks. The <a href="https://github.com/nabilblk/h-sandbox/actions/runs/36034957121">rc.1 publication run</a> published through GitHub Trusted Publishing and verified anonymous installation on Node 20 and 22. The <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/deepagents-0.1.0-delivery.md">delivery receipt</a> records source, artifact identity and publication evidence.</p>
+    <p>One small repair is not a model-quality benchmark. Production jobs should verify artifacts independently of an agent's final message; graph state, prompts and tool output can contain sensitive data.</p>
+
+    <h2>Model-free smoke test</h2>
+    <p>Use this smaller diagnostic to isolate connection, permissions or runtime problems from model behavior. It is not an agent example: it executes one fixed shell command without calling an LLM. Run it with <code>npx tsx first-tools.mts</code>; the expected output is <code>hello from Harakiri</code>.</p>
+    <CodeBlock language="typescript" filename="first-tools.mts">{deepagentsFirstTask}</CodeBlock>
+    <p><code>execute()</code> returns output, exit code, truncation status and a command reference. A nonzero shell exit is a tool result. A transport, authorization or observation failure is an exception, not a fabricated shell result. A timeout or killed command retains its nullable exit code and includes a termination notice visible to the agent.</p>
 
     <h2>Ownership and failures</h2>
     <table className="docs-data-table"><caption>Lifecycle and failure handling</caption><thead><tr><th scope="col">Situation</th><th scope="col">Behavior</th></tr></thead><tbody>
