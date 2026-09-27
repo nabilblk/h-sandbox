@@ -46,11 +46,40 @@ the trusted application. Registering a local tool does not move it into Harakiri
 Running the entire agent process inside a sandbox is a separate deployment
 pattern, not a property of this backend.
 
-Start with [run-repair.ts](../../packages/deepagents/examples/run-repair.ts), a
-single runnable file visibly importing `createDeepAgent` and attaching the
-Harakiri backend. The public guide displays that exact file, checked for equality
-in documentation and installed-package tests. Model-free shell and checkpoint
-examples are diagnostics and lifecycle recipes, not agent-inference evidence.
+Start with the local-to-sandbox comparison:
+
+1. [first-local.ts](../../packages/deepagents/examples/first-local.ts) uses upstream
+   `LocalShellBackend` for host shell execution, not isolation. Use it only in a
+   disposable environment. The default state-backed filesystem is not an
+   equivalent baseline because it does not execute shell commands.
+2. [first-sandbox.ts](../../packages/deepagents/examples/first-sandbox.ts) supplies
+   the backend through the released `withHarakiriSandbox` helper. The agent call,
+   prompt and framework configuration stay identical. Both print the final
+   reply through the framework's `.text` accessor; this also handles text blocks.
+3. [first-model.ts](../../packages/deepagents/examples/first-model.ts) is the only
+   shared module: explicit model selection with no hidden agent implementation.
+   Model credentials remain in the application. Existing applications can
+   export their own configured model rather than using the environment factory.
+
+The [public guide](https://sb.harakiri.io/#docs/deepagents) displays the complete
+programs, exports matching downloadable TypeScript and Markdown, then progresses
+through existing sandbox attachment, approval and persistent workflows. Source,
+display and downloads are checked for equality. Clean-consumer tests run the
+unchanged entry points through real Deep Agents with scripted decisions in child
+processes. Only the model setup is replaced with a fixture; remote API responses
+are synthetic. The local path executes one fixed, test-owned command in a
+temporary directory, never arbitrary model output or the developer's environment.
+Assertions and command re-execution belong to these tests and the verified-repair
+recipe, not the minimal entry programs. A final model reply is not treated as
+independent artifact verification. The sandbox program prints the reply only
+after the helper has confirmed cleanup; a cleanup failure propagates instead.
+
+The larger [run-repair.ts](../../packages/deepagents/examples/run-repair.ts) adds
+Git, independent test verification and patch retrieval. Model-free shell and
+checkpoint examples remain diagnostics and lifecycle recipes, not agent-inference
+evidence. Neither a first-task tutorial nor a scripted check requalifies native
+runtime or model behavior. No SDK API, dependency, ownership or version change
+is needed for this onboarding improvement.
 
 Files and responsibilities:
 
@@ -61,7 +90,7 @@ Files and responsibilities:
 | `packages/deepagents/src/search.ts` | Request-local preservation of grep truncation through the pinned upstream implementation |
 | `packages/deepagents/src/lifecycle.ts` | Explicit disposable-task ownership and confirmed cleanup |
 | `packages/deepagents/src/errors.ts` | Recoverable references and non-lossy failure metadata |
-| `packages/deepagents/examples` | Model-driven repair; application-owned graph resolver/checkpointer |
+| `packages/deepagents/examples` | First-task comparison, model-driven repair, application-owned graph resolver/checkpointer |
 
 ## Contract and Dependencies
 

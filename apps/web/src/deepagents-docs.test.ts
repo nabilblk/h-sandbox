@@ -5,17 +5,38 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { documentationAssets } from "./docs-export.js";
 import { docPages } from "./docs-content.js";
 import { docGroups, searchDocPages } from "./docs-navigation.js";
-import { deepagentsDocs, deepagentsFirstTask, deepagentsAgentTask } from "./deepagents-docs.js";
+import { deepagentsDocs, deepagentsFirstTask, deepagentsAgentTask, deepagentsLocalTask, deepagentsSandboxTask, deepagentsModelSetup } from "./deepagents-docs.js";
 
 test("framework integration is a searchable first-class guide with matching code exports", () => {
   assert.ok(docGroups.some(group => group.title === "Integrations" && group.pages.includes("deepagents")));
   assert.ok(searchDocPages(docPages, "LangGraph checkpoint").some(page => page.id === "deepagents"));
-  const markdown = documentationAssets().get("docs/deepagents.md")!;
+  const assets = documentationAssets();
+  const markdown = assets.get("docs/deepagents.md")!;
   assert.ok(markdown.includes(deepagentsFirstTask));
   assert.ok(markdown.includes(deepagentsAgentTask));
   assert.ok(markdown.indexOf('import { createDeepAgent } from "deepagents"') < markdown.indexOf("## Installation"));
   assert.ok(markdown.indexOf(deepagentsAgentTask) < markdown.indexOf(deepagentsFirstTask));
   assert.equal(deepagentsAgentTask, readFileSync(new URL("../../../packages/deepagents/examples/run-repair.ts", import.meta.url), "utf8").trimEnd());
+  for (const [name, program] of [["first-local", deepagentsLocalTask], ["first-sandbox", deepagentsSandboxTask], ["first-model", deepagentsModelSetup]]) {
+    const source = readFileSync(new URL(`../../../packages/deepagents/examples/${name}.ts`, import.meta.url), "utf8");
+    assert.equal(program, source.trimEnd());
+    assert.equal(assets.get(`docs/examples/deepagents/${name}.ts`), source);
+    assert.ok(markdown.includes(program));
+    assert.ok(markdown.includes(`/docs/examples/deepagents/${name}.ts`));
+  }
+  assert.ok(markdown.indexOf(deepagentsLocalTask) < markdown.indexOf("## Installation"));
+  assert.ok(markdown.indexOf(deepagentsSandboxTask) < markdown.indexOf("## Installation"));
+  assert.ok(markdown.indexOf("## Run your first task") < markdown.indexOf("## Use an existing sandbox"));
+  assert.ok(markdown.indexOf("## Use an existing sandbox") < markdown.indexOf("## Persistent workflows"));
+  assert.ok(markdown.indexOf("## Persistent workflows") < markdown.indexOf("## Repair a repository"));
+  assert.ok(markdown.includes("local example runs shell commands on your machine"));
+  assert.ok(markdown.includes("not a fresh live-model or native-runtime run"));
+  assert.ok(markdown.includes("A model reply is not proof of a correct artifact"));
+  assert.ok(markdown.includes("confirms cleanup before the reply is printed"));
+  for (const program of [deepagentsLocalTask, deepagentsSandboxTask]) {
+    assert.doesNotMatch(program, /node:assert|backend\.execute/);
+    assert.ok(program.includes("messages.at(-1)?.text"));
+  }
   for (const contract of ["Developer preview on npm", "SDK 0.5.0-rc.12", "capacity release",
     "A working directory is not a filesystem jail", "MemorySaver", "exactly-once", "sandbox storage",
     "separate gates", "per-request deadline", "HarakiriTaskCleanupError", "sandbox-backed agent",
