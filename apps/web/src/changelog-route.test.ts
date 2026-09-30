@@ -13,6 +13,9 @@ test("changelog route renders release entries and active public navigation", () 
   }));
 
   assert.match(markup, /Changelog/);
+  assert.match(markup, /Sandbox switching and readable logs/);
+  assert.match(markup, /Web maintenance \(rc\.12\)/);
+  assert.match(markup, /changes only the web image/);
   assert.match(markup, /Verified native installation and recovery/);
   assert.match(markup, /not a new API, SDK, CLI or chart version/);
   assert.match(markup, /v0\.5\.0-rc\.9/);

@@ -1754,11 +1754,11 @@
 /* ─── SANDBOX DETAIL ─── */
 .detail {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   height: 100vh;
   background: var(--bg);
 }
-.detail-main { display: flex; flex-direction: column; min-width: 0; }
+.detail-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .detail-top {
   display: flex; align-items: center; gap: 14px;
   padding: 0 24px;
@@ -1788,8 +1788,8 @@
   font-family: var(--font-mono);
   font-size: 11px;
 }
-.detail-name { font-weight: 600; font-size: 15px; }
-.detail-id { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.detail-name { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+.detail-id { font-family: var(--font-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .detail-actions {
   display: flex;
   align-items: center;
@@ -1804,6 +1804,8 @@
   display: flex; padding: 0 24px;
   border-bottom: 1px solid var(--border);
   background: var(--surface); gap: 4px;
+  overflow-x: auto;
+  flex-shrink: 0;
 }
 .detail-tab {
   appearance: none; background: transparent; border: 0;
@@ -1811,6 +1813,7 @@
   cursor: pointer;
   border-bottom: 1.5px solid transparent;
   display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
 }
 .detail-tab:hover { color: var(--ink); }
 .detail-tab.active {
@@ -1925,19 +1928,45 @@
 }
 
 /* DETAIL SIDEBAR LIST */
-.detail-sbx-list { padding: 12px 8px; overflow: auto; flex: 1; }
+.sandbox-sidebar { min-width: 0; min-height: 0; }
+.sandbox-back { width: 100%; justify-content: flex-start; }
+.sandbox-switcher-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 16px 0 8px; font-size: 12px; font-weight: 600; }
+.sandbox-switcher-head .btn { width: 28px; height: 28px; padding: 0; }
+.sandbox-switcher-search { width: 100%; min-width: 0; flex-shrink: 0; }
+.sandbox-switcher-search input { width: 100%; min-width: 0; }
+.sandbox-switcher-mobile { display: none; }
+.sandbox-switcher-notice { padding: 8px 2px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.sandbox-switcher-notice .btn { margin-top: 8px; }
+.detail-sbx-list { padding: 8px 0; overflow: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
+.sandbox-switcher-group { display: flex; justify-content: space-between; padding: 12px 8px 6px; color: var(--muted); font-size: 11px; }
+.sandbox-switcher-group span { font-family: var(--font-mono); }
 .detail-sbx-item {
   display: flex; flex-direction: column; gap: 2px;
   padding: 10px 10px;
   border-radius: var(--r-md);
   cursor: pointer;
   font-size: 12.5px;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
 }
 .detail-sbx-item:hover { background: var(--surface-2); }
+.detail-sbx-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .detail-sbx-item.active { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
-.detail-sbx-item .top { display: flex; align-items: center; gap: 6px; }
-.detail-sbx-item .top .name { font-weight: 600; }
+.detail-sbx-item .name { font-weight: 600; }
+.detail-sbx-item .name,
+.detail-sbx-item .id,
+.sandbox-switcher-template { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail-sbx-item .id { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.sandbox-switcher-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; color: var(--muted); font-size: 11px; min-width: 0; }
+.sandbox-switcher-status { flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; }
+.sandbox-switcher-status::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+.sandbox-switcher-status.running::before { background: var(--ok); }
+.sandbox-switcher-status.error::before { background: var(--err); }
+.sandbox-switcher-status.idle::before,
+.sandbox-switcher-status.pending::before,
+.sandbox-switcher-status.pausing::before,
+.sandbox-switcher-status.resuming::before { background: var(--warn); }
 
 /* FILES */
 .files-pane {
@@ -2045,8 +2074,12 @@
   padding: 4px 0;
   font-family: var(--font-mono); font-size: 12px;
   border-bottom: 1px dashed var(--border);
+  align-items: start;
+  line-height: 1.6;
 }
-.rich-logs .logs-row { grid-template-columns: 100px 124px 82px minmax(0, 1fr); }
+.rich-logs .logs-row { grid-template-columns: 90px 110px minmax(120px, 200px) minmax(0, 1fr); }
+.logs-row > span { min-width: 0; overflow-wrap: anywhere; }
+.logs-row .tag { white-space: normal; justify-self: start; max-width: 100%; height: auto; min-height: 18px; }
 .logs-head {
   color: var(--muted);
   font-size: 10.5px;
@@ -2070,6 +2103,13 @@
 .log-msg {
   min-width: 0;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1100px) {
+  .rich-logs .logs-row { grid-template-columns: 90px 110px minmax(0, 1fr); gap: 4px 10px; padding-block: 10px; }
+  .rich-logs .logs-head { display: none; }
+  .rich-logs .log-msg { grid-column: 1 / -1; }
 }
 
 /* METRICS */
@@ -3590,6 +3630,22 @@
     border-bottom: 1px solid var(--border);
   }
 
+  .detail > .sandbox-sidebar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .sandbox-sidebar .sandbox-back { width: auto; }
+  .sandbox-sidebar .sandbox-switcher-head,
+  .sandbox-sidebar .sandbox-switcher-search,
+  .sandbox-sidebar .detail-sbx-list { display: none; }
+  .sandbox-sidebar .sandbox-switcher-notice { grid-column: 1 / -1; }
+  .sandbox-switcher-mobile { display: grid; gap: 6px; grid-column: 1 / -1; min-width: 0; font-size: 12px; color: var(--muted); }
+  .sandbox-switcher-mobile select { width: 100%; min-width: 0; }
+
   .detail-top {
     height: auto;
     min-height: 56px;
@@ -3642,9 +3698,8 @@
     min-width: 0;
   }
 
-  .logs-row {
-    grid-template-columns: 80px 52px minmax(0, 1fr);
-  }
+  .logs-pane { padding: 12px; }
+  .rich-logs .logs-row { grid-template-columns: 70px minmax(0, 1fr) minmax(0, 1.3fr); }
 
   .files-pane,
   .metrics-pane,

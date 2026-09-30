@@ -5,6 +5,18 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-09-30-sandbox-ui",
+    version: "Web maintenance (rc.12)",
+    date: "September 30, 2026",
+    title: "Sandbox switching and readable logs",
+    items: [
+      "Switch directly between recent organization sandboxes from the detail sidebar. Search names, IDs and templates; see status and current selection. Keep the selected tab when switching. Mobile uses a compact sandbox selector.",
+      "Keep navigation available while a sandbox loads or fails. Retry failed reads without leaving the workspace, and discard delayed responses from the previous sandbox.",
+      "Wrap long log events and source names without overlapping messages. Preserve message newlines and use a stacked log layout on narrow screens; event names and messages are not silently truncated.",
+      "Include the simplified Deep Agents first-task examples and aligned desktop code comparison delivered on September 27. This maintenance release changes only the web image: SDK, CLI, adapter, API, schema, chart and npm channels remain unchanged."
+    ]
+  },
+  {
     id: "2026-09-26-reliable-framework-workflows",
     version: "v0.5.0-rc.12 / Deep Agents 0.1.0-rc.2",
     date: "September 26, 2026",
