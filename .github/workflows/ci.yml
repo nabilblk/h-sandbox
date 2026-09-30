@@ -238,10 +238,10 @@ jobs:
           pnpm --filter @h-sandbox/sdk build
       - name: Install browser
         run: pnpm exec playwright install --with-deps chromium
-      - name: Verify documentation, authorization UI and preview states
+      - name: Verify documentation, authorization UI, sandbox navigation and preview states
         env:
           HARAKIRI_E2E_MANAGED_SERVER: "1"
-        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts tests/e2e/capacity.spec.ts tests/e2e/usage-observations.spec.ts
+        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts tests/e2e/capacity.spec.ts tests/e2e/usage-observations.spec.ts tests/e2e/sandbox-detail.spec.ts
 
   chart:
     name: Helm chart

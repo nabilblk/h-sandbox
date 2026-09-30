@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   egressPresetCatalog,
   type EgressMode,
@@ -15,7 +15,6 @@ import {
 } from "@harakiri/shared";
 import { api } from "../api";
 import { CapacitySummary, useIntentKeys, useOrganizationCapacity } from "../capacity";
-import { Brand } from "../components/brand";
 import { EgressModePicker, egressModeMeta } from "../components/egress-mode-picker";
 import { Icon } from "../components/icon";
 import { Chart, KPI } from "../components/ui";
@@ -23,6 +22,7 @@ import { formatBytes, formatDateTime } from "../format";
 import type { GoToRoute } from "./types";
 import { SandboxVaultPane } from "./sandbox-vault";
 import { SandboxCommandsPane } from "./sandbox-commands";
+import { SandboxSidebar } from "./sandbox-sidebar";
 
 const capabilityState = (sandbox: SandboxSummary, name: RuntimeCapabilityName) =>
   sandbox.runtimeMetadata?.provider.capabilities.find((capability) => capability.name === name)?.state;
@@ -33,15 +33,41 @@ const hasCapability = (sandbox: SandboxSummary, name: RuntimeCapabilityName) =>
 const lifecycleActionError = (error: unknown) =>
   error instanceof Error ? error.message : "Lifecycle action failed.";
 
-export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: GoToRoute; openSandbox?: (id: string) => void }) => {
+type SandboxDetailProps = { id: string; go: GoToRoute; openSandbox?: (id: string) => void };
+
+export const SandboxDetailRoute = ({ id, go, openSandbox }: SandboxDetailProps) => {
+  const [tab, setTab] = useState("terminal");
+  const [selectedSandbox, setSelectedSandbox] = useState<SandboxSummary | null>(null);
+  return (
+    <div className="detail">
+      <SandboxSidebar selectedId={id} selectedSandbox={selectedSandbox?.id === id ? selectedSandbox : null} go={go} />
+      <SandboxDetailContent key={id} id={id} go={go} openSandbox={openSandbox} tab={tab} onTabChange={setTab} onSandboxChange={setSelectedSandbox} />
+    </div>
+  );
+};
+
+const SandboxDetailContent = ({ id, go, openSandbox, tab, onTabChange, onSandboxChange }: SandboxDetailProps & {
+  tab: string;
+  onTabChange: (tab: string) => void;
+  onSandboxChange: (sandbox: SandboxSummary) => void;
+}) => {
   const capacity = useOrganizationCapacity();
   const resumeKeys = useIntentKeys();
   const [sandbox, setSandbox] = useState<SandboxSummary | null>(null);
   const [canViewCredentialAudit, setCanViewCredentialAudit] = useState(false);
-  const [tab, setTab] = useState("terminal");
+  const [loadError, setLoadError] = useState("");
+  const [retryKey, setRetryKey] = useState(0);
   const [actionBusy, setActionBusy] = useState<"pause" | "resume" | "renew" | "kill" | null>(null);
   const [actionError, setActionError] = useState("");
-  useEffect(() => { api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, [id]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoadError("");
+    api.sandbox(id)
+      .then((response) => { if (!cancelled) setSandbox(response.sandbox); })
+      .catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : "Could not load this sandbox."); });
+    return () => { cancelled = true; };
+  }, [id, retryKey]);
+  useEffect(() => { if (sandbox) onSandboxChange(sandbox); }, [sandbox, onSandboxChange]);
   useEffect(() => {
     if (!sandbox || (!["pending", "pausing", "resuming"].includes(sandbox.status) && !["releasing", "uncertain"].includes(sandbox.capacityPhase ?? ""))) return;
     const timer = window.setInterval(() => { void api.sandbox(id).then((r) => setSandbox(r.sandbox)).catch(() => undefined); }, 3_000);
@@ -50,7 +76,16 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
   useEffect(() => {
     api.me().then((account) => setCanViewCredentialAudit(account.capabilities.canManageCredentialSecrets)).catch(() => undefined);
   }, []);
-  if (!sandbox) return <div className="dash-page">Loading...</div>;
+  if (!sandbox) return (
+    <main className="detail-main">
+      <div className="dash-page">
+        {loadError ? <>
+          <p role="alert">{loadError}</p>
+          <button className="btn btn-sm" onClick={() => setRetryKey((key) => key + 1)}>Retry sandbox</button>
+        </> : <p role="status">Loading sandbox...</p>}
+      </div>
+    </main>
+  );
   const refreshSandbox = () => api.sandbox(id).then((r) => setSandbox(r.sandbox));
   const runLifecycleAction = async (kind: "pause" | "resume" | "renew" | "kill", action: () => Promise<void>) => {
     setActionBusy(kind);
@@ -69,15 +104,6 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
   const canResume = hasCapability(sandbox, "lifecycleResume") && sandbox.status === "paused";
   const settling = sandbox.capacityPhase === "releasing" || sandbox.capacityPhase === "uncertain";
   return (
-    <div className="detail">
-      <aside className="dash-side" style={{ padding: "16px 0" }}>
-        <div className="dash-side-brand" style={{ padding: "6px 20px 16px" }}><Brand /></div>
-        <div style={{ padding: "0 12px 12px" }}>
-          <button className="btn btn-sm" style={{ width: "100%" }} onClick={() => go("dashboard/sandboxes")}>
-            <Icon name="chevron" size={11} style={{ transform: "rotate(180deg)" }} /> All sandboxes
-          </button>
-        </div>
-      </aside>
       <main className="detail-main">
         <div className="detail-top">
           <div className="detail-title-wrap">
@@ -117,7 +143,7 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
         <CapacitySummary state={capacity} />
         <div className="detail-tabs">
           {[["terminal", "Terminal", "terminal"], ["commands", "Commands", "play"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]].map(([k, label, icon]) => (
-            <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
+            <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => onTabChange(k)}>
               <Icon name={icon} size={12} /> {label}
             </button>
           ))}
@@ -133,7 +159,6 @@ export const SandboxDetailRoute = ({ id, go, openSandbox }: { id: string; go: Go
           {tab === "snapshots" ? <SnapshotsPane sandbox={sandbox} go={go} openSandbox={openSandbox} /> : null}
         </div>
       </main>
-    </div>
   );
 };
 
@@ -367,19 +392,36 @@ type RuntimeLogRow = {
 const LogsPane = ({ id }: { id: string }) => {
   const [logs, setLogs] = useState<RuntimeLogRow[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     api.logs(id)
-      .then((r) => { setLogs(r.logs); setError(""); })
+      .then((r) => { if (!cancelled) { setLogs(r.logs); setError(""); } })
       .catch((cause) => {
+        if (cancelled) return;
         setLogs([]);
         setError(cause instanceof Error ? cause.message : "Logs are unavailable for this sandbox.");
-      });
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [id]);
   return (
-    <div className="logs-pane rich-logs">
-      <div className="logs-row logs-head"><span>Time</span><span>Source</span><span>Level</span><span>Message</span></div>
-      {logs.map((l, i) => <div key={i} className="logs-row"><span className="ts">{new Date(l.ts).toLocaleTimeString()}</span><span className="tag">{l.source ?? "control-plane"}</span><span className={`lvl ${l.lvl}`}>{String(l.lvl).toUpperCase()}</span><span className="log-msg">{l.msg}</span></div>)}
-      {logs.length ? null : <div className="empty-state">{error || "No runtime or control-plane logs have been recorded yet."}</div>}
+    <div className="logs-pane rich-logs" role="region" aria-label="Sandbox logs" aria-busy={loading}>
+      <div className="logs-row logs-head"><span>Time</span><span>Source</span><span>Level / Event</span><span>Message</span></div>
+      {logs.map((log, index) => (
+        <div key={index} className="logs-row">
+          <span className="ts">{new Date(log.ts).toLocaleTimeString()}</span>
+          <span className="tag">{log.source ?? "control-plane"}</span>
+          <span className={`lvl ${log.lvl}`}>
+            {String(log.lvl).toUpperCase().split(".").map((segment, index, segments) => (
+              <Fragment key={index}>{segment}{index < segments.length - 1 ? <>.<wbr /></> : null}</Fragment>
+            ))}
+          </span>
+          <span className="log-msg">{log.msg}</span>
+        </div>
+      ))}
+      {logs.length ? null : <div className="empty-state" role={error ? "alert" : "status"}>{loading ? "Loading logs..." : error || "No runtime or control-plane logs have been recorded yet."}</div>}
     </div>
   );
 };
