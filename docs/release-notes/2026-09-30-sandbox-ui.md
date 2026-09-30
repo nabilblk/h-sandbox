@@ -2,7 +2,7 @@
 
 September 30, 2026. A dashboard-only maintenance update on the rc.12 web source
 line. Core package versions remain unchanged. Publication and deployment evidence
-will be recorded in a separate delivery receipt after verification.
+is recorded in the [delivery receipt](2026-09-30-sandbox-ui-delivery.md).
 
 ## Changes
 
@@ -40,4 +40,4 @@ responses, failures/retry, long values and bounded-list scrolling.
 
 These are UI contracts with authenticated fixtures, not new isolation, model,
 runtime-provider or customer OpenShift qualification. The release pipeline and
-public deployment are checked separately before the delivery is declared done.
+public deployment passed the separate checks recorded in the delivery receipt.
