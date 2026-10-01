@@ -17,13 +17,19 @@ that approval; the existing k0s/customer environments remain untouched.
 Core sync/native-async packages, protocol adapter, examples, candidate packaging
 and source-backed public guides are implemented in draft PR #66. The package
 matrix passes on Python 3.11-3.14, with clean macOS/Windows consumers, strict mypy
-on 20 source modules, Ruff, and bounded 16 MiB **mock-transport** transfers.
+on 20 source modules, Ruff, and bounded 16 MiB **mock-transport** transfers. The
+focused local suite now passes 72 tests, including response-identity validation
+and concurrent command observers without resubmission.
 Twelve documentation browser checks pass, including 320/390/768/1024/1440px.
 The native harness targets rc.10 without changing TypeScript acceptance pins.
 Native qualification is not complete: run 36862236924 reproduced a provider
 failure uploading 1 MiB. The size-limit gate remains mandatory and separate from
 the smaller-file workflow checks; no reduction of advertised support is claimed.
 Additional native workflow and recovery checks are in progress.
+Run 36865611307 passed scoped-key denial, synchronous lifecycle/framework tools
+and native asynchronous tools; its recovery fixture incorrectly expected immediate
+workspace detachment. The fixture now waits for confirmed availability before
+replacement, and the separate-worker journal explicitly closes SQLite connections.
 PyPI account/publishers, public artifacts, deployment and independent adoption
 remain separate pending gates. This plan must stay active.
 
@@ -404,13 +410,13 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [x] Sequence the public narrative: what runs where; first successful task; local-versus-sandbox; real repository repair; ownership and limits; recovery; API reference. Avoid an enormous API list before the first working example.
 - [ ] Keep source examples, downloads, Markdown exports and visible code in sync. Compile/typecheck/run extracted examples against the installed packages; do not maintain drifting prose-only pseudo-APIs.
 - [x] Use Python syntax highlighting and correctly labeled shell/env snippets. Keep side-by-side heading/description/code rows aligned at wide widths and stack naturally on narrow screens without wrapping identifiers across columns.
-- [ ] Cover missing API URL/key/template, 401/403, capacity exhaustion, readiness failure, remote timeout, local observation timeout, framework mismatch, missing template tools, large files and incomplete cleanup.
+- [x] Cover missing API URL/key/template, 401/403, capacity exhaustion, readiness failure, remote timeout, local observation timeout, framework mismatch, missing template tools, large files and incomplete cleanup.
 - [x] Write technical design/ADR documentation for transport deadlines, ownership, typed errors, protocol adaptation and limits; add an endpoint/scope contract table and maintainability rules.
 - [x] Update contributor documentation with the locked Python environment, lint/type/test/build commands, native safety boundary, fixture rules and compatibility-update procedure.
 - [x] Update release/security/internal operations docs with PyPI bootstrap, protected publishers, exact artifact verification, partial release recovery, yanking and incident handling. Keep all secret/account recovery material out of Git.
 - [x] Update package READMEs, root README, docs index, SDK overview, capability matrix and public integration inventory. Correct the specifically identified stale capacity/history/workspace statements using shipped evidence.
 - [x] Browser-test documentation at 320, 390, 768, 1024 and 1440px: navigation/deep links, language labels, code copy/download, keyboard focus, search, export, side-by-side alignment and page overflow.
-- [ ] Add release notes with supported versions, current gaps and exact qualification links; do not describe an unreleased wheel as already installable from PyPI.
+- [x] Add a candidate release record with target versions, actual results, current gaps and exact qualification links; keep native/publication outcomes pending until evidenced and do not describe an unreleased wheel as installable from PyPI.
 
 **Exit gate**: A fresh reviewer can follow both first-task and recovery paths using documentation only. Repo/package/public pages agree; existing TypeScript guides and routes remain valid.
 

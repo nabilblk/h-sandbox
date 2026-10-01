@@ -72,6 +72,9 @@ assert sandbox.files.read_bytes("report.bin") == b"verified bytes"`}</CodeBlock>
     <table><thead><tr><th>Failure</th><th>Next action</th></tr></thead><tbody>
       <tr><td>401 / 403</td><td>Correct the key, scope or organization binding.</td></tr>
       <tr><td><code>CapacityError</code></td><td>Inspect typed capacity and wait for confirmed release.</td></tr>
+      <tr><td><code>SandboxCreationError</code></td><td>Retain the acknowledged sandbox ID and inspect readiness.</td></tr>
+      <tr><td><code>RunError</code> / remote timeout</td><td>Inspect the result's exit code and finish reason; partial output is not completion.</td></tr>
+      <tr><td><code>RequestTimeoutError</code></td><td>A local HTTP deadline elapsed. Reconcile mutations before retrying.</td></tr>
       <tr><td><code>ObservationTimeoutError</code></td><td>Observe the acknowledged command again.</td></tr>
       <tr><td><code>CleanupError</code></td><td>Retain the sandbox ID and reconcile its runtime state.</td></tr>
       <tr><td><code>IntegrityError</code></td><td>Reject the artifact instead of using corrupt data.</td></tr>
@@ -134,5 +137,6 @@ export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
     <h2>Failure contracts</h2>
     <p>Timeouts and kills appear in framework-visible output; null exit codes stay null. Search clipping remains marked as truncated. Incomplete read/list/edit results fail visibly. Transfer failures retain completed paths and their cause, including cancellation between files.</p>
     <p>Defaults: 64 KiB combined output, 32 MiB transfer batches, at most 64 files and a 120s transfer budget. Per-file server limits still apply. Backend execution errors retain known command references; local cancellation is not remote termination. See <a href={`${source}/docs/integrations/deepagents-python.md`}>the full contract</a> and <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification status</a>.</p>
+    <p>Dependency conflicts require a compatible environment, not bypassing the framework pin. Missing executables require a suitable template, not a longer timeout. Before attaching a replacement runtime, wait until the retained workspace is available and has no attached sandbox; termination and detachment are separate states.</p>
   </>
 };

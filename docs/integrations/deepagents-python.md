@@ -99,3 +99,14 @@ See the [SDK guide](../python-sdk.md) for API scope, configuration and typed err
 and [qualification status](../release-notes/python-agents-preview.md) before release.
 The adapter's exact framework dependency is intentional; a compatibility probe
 does not silently widen the supported version range.
+
+## Troubleshooting the First Task
+
+| Symptom | Check before retrying |
+| --- | --- |
+| Dependency resolver rejects the environment | Keep `deepagents==0.7.21` with this adapter candidate. Use a fresh environment; do not override the bound with `--no-deps`. |
+| Model initialization or authentication fails | Install the selected LangChain integration and configure its credentials or local endpoint in the application. Harakiri does not select or provision the model. |
+| Shell reports a missing executable | Select or build a template containing Python 3, bash, find, grep and sed. Increasing the observation timeout will not install them. |
+| Agent returns partial output or an abnormal-termination notice | Inspect the saved command reference and finish reason. Distinguish the remote execution limit from local observation timeout; do not rerun the graph automatically. |
+| A replacement cannot attach the workspace | Wait for both `status == "available"` and `attached_sandbox_id is None`; runtime termination can precede volume detachment. |
+| Large binary upload fails on rc.10 | The 1 MiB native failure remains a release blocker. Do not infer that the advertised 16 MiB maximum is qualified, or route around the Harakiri API. |

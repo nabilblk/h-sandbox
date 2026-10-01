@@ -4,9 +4,10 @@ import asyncio
 import json
 import threading
 
+import httpx
 import pytest
 from harakiri import AsyncHarakiriClient, CommandReference, HarakiriClient
-from harakiri.errors import CommandCallbackError, IntegrityError
+from harakiri.errors import CommandCallbackError, IntegrityError, ProtocolError
 from harakiri.files import decode_artifact
 from harakiri.models import DownloadResponse
 
@@ -66,6 +67,75 @@ async def test_command_cancellation_is_not_remote_kill(api, http):
             await task
         assert process.reference.command_id == "cmd_test"
         assert not any(request.method == "DELETE" for request in api.requests)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_observers_share_acknowledged_identity_without_replay(api, http):
+    api.command_status = "running"
+    async with (
+        http,
+        AsyncHarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client,
+    ):
+        sandbox = await client.sandboxes.connect("sbx_test")
+        process = await sandbox.processes.start("long work")
+        async with asyncio.TaskGroup() as observers:
+            first = observers.create_task(process.observe(timeout=1, poll_interval=0.005))
+            second = observers.create_task(process.observe(timeout=1, poll_interval=0.005))
+            await asyncio.sleep(0.02)
+            api.command_status = "succeeded"
+        for observed in (first.result(), second.result()):
+            assert observed.command.reference == process.reference
+            assert observed.logs.stdout == "done\n"
+        assert len([request for request in api.requests if request.method == "POST"]) == 1
+        assert not any(request.method == "DELETE" for request in api.requests)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("operation", "field"), [("logs", "commandId"), ("kill", "id"), ("kill", "sandboxId")]
+)
+async def test_mismatched_command_response_preserves_reference(api, operation, field):
+    def handler(request):
+        response = api(request)
+        if request.url.path.endswith("/logs") or request.method == "DELETE":
+            payload = response.json()
+            target = payload if operation == "logs" else payload["command"]
+            target[field] = "unrelated"
+            return httpx.Response(200, json=payload)
+        return response
+
+    async with (
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http,
+        AsyncHarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client,
+    ):
+        sandbox = await client.sandboxes.connect("sbx_test")
+        process = await sandbox.processes.connect("cmd_test")
+        reference = process.reference
+        with pytest.raises(ProtocolError):
+            await getattr(process, operation)()
+        assert process.reference == reference
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["cursor", "tail"])
+@pytest.mark.parametrize("value", [-1, 1.5, True])
+async def test_log_pagination_requires_nonnegative_integers(api, http, name, value):
+    async with (
+        http,
+        AsyncHarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client,
+    ):
+        sandbox = await client.sandboxes.connect("sbx_test")
+        process = await sandbox.processes.connect("cmd_test")
+        count = len(api.requests)
+        with pytest.raises(ValueError, match="nonnegative integer"):
+            await process.logs(**{name: value})
+        assert len(api.requests) == count
 
 
 def test_corrupt_artifacts_and_limits(api):

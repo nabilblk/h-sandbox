@@ -44,7 +44,20 @@ def gate(name, action):
                 "python": platform.python_version(),
                 "packages": {
                     name: importlib.metadata.version(name)
-                    for name in ("h-sandbox", "h-sandbox-deepagents", "deepagents", "httpx")
+                    for name in (
+                        "h-sandbox",
+                        "h-sandbox-deepagents",
+                        "deepagents",
+                        "httpx",
+                        "anyio",
+                        "pydantic",
+                        "langchain",
+                        "langchain-core",
+                        "langgraph",
+                        "langgraph-checkpoint",
+                        "langgraph-checkpoint-sqlite",
+                        "langchain-ollama",
+                    )
                 },
             }
         )

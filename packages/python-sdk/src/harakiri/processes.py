@@ -73,17 +73,22 @@ class AsyncProcess:
         params: Query = {}
         for name, value in (("cursor", cursor), ("tail", tail)):
             if value is not None:
-                if isinstance(value, bool) or value < 0:
-                    raise ValueError(f"{name} must be nonnegative")
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise ValueError(f"{name} must be a nonnegative integer")
                 params[name] = value
-        return await self._transport.request(
+        result = await self._transport.request(
             "GET", self._path + "/logs", CommandLogs, params=params, request_timeout=request_timeout
         )
+        if result.command_id != self.id:
+            raise ProtocolError("Command reference does not match the response", method="GET")
+        return result
 
     async def kill(self, *, request_timeout: float | None = None) -> CommandSummary:
         result = await self._transport.request(
             "DELETE", self._path, CommandResponse, request_timeout=request_timeout
         )
+        if result.command.reference != self.reference:
+            raise ProtocolError("Command reference does not match the response", method="DELETE")
         self.command = result.command
         return self.command
 

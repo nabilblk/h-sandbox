@@ -127,7 +127,10 @@ operations additionally require `workspaces:read` / `workspaces:write`.
 | `AuthorizationError` (403) | Correct scopes and organization binding; not a filesystem permission shortcut |
 | `CapacityError` | Inspect its typed `capacity`; wait for release or change operator limits |
 | `SandboxCreationError` | Retain `sandbox.id`; inspect readiness before cleanup or reconciliation |
+| `SandboxStateError` | Inspect the runtime state; an unknown or failed state is not execution readiness |
 | `RequestError.outcome_unknown` | Reconcile a submitted mutation before repeating it |
+| `RequestTimeoutError` | A local HTTP deadline elapsed; this is not proof that remote execution stopped |
+| `RunError` from `check=True` | Inspect `result.exit_code` and `result.finish_reason`; do not treat partial output as a completed task |
 | `ObservationTimeoutError` | Reconnect to the saved command, not the original prompt |
 | `CleanupError` | Retain the sandbox identity; termination/capacity release is unconfirmed |
 | `IntegrityError` | Reject the artifact; do not pass corrupt bytes to downstream tools |
