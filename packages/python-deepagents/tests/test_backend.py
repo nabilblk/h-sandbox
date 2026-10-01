@@ -18,10 +18,15 @@ from harakiri_deepagents import (
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from langgraph.checkpoint.sqlite import SqliteSaver
+from pydantic import Field
 
 
 class ScriptedModel(BaseChatModel):
     """Real framework dispatch, deterministic model fixture; never claimed as an LLM test."""
+
+    tool_name: str = "execute"
+    arguments: dict = Field(default_factory=lambda: {"command": "printf test"})
 
     @property
     def _llm_type(self):
@@ -38,8 +43,8 @@ class ScriptedModel(BaseChatModel):
                 content="",
                 tool_calls=[
                     {
-                        "name": "execute",
-                        "args": {"command": "printf test"},
+                        "name": self.tool_name,
+                        "args": self.arguments,
                         "id": "call_test",
                         "type": "tool_call",
                     }
@@ -175,3 +180,43 @@ def test_output_bound_and_multibyte_boundary(sandbox, observed):
     assert result.output == "\u00e9"
     assert result.truncated
     assert result.exit_code == 0
+
+
+def test_real_grep_tool_exposes_truncation(sandbox, observed):
+    sandbox.processes.start.return_value.observe.return_value = observed(
+        output="/workspace/a\x001:needle\n/workspace/a\x002:tor", truncated=True
+    )
+    agent = create_deep_agent(
+        model=ScriptedModel(tool_name="grep", arguments={"pattern": "needle"}),
+        backend=HarakiriSandboxBackend(sandbox),
+    )
+    result = agent.invoke({"messages": [("user", "Find needle")]}, {"recursion_limit": 8})
+    output = next(
+        message.text for message in result["messages"] if isinstance(message, ToolMessage)
+    )
+    assert "truncat" in output.lower() or "incomplete" in output.lower()
+    assert "2:tor" not in output
+
+
+def test_official_checkpoint_reopens_without_executing_approval(sandbox, tmp_path):
+    config = {"configurable": {"thread_id": "owned-thread"}}
+    database = str(tmp_path / "checkpoint.sqlite")
+    with SqliteSaver.from_conn_string(database) as saver:
+        agent = create_deep_agent(
+            model=ScriptedModel(),
+            backend=HarakiriSandboxBackend(sandbox),
+            checkpointer=saver,
+            interrupt_on={"execute": True},
+        )
+        result = agent.invoke({"messages": [("user", "Run a task")]}, config)
+        assert result["__interrupt__"]
+    sandbox.processes.start.assert_not_called()
+    with SqliteSaver.from_conn_string(database) as saver:
+        recovered = create_deep_agent(
+            model=ScriptedModel(),
+            backend=HarakiriSandboxBackend(sandbox),
+            checkpointer=saver,
+            interrupt_on={"execute": True},
+        )
+        assert recovered.get_state(config).next
+    sandbox.processes.start.assert_not_called()

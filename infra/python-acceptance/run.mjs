@@ -5,6 +5,7 @@ import { install } from "../acceptance/install.mjs";
 import { operatorSession } from "../acceptance/browser.mjs";
 import { importAcceptanceTemplate } from "../acceptance/first-task.mjs";
 import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
+import { replicas } from "../acceptance/operator.mjs";
 import { model } from "../sdk-acceptance/framework.mjs";
 
 process.umask(0o077);
@@ -49,7 +50,7 @@ try {
     ctx.execute("uv", ["venv", "--python", "3.12", path.join(consumer, "venv")], "Create isolated Python consumer", { env });
     ctx.execute("uv", ["pip", "install", "--python", python, ...artifacts.map(name => path.resolve(`dist-packages/python/${name}`)),
       "langchain-ollama==1.1.0", "langgraph-checkpoint-sqlite==3.1.1"], "Install Python candidate wheels", { env });
-    for (const file of ["native.py", "model.py"]) fs.copyFileSync(new URL(file, import.meta.url), path.join(consumer, file));
+    for (const file of ["native.py", "model.py", "provider.py"]) fs.copyFileSync(new URL(file, import.meta.url), path.join(consumer, file));
     for (const file of ["worker.py", "approval.py"]) fs.copyFileSync(new URL(`../../examples/python-workflow-recovery/${file}`, import.meta.url), path.join(consumer, file));
     fs.copyFileSync(new URL("../../examples/python-repository-repair/repair.py", import.meta.url), path.join(consumer, "repair.py"));
     fs.cpSync(new URL("../../examples/python-repository-repair/fixture", import.meta.url), path.join(consumer, "fixture"), { recursive: true });
@@ -57,6 +58,17 @@ try {
   const run = file => ctx.execute(python, [file], "Python installed native consumer", { cwd: consumer, env });
   await gate("native-sdk-and-framework", () => run("native.py"));
   receipt.native = JSON.parse(fs.readFileSync(path.join(consumer, "native-result.json")));
+  await gate("provider-loss-and-unconfirmed-cleanup", async () => {
+    const phase = name => ctx.execute(python, ["provider.py", name], "Python provider fault phase", { cwd: consumer, env });
+    phase("prepare");
+    try {
+      await replicas(ctx, ["opensandbox-server"], 0);
+      phase("unavailable");
+    } finally {
+      await replicas(ctx, ["opensandbox-server"], 1);
+    }
+    phase("observe");
+  });
   await gate("real-model-repair", async () => {
     ctx.guard();
     let container;
@@ -81,6 +93,9 @@ try {
         ctx.execute("docker", ["rm", "--force", container], "Clean owned model");
       }
     }
+  });
+  await gate("native-large-artifact-limits", () => {
+    ctx.execute(python, ["native.py", "--large-artifacts"], "Python large artifact consumer", { cwd: consumer, env });
   });
   await gate("key-revocation", async () => {
     await operator.request(`/v1/api-keys/${readonly.key.id}`, "DELETE");

@@ -12,4 +12,17 @@ model = ChatOllama(
     num_predict=2048,
     client_kwargs={"timeout": 180},
 )
-Path("model-result.json").write_text(json.dumps(repair(model, Path("verified-repair"))))
+try:
+    Path("model-result.json").write_text(json.dumps(repair(model, Path("verified-repair"))))
+except BaseException as error:
+    frames = []
+    traceback = error.__traceback__
+    while traceback:
+        frames.append({"function": traceback.tb_frame.f_code.co_name, "line": traceback.tb_lineno})
+        traceback = traceback.tb_next
+    Path("native-failure.json").write_text(
+        json.dumps(
+            {"gate": "real-model-repair", "type": type(error).__name__, "frames": frames[-4:]}
+        )
+    )
+    raise

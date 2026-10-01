@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from harakiri import AsyncHarakiriClient, HarakiriClient
-from harakiri.errors import AuthorizationError, CapacityError
+from harakiri.errors import ApiError, AuthorizationError, CapacityError
 from harakiri_deepagents import AsyncHarakiriSandboxBackend, HarakiriSandboxBackend
 
 
@@ -24,9 +24,10 @@ def gate(name, action):
             frame = traceback.tb_frame
             frames.append({"function": frame.f_code.co_name, "line": traceback.tb_lineno})
             traceback = traceback.tb_next
-        Path("native-failure.json").write_text(
-            json.dumps({"gate": name, "type": type(error).__name__, "frames": frames[-4:]})
-        )
+        failure = {"gate": name, "type": type(error).__name__, "frames": frames[-4:]}
+        if isinstance(error, ApiError):
+            failure.update(status=error.status, code=error.code)
+        Path("native-failure.json").write_text(json.dumps(failure))
         raise
     results.append({"gate": name, "status": "passed"})
 
@@ -47,7 +48,7 @@ def synchronous():
                 raise AssertionError("Organization capacity was not enforced")
             sandbox.files.write("text.txt", "hello\n")
             assert sandbox.files.read_text("text.txt") == "hello\n"
-            payload = bytes(range(256)) * 4096
+            payload = bytes(range(256)) * 4
             sandbox.files.write("bytes.bin", payload)
             assert sandbox.files.read_bytes("bytes.bin") == payload
             backend = HarakiriSandboxBackend(sandbox, timeout=15)
@@ -120,10 +121,22 @@ def scoped_key():
             raise AssertionError("Read-only key was allowed to create a runtime")
 
 
+def large_artifacts():
+    with HarakiriClient.from_env() as client:
+        with client.sandboxes.task(template=template) as sandbox:
+            for size in (1024 * 1024, 16 * 1024 * 1024):
+                payload = bytes(range(256)) * (size // 256)
+                sandbox.files.write("large.bin", payload)
+                assert sandbox.files.read_bytes("large.bin") == payload
+
+
 if __name__ == "__main__":
     assert os.environ.get("HARAKIRI_PYTHON_ACCEPTANCE") == "disposable-runner"
     template = os.environ["HARAKIRI_TEMPLATE"]
     results = []
+    if sys.argv[1:] == ["--large-artifacts"]:
+        gate("native-1-and-16-mib-artifacts", large_artifacts)
+        sys.exit(0)
     gate("scoped-key-denial", scoped_key)
     gate("sync-lifecycle-tools-files-cleanup", synchronous)
     gate("native-async-tools", lambda: asyncio.run(asynchronous()))

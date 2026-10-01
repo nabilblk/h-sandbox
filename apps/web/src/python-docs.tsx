@@ -2,7 +2,7 @@ import type { DocPage } from "./docs-content";
 import { CodeBlock } from "./components/docs-code";
 import { pythonExamples } from "./python-doc-snippets";
 
-const source = "https://github.com/nabilblk/h-sandbox/tree/feat/python-agents-preview";
+const source = "https://github.com/nabilblk/h-sandbox/tree/main";
 
 export const pythonSdkDocs: DocPage = {
   id: "python-sdk",

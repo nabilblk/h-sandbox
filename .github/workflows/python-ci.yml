@@ -37,8 +37,8 @@ jobs:
           version: "0.11.4"
           python-version: ${{ matrix.python }}
       - run: uv sync --project python --frozen --python ${{ matrix.python }}
-      - run: uv run --project python --frozen ruff check --config python/pyproject.toml packages/python-sdk packages/python-deepagents examples/python-first-task python
-      - run: uv run --project python --frozen ruff format --check --config python/pyproject.toml packages/python-sdk packages/python-deepagents examples/python-first-task python
+      - run: uv run --project python --frozen ruff check --config python/pyproject.toml packages/python-sdk packages/python-deepagents examples/python-first-task examples/python-repository-repair examples/python-workflow-recovery infra/python-acceptance python
+      - run: uv run --project python --frozen ruff format --check --config python/pyproject.toml packages/python-sdk packages/python-deepagents examples/python-first-task examples/python-repository-repair examples/python-workflow-recovery infra/python-acceptance python
       - run: uv run --project python --frozen mypy --config-file python/pyproject.toml packages/python-sdk/src packages/python-deepagents/src
       - run: uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
       - run: uv run --project python --frozen python python/check_packages.py --python ${{ matrix.python }}

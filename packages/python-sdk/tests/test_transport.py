@@ -8,7 +8,20 @@ import pytest
 from anyio.from_thread import start_blocking_portal
 from harakiri._config import ClientConfig
 from harakiri._transport import Transport
-from harakiri.errors import AuthorizationError, ProtocolError, RequestTimeoutError
+from harakiri.errors import (
+    AuthenticationError,
+    AuthorizationError,
+    CapacityError,
+    ConflictError,
+    NotFoundError,
+    ProtocolError,
+    ProviderError,
+    RateLimitError,
+    RequestError,
+    RequestTimeoutError,
+    UnsupportedError,
+    ValidationError,
+)
 from harakiri.models import Ok
 
 
@@ -108,3 +121,56 @@ async def test_response_limits_and_untrusted_error_text():
 def test_invalid_origins(url):
     with pytest.raises(ValueError):
         ClientConfig(url, "private-key")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["headers", "disconnect", "cancel"])
+async def test_prebody_faults_preserve_deadlines_and_cancellation(mode):
+    entered = asyncio.Event()
+
+    async def handler(request):
+        entered.set()
+        if mode == "disconnect":
+            raise httpx.ReadError("untrusted peer closed")
+        await asyncio.sleep(20)
+        return httpx.Response(200, json={"ok": True})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        transport = Transport(ClientConfig("https://fixture.test", "secret"), http)
+        task = asyncio.create_task(transport.request("GET", "/v1/test", Ok, request_timeout=0.03))
+        await entered.wait()
+        if mode == "cancel":
+            task.cancel()
+        expected = {
+            "headers": RequestTimeoutError,
+            "disconnect": RequestError,
+            "cancel": asyncio.CancelledError,
+        }[mode]
+        with pytest.raises(expected):
+            await task
+        assert task.done()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status,code,expected",
+    [
+        (400, "validation_error", ValidationError),
+        (401, "unauthorized", AuthenticationError),
+        (403, "forbidden", AuthorizationError),
+        (404, "sandbox_not_found", NotFoundError),
+        (409, "conflict", ConflictError),
+        (409, "organization_capacity_exceeded", CapacityError),
+        (429, "rate_limited", RateLimitError),
+        (501, "unsupported", UnsupportedError),
+        (503, "runtime_unavailable", ProviderError),
+    ],
+)
+async def test_error_taxonomy(status, code, expected):
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda request: httpx.Response(status, json={"error": code}))
+    ) as http:
+        transport = Transport(ClientConfig("https://fixture.test", "secret"), http)
+        with pytest.raises(expected) as error:
+            await transport.request("POST", "/v1/test", Ok)
+        assert error.value.status == status and error.value.code == code
