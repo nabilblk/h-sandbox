@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -88,6 +89,34 @@ def test_read_and_listing_do_not_disguise_truncated_payloads(sandbox, observed):
     backend = HarakiriSandboxBackend(sandbox)
     assert "truncated" in backend.ls("/workspace").error
     assert "truncated" in backend.read("/workspace/a").error
+
+
+def test_pinned_read_contract_uses_text_not_legacy_line_array(sandbox, observed):
+    sandbox.processes.start.return_value.observe.return_value = observed(
+        output=json.dumps(
+            {
+                "encoding": "utf-8",
+                "content": "first\nsecond",
+                "total_lines": 2,
+                "start_line": 1,
+                "end_line": 2,
+                "next_offset": None,
+            }
+        )
+    )
+    backend = HarakiriSandboxBackend(sandbox)
+    read = backend.read("/workspace/a")
+    assert read.error is None
+    assert read.file_data == {"content": "first\nsecond", "encoding": "utf-8"}
+    agent = create_deep_agent(
+        model=ScriptedModel(tool_name="read_file", arguments={"file_path": "/workspace/a"}),
+        backend=backend,
+    )
+    result = agent.invoke({"messages": [("user", "Read the file")]}, {"recursion_limit": 8})
+    output = next(
+        message.text for message in result["messages"] if isinstance(message, ToolMessage)
+    )
+    assert "first" in output and "second" in output
 
 
 def test_persistence_callback_error_retains_command_reference(sandbox):

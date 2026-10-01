@@ -26,7 +26,10 @@ bounded JSON parsing is synchronous and cannot be preempted mid-instruction.
 The proof test sends one JSON fragment then stalls. Async and sync calls expire
 at 30ms, close the response stream and leave a caller-supplied HTTP client open.
 This is transport evidence, not live sandbox acceptance. Keep it as a regression
-test in `packages/python-sdk/tests/test_transport.py`.
+test in `packages/python-sdk/tests/test_transport.py`. A second suite in
+`test_network_deadlines.py` uses real, ephemeral loopback sockets to stall headers
+or bodies and disconnect mid-response. It verifies both facades, async
+cancellation, peer-observed connection closure and teardown of test-owned threads.
 
 The sync portal is lazy, reused, explicitly closed and never runs on the caller's
 event loop. Calling the sync API inside an event loop raises an error directing
@@ -76,3 +79,29 @@ opt-in support private installations. Redirects are not followed.
 Binary files use bounded base64 JSON with size/SHA-256 checks, not streaming.
 The response budget accounts for encoding overhead; file limits remain bounded
 by the runtime's advertised contract. File paths are remote POSIX paths, not a jail.
+
+## Endpoint and Permission Map
+
+The Python layer does not add permissions or impersonate an organization member.
+Every request is authorized by the server. The table below is the preview surface,
+not an inventory of all server features.
+
+| Python surface | API route | Required scope |
+| --- | --- | --- |
+| `templates.list/get` | `GET /v1/templates[/{id}]` | `templates:read` |
+| `runtime.capabilities` | `GET /v1/runtime/capabilities` | `sandboxes:read` |
+| `capacity.get` | `GET /v1/org/capacity` | `org:read` |
+| `sandboxes.list/connect`, `refresh`, readiness and logs | `GET /v1/sandboxes[/{id}[/readiness\|/logs]]` | `sandboxes:read` |
+| `sandboxes.create/task` | `POST /v1/sandboxes` | `sandboxes:write`; additionally `workspaces:write` for attachment |
+| `renew`, `kill` | `POST /v1/sandboxes/{id}/renew`, `DELETE /v1/sandboxes/{id}` | `sandboxes:write` |
+| `run`, `processes.start/kill` | Sandbox `/run`, `/commands[/{commandId}]` writes | `sandboxes:write` |
+| `processes.list/connect`, command refresh/logs | Sandbox `/commands[/{commandId}[/logs]]` reads | `sandboxes:read` |
+| File list/stat/read/download | Sandbox `/files` read routes | `sandboxes:read` |
+| File write/upload/mkdir/rename/remove | Sandbox `/files` write routes | `sandboxes:write` |
+| `workspaces.list/get` | `GET /v1/workspaces[/{id}]` | `workspaces:read` |
+| `workspaces.create/archive` | `POST /v1/workspaces`, `POST /v1/workspaces/{id}/archive` | `workspaces:write` |
+
+Creation never fetches organization capacity as a hidden prerequisite. A rejected
+admission uses the original structured error, even if the key lacks `org:read`.
+Cross-organization IDs and access denials remain server errors; the adapter must
+not relabel an authorization failure as a missing file.

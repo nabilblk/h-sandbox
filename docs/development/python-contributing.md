@@ -5,7 +5,7 @@ locked in `python/uv.lock`; nothing is installed into system Python.
 
 ```sh
 uv sync --project python --frozen
-uv run --project python ruff check --config python/pyproject.toml packages/python-sdk packages/python-deepagents python examples/python-first-task
+uv run --project python ruff check --config python/pyproject.toml packages/python-sdk packages/python-deepagents python examples/python-first-task examples/python-repository-repair examples/python-workflow-recovery infra/python-acceptance
 uv run --project python mypy --config-file python/pyproject.toml packages/python-sdk/src packages/python-deepagents/src
 uv run --project python pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
 uv run --project python python python/check_packages.py
@@ -16,7 +16,7 @@ After editing the first-task programs, run `node scripts/python-doc-snippets.mjs
 Web tests check that displayed code, downloads and source remain identical.
 The package script builds wheel and sdist, installs each in a clean consumer
 outside the checkout and checks public imports, metadata, typing and 16 MiB
-binary transfer. Linux additionally enforces a 256 MiB address-space budget on
+binary transfer against a controlled HTTP fixture. Linux additionally enforces a 256 MiB address-space budget on
 the model-free transfer process; this is not a memory budget for Deep Agents.
 
 Native acceptance must run only through the GitHub-hosted ownership-guarded

@@ -14,11 +14,16 @@ The user authorized a dedicated implementation PR and disposable GitHub-hosted
 native acceptance. Publication, merging and deployment are not authorized by
 that approval; the existing k0s/customer environments remain untouched.
 
-Core sync/native-async packages, protocol adapter, examples and candidate packaging
-are implemented. Local verification: 40 focused tests, strict mypy on 20 source
-modules, Ruff, both wheel/sdist clean consumers and 16 MiB binary transfers pass.
+Core sync/native-async packages, protocol adapter, examples, candidate packaging
+and source-backed public guides are implemented in draft PR #66. The package
+matrix passes on Python 3.11-3.14, with clean macOS/Windows consumers, strict mypy
+on 20 source modules, Ruff, and bounded 16 MiB **mock-transport** transfers.
+Twelve documentation browser checks pass, including 320/390/768/1024/1440px.
 The native harness targets rc.10 without changing TypeScript acceptance pins.
-Public documentation/browser verification and native evidence are in progress.
+Native qualification is not complete: run 36862236924 reproduced a provider
+failure uploading 1 MiB. The size-limit gate remains mandatory and separate from
+the smaller-file workflow checks; no reduction of advertised support is claimed.
+Additional native workflow and recovery checks are in progress.
 PyPI account/publishers, public artifacts, deployment and independent adoption
 remain separate pending gates. This plan must stay active.
 
@@ -306,32 +311,32 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 1: Freeze The Experience and Contracts
 
-**Status**: In Progress
+**Status**: Complete for the candidate contracts; PyPI ownership remains in Phase 7
 **Deliverables**: Reviewed example design, capability/permission matrix, dependency and transport decisions, testable acceptance specification.
 
-- [ ] Write the real first-local/first-sandbox source against the selected Python framework and verify its imports/lifecycle. Keep the model/prompt/invocation visible and identical.
-- [ ] Finalize package names, imports, method naming, return models, error hierarchy and preview versioning; confirm Python 3.11+ policy against actual dependencies.
-- [ ] Inspect the exact candidate framework distribution and pin its resolved test environment; qualify sync/async protocol, inherited tool behavior and required template utilities.
-- [ ] Inventory selected endpoints against [OpenAPI](../../openapi.json), route schemas and [authorization](../../../apps/api/src/authorization.ts). Record where runtime responses differ from documentation before writing wrappers.
+- [x] Write the real first-local/first-sandbox source against the selected Python framework and verify its imports/lifecycle. Keep the model/prompt/invocation visible and identical.
+- [x] Finalize package names, imports, method naming, return models, error hierarchy and preview versioning; confirm Python 3.11+ policy against actual dependencies.
+- [x] Inspect the exact candidate framework distribution and pin its resolved test environment; qualify sync/async protocol, inherited tool behavior and required template utilities.
+- [x] Inventory selected endpoints against [OpenAPI](../../openapi.json), route schemas and [authorization](../../../apps/api/src/authorization.ts). Record where runtime responses differ from documentation before writing wrappers.
 - [x] Specify borrowed versus owned semantics, idempotency/unknown outcomes, timeout units, limits, transport injection and client-close behavior.
-- [ ] Build a minimal slow-header/slow-body/disconnect/cancellation transport experiment. Prove the total-deadline design in both modes and record an ADR, including rejection of unsafe thread/loop shortcuts.
+- [x] Build a minimal slow-header/slow-body/disconnect/cancellation transport experiment. Prove the total-deadline design in both modes and record an ADR, including rejection of unsafe thread/loop shortcuts.
 - [x] Pin the recovery example's official SQLite checkpoint dependency, define its single-worker boundary and persist acknowledgement separately from uncertain graph progress, without adding a framework persistence feature.
-- [ ] Draft the documentation outline and native acceptance cases. Confirm at least one prospective Python adopter/use case when available; do not block local engineering solely on recruiting one.
+- [x] Draft the documentation outline and native acceptance cases. Independent adopter recruitment remains pending under Phase 8.
 
 **Exit gate**: The paired examples are understandable without an invented agent abstraction, and the transport/ownership design has executable evidence. Unresolved deadline or framework semantics stop package implementation from hardening an incorrect API.
 
 ### Phase 2: Establish The Python Package and Transport Foundation
 
-**Status**: In Progress; local checks pass, cross-platform matrix pending
+**Status**: Complete for the candidate; cross-platform matrix passed
 **Deliverables**: Buildable core wheel/sdist, typed configuration/models/errors, shared request machinery, hermetic tests.
 
 - [x] Add the core package with scoped dev tooling, license metadata, project URLs, `py.typed`, a minimal public export surface and an isolated build.
 - [x] Implement validated configuration and API-key headers, verified TLS/private CA support, explicit proxy policy and non-leaking repr/error formatting.
-- [ ] Implement the approved sync/async transport and client ownership, total request/body budgets, response byte bounds and safe transport injection.
-- [ ] Centralize snake_case-to-wire encoding, optional/null fields, UTC timestamps, typed response parsing and backward-compatible handling of additional response fields. Unknown states must never be interpreted as readiness/success.
-- [ ] Map server status/code/details into typed authentication, authorization, validation, conflict, capacity/rate-limit, unsupported, provider, transport, deadline and outcome-unknown errors. Preserve causes.
-- [ ] Use representative actual API fixtures shared at the wire level with TypeScript tests where useful; do not generate Python implementation from the TypeScript client.
-- [ ] Test configuration mistakes, secret redaction, foreign redirects, malformed JSON, bounded body reading, all error classes and thread/task/socket cleanup.
+- [x] Implement the approved sync/async transport and client ownership, total request/body budgets, response byte bounds and safe transport injection.
+- [x] Centralize snake_case-to-wire encoding, optional/null fields, UTC timestamps, typed response parsing and backward-compatible handling of additional response fields. Unknown states must never be interpreted as readiness/success.
+- [x] Map server status/code/details into typed authentication, authorization, validation, conflict, capacity/rate-limit, unsupported, provider, transport, deadline and outcome-unknown errors. Preserve causes.
+- [x] Use representative actual API fixtures shared at the wire level with TypeScript tests where useful; do not generate Python implementation from the TypeScript client.
+- [x] Test configuration mistakes, secret redaction, foreign redirects, malformed JSON, bounded body reading, all error classes and thread/task/socket cleanup.
 - [x] Install the wheel and sdist in fresh consumers outside the checkout, without `PYTHONPATH` or editable installs. Verify that importing core does not import Deep Agents, Node bridges or provider clients.
 
 **Exit gate**: Packaging, lint/type checks and deterministic transport tests pass across the supported Python matrix; no unbounded HTTP body or request path remains.
@@ -341,7 +346,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 **Status**: In Progress; local contract evidence complete, native evidence pending
 **Deliverables**: Sync/async lifecycle, commands, files, workspaces and owned task context, with contract tests.
 
-- [ ] Implement discovery and lifecycle resources from the first-preview matrix, keeping accepted handles and structured errors intact.
+- [x] Implement discovery and lifecycle resources from the first-preview matrix, keeping accepted handles and structured errors intact.
 - [x] Implement readiness/termination observers using execution readiness and per-sandbox capacity release, with one bounded monotonic budget.
 - [x] Implement owned task context entry/exit, independent cleanup cancellation/budget, safe option restrictions and combined primary/cleanup errors.
 - [x] Implement finite and tracked commands, serializable references, acknowledgement callback and read-only reconnection/final-log observation.
@@ -360,51 +365,51 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 - [x] Add the separate adapter package and narrowly qualified SDK/framework dependency bounds. Keep core installation independent.
 - [x] Implement borrowed sync and native async backends using public SDK handles and upstream protocol types.
-- [ ] Cover actual framework-visible timeout/kill/error output, numeric/non-numeric exit status, truncation and inherited search/file tool behavior.
+- [x] Cover actual framework-visible timeout/kill/error output, numeric/non-numeric exit status, truncation and inherited search/file tool behavior.
 - [x] Implement bounded batch transfers and error metadata, including cancellation after at least one completed file and integrity failures.
 - [x] Add simple local/remote first-task programs and an async equivalent, with explicit model preparation and no hidden execution helper.
 - [ ] Add the repository-repair workflow: fixed broken fixture, original test hash, model invocation, artifact retrieval, original test execution and independent patch verification.
 - [ ] Add the application-owned workflow: persist command acknowledgement, exit worker, observe from a new process without replay, expire runtime, reconnect retained files in a deliberately new runtime.
-- [ ] Demonstrate graph interruption with a borrowed sandbox and explain why an owned task context is not the approval-pause boundary.
-- [ ] Make errors actionable without including prompts, file contents, model/API credentials or tokens in exception repr/default logs. The caller can explicitly access returned command output.
+- [x] Demonstrate graph interruption with a borrowed sandbox and explain why an owned task context is not the approval-pause boundary. Real SQLite checkpoint reopening is tested with deterministic framework messages; native model evidence is separate.
+- [x] Make errors actionable without including prompts, file contents, model/API credentials or tokens in exception repr/default logs. The caller can explicitly access returned command output.
 
 **Exit gate**: Actual Python framework tools use Harakiri successfully, and every reliability regression has a reproducing test. A model-free backend test is not labeled an agent workflow.
 
 ### Phase 5: Qualify On Isolated Native Infrastructure
 
-**Status**: In Progress; isolated runner approved, harness ready for execution
+**Status**: In Progress; isolated runner approved, rc.10 large-upload failure blocks full qualification
 **Deliverables**: Reproducible candidate-artifact qualification and sanitized evidence, without touching existing deployments.
 
-- [ ] Add a dedicated Python workflow/harness that reuses [existing acceptance ownership guards](../../../infra/acceptance/context.mjs) and known installation primitives without weakening or repinning TypeScript acceptance.
-- [ ] Run lint, strict type checks, unit/contract and clean-wheel consumers on Python 3.11, 3.12, 3.13 and 3.14. Use Linux for native runtime tests; add macOS/Windows core consumer checks with POSIX remote-path fixtures.
-- [ ] Select an immutable published server/chart/image baseline and record digests. Target the current documented API baseline (rc.10 or newer); test every minimum-version claim rather than inferring it from TypeScript results.
-- [ ] Use only a disposable GitHub-hosted native amd64 fixture with explicit kubeconfig/cluster identity, scoped test credentials, disk/memory checks and an always-run owned cleanup path.
+- [x] Add a dedicated Python workflow/harness that reuses [existing acceptance ownership guards](../../../infra/acceptance/context.mjs) and known installation primitives without weakening or repinning TypeScript acceptance.
+- [x] Run lint, strict type checks, unit/contract and clean-wheel consumers on Python 3.11, 3.12, 3.13 and 3.14. Use Linux for native runtime tests; add macOS/Windows core consumer checks with POSIX remote-path fixtures.
+- [x] Select an immutable published server/chart/image baseline and record digests. Target the current documented API baseline (rc.10 or newer); test every minimum-version claim rather than inferring it from TypeScript results.
+- [x] Use only a disposable GitHub-hosted native amd64 fixture with explicit kubeconfig/cluster identity, scoped test credentials, disk/memory checks and an always-run owned cleanup path.
 - [ ] Qualify real sync/async commands, readiness, capacity rejection, scoped/cross-org access, file integrity/limits, borrowed survival and owned termination/capacity release.
 - [ ] Inject connection loss, slow/truncated bodies, provider interruption and worker loss only inside the owned fixture. Assert no blind resubmission and retain acknowledged references.
 - [ ] Verify retained-file recovery through a new runtime and separate graph/command identities. Do not claim memory/process restoration or distributed exactly-once execution.
 - [ ] Run actual Deep Agents with deterministic tool-call fixtures for repeatable contract failures; report this separately from the real model workflow.
 - [ ] Run one genuine tool-capable model repair with independent tests and patch inspection. Prefer a digest-pinned, licensed local runner model when feasible; a free hosted model is optional and not a reliable CI dependency.
 - [ ] Export an allowlisted JSON/Markdown receipt: source SHA, package hashes, server/template/model versions, Python/dependency versions, runner architecture, case outcomes, cleanup and explicit limits. Do not upload raw credentials, kubeconfigs, unrestricted logs or checkpoints.
-- [ ] Add a scheduled compatibility probe for newer Python Deep Agents dependencies. Probe failures report drift; they neither widen package bounds nor publish automatically.
+- [x] Add a scheduled compatibility probe for newer Python Deep Agents dependencies. Probe failures report drift; they neither widen package bounds nor publish automatically.
 
 **Exit gate**: Candidate wheel hashes have complete passing required evidence. Fork PRs receive hermetic tests, not publisher permissions or privileged native workloads. Any skipped native/model gate is a documented incomplete gate, not success.
 
 ### Phase 6: Complete Documentation and Public UX
 
-**Status**: In Progress; repository guides written, public pages/browser checks pending
+**Status**: In Progress; candidate guides and browser checks pass, delivery evidence being recorded
 **Deliverables**: One coherent learning path across website, Git and package documentation, plus technical/contributor/operator material.
 
-- [ ] Add `docs/python-sdk.md` and `docs/integrations/deepagents-python.md`: installation, environment, first task, existing sandbox, async use, lifecycle, commands/files, retained workspace, error recovery and supported-version matrix.
-- [ ] Add public `#docs/python-sdk` and `#docs/deepagents-python` pages. Keep the existing TypeScript routes and external links working; label languages explicitly in navigation and cross-links.
-- [ ] Sequence the public narrative: what runs where; first successful task; local-versus-sandbox; real repository repair; ownership and limits; recovery; API reference. Avoid an enormous API list before the first working example.
+- [x] Add `docs/python-sdk.md` and `docs/integrations/deepagents-python.md`: installation, environment, first task, existing sandbox, async use, lifecycle, commands/files, retained workspace, error recovery and supported-version matrix.
+- [x] Add public `#docs/python-sdk` and `#docs/deepagents-python` pages. Keep the existing TypeScript routes and external links working; label languages explicitly in navigation and cross-links.
+- [x] Sequence the public narrative: what runs where; first successful task; local-versus-sandbox; real repository repair; ownership and limits; recovery; API reference. Avoid an enormous API list before the first working example.
 - [ ] Keep source examples, downloads, Markdown exports and visible code in sync. Compile/typecheck/run extracted examples against the installed packages; do not maintain drifting prose-only pseudo-APIs.
-- [ ] Use Python syntax highlighting and correctly labeled shell/env snippets. Keep side-by-side heading/description/code rows aligned at wide widths and stack naturally on narrow screens without wrapping identifiers across columns.
+- [x] Use Python syntax highlighting and correctly labeled shell/env snippets. Keep side-by-side heading/description/code rows aligned at wide widths and stack naturally on narrow screens without wrapping identifiers across columns.
 - [ ] Cover missing API URL/key/template, 401/403, capacity exhaustion, readiness failure, remote timeout, local observation timeout, framework mismatch, missing template tools, large files and incomplete cleanup.
-- [ ] Write technical design/ADR documentation for transport deadlines, ownership, typed errors, protocol adaptation and limits; add an endpoint/scope contract table and maintainability rules.
-- [ ] Update contributor documentation with the locked Python environment, lint/type/test/build commands, native safety boundary, fixture rules and compatibility-update procedure.
-- [ ] Update release/security/internal operations docs with PyPI bootstrap, protected publishers, exact artifact verification, partial release recovery, yanking and incident handling. Keep all secret/account recovery material out of Git.
-- [ ] Update package READMEs, root README, docs index, SDK overview, capability matrix and public integration inventory. Correct the specifically identified stale capacity/history/workspace statements using shipped evidence.
-- [ ] Browser-test documentation at 320, 390, 768, 1024 and 1440px: navigation/deep links, language labels, code copy/download, keyboard focus, search, export, side-by-side alignment and page overflow.
+- [x] Write technical design/ADR documentation for transport deadlines, ownership, typed errors, protocol adaptation and limits; add an endpoint/scope contract table and maintainability rules.
+- [x] Update contributor documentation with the locked Python environment, lint/type/test/build commands, native safety boundary, fixture rules and compatibility-update procedure.
+- [x] Update release/security/internal operations docs with PyPI bootstrap, protected publishers, exact artifact verification, partial release recovery, yanking and incident handling. Keep all secret/account recovery material out of Git.
+- [x] Update package READMEs, root README, docs index, SDK overview, capability matrix and public integration inventory. Correct the specifically identified stale capacity/history/workspace statements using shipped evidence.
+- [x] Browser-test documentation at 320, 390, 768, 1024 and 1440px: navigation/deep links, language labels, code copy/download, keyboard focus, search, export, side-by-side alignment and page overflow.
 - [ ] Add release notes with supported versions, current gaps and exact qualification links; do not describe an unreleased wheel as already installable from PyPI.
 
 **Exit gate**: A fresh reviewer can follow both first-task and recovery paths using documentation only. Repo/package/public pages agree; existing TypeScript guides and routes remain valid.
@@ -523,6 +528,7 @@ Checked during planning on 2026-10-01. These sources inform the contract but are
 | 2026-10-01 | Start Python recovery with an application-owned SQLite checkpointer and sequential workers. | Demonstrate process restart and command observation without adding another database deployment. | Port the entire TypeScript PostgreSQL workflow before validating Python demand. |
 | 2026-10-01 | Separate candidate, published-artifact and independent-adopter gates. | Passing source tests is not evidence that users can install and complete a workflow. | Publish after unit tests and call the milestone complete. |
 | 2026-10-01 | Do not change the existing cluster or customer installations. | This is a client integration milestone with isolated acceptance. | Testing by rebuilding the running lab or adding BackgroundAgent. |
+| 2026-10-01 | Keep the native large-file gate mandatory and independent of agent/recovery gates. | rc.10 failed a 1 MiB upload; passing the mocked 16 MiB memory fixture is not live transfer proof. A provider correction needs separate review and release evidence. | Shrink the fixture and claim qualification; bypass the API in Python; silently patch the runner's API. |
 
 ## Tech Debt Incurred
 
@@ -530,6 +536,9 @@ None incurred by planning. Deferred features in the capability matrix are delibe
 
 ## Completion Notes
 
-Implementation has not started. No Python package, application code, deployment, registry state or Brain file was changed by preparing this plan. No new runtime or framework acceptance is claimed.
-
-The next action is **Phase 1: validate the paired Python examples and freeze the ownership, framework and transport contracts**. Before closing the plan, replace this section with actual package versions, delivery/qualification receipts, adoption evidence and explicitly deferred work.
+Implementation is in draft [PR #66](https://github.com/nabilblk/h-sandbox/pull/66).
+Candidate packages are not published. Native acceptance failures and remaining
+delivery gates are recorded in [the candidate record](../../release-notes/python-agents-preview.md).
+No production deployment, local cluster operation, registry publication or Brain
+change has been made. Keep this plan active until native, public-artifact and
+independent-adopter gates are evidenced; do not archive it as completed.

@@ -102,7 +102,7 @@ Commands inherit the template's remote limit unless explicitly overridden.
 - `files.write(path, text_or_bytes)` preserves the explicit representation; bytes use verified buffered base64 transfer.
 - `files.list`, `stat`, `mkdir`, `rename` and `remove` expose the corresponding API operations.
 - Relative paths resolve against the sandbox's advertised POSIX workdir, not the client OS directory.
-- The server advertises the per-file limit, normally 16 MiB. This is **not streaming**. HTTP JSON responses are bounded to 24 MiB by default.
+- The server advertises the per-file limit, normally 16 MiB. This is **not streaming**. HTTP JSON responses are bounded to 24 MiB by default. The candidate's codec/memory tests pass at 16 MiB, but native rc.10 acceptance failed a 1 MiB upload. Large-file support is not qualified; see the [candidate record](release-notes/python-agents-preview.md).
 - `workspaces.create(name)`, `list()`, `get(id)` and `archive(id)` manage retained files. Attach with `workspace_id` when creating a sandbox.
 
 A workspace outlives a runtime, not a process. Wait for detachment before explicitly

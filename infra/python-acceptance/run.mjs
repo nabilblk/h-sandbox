@@ -109,6 +109,8 @@ try {
   receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });
   const failure = path.join(ctx.identity.directory, "python-consumer/native-failure.json");
   if (fs.existsSync(failure)) receipt.nativeFailure = JSON.parse(fs.readFileSync(failure));
+  const partial = path.join(ctx.identity.directory, "python-consumer/native-result.json");
+  if (!receipt.native && fs.existsSync(partial)) receipt.native = JSON.parse(fs.readFileSync(partial));
   receipt.status = "failed";
   process.exitCode = 1;
 } finally {

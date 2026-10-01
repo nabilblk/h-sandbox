@@ -78,7 +78,8 @@ assert sandbox.files.read_bytes("report.bin") == b"verified bytes"`}</CodeBlock>
     </tbody></table>
 
     <h2>Limits and qualification</h2>
-    <p>Timeout arguments are seconds. Defaults: HTTP request 120s, readiness 180s, cleanup 90s and command observation 120s. Remote command limits are separate. JSON responses are bounded to 24 MiB; binary files use buffered base64 with size and SHA-256 verification, normally up to 16 MiB per file. This is not streaming.</p>
+    <p>Timeout arguments are seconds. Defaults: HTTP request 120s, readiness 180s, cleanup 90s and command observation 120s. Remote command limits are separate. JSON responses are bounded to 24 MiB; binary files use buffered base64 with size and SHA-256 verification. This is not streaming.</p>
+    <aside className="docs-notice"><p><strong>Large-file qualification is blocked.</strong> The server advertises a 16 MiB limit and the candidate codec passes its memory tests, but native rc.10 acceptance failed a 1 MiB upload. Do not treat that advertised limit as verified end-to-end support.</p></aside>
     <p>The candidate covers discovery, capacity, lifecycle, finite/tracked commands, files, logs and retained workspaces. PTY, SSE, pause/resume, snapshots, routes, Git helpers, Vault administration, template builds and usage history methods remain outside this Python preview. See the <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification record</a> for executed gates and pending publication/adoption evidence.</p>
     <p>Next: <a href="#docs/deepagents-python">Deep Agents for Python</a> or the <a href={`${source}/docs/development/python-client-design.md`}>technical contract</a>.</p>
   </>

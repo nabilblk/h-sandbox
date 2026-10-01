@@ -30,6 +30,18 @@ def gate(name, action):
         Path("native-failure.json").write_text(json.dumps(failure))
         raise
     results.append({"gate": name, "status": "passed"})
+    Path("native-result.json").write_text(
+        json.dumps(
+            {
+                "results": results,
+                "python": platform.python_version(),
+                "packages": {
+                    name: importlib.metadata.version(name)
+                    for name in ("h-sandbox", "h-sandbox-deepagents", "deepagents", "httpx")
+                },
+            }
+        )
+    )
 
 
 def synchronous():
@@ -54,7 +66,8 @@ def synchronous():
             backend = HarakiriSandboxBackend(sandbox, timeout=15)
             assert backend.execute("printf native").output.strip() == "native"
             assert not backend.write("tool.txt", "first\nsecond\n").error
-            assert "first" in "\n".join(backend.read("tool.txt").file_data["content"])
+            read = backend.read("tool.txt")
+            assert read.error is None and read.file_data["content"] == "first\nsecond"
             assert backend.grep("first", path=sandbox.workdir).matches
             assert not backend.edit("tool.txt", "first", "changed").error
             assert backend.glob("*.txt", path=sandbox.workdir).matches
@@ -77,7 +90,7 @@ async def asynchronous():
             backend = AsyncHarakiriSandboxBackend(sandbox, timeout=15)
             await backend.awrite("async.txt", "native async\n")
             read = await backend.aread("async.txt")
-            assert "native async" in "\n".join(read.file_data["content"])
+            assert read.error is None and read.file_data["content"] == "native async"
             assert (await backend.agrep("native", path=sandbox.workdir)).matches
             assert not (await backend.aedit("async.txt", "native", "verified")).error
             assert (await backend.aglob("*.txt", path=sandbox.workdir)).matches
@@ -141,15 +154,3 @@ if __name__ == "__main__":
     gate("sync-lifecycle-tools-files-cleanup", synchronous)
     gate("native-async-tools", lambda: asyncio.run(asynchronous()))
     gate("separate-worker-and-expired-runtime-file-recovery", recovery)
-    Path("native-result.json").write_text(
-        json.dumps(
-            {
-                "results": results,
-                "python": platform.python_version(),
-                "packages": {
-                    name: importlib.metadata.version(name)
-                    for name in ("h-sandbox", "h-sandbox-deepagents", "deepagents", "httpx")
-                },
-            }
-        )
-    )
