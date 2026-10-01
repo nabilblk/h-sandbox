@@ -11,7 +11,7 @@ import time
 from pathlib import Path
 
 from harakiri import AsyncHarakiriClient, HarakiriClient
-from harakiri.errors import ApiError, AuthorizationError, CapacityError
+from harakiri.errors import ApiError, AuthorizationError, CapacityError, NotFoundError
 from harakiri_deepagents import AsyncHarakiriSandboxBackend, HarakiriSandboxBackend
 
 
@@ -71,6 +71,7 @@ def synchronous():
         assert client.capacity.get().in_use == 0
         with client.sandboxes.task(template=template, ttl_seconds=600) as sandbox:
             assert sandbox.readiness.status == "ready"
+            gate("cross-organization-denial", lambda: cross_organization(sandbox.id))
             assert sandbox.run("printf hello", check=True).stdout.strip() == "hello"
             try:
                 client.sandboxes.create(template=template)
@@ -162,6 +163,19 @@ def scoped_key():
             pass
         else:
             raise AssertionError("Read-only key was allowed to create a runtime")
+
+
+def cross_organization(sandbox_id):
+    with HarakiriClient(
+        api_url=os.environ["HARAKIRI_API_URL"], api_key=os.environ["HARAKIRI_FOREIGN_KEY"]
+    ) as client:
+        assert client.sandboxes.list() == []
+        try:
+            client.sandboxes.connect(sandbox_id)
+        except NotFoundError:
+            pass
+        else:
+            raise AssertionError("Foreign organization could access the sandbox")
 
 
 def large_artifacts():

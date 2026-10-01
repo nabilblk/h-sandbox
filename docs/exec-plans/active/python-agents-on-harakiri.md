@@ -25,11 +25,13 @@ The native harness targets rc.10 without changing TypeScript acceptance pins.
 Native qualification is not complete: run 36862236924 reproduced a provider
 failure uploading 1 MiB. The size-limit gate remains mandatory and separate from
 the smaller-file workflow checks; no reduction of advertised support is claimed.
-Additional native workflow and recovery checks are in progress.
-Run 36865611307 passed scoped-key denial, synchronous lifecycle/framework tools
-and native asynchronous tools; its recovery fixture incorrectly expected immediate
-workspace detachment. The fixture now waits for confirmed availability before
-replacement, and the separate-worker journal explicitly closes SQLite connections.
+Run 36866686680 passed scoped-key denial, sync/async framework tools, separate-worker
+observation, retained-file recovery after TTL expiry, provider loss, abnormal
+remote termination, real model repair and key revocation. Four unchanged original
+tests pass after the model's repair. The large-file gate still fails with
+`502 runtime_files_unavailable`, so overall qualification remains failed. Its
+sanitized receipt is preserved in the candidate release record. Final-revision
+acceptance and a newly added cross-organization denial gate remain pending.
 PyPI account/publishers, public artifacts, deployment and independent adoption
 remain separate pending gates. This plan must stay active.
 
@@ -349,7 +351,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 3: Implement The Focused Sandbox SDK
 
-**Status**: In Progress; local contract evidence complete, native evidence pending
+**Status**: Complete for the candidate surface; full transfer-limit qualification remains blocked in Phase 5
 **Deliverables**: Sync/async lifecycle, commands, files, workspaces and owned task context, with contract tests.
 
 - [x] Implement discovery and lifecycle resources from the first-preview matrix, keeping accepted handles and structured errors intact.
@@ -358,15 +360,15 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [x] Implement finite and tracked commands, serializable references, acknowledgement callback and read-only reconnection/final-log observation.
 - [x] Implement typed text/binary file operations, checksum/size checks and working-directory resolution without host-specific path behavior.
 - [x] Implement explicit retained workspace lifecycle/attachment without auto-archive, automatic replacement or fictional process-state persistence.
-- [ ] Test accepted-but-not-ready creation, capacity rejection, response loss, callback failure, expired runtime, concurrent observation and cleanup uncertainty.
-- [ ] Verify sync/async behavioral equivalence, non-blocking async calls, cancellation before and after acknowledgement, and bounded resource disposal.
-- [ ] Execute binary-memory and Unicode/truncation fixtures under declared limits. Preserve source artifacts for regression tests without embedding real secrets.
+- [x] Test accepted-but-not-ready creation, capacity rejection, response loss, callback failure, expired runtime, concurrent observation and cleanup uncertainty.
+- [x] Verify sync/async behavioral equivalence, non-blocking async calls, cancellation before and after acknowledgement, and bounded resource disposal.
+- [x] Execute binary-memory and Unicode/truncation fixtures under declared limits. Preserve source artifacts for regression tests without embedding real secrets. These codec tests do not qualify the failing native upload limit.
 
 **Exit gate**: The core can execute the model-free create/run/files/cleanup workflow and recover an acknowledged command reference in a second process. It does not need Deep Agents to be useful.
 
 ### Phase 4: Implement The Real Deep Agents Backend and Examples
 
-**Status**: In Progress; actual framework contracts pass, native examples pending
+**Status**: Complete for the candidate; actual framework and one genuine model workflow passed
 **Deliverables**: Optional adapter wheel/sdist, actual framework tool tests, three runnable workflows.
 
 - [x] Add the separate adapter package and narrowly qualified SDK/framework dependency bounds. Keep core installation independent.
@@ -374,8 +376,8 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [x] Cover actual framework-visible timeout/kill/error output, numeric/non-numeric exit status, truncation and inherited search/file tool behavior.
 - [x] Implement bounded batch transfers and error metadata, including cancellation after at least one completed file and integrity failures.
 - [x] Add simple local/remote first-task programs and an async equivalent, with explicit model preparation and no hidden execution helper.
-- [ ] Add the repository-repair workflow: fixed broken fixture, original test hash, model invocation, artifact retrieval, original test execution and independent patch verification.
-- [ ] Add the application-owned workflow: persist command acknowledgement, exit worker, observe from a new process without replay, expire runtime, reconnect retained files in a deliberately new runtime.
+- [x] Add the repository-repair workflow: fixed broken fixture, original test hash, model invocation, artifact retrieval, original test execution and independent patch verification. Native run 36866686680 passed four unchanged original tests after genuine model/tool work.
+- [x] Add the application-owned workflow: persist command acknowledgement, exit worker, observe from a new process without replay, expire runtime, reconnect retained files in a deliberately new runtime. Native run 36866686680 passed.
 - [x] Demonstrate graph interruption with a borrowed sandbox and explain why an owned task context is not the approval-pause boundary. Real SQLite checkpoint reopening is tested with deterministic framework messages; native model evidence is separate.
 - [x] Make errors actionable without including prompts, file contents, model/API credentials or tokens in exception repr/default logs. The caller can explicitly access returned command output.
 
@@ -392,10 +394,10 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [x] Use only a disposable GitHub-hosted native amd64 fixture with explicit kubeconfig/cluster identity, scoped test credentials, disk/memory checks and an always-run owned cleanup path.
 - [ ] Qualify real sync/async commands, readiness, capacity rejection, scoped/cross-org access, file integrity/limits, borrowed survival and owned termination/capacity release.
 - [ ] Inject connection loss, slow/truncated bodies, provider interruption and worker loss only inside the owned fixture. Assert no blind resubmission and retain acknowledged references.
-- [ ] Verify retained-file recovery through a new runtime and separate graph/command identities. Do not claim memory/process restoration or distributed exactly-once execution.
+- [x] Verify retained-file recovery through a new runtime and separate graph/command identities. Do not claim memory/process restoration or distributed exactly-once execution.
 - [ ] Run actual Deep Agents with deterministic tool-call fixtures for repeatable contract failures; report this separately from the real model workflow.
-- [ ] Run one genuine tool-capable model repair with independent tests and patch inspection. Prefer a digest-pinned, licensed local runner model when feasible; a free hosted model is optional and not a reliable CI dependency.
-- [ ] Export an allowlisted JSON/Markdown receipt: source SHA, package hashes, server/template/model versions, Python/dependency versions, runner architecture, case outcomes, cleanup and explicit limits. Do not upload raw credentials, kubeconfigs, unrestricted logs or checkpoints.
+- [x] Run one genuine tool-capable model repair with independent tests and patch inspection. Digest-pinned local Qwen passed in run 36866686680. Its receipt is not a benchmark or final-revision qualification.
+- [x] Export an allowlisted JSON/Markdown receipt: source SHA, package hashes, server/template/model versions, Python/dependency versions, runner architecture, case outcomes, cleanup and explicit limits. Do not upload raw credentials, kubeconfigs, unrestricted logs or checkpoints. Preserve the sixth-run receipt in Git; newer runs additionally record key LangChain/LangGraph dependency versions.
 - [x] Add a scheduled compatibility probe for newer Python Deep Agents dependencies. Probe failures report drift; they neither widen package bounds nor publish automatically.
 
 **Exit gate**: Candidate wheel hashes have complete passing required evidence. Fork PRs receive hermetic tests, not publisher permissions or privileged native workloads. Any skipped native/model gate is a documented incomplete gate, not success.

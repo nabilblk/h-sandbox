@@ -19,20 +19,30 @@ Runner results and candidate hashes are recorded separately from publication.
 
 | Evidence | Result |
 | --- | --- |
-| [Python packages, commit 06ec865](https://github.com/nabilblk/h-sandbox/actions/runs/36866686622) | Passed: Python 3.11-3.14 contracts/types/packages, Linux 256 MiB address-space binary fixture, clean macOS/Windows consumers |
+| [Python packages, commit f230633](https://github.com/nabilblk/h-sandbox/actions/runs/36869003947) | Passed: 72 contracts on Python 3.11-3.14, types/packages, Linux 256 MiB address-space binary fixture, clean macOS/Windows consumers |
 | [Repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36866686603) | Passed |
-| Local contract suite | 72 tests passed, including real loopback sockets, SQLite checkpoint reopening, concurrent observers and mismatched command-response rejection. The additional command regressions still require the next CI run. |
+| Local contract suite | 72 tests passed, including real loopback sockets, SQLite checkpoint reopening, concurrent observers and mismatched command-response rejection |
 | Documentation | 106 web unit tests and 12 browser tests passed; Python comparisons checked at 320/390/768/1024/1440px |
 | [First native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36861333245) | Failed a whitespace-sensitive fixture assertion; the provider appends a newline to command output. Corrected the assertion, not the SDK output. Owned cleanup passed. |
 | [Second native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36862236924) | Receipt records `ProviderError` uploading 1 MiB on published rc.10; cleanup passed. Workflow ultimately reported cancelled. Not a passing qualification. |
 | [Third native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36863606183) | Failed an acceptance assertion expecting the legacy file-content line array; pinned Deep Agents returns text. Fixture corrected and actual `read_file` tool regression added. Owned cleanup passed. |
 | [Fourth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36864704338) | Failed the remote-deadline assertion. The original fixture required one notice wording. A separate mandatory deadline gate now records the actual exit code, finish reason and presence of a framework-visible abnormal notice; no normal outcome is accepted as a timeout. Owned cleanup passed. |
 | [Fifth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36865611307) | Scoped-key denial, sync lifecycle/framework tools and native async tools passed. Recovery then failed an immediate-detachment assertion. The corrected fixture observes workspace availability before replacement. Owned cleanup passed. |
+| [Sixth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36866686680) | Workflow, retained-file recovery, provider-loss handling, abnormal remote termination, real model repair and key revocation passed. The 1 MiB transfer failed with `502 runtime_files_unavailable`. Overall result remains failed; owned cleanup passed. |
 
-The [next native run](https://github.com/nabilblk/h-sandbox/actions/runs/36866686680)
-was still running at this checkpoint; its recovery/model outcomes are not claimed.
-See [draft PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for subsequent
-checks and sanitized receipts. A passing subcase is not a passing overall run.
+The [sanitized sixth-run receipt](evidence/python-native-2026-10-01.json) preserves
+the exact candidate wheel hashes, tested source, server/template/model identities,
+outcomes and cleanup. The pinned Qwen model produced a patch that passed all four
+unchanged original tests; the run observed ten model responses and nine tool
+responses. This proves one repair workflow, not a model benchmark or adversarial
+verification. The remote-deadline exercise returned exit code `-1` and generic
+finish reason `error`; the adapter exposed an abnormal notice, not an invented
+precise timeout classification.
+
+The receipt predates the additional command-identity regressions and foreign-org
+fixture. Final-revision native acceptance is still pending. See
+[draft PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for subsequent checks.
+A passing subcase is not a passing overall run.
 
 The mandatory large-artifact gate remains at 1 MiB and 16 MiB. Basic workflow
 checks also exercise smaller binary/text files so one transfer failure does not

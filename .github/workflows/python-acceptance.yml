@@ -40,7 +40,7 @@ jobs:
           pnpm install --frozen-lockfile
           uv sync --project python --frozen
           uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
-          node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs
+          node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/python-acceptance/authorization.test.mjs
       - name: Bootstrap only a fresh GitHub-hosted native amd64 fixture
         run: node infra/acceptance/bootstrap.mjs
       - name: Qualify candidate Python artifacts without publishing
