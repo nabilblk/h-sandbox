@@ -1,0 +1,13 @@
+{
+  "version": "0.5.0-rc.10",
+  "source": "3ff2aaaffe6d92a8c2db7333f6d8c79a144c5207",
+  "manifestSha256": "17febb4f31b9e09e1d98049fcaa39504bde2804950daf74231acf383ac3a69f3",
+  "images": {
+    "api": "sha256:aafd9f3e84cf0969f8f88cdc3ea11bb3615b6aef46826ce3d9b372f841f92b08",
+    "web": "sha256:be98e5dae0ec32ebc5fdce21532b40d665e54064f679beffb94c958a17195e88"
+  },
+  "charts": {
+    "harakiri": { "version": "0.5.0-rc.10", "digest": "sha256:c2224227bcf9b9de3925176eb108d7d0b302754e101699d8eb43804fac50fae7" },
+    "opensandbox": { "version": "0.2.2-harakiri.2", "digest": "sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34" }
+  }
+}

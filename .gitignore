@@ -23,3 +23,10 @@ apps/web/public/docs/
 apps/web/public/llms.txt
 apps/web/public/llms-full.txt
 infra/preview/.private/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/

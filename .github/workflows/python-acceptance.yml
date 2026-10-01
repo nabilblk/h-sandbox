@@ -1,0 +1,58 @@
+name: Python native acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/python-*/**"
+      - "python/**"
+      - "examples/python-*/**"
+      - "infra/python-acceptance/**"
+      - ".github/workflows/python-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+      - name: Prepare locked tooling and verify safety without cluster access
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          uv sync --project python --frozen
+          uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
+          node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs
+      - name: Bootstrap only a fresh GitHub-hosted native amd64 fixture
+        run: node infra/acceptance/bootstrap.mjs
+      - name: Qualify candidate Python artifacts without publishing
+        run: node infra/python-acceptance/run.mjs
+      - name: Clean only owned fixture resources
+        if: always()
+        run: node infra/acceptance/cleanup.mjs
+      - name: Export only sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: python-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: standalone-acceptance-report.json
+          retention-days: 14
+          if-no-files-found: warn

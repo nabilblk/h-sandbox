@@ -1,0 +1,66 @@
+name: Python packages
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/python-*/**"
+      - "python/**"
+      - "examples/python-*/**"
+      - ".github/workflows/python-*.yml"
+      - "infra/python-acceptance/**"
+  push:
+    branches: [main]
+    paths:
+      - "packages/python-*/**"
+      - "python/**"
+      - "examples/python-*/**"
+      - ".github/workflows/python-*.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: ${{ matrix.python }}
+      - run: uv sync --project python --frozen --python ${{ matrix.python }}
+      - run: uv run --project python --frozen ruff check --config python/pyproject.toml packages/python-sdk packages/python-deepagents examples/python-first-task python
+      - run: uv run --project python --frozen ruff format --check --config python/pyproject.toml packages/python-sdk packages/python-deepagents examples/python-first-task python
+      - run: uv run --project python --frozen mypy --config-file python/pyproject.toml packages/python-sdk/src packages/python-deepagents/src
+      - run: uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
+      - run: uv run --project python --frozen python python/check_packages.py --python ${{ matrix.python }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: python-candidate-${{ matrix.python }}
+          path: dist-packages/python/
+          retention-days: 14
+
+  portable-consumer:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [macos-14, windows-2022]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - run: uv sync --project python --frozen --python 3.12
+      - run: uv run --project python --frozen python python/check_packages.py
