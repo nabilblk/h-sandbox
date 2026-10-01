@@ -39,8 +39,9 @@ the existing explicit gateway-not-ready response is retried. If cleanup cannot
 be confirmed, the caller receives an error that says so while preserving the
 primary cause. A lost finalization response can mean the replacement happened;
 callers must inspect the file before deciding to retry. Process crashes or a
-provider that remains unreachable can leave temporary data until the runtime
-is removed; this fix does not promise distributed transactional writes.
+provider that remains unreachable can leave temporary files; retained
+workspaces may require later cleanup. This fix does not promise distributed
+transactional writes or crash-time staging garbage collection.
 
 ## Qualification
 

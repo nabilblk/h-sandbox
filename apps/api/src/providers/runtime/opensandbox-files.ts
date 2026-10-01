@@ -209,7 +209,7 @@ export const readFileInSandbox = async (opensandboxId: string, path: string, enc
   const normalized = normalizedFilePath(path);
   try {
     const response = await requestExecd(opensandboxId, `/files/download?${new URLSearchParams({ path: normalized })}`, {
-      signal: AbortSignal.timeout(120_000), redirect: "error"
+      headers: { "accept-encoding": "identity" }, signal: AbortSignal.timeout(120_000), redirect: "error"
     });
     const reader = response.body?.getReader();
     const chunks: Uint8Array[] = [];
@@ -221,7 +221,10 @@ export const readFileInSandbox = async (opensandboxId: string, path: string, enc
     };
     try {
       if (response.status !== 200) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
-      const lengthHeader = response.headers.get("content-length");
+      // fetch decodes compressed responses; Content-Length then describes wire
+      // bytes, not the file bytes counted below. Proxies may ignore identity.
+      const compressed = ![null, "identity"].includes(response.headers.get("content-encoding")?.toLowerCase() ?? null);
+      const lengthHeader = compressed ? null : response.headers.get("content-length");
       const length = lengthHeader === null ? undefined : Number(lengthHeader);
       if (length !== undefined) checkSize(length);
       if (reader) while (true) {

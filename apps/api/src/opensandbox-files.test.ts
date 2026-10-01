@@ -205,6 +205,7 @@ function downloadTransport(response: () => Response) {
     if (String(input).includes("/endpoints/")) return Response.json({ endpoint: "http://execd.test", headers: { "X-EXECD-ACCESS-TOKEN": "read-token" } });
     assert.equal(String(input), "http://execd.test/files/download?path=%2Fworkspace%2Fblob.bin");
     assert.equal(new Headers(init?.headers).get("X-EXECD-ACCESS-TOKEN"), "read-token");
+    assert.equal(new Headers(init?.headers).get("accept-encoding"), "identity");
     assert.equal(init?.redirect, "error");
     assert.ok(init?.signal instanceof AbortSignal);
     return response();
@@ -235,6 +236,13 @@ test("native text download preserves split Unicode, trailing newlines and empty 
     } })));
     assert.equal((await readFileInSandbox("runtime", "/workspace/blob.bin", "utf8")).content, text);
   }
+});
+
+test("a proxy-compressed response uses decoded size, not its wire Content-Length", async () => {
+  const text = "decoded file bytes";
+  downloadTransport(() => new Response(text, { headers: { "content-encoding": "gzip", "content-length": "8" } }));
+  assert.equal((await readFileInSandbox("runtime", "/workspace/blob.bin", "utf8", 32)).content, text);
+  await assert.rejects(readFileInSandbox("runtime", "/workspace/blob.bin", "utf8", 8), { code: "sandbox_file_artifact_too_large", statusCode: 413 });
 });
 
 for (const knownLength of [true, false]) {
