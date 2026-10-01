@@ -32,6 +32,10 @@ tests pass after the model's repair. The large-file gate still fails with
 `502 runtime_files_unavailable`, so overall qualification remains failed. Its
 sanitized receipt is preserved in the candidate release record. Final-revision
 acceptance and a newly added cross-organization denial gate remain pending.
+Run 36869003900 repeated the SDK/recovery passes and upload failure, but model
+repair failed without a structured result. Model repeatability is not yet qualified.
+The next harness uses a bounded model budget with sanitized diagnostics and an
+efficient, still-genuine repair prompt; retain the failed repeat as evidence.
 PyPI account/publishers, public artifacts, deployment and independent adoption
 remain separate pending gates. This plan must stay active.
 

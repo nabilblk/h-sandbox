@@ -29,6 +29,7 @@ Runner results and candidate hashes are recorded separately from publication.
 | [Fourth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36864704338) | Failed the remote-deadline assertion. The original fixture required one notice wording. A separate mandatory deadline gate now records the actual exit code, finish reason and presence of a framework-visible abnormal notice; no normal outcome is accepted as a timeout. Owned cleanup passed. |
 | [Fifth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36865611307) | Scoped-key denial, sync lifecycle/framework tools and native async tools passed. Recovery then failed an immediate-detachment assertion. The corrected fixture observes workspace availability before replacement. Owned cleanup passed. |
 | [Sixth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36866686680) | Workflow, retained-file recovery, provider-loss handling, abnormal remote termination, real model repair and key revocation passed. The 1 MiB transfer failed with `502 runtime_files_unavailable`. Overall result remains failed; owned cleanup passed. |
+| [Seventh native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36869003900) | SDK/framework workflows, recovery, provider loss and abnormal termination passed with the command-identity changes. The upload failed again; model repair failed without a structured model result. Overall failed; owned cleanup passed. |
 
 The [sanitized sixth-run receipt](evidence/python-native-2026-10-01.json) preserves
 the exact candidate wheel hashes, tested source, server/template/model identities,
@@ -43,6 +44,14 @@ The receipt predates the additional command-identity regressions and foreign-org
 fixture. Final-revision native acceptance is still pending. See
 [draft PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for subsequent checks.
 A passing subcase is not a passing overall run.
+
+Model repeatability is also pending. The seventh attempt's timing is consistent
+with the outer 15-minute subprocess limit, but the precise cause was not preserved.
+The Linux-only inference harness now has an explicit 12-minute budget, shorter than
+the process limit so SDK cleanup can finish, and allowlisted elapsed-time/failure
+diagnostics. The tiny repair example combines inspection in one tool call and
+avoids planning/delegation overhead. It still runs the actual framework/model and
+independently checks the unchanged original tests; no mocked repair is substituted.
 
 The mandatory large-artifact gate remains at 1 MiB and 16 MiB. Basic workflow
 checks also exercise smaller binary/text files so one transfer failure does not

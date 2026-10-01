@@ -15,9 +15,11 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 FIXTURE = Path(__file__).parent / "fixture"
 PROMPT = (
-    "Repair totals.py in the current working directory. Run python3 -m unittest -v first, "
-    "then fix the implementation and rerun the tests. Do not modify test_totals.py. "
-    "Use the execute tool to inspect and edit the files. Report the test result."
+    "Repair totals.py in the current working directory. Start with one execute call: "
+    "cat totals.py test_totals.py; python3 -m unittest -v. "
+    "Then use execute to edit only totals.py and run python3 -m unittest -v again. "
+    "Stop when all four tests pass. Do not modify test_totals.py, install dependencies, "
+    "create a plan, use write_todos or delegate tasks. Report the test result briefly."
 )
 
 
@@ -35,7 +37,11 @@ def repair(model: BaseChatModel, destination: Path) -> dict[str, object]:
             agent = create_deep_agent(
                 model=model,
                 backend=HarakiriSandboxBackend(sandbox, timeout=60),
-                system_prompt="Use shell tools to repair the code. Keep the original tests intact.",
+                system_prompt=(
+                    "This is a small, self-contained repair. Use execute directly, combine "
+                    "inspection commands, and keep the original tests intact. No planning "
+                    "or delegation is needed. Finish as soon as the four tests pass."
+                ),
             )
             result = agent.invoke(
                 {"messages": [{"role": "user", "content": PROMPT}]},
