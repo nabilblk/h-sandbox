@@ -94,16 +94,23 @@ try {
       }
     }
   });
-  await gate("native-large-artifact-limits", () => {
-    ctx.execute(python, ["native.py", "--large-artifacts"], "Python large artifact consumer", { cwd: consumer, env });
-  });
+  for (const [name, option] of [["native-remote-deadline", "--remote-deadline"], ["native-large-artifact-limits", "--large-artifacts"]]) {
+    try {
+      await gate(name, () => ctx.execute(python, ["native.py", option], "Python boundary consumer", { cwd: consumer, env }));
+    } catch (error) {
+      receipt.results.push({ gate: name, status: "failed", failure: publicFailure(error) });
+      const failure = path.join(consumer, "native-failure.json");
+      if (fs.existsSync(failure)) (receipt.nativeFailures ??= []).push(JSON.parse(fs.readFileSync(failure)));
+      publish();
+    }
+  }
   await gate("key-revocation", async () => {
     await operator.request(`/v1/api-keys/${readonly.key.id}`, "DELETE");
     await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
     const response = await fetch(`${origins.api}/v1/templates`, { headers: { "x-api-key": env.HARAKIRI_API_KEY }, signal: AbortSignal.timeout(10000) });
     check(response.status === 401, "Candidate key was not revoked");
   });
-  receipt.status = "configured_gates_passed";
+  receipt.status = receipt.results.some(result => result.status === "failed") ? "failed" : "configured_gates_passed";
 } catch (error) {
   ctx.save("python-failure.json", { gate: activeGate, message: error.message, stack: error.stack });
   receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });

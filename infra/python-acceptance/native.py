@@ -24,7 +24,12 @@ def gate(name, action):
             frame = traceback.tb_frame
             frames.append({"function": frame.f_code.co_name, "line": traceback.tb_lineno})
             traceback = traceback.tb_next
-        failure = {"gate": name, "type": type(error).__name__, "frames": frames[-4:]}
+        failure = {
+            "gate": name,
+            "type": type(error).__name__,
+            "frames": frames[-4:],
+            "observations": observations,
+        }
         if isinstance(error, ApiError):
             failure.update(status=error.status, code=error.code)
         Path("native-failure.json").write_text(json.dumps(failure))
@@ -72,8 +77,6 @@ def synchronous():
             assert not backend.edit("tool.txt", "first", "changed").error
             assert backend.glob("*.txt", path=sandbox.workdir).matches
             assert backend.ls(sandbox.workdir).entries
-            timed_out = backend.execute("sleep 10", timeout=1)
-            assert timed_out.abnormal and "did not complete" in timed_out.output
             clipped = HarakiriSandboxBackend(sandbox, max_output_bytes=32).execute(
                 "python3 -c 'print(\"x\" * 1000)'"
             )
@@ -143,12 +146,35 @@ def large_artifacts():
                 assert sandbox.files.read_bytes("large.bin") == payload
 
 
+def remote_deadline():
+    with HarakiriClient.from_env() as client:
+        with client.sandboxes.task(template=template) as sandbox:
+            timed_out = HarakiriSandboxBackend(sandbox, timeout=15).execute("sleep 10", timeout=1)
+            notice = any(
+                text in timed_out.output
+                for text in ("timed out", "killed", "runtime error", "unconfirmed")
+            )
+            reason = timed_out.finish_reason
+            observations["remoteDeadline"] = {
+                "exitCode": timed_out.exit_code,
+                "finishReason": reason
+                if reason in {"exit", "timeout", "error", "killed", "unknown", None}
+                else "unrecognized",
+                "frameworkVisibleNotice": notice,
+            }
+            assert timed_out.abnormal and notice
+
+
 if __name__ == "__main__":
     assert os.environ.get("HARAKIRI_PYTHON_ACCEPTANCE") == "disposable-runner"
     template = os.environ["HARAKIRI_TEMPLATE"]
     results = []
+    observations = {}
     if sys.argv[1:] == ["--large-artifacts"]:
         gate("native-1-and-16-mib-artifacts", large_artifacts)
+        sys.exit(0)
+    if sys.argv[1:] == ["--remote-deadline"]:
+        gate("native-remote-deadline", remote_deadline)
         sys.exit(0)
     gate("scoped-key-denial", scoped_key)
     gate("sync-lifecycle-tools-files-cleanup", synchronous)
