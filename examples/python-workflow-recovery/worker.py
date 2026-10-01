@@ -5,13 +5,14 @@ from __future__ import annotations
 import argparse
 import os
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from harakiri import CommandReference, HarakiriClient
 
 
 def work(action: str, database: Path, sandbox_id: str | None) -> None:
-    with sqlite3.connect(database) as journal, HarakiriClient.from_env() as client:
+    with closing(sqlite3.connect(database)) as journal, HarakiriClient.from_env() as client:
         journal.execute(
             "CREATE TABLE IF NOT EXISTS command ("
             "slot INTEGER PRIMARY KEY CHECK(slot = 1), sandbox_id TEXT NOT NULL, "

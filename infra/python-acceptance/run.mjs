@@ -69,6 +69,20 @@ try {
     }
     phase("observe");
   });
+  for (const [name, option] of [["native-remote-deadline", "--remote-deadline"], ["native-large-artifact-limits", "--large-artifacts"]]) {
+    const failure = path.join(consumer, "native-failure.json");
+    fs.rmSync(failure, { force: true });
+    try {
+      await gate(name, () => ctx.execute(python, ["native.py", option], "Python boundary consumer", { cwd: consumer, env }));
+      (receipt.boundaries ??= {})[name] = JSON.parse(fs.readFileSync(path.join(consumer, "native-result.json")));
+    } catch (error) {
+      receipt.results.push({ gate: name, status: "failed", failure: publicFailure(error) });
+      if (fs.existsSync(failure)) (receipt.nativeFailures ??= []).push(JSON.parse(fs.readFileSync(failure)));
+    } finally {
+      fs.rmSync(failure, { force: true });
+      publish();
+    }
+  }
   await gate("real-model-repair", async () => {
     ctx.guard();
     let container;
@@ -94,16 +108,6 @@ try {
       }
     }
   });
-  for (const [name, option] of [["native-remote-deadline", "--remote-deadline"], ["native-large-artifact-limits", "--large-artifacts"]]) {
-    try {
-      await gate(name, () => ctx.execute(python, ["native.py", option], "Python boundary consumer", { cwd: consumer, env }));
-    } catch (error) {
-      receipt.results.push({ gate: name, status: "failed", failure: publicFailure(error) });
-      const failure = path.join(consumer, "native-failure.json");
-      if (fs.existsSync(failure)) (receipt.nativeFailures ??= []).push(JSON.parse(fs.readFileSync(failure)));
-      publish();
-    }
-  }
   await gate("key-revocation", async () => {
     await operator.request(`/v1/api-keys/${readonly.key.id}`, "DELETE");
     await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");

@@ -7,6 +7,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from harakiri import AsyncHarakiriClient, HarakiriClient
@@ -39,6 +40,7 @@ def gate(name, action):
         json.dumps(
             {
                 "results": results,
+                "observations": observations,
                 "python": platform.python_version(),
                 "packages": {
                     name: importlib.metadata.version(name)
@@ -102,6 +104,16 @@ async def asynchronous():
             await backend.adelete("async.txt")
 
 
+def wait_available(client, workspace_id):
+    deadline = time.monotonic() + 180
+    while (remaining := deadline - time.monotonic()) > 0:
+        workspace = client.workspaces.get(workspace_id, request_timeout=min(remaining, 30))
+        if workspace.status == "available" and workspace.attached_sandbox_id is None:
+            return
+        time.sleep(min(0.5, max(0, deadline - time.monotonic())))
+    raise TimeoutError("Workspace did not become available; no replacement was submitted")
+
+
 def recovery():
     with HarakiriClient.from_env() as client:
         workspace = client.workspaces.create("python-recovery")
@@ -111,16 +123,18 @@ def recovery():
             subprocess.run([*args, "start", "--sandbox-id", sandbox.id], check=True, timeout=60)
             subprocess.run([*args, "observe"], check=True, timeout=90)
             assert len(sandbox.processes.list()) == before + 1
-        assert client.workspaces.get(workspace.id).attached_sandbox_id is None
+        wait_available(client, workspace.id)
         replacement = client.sandboxes.create(
             template=template, workspace_id=workspace.id, ttl_seconds=20
         )
         assert replacement.files.read_text("recovery-marker.txt") == "completed\n"
         # Let the platform expire this runtime, rather than claiming kill is a TTL test.
         replacement.wait_terminated(timeout=180)
+        wait_available(client, workspace.id)
         with client.sandboxes.task(template=template, workspace_id=workspace.id) as restored:
             assert restored.id != replacement.id
             assert restored.files.read_text("recovery-marker.txt") == "completed\n"
+        wait_available(client, workspace.id)
         client.workspaces.archive(workspace.id)
 
 
