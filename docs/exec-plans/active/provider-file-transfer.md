@@ -1,4 +1,4 @@
-# Execution Plan: Native Provider File Uploads
+# Execution Plan: Native Provider File Transfers
 
 **Created**: 2026-10-01
 **Author**: Codex
@@ -14,6 +14,13 @@ artifact against published server `0.5.0-rc.10`. Small uploads pass. The existin
 Harakiri provider embeds base64 bytes in one shell command, making the transfer
 subject to operating-system argument limits. This is a provider bridge issue,
 not a Python-specific transport requirement.
+
+Review also reproduced a related large-download defect: command-event parsing
+inserts newlines between stdout chunks, corrupting canonical base64. Native
+binary download is part of the same complete file round-trip fix. Artifact
+downloads pass their existing byte ceiling into the provider and reject/cancel
+oversized responses before buffering the whole file; ordinary text reads retain
+their existing contract.
 
 The user authorized a separate provider-fix PR and disposable GitHub-hosted
 acceptance. No merge, publication, deployment, or local cluster operation is
@@ -65,6 +72,7 @@ authorized. The original Python worktree and user-owned files stay untouched.
 | 2026-10-01 | Fix the provider, not the Python SDK | All SDKs use the same file API; payload-to-command conversion is below that contract. | Python shell chunking, reduced artifact limit. |
 | 2026-10-01 | Stage native uploads beside the destination, then rename | Native execd creates parents and truncates destinations directly; staging preserves Harakiri's semantics and atomic replacement. | Upload directly to the final path. |
 | 2026-10-01 | Keep published dependencies and candidate API identities distinct | Qualification must not pretend a source fix is already released. | Republishing/deploying before review. |
+| 2026-10-01 | Use native binary downloads as well as multipart uploads | A 1 MiB command output split into 171 valid events acquired 170 artificial newlines. Generic command parsing must not encode file transfer semantics. | Stripping base64 whitespace or modifying shared command output handling. |
 
 ## Source Evidence
 
@@ -75,6 +83,9 @@ authorized. The original Python worktree and user-owned files stay untouched.
   Provider tests now assert every generated command stays below 8 KiB for the
   same payload and a 16 MiB payload. Focused provider/service/route/boundary suite:
   82 passed; safety/acceptance contracts: 16 passed; API typecheck passed.
+- Initial full API suite: 361 passed, 9 environment-dependent skips. Linux
+  filesystem contracts passed on the first native runner's hermetic test step.
+- Draft provider PR: [#67](https://github.com/nabilblk/h-sandbox/pull/67).
 
 ## Tech Debt Incurred
 

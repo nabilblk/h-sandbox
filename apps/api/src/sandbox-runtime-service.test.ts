@@ -130,6 +130,7 @@ test("listSandboxFiles uses the template workdir and preserves provider unavaila
 });
 
 test("sandbox file operations resolve provider refs and preserve typed file errors", async () => {
+  const readLimits: Array<number | undefined> = [];
   const query = async (text: string, params?: unknown[]) => {
     assert.match(text, /COALESCE\(v\.workdir, t\.workdir/);
     assert.deepEqual(params, ["sbx_runtime", "org_runtime"]);
@@ -140,12 +141,15 @@ test("sandbox file operations resolve provider refs and preserve typed file erro
       ok: true,
       file: { path: input.path, name: "agent.py", type: "file", size: 12 }
     }),
-    readFile: async (input) => ({
-      ok: true,
-      path: input.path,
-      encoding: input.encoding,
-      content: input.encoding === "base64" ? Buffer.from("print('ok')\n").toString("base64") : "print('ok')\n"
-    }),
+    readFile: async (input) => {
+      readLimits.push(input.maxBytes);
+      return {
+        ok: true,
+        path: input.path,
+        encoding: input.encoding,
+        content: input.encoding === "base64" ? Buffer.from("print('ok')\n").toString("base64") : "print('ok')\n"
+      };
+    },
     writeFile: async (input) => ({
       ok: true,
       file: { path: input.path, name: "agent.py", type: "file", size: input.content.length }
@@ -183,6 +187,7 @@ test("sandbox file operations resolve provider refs and preserve typed file erro
     { runtimeProvider: provider, query }
   );
   assert.equal(downloaded.kind, "ok");
+  assert.deepEqual(readLimits, [undefined, 16 * 1024 * 1024]);
   if (downloaded.kind === "ok") {
     assert.equal(downloaded.contentBase64, Buffer.from("print('ok')\n").toString("base64"));
     assert.equal(downloaded.sizeBytes, 12);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { config } from "./config.js";
-import { OpenSandboxFileError, writeFileInSandbox } from "./providers/runtime/opensandbox-files.js";
+import { OpenSandboxFileError, readFileInSandbox, writeFileInSandbox } from "./providers/runtime/opensandbox-files.js";
 
 const originalFetch = globalThis.fetch;
 test.afterEach(() => { globalThis.fetch = originalFetch; });
@@ -132,6 +132,18 @@ test("ambiguous network failure is not replayed or replaced by a shell upload", 
   assert.doesNotMatch(captured.commands.join("\n"), /mv -fT|base64/);
 });
 
+test("a lost preparation response attempts staging cleanup without replaying preparation", async () => {
+  const failure = new TypeError("preparation response lost");
+  const captured = transport({ command: script => {
+    if (script.includes("mkdir -m 700")) throw failure;
+    return undefined;
+  } });
+  await assert.rejects(writeFileInSandbox("test-runtime", { path: "/workspace/blob.bin", content: "new", encoding: "utf8" }), error => error === failure);
+  assert.equal(captured.uploads.length, 0);
+  assert.equal(captured.commands.length, 2);
+  assert.match(captured.commands[1]!, /^rm -f --/);
+});
+
 test("only explicit gateway not-ready responses retry the same staging upload", async () => {
   const captured = transport({ upload: (_body, attempt) => attempt === 1
     ? new Response("OpenSandbox ingress: sandbox not ready", { status: 503 }) : new Response(null, { status: 200 }) });
@@ -175,4 +187,69 @@ test("concurrent uploads use distinct sibling staging directories", async () => 
   await Promise.all(["first", "second"].map(content => writeFileInSandbox("test-runtime", { path: "/workspace/blob.bin", content, encoding: "utf8" })));
   const paths = await Promise.all(captured.uploads.map(async request => JSON.parse(await ((request.body as FormData).get("metadata") as Blob).text()).path));
   assert.equal(new Set(paths).size, 2);
+});
+
+function downloadTransport(response: () => Response) {
+  globalThis.fetch = async (input, init) => {
+    if (String(input).includes("/endpoints/")) return Response.json({ endpoint: "http://execd.test", headers: { "X-EXECD-ACCESS-TOKEN": "read-token" } });
+    assert.equal(String(input), "http://execd.test/files/download?path=%2Fworkspace%2Fblob.bin");
+    assert.equal(new Headers(init?.headers).get("X-EXECD-ACCESS-TOKEN"), "read-token");
+    assert.equal(init?.redirect, "error");
+    assert.ok(init?.signal instanceof AbortSignal);
+    return response();
+  };
+}
+
+test("native download reconstructs exact binary bytes across chunks at 16 MiB", async () => {
+  const bytes = Buffer.alloc(16 * 1024 * 1024);
+  for (let index = 0; index < bytes.length; index++) bytes[index] = index % 256;
+  let offset = 0;
+  downloadTransport(() => new Response(new ReadableStream({ pull(controller) {
+    if (offset === bytes.length) return controller.close();
+    const end = Math.min(offset + 8191, bytes.length);
+    controller.enqueue(bytes.subarray(offset, end));
+    offset = end;
+  } }), { headers: { "content-length": String(bytes.length) } }));
+  const result = await readFileInSandbox("runtime", "/workspace/blob.bin", "base64", bytes.length);
+  assert.equal(result.content, bytes.toString("base64"));
+});
+
+test("native text download preserves split Unicode, trailing newlines and empty content", async () => {
+  for (const text of ["", "\u4e16\u754c\u00e9\n\n"]) {
+    const bytes = Buffer.from(text);
+    let offset = 0;
+    downloadTransport(() => new Response(new ReadableStream({ pull(controller) {
+      if (offset === bytes.length) return controller.close();
+      controller.enqueue(bytes.subarray(offset, ++offset));
+    } })));
+    assert.equal((await readFileInSandbox("runtime", "/workspace/blob.bin", "utf8")).content, text);
+  }
+});
+
+for (const knownLength of [true, false]) {
+  test(`oversized download is cancelled ${knownLength ? "before reading a declared" : "while reading an undeclared"} body`, async () => {
+    let cancelled = false;
+    let pulls = 0;
+    downloadTransport(() => new Response(new ReadableStream({
+      pull(controller) { pulls++; controller.enqueue(new Uint8Array(4)); },
+      cancel() { cancelled = true; }
+    }), { headers: knownLength ? { "content-length": "16" } : {} }));
+    await assert.rejects(readFileInSandbox("runtime", "/workspace/blob.bin", "base64", 8), { code: "sandbox_file_artifact_too_large", statusCode: 413 });
+    assert.equal(cancelled, true);
+    assert.ok(pulls <= (knownLength ? 1 : 4));
+  });
+}
+
+test("partial, truncated and failed downloads never become successful files", async () => {
+  for (const response of [
+    () => new Response("partial", { status: 206 }),
+    () => new Response("short", { headers: { "content-length": "100" } }),
+    () => Response.json({ code: "FILE_NOT_FOUND" }, { status: 404 }),
+    () => Response.json({ message: "Permission denied" }, { status: 500 })
+  ]) {
+    downloadTransport(response);
+    await assert.rejects(readFileInSandbox("runtime", "/workspace/blob.bin", "base64"), error => error instanceof OpenSandboxFileError);
+  }
+  downloadTransport(() => new Response(new ReadableStream({ start(controller) { controller.error(new TypeError("connection interrupted")); } })));
+  await assert.rejects(readFileInSandbox("runtime", "/workspace/blob.bin", "base64"), /connection interrupted/);
 });

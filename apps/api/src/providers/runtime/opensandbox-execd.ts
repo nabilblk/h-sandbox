@@ -61,7 +61,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isExecdGatewayReadinessError = (status: number, body: string) =>
   status === 503 && /opensandbox ingress/i.test(body) && /sandbox not ready/i.test(body);
 
-export const callExecd = async (opensandboxId: string, path: string, init: RequestInit = {}) => {
+export const requestExecd = async (opensandboxId: string, path: string, init: RequestInit = {}) => {
   const endpoint = await resolveExecdEndpoint(opensandboxId, init.signal ?? undefined);
   const maxAttempts = 12;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -73,8 +73,8 @@ export const callExecd = async (opensandboxId: string, path: string, init: Reque
         ...(init.headers ?? {})
       }
     });
+    if (response.ok) return response;
     const body = await response.text();
-    if (response.ok) return body;
     if (attempt < maxAttempts && isExecdGatewayReadinessError(response.status, body)) {
       await delay(process.env.NODE_ENV === "production" ? 500 : 1);
       continue;
@@ -83,6 +83,9 @@ export const callExecd = async (opensandboxId: string, path: string, init: Reque
   }
   throw new OpenSandboxHttpError(503, "OpenSandbox execd request did not complete");
 };
+
+export const callExecd = async (opensandboxId: string, path: string, init: RequestInit = {}) =>
+  (await requestExecd(opensandboxId, path, init)).text();
 
 const parseExecdEvents = (body: string) => {
   const events: ExecdEvent[] = [];

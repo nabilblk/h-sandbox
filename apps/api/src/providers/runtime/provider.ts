@@ -226,6 +226,8 @@ export type RuntimeFilePathInput = RuntimeSandboxRef & {
 
 export type RuntimeReadFileInput = RuntimeFilePathInput & {
   encoding: SandboxFileEncoding;
+  // Artifact reads provide their decoded-byte ceiling; other reads retain their existing contract.
+  maxBytes?: number;
 };
 
 export type RuntimeWriteFileInput = RuntimeFilePathInput & {

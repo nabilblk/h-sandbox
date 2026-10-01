@@ -47,6 +47,9 @@ export async function verifyTransfers(request, client, id) {
   check(oversized.status === 413 && oversized.body.error === "sandbox_file_artifact_too_large", "Artifact limit no longer enforced");
   const preserved = await request(`/stat?${new URLSearchParams({ path: "/workspace/provider-file.bin" })}`);
   check(preserved.body.file.size === 16 * 1024 * 1024, "Rejected upload changed the destination");
+  await run(client, id, "truncate -s 16777217 /workspace/oversized.bin");
+  const oversizedDownload = await request(`/download?${new URLSearchParams({ path: "/workspace/oversized.bin" })}`);
+  check(oversizedDownload.status === 413 && oversizedDownload.body.error === "sandbox_file_artifact_too_large", "Oversized download was not bounded");
   const missing = await request("/upload", "POST", artifact(1, "/workspace/missing-parent/file"));
   check(missing.status === 404 && missing.body.error === "file_not_found", "Missing parents were silently created");
   const created = await request("/upload", "POST", { ...artifact(1, "/workspace/missing-parent/file"), createParents: true });
@@ -60,5 +63,5 @@ export async function verifyTransfers(request, client, id) {
   check(read.status === 200 && read.body.content === text, "Large UTF-8 text round trip mismatch");
   const leftovers = await run(client, id, "find /workspace -maxdepth 3 -name '.harakiri-write-*' -print");
   check(leftovers.trim() === "", "Native transfer left staging files behind");
-  return { roundTrips: results, maximumEnforced: true, rejectedWritePreservesTarget: true, explicitParentCreation: true, directoryRejected: true, utf8: true, permissions: true, stagingCleaned: true };
+  return { roundTrips: results, maximumEnforced: true, downloadBounded: true, rejectedWritePreservesTarget: true, explicitParentCreation: true, directoryRejected: true, utf8: true, permissions: true, stagingCleaned: true };
 }

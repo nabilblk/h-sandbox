@@ -16,7 +16,8 @@ pushed. No external deployment is changed.
 The public API checks exact binary round trips at zero bytes, 1 KiB, 1 MiB and
 16 MiB, independently calculates SHA-256 inside the runtime, checks rejection
 above the configured limit, parent creation, modes, large UTF-8 writes, and
-staging cleanup. Local tests additionally inject failed transfers and validate
+staging cleanup. Native binary downloads are bounded by the artifact limit,
+including responses without a Content-Length header. Local tests additionally inject failed transfers and validate
 atomic replacement against a temporary filesystem on Linux.
 
 Only `standalone-acceptance-report.json` is uploaded. It contains source/image

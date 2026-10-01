@@ -934,16 +934,12 @@ test("openSandbox filesystem mutations use endpoint-resolved execd commands", as
       assert.ok(init?.body instanceof FormData);
       return new Response(null, { status: 200 });
     }
+    if (url.includes("/files/download?")) return new Response("hello");
     if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
       return execdEndpointResponse({ "X-EXECD-ACCESS-TOKEN": "endpoint-token" });
     }
     if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/proxy/44772/command") {
       const body = JSON.parse(String(init?.body ?? "{}"));
-      if (String(body.command).includes("base64 -w0")) {
-        return new Response(`data: {"type":"stdout","text":"${Buffer.from("hello").toString("base64")}"}\n\n`, {
-          headers: { "content-type": "text/event-stream" }
-        });
-      }
       const statPath = String(body.command).includes("renamed.txt") ? "/workspace/renamed.txt" : "/workspace/hello.txt";
       return new Response(
         [
