@@ -19,8 +19,9 @@ Runner results and candidate hashes are recorded separately from publication.
 
 | Evidence | Result |
 | --- | --- |
-| [Python packages, commit f230633](https://github.com/nabilblk/h-sandbox/actions/runs/36869003947) | Passed: 72 contracts on Python 3.11-3.14, types/packages, Linux 256 MiB address-space binary fixture, clean macOS/Windows consumers |
-| [Repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36866686603) | Passed |
+| [Python packages, commit 69dc24c](https://github.com/nabilblk/h-sandbox/actions/runs/36873196247) | Passed: 72 contracts on Python 3.11-3.14, types/packages, Linux 256 MiB address-space binary fixture, clean macOS/Windows consumers |
+| [Repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36873196245) | Passed |
+| [Standalone installation/recovery](https://github.com/nabilblk/h-sandbox/actions/runs/36873196374) | Passed on the unchanged standalone baseline; no lab deployment |
 | Local contract suite | 72 tests passed, including real loopback sockets, SQLite checkpoint reopening, concurrent observers and mismatched command-response rejection |
 | Documentation | 106 web unit tests and 12 browser tests passed; Python comparisons checked at 320/390/768/1024/1440px |
 | [First native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36861333245) | Failed a whitespace-sensitive fixture assertion; the provider appends a newline to command output. Corrected the assertion, not the SDK output. Owned cleanup passed. |
@@ -30,6 +31,8 @@ Runner results and candidate hashes are recorded separately from publication.
 | [Fifth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36865611307) | Scoped-key denial, sync lifecycle/framework tools and native async tools passed. Recovery then failed an immediate-detachment assertion. The corrected fixture observes workspace availability before replacement. Owned cleanup passed. |
 | [Sixth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36866686680) | Workflow, retained-file recovery, provider-loss handling, abnormal remote termination, real model repair and key revocation passed. The 1 MiB transfer failed with `502 runtime_files_unavailable`. Overall result remains failed; owned cleanup passed. |
 | [Seventh native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36869003900) | SDK/framework workflows, recovery, provider loss and abnormal termination passed with the command-identity changes. The upload failed again; model repair failed without a structured model result. Overall failed; owned cleanup passed. |
+| [Eighth native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36870079775) | Cancelled during installation while the model harness was being corrected. Cleanup passed and private material was removed; no qualification result is claimed. |
+| [Final code-revision attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36873196244) | Tenant isolation, sync/async workflows, recovery, provider interruption, abnormal termination, real model repair and key revocation passed. The only failed gate was the 1 MiB upload; overall failed. Runtime and fixture cleanup passed. |
 
 The [sanitized sixth-run receipt](evidence/python-native-2026-10-01.json) preserves
 the exact candidate wheel hashes, tested source, server/template/model identities,
@@ -40,18 +43,24 @@ verification. The remote-deadline exercise returned exit code `-1` and generic
 finish reason `error`; the adapter exposed an abnormal notice, not an invented
 precise timeout classification.
 
-The receipt predates the additional command-identity regressions and foreign-org
-fixture. Final-revision native acceptance is still pending. See
-[draft PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for subsequent checks.
+That first successful model receipt predates the final command-identity and
+foreign-organization checks. The [final-code receipt](evidence/python-native-2026-10-01-final.json)
+records their successful native execution, all key framework dependency versions,
+and another genuine repair: five model responses, four tool responses and four
+unchanged original tests passing. Its only failed gate is the native upload.
+See [draft PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for review.
 A passing subcase is not a passing overall run.
 
-Model repeatability is also pending. The seventh attempt's timing is consistent
-with the outer 15-minute subprocess limit, but the precise cause was not preserved.
+The seventh attempt's model failure remains part of the record. Its timing is
+consistent with the outer 15-minute subprocess limit, but the precise cause was
+not preserved.
 The Linux-only inference harness now has an explicit 12-minute budget, shorter than
 the process limit so SDK cleanup can finish, and allowlisted elapsed-time/failure
 diagnostics. The tiny repair example combines inspection in one tool call and
 avoids planning/delegation overhead. It still runs the actual framework/model and
 independently checks the unchanged original tests; no mocked repair is substituted.
+The corrected harness passed in the final-code run. This is bounded workflow
+evidence, not a universal model-latency or repeatability guarantee.
 
 The mandatory large-artifact gate remains at 1 MiB and 16 MiB. Basic workflow
 checks also exercise smaller binary/text files so one transfer failure does not

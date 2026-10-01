@@ -25,17 +25,19 @@ The native harness targets rc.10 without changing TypeScript acceptance pins.
 Native qualification is not complete: run 36862236924 reproduced a provider
 failure uploading 1 MiB. The size-limit gate remains mandatory and separate from
 the smaller-file workflow checks; no reduction of advertised support is claimed.
-Run 36866686680 passed scoped-key denial, sync/async framework tools, separate-worker
-observation, retained-file recovery after TTL expiry, provider loss, abnormal
-remote termination, real model repair and key revocation. Four unchanged original
-tests pass after the model's repair. The large-file gate still fails with
-`502 runtime_files_unavailable`, so overall qualification remains failed. Its
-sanitized receipt is preserved in the candidate release record. Final-revision
-acceptance and a newly added cross-organization denial gate remain pending.
-Run 36869003900 repeated the SDK/recovery passes and upload failure, but model
-repair failed without a structured result. Model repeatability is not yet qualified.
-The next harness uses a bounded model budget with sanitized diagnostics and an
-efficient, still-genuine repair prompt; retain the failed repeat as evidence.
+Final code-revision run 36873196244 passed scoped-key and cross-organization denial,
+sync/async framework tools, separate-worker observation, retained-file recovery
+after TTL expiry, provider loss, abnormal remote termination, genuine model repair
+and key revocation. Five model responses and four tool responses produced a patch
+that passes four unchanged original tests. Runtime and fixture cleanup passed.
+The only failed native gate is the 1 MiB upload (`502 runtime_files_unavailable`),
+so overall qualification remains failed. The candidate record preserves exact
+wheel hashes, dependency versions and sanitized receipts in Git.
+An earlier model repeat failed without a structured diagnostic. Its history is
+retained; the corrected bounded harness and efficient repair prompt passed in the
+final-code run, without claiming a model benchmark or universal repeatability.
+Repository CI, the Python package matrix and standalone installation/recovery
+acceptance also passed for code revision 69dc24c.
 PyPI account/publishers, public artifacts, deployment and independent adoption
 remain separate pending gates. This plan must stay active.
 
@@ -68,13 +70,13 @@ The public Python `deepagents` package observed during planning is `0.7.21`, req
 ## Success Criteria
 
 - [ ] A developer installs the released Python SDK without Node, the monorepo, Kubernetes credentials, provider credentials or a framework dependency.
-- [ ] The first-task comparison contains genuine `create_deep_agent` calls in both examples, with the same model, prompt and invocation; the sandbox difference is backend construction and explicit ownership.
-- [ ] A standalone Python program creates or connects to a sandbox, waits for execution readiness, runs commands, transfers verified files and confirms owned cleanup through the public Harakiri API.
-- [ ] Sync and async consumers have typed, documented behavior and bounded request/observation/cleanup operations. An async workflow does not block the event loop with synchronous network calls.
-- [ ] The adapter makes failed, killed, timed-out and truncated work visible in the actual framework tool result, not just extra response fields the framework ignores.
-- [ ] A replacement Python process observes a saved command reference without resubmitting the command or automatically replaying an interrupted graph.
+- [x] The first-task comparison contains genuine `create_deep_agent` calls in both examples, with the same model, prompt and invocation; the sandbox difference is backend construction and explicit ownership.
+- [x] A standalone Python program creates or connects to a sandbox, waits for execution readiness, runs commands, transfers verified small files and confirms owned cleanup through the public Harakiri API. The separate large-file gate remains blocked.
+- [x] Sync and async consumers have typed, documented behavior and bounded request/observation/cleanup operations. An async workflow does not block the event loop with synchronous network calls.
+- [x] The adapter makes failed, killed, timed-out and truncated work visible in the actual framework tool result, not just extra response fields the framework ignores. Contract tests cover distinct reasons; the native deadline result is conservatively reported as a generic runtime error.
+- [x] A replacement Python process observes a saved command reference without resubmitting the command or automatically replaying an interrupted graph.
 - [ ] Partial file transfers retain completed paths and causes, including cancellation between files. Large supported binary transfers remain within the tested memory budget.
-- [ ] Borrowed runtime and retained workspace ownership survives client closure, graph interruption and adapter disposal. Owned disposable tasks clean up on success and failure within an independent budget.
+- [x] Borrowed runtime and retained workspace ownership survives client closure, graph interruption and adapter disposal. Owned disposable tasks clean up on success and failure within an independent budget. Graph interruption uses actual framework/SQLite contract tests; runtime lifetime and release have native evidence.
 - [ ] Exact built artifacts pass clean-install, native sandbox and actual framework acceptance on isolated runners; publication is followed by verification of the public artifacts.
 - [ ] Public guides, repository docs, package READMEs, technical contracts, contributor instructions and release operations describe the same supported surface and exact package versions.
 - [ ] At least one independent Python developer completes the documented repair-and-test workflow on their installation without private patches or a maintainer-operated session; limitations and feedback are recorded.
@@ -399,7 +401,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [ ] Qualify real sync/async commands, readiness, capacity rejection, scoped/cross-org access, file integrity/limits, borrowed survival and owned termination/capacity release.
 - [ ] Inject connection loss, slow/truncated bodies, provider interruption and worker loss only inside the owned fixture. Assert no blind resubmission and retain acknowledged references.
 - [x] Verify retained-file recovery through a new runtime and separate graph/command identities. Do not claim memory/process restoration or distributed exactly-once execution.
-- [ ] Run actual Deep Agents with deterministic tool-call fixtures for repeatable contract failures; report this separately from the real model workflow.
+- [x] Run actual Deep Agents with deterministic tool-call fixtures for repeatable contract failures; report this separately from the real model workflow. Package CI executes the real framework with deterministic model/HTTP fixtures; native acceptance separately uses the real model and API.
 - [x] Run one genuine tool-capable model repair with independent tests and patch inspection. Digest-pinned local Qwen passed in run 36866686680. Its receipt is not a benchmark or final-revision qualification.
 - [x] Export an allowlisted JSON/Markdown receipt: source SHA, package hashes, server/template/model versions, Python/dependency versions, runner architecture, case outcomes, cleanup and explicit limits. Do not upload raw credentials, kubeconfigs, unrestricted logs or checkpoints. Preserve the sixth-run receipt in Git; newer runs additionally record key LangChain/LangGraph dependency versions.
 - [x] Add a scheduled compatibility probe for newer Python Deep Agents dependencies. Probe failures report drift; they neither widen package bounds nor publish automatically.
