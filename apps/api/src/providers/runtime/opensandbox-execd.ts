@@ -68,7 +68,7 @@ export const callExecd = async (opensandboxId: string, path: string, init: Reque
     const response = await fetch(joinUrl(endpoint.baseUrl, path), {
       ...init,
       headers: {
-        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...(init.body && !(init.body instanceof FormData) ? { "content-type": "application/json" } : {}),
         ...endpoint.headers,
         ...(init.headers ?? {})
       }
@@ -133,10 +133,12 @@ export const runExecdCommand = async (input: {
   cwd?: string;
   env?: Record<string, string>;
   timeoutMs?: number;
+  signal?: AbortSignal;
 }) => {
   const command = composeRunCommand(input);
   const body = await callExecd(input.opensandboxId, "/command", {
     method: "POST",
+    signal: input.signal,
     headers: { accept: "text/event-stream" },
     body: JSON.stringify({ command, cwd: input.cwd, background: false, timeout: input.timeoutMs ?? 120_000, envs: input.env })
   });

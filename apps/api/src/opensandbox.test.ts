@@ -930,6 +930,10 @@ test("openSandbox filesystem mutations use endpoint-resolved execd commands", as
   globalThis.fetch = async (input, init) => {
     const url = requestUrl(input);
     requests.push({ url, init });
+    if (url.endsWith("/files/upload")) {
+      assert.ok(init?.body instanceof FormData);
+      return new Response(null, { status: 200 });
+    }
     if (url === "http://127.0.0.1:8088/v1/sandboxes/osbx-real/endpoints/44772?use_server_proxy=true") {
       return execdEndpointResponse({ "X-EXECD-ACCESS-TOKEN": "endpoint-token" });
     }
@@ -960,7 +964,7 @@ test("openSandbox filesystem mutations use endpoint-resolved execd commands", as
   assert.equal(read.content, "hello");
   assert.equal(renamed.path, "/workspace/renamed.txt");
   assert.ok(requests.some((request) => String(request.init?.body ?? "").includes("mkdir -p")));
-  assert.ok(requests.some((request) => String(request.init?.body ?? "").includes("mv --")));
+  assert.ok(requests.some((request) => String(request.init?.body ?? "").includes("mv -fT --")));
 });
 
 test("openSandbox.metrics reads metrics through the resolved execd endpoint", async () => {

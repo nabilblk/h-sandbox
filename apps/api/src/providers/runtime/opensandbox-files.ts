@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { posix } from "node:path";
 import { callExecd, runExecdCommand } from "./opensandbox-execd.js";
+import { OpenSandboxHttpError } from "./opensandbox-client.js";
 import type { ExecdFileInfo, SandboxFileEntry } from "./opensandbox-types.js";
 import type { SandboxFileEncoding } from "@harakiri/shared";
 
@@ -6,9 +9,10 @@ export class OpenSandboxFileError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly statusCode = 502
+    public readonly statusCode = 502,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
   }
 }
 
@@ -79,11 +83,14 @@ const classifyFileCommandFailure = (stderr: string) => {
   if (/not_a_directory|Not a directory/i.test(stderr)) {
     return new OpenSandboxFileError("invalid_file_path", stderr.trim() || "not a directory", 400);
   }
+  if (/is_a_directory|Is a directory/i.test(stderr)) {
+    return new OpenSandboxFileError("invalid_file_path", stderr.trim() || "path is a directory", 400);
+  }
   return new OpenSandboxFileError("runtime_files_unavailable", stderr.trim() || "OpenSandbox execd filesystem command failed");
 };
 
-const runFileCommand = async (opensandboxId: string, command: string) => {
-  const result = await runExecdCommand({ opensandboxId, command });
+const runFileCommand = async (opensandboxId: string, command: string, signal?: AbortSignal) => {
+  const result = await runExecdCommand({ opensandboxId, command, signal });
   if (result.exitCode !== 0 || result.stderr.trim()) throw classifyFileCommandFailure(result.stderr);
   return result.stdout;
 };
@@ -220,22 +227,51 @@ export const writeFileInSandbox = async (
   input: { path: string; content: string; encoding: SandboxFileEncoding; createParents?: boolean; mode?: string }
 ) => {
   const normalized = normalizedFilePath(input.path);
-  const contentBase64 = input.encoding === "base64" ? input.content : Buffer.from(input.content).toString("base64");
-  const modeCommand = input.mode ? `chmod ${shellQuote(input.mode)} -- "$target"` : "";
-  const command = [
+  const content = Buffer.from(input.content, input.encoding);
+  const staging = posix.join(posix.dirname(normalized), `.harakiri-write-${randomUUID()}`);
+  const stagedFile = `${staging}/content`;
+  const signal = AbortSignal.timeout(120_000);
+  // Native uploads create parents and truncate files. Pre-create a private sibling
+  // with the command's umask, then replace the target only after upload succeeds.
+  await runFileCommand(opensandboxId, [
     "set -eu",
     `target=${shellQuote(normalized)}`,
+    `staging=${shellQuote(staging)}`,
+    `if [ -d "$target" ]; then echo "is_a_directory: $target" >&2; exit 45; fi`,
     input.createParents ? `mkdir -p -- "$(dirname -- "$target")"` : "",
-    `tmp="$target.harakiri-write-$$"`,
-    `base64 -d > "$tmp" <<'HARAKIRI_FILE_CONTENT'`,
-    contentBase64,
-    "HARAKIRI_FILE_CONTENT",
-    `mv -- "$tmp" "$target"`,
-    modeCommand,
-    statCommand(normalized)
-  ].filter(Boolean).join("\n");
-  const stdout = await runFileCommand(opensandboxId, command);
-  return statLineToFile(stdout.trim().split(/\r?\n/).at(-1) ?? "");
+    `mkdir -m 700 -- "$staging"`,
+    `trap 'rm -f -- "$staging/content"; rmdir -- "$staging"' EXIT`,
+    `: > "$staging/content"`,
+    "trap - EXIT"
+  ].filter(Boolean).join("\n"), signal);
+
+  const cleanup = `rm -f -- ${shellQuote(stagedFile)}\nif [ -d ${shellQuote(staging)} ]; then rmdir -- ${shellQuote(staging)}; fi`;
+  try {
+    const body = new FormData();
+    body.append("metadata", new Blob([JSON.stringify({ path: stagedFile })], { type: "application/json" }), "metadata.json");
+    body.append("file", new Blob([content], { type: "application/octet-stream" }), "content");
+    await callExecd(opensandboxId, "/files/upload", { method: "POST", body, signal, redirect: "error" });
+    const stdout = await runFileCommand(opensandboxId, [
+      "set -eu",
+      `target=${shellQuote(normalized)}`,
+      `staging=${shellQuote(staging)}`,
+      `trap 'rm -f -- "$staging/content"; rmdir -- "$staging"' EXIT`,
+      input.mode ? `chmod ${shellQuote(input.mode)} -- "$staging/content"` : "",
+      `mv -fT -- "$staging/content" "$target"`,
+      statCommand(normalized)
+    ].filter(Boolean).join("\n"), signal);
+    return statLineToFile(stdout.trim().split(/\r?\n/).at(-1) ?? "");
+  } catch (error) {
+    const failure = error instanceof OpenSandboxHttpError ? classifyFileCommandFailure(error.body) : error;
+    try {
+      await runFileCommand(opensandboxId, cleanup, AbortSignal.timeout(10_000));
+    } catch (cleanupError) {
+      const classified = failure instanceof OpenSandboxFileError ? failure : new OpenSandboxFileError("runtime_files_unavailable", "File upload failed.");
+      throw new OpenSandboxFileError(classified.code, `${classified.message} Temporary upload cleanup could not be confirmed.`, classified.statusCode,
+        { cause: new AggregateError([failure, cleanupError], "Upload and staging cleanup failed") });
+    }
+    throw failure;
+  }
 };
 
 export const mkdirInSandbox = async (opensandboxId: string, input: { path: string; recursive?: boolean }) => {
