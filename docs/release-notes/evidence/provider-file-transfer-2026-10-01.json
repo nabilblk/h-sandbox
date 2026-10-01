@@ -1,0 +1,131 @@
+{
+  "kind": "provider-file-transfer",
+  "architecture": "amd64",
+  "published": false,
+  "baseline": {
+    "version": "0.5.0-rc.9",
+    "source": "f626226e4a0a1f2c53274214842dca0e42d2b0cb",
+    "apiImage": "sha256:a0f6abcc401c92574ad0a33244e85dd59076352c51fd0fc90e150c289985269f"
+  },
+  "candidateSource": "3ecff37bfcd08b4c991c78d2c3eb7e15f02b889b",
+  "runId": "36888651066-1",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "passed",
+      "elapsedMs": 232187,
+      "evidence": {
+        "immutableArtifacts": true
+      }
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "elapsedMs": 2946,
+      "evidence": {
+        "pkce": true
+      }
+    },
+    {
+      "gate": "native-runtime",
+      "status": "passed",
+      "elapsedMs": 20870,
+      "evidence": {
+        "ready": true
+      }
+    },
+    {
+      "gate": "baseline-reproduction",
+      "status": "passed",
+      "elapsedMs": 2523,
+      "evidence": {
+        "status": 502,
+        "code": "runtime_files_unavailable",
+        "bytes": 1048576,
+        "argumentLimitReported": true,
+        "targetUnchanged": true
+      }
+    },
+    {
+      "gate": "candidate-installation",
+      "status": "passed",
+      "elapsedMs": 66927,
+      "evidence": {
+        "source": "3ecff37bfcd08b4c991c78d2c3eb7e15f02b889b",
+        "imageConfigDigest": "sha256:aa8ab71756792e24b025ce09debc11646658381bab80edb6b67205929562bb40",
+        "published": false
+      }
+    },
+    {
+      "gate": "candidate-file-contract",
+      "status": "passed",
+      "elapsedMs": 42987,
+      "evidence": {
+        "roundTrips": [
+          {
+            "sizeBytes": 0,
+            "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "independentChecksum": true
+          },
+          {
+            "sizeBytes": 1024,
+            "sha256": "sha256:785b0751fc2c53dc14a4ce3d800e69ef9ce1009eb327ccf458afe09c242c26c9",
+            "independentChecksum": true
+          },
+          {
+            "sizeBytes": 1048576,
+            "sha256": "sha256:fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+            "independentChecksum": true
+          },
+          {
+            "sizeBytes": 16777216,
+            "sha256": "sha256:341aacac661ccb210720bedaa9ead5d668fe5ea41a73532fc147c71e34040df1",
+            "independentChecksum": true
+          }
+        ],
+        "maximumEnforced": true,
+        "downloadBounded": true,
+        "rejectedWritePreservesTarget": true,
+        "explicitParentCreation": true,
+        "directoryRejected": true,
+        "utf8": true,
+        "permissions": true,
+        "literalPaths": true,
+        "stagingCleaned": true
+      }
+    }
+  ],
+  "startedAt": "2026-10-01T16:01:27.453Z",
+  "candidate": {
+    "source": "3ecff37bfcd08b4c991c78d2c3eb7e15f02b889b",
+    "imageConfigDigest": "sha256:aa8ab71756792e24b025ce09debc11646658381bab80edb6b67205929562bb40",
+    "published": false
+  },
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "sandbox",
+        "status": "passed"
+      },
+      {
+        "name": "key",
+        "status": "passed"
+      },
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-10-01T16:08:37.622Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

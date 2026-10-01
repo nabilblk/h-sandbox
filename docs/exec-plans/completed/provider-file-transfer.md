@@ -2,8 +2,8 @@
 
 **Created**: 2026-10-01
 **Author**: Codex
-**Status**: In Progress
-**Priority**: P1 (Python qualification prerequisite)
+**Status**: Completed (qualified PR preparation only)
+**Priority**: {P0-P3}
 **Estimated effort**: 1-2 days including isolated native acceptance
 
 ## Context
@@ -23,7 +23,7 @@ oversized responses before buffering the whole file; ordinary text reads retain
 their existing contract.
 
 The user authorized a separate provider-fix PR and disposable GitHub-hosted
-acceptance. No merge, publication, deployment, or local cluster operation is
+acceptance. No merge, publication, lab deployment, or local cluster operation is
 authorized. The original Python worktree and user-owned files stay untouched.
 
 ## Success Criteria
@@ -35,9 +35,9 @@ authorized. The original Python worktree and user-owned files stay untouched.
 - [x] No payload bytes in shell arguments; no dependency on Kubernetes exec.
 - [x] Regression tests cover binary/UTF-8, empty and large files, errors,
   temporary-file cleanup, authentication/routing, and mutation retry safety.
-- [ ] Native amd64 public-API round trips pass at 1 MiB and the advertised
+- [x] Native amd64 public-API round trips pass at 1 MiB and the advertised
   16 MiB boundary, with byte counts/checksums and existing-file preservation.
-- [ ] A separate PR records exact candidate identity and sanitized acceptance
+- [x] A separate PR records exact candidate identity and sanitized acceptance
   evidence; no claim that the unchanged published baseline has been fixed.
 
 ## Phases
@@ -49,7 +49,7 @@ authorized. The original Python worktree and user-owned files stay untouched.
 - [x] Reproduce oversized shell argument failure and define regression assertions.
 
 ### Phase 2: Provider Fix and Hermetic Tests
-**Status**: Complete locally; GNU/Linux filesystem cases await CI
+**Status**: Complete
 - [x] Use native multipart transfer into a private same-filesystem staging file.
 - [x] Retain short commands for preparation, permissions, atomic replacement,
   metadata, and cleanup; never interpolate payloads into commands.
@@ -57,13 +57,13 @@ authorized. The original Python worktree and user-owned files stay untouched.
 - [x] Run provider, service, route, boundary tests and API typecheck.
 
 ### Phase 3: Native Qualification and PR
-**Status**: In Progress
+**Status**: Complete
 - [x] Add a focused runner-only acceptance entrypoint using existing ownership
   guards and immutable published dependencies; build/load only the candidate API.
-- [ ] Prove baseline failure then candidate 1 MiB/16 MiB public-API success,
+- [x] Prove baseline failure then candidate 1 MiB/16 MiB public-API success,
   replacement and error semantics, key revocation, and owned-resource cleanup.
-- [ ] Push the separate branch/PR and run isolated GitHub acceptance.
-- [ ] Document evidence and link the Python release prerequisite to this PR.
+- [x] Push the separate branch/PR and run isolated GitHub acceptance.
+- [x] Document evidence and link the Python release prerequisite to this PR.
 
 ## Decision Log
 
@@ -85,18 +85,35 @@ authorized. The original Python worktree and user-owned files stay untouched.
   rc.10 and pre-fix main: `67c829e3f00e1187d9274e72ba110327283891ab`.
 - Local hermetic reproduction: a 1 MiB base64 command argument fails with `E2BIG`.
   Provider tests now assert every generated command stays below 8 KiB for the
-  same payload and a 16 MiB payload. Focused provider/service/route/boundary suite:
-  82 passed; safety/acceptance contracts: 16 passed; API typecheck passed.
-- Initial full API suite: 361 passed, 9 environment-dependent skips. Linux
-  filesystem contracts passed on the first native runner's hermetic test step.
-- Draft provider PR: [#67](https://github.com/nabilblk/h-sandbox/pull/67).
+  same payload and a 16 MiB payload. Final local API suite: 373 passed,
+  9 environment-dependent skips; acceptance contracts: 28 passed; API typecheck
+  passed. Linux filesystem contracts passed on the native runners.
+- Provider PR: [#67](https://github.com/nabilblk/h-sandbox/pull/67).
+- Final implementation: `2cd66c1613152e47d7f861a996ba7499638df469`.
+  [Native run 36888651066](https://github.com/nabilblk/h-sandbox/actions/runs/36888651066)
+  passed against synthetic PR merge `3ecff37bfcd08b4c991c78d2c3eb7e15f02b889b`.
+  [Standard CI](https://github.com/nabilblk/h-sandbox/actions/runs/36888651136)
+  also passed. The [sanitized receipt](../../release-notes/evidence/provider-file-transfer-2026-10-01.json)
+  preserves baseline failure, candidate identity, all four round-trip checksums,
+  byte ceilings, literal paths and successful resource/credential cleanup.
 
 ## Tech Debt Incurred
 
-None identified yet. This work does not promise streamed public transfers or
-change the existing buffered JSON/base64 artifact contract.
+Public transfers retain the existing buffered JSON/base64 contract. A process
+crash or unreachable provider can leave temporary staging files or path aliases;
+retained workspaces may require later cleanup. No crash-time garbage collector
+or distributed write transaction is claimed. These limits are documented in
+the [unreleased candidate note](../../release-notes/provider-file-transfer.md).
 
 ## Completion Notes
 
-Pending implementation and isolated acceptance. Python publication remains
-blocked until the provider fix is qualified and made available in a server release.
+Prepared the separate provider fix and verified it on a disposable GitHub-hosted
+amd64 cluster. The same runtime that rejected a 1 MiB baseline upload completed
+exact uploads/downloads through the 16 MiB limit after loading the source API
+candidate. Native, Linux filesystem, hermetic transport, service and CI checks
+passed, including fixture cleanup and key revocation.
+
+The scoped task ends at review-ready PR preparation. No merge, publication or
+lab deployment was performed, and the original Python worktree was untouched.
+After separately authorized merge and server release, pin Python PR #66 to the
+corrected immutable manifest and rerun its full native SDK/framework acceptance.

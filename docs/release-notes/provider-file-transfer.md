@@ -52,19 +52,30 @@ transactional writes or crash-time staging garbage collection.
 
 ## Qualification
 
-The first native run
-[36883538057](https://github.com/nabilblk/h-sandbox/actions/runs/36883538057)
+The final implementation's native run
+[36888651066](https://github.com/nabilblk/h-sandbox/actions/runs/36888651066)
 passed on a disposable GitHub-hosted amd64 runner. It reproduced the old failure
 against immutable server `0.5.0-rc.9`, loaded only a runner-local source API image,
 and verified exact 0-byte, 1 KiB, 1 MiB and 16 MiB round trips with independent
-runtime checksums. Parent creation, permissions, UTF-8, rejected-write
-preservation, capacity release, credential revocation and fixture cleanup passed.
+runtime checksums. Upload/download byte ceilings, literal dollar paths,
+non-regular-file rejection, parent creation, permissions, UTF-8, invalid-base64
+rejection, existing-file preservation, capacity release, credential revocation
+and fixture cleanup passed.
 
-That first run qualified the upload correction. Final qualification of the
-additional native-download, byte-ceiling and invalid-base64 checks is pending.
+The [sanitized receipt](evidence/provider-file-transfer-2026-10-01.json) records
+the candidate image configuration digest, exact source, checksums and successful
+cleanup. The implementation commit is
+`2cd66c1613152e47d7f861a996ba7499638df469`; GitHub tested its synthetic PR merge
+`3ecff37bfcd08b4c991c78d2c3eb7e15f02b889b`. These identify an unpublished
+candidate, not a released image. All
+[standard CI checks](https://github.com/nabilblk/h-sandbox/actions/runs/36888651136)
+passed. Local verification passed 373 API tests (9 environment-dependent skips),
+28 acceptance contracts, 16 safety/browser-session/provider contracts and the
+API typecheck. The two contract suites share five provider tests; their counts
+are not additive. Linux-only filesystem cases passed in the native job.
+
 The earlier Python run used server `0.5.0-rc.10`; neither published baseline has
-been changed by this PR.
-Their legacy file-bridge source is identical (Git blob
+been changed by this PR. Their legacy file-bridge source is identical (Git blob
 `67c829e3f00e1187d9274e72ba110327283891ab`), so the rc.9 reproduction covers the
 same implementation that blocked Python qualification on rc.10.
 
