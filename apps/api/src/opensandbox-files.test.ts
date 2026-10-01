@@ -99,6 +99,17 @@ test("UTF-8, normalized quoted paths, parent creation and mode 0000 remain suppo
   assert.ok(captured.commands[1]!.indexOf("chmod ") < captured.commands[1]!.indexOf("mv -fT"));
 });
 
+test("permissive Buffer decoding cannot turn invalid base64 into a successful write", async () => {
+  const captured = transport();
+  for (const content of ["AA", "AA@=", "AA==garbage", "YQ__", "=AAA"]) {
+    await assert.rejects(writeFileInSandbox("runtime", { path: "/workspace/blob.bin", content, encoding: "base64" }), { code: "invalid_file_content", statusCode: 400 });
+  }
+  assert.equal(captured.commands.length, 0);
+  assert.equal(captured.uploads.length, 0);
+  await writeFileInSandbox("runtime", { path: "/workspace/blob.bin", content: "YW\nJj\n", encoding: "base64" });
+  assert.equal(await ((captured.uploads[0]!.body as FormData).get("file") as Blob).text(), "abc");
+});
+
 for (const [message, code, statusCode] of [
   ["No such file or directory", "file_not_found", 404],
   ["Permission denied", "file_permission_denied", 403],

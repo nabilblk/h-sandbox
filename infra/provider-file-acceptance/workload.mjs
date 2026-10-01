@@ -61,6 +61,10 @@ export async function verifyTransfers(request, client, id) {
   check(written.status === 200 && written.body.file.mode === "0640", "Text write or mode failed");
   const read = await request(`/read?${new URLSearchParams({ path: "/workspace/large-text.txt", encoding: "utf8" })}`);
   check(read.status === 200 && read.body.content === text, "Large UTF-8 text round trip mismatch");
+  const invalid = await request("", "PUT", { path: "/workspace/large-text.txt", content: "AA@=", encoding: "base64" });
+  check(invalid.status === 400 && invalid.body.error === "invalid_file_content", "Invalid base64 was silently accepted");
+  const unchanged = await request(`/read?${new URLSearchParams({ path: "/workspace/large-text.txt", encoding: "utf8" })}`);
+  check(unchanged.status === 200 && unchanged.body.content === text, "Invalid file write changed the destination");
   const leftovers = await run(client, id, "find /workspace -maxdepth 3 -name '.harakiri-write-*' -print");
   check(leftovers.trim() === "", "Native transfer left staging files behind");
   return { roundTrips: results, maximumEnforced: true, downloadBounded: true, rejectedWritePreservesTarget: true, explicitParentCreation: true, directoryRejected: true, utf8: true, permissions: true, stagingCleaned: true };

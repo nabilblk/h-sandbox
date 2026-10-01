@@ -247,7 +247,11 @@ export const writeFileInSandbox = async (
   input: { path: string; content: string; encoding: SandboxFileEncoding; createParents?: boolean; mode?: string }
 ) => {
   const normalized = normalizedFilePath(input.path);
-  const content = Buffer.from(input.content, input.encoding);
+  const encoded = input.encoding === "base64" ? input.content.replace(/\n/g, "") : input.content;
+  if (input.encoding === "base64" && (encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))) {
+    throw new OpenSandboxFileError("invalid_file_content", "File content is not valid base64.", 400);
+  }
+  const content = Buffer.from(encoded, input.encoding);
   const staging = posix.join(posix.dirname(normalized), `.harakiri-write-${randomUUID()}`);
   const stagedFile = `${staging}/content`;
   const signal = AbortSignal.timeout(120_000);
