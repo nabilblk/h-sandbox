@@ -24,3 +24,9 @@ forwarded into it. A backend always borrows the supplied sandbox.
 Use `AsyncHarakiriSandboxBackend` with `AsyncHarakiriClient` and `agent.ainvoke()`
 for native async I/O. Use a borrowed sandbox, not a disposable `task` context,
 when the graph pauses for human approval. Checkpoints do not extend runtime TTL.
+
+The [complete integration guide](https://github.com/nabilblk/h-sandbox/blob/feat/python-agents-preview/docs/integrations/deepagents-python.md)
+covers model setup, source installation, template utilities, partial transfers,
+truncation, observed command recovery and current qualification status. Standard
+output is bounded to 64 KiB by default; abnormal termination remains visible to
+the actual framework tools. No distributed exactly-once recovery is claimed.

@@ -20,5 +20,8 @@ connections, not sandboxes. The explicit `task` context owns a newly created
 sandbox and confirms termination and capacity release on exit. `connect` borrows
 an existing sandbox and never deletes it automatically.
 
-See the repository Python guide for the supported surface, development commands,
-request deadlines, partial outcomes and release qualification status.
+See the [Python guide](https://github.com/nabilblk/h-sandbox/blob/feat/python-agents-preview/docs/python-sdk.md)
+for the supported surface, source installation, request deadlines, partial outcomes
+and release qualification status. For asyncio, use `AsyncHarakiriClient`, `async with`
+and awaited resource methods. No event-loop bridge or model dependency is required
+by the asynchronous API. Python 3.11 is the minimum.

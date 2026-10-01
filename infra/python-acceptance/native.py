@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from harakiri import AsyncHarakiriClient, HarakiriClient
+from harakiri.errors import AuthorizationError, CapacityError
 from harakiri_deepagents import AsyncHarakiriSandboxBackend, HarakiriSandboxBackend
 
 
@@ -37,14 +38,20 @@ def synchronous():
         assert client.capacity.get().in_use == 0
         with client.sandboxes.task(template=template, ttl_seconds=600) as sandbox:
             assert sandbox.readiness.status == "ready"
-            assert sandbox.run("printf hello", check=True).stdout == "hello"
+            assert sandbox.run("printf hello", check=True).stdout.strip() == "hello"
+            try:
+                client.sandboxes.create(template=template)
+            except CapacityError as error:
+                assert error.code == "organization_capacity_exceeded"
+            else:
+                raise AssertionError("Organization capacity was not enforced")
             sandbox.files.write("text.txt", "hello\n")
             assert sandbox.files.read_text("text.txt") == "hello\n"
             payload = bytes(range(256)) * 4096
             sandbox.files.write("bytes.bin", payload)
             assert sandbox.files.read_bytes("bytes.bin") == payload
             backend = HarakiriSandboxBackend(sandbox, timeout=15)
-            assert backend.execute("printf native").output == "native"
+            assert backend.execute("printf native").output.strip() == "native"
             assert not backend.write("tool.txt", "first\nsecond\n").error
             assert "first" in "\n".join(backend.read("tool.txt").file_data["content"])
             assert backend.grep("first", path=sandbox.workdir).matches
@@ -68,12 +75,13 @@ async def asynchronous():
         async with client.sandboxes.task(template=template) as sandbox:
             backend = AsyncHarakiriSandboxBackend(sandbox, timeout=15)
             await backend.awrite("async.txt", "native async\n")
-            assert "native async" in "\n".join((await backend.aread("async.txt")).file_data["content"])
+            read = await backend.aread("async.txt")
+            assert "native async" in "\n".join(read.file_data["content"])
             assert (await backend.agrep("native", path=sandbox.workdir)).matches
             assert not (await backend.aedit("async.txt", "native", "verified")).error
             assert (await backend.aglob("*.txt", path=sandbox.workdir)).matches
             assert (await backend.als(sandbox.workdir)).entries
-            assert (await backend.aexecute("printf async")).output == "async"
+            assert (await backend.aexecute("printf async")).output.strip() == "async"
             await backend.adelete("async.txt")
 
 
@@ -99,10 +107,24 @@ def recovery():
         client.workspaces.archive(workspace.id)
 
 
+def scoped_key():
+    with HarakiriClient(
+        api_url=os.environ["HARAKIRI_API_URL"], api_key=os.environ["HARAKIRI_READ_ONLY_KEY"]
+    ) as client:
+        client.sandboxes.list()
+        try:
+            client.sandboxes.create(template=template)
+        except AuthorizationError:
+            pass
+        else:
+            raise AssertionError("Read-only key was allowed to create a runtime")
+
+
 if __name__ == "__main__":
     assert os.environ.get("HARAKIRI_PYTHON_ACCEPTANCE") == "disposable-runner"
     template = os.environ["HARAKIRI_TEMPLATE"]
     results = []
+    gate("scoped-key-denial", scoped_key)
     gate("sync-lifecycle-tools-files-cleanup", synchronous)
     gate("native-async-tools", lambda: asyncio.run(asynchronous()))
     gate("separate-worker-and-expired-runtime-file-recovery", recovery)

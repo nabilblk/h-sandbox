@@ -12,6 +12,8 @@ uv run --project python python python/check_packages.py
 ```
 
 The deliberately broken repair fixture is not part of the passing unit suite.
+After editing the first-task programs, run `node scripts/python-doc-snippets.mjs`.
+Web tests check that displayed code, downloads and source remain identical.
 The package script builds wheel and sdist, installs each in a clean consumer
 outside the checkout and checks public imports, metadata, typing and 16 MiB
 binary transfer. Linux additionally enforces a 256 MiB address-space budget on

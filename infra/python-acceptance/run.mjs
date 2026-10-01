@@ -33,10 +33,11 @@ try {
   operator = await gate("oidc-onboarding", () => operatorSession(ctx));
   const template = await gate("template-import", () => importAcceptanceTemplate(ctx, operator.client));
   receipt.template = pinned.opencodeImage;
+  const readonly = await operator.request("/v1/api-keys", "POST", { name: "python-read-only", scopes: ["sandboxes:read"] }, 201);
   const env = Object.fromEntries(["PATH", "HOME", "SSL_CERT_FILE"].filter(key => process.env[key]).map(key => [key, process.env[key]]));
   Object.assign(env, { UV_NO_CONFIG: "1", PYTHONNOUSERSITE: "1", LANGSMITH_TRACING: "false", LANGCHAIN_TRACING_V2: "false",
     HARAKIRI_API_URL: origins.api, HARAKIRI_API_KEY: ctx.read("client-key.json").token,
-    HARAKIRI_TEMPLATE: template, HARAKIRI_PYTHON_ACCEPTANCE: "disposable-runner" });
+    HARAKIRI_TEMPLATE: template, HARAKIRI_READ_ONLY_KEY: readonly.token, HARAKIRI_PYTHON_ACCEPTANCE: "disposable-runner" });
   const consumer = path.join(ctx.identity.directory, "python-consumer");
   fs.mkdirSync(consumer);
   const python = path.join(consumer, "venv/bin/python");
@@ -82,6 +83,7 @@ try {
     }
   });
   await gate("key-revocation", async () => {
+    await operator.request(`/v1/api-keys/${readonly.key.id}`, "DELETE");
     await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
     const response = await fetch(`${origins.api}/v1/templates`, { headers: { "x-api-key": env.HARAKIRI_API_KEY }, signal: AbortSignal.timeout(10000) });
     check(response.status === 401, "Candidate key was not revoked");

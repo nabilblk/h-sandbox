@@ -3,6 +3,8 @@
 ## Contributors
 
 - [Local development](development.md)
+- [Python development and release operations](development/python-contributing.md)
+- [Python transport and ownership design](development/python-client-design.md)
 - [Architecture](architecture.md)
 - [Public documentation structure and authoring](internal/documentation-experience.md)
 - [Extension interfaces](extensions.md)
@@ -27,6 +29,8 @@
 - [Tutorial: reuse files across sandboxes](persistent-workspaces.md)
 - [API reference](api.md)
 - [SDK guide](sdk.md)
+- [Python SDK candidate](python-sdk.md)
+- [Deep Agents for Python candidate](integrations/deepagents-python.md)
 - [CLI reference](cli.md)
 - [Errors and troubleshooting](errors.md)
 - [NPM packages](integrations/npm-packages.md)
