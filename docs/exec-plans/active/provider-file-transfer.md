@@ -73,12 +73,16 @@ authorized. The original Python worktree and user-owned files stay untouched.
 | 2026-10-01 | Stage native uploads beside the destination, then rename | Native execd creates parents and truncates destinations directly; staging preserves Harakiri's semantics and atomic replacement. | Upload directly to the final path. |
 | 2026-10-01 | Keep published dependencies and candidate API identities distinct | Qualification must not pretend a source fix is already released. | Republishing/deploying before review. |
 | 2026-10-01 | Use native binary downloads as well as multipart uploads | A 1 MiB command output split into 171 valid events acquired 170 artificial newlines. Generic command parsing must not encode file transfer semantics. | Stripping base64 whitespace or modifying shared command output handling. |
+| 2026-10-01 | Use a private temporary symlink only for paths containing `$` | Pinned execd expands environment variables in native paths; Harakiri paths are literal. The alias preserves the actual location and same-filesystem staging without changing runtime environment variables. | Rejecting valid filenames, an upstream image patch, cross-filesystem temporary copies. |
 
 ## Source Evidence
 
 - [Python native failure](https://github.com/nabilblk/h-sandbox/actions/runs/36873196244).
 - [Pinned execd upload implementation](https://github.com/opensandbox-group/OpenSandbox/blob/48b0215f1bd097b31d0f022a44640e00c11ac49d/components/execd/pkg/web/controller/filesystem_upload.go).
 - [Pinned file metadata contract](https://github.com/opensandbox-group/OpenSandbox/blob/48b0215f1bd097b31d0f022a44640e00c11ac49d/components/execd/pkg/web/model/filesystem.go).
+- [Pinned path expansion](https://github.com/opensandbox-group/OpenSandbox/blob/48b0215f1bd097b31d0f022a44640e00c11ac49d/components/execd/pkg/util/pathutil/path.go).
+- The `opensandbox-files.ts` Git blob is identical in published rc.9, published
+  rc.10 and pre-fix main: `67c829e3f00e1187d9274e72ba110327283891ab`.
 - Local hermetic reproduction: a 1 MiB base64 command argument fails with `E2BIG`.
   Provider tests now assert every generated command stays below 8 KiB for the
   same payload and a 16 MiB payload. Focused provider/service/route/boundary suite:

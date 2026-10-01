@@ -110,6 +110,30 @@ test("permissive Buffer decoding cannot turn invalid base64 into a successful wr
   assert.equal(await ((captured.uploads[0]!.body as FormData).get("file") as Blob).text(), "abc");
 });
 
+test("native uploads keep dollar-containing parent paths literal through an owned symlink", async () => {
+  const path = "/workspace/$HOME/price$USD.bin";
+  const captured = transport({ path, upload: async body => {
+    const metadata = JSON.parse(await (body.get("metadata") as Blob).text());
+    assert.match(metadata.path, /^\/tmp\/\.harakiri-path-[a-f0-9-]{36}\/file$/);
+    assert.equal(await (body.get("file") as Blob).text(), "abc");
+    return new Response(null, { status: 200 });
+  } });
+  assert.equal((await writeFileInSandbox("runtime", { path, content: "abc", encoding: "utf8", createParents: true })).path, path);
+  assert.equal(captured.commands.length, 4);
+  assert.match(captured.commands[1]!, /ln -s -- '\/workspace\/\$HOME\/\.harakiri-write-/);
+  assert.match(captured.commands[2]!, /^rm -f -- '\/tmp\/\.harakiri-path-/);
+  assert.match(captured.commands[3]!, /mv -fT/);
+});
+
+test("failed literal-path upload cleans both the alias and the sibling staging directory", async () => {
+  const captured = transport({ upload: () => new Response("upload failed", { status: 500 }) });
+  await assert.rejects(writeFileInSandbox("runtime", { path: "/workspace/$HOME/file", content: "abc", encoding: "utf8" }), { code: "runtime_files_unavailable" });
+  assert.equal(captured.commands.length, 4);
+  assert.match(captured.commands[2]!, /^rm -f -- '\/tmp\/\.harakiri-path-/);
+  assert.match(captured.commands[3]!, /^rm -f -- '\/workspace\/\$HOME\/\.harakiri-write-/);
+  assert.doesNotMatch(captured.commands.join("\n"), /mv -fT/);
+});
+
 for (const [message, code, statusCode] of [
   ["No such file or directory", "file_not_found", 404],
   ["Permission denied", "file_permission_denied", 403],
@@ -203,6 +227,10 @@ test("concurrent uploads use distinct sibling staging directories", async () => 
 function downloadTransport(response: () => Response) {
   globalThis.fetch = async (input, init) => {
     if (String(input).includes("/endpoints/")) return Response.json({ endpoint: "http://execd.test", headers: { "X-EXECD-ACCESS-TOKEN": "read-token" } });
+    if (String(input).endsWith("/command")) {
+      assert.match(JSON.parse(String(init?.body)).command, /if \[ ! -f "\$target" \]/);
+      return sse();
+    }
     assert.equal(String(input), "http://execd.test/files/download?path=%2Fworkspace%2Fblob.bin");
     assert.equal(new Headers(init?.headers).get("X-EXECD-ACCESS-TOKEN"), "read-token");
     assert.equal(new Headers(init?.headers).get("accept-encoding"), "identity");
@@ -236,6 +264,39 @@ test("native text download preserves split Unicode, trailing newlines and empty 
     } })));
     assert.equal((await readFileInSandbox("runtime", "/workspace/blob.bin", "utf8")).content, text);
   }
+});
+
+test("literal-path downloads clean their alias on success, missing files and size rejection", async () => {
+  const path = "/workspace/$HOME/price$USD.bin";
+  for (const outcome of ["success", "missing", "oversized"]) {
+    const commands: string[] = [];
+    globalThis.fetch = async (input, init) => {
+      if (String(input).includes("/endpoints/")) return Response.json({ endpoint: "http://execd.test" });
+      if (String(input).endsWith("/command")) { commands.push(JSON.parse(String(init?.body)).command); return sse(); }
+      const query = new URL(String(input));
+      assert.equal(query.pathname, "/files/download");
+      assert.match(query.searchParams.get("path")!, /^\/tmp\/\.harakiri-path-[a-f0-9-]{36}\/file$/);
+      return outcome === "missing" ? Response.json({ code: "FILE_NOT_FOUND" }, { status: 404 }) : new Response("abc");
+    };
+    const read = readFileInSandbox("runtime", path, "utf8", outcome === "oversized" ? 2 : 3);
+    if (outcome === "success") assert.deepEqual(await read, { path, encoding: "utf8", content: "abc" });
+    else await assert.rejects(read, { code: outcome === "missing" ? "file_not_found" : "sandbox_file_artifact_too_large" });
+    assert.equal(commands.length, 3);
+    assert.ok(commands[1]!.includes(`ln -s -- '${path}'`));
+    assert.match(commands[2]!, /^rm -f -- '\/tmp\/\.harakiri-path-/);
+  }
+});
+
+test("non-regular files are rejected before opening a native download stream", async () => {
+  let downloads = 0;
+  globalThis.fetch = async input => {
+    if (String(input).includes("/endpoints/")) return Response.json({ endpoint: "http://execd.test" });
+    if (String(input).endsWith("/command")) return sse("file_not_found: /workspace/pipe", true);
+    downloads++;
+    return new Response("unexpected");
+  };
+  await assert.rejects(readFileInSandbox("runtime", "/workspace/pipe", "base64"), { code: "file_not_found", statusCode: 404 });
+  assert.equal(downloads, 0);
 });
 
 test("a proxy-compressed response uses decoded size, not its wire Content-Length", async () => {

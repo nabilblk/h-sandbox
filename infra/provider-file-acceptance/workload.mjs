@@ -56,6 +56,11 @@ export async function verifyTransfers(request, client, id) {
   check(created.status === 200, "Explicit parent creation failed");
   const directory = await request("/upload", "POST", artifact(1, "/workspace/missing-parent"));
   check(directory.status === 400 && directory.body.error === "invalid_file_path", "Directory target was not rejected");
+  await run(client, id, "mkfifo /workspace/not-a-file");
+  for (const path of ["/workspace/not-a-file", "/workspace/missing-parent"]) {
+    const nonFile = await request(`/download?${new URLSearchParams({ path })}`);
+    check(nonFile.status === 404 && nonFile.body.error === "file_not_found", "Non-regular file was opened for download");
+  }
   const text = "hello \u00e9\u4e16\u754c\n".repeat(16384);
   const written = await request("", "PUT", { path: "/workspace/large-text.txt", content: text, encoding: "utf8", mode: "0640" });
   check(written.status === 200 && written.body.file.mode === "0640", "Text write or mode failed");
@@ -65,7 +70,16 @@ export async function verifyTransfers(request, client, id) {
   check(invalid.status === 400 && invalid.body.error === "invalid_file_content", "Invalid base64 was silently accepted");
   const unchanged = await request(`/read?${new URLSearchParams({ path: "/workspace/large-text.txt", encoding: "utf8" })}`);
   check(unchanged.status === 200 && unchanged.body.content === text, "Invalid file write changed the destination");
+  const literal = artifact(1024, "/workspace/$HOME/price$USD.bin");
+  const literalUpload = await request("/upload", "POST", { ...literal, createParents: true });
+  check(literalUpload.status === 200 && literalUpload.body.file.size === 1024, "Literal dollar-path upload failed");
+  const literalDownload = await request(`/download?${new URLSearchParams({ path: literal.path })}`);
+  check(literalDownload.status === 200 && literalDownload.body.contentBase64 === literal.contentBase64, "Literal dollar-path download failed");
+  const literalHash = await run(client, id, "sha256sum '/workspace/$HOME/price$USD.bin'");
+  check(literalHash.trim().split(/\s/)[0] === literal.sha256.slice(7), "Provider expanded a literal path");
+  const aliases = await run(client, id, "find /tmp -maxdepth 1 -name '.harakiri-path-*' -print");
+  check(aliases.trim() === "", "Literal-path alias cleanup failed");
   const leftovers = await run(client, id, "find /workspace -maxdepth 3 -name '.harakiri-write-*' -print");
   check(leftovers.trim() === "", "Native transfer left staging files behind");
-  return { roundTrips: results, maximumEnforced: true, downloadBounded: true, rejectedWritePreservesTarget: true, explicitParentCreation: true, directoryRejected: true, utf8: true, permissions: true, stagingCleaned: true };
+  return { roundTrips: results, maximumEnforced: true, downloadBounded: true, rejectedWritePreservesTarget: true, explicitParentCreation: true, directoryRejected: true, utf8: true, permissions: true, literalPaths: true, stagingCleaned: true };
 }

@@ -95,6 +95,46 @@ const runFileCommand = async (opensandboxId: string, command: string, signal?: A
   return result.stdout;
 };
 
+const cleanupFileStaging = async (opensandboxId: string, command: string, failure?: unknown) => {
+  try {
+    await runFileCommand(opensandboxId, command, AbortSignal.timeout(10_000));
+  } catch (cleanupError) {
+    const classified = failure instanceof OpenSandboxFileError ? failure
+      : failure instanceof OpenSandboxHttpError ? classifyFileCommandFailure(failure.body)
+      : new OpenSandboxFileError("runtime_files_unavailable", failure === undefined ? "File operation completed." : "File operation failed.");
+    throw new OpenSandboxFileError(classified.code, `${classified.message} Temporary file cleanup could not be confirmed.`, classified.statusCode,
+      { cause: new AggregateError(failure === undefined ? [cleanupError] : [failure, cleanupError], "File staging cleanup failed") });
+  }
+};
+
+const withLiteralNativePath = async <T>(opensandboxId: string, path: string, signal: AbortSignal, action: (nativePath: string) => Promise<T>): Promise<T> => {
+  if (!path.includes("$")) return action(path);
+  // Execd expands environment variables in API paths. A private symlink lets
+  // the OS resolve the literal path without changing it or copying across disks.
+  const directory = `/tmp/.harakiri-path-${randomUUID()}`;
+  const alias = `${directory}/file`;
+  const cleanup = `rm -f -- ${shellQuote(alias)}\nif [ -d ${shellQuote(directory)} ]; then rmdir -- ${shellQuote(directory)}; fi`;
+  let prepared = false;
+  let failure: unknown;
+  try {
+    await runFileCommand(opensandboxId, [
+      "set -eu",
+      `directory=${shellQuote(directory)}`,
+      `mkdir -m 700 -- "$directory"`,
+      `trap 'rm -f -- "$directory/file"; rmdir -- "$directory"' EXIT`,
+      `ln -s -- ${shellQuote(path)} "$directory/file"`,
+      "trap - EXIT"
+    ].join("\n"), signal);
+    prepared = true;
+    return await action(alias);
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    if (prepared || !(failure instanceof OpenSandboxFileError)) await cleanupFileStaging(opensandboxId, cleanup, failure);
+  }
+};
+
 const listFilesWithSearch = async (opensandboxId: string, cwd: string) => {
   const query = new URLSearchParams({ path: cwd, pattern: "*" });
   const body = await callExecd(opensandboxId, `/files/search?${query.toString()}`);
@@ -205,40 +245,53 @@ export const statFileInSandbox = async (opensandboxId: string, path: string) => 
   return statLineToFile(stdout.trim().split(/\r?\n/).at(-1) ?? "");
 };
 
+const readFileContent = async (response: Response, encoding: SandboxFileEncoding, maxBytes?: number) => {
+  const reader = response.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const checkSize = (bytes: number) => {
+    if (maxBytes !== undefined && bytes > maxBytes) {
+      throw new OpenSandboxFileError("sandbox_file_artifact_too_large", `Artifact exceeds ${maxBytes} bytes.`, 413);
+    }
+  };
+  try {
+    if (response.status !== 200) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
+    // fetch decodes compressed responses; Content-Length then describes wire
+    // bytes, not the file bytes counted below. Proxies may ignore identity.
+    const compressed = ![null, "identity"].includes(response.headers.get("content-encoding")?.toLowerCase() ?? null);
+    const lengthHeader = compressed ? null : response.headers.get("content-length");
+    const length = lengthHeader === null ? undefined : Number(lengthHeader);
+    if (length !== undefined) checkSize(length);
+    if (reader) while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      checkSize(size);
+      chunks.push(value);
+    }
+    if (length !== undefined && length !== size) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
+    return Buffer.concat(chunks, size).toString(encoding);
+  } finally {
+    await reader?.cancel().catch(() => undefined);
+  }
+};
+
 export const readFileInSandbox = async (opensandboxId: string, path: string, encoding: SandboxFileEncoding, maxBytes?: number) => {
   const normalized = normalizedFilePath(path);
+  const signal = AbortSignal.timeout(120_000);
   try {
-    const response = await requestExecd(opensandboxId, `/files/download?${new URLSearchParams({ path: normalized })}`, {
-      headers: { "accept-encoding": "identity" }, signal: AbortSignal.timeout(120_000), redirect: "error"
+    await runFileCommand(opensandboxId, [
+      "set -eu",
+      `target=${shellQuote(normalized)}`,
+      `if [ ! -f "$target" ]; then echo "file_not_found: $target" >&2; exit 44; fi`
+    ].join("\n"), signal);
+    const content = await withLiteralNativePath(opensandboxId, normalized, signal, async nativePath => {
+      const response = await requestExecd(opensandboxId, `/files/download?${new URLSearchParams({ path: nativePath })}`, {
+        headers: { "accept-encoding": "identity" }, signal, redirect: "error"
+      });
+      return readFileContent(response, encoding, maxBytes);
     });
-    const reader = response.body?.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    const checkSize = (bytes: number) => {
-      if (maxBytes !== undefined && bytes > maxBytes) {
-        throw new OpenSandboxFileError("sandbox_file_artifact_too_large", `Artifact exceeds ${maxBytes} bytes.`, 413);
-      }
-    };
-    try {
-      if (response.status !== 200) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
-      // fetch decodes compressed responses; Content-Length then describes wire
-      // bytes, not the file bytes counted below. Proxies may ignore identity.
-      const compressed = ![null, "identity"].includes(response.headers.get("content-encoding")?.toLowerCase() ?? null);
-      const lengthHeader = compressed ? null : response.headers.get("content-length");
-      const length = lengthHeader === null ? undefined : Number(lengthHeader);
-      if (length !== undefined) checkSize(length);
-      if (reader) while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        checkSize(size);
-        chunks.push(value);
-      }
-      if (length !== undefined && length !== size) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
-      return { path: normalized, encoding, content: Buffer.concat(chunks, size).toString(encoding) };
-    } finally {
-      await reader?.cancel().catch(() => undefined);
-    }
+    return { path: normalized, encoding, content };
   } catch (error) {
     if (error instanceof OpenSandboxHttpError) throw classifyFileCommandFailure(error.body);
     throw error;
@@ -275,10 +328,12 @@ export const writeFileInSandbox = async (
       "trap - EXIT"
     ].filter(Boolean).join("\n"), signal);
     prepared = true;
-    const body = new FormData();
-    body.append("metadata", new Blob([JSON.stringify({ path: stagedFile })], { type: "application/json" }), "metadata.json");
-    body.append("file", new Blob([content], { type: "application/octet-stream" }), "content");
-    await callExecd(opensandboxId, "/files/upload", { method: "POST", body, signal, redirect: "error" });
+    await withLiteralNativePath(opensandboxId, stagedFile, signal, async nativePath => {
+      const body = new FormData();
+      body.append("metadata", new Blob([JSON.stringify({ path: nativePath })], { type: "application/json" }), "metadata.json");
+      body.append("file", new Blob([content], { type: "application/octet-stream" }), "content");
+      await callExecd(opensandboxId, "/files/upload", { method: "POST", body, signal, redirect: "error" });
+    });
     const stdout = await runFileCommand(opensandboxId, [
       "set -eu",
       `target=${shellQuote(normalized)}`,
@@ -294,13 +349,7 @@ export const writeFileInSandbox = async (
     // A lost response is ambiguous: attempt cleanup using the unique stage path.
     if (!prepared && error instanceof OpenSandboxFileError) throw error;
     const failure = error instanceof OpenSandboxHttpError ? classifyFileCommandFailure(error.body) : error;
-    try {
-      await runFileCommand(opensandboxId, cleanup, AbortSignal.timeout(10_000));
-    } catch (cleanupError) {
-      const classified = failure instanceof OpenSandboxFileError ? failure : new OpenSandboxFileError("runtime_files_unavailable", "File upload failed.");
-      throw new OpenSandboxFileError(classified.code, `${classified.message} Temporary upload cleanup could not be confirmed.`, classified.statusCode,
-        { cause: new AggregateError([failure, cleanupError], "Upload and staging cleanup failed") });
-    }
+    await cleanupFileStaging(opensandboxId, cleanup, failure);
     throw failure;
   }
 };

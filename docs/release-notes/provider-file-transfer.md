@@ -20,6 +20,13 @@ zero permissions remain supported. Directory destinations fail explicitly.
 Invalid base64 is rejected before filesystem mutation, rather than silently
 decoded by Node's permissive buffer decoder.
 
+Paths remain literal, including `$HOME` or `$USD` in a directory or filename.
+Because pinned execd expands environment variables in API paths, these paths
+use a private, short-lived symlink in `/tmp`. File data stays at the requested
+location; uploads still finalize from the same-filesystem staging directory.
+The bridge removes the alias after success or failure. Ordinary paths do not
+need this extra operation.
+
 Downloads also use the native binary endpoint. A hermetic reproduction showed
 that the legacy command parser inserted newlines between output chunks, which
 could make large artifact responses invalid base64. The native reader preserves
@@ -57,6 +64,9 @@ That first run qualified the upload correction. Final qualification of the
 additional native-download, byte-ceiling and invalid-base64 checks is pending.
 The earlier Python run used server `0.5.0-rc.10`; neither published baseline has
 been changed by this PR.
+Their legacy file-bridge source is identical (Git blob
+`67c829e3f00e1187d9274e72ba110327283891ab`), so the rc.9 reproduction covers the
+same implementation that blocked Python qualification on rc.10.
 
 ## Delivery Order
 
