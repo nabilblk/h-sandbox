@@ -50,6 +50,12 @@ Never use a disposable task context around an agent that must pause for human
 approval. Connect to an application-owned sandbox instead. TTL still applies.
 See [recovery](integrations/deepagents-python.md#recovery-without-replay).
 
+If Ctrl-C interrupts synchronous `task` entry while readiness is pending, the
+SDK cancels entry and waits for owned cleanup before HTTP resources close. This
+also covers interruption as readiness finishes. Cleanup retains its independent
+budget; an unconfirmed cleanup is reported alongside the original interrupt in
+an exception group. Borrowed sandboxes and retained workspaces are not deleted.
+
 ## Native Asyncio
 
 ```python
@@ -101,6 +107,7 @@ Commands inherit the template's remote limit unless explicitly overridden.
 - `files.read_text(path)` returns UTF-8; `files.read_bytes(path)` validates binary size and SHA-256.
 - `files.write(path, text_or_bytes)` preserves the explicit representation; bytes use verified buffered base64 transfer.
 - `files.list`, `stat`, `mkdir`, `rename` and `remove` expose the corresponding API operations.
+- `files.remove(path)` is nonrecursive. Only `recursive=True` opts into recursive deletion; empty and NUL-containing paths are rejected before a file request is sent.
 - Relative paths resolve against the sandbox's advertised POSIX workdir, not the client OS directory.
 - The server advertises the per-file limit, normally 16 MiB. This is **not streaming**. HTTP JSON responses are bounded to 24 MiB by default. The candidate's codec/memory tests pass at 16 MiB, but native rc.10 acceptance failed a 1 MiB upload. Large-file support is not qualified; see the [candidate record](release-notes/python-agents-preview.md).
 - `workspaces.create(name)`, `list()`, `get(id)` and `archive(id)` manage retained files. Attach with `workspace_id` when creating a sandbox.

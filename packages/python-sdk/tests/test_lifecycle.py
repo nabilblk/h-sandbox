@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
+import sys
 import threading
+from pathlib import Path
 
 import httpx
 import pytest
@@ -14,6 +17,59 @@ from harakiri.errors import (
     RequestError,
     SandboxCreationError,
 )
+
+
+@pytest.mark.parametrize(
+    "scenario", ["pending-entry", "entry-completed", "cleanup-failure", "exit", "repeat-entry"]
+)
+def test_sync_interruption_drains_owned_cleanup_before_http_close(scenario):
+    if sys.platform == "win32" and scenario != "entry-completed":
+        pytest.skip("POSIX SIGINT delivery; completed-entry injection runs on every platform")
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).with_name("interrupt_scenario.py")), scenario],
+        capture_output=True,
+        text=True,
+        timeout=8,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "interruption and cleanup verified" in result.stdout
+
+
+@pytest.mark.parametrize("cleanup_error", [False, True])
+def test_sync_task_preserves_primary_failure_and_keeps_portal_usable(api, http, cleanup_error):
+    primary = ValueError("application failed")
+    api.delete_error = cleanup_error
+    try:
+        with HarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client:
+            with pytest.raises(ExceptionGroup if cleanup_error else ValueError) as failure:
+                with client.sandboxes.task(template="fixture"):
+                    raise primary
+            if cleanup_error:
+                assert failure.value.exceptions[0] is primary
+                assert isinstance(failure.value.exceptions[1], CleanupError)
+            else:
+                assert failure.value is primary
+            assert client.sandboxes.connect("sbx_test").id == "sbx_test"
+    finally:
+        asyncio.run(http.aclose())
+    assert sum(request.method == "DELETE" for request in api.requests) == 1
+
+
+def test_sync_task_readiness_failure_cleans_up_once(api, http):
+    api.ready = "starting"
+    try:
+        with HarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client:
+            with pytest.raises(ObservationTimeoutError):
+                with client.sandboxes.task(template="fixture", readiness_timeout=0.01):
+                    pytest.fail("Not ready")
+            assert client.sandboxes.connect("sbx_test").summary.status == "terminated"
+    finally:
+        asyncio.run(http.aclose())
+    assert sum(request.method == "DELETE" for request in api.requests) == 1
 
 
 def test_owned_sync_workflow_and_retained_workspace(api, http):

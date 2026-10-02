@@ -46,6 +46,15 @@ must obey HTTPX's event-loop affinity: do not share an async client between the
 sync portal and another event loop. Concurrent client closure is not supported;
 finish its operations before closing it. SDK-owned connections are the default.
 
+Synchronous task contexts keep async entry and exit in one portal task. The
+bridge uses [AnyIO's cancellable portal tasks](https://anyio.readthedocs.io/en/stable/threads.html#spawning-tasks)
+and a separate completion future: cancelling the task handle alone does not prove
+that owned cleanup finished. If the caller interrupts entry or exit, the bridge
+cancels and drains the context before allowing HTTP closure. It retains the
+original interrupt and any cleanup failure. Tests inject interruption both while
+readiness is pending and after entry succeeds but before delivery; isolated POSIX
+subprocesses also exercise real SIGINT, repeated interruption and cleanup failure.
+
 ## Ownership and Uncertainty
 
 Client closure releases local connections only. `connect()` is read-only;
@@ -79,6 +88,10 @@ opt-in support private installations. Redirects are not followed.
 Binary files use bounded base64 JSON with size/SHA-256 checks, not streaming.
 The response budget accounts for encoding overhead; file limits remain bounded
 by the runtime's advertised contract. File paths are remote POSIX paths, not a jail.
+Nonrecursive removal omits the `recursive` query parameter because the supported
+server coerces the nonempty string `"false"` to true. This is a client compatibility
+fix, not a server parser change. The adapter validates the original path before
+normalization, so an empty delete request cannot become its working directory.
 
 ## Endpoint and Permission Map
 

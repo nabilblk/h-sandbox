@@ -173,6 +173,8 @@ class AsyncHarakiriSandboxBackend(GuardedSandbox):
         return WriteResult(error=result.error, path=None if result.error else file_path)
 
     async def adelete(self, file_path: str) -> DeleteResult:
+        if not valid_path(file_path):
+            return DeleteResult(error="invalid_path")
         try:
             await self._sandbox.files.remove(
                 remote_path(self._options.cwd, file_path),

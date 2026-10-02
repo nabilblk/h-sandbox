@@ -26,14 +26,19 @@ def stalled_server(mode):
                     return
                 request.extend(chunk)
             entered.set()
-            if mode != "headers":
-                self.request.sendall(
-                    b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
-                    b'Content-Length: 16\r\n\r\n{"templates":'
-                )
-            if mode == "disconnect":
-                return
-            if self.request.recv(1) == b"":
+            try:
+                if mode != "headers":
+                    self.request.sendall(
+                        b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                        b'Content-Length: 16\r\n\r\n{"templates":'
+                    )
+                if mode == "disconnect":
+                    return
+                closed = self.request.recv(1) == b""
+            except (ConnectionResetError, BrokenPipeError):
+                # Cancellation can close with FIN or RST, depending on timing/OS.
+                closed = True
+            if closed:
                 disconnected.set()
 
     with socketserver.ThreadingTCPServer(("127.0.0.1", 0), Handler) as server:

@@ -85,9 +85,19 @@ search truncation is preserved and incomplete read/list/edit results fail visibl
 
 `HarakiriExecutionError` retains its stage, known `CommandReference` and cause.
 Cancellation keeps asyncio cancellation semantics and known identity. `observe`
-is read-only. `HarakiriTransferError` retains completed paths and cause even when
+is read-only. Synchronous Ctrl-C raises `HarakiriExecutionInterruptedError`, a
+`KeyboardInterrupt` subclass carrying the stage, known reference and original
+cause. An unknown submission reference remains `None`; do not resubmit blindly.
+An interrupted borrowed command is not automatically killed. Reconnect using
+the saved reference to observe it without replaying the tool call.
+
+`HarakiriTransferError` retains completed paths and cause even when
 cancellation happens between files; generic 403/404 errors are not disguised as
 missing files. Do not log unreviewed causes or returned content publicly.
+
+Both `delete` and `adelete` reject empty or NUL-containing paths as `invalid_path`
+before resolving the working directory or issuing a recursive deletion. An
+explicit valid directory path still requests recursive deletion through the SDK.
 
 Defaults: 64 KiB combined command output, 32 MiB aggregate transfer batches,
 64 files per batch, 120s transfer budget. Per-file server limits still apply.

@@ -6,6 +6,7 @@ from .backend import HarakiriSandboxBackend
 from .errors import (
     HarakiriExecutionCancelledError,
     HarakiriExecutionError,
+    HarakiriExecutionInterruptedError,
     HarakiriTransferCancelledError,
     HarakiriTransferError,
     HarakiriTransferInterruptedError,
@@ -17,6 +18,7 @@ __all__ = [
     "HarakiriExecuteResponse",
     "HarakiriExecutionCancelledError",
     "HarakiriExecutionError",
+    "HarakiriExecutionInterruptedError",
     "HarakiriTransferCancelledError",
     "HarakiriTransferError",
     "HarakiriTransferInterruptedError",

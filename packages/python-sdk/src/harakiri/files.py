@@ -6,7 +6,7 @@ import base64
 import binascii
 import hashlib
 
-from ._transport import Transport, segment
+from ._transport import Query, Transport, segment
 from .errors import IntegrityError
 from .models import (
     DownloadResponse,
@@ -161,10 +161,14 @@ class AsyncFiles:
     async def remove(
         self, path: str, *, recursive: bool = False, request_timeout: float | None = None
     ) -> None:
+        # Older servers coerce any nonempty query string, including "false", to true.
+        params: Query = {"path": self._resolve(path)}
+        if recursive:
+            params["recursive"] = "true"
         await self._transport.request(
             "DELETE",
             self._path,
             Ok,
-            params={"path": self._resolve(path), "recursive": recursive},
+            params=params,
             request_timeout=request_timeout,
         )

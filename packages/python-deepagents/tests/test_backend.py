@@ -12,6 +12,7 @@ from harakiri_deepagents import (
     AsyncHarakiriSandboxBackend,
     HarakiriExecutionCancelledError,
     HarakiriExecutionError,
+    HarakiriExecutionInterruptedError,
     HarakiriSandboxBackend,
     HarakiriTransferCancelledError,
     HarakiriTransferError,
@@ -137,6 +138,50 @@ def test_observation_never_restarts_command(sandbox):
     sandbox.processes.start.assert_not_called()
     with pytest.raises(ValueError):
         backend.observe(CommandReference(sandbox_id="other", command_id="cmd_test"))
+
+
+@pytest.mark.parametrize("stage", ["submission", "acknowledgement", "observation"])
+def test_sync_execution_interrupt_preserves_stage_identity_and_cause(sandbox, stage):
+    interrupted = KeyboardInterrupt("caller interrupted")
+    callback = Mock(side_effect=interrupted) if stage == "acknowledgement" else None
+    if stage == "submission":
+        sandbox.processes.start.side_effect = interrupted
+    elif stage == "observation":
+        sandbox.processes.start.return_value.observe.side_effect = interrupted
+    backend = HarakiriSandboxBackend(sandbox, on_command_started=callback)
+    with pytest.raises(HarakiriExecutionInterruptedError) as failure:
+        backend.execute("side effects")
+    assert isinstance(failure.value, KeyboardInterrupt)
+    assert not isinstance(failure.value, Exception)
+    assert failure.value.__cause__ is interrupted
+    assert failure.value.stage == stage
+    if stage == "submission":
+        assert failure.value.reference is None
+    else:
+        assert failure.value.reference == sandbox.processes.start.return_value.reference
+    sandbox.processes.start.assert_called_once()
+    sandbox.processes.start.return_value.kill.assert_not_called()
+    sandbox.kill.assert_not_called()
+
+
+@pytest.mark.parametrize("stage", ["connection", "observation"])
+def test_sync_observation_interrupt_keeps_borrowed_command_recoverable(sandbox, stage):
+    interrupted = KeyboardInterrupt("caller interrupted")
+    reference = sandbox.processes.connect.return_value.reference
+    if stage == "connection":
+        sandbox.processes.connect.side_effect = interrupted
+    else:
+        sandbox.processes.connect.return_value.observe.side_effect = interrupted
+    backend = HarakiriSandboxBackend(sandbox)
+    with pytest.raises(HarakiriExecutionInterruptedError) as failure:
+        backend.observe(reference)
+    assert isinstance(failure.value, KeyboardInterrupt)
+    assert failure.value.__cause__ is interrupted
+    assert failure.value.reference == reference
+    assert failure.value.stage == "observation"
+    sandbox.processes.start.assert_not_called()
+    sandbox.processes.connect.return_value.kill.assert_not_called()
+    sandbox.kill.assert_not_called()
 
 
 def test_transfer_failure_keeps_completed_paths_and_authorization(sandbox):

@@ -22,7 +22,7 @@ from ._execution import (
 )
 from ._filesystem import GuardedSandbox
 from ._transfers import TransferBatch, file_error, remote_path, valid_path
-from .errors import HarakiriExecutionError
+from .errors import HarakiriExecutionError, HarakiriExecutionInterruptedError
 
 
 class HarakiriSandboxBackend(GuardedSandbox):
@@ -73,6 +73,8 @@ class HarakiriSandboxBackend(GuardedSandbox):
             return execution_result(
                 process.observe(timeout=budget.remaining()), self._options.max_output_bytes
             )
+        except KeyboardInterrupt as cause:
+            raise HarakiriExecutionInterruptedError(stage, reference) from cause
         except Exception as cause:
             raise HarakiriExecutionError(stage, reference) from cause
 
@@ -87,6 +89,8 @@ class HarakiriSandboxBackend(GuardedSandbox):
             return execution_result(
                 process.observe(timeout=budget.remaining()), self._options.max_output_bytes
             )
+        except KeyboardInterrupt as cause:
+            raise HarakiriExecutionInterruptedError("observation", reference) from cause
         except Exception as cause:
             raise HarakiriExecutionError("observation", reference) from cause
 
@@ -165,6 +169,8 @@ class HarakiriSandboxBackend(GuardedSandbox):
         return WriteResult(error=result.error, path=None if result.error else file_path)
 
     def delete(self, file_path: str) -> DeleteResult:
+        if not valid_path(file_path):
+            return DeleteResult(error="invalid_path")
         try:
             self._sandbox.files.remove(
                 remote_path(self._options.cwd, file_path),

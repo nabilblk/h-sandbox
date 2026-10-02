@@ -30,3 +30,22 @@ test("Python guides expose exact runnable examples without claiming a PyPI relea
   assert.ok(markdown.indexOf("## Same agent, remote tools") < markdown.indexOf("## Prepare your environment"));
   assert.ok(assets.get("docs/deepagents.md")!.includes("Developer preview on npm"));
 });
+
+test("Python safety contracts agree between rendered docs, exports and repository guides", () => {
+  const assets = documentationAssets();
+  const sdk = assets.get("docs/python-sdk.md")!;
+  const adapter = assets.get("docs/deepagents-python.md")!;
+  const sdkSource = readFileSync(new URL("../../../docs/python-sdk.md", import.meta.url), "utf8");
+  const adapterSource = readFileSync(new URL("../../../docs/integrations/deepagents-python.md", import.meta.url), "utf8");
+  for (const content of [sdk, sdkSource]) {
+    assert.match(content, /nonrecursive/);
+    assert.match(content, /recursive=True/);
+    assert.match(content, /cleanup before HTTP/);
+  }
+  for (const content of [adapter, adapterSource]) {
+    assert.match(content, /HarakiriExecutionInterruptedError/);
+    assert.match(content, /KeyboardInterrupt/);
+    assert.match(content, /invalid_path/);
+    assert.match(content, /None/);
+  }
+});

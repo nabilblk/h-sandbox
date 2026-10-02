@@ -122,10 +122,13 @@ def main() -> None:
                     (
                         "import inspect, importlib.metadata as m; "
                         "from harakiri_deepagents import "
-                        "HarakiriSandboxBackend, AsyncHarakiriSandboxBackend; "
+                        "HarakiriSandboxBackend, AsyncHarakiriSandboxBackend, "
+                        "HarakiriExecutionInterruptedError; "
                         "assert m.version('deepagents') == '0.7.21'; "
                         "assert not inspect.isabstract(HarakiriSandboxBackend); "
                         "assert not inspect.isabstract(AsyncHarakiriSandboxBackend); "
+                        "assert issubclass(HarakiriExecutionInterruptedError, KeyboardInterrupt); "
+                        "assert not issubclass(HarakiriExecutionInterruptedError, Exception); "
                         "print('Adapter consumer: passed')"
                     ),
                 ],

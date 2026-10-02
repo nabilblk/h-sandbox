@@ -12,6 +12,53 @@ from harakiri.files import decode_artifact
 from harakiri.models import DownloadResponse
 
 
+@pytest.mark.parametrize("recursive", [None, False, True])
+def test_sync_remove_requires_explicit_recursive_opt_in(api, recursive):
+    def handler(request):
+        if request.method == "DELETE":
+            assert request.url.path == "/v1/sandboxes/sbx_test/files"
+            expected = {"path": "/workspace/directory"}
+            if recursive:
+                expected["recursive"] = "true"
+            assert dict(request.url.params) == expected
+            return httpx.Response(200, json={"ok": True})
+        return api(request)
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    try:
+        with HarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client:
+            sandbox = client.sandboxes.connect("sbx_test")
+            options = {} if recursive is None else {"recursive": recursive}
+            sandbox.files.remove("directory", **options)
+    finally:
+        asyncio.run(http.aclose())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recursive", [None, False, True])
+async def test_async_remove_requires_explicit_recursive_opt_in(api, recursive):
+    def handler(request):
+        if request.method == "DELETE":
+            expected = {"path": "/workspace/directory"}
+            if recursive:
+                expected["recursive"] = "true"
+            assert dict(request.url.params) == expected
+            return httpx.Response(200, json={"ok": True})
+        return api(request)
+
+    async with (
+        httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http,
+        AsyncHarakiriClient(
+            api_url="https://fixture.test", api_key="private", http_client=http
+        ) as client,
+    ):
+        sandbox = await client.sandboxes.connect("sbx_test")
+        options = {} if recursive is None else {"recursive": recursive}
+        await sandbox.files.remove("directory", **options)
+
+
 def test_acknowledgement_callback_on_caller_thread_and_read_only_recovery(api, http):
     owner = threading.get_ident()
     saved = []

@@ -15,6 +15,25 @@ server/chart `0.5.0-rc.10` and digest-pinned template in
 `infra/python-acceptance/versions.json`, without repinning TypeScript acceptance.
 Runner results and candidate hashes are recorded separately from publication.
 
+## Review Corrections
+
+The post-review source fixes unsafe recursive-delete defaults, rejects empty/NUL
+adapter deletion paths, drains interrupted synchronous task entry before HTTP
+closure, and exposes synchronous command recovery metadata through
+`HarakiriExecutionInterruptedError` (a `KeyboardInterrupt` subclass).
+
+Local post-review checks passed on macOS: 97 tests on each of Python 3.11-3.14,
+including real SIGINT in bounded, mock-only subprocesses and a separate minimum
+AnyIO 4.9.0 check. Ruff, strict mypy (20 modules), rebuilt wheel/sdist consumers,
+107 web tests and web typechecking passed. The bridge no longer uses a cosmetic
+thread-name argument unsupported by the declared minimum AnyIO version.
+
+The historical candidate wheel hashes and native runs below predate these fixes;
+they are not qualification of newly built packages. Native requalification remains
+gated on a corrected server release. Provider PR
+[#67](https://github.com/nabilblk/h-sandbox/pull/67) has passed
+separate isolated acceptance but is not merged, published or deployed by this work.
+
 ## Qualification Evidence
 
 | Evidence | Result |
@@ -22,8 +41,8 @@ Runner results and candidate hashes are recorded separately from publication.
 | [Python packages, commit 69dc24c](https://github.com/nabilblk/h-sandbox/actions/runs/36873196247) | Passed: 72 contracts on Python 3.11-3.14, types/packages, Linux 256 MiB address-space binary fixture, clean macOS/Windows consumers |
 | [Repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36873196245) | Passed |
 | [Standalone installation/recovery](https://github.com/nabilblk/h-sandbox/actions/runs/36873196374) | Passed on the unchanged standalone baseline; no lab deployment |
-| Local contract suite | 72 tests passed, including real loopback sockets, SQLite checkpoint reopening, concurrent observers and mismatched command-response rejection |
-| Documentation | 106 web unit tests and 12 browser tests passed; Python comparisons checked at 320/390/768/1024/1440px |
+| Local contract suite before review | 72 tests passed, including real loopback sockets, SQLite checkpoint reopening, concurrent observers and mismatched command-response rejection |
+| Documentation before review | 106 web unit tests and 12 browser tests passed; Python comparisons checked at 320/390/768/1024/1440px |
 | [First native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36861333245) | Failed a whitespace-sensitive fixture assertion; the provider appends a newline to command output. Corrected the assertion, not the SDK output. Owned cleanup passed. |
 | [Second native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36862236924) | Receipt records `ProviderError` uploading 1 MiB on published rc.10; cleanup passed. Workflow ultimately reported cancelled. Not a passing qualification. |
 | [Third native attempt](https://github.com/nabilblk/h-sandbox/actions/runs/36863606183) | Failed an acceptance assertion expecting the legacy file-content line array; pinned Deep Agents returns text. Fixture corrected and actual `read_file` tool regression added. Owned cleanup passed. |
@@ -70,16 +89,17 @@ hide framework/recovery evidence. This does not qualify a lower universal limit.
 
 The live provider failure is not a Python codec memory failure. Current
 `apps/api/src/providers/runtime/opensandbox-files.ts` embeds base64 file contents
-inside one shell-command argument. Exceeding an OS argument limit is a plausible
-cause, not yet a confirmed diagnostic from the sanitized receipt. A separate
-provider change must reproduce and fix the failure, with independent compatibility
-and native evidence. Do not bypass the control plane or chunk shell writes in
-the Python SDK to mask it.
+inside one shell-command argument. Provider PR
+[#67](https://github.com/nabilblk/h-sandbox/pull/67) independently confirmed the
+argument-size failure and qualified a native multipart/binary transfer correction
+with 1 MiB/16 MiB round trips. Its source candidate is not a corrected published
+server. Do not bypass the control plane or chunk shell writes in the Python SDK
+to mask the published failure.
 
 OpenSandbox exposes a native multipart file endpoint in its
 [official specification](https://github.com/opensandbox-group/OpenSandbox/blob/main/specs/execd-api.yaml).
-That is a candidate provider-side correction, subject to the pinned runtime's
-contract, atomic replacement, cleanup, permissions and transfer-limit tests.
+The separate provider candidate validates the pinned runtime's contract, atomic
+replacement, cleanup, permissions and transfer limits.
 The Python PR does not silently install an unreleased API to obtain a green run.
 
 **Not completed:** full native qualification, public PyPI name/publisher setup, publication, public-artifact

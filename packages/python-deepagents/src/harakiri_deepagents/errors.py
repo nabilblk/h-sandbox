@@ -20,6 +20,12 @@ class HarakiriExecutionCancelledError(asyncio.CancelledError):
         super().__init__("Local tool observation cancelled; remote work may still be running")
 
 
+class HarakiriExecutionInterruptedError(KeyboardInterrupt):
+    def __init__(self, stage: str, reference: CommandReference | None) -> None:
+        self.stage, self.reference = stage, reference
+        super().__init__(f"Agent tool {stage} interrupted; remote work may still be running")
+
+
 class HarakiriTransferError(HarakiriError):
     def __init__(
         self, operation: str, sandbox_id: str, path: str, completed_paths: tuple[str, ...]

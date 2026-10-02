@@ -46,6 +46,7 @@ export HARAKIRI_TEMPLATE=your-installed-template
       <tr><td>Client context exit</td><td>Closes HTTP resources, not sandboxes or retained workspaces.</td></tr>
     </tbody></table>
     <p>CPU and memory come from the selected template. A retained workspace stores files, not process memory. Archive it explicitly after detachment. See <a href="#docs/workspaces">Workspaces</a>.</p>
+    <p>Interrupting an owned task while readiness is pending cancels entry and waits for cleanup before HTTP closes. Cleanup has its own budget; unconfirmed cleanup is reported alongside the original interrupt. Borrowed sandboxes and retained workspaces are not deleted.</p>
 
     <h2>Commands and files</h2>
     <p><code>run(..., check=True)</code> rejects unsuccessful execution. For tracked work, start a detached command and persist the acknowledged reference before observation.</p>
@@ -59,6 +60,7 @@ print(observed.logs.stdout)
 sandbox.files.write("report.bin", b"verified bytes")
 assert sandbox.files.read_bytes("report.bin") == b"verified bytes"`}</CodeBlock>
     <p><code>persist_reference</code> is an application callback that durably saves the sandbox and command IDs. The <a href={`${source}/examples/python-workflow-recovery`}>complete recovery example</a> provides one. Relative file paths use the sandbox's POSIX working directory, including on Windows clients.</p>
+    <p><code>files.remove(path)</code> is nonrecursive. Only <code>recursive=True</code> opts into recursive deletion. Empty and NUL-containing paths are rejected before a file request is sent.</p>
 
     <h2>Asyncio</h2>
     <p>Use <code>AsyncHarakiriClient</code> inside an event loop. Its resources have the same typed operations with <code>await</code>. Use <code>async with</code> for both client and owned task. No synchronous network call is hidden inside an async method.</p>
@@ -136,6 +138,8 @@ export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
 
     <h2>Failure contracts</h2>
     <p>Timeouts and kills appear in framework-visible output; null exit codes stay null. Search clipping remains marked as truncated. Incomplete read/list/edit results fail visibly. Transfer failures retain completed paths and their cause, including cancellation between files.</p>
+    <p>Synchronous interruption raises <code>HarakiriExecutionInterruptedError</code>, a <code>KeyboardInterrupt</code> subclass carrying the stage, known command reference and original cause. An unknown submission reference stays <code>None</code>. Observe an acknowledged borrowed command without resubmitting it; interruption does not automatically kill it.</p>
+    <p><code>delete</code> and <code>adelete</code> reject empty or NUL-containing paths as <code>invalid_path</code> before resolving the working directory. An explicit valid directory path still requests recursive deletion.</p>
     <p>Defaults: 64 KiB combined output, 32 MiB transfer batches, at most 64 files and a 120s transfer budget. Per-file server limits still apply. Backend execution errors retain known command references; local cancellation is not remote termination. See <a href={`${source}/docs/integrations/deepagents-python.md`}>the full contract</a> and <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification status</a>.</p>
     <p>Dependency conflicts require a compatible environment, not bypassing the framework pin. Missing executables require a suitable template, not a longer timeout. Before attaching a replacement runtime, wait until the retained workspace is available and has no attached sandbox; termination and detachment are separate states.</p>
   </>

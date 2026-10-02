@@ -18,7 +18,7 @@ Core sync/native-async packages, protocol adapter, examples, candidate packaging
 and source-backed public guides are implemented in draft PR #66. The package
 matrix passes on Python 3.11-3.14, with clean macOS/Windows consumers, strict mypy
 on 20 source modules, Ruff, and bounded 16 MiB **mock-transport** transfers. The
-focused local suite now passes 72 tests, including response-identity validation
+focused local suite at that checkpoint passed 72 tests, including response-identity validation
 and concurrent command observers without resubmission.
 Twelve documentation browser checks pass, including 320/390/768/1024/1440px.
 The native harness targets rc.10 without changing TypeScript acceptance pins.
@@ -40,6 +40,50 @@ Repository CI, the Python package matrix and standalone installation/recovery
 acceptance also passed for code revision 69dc24c.
 PyPI account/publishers, public artifacts, deployment and independent adoption
 remain separate pending gates. This plan must stay active.
+
+### Review Corrections (2026-10-01)
+
+These changes address the Python review independently of provider PR #67. They
+do not authorize a merge, publication, deployment or local cluster operation.
+
+- [x] Omit false recursive-delete query parameters on the supported API.
+- [x] Reject empty/NUL adapter delete paths before working-directory resolution.
+- [x] Cancel and drain interrupted synchronous context entry before HTTP closure;
+  preserve the interrupt and any cleanup failure.
+- [x] Retain known command references on synchronous execution/observation
+  interruption without suppressing `KeyboardInterrupt` semantics.
+- [x] Add regressions, including bounded subprocess interruption checks; run the
+  Python suites, Ruff, strict typing and installed-package checks; update docs.
+
+Local post-review verification: 97 Python tests pass on Python 3.11-3.14 on macOS,
+including a Python 3.11 run with the minimum supported AnyIO 4.9.0. That minimum
+dependency check also caught an unsupported cosmetic portal thread-name argument;
+removing it preserves the declared dependency range. Ruff checks/formatting,
+strict mypy (20 source modules), rebuilt wheel/sdist consumers, 107 web tests and
+web typechecking pass. Real SIGINT tests run only in bounded child processes with
+mock HTTP; no signal or deletion targets the lab. The loopback fixture accepts
+both EOF and a connection reset as evidence of peer-observed cancellation.
+
+Repository and rendered guides now document nonrecursive deletion, invalid paths,
+interruption cleanup and recoverable command identity. Historical native receipts
+are unchanged and do not qualify these new local builds. The separate provider
+correction and full Python native requalification remain release prerequisites.
+
+### Delivery Checkpoint (2026-10-02)
+
+The user authorized the next delivery step: commit/push the review fixes, deliver
+the separately reviewed provider correction, and qualify the Python candidate on
+disposable GitHub-hosted infrastructure. This does not authorize a local k0s or
+customer deployment, and PyPI publication remains a later gate.
+
+- [ ] Commit/push the reviewed Python corrections and verify their CI checks.
+- [ ] Merge provider PR #67 after its green checks; publish an API-only maintenance
+  image through the existing protected workflow, without replacing existing tags
+  or publishing unchanged npm packages/charts.
+- [ ] Verify the published image identity and pin Python acceptance to its digest;
+  retain the published chart/web baseline and explicit mixed-version identity.
+- [ ] Rerun complete native Python acceptance and retain sanitized evidence for
+  the exact candidate wheels, published API image, cleanup and remaining gates.
 
 ## Context
 
