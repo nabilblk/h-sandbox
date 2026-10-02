@@ -403,8 +403,8 @@ export const openSandbox = {
     return statFileInSandbox(requireOpenSandboxId(opensandboxId), path);
   },
 
-  async readFile(opensandboxId: string | null | undefined, path: string, encoding: "utf8" | "base64") {
-    return readFileInSandbox(requireOpenSandboxId(opensandboxId), path, encoding);
+  async readFile(opensandboxId: string | null | undefined, path: string, encoding: "utf8" | "base64", maxBytes?: number) {
+    return readFileInSandbox(requireOpenSandboxId(opensandboxId), path, encoding, maxBytes);
   },
 
   async writeFile(
