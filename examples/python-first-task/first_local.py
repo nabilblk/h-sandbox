@@ -15,7 +15,7 @@ backend = LocalShellBackend(
 )
 agent = create_deep_agent(model=model, backend=backend)
 result = agent.invoke(
-    {"messages": [("user", prompt)]},
+    {"messages": [{"role": "user", "content": prompt}]},
     {"recursion_limit": 12},
 )
 print(result["messages"][-1].text)
