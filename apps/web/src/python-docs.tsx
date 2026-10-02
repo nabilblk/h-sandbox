@@ -13,7 +13,7 @@ export const pythonSdkDocs: DocPage = {
   toc: ["Start with one task", "Configuration", "Choose ownership", "Commands and files", "Asyncio", "Recover without replay", "Limits and qualification"],
   body: <>
     <h2>Start with one task</h2>
-    <aside className="docs-notice"><p><strong>Unreleased Python candidate.</strong> SDK <code>h-sandbox==0.1.0rc1</code> is being qualified. PyPI publication is pending. The source installation below is distinct from the <a href="#docs/typescript-sdk">published TypeScript SDK</a>.</p></aside>
+    <aside className="docs-notice"><p><strong>Unreleased Python candidate.</strong> SDK <code>h-sandbox==0.1.0rc1</code> passed native candidate qualification; PyPI publication is pending. The source installation below is distinct from the <a href="#docs/typescript-sdk">published TypeScript SDK</a>.</p></aside>
     <p>Use Python 3.11 or newer. The core package calls the Harakiri API; it does not need Node, Kubernetes credentials, a provider SDK or LangChain. Start from the <a href={`${source}/docs/python-sdk.md`}>candidate source</a>.</p>
     <CodeBlock language="bash" filename="From the repository root">{`uv sync --project python --frozen
 # Or install only the framework-free SDK:
@@ -84,7 +84,7 @@ assert sandbox.files.read_bytes("report.bin") == b"verified bytes"`}</CodeBlock>
 
     <h2>Limits and qualification</h2>
     <p>Timeout arguments are seconds. Defaults: HTTP request 120s, readiness 180s, cleanup 90s and command observation 120s. Remote command limits are separate. JSON responses are bounded to 24 MiB; binary files use buffered base64 with size and SHA-256 verification. This is not streaming.</p>
-    <aside className="docs-notice"><p><strong>Large-file qualification is blocked.</strong> The server advertises a 16 MiB limit and the candidate codec passes its memory tests, but native rc.10 acceptance failed a 1 MiB upload. Do not treat that advertised limit as verified end-to-end support.</p></aside>
+    <aside className="docs-notice"><p><strong>Large transfers require the corrected API image.</strong> Native 1 MiB and 16 MiB round trips passed with the <a href={`${source}/docs/release-notes/2026-10-02-provider-files-delivery.md`}>API maintenance release <code>api-2026-10-02.1</code></a>. Plain rc.10 and rc.12 images lack that upload correction. This qualifies the candidate wheels against that exact image, not a published Python package.</p></aside>
     <p>The candidate covers discovery, capacity, lifecycle, finite/tracked commands, files, logs and retained workspaces. PTY, SSE, pause/resume, snapshots, routes, Git helpers, Vault administration, template builds and usage history methods remain outside this Python preview. See the <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification record</a> for executed gates and pending publication/adoption evidence.</p>
     <p>Next: <a href="#docs/deepagents-python">Deep Agents for Python</a> or the <a href={`${source}/docs/development/python-client-design.md`}>technical contract</a>.</p>
   </>

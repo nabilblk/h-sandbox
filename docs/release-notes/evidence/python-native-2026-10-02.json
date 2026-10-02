@@ -1,0 +1,224 @@
+{
+  "kind": "python-agents-candidate",
+  "published": false,
+  "candidateSource": "a8baad45bf4acc7082012fa1c473c4592f6ee6d4",
+  "architecture": "amd64",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "passed"
+    },
+    {
+      "gate": "published-api-maintenance",
+      "status": "passed"
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed"
+    },
+    {
+      "gate": "template-import",
+      "status": "passed"
+    },
+    {
+      "gate": "foreign-organization-fixture",
+      "status": "passed"
+    },
+    {
+      "gate": "installed-candidate-wheels",
+      "status": "passed"
+    },
+    {
+      "gate": "native-sdk-and-framework",
+      "status": "passed"
+    },
+    {
+      "gate": "provider-loss-and-unconfirmed-cleanup",
+      "status": "passed"
+    },
+    {
+      "gate": "native-remote-deadline",
+      "status": "passed"
+    },
+    {
+      "gate": "native-large-artifact-limits",
+      "status": "passed"
+    },
+    {
+      "gate": "real-model-repair",
+      "status": "passed"
+    },
+    {
+      "gate": "key-revocation",
+      "status": "passed"
+    }
+  ],
+  "startedAt": "2026-10-02T00:50:03.478Z",
+  "limits": [
+    "Single-worker SQLite example, not HA or exactly-once",
+    "One real model repair, not a model benchmark",
+    "No packages published or existing deployment changed"
+  ],
+  "installation": {
+    "version": "0.5.0-rc.10",
+    "source": "3ff2aaaffe6d92a8c2db7333f6d8c79a144c5207",
+    "architecture": "amd64",
+    "anonymousArtifacts": true,
+    "freshInstallation": true,
+    "nativeTemplateImage": true,
+    "templateManifestSha256": "9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3"
+  },
+  "apiMaintenance": {
+    "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.12-provider-files.a55df31@sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+    "source": "a55df315825b0e4788b35b71af571c4f0d11ac23",
+    "version": "0.5.0-rc.12",
+    "release": "api-2026-10-02.1",
+    "digest": "sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+    "published": true,
+    "platforms": [
+      {
+        "architecture": "amd64",
+        "digest": "sha256:72d3e5783757864cc7eddf39ac5d3732ae9022959aa8a781bc70f0f88f4228e4",
+        "configDigest": "sha256:487db7a92b424797d63c2c0ca05579ad11967c8b60fb8e99d657486a676adfeb"
+      },
+      {
+        "architecture": "arm64",
+        "digest": "sha256:fd00ed859f396e532360d09f36871f671af6643ef0a44c5c34c98387cbe9391c",
+        "configDigest": "sha256:543d2dca951c8691d0767a651c266f8e3cc01dbc61ee085858bb5c53c8ac18d1"
+      }
+    ],
+    "runningImageVerified": true
+  },
+  "template": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3",
+  "wheels": {
+    "h_sandbox-0.1.0rc1-py3-none-any.whl": "02186e5580e6a220a23153fe375db721760b2cea03718b62822c9caba925f175",
+    "h_sandbox_deepagents-0.1.0rc1-py3-none-any.whl": "b20d7acf77911192fbf2ea223ec26c1297c2674c30b99e726f0e155f2ba68c0c"
+  },
+  "native": {
+    "results": [
+      {
+        "gate": "scoped-key-denial",
+        "status": "passed"
+      },
+      {
+        "gate": "cross-organization-denial",
+        "status": "passed"
+      },
+      {
+        "gate": "sync-lifecycle-tools-files-cleanup",
+        "status": "passed"
+      },
+      {
+        "gate": "native-async-tools",
+        "status": "passed"
+      },
+      {
+        "gate": "separate-worker-and-expired-runtime-file-recovery",
+        "status": "passed"
+      }
+    ],
+    "observations": {},
+    "python": "3.12.3",
+    "packages": {
+      "h-sandbox": "0.1.0rc1",
+      "h-sandbox-deepagents": "0.1.0rc1",
+      "deepagents": "0.7.21",
+      "httpx": "0.28.1",
+      "anyio": "4.15.1",
+      "pydantic": "2.13.5",
+      "langchain": "1.4.3",
+      "langchain-core": "1.6.6",
+      "langgraph": "1.2.12",
+      "langgraph-checkpoint": "4.2.0",
+      "langgraph-checkpoint-sqlite": "3.1.1",
+      "langchain-ollama": "1.1.0"
+    }
+  },
+  "boundaries": {
+    "native-remote-deadline": {
+      "results": [
+        {
+          "gate": "native-remote-deadline",
+          "status": "passed"
+        }
+      ],
+      "observations": {
+        "remoteDeadline": {
+          "exitCode": -1,
+          "finishReason": "error",
+          "frameworkVisibleNotice": true
+        }
+      },
+      "python": "3.12.3",
+      "packages": {
+        "h-sandbox": "0.1.0rc1",
+        "h-sandbox-deepagents": "0.1.0rc1",
+        "deepagents": "0.7.21",
+        "httpx": "0.28.1",
+        "anyio": "4.15.1",
+        "pydantic": "2.13.5",
+        "langchain": "1.4.3",
+        "langchain-core": "1.6.6",
+        "langgraph": "1.2.12",
+        "langgraph-checkpoint": "4.2.0",
+        "langgraph-checkpoint-sqlite": "3.1.1",
+        "langchain-ollama": "1.1.0"
+      }
+    },
+    "native-large-artifact-limits": {
+      "results": [
+        {
+          "gate": "native-1-and-16-mib-artifacts",
+          "status": "passed"
+        }
+      ],
+      "observations": {},
+      "python": "3.12.3",
+      "packages": {
+        "h-sandbox": "0.1.0rc1",
+        "h-sandbox-deepagents": "0.1.0rc1",
+        "deepagents": "0.7.21",
+        "httpx": "0.28.1",
+        "anyio": "4.15.1",
+        "pydantic": "2.13.5",
+        "langchain": "1.4.3",
+        "langchain-core": "1.6.6",
+        "langgraph": "1.2.12",
+        "langgraph-checkpoint": "4.2.0",
+        "langgraph-checkpoint-sqlite": "3.1.1",
+        "langchain-ollama": "1.1.0"
+      }
+    }
+  },
+  "model": {
+    "image": "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
+    "name": "qwen3:4b-instruct",
+    "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+    "status": "verified",
+    "originalTestSha256": "1a438c38dc275a1f6cd8c983bb96a02acb83003e180ec9c7c75cbf6e54b059d9",
+    "patchSha256": "37af9257d4c15a86c533cbae3b4b8b9b3c5d850ffb6dd4e6e55804f94c59e9a2",
+    "originalTests": 4,
+    "modelResponses": 5,
+    "toolResponses": 4,
+    "ownedCleanup": "confirmed"
+  },
+  "status": "configured_gates_passed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-10-02T01:04:27.173Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

@@ -50,8 +50,14 @@ identify the correction. Plain `0.5.0-rc.12` is unchanged and lacks this fix.
 The [provider candidate acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/36890337240)
 passed native amd64 round trips through 16 MiB, boundary/error cases and cleanup
 on an isolated GitHub-hosted runner. That run used a runner-built image, not the
-new Harbor artifact. Python qualification against the published digest is a
-separate pending check; publication alone does not satisfy it.
+new Harbor artifact. The subsequent
+[Python candidate acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/36947872246)
+installed the published digest, verified its running identity and passed all gates:
+1 MiB/16 MiB round trips, sync/async framework tools, authorization, capacity,
+retained-file recovery, provider-loss handling and a real model repair. Runtime
+and fixture cleanup passed and private material was removed. This qualifies that
+API image with the candidate Python wheels, not unpublished PyPI artifacts or a
+coordinated product release.
 
 No database schema, API-key, runtime-provider or Helm value migration is required.
 Existing published charts can select the maintenance API image through

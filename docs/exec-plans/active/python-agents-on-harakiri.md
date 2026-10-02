@@ -82,7 +82,7 @@ customer deployment, and PyPI publication remains a later gate.
   or publishing unchanged npm packages/charts.
 - [x] Verify the published image identity and pin Python acceptance to its digest;
   retain the published chart/web baseline and explicit mixed-version identity.
-- [ ] Rerun complete native Python acceptance and retain sanitized evidence for
+- [x] Rerun complete native Python acceptance and retain sanitized evidence for
   the exact candidate wheels, published API image, cleanup and remaining gates.
 
 Review correction commit `aea8ecd` passed package and repository CI. Provider
@@ -92,6 +92,24 @@ Anonymous index/configuration verification passed for amd64 and arm64. Seven
 new harness contracts cover identity validation and owned-only image selection.
 The original rc.10 native run triggered by the review push was cancelled because
 that image retains the diagnosed failure; it is not recorded as a passing run.
+
+Full native run [36947872246](https://github.com/nabilblk/h-sandbox/actions/runs/36947872246)
+passed against the published API digest, with confirmed fixture cleanup and
+private-material removal. The [retained receipt](../../release-notes/evidence/python-native-2026-10-02.json)
+records PR merge source `a8baad45bf4acc7082012fa1c473c4592f6ee6d4` (head `7232247`),
+both candidate wheel hashes, published API identity and exact dependency versions.
+Native 1 MiB/16 MiB round trips, sync/async tools, capacity/access boundaries,
+worker and retained-file recovery, provider loss, abnormal termination and a real
+Qwen repair passed. Five model responses and four tool responses produced a patch
+passing four unchanged original tests. Package CI passed all 97 contracts on
+Python 3.11-3.14 and clean platform consumers; repository CI also passed.
+
+Phase 5 candidate qualification is complete. Phase 6 still needs execution of all
+extracted introductory examples against installed packages, beyond the existing
+strict typing and source/display/download synchronization checks. PyPI setup and
+publication, public-artifact requalification, live docs deployment and independent
+adoption remain pending; this plan stays active and the Python PR is not merged
+by this delivery step. No local cluster, tunnel or running workload was touched.
 
 ## Context
 
@@ -123,11 +141,11 @@ The public Python `deepagents` package observed during planning is `0.7.21`, req
 
 - [ ] A developer installs the released Python SDK without Node, the monorepo, Kubernetes credentials, provider credentials or a framework dependency.
 - [x] The first-task comparison contains genuine `create_deep_agent` calls in both examples, with the same model, prompt and invocation; the sandbox difference is backend construction and explicit ownership.
-- [x] A standalone Python program creates or connects to a sandbox, waits for execution readiness, runs commands, transfers verified small files and confirms owned cleanup through the public Harakiri API. The separate large-file gate remains blocked.
+- [x] A standalone Python program creates or connects to a sandbox, waits for execution readiness, runs commands, transfers verified files and confirms owned cleanup through the public Harakiri API. The separate 1 MiB/16 MiB native gate passed against the published API maintenance image.
 - [x] Sync and async consumers have typed, documented behavior and bounded request/observation/cleanup operations. An async workflow does not block the event loop with synchronous network calls.
 - [x] The adapter makes failed, killed, timed-out and truncated work visible in the actual framework tool result, not just extra response fields the framework ignores. Contract tests cover distinct reasons; the native deadline result is conservatively reported as a generic runtime error.
 - [x] A replacement Python process observes a saved command reference without resubmitting the command or automatically replaying an interrupted graph.
-- [ ] Partial file transfers retain completed paths and causes, including cancellation between files. Large supported binary transfers remain within the tested memory budget.
+- [x] Partial file transfers retain completed paths and causes, including cancellation between files. Large supported binary transfers remain within the tested memory budget. Contract/memory fixtures and native 1 MiB/16 MiB round trips are distinct passing checks.
 - [x] Borrowed runtime and retained workspace ownership survives client closure, graph interruption and adapter disposal. Owned disposable tasks clean up on success and failure within an independent budget. Graph interruption uses actual framework/SQLite contract tests; runtime lifetime and release have native evidence.
 - [ ] Exact built artifacts pass clean-install, native sandbox and actual framework acceptance on isolated runners; publication is followed by verification of the public artifacts.
 - [ ] Public guides, repository docs, package READMEs, technical contracts, contributor instructions and release operations describe the same supported surface and exact package versions.
@@ -409,7 +427,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 3: Implement The Focused Sandbox SDK
 
-**Status**: Complete for the candidate surface; full transfer-limit qualification remains blocked in Phase 5
+**Status**: Complete for the candidate surface; native transfer-limit qualification passed in Phase 5
 **Deliverables**: Sync/async lifecycle, commands, files, workspaces and owned task context, with contract tests.
 
 - [x] Implement discovery and lifecycle resources from the first-preview matrix, keeping accepted handles and structured errors intact.
@@ -420,7 +438,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [x] Implement explicit retained workspace lifecycle/attachment without auto-archive, automatic replacement or fictional process-state persistence.
 - [x] Test accepted-but-not-ready creation, capacity rejection, response loss, callback failure, expired runtime, concurrent observation and cleanup uncertainty.
 - [x] Verify sync/async behavioral equivalence, non-blocking async calls, cancellation before and after acknowledgement, and bounded resource disposal.
-- [x] Execute binary-memory and Unicode/truncation fixtures under declared limits. Preserve source artifacts for regression tests without embedding real secrets. These codec tests do not qualify the failing native upload limit.
+- [x] Execute binary-memory and Unicode/truncation fixtures under declared limits. Preserve source artifacts for regression tests without embedding real secrets. Native upload qualification is recorded separately in Phase 5.
 
 **Exit gate**: The core can execute the model-free create/run/files/cleanup workflow and recover an acknowledged command reference in a second process. It does not need Deep Agents to be useful.
 
@@ -443,19 +461,19 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 5: Qualify On Isolated Native Infrastructure
 
-**Status**: In Progress; isolated runner approved, rc.10 large-upload failure blocks full qualification
+**Status**: Complete for the candidate wheels; all gates passed on the published API maintenance image in run 36947872246
 **Deliverables**: Reproducible candidate-artifact qualification and sanitized evidence, without touching existing deployments.
 
 - [x] Add a dedicated Python workflow/harness that reuses [existing acceptance ownership guards](../../../infra/acceptance/context.mjs) and known installation primitives without weakening or repinning TypeScript acceptance.
 - [x] Run lint, strict type checks, unit/contract and clean-wheel consumers on Python 3.11, 3.12, 3.13 and 3.14. Use Linux for native runtime tests; add macOS/Windows core consumer checks with POSIX remote-path fixtures.
 - [x] Select an immutable published server/chart/image baseline and record digests. Target the current documented API baseline (rc.10 or newer); test every minimum-version claim rather than inferring it from TypeScript results.
 - [x] Use only a disposable GitHub-hosted native amd64 fixture with explicit kubeconfig/cluster identity, scoped test credentials, disk/memory checks and an always-run owned cleanup path.
-- [ ] Qualify real sync/async commands, readiness, capacity rejection, scoped/cross-org access, file integrity/limits, borrowed survival and owned termination/capacity release.
-- [ ] Inject connection loss, slow/truncated bodies, provider interruption and worker loss only inside the owned fixture. Assert no blind resubmission and retain acknowledged references.
+- [x] Qualify real sync/async commands, readiness, capacity rejection, scoped/cross-org access, file integrity/limits, borrowed survival and owned termination/capacity release.
+- [x] Inject connection loss, slow/truncated bodies, provider interruption and worker loss only inside owned fixtures. Assert no blind resubmission and retain acknowledged references. Socket/deadline faults use bounded loopback fixtures in package CI; provider and worker loss use the disposable native installation.
 - [x] Verify retained-file recovery through a new runtime and separate graph/command identities. Do not claim memory/process restoration or distributed exactly-once execution.
 - [x] Run actual Deep Agents with deterministic tool-call fixtures for repeatable contract failures; report this separately from the real model workflow. Package CI executes the real framework with deterministic model/HTTP fixtures; native acceptance separately uses the real model and API.
-- [x] Run one genuine tool-capable model repair with independent tests and patch inspection. Digest-pinned local Qwen passed in run 36866686680. Its receipt is not a benchmark or final-revision qualification.
-- [x] Export an allowlisted JSON/Markdown receipt: source SHA, package hashes, server/template/model versions, Python/dependency versions, runner architecture, case outcomes, cleanup and explicit limits. Do not upload raw credentials, kubeconfigs, unrestricted logs or checkpoints. Preserve the sixth-run receipt in Git; newer runs additionally record key LangChain/LangGraph dependency versions.
+- [x] Run one genuine tool-capable model repair with independent tests and patch inspection. Digest-pinned local Qwen passed again with the corrected candidate in run 36947872246. Its receipt is not a benchmark or a public-artifact qualification.
+- [x] Export an allowlisted JSON/Markdown receipt: source SHA, package hashes, server/template/model versions, Python/dependency versions, runner architecture, case outcomes, cleanup and explicit limits. Do not upload raw credentials, kubeconfigs, unrestricted logs or checkpoints. Preserve historical failures and the passing October 2 receipt, including key LangChain/LangGraph versions and running published API identity.
 - [x] Add a scheduled compatibility probe for newer Python Deep Agents dependencies. Probe failures report drift; they neither widen package bounds nor publish automatically.
 
 **Exit gate**: Candidate wheel hashes have complete passing required evidence. Fork PRs receive hermetic tests, not publisher permissions or privileged native workloads. Any skipped native/model gate is a documented incomplete gate, not success.
@@ -595,6 +613,7 @@ Checked during planning on 2026-10-01. These sources inform the contract but are
 | 2026-10-01 | Separate candidate, published-artifact and independent-adopter gates. | Passing source tests is not evidence that users can install and complete a workflow. | Publish after unit tests and call the milestone complete. |
 | 2026-10-01 | Do not change the existing cluster or customer installations. | This is a client integration milestone with isolated acceptance. | Testing by rebuilding the running lab or adding BackgroundAgent. |
 | 2026-10-01 | Keep the native large-file gate mandatory and independent of agent/recovery gates. | rc.10 failed a 1 MiB upload; passing the mocked 16 MiB memory fixture is not live transfer proof. A provider correction needs separate review and release evidence. | Shrink the fixture and claim qualification; bypass the API in Python; silently patch the runner's API. |
+| 2026-10-02 | Release the provider correction as an immutable API-only maintenance image and qualify Python against its public digest. | Native acceptance must consume independently reviewed, publicly available server artifacts. Existing tags and the chart/web baseline stay unchanged; both installation identities are recorded. | Replace rc.12 in place; silently build an API inside Python acceptance; publish unchanged packages/charts. |
 
 ## Tech Debt Incurred
 
@@ -602,9 +621,11 @@ None incurred by planning. Deferred features in the capability matrix are delibe
 
 ## Completion Notes
 
-Implementation is in draft [PR #66](https://github.com/nabilblk/h-sandbox/pull/66).
-Candidate packages are not published. Native acceptance failures and remaining
-delivery gates are recorded in [the candidate record](../../release-notes/python-agents-preview.md).
-No production deployment, local cluster operation, registry publication or Brain
-change has been made. Keep this plan active until native, public-artifact and
+Implementation is in [PR #66](https://github.com/nabilblk/h-sandbox/pull/66), not yet
+merged. Candidate Python packages are not published. Full candidate native
+acceptance passed against the separately merged and published API maintenance
+release; failed historical attempts and remaining delivery gates are retained in
+[the candidate record](../../release-notes/python-agents-preview.md).
+No production deployment, local cluster operation or Brain change has been made.
+Keep this plan active until the remaining documentation, public-artifact and
 independent-adopter gates are evidenced; do not archive it as completed.

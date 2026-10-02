@@ -109,7 +109,7 @@ Commands inherit the template's remote limit unless explicitly overridden.
 - `files.list`, `stat`, `mkdir`, `rename` and `remove` expose the corresponding API operations.
 - `files.remove(path)` is nonrecursive. Only `recursive=True` opts into recursive deletion; empty and NUL-containing paths are rejected before a file request is sent.
 - Relative paths resolve against the sandbox's advertised POSIX workdir, not the client OS directory.
-- The server advertises the per-file limit, normally 16 MiB. This is **not streaming**. HTTP JSON responses are bounded to 24 MiB by default. The candidate's codec/memory tests pass at 16 MiB, but native rc.10 acceptance failed a 1 MiB upload. Large-file support is not qualified; see the [candidate record](release-notes/python-agents-preview.md).
+- The server advertises the per-file limit, normally 16 MiB. This is **not streaming**. HTTP JSON responses are bounded to 24 MiB by default. Native 1 MiB and 16 MiB round trips passed with the [API maintenance release `api-2026-10-02.1`](release-notes/2026-10-02-provider-files-delivery.md). Plain rc.10 and rc.12 images lack that upload correction. Candidate codec/memory tests also pass at 16 MiB; see the [exact qualification record](release-notes/python-agents-preview.md).
 - `workspaces.create(name)`, `list()`, `get(id)` and `archive(id)` manage retained files. Attach with `workspace_id` when creating a sandbox.
 
 A workspace outlives a runtime, not a process. Wait for detachment before explicitly
@@ -156,9 +156,12 @@ snapshots, routes, Git helpers, Vault administration, template builds and usage
 history methods are not Python preview APIs. Those server features are not being
 removed.
 
-Python 3.11-3.14 and server `0.5.0-rc.10` are qualification targets. Consult the
-[candidate delivery record](release-notes/python-agents-preview.md) for actual
-evidence; do not infer a support claim from a matrix entry awaiting execution.
+Package/contract checks pass on Python 3.11-3.14. Full native Linux amd64 acceptance
+passed on Python 3.12.3 with the rc.10 chart/web baseline and the separately pinned
+`api-2026-10-02.1` API image. This is candidate-wheel evidence, not a claim that
+every server version or a public PyPI artifact has been qualified. Consult the
+[candidate delivery record](release-notes/python-agents-preview.md) for exact hashes,
+dependency versions and remaining release gates.
 
 Next: [Python Deep Agents](integrations/deepagents-python.md),
 [technical design](development/python-client-design.md),

@@ -41,6 +41,10 @@ test("Python safety contracts agree between rendered docs, exports and repositor
     assert.match(content, /nonrecursive/);
     assert.match(content, /recursive=True/);
     assert.match(content, /cleanup before HTTP/);
+    assert.match(content, /api-2026-10-02\.1/);
+    assert.match(content, /1 MiB and 16 MiB round trips passed/);
+    assert.match(content, /Plain rc\.10 and rc\.12 images lack that upload correction/);
+    assert.doesNotMatch(content, /Large-file qualification is blocked/);
   }
   for (const content of [adapter, adapterSource]) {
     assert.match(content, /HarakiriExecutionInterruptedError/);

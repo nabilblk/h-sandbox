@@ -7,6 +7,7 @@ locked in `python/uv.lock`; nothing is installed into system Python.
 uv sync --project python --frozen
 uv run --project python ruff check --config python/pyproject.toml packages/python-sdk packages/python-deepagents python examples/python-first-task examples/python-repository-repair examples/python-workflow-recovery infra/python-acceptance
 uv run --project python mypy --config-file python/pyproject.toml packages/python-sdk/src packages/python-deepagents/src
+uv run --project python mypy --config-file python/pyproject.toml examples/python-first-task
 uv run --project python pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
 uv run --project python python python/check_packages.py
 ```

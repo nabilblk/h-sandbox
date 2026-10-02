@@ -119,4 +119,4 @@ does not silently widen the supported version range.
 | Shell reports a missing executable | Select or build a template containing Python 3, bash, find, grep and sed. Increasing the observation timeout will not install them. |
 | Agent returns partial output or an abnormal-termination notice | Inspect the saved command reference and finish reason. Distinguish the remote execution limit from local observation timeout; do not rerun the graph automatically. |
 | A replacement cannot attach the workspace | Wait for both `status == "available"` and `attached_sandbox_id is None`; runtime termination can precede volume detachment. |
-| Large binary upload fails on rc.10 | The 1 MiB native failure remains a release blocker. Do not infer that the advertised 16 MiB maximum is qualified, or route around the Harakiri API. |
+| Large binary upload fails on an older API image | Plain rc.10 and rc.12 lack the upload correction. The [API maintenance release `api-2026-10-02.1`](../release-notes/2026-10-02-provider-files-delivery.md) passed native 1 MiB/16 MiB candidate round trips. Have the operator select the corrected image; do not route around the Harakiri API. |

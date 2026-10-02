@@ -1,6 +1,6 @@
 # Python Agents Candidate
 
-Status: **unreleased implementation candidate**, October 1, 2026.
+Status: **unreleased candidate; native qualification passed**, October 2, 2026.
 
 - SDK `h-sandbox==0.1.0rc1`; import `harakiri`.
 - Optional adapter `h-sandbox-deepagents==0.1.0rc1`; import `harakiri_deepagents`.
@@ -29,16 +29,58 @@ AnyIO 4.9.0 check. Ruff, strict mypy (20 modules), rebuilt wheel/sdist consumers
 107 web tests and web typechecking passed. The bridge no longer uses a cosmetic
 thread-name argument unsupported by the declared minimum AnyIO version.
 
-The historical candidate wheel hashes and native runs below predate these fixes;
+The October 1 candidate wheel hashes and native runs below predate these fixes;
 they are not qualification of newly built packages. Provider PR
 [#67](https://github.com/nabilblk/h-sandbox/pull/67) is merged and its
 [corrected API image is published](2026-10-02-provider-files-delivery.md).
-Full Python native requalification against that public digest is now pending;
-the old failing API image is not silently substituted with a runner-built one.
+Full Python native requalification against that public digest passed on October 2;
+the old failing API image was not silently substituted with a runner-built one.
 The review fixes passed [package CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947022360)
 and [repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947022380).
 
-## Qualification Evidence
+## Current Qualification
+
+[Native run 36947872246](https://github.com/nabilblk/h-sandbox/actions/runs/36947872246)
+passed all required gates, including fixture cleanup and private-material removal.
+The [sanitized receipt](evidence/python-native-2026-10-02.json) records the exact
+candidate artifacts built from PR merge source
+`a8baad45bf4acc7082012fa1c473c4592f6ee6d4` (PR head `7232247`):
+
+| Candidate wheel | SHA-256 |
+| --- | --- |
+| `h_sandbox-0.1.0rc1-py3-none-any.whl` | `02186e5580e6a220a23153fe375db721760b2cea03718b62822c9caba925f175` |
+| `h_sandbox_deepagents-0.1.0rc1-py3-none-any.whl` | `b20d7acf77911192fbf2ea223ec26c1297c2674c30b99e726f0e155f2ba68c0c` |
+
+The runner installed these wheels outside the checkout on Python 3.12.3/Linux
+amd64, verified the running published API image, and exercised scoped/cross-org
+denial, capacity rejection, sync/async tools, owned cleanup, borrowed survival,
+separate-worker observation, retained-file recovery, provider loss, abnormal
+termination, 1 MiB/16 MiB binary round trips and key revocation. The remote deadline
+still reports exit code `-1` with generic reason `error`; the adapter exposes this
+abnormal result without inventing a more precise provider classification.
+
+Digest-pinned Qwen `qwen3:4b-instruct` performed a genuine repair: five model
+responses and four tool responses produced a patch that passed four unchanged
+original tests. The receipt includes the model, template and dependency versions.
+This is one verified workflow, not a model benchmark or a repeatability guarantee.
+
+[Package CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947872253) passed
+97 contracts on Python 3.11-3.14, strict typing, clean package consumers and the
+bounded-memory binary fixture. [Repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947872244)
+also passed. Introductory examples now have an explicit strict-mypy CI check in
+addition to source/display/download synchronization tests; execution of all those
+extracted introductory programs against installed packages remains a documentation
+gate, distinct from the native SDK, recovery and model-repair workflows above.
+
+[Standalone installation/recovery](https://github.com/nabilblk/h-sandbox/actions/runs/36947872279)
+also passed independently on its unchanged published baseline, including cleanup.
+That separate run does not substitute for the Python candidate receipt.
+
+No Python package was published and no existing deployment was changed. The
+following history preserves failed attempts rather than treating passing subcases
+as full qualification.
+
+## Historical Qualification (October 1)
 
 | Evidence | Result |
 | --- | --- |
@@ -71,7 +113,7 @@ foreign-organization checks. The [final-code receipt](evidence/python-native-202
 records their successful native execution, all key framework dependency versions,
 and another genuine repair: five model responses, four tool responses and four
 unchanged original tests passing. Its only failed gate is the native upload.
-See [draft PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for review.
+See [PR #66](https://github.com/nabilblk/h-sandbox/pull/66) for review.
 A passing subcase is not a passing overall run.
 
 The seventh attempt's model failure remains part of the record. Its timing is
@@ -97,7 +139,7 @@ Provider PR
 [#67](https://github.com/nabilblk/h-sandbox/pull/67) independently confirmed the
 argument-size failure and qualified a native multipart/binary transfer correction
 with 1 MiB/16 MiB round trips. Its [maintenance release](2026-10-02-provider-files-delivery.md)
-now supplies the public image for Python requalification. Plain rc.10 and rc.12
+supplied the public image for the passing October 2 Python qualification. Plain rc.10 and rc.12
 images remain unchanged. Do not bypass the control plane or chunk shell writes
 in the Python SDK to mask the old failure.
 
@@ -107,7 +149,8 @@ The separate provider candidate validates the pinned runtime's contract, atomic
 replacement, cleanup, permissions and transfer limits.
 The Python PR does not silently install an unreleased API to obtain a green run.
 
-**Not completed:** full native qualification, public PyPI name/publisher setup, publication, public-artifact
+**Not completed:** the remaining introductory-example documentation gate, public PyPI
+name/publisher setup, publication, public-artifact
 native verification, public documentation deployment and independent adopter
 evidence. Source installation is documented; do not announce public availability
 or stable support from this candidate record.
