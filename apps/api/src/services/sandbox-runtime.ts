@@ -1270,14 +1270,14 @@ export const statSandboxFile = async (
 };
 
 export const readSandboxFile = async (
-  input: { organizationId: string; sandboxId: string; path: string; encoding: SandboxFileEncoding },
+  input: { organizationId: string; sandboxId: string; path: string; encoding: SandboxFileEncoding; maxBytes?: number },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
 ): Promise<SandboxFileOperationResult<{ path: string; encoding: SandboxFileEncoding; content: string }>> => {
   const query = dependencies.query ?? defaultQuery;
   if (!dependencies.runtimeProvider.readFile) return unsupportedFileOperation("read");
   const context = await getSandboxFileContext(input, query, dependencies.runtimeProvider);
   if (!context) return { kind: "not_found" };
-  const result = await dependencies.runtimeProvider.readFile({ ...context.ref, path: input.path, defaultCwd: context.defaultCwd, encoding: input.encoding });
+  const result = await dependencies.runtimeProvider.readFile({ ...context.ref, path: input.path, defaultCwd: context.defaultCwd, encoding: input.encoding, maxBytes: input.maxBytes });
   return result.ok ? { kind: "ok", path: result.path, encoding: result.encoding, content: result.content } : { kind: "file_error", error: result.error };
 };
 
@@ -1391,7 +1391,7 @@ export const downloadSandboxFileArtifact = async (
   input: { organizationId: string; sandboxId: string; path: string },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
 ): Promise<SandboxFileOperationResult<{ path: string; contentBase64: string; sizeBytes: number; sha256: string; transfer: SandboxFileTransferMetadata }>> => {
-  const read = await readSandboxFile({ ...input, encoding: "base64" }, dependencies);
+  const read = await readSandboxFile({ ...input, encoding: "base64", maxBytes: config.sandboxFileArtifactMaxBytes }, dependencies);
   if (read.kind !== "ok") return read;
   const decoded = decodeArtifactBase64({ path: input.path, contentBase64: read.content });
   if (decoded.kind !== "ok") return decoded;

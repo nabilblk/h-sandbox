@@ -287,7 +287,7 @@ export const openSandboxRuntimeProvider: RuntimeProvider = {
 
   async readFile(input) {
     try {
-      return { ok: true, ...(await openSandbox.readFile(input.providerSandboxId, input.path, input.encoding)) };
+      return { ok: true, ...(await openSandbox.readFile(input.providerSandboxId, input.path, input.encoding, input.maxBytes)) };
     } catch (error) {
       return fileError(error);
     }

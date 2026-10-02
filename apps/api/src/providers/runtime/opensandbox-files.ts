@@ -1,4 +1,7 @@
-import { callExecd, runExecdCommand } from "./opensandbox-execd.js";
+import { randomUUID } from "node:crypto";
+import { posix } from "node:path";
+import { callExecd, requestExecd, runExecdCommand } from "./opensandbox-execd.js";
+import { OpenSandboxHttpError } from "./opensandbox-client.js";
 import type { ExecdFileInfo, SandboxFileEntry } from "./opensandbox-types.js";
 import type { SandboxFileEncoding } from "@harakiri/shared";
 
@@ -6,9 +9,10 @@ export class OpenSandboxFileError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly statusCode = 502
+    public readonly statusCode = 502,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
   }
 }
 
@@ -79,13 +83,56 @@ const classifyFileCommandFailure = (stderr: string) => {
   if (/not_a_directory|Not a directory/i.test(stderr)) {
     return new OpenSandboxFileError("invalid_file_path", stderr.trim() || "not a directory", 400);
   }
+  if (/is_a_directory|Is a directory/i.test(stderr)) {
+    return new OpenSandboxFileError("invalid_file_path", stderr.trim() || "path is a directory", 400);
+  }
   return new OpenSandboxFileError("runtime_files_unavailable", stderr.trim() || "OpenSandbox execd filesystem command failed");
 };
 
-const runFileCommand = async (opensandboxId: string, command: string) => {
-  const result = await runExecdCommand({ opensandboxId, command });
+const runFileCommand = async (opensandboxId: string, command: string, signal?: AbortSignal) => {
+  const result = await runExecdCommand({ opensandboxId, command, signal });
   if (result.exitCode !== 0 || result.stderr.trim()) throw classifyFileCommandFailure(result.stderr);
   return result.stdout;
+};
+
+const cleanupFileStaging = async (opensandboxId: string, command: string, failure?: unknown) => {
+  try {
+    await runFileCommand(opensandboxId, command, AbortSignal.timeout(10_000));
+  } catch (cleanupError) {
+    const classified = failure instanceof OpenSandboxFileError ? failure
+      : failure instanceof OpenSandboxHttpError ? classifyFileCommandFailure(failure.body)
+      : new OpenSandboxFileError("runtime_files_unavailable", failure === undefined ? "File operation completed." : "File operation failed.");
+    throw new OpenSandboxFileError(classified.code, `${classified.message} Temporary file cleanup could not be confirmed.`, classified.statusCode,
+      { cause: new AggregateError(failure === undefined ? [cleanupError] : [failure, cleanupError], "File staging cleanup failed") });
+  }
+};
+
+const withLiteralNativePath = async <T>(opensandboxId: string, path: string, signal: AbortSignal, action: (nativePath: string) => Promise<T>): Promise<T> => {
+  if (!path.includes("$")) return action(path);
+  // Execd expands environment variables in API paths. A private symlink lets
+  // the OS resolve the literal path without changing it or copying across disks.
+  const directory = `/tmp/.harakiri-path-${randomUUID()}`;
+  const alias = `${directory}/file`;
+  const cleanup = `rm -f -- ${shellQuote(alias)}\nif [ -d ${shellQuote(directory)} ]; then rmdir -- ${shellQuote(directory)}; fi`;
+  let prepared = false;
+  let failure: unknown;
+  try {
+    await runFileCommand(opensandboxId, [
+      "set -eu",
+      `directory=${shellQuote(directory)}`,
+      `mkdir -m 700 -- "$directory"`,
+      `trap 'rm -f -- "$directory/file"; rmdir -- "$directory"' EXIT`,
+      `ln -s -- ${shellQuote(path)} "$directory/file"`,
+      "trap - EXIT"
+    ].join("\n"), signal);
+    prepared = true;
+    return await action(alias);
+  } catch (error) {
+    failure = error;
+    throw error;
+  } finally {
+    if (prepared || !(failure instanceof OpenSandboxFileError)) await cleanupFileStaging(opensandboxId, cleanup, failure);
+  }
 };
 
 const listFilesWithSearch = async (opensandboxId: string, cwd: string) => {
@@ -198,21 +245,57 @@ export const statFileInSandbox = async (opensandboxId: string, path: string) => 
   return statLineToFile(stdout.trim().split(/\r?\n/).at(-1) ?? "");
 };
 
-export const readFileInSandbox = async (opensandboxId: string, path: string, encoding: SandboxFileEncoding) => {
-  const normalized = normalizedFilePath(path);
-  const quoted = shellQuote(normalized);
-  const stdout = await runFileCommand(opensandboxId, [
-    "set -eu",
-    `target=${quoted}`,
-    `if [ ! -f "$target" ]; then echo "file_not_found: $target" >&2; exit 44; fi`,
-    `base64 -w0 -- "$target"`
-  ].join("\n"));
-  const base64 = stdout.trim();
-  return {
-    path: normalized,
-    encoding,
-    content: encoding === "base64" ? base64 : Buffer.from(base64, "base64").toString("utf8")
+const readFileContent = async (response: Response, encoding: SandboxFileEncoding, maxBytes?: number) => {
+  const reader = response.body?.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const checkSize = (bytes: number) => {
+    if (maxBytes !== undefined && bytes > maxBytes) {
+      throw new OpenSandboxFileError("sandbox_file_artifact_too_large", `Artifact exceeds ${maxBytes} bytes.`, 413);
+    }
   };
+  try {
+    if (response.status !== 200) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
+    // fetch decodes compressed responses; Content-Length then describes wire
+    // bytes, not the file bytes counted below. Proxies may ignore identity.
+    const compressed = ![null, "identity"].includes(response.headers.get("content-encoding")?.toLowerCase() ?? null);
+    const lengthHeader = compressed ? null : response.headers.get("content-length");
+    const length = lengthHeader === null ? undefined : Number(lengthHeader);
+    if (length !== undefined) checkSize(length);
+    if (reader) while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      checkSize(size);
+      chunks.push(value);
+    }
+    if (length !== undefined && length !== size) throw new OpenSandboxFileError("runtime_files_unavailable", "OpenSandbox returned an incomplete file response.");
+    return Buffer.concat(chunks, size).toString(encoding);
+  } finally {
+    await reader?.cancel().catch(() => undefined);
+  }
+};
+
+export const readFileInSandbox = async (opensandboxId: string, path: string, encoding: SandboxFileEncoding, maxBytes?: number) => {
+  const normalized = normalizedFilePath(path);
+  const signal = AbortSignal.timeout(120_000);
+  try {
+    await runFileCommand(opensandboxId, [
+      "set -eu",
+      `target=${shellQuote(normalized)}`,
+      `if [ ! -f "$target" ]; then echo "file_not_found: $target" >&2; exit 44; fi`
+    ].join("\n"), signal);
+    const content = await withLiteralNativePath(opensandboxId, normalized, signal, async nativePath => {
+      const response = await requestExecd(opensandboxId, `/files/download?${new URLSearchParams({ path: nativePath })}`, {
+        headers: { "accept-encoding": "identity" }, signal, redirect: "error"
+      });
+      return readFileContent(response, encoding, maxBytes);
+    });
+    return { path: normalized, encoding, content };
+  } catch (error) {
+    if (error instanceof OpenSandboxHttpError) throw classifyFileCommandFailure(error.body);
+    throw error;
+  }
 };
 
 export const writeFileInSandbox = async (
@@ -220,22 +303,55 @@ export const writeFileInSandbox = async (
   input: { path: string; content: string; encoding: SandboxFileEncoding; createParents?: boolean; mode?: string }
 ) => {
   const normalized = normalizedFilePath(input.path);
-  const contentBase64 = input.encoding === "base64" ? input.content : Buffer.from(input.content).toString("base64");
-  const modeCommand = input.mode ? `chmod ${shellQuote(input.mode)} -- "$target"` : "";
-  const command = [
-    "set -eu",
-    `target=${shellQuote(normalized)}`,
-    input.createParents ? `mkdir -p -- "$(dirname -- "$target")"` : "",
-    `tmp="$target.harakiri-write-$$"`,
-    `base64 -d > "$tmp" <<'HARAKIRI_FILE_CONTENT'`,
-    contentBase64,
-    "HARAKIRI_FILE_CONTENT",
-    `mv -- "$tmp" "$target"`,
-    modeCommand,
-    statCommand(normalized)
-  ].filter(Boolean).join("\n");
-  const stdout = await runFileCommand(opensandboxId, command);
-  return statLineToFile(stdout.trim().split(/\r?\n/).at(-1) ?? "");
+  const encoded = input.encoding === "base64" ? input.content.replace(/\n/g, "") : input.content;
+  if (input.encoding === "base64" && (encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))) {
+    throw new OpenSandboxFileError("invalid_file_content", "File content is not valid base64.", 400);
+  }
+  const content = Buffer.from(encoded, input.encoding);
+  const staging = posix.join(posix.dirname(normalized), `.harakiri-write-${randomUUID()}`);
+  const stagedFile = `${staging}/content`;
+  const signal = AbortSignal.timeout(120_000);
+  const cleanup = `rm -f -- ${shellQuote(stagedFile)}\nif [ -d ${shellQuote(staging)} ]; then rmdir -- ${shellQuote(staging)}; fi`;
+  let prepared = false;
+  // Native uploads create parents and truncate files. Pre-create a private sibling
+  // with the command's umask, then replace the target only after upload succeeds.
+  try {
+    await runFileCommand(opensandboxId, [
+      "set -eu",
+      `target=${shellQuote(normalized)}`,
+      `staging=${shellQuote(staging)}`,
+      `if [ -d "$target" ]; then echo "is_a_directory: $target" >&2; exit 45; fi`,
+      input.createParents ? `mkdir -p -- "$(dirname -- "$target")"` : "",
+      `mkdir -m 700 -- "$staging"`,
+      `trap 'rm -f -- "$staging/content"; rmdir -- "$staging"' EXIT`,
+      `: > "$staging/content"`,
+      "trap - EXIT"
+    ].filter(Boolean).join("\n"), signal);
+    prepared = true;
+    await withLiteralNativePath(opensandboxId, stagedFile, signal, async nativePath => {
+      const body = new FormData();
+      body.append("metadata", new Blob([JSON.stringify({ path: nativePath })], { type: "application/json" }), "metadata.json");
+      body.append("file", new Blob([content], { type: "application/octet-stream" }), "content");
+      await callExecd(opensandboxId, "/files/upload", { method: "POST", body, signal, redirect: "error" });
+    });
+    const stdout = await runFileCommand(opensandboxId, [
+      "set -eu",
+      `target=${shellQuote(normalized)}`,
+      `staging=${shellQuote(staging)}`,
+      `trap 'rm -f -- "$staging/content"; rmdir -- "$staging"' EXIT`,
+      input.mode ? `chmod ${shellQuote(input.mode)} -- "$staging/content"` : "",
+      `mv -fT -- "$staging/content" "$target"`,
+      statCommand(normalized)
+    ].filter(Boolean).join("\n"), signal);
+    return statLineToFile(stdout.trim().split(/\r?\n/).at(-1) ?? "");
+  } catch (error) {
+    // A reported preparation failure either precedes mkdir or ran its trap.
+    // A lost response is ambiguous: attempt cleanup using the unique stage path.
+    if (!prepared && error instanceof OpenSandboxFileError) throw error;
+    const failure = error instanceof OpenSandboxHttpError ? classifyFileCommandFailure(error.body) : error;
+    await cleanupFileStaging(opensandboxId, cleanup, failure);
+    throw failure;
+  }
 };
 
 export const mkdirInSandbox = async (opensandboxId: string, input: { path: string; recursive?: boolean }) => {

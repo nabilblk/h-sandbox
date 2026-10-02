@@ -1,0 +1,54 @@
+name: Provider file transfer acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/api/src/providers/runtime/opensandbox-files.ts"
+      - "apps/api/src/providers/runtime/opensandbox-execd.ts"
+      - "apps/api/src/opensandbox-files*.test.ts"
+      - "infra/provider-file-acceptance/**"
+      - ".github/workflows/provider-file-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-files-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native-amd64:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - name: Install tooling and verify hermetic contracts
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @harakiri/api typecheck
+          pnpm --filter @harakiri/api exec node --test --import tsx src/opensandbox-files*.test.ts src/opensandbox.test.ts src/sandbox-runtime-service.test.ts src/runtime-boundary.test.ts src/routes-runtime.test.ts
+          node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/provider-file-acceptance/*.test.mjs
+      - name: Bootstrap only a fresh GitHub-hosted native amd64 cluster
+        run: node infra/acceptance/bootstrap.mjs
+      - name: Reproduce baseline defect and qualify unpublished provider candidate
+        run: node infra/provider-file-acceptance/run.mjs
+      - name: Clean only owned resources and credentials
+        if: always()
+        run: node infra/acceptance/cleanup.mjs
+      - name: Export only sanitized receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: provider-file-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: standalone-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 14
