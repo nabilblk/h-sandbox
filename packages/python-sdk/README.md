@@ -1,7 +1,8 @@
 # Harakiri Python SDK
 
 Typed synchronous and asynchronous clients for the Harakiri sandbox control plane.
-Development preview: this source is not yet published or runtime-qualified.
+Development preview: public PyPI publication and public-artifact qualification
+are pending. The qualification record distinguishes source-candidate evidence.
 
 The SDK talks only to the Harakiri API. It does not require Node, Kubernetes
 credentials, a runtime-provider SDK or an agent framework.

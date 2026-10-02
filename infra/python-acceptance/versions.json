@@ -9,5 +9,13 @@
   "charts": {
     "harakiri": { "version": "0.5.0-rc.10", "digest": "sha256:c2224227bcf9b9de3925176eb108d7d0b302754e101699d8eb43804fac50fae7" },
     "opensandbox": { "version": "0.2.2-harakiri.2", "digest": "sha256:b93f51554b26364f09f839e6b4f95eeb6ba799edecee9cb1f6de421207d04a34" }
+  },
+  "apiMaintenance": {
+    "release": "api-2026-10-02.1",
+    "source": "a55df315825b0e4788b35b71af571c4f0d11ac23",
+    "version": "0.5.0-rc.12",
+    "tag": "0.5.0-rc.12-provider-files.a55df31",
+    "digest": "sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+    "manifestSha256": "92dc0d02868182864b26c1e05f0ccb1f91000cf0dfc2ebe85ac07294b844d426"
   }
 }

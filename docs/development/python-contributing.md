@@ -26,6 +26,14 @@ runner installs immutable published server artifacts and candidate Python wheels
 it publishes neither packages nor deployments. Only allowlisted receipts leave
 the runner. No unrestricted logs, model output or checkpoints are artifacts.
 
+The current Python fixture keeps the released rc.10 chart/web baseline and applies
+the published API maintenance image pinned in `infra/python-acceptance/versions.json`.
+It verifies the checksum-pinned release receipt, anonymous registry manifests,
+both architectures and source labels before an owned-fixture Helm upgrade, then
+checks the running API image identity. This mixed-version baseline is explicit
+in its receipt; no source API build or change to TypeScript acceptance is hidden
+behind the Python qualification result.
+
 ## Compatibility Changes
 
 Update the exact Deep Agents bound and the lock together. Review upstream public

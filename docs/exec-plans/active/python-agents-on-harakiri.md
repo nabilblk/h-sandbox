@@ -76,14 +76,22 @@ the separately reviewed provider correction, and qualify the Python candidate on
 disposable GitHub-hosted infrastructure. This does not authorize a local k0s or
 customer deployment, and PyPI publication remains a later gate.
 
-- [ ] Commit/push the reviewed Python corrections and verify their CI checks.
-- [ ] Merge provider PR #67 after its green checks; publish an API-only maintenance
+- [x] Commit/push the reviewed Python corrections and verify their CI checks.
+- [x] Merge provider PR #67 after its green checks; publish an API-only maintenance
   image through the existing protected workflow, without replacing existing tags
   or publishing unchanged npm packages/charts.
-- [ ] Verify the published image identity and pin Python acceptance to its digest;
+- [x] Verify the published image identity and pin Python acceptance to its digest;
   retain the published chart/web baseline and explicit mixed-version identity.
 - [ ] Rerun complete native Python acceptance and retain sanitized evidence for
   the exact candidate wheels, published API image, cleanup and remaining gates.
+
+Review correction commit `aea8ecd` passed package and repository CI. Provider
+PR #67 merged as `a55df31` with the exact reviewed tree; publication run
+36947012800 produced the API-only maintenance release `api-2026-10-02.1`.
+Anonymous index/configuration verification passed for amd64 and arm64. Seven
+new harness contracts cover identity validation and owned-only image selection.
+The original rc.10 native run triggered by the review push was cancelled because
+that image retains the diagnosed failure; it is not recorded as a passing run.
 
 ## Context
 

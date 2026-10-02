@@ -1,0 +1,26 @@
+{
+  "kind": "harakiri-api-maintenance",
+  "release": "api-2026-10-02.1",
+  "source": "a55df315825b0e4788b35b71af571c4f0d11ac23",
+  "version": "0.5.0-rc.12",
+  "tag": "0.5.0-rc.12-provider-files.a55df31",
+  "digest": "sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+  "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.12-provider-files.a55df31@sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+  "platforms": [
+    {
+      "os": "linux",
+      "architecture": "amd64",
+      "digest": "sha256:72d3e5783757864cc7eddf39ac5d3732ae9022959aa8a781bc70f0f88f4228e4",
+      "configDigest": "sha256:487db7a92b424797d63c2c0ca05579ad11967c8b60fb8e99d657486a676adfeb"
+    },
+    {
+      "os": "linux",
+      "architecture": "arm64",
+      "digest": "sha256:fd00ed859f396e532360d09f36871f671af6643ef0a44c5c34c98387cbe9391c",
+      "configDigest": "sha256:543d2dca951c8691d0767a651c266f8e3cc01dbc61ee085858bb5c53c8ac18d1"
+    }
+  ],
+  "workflow": "https://github.com/nabilblk/h-sandbox/actions/runs/36947012800",
+  "verification": "Anonymous manifest/configuration checksums and OCI source/version labels; not independent signature verification",
+  "deployment": "No existing installation changed"
+}

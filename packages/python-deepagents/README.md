@@ -1,7 +1,8 @@
 # Deep Agents on Harakiri
 
 An optional backend for the real Python `deepagents` framework. Development
-preview: not yet published or native-qualified. The initial contract targets
+preview: public PyPI publication and public-artifact qualification are pending.
+The qualification record distinguishes source-candidate evidence. The contract targets
 Deep Agents `0.7.21` and Python SDK `0.1.0rc1` exactly.
 
 ```python

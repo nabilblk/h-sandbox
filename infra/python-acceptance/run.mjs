@@ -8,6 +8,7 @@ import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
 import { replicas } from "../acceptance/operator.mjs";
 import { model } from "../sdk-acceptance/framework.mjs";
 import { foreignPrincipal, revokeForeignPrincipal } from "./authorization.mjs";
+import { installPublishedApi } from "./published-api.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -32,6 +33,7 @@ async function gate(name, action) {
 }
 try {
   receipt.installation = await gate("published-installation", () => install(ctx, baseline));
+  receipt.apiMaintenance = await gate("published-api-maintenance", () => installPublishedApi(ctx, baseline.apiMaintenance));
   operator = await gate("oidc-onboarding", () => operatorSession(ctx));
   const template = await gate("template-import", () => importAcceptanceTemplate(ctx, operator.client));
   receipt.template = pinned.opencodeImage;

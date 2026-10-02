@@ -10,8 +10,9 @@ Status: **unreleased implementation candidate**, October 1, 2026.
 - This candidate changes no API, schema, npm package, deployed cluster or provider.
 
 Local contract tests, strict type checks and clean wheel/sdist consumers are
-implemented. Native Linux amd64 qualification targets the immutable published
-server/chart `0.5.0-rc.10` and digest-pinned template in
+implemented. Native Linux amd64 qualification retains the immutable published
+chart/web `0.5.0-rc.10` baseline and applies the separately published API maintenance
+release `api-2026-10-02.1`. Both identities and the template are digest-pinned in
 `infra/python-acceptance/versions.json`, without repinning TypeScript acceptance.
 Runner results and candidate hashes are recorded separately from publication.
 
@@ -29,10 +30,13 @@ AnyIO 4.9.0 check. Ruff, strict mypy (20 modules), rebuilt wheel/sdist consumers
 thread-name argument unsupported by the declared minimum AnyIO version.
 
 The historical candidate wheel hashes and native runs below predate these fixes;
-they are not qualification of newly built packages. Native requalification remains
-gated on a corrected server release. Provider PR
-[#67](https://github.com/nabilblk/h-sandbox/pull/67) has passed
-separate isolated acceptance but is not merged, published or deployed by this work.
+they are not qualification of newly built packages. Provider PR
+[#67](https://github.com/nabilblk/h-sandbox/pull/67) is merged and its
+[corrected API image is published](2026-10-02-provider-files-delivery.md).
+Full Python native requalification against that public digest is now pending;
+the old failing API image is not silently substituted with a runner-built one.
+The review fixes passed [package CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947022360)
+and [repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947022380).
 
 ## Qualification Evidence
 
@@ -85,16 +89,17 @@ The mandatory large-artifact gate remains at 1 MiB and 16 MiB. Basic workflow
 checks also exercise smaller binary/text files so one transfer failure does not
 hide framework/recovery evidence. This does not qualify a lower universal limit.
 
-### Release Blocker: Native Binary Upload
+### Original Blocker: Native Binary Upload
 
-The live provider failure is not a Python codec memory failure. Current
-`apps/api/src/providers/runtime/opensandbox-files.ts` embeds base64 file contents
-inside one shell-command argument. Provider PR
+The original provider failure was not a Python codec memory failure. The API
+shipped in rc.10 embedded base64 file contents inside one shell-command argument.
+Provider PR
 [#67](https://github.com/nabilblk/h-sandbox/pull/67) independently confirmed the
 argument-size failure and qualified a native multipart/binary transfer correction
-with 1 MiB/16 MiB round trips. Its source candidate is not a corrected published
-server. Do not bypass the control plane or chunk shell writes in the Python SDK
-to mask the published failure.
+with 1 MiB/16 MiB round trips. Its [maintenance release](2026-10-02-provider-files-delivery.md)
+now supplies the public image for Python requalification. Plain rc.10 and rc.12
+images remain unchanged. Do not bypass the control plane or chunk shell writes
+in the Python SDK to mask the old failure.
 
 OpenSandbox exposes a native multipart file endpoint in its
 [official specification](https://github.com/opensandbox-group/OpenSandbox/blob/main/specs/execd-api.yaml).
