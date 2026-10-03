@@ -1,0 +1,40 @@
+[project]
+name = "harakiri-python-development"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+  "h-sandbox", "h-sandbox-deepagents", "deepagents==0.7.21",
+  "langgraph-checkpoint-sqlite==3.1.1", "langchain-ollama==1.1.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+h-sandbox = {path = "../packages/python-sdk", editable = true}
+h-sandbox-deepagents = {path = "../packages/python-deepagents", editable = true}
+
+[dependency-groups]
+dev = [
+  "build>=1.2,<2", "hatchling>=1.27,<2", "mypy>=1.15,<2",
+  "pytest>=8.3,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1", "twine>=6,<7",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["../packages/python-sdk/tests", "../packages/python-deepagents/tests"]
+asyncio_mode = "auto"
+filterwarnings = ["error", "ignore::DeprecationWarning:langchain.*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+# Public SDK timeout arguments include remote execution and observation budgets.
+ignore = ["ASYNC109"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]

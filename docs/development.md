@@ -3,6 +3,9 @@
 This guide is the generic contributor path. It does not require Cloudflare,
 the `harakiri.io` DNS zone, or the public tunnel used by the maintainer lab.
 
+Python packages have a separate [locked development and qualification path](development/python-contributing.md).
+They do not require converting the pnpm workspace or installing into system Python.
+
 ## Prerequisites
 
 - Node.js 22 or newer

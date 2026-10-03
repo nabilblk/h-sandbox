@@ -170,7 +170,7 @@ export const deepagentsDocs: DocPage = {
   id: "deepagents",
   section: "Integrations",
   title: "Deep Agents and LangGraph",
-  navTitle: "Deep Agents",
+  navTitle: "Deep Agents (TypeScript)",
   lede: "Same Deep Agent. Same model and task. Move shell and file tools from your machine to a Harakiri sandbox by changing the backend.",
   toc: ["Your agent, Harakiri tools", "Installation", "Run your first task", "Use an existing sandbox", "Approval and reconnect", "Persistent workflows", "Repair a repository", "Model-free smoke test", "Ownership and failures", "Limits and evidence"],
   body: <>

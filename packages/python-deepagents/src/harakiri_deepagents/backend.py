@@ -1,0 +1,188 @@
+"""Synchronous Deep Agents backend, borrowing a public Harakiri SDK handle."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+
+from deepagents.backends.protocol import (
+    DeleteResult,
+    FileDownloadResponse,
+    FileUploadResponse,
+    WriteResult,
+)
+from harakiri import CommandReference, Sandbox
+from harakiri.errors import ApiError
+
+from ._execution import (
+    Budget,
+    ExecutionOptions,
+    HarakiriExecuteResponse,
+    duration,
+    execution_result,
+)
+from ._filesystem import GuardedSandbox
+from ._transfers import TransferBatch, file_error, remote_path, valid_path
+from .errors import HarakiriExecutionError, HarakiriExecutionInterruptedError
+
+
+class HarakiriSandboxBackend(GuardedSandbox):
+    def __init__(
+        self,
+        sandbox: Sandbox,
+        *,
+        cwd: str | None = None,
+        timeout: float | None = None,
+        observation_timeout: float | None = None,
+        max_output_bytes: int = 65_536,
+        max_batch_bytes: int = 32 << 20,
+        transfer_timeout: float = 120,
+        on_command_started: Callable[[CommandReference], None] | None = None,
+    ) -> None:
+        remote_timeout = (
+            sandbox.summary.runtime_metadata.limits.command_timeout_ms / 1000
+            if timeout is None
+            else timeout
+        )
+        self._sandbox = sandbox
+        self._options = ExecutionOptions(
+            sandbox.workdir if cwd is None else cwd,
+            remote_timeout,
+            remote_timeout + 10 if observation_timeout is None else observation_timeout,
+            max_output_bytes,
+        )
+        self._max_batch_bytes, self._transfer_timeout = max_batch_bytes, transfer_timeout
+        TransferBatch("validate", sandbox.id, 0, max_batch_bytes, transfer_timeout)
+        self._on_started = on_command_started
+
+    @property
+    def id(self) -> str:
+        return self._sandbox.id
+
+    def execute(self, command: str, *, timeout: int | None = None) -> HarakiriExecuteResponse:
+        remote = self._options.timeout if timeout is None else duration(timeout, "timeout")
+        budget = Budget(self._options.observation_timeout)
+        reference, stage = None, "submission"
+        try:
+            process = self._sandbox.processes.start(
+                command, cwd=self._options.cwd, timeout=remote, request_timeout=budget.remaining()
+            )
+            reference, stage = process.reference, "acknowledgement"
+            if self._on_started:
+                self._on_started(reference)
+            stage = "observation"
+            return execution_result(
+                process.observe(timeout=budget.remaining()), self._options.max_output_bytes
+            )
+        except KeyboardInterrupt as cause:
+            raise HarakiriExecutionInterruptedError(stage, reference) from cause
+        except Exception as cause:
+            raise HarakiriExecutionError(stage, reference) from cause
+
+    def observe(self, reference: CommandReference) -> HarakiriExecuteResponse:
+        if reference.sandbox_id != self.id:
+            raise ValueError("Command reference belongs to another sandbox")
+        budget = Budget(self._options.observation_timeout)
+        try:
+            process = self._sandbox.processes.connect(
+                reference.command_id, request_timeout=budget.remaining()
+            )
+            return execution_result(
+                process.observe(timeout=budget.remaining()), self._options.max_output_bytes
+            )
+        except KeyboardInterrupt as cause:
+            raise HarakiriExecutionInterruptedError("observation", reference) from cause
+        except Exception as cause:
+            raise HarakiriExecutionError("observation", reference) from cause
+
+    async def aexecute(
+        self, command: str, *, timeout: int | None = None
+    ) -> HarakiriExecuteResponse:
+        raise RuntimeError("Use AsyncHarakiriSandboxBackend with agent.ainvoke()")
+
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        batch = TransferBatch(
+            "upload", self.id, len(files), self._max_batch_bytes, self._transfer_timeout
+        )
+        if any(not isinstance(content, bytes) for _, content in files):
+            raise TypeError("Upload contents must be bytes")
+        batch.check_bytes(sum(len(content) for _, content in files))
+        results = []
+        for path, content in files:
+            with batch.item(path):
+                if not valid_path(path):
+                    results.append(FileUploadResponse(path=path, error="invalid_path"))
+                    continue
+                try:
+                    self._sandbox.files.write(
+                        remote_path(self._options.cwd, path),
+                        content,
+                        request_timeout=batch.budget.remaining(),
+                    )
+                    batch.complete(path, len(content))
+                    results.append(FileUploadResponse(path=path))
+                except ApiError as error:
+                    known = file_error(error)
+                    if known is None:
+                        raise
+                    results.append(FileUploadResponse(path=path, error=known))
+        return results
+
+    def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
+        batch = TransferBatch(
+            "download", self.id, len(paths), self._max_batch_bytes, self._transfer_timeout
+        )
+        results = []
+        for path in paths:
+            with batch.item(path):
+                if not valid_path(path):
+                    results.append(FileDownloadResponse(path=path, error="invalid_path"))
+                    continue
+                try:
+                    absolute = remote_path(self._options.cwd, path)
+                    entry = self._sandbox.files.stat(
+                        absolute, request_timeout=batch.budget.remaining()
+                    )
+                    if entry.type in {"dir", "directory"}:
+                        results.append(FileDownloadResponse(path=path, error="is_directory"))
+                        continue
+                    batch.check_bytes(entry.size)
+                    content = self._sandbox.files.read_bytes(
+                        absolute, request_timeout=batch.budget.remaining()
+                    )
+                    batch.complete(path, len(content))
+                    results.append(FileDownloadResponse(path=path, content=content))
+                except ApiError as error:
+                    known = file_error(error)
+                    if known is None:
+                        raise
+                    results.append(FileDownloadResponse(path=path, error=known))
+        return results
+
+    async def aupload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        raise RuntimeError("Use AsyncHarakiriSandboxBackend for asynchronous transfers")
+
+    async def adownload_files(self, paths: list[str]) -> list[FileDownloadResponse]:
+        raise RuntimeError("Use AsyncHarakiriSandboxBackend for asynchronous transfers")
+
+    def write(self, file_path: str, content: str) -> WriteResult:
+        result = self.upload_files([(file_path, content.encode("utf-8"))])[0]
+        return WriteResult(error=result.error, path=None if result.error else file_path)
+
+    def delete(self, file_path: str) -> DeleteResult:
+        if not valid_path(file_path):
+            return DeleteResult(error="invalid_path")
+        try:
+            self._sandbox.files.remove(
+                remote_path(self._options.cwd, file_path),
+                recursive=True,
+                request_timeout=self._transfer_timeout,
+            )
+            return DeleteResult(path=file_path)
+        except ApiError as error:
+            known = file_error(error)
+            if known is None:
+                raise
+            return DeleteResult(error=known)
+
+    async def adelete(self, file_path: str) -> DeleteResult:
+        raise RuntimeError("Use AsyncHarakiriSandboxBackend for asynchronous file operations")
