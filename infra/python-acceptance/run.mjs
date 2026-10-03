@@ -14,10 +14,16 @@ process.umask(0o077);
 const ctx = context();
 ctx.guard();
 const baseline = { ...pinned, ...JSON.parse(fs.readFileSync(new URL("./versions.json", import.meta.url))) };
+const distribution = path.resolve(process.env.HARAKIRI_PYTHON_DIST_DIR || "dist-packages/python");
+const artifactSource = process.env.HARAKIRI_PYTHON_ARTIFACT_SOURCE || "candidate";
+check(["candidate", "registry"].includes(artifactSource), "Unknown Python artifact source");
+check(artifactSource !== "registry" || process.env.HARAKIRI_PYTHON_DIST_DIR, "Registry acceptance requires supplied archives");
 const receipt = {
-  kind: "python-agents-candidate", published: false, candidateSource: process.env.GITHUB_SHA,
+  kind: artifactSource === "registry" ? "python-agents-published" : "python-agents-candidate",
+  artifactSource, published: artifactSource === "registry",
+  candidateSource: ctx.execute("git", ["rev-parse", "HEAD"], "Identify Python checkout").trim(),
   architecture: "amd64", results: [], startedAt: new Date().toISOString(),
-  limits: ["Single-worker SQLite example, not HA or exactly-once", "One real model repair, not a model benchmark", "No packages published or existing deployment changed"]
+  limits: ["Single-worker SQLite example, not HA or exactly-once", "One real model repair, not a model benchmark", "This qualification job publishes no packages and changes no existing deployment"]
 };
 const publish = () => fs.writeFileSync("standalone-acceptance-report.json", JSON.stringify(receipt, null, 2));
 let operator, activeGate;
@@ -49,12 +55,16 @@ try {
   fs.mkdirSync(consumer);
   const python = path.join(consumer, "venv/bin/python");
   await gate("installed-candidate-wheels", () => {
-    ctx.execute("uv", ["run", "--project", "python", "--frozen", "python", "python/check_packages.py"], "Build and verify Python candidate");
-    const artifacts = fs.readdirSync("dist-packages/python").filter(name => name.endsWith(".whl"));
+    if (process.env.HARAKIRI_PYTHON_DIST_DIR) {
+      ctx.execute("python3", ["python/release.py", "verify", "--dist", distribution], "Verify qualified Python artifacts");
+    }
+    ctx.execute("uv", ["run", "--project", "python", "--frozen", "python", "python/check_packages.py", "--dist-dir", distribution,
+      ...(process.env.HARAKIRI_PYTHON_DIST_DIR ? ["--no-build"] : [])], "Build or verify exact Python artifacts");
+    const artifacts = fs.readdirSync(distribution).filter(name => name.endsWith(".whl"));
     check(artifacts.length === 2, "Expected exactly two Python wheels");
-    receipt.wheels = Object.fromEntries(artifacts.map(name => [name, sha256(fs.readFileSync(`dist-packages/python/${name}`))]));
+    receipt.wheels = Object.fromEntries(artifacts.map(name => [name, sha256(fs.readFileSync(path.join(distribution, name)))]));
     ctx.execute("uv", ["venv", "--python", "3.12", path.join(consumer, "venv")], "Create isolated Python consumer", { env });
-    ctx.execute("uv", ["pip", "install", "--python", python, ...artifacts.map(name => path.resolve(`dist-packages/python/${name}`)),
+    ctx.execute("uv", ["pip", "install", "--python", python, ...artifacts.map(name => path.join(distribution, name)),
       "langchain-ollama==1.1.0", "langgraph-checkpoint-sqlite==3.1.1"], "Install Python candidate wheels", { env });
     for (const file of ["native.py", "model.py", "provider.py", "documented_examples.py"]) fs.copyFileSync(new URL(file, import.meta.url), path.join(consumer, file));
     for (const file of ["worker.py", "approval.py"]) fs.copyFileSync(new URL(`../../examples/python-workflow-recovery/${file}`, import.meta.url), path.join(consumer, file));

@@ -149,7 +149,31 @@ The separate provider candidate validates the pinned runtime's contract, atomic
 replacement, cleanup, permissions and transfer limits.
 The Python PR does not silently install an unreleased API to obtain a green run.
 
-**Not completed:** the remaining introductory-example documentation gate, public PyPI
+### October 3: Exported Introductory Programs Qualified
+
+Native [run 37123459321](https://github.com/nabilblk/h-sandbox/actions/runs/37123459321)
+passed all 13 gates against the same published server baseline. The
+[retained receipt](evidence/python-native-2026-10-03.json) records exact downloaded
+program hashes and successful local, owned, async and borrowed execution against
+installed wheels. Inference for those four documentation checks is a scripted
+loopback Ollama fixture; tools and runtime cleanup are real. The independent,
+digest-pinned Qwen repair also passed with all four original tests unchanged.
+The package wheel hashes remain identical to October 2.
+
+Release tooling now prepares a protected, manually dispatched `python-release.yml`
+pipeline: exact-archive qualification, TestPyPI before production, SDK before
+adapter, anonymous public-file checks, `pip`/`uv` consumers and post-publication
+native qualification. GitHub publishing environments were configured with
+maintainer review and `main`-only access. This is preparation, not publication.
+See [release operations](../development/python-contributing.md#pypi-bootstrap-and-release-gate)
+for the exact publisher fields and commands.
+
+PR #66's merge is currently held by the existing JavaScript dependency audit:
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) affects
+`braces` through the TypeScript framework dependency, and no patched npm version
+was available on October 3. The audit threshold remains unchanged.
+
+**Not completed:** merge, public PyPI
 name/publisher setup, publication, public-artifact
 native verification, public documentation deployment and independent adopter
 evidence. Source installation is documented; do not announce public availability

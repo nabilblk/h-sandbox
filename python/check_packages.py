@@ -22,6 +22,7 @@ def main() -> None:
     parser.add_argument("--dist-dir", type=Path, default=ROOT / "dist-packages/python")
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--python", default="3.12")
+    parser.add_argument("--installer", choices=["uv", "pip"], default="uv")
     options = parser.parse_args()
     distribution = options.dist_dir.resolve()
     distribution.mkdir(parents=True, exist_ok=True)
@@ -42,7 +43,12 @@ def main() -> None:
             "SSL_CERT_FILE",
         }
     }
-    env.update(UV_NO_CONFIG="1", PYTHONNOUSERSITE="1", LANGSMITH_TRACING="false")
+    env.update(
+        UV_NO_CONFIG="1",
+        PYTHONNOUSERSITE="1",
+        LANGSMITH_TRACING="false",
+        PIP_CONFIG_FILE=os.devnull,
+    )
     if not options.no_build:
         for name in ("python-sdk", "python-deepagents"):
             run(
@@ -53,6 +59,7 @@ def main() -> None:
     evidence: dict[str, object] = {
         "kind": "python-installed-packages",
         "published": False,
+        "installer": options.installer,
         "artifacts": {},
     }
     artifacts = {}
@@ -66,14 +73,33 @@ def main() -> None:
             consumer = Path(directory)
             venv = consumer / "venv"
             python = venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
-            run(["uv", "venv", "--python", options.python, str(venv)], cwd=consumer, env=env)
             run(
                 [
                     "uv",
-                    "pip",
-                    "install",
+                    "venv",
                     "--python",
+                    options.python,
+                    *(["--seed"] if options.installer == "pip" else []),
+                    str(venv),
+                ],
+                cwd=consumer,
+                env=env,
+            )
+            installer = (
+                ["uv", "pip", "install", "--python", str(python)]
+                if options.installer == "uv"
+                else [
                     str(python),
+                    "-m",
+                    "pip",
+                    "--isolated",
+                    "install",
+                    "--disable-pip-version-check",
+                ]
+            )
+            run(
+                [
+                    *installer,
                     "--index-url",
                     "https://pypi.org/simple",
                     str(core),
@@ -102,11 +128,7 @@ def main() -> None:
             run([str(python), str(ROOT / "python" / "memory_artifact.py")], cwd=consumer, env=env)
             run(
                 [
-                    "uv",
-                    "pip",
-                    "install",
-                    "--python",
-                    str(python),
+                    *installer,
                     "--index-url",
                     "https://pypi.org/simple",
                     str(adapter),

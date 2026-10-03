@@ -122,7 +122,7 @@ testing remains isolated; any later k0s rollout must preserve operator values,
 authentication origins and running workloads. Independent adoption cannot be
 substituted with CI.
 
-- [ ] Execute all four exported introductory programs against installed wheels
+- [x] Execute all four exported introductory programs against installed wheels
   and real local/remote tools on the disposable runner. Only inference is scripted
   for this gate; the digest-pinned real-model repair remains a separate requirement.
 - [ ] Merge PR #66 after its final checks and retain the documentation receipt.
@@ -137,6 +137,28 @@ the exported Markdown and source, then executes the unmodified files outside the
 checkout. Its loopback Ollama fixture uses the documented model integration but
 generates deterministic tool requests; tool success, owned capacity release and
 borrowed survival must be observed. No local-shell agent task runs on the Mac.
+
+Native run [37123459321](https://github.com/nabilblk/h-sandbox/actions/runs/37123459321)
+passed all 13 gates, all four introductory programs, real-model repair and owned
+cleanup. The [October 3 receipt](../../release-notes/evidence/python-native-2026-10-03.json)
+retains the source/program hashes. The first attempt failed because the scripted
+fixture supplied a host path to the local backend's virtual filesystem; the
+fixture now uses `/hello.sh`, with a regression test. Public programs and package
+wheel hashes did not change.
+
+PR #66 is held, not merged: the workspace audit newly reports
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) through the
+existing TypeScript Deep Agents dependency. npm's suggested `braces` 3.0.4 is not
+published; the registry still supplies 3.0.3. No audit exception or forced merge
+was added. This is separate from the passing Python qualification.
+
+The release-tooling follow-up prepares `python-release.yml`, exact-archive native
+qualification, SDK-before-adapter publication, public `pip`/`uv` consumers,
+hash-checked partial-release recovery and a same-source TestPyPI gate before
+production. Its locally tested implementation is not proof of a published
+package. GitHub `testpypi` and `pypi` environments now require maintainer review and
+permit only `main`. Registry account ownership and pending publisher bindings
+remain unconfirmed. No package publication or k0s rollout has occurred.
 
 The next integration should make this promise concrete:
 
@@ -505,13 +527,13 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 6: Complete Documentation and Public UX
 
-**Status**: In Progress; candidate guides and browser checks pass, delivery evidence being recorded
+**Status**: Complete for the candidate; live publication and deployment remain in Phase 7
 **Deliverables**: One coherent learning path across website, Git and package documentation, plus technical/contributor/operator material.
 
 - [x] Add `docs/python-sdk.md` and `docs/integrations/deepagents-python.md`: installation, environment, first task, existing sandbox, async use, lifecycle, commands/files, retained workspace, error recovery and supported-version matrix.
 - [x] Add public `#docs/python-sdk` and `#docs/deepagents-python` pages. Keep the existing TypeScript routes and external links working; label languages explicitly in navigation and cross-links.
 - [x] Sequence the public narrative: what runs where; first successful task; local-versus-sandbox; real repository repair; ownership and limits; recovery; API reference. Avoid an enormous API list before the first working example.
-- [ ] Keep source examples, downloads, Markdown exports and visible code in sync. Compile/typecheck/run extracted examples against the installed packages; do not maintain drifting prose-only pseudo-APIs.
+- [x] Keep source examples, downloads, Markdown exports and visible code in sync. Compile/typecheck/run extracted examples against the installed packages; do not maintain drifting prose-only pseudo-APIs.
 - [x] Use Python syntax highlighting and correctly labeled shell/env snippets. Keep side-by-side heading/description/code rows aligned at wide widths and stack naturally on narrow screens without wrapping identifiers across columns.
 - [x] Cover missing API URL/key/template, 401/403, capacity exhaustion, readiness failure, remote timeout, local observation timeout, framework mismatch, missing template tools, large files and incomplete cleanup.
 - [x] Write technical design/ADR documentation for transport deadlines, ownership, typed errors, protocol adaptation and limits; add an endpoint/scope contract table and maintainability rules.
@@ -525,7 +547,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 7: Publish and Verify The Preview
 
-**Status**: Not Started
+**Status**: In Progress; release tooling and GitHub environments prepared, registry setup and delivery pending
 **Deliverables**: Public Python preview artifacts, protected unattended publishing and a verified public documentation rollout.
 
 - [ ] Confirm PyPI ownership for both names, maintainer access/2FA and project metadata. Use exact repository/workflow/environment Trusted Publisher bindings, including pending publishers for first publication where supported.

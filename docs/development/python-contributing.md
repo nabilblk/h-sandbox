@@ -56,6 +56,72 @@ configure pending Trusted Publishers on PyPI and TestPyPI for this repository,
 the exact release workflow filename and a protected GitHub environment. No token,
 password or recovery code belongs in chat, Git or a CI receipt.
 
+For each registry, configure **both** `h-sandbox` and `h-sandbox-deepagents`:
+
+| Publisher field | Value |
+| --- | --- |
+| GitHub owner | `nabilblk` |
+| Repository | `h-sandbox` |
+| Workflow filename | `python-release.yml` |
+| GitHub environment on TestPyPI | `testpypi` |
+| GitHub environment on PyPI | `pypi` |
+
+Create matching GitHub environments with required maintainer review and a
+deployment branch policy permitting only `main`. The release workflow checks
+`RELEASE_REPOSITORY` against the running repository and accepts only a full commit
+SHA already on `origin/main`. Creating the workflow does not create registry
+accounts, reserve names or configure publisher bindings.
+
+### Qualify, Then Publish
+
+After the implementation and release workflow have passed review and merged:
+
+```sh
+git fetch origin main
+RELEASE_SHA=$(git rev-parse origin/main)
+gh workflow run python-release.yml --ref main \
+  -f release_sha="$RELEASE_SHA" -f registry=testpypi -F publish=false
+```
+
+This builds wheel/sdist once, checks clean installed consumers, records a
+hash-bound manifest and runs native qualification on an owned GitHub-hosted
+fixture. It requests no publishing identity and touches no existing deployment.
+The following separate invocation enables TestPyPI publication:
+
+```sh
+gh workflow run python-release.yml --ref main \
+  -f release_sha="$RELEASE_SHA" -f registry=testpypi -F publish=true
+```
+
+Review the protected `testpypi` environment requests. Only the two publication
+jobs receive `id-token: write`; they install or build no package code. They use
+the pinned official PyPA action and generate publication attestations. The SDK
+publishes first. Anonymous verification downloads its actual registry files and
+checks their hashes before testing the candidate adapter. Only then may the
+adapter publish. The public pair is verified with clean `uv` and `pip` consumers
+and rerun through native acceptance without rebuilding.
+
+Once that entire TestPyPI run is successful, supply its numeric run ID:
+
+```sh
+TESTPYPI_RUN=123456789
+gh workflow run python-release.yml --ref main \
+  -f release_sha="$RELEASE_SHA" -f registry=pypi -F publish=true \
+  -f testpypi_run="$TESTPYPI_RUN"
+```
+
+Production checks the prior run belongs to this repository/workflow, completed
+successfully on `main`, and contains TestPyPI evidence for the **same source and
+all four archive hashes**. Expired or absent GitHub evidence fails closed; rerun
+qualification instead of bypassing it. Required reviewers must inspect the
+source, qualification result and registry before approving `pypi` publication.
+
+Download `python-qualified-RUN_ID`, `python-public-RUN_ID` and the two native
+receipts from the workflow run. The public artifact includes
+`registry-receipt.json`; the manifest records source and archive hashes. Preserve
+these as release assets when publishing the scoped Python GitHub releases.
+Workflow success is not evidence of independent adoption or live docs deployment.
+
 Use independent tags `python-sdk-v0.1.0rc1` and
 `python-deepagents-v0.1.0rc1`, not application `v*` tags. Build once and qualify the
 exact wheel/sdist hashes before the protected OIDC publication job. Publish SDK
@@ -71,6 +137,12 @@ available, or increment the affected version and requalify. Yank only with a
 documented incident reason; retain safe previous releases for rollback. Review
 release notes, installed hashes, support bounds and documentation deployment as
 separate statuses. Independent adoption remains separate from CI success.
+
+The publisher stages only missing files after downloading and checking every
+already-published file against the qualified manifest. A different hash, yanked
+file, unexpected archive, unauthorized response or registry outage stops delivery.
+There is no blanket `skip-existing` switch. TestPyPI artifacts are downloaded
+explicitly; third-party dependencies resolve only through the public PyPI index.
 
 References: [PyPI pending publishers](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/),
 [SDK contract](../python-sdk.md), [design](python-client-design.md).
