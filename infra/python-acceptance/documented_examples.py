@@ -23,7 +23,9 @@ SCRIPT = f"printf '{GREETING}\\n'\n"
 class ScriptedConversation:
     """Only inference is simulated; tool results must come back from the real graph."""
 
-    def __init__(self, *, workdir: str, existing: bool = False, virtual_paths: bool = False) -> None:
+    def __init__(
+        self, *, workdir: str, existing: bool = False, virtual_paths: bool = False
+    ) -> None:
         self.workdir = workdir
         self.file_path = "/hello.sh" if virtual_paths else f"{workdir}/hello.sh"
         self.existing = existing
