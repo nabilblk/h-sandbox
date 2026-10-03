@@ -39,7 +39,7 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
           uv sync --project python --frozen
-          uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
+          uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests infra/python-acceptance/test_documented_examples.py
           node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/python-acceptance/*.test.mjs
       - name: Bootstrap only a fresh GitHub-hosted native amd64 fixture
         run: node infra/acceptance/bootstrap.mjs

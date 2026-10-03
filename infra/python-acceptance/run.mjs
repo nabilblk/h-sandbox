@@ -41,6 +41,7 @@ try {
   const foreign = await gate("foreign-organization-fixture", () => foreignPrincipal(ctx));
   const env = Object.fromEntries(["PATH", "HOME", "SSL_CERT_FILE"].filter(key => process.env[key]).map(key => [key, process.env[key]]));
   Object.assign(env, { UV_NO_CONFIG: "1", PYTHONNOUSERSITE: "1", LANGSMITH_TRACING: "false", LANGCHAIN_TRACING_V2: "false",
+    GITHUB_ACTIONS: process.env.GITHUB_ACTIONS, RUNNER_ENVIRONMENT: process.env.RUNNER_ENVIRONMENT,
     HARAKIRI_API_URL: origins.api, HARAKIRI_API_KEY: ctx.read("client-key.json").token,
     HARAKIRI_TEMPLATE: template, HARAKIRI_READ_ONLY_KEY: readonly.token,
     HARAKIRI_FOREIGN_KEY: foreign.token, HARAKIRI_PYTHON_ACCEPTANCE: "disposable-runner" });
@@ -55,12 +56,33 @@ try {
     ctx.execute("uv", ["venv", "--python", "3.12", path.join(consumer, "venv")], "Create isolated Python consumer", { env });
     ctx.execute("uv", ["pip", "install", "--python", python, ...artifacts.map(name => path.resolve(`dist-packages/python/${name}`)),
       "langchain-ollama==1.1.0", "langgraph-checkpoint-sqlite==3.1.1"], "Install Python candidate wheels", { env });
-    for (const file of ["native.py", "model.py", "provider.py"]) fs.copyFileSync(new URL(file, import.meta.url), path.join(consumer, file));
+    for (const file of ["native.py", "model.py", "provider.py", "documented_examples.py"]) fs.copyFileSync(new URL(file, import.meta.url), path.join(consumer, file));
     for (const file of ["worker.py", "approval.py"]) fs.copyFileSync(new URL(`../../examples/python-workflow-recovery/${file}`, import.meta.url), path.join(consumer, file));
     fs.copyFileSync(new URL("../../examples/python-repository-repair/repair.py", import.meta.url), path.join(consumer, "repair.py"));
     fs.cpSync(new URL("../../examples/python-repository-repair/fixture", import.meta.url), path.join(consumer, "fixture"), { recursive: true });
   });
   const run = file => ctx.execute(python, [file], "Python installed native consumer", { cwd: consumer, env });
+  await gate("installed-documentation-examples", () => {
+    ctx.guard();
+    ctx.execute("pnpm", ["--filter", "@harakiri/shared", "build"], "Build documentation contracts");
+    ctx.execute("pnpm", ["--filter", "@harakiri/web", "docs:export"], "Extract public documentation downloads");
+    const downloads = new URL("../../apps/web/public/docs/examples/python/", import.meta.url);
+    const markdown = fs.readFileSync(new URL("../../apps/web/public/docs/deepagents-python.md", import.meta.url), "utf8");
+    const destination = path.join(consumer, "documented-programs");
+    fs.mkdirSync(destination);
+    for (const name of ["first_model.py", "first_local.py", "first_sandbox.py", "first_async.py", "first_existing.py"]) {
+      const download = fs.readFileSync(new URL(name, downloads), "utf8");
+      const source = fs.readFileSync(new URL(`../../examples/python-first-task/${name}`, import.meta.url), "utf8");
+      check(download === source && markdown.includes(source.trimEnd()), `Python documentation drift: ${name}`);
+      fs.writeFileSync(path.join(destination, name), download);
+    }
+    try { run("documented_examples.py"); }
+    finally {
+      const result = path.join(consumer, "documented-examples-result.json");
+      if (fs.existsSync(result)) receipt.examples = JSON.parse(fs.readFileSync(result));
+    }
+    check(receipt.examples.results.length === 4 && receipt.examples.results.every(item => item.status === "passed"), "Incomplete introductory examples");
+  });
   await gate("native-sdk-and-framework", () => run("native.py"));
   receipt.native = JSON.parse(fs.readFileSync(path.join(consumer, "native-result.json")));
   await gate("provider-loss-and-unconfirmed-cleanup", async () => {

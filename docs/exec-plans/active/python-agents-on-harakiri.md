@@ -113,6 +113,31 @@ by this delivery step. No local cluster, tunnel or running workload was touched.
 
 ## Context
 
+### Preview Delivery (2026-10-03)
+
+The user authorized finishing the documentation gate, merging the Python
+implementation after verification, and proceeding with preview delivery. PyPI
+account/publisher access must be confirmed without sharing credentials. Native
+testing remains isolated; any later k0s rollout must preserve operator values,
+authentication origins and running workloads. Independent adoption cannot be
+substituted with CI.
+
+- [ ] Execute all four exported introductory programs against installed wheels
+  and real local/remote tools on the disposable runner. Only inference is scripted
+  for this gate; the digest-pinned real-model repair remains a separate requirement.
+- [ ] Merge PR #66 after its final checks and retain the documentation receipt.
+- [ ] Implement and test protected Python release workflows; confirm PyPI/TestPyPI
+  ownership and Trusted Publisher bindings before publication.
+- [ ] Qualify public packages, roll out the documented release deliberately, and
+  verify live docs, authentication and file transfers. Keep adoption pending until
+  independently observed.
+
+The new documentation consumer extracts website downloads, checks them against
+the exported Markdown and source, then executes the unmodified files outside the
+checkout. Its loopback Ollama fixture uses the documented model integration but
+generates deterministic tool requests; tool success, owned capacity release and
+borrowed survival must be observed. No local-shell agent task runs on the Mac.
+
 The next integration should make this promise concrete:
 
 > Take an existing Python agent, change its execution backend, and run its tools on your own Harakiri installation.

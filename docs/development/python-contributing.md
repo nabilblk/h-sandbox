@@ -15,6 +15,11 @@ uv run --project python python python/check_packages.py
 The deliberately broken repair fixture is not part of the passing unit suite.
 After editing the first-task programs, run `node scripts/python-doc-snippets.mjs`.
 Web tests check that displayed code, downloads and source remain identical.
+Native acceptance also executes those exact public downloads with installed wheels
+outside the checkout: local, owned, async and borrowed programs use real tools and
+a loopback scripted Ollama endpoint. Inference is explicitly simulated for that
+repeatable documentation gate; the separate digest-pinned real-model repair still
+must pass. Local shell examples execute only on the disposable GitHub runner.
 The package script builds wheel and sdist, installs each in a clean consumer
 outside the checkout and checks public imports, metadata, typing and 16 MiB
 binary transfer against a controlled HTTP fixture. Linux additionally enforces a 256 MiB address-space budget on
