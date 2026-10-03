@@ -2,6 +2,20 @@ name: Python native acceptance
 
 on:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      source:
+        type: string
+        required: true
+      artifact_name:
+        type: string
+        required: true
+      manifest:
+        type: string
+        required: true
+      artifact_source:
+        type: string
+        default: candidate
   pull_request:
     paths:
       - "packages/python-*/**"
@@ -14,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: python-acceptance-${{ github.ref }}
+  group: python-acceptance-${{ github.ref }}-${{ inputs.artifact_name || 'candidate' }}
   cancel-in-progress: false
 
 jobs:
@@ -25,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ inputs.source || github.sha }}
           persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -34,16 +49,30 @@ jobs:
           version: "0.11.4"
           python-version: "3.12"
       - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: inputs.artifact_name != ''
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: dist-packages/python
+      - name: Verify supplied archives before creating a fixture
+        if: inputs.artifact_name != ''
+        env:
+          PYTHON_RELEASE_MANIFEST: ${{ inputs.manifest }}
+        run: python3 python/release.py verify
       - name: Prepare locked tooling and verify safety without cluster access
         run: |
           corepack enable
           pnpm install --frozen-lockfile
           uv sync --project python --frozen
-          uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests infra/python-acceptance/test_documented_examples.py
+          uv run --project python --frozen pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests infra/python-acceptance/test_documented_examples.py python/test_release.py
           node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/python-acceptance/*.test.mjs
       - name: Bootstrap only a fresh GitHub-hosted native amd64 fixture
         run: node infra/acceptance/bootstrap.mjs
       - name: Qualify candidate Python artifacts without publishing
+        env:
+          HARAKIRI_PYTHON_DIST_DIR: ${{ inputs.artifact_name != '' && 'dist-packages/python' || '' }}
+          HARAKIRI_PYTHON_ARTIFACT_SOURCE: ${{ inputs.artifact_source || 'candidate' }}
+          PYTHON_RELEASE_MANIFEST: ${{ inputs.manifest }}
         run: node infra/python-acceptance/run.mjs
       - name: Clean only owned fixture resources
         if: always()
@@ -52,7 +81,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: python-native-${{ github.run_id }}-${{ github.run_attempt }}
+          name: python-native-${{ inputs.artifact_name || 'candidate' }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: standalone-acceptance-report.json
           retention-days: 14
           if-no-files-found: warn

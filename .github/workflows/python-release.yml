@@ -1,0 +1,246 @@
+name: Python preview release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Reviewed full commit SHA on main
+        type: string
+        required: true
+      registry:
+        description: Separate registry and protected GitHub environment
+        type: choice
+        options: [testpypi, pypi]
+        default: testpypi
+        required: true
+      publish:
+        description: Publish after qualification (false only builds and tests)
+        type: boolean
+        default: false
+        required: true
+      testpypi_run:
+        description: Successful TestPyPI run ID required for production publication
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-preview-release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main' && github.repository == vars.RELEASE_REPOSITORY
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate reviewed source and independent preview versions
+        id: source
+        env:
+          RELEASE_REPOSITORY: ${{ vars.RELEASE_REPOSITORY }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: python3 python/release.py source --source "$RELEASE_SHA"
+
+  build:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      manifest: ${{ steps.seal.outputs.manifest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - name: Build once and qualify installed wheels and source distributions
+        run: |
+          uv sync --project python --frozen
+          uv run --project python --frozen python python/check_packages.py
+          uv run --project python --frozen twine check --strict dist-packages/python/*.whl dist-packages/python/*.tar.gz
+      - name: Seal the exact archives
+        id: seal
+        env:
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
+        run: python3 python/release.py seal --source "$RELEASE_SHA"
+      - name: Require a completed TestPyPI workflow before production publication
+        if: inputs.publish && inputs.registry == 'pypi'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TESTPYPI_RUN: ${{ inputs.testpypi_run }}
+        run: |
+          [[ "$TESTPYPI_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTPYPI_RUN" > "$RUNNER_TEMP/testpypi-run.json"
+          python3 python/release.py prior-run --run "$RUNNER_TEMP/testpypi-run.json"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        if: inputs.publish && inputs.registry == 'pypi'
+        with:
+          name: python-public-${{ inputs.testpypi_run }}
+          path: testpypi-qualified
+          run-id: ${{ inputs.testpypi_run }}
+          github-token: ${{ github.token }}
+      - name: Require identical source and archives to the qualified TestPyPI release
+        if: inputs.publish && inputs.registry == 'pypi'
+        env:
+          PYTHON_RELEASE_MANIFEST: ${{ steps.seal.outputs.manifest }}
+        run: |
+          python3 python/release.py verify --dist testpypi-qualified
+          python3 python/release.py prior-registry --dist testpypi-qualified
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: python-qualified-${{ github.run_id }}
+          path: dist-packages/python/
+          retention-days: 30
+          if-no-files-found: error
+
+  qualify:
+    needs: [validate, build]
+    uses: ./.github/workflows/python-acceptance.yml
+    with:
+      source: ${{ needs.validate.outputs.sha }}
+      artifact_name: python-qualified-${{ github.run_id }}
+      manifest: ${{ needs.build.outputs.manifest }}
+
+  publish-sdk:
+    if: inputs.publish
+    needs: [validate, build, qualify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: ${{ inputs.registry }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: python-qualified-${{ github.run_id }}
+          path: dist-packages/python
+      - name: Verify hashes and reconcile an identical partial publication
+        id: stage
+        env:
+          PYTHON_RELEASE_MANIFEST: ${{ needs.build.outputs.manifest }}
+          REGISTRY: ${{ inputs.registry }}
+        run: python3 python/release.py stage --registry "$REGISTRY" --project sdk --target to-publish
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        if: steps.stage.outputs.has_files == 'true'
+        with:
+          packages-dir: to-publish/
+          repository-url: ${{ inputs.registry == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
+          attestations: true
+
+  verify-sdk:
+    needs: [validate, build, publish-sdk]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: python-qualified-${{ github.run_id }}
+          path: dist-packages/python
+      - name: Download anonymous public SDK bytes before testing the adapter
+        env:
+          PYTHON_RELEASE_MANIFEST: ${{ needs.build.outputs.manifest }}
+          REGISTRY: ${{ inputs.registry }}
+        run: |
+          python3 python/release.py download --registry "$REGISTRY" --project sdk --target dist-packages/python
+          uv run --project python --frozen python python/check_packages.py --no-build
+
+  publish-adapter:
+    needs: [build, verify-sdk]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: ${{ inputs.registry }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: python-qualified-${{ github.run_id }}
+          path: dist-packages/python
+      - name: Verify hashes and reconcile an identical partial publication
+        id: stage
+        env:
+          PYTHON_RELEASE_MANIFEST: ${{ needs.build.outputs.manifest }}
+          REGISTRY: ${{ inputs.registry }}
+        run: python3 python/release.py stage --registry "$REGISTRY" --project deepagents --target to-publish
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        if: steps.stage.outputs.has_files == 'true'
+        with:
+          packages-dir: to-publish/
+          repository-url: ${{ inputs.registry == 'pypi' && 'https://upload.pypi.org/legacy/' || 'https://test.pypi.org/legacy/' }}
+          attestations: true
+
+  verify-public:
+    needs: [validate, build, publish-adapter]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: python-qualified-${{ github.run_id }}
+          path: dist-packages/python
+      - name: Verify actual public files and installed consumers without rebuilding
+        env:
+          PYTHON_RELEASE_MANIFEST: ${{ needs.build.outputs.manifest }}
+          REGISTRY: ${{ inputs.registry }}
+        run: |
+          python3 python/release.py download --registry "$REGISTRY" --target public-packages
+          cp dist-packages/python/release.json public-packages/release.json
+          python3 python/release.py verify --dist public-packages
+          uv run --project python --frozen python python/check_packages.py --no-build --dist-dir public-packages
+          uv run --project python --frozen python python/check_packages.py --no-build --dist-dir public-packages --installer pip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: python-public-${{ github.run_id }}
+          path: public-packages/
+          retention-days: 90
+          if-no-files-found: error
+
+  qualify-public:
+    needs: [validate, build, verify-public]
+    uses: ./.github/workflows/python-acceptance.yml
+    with:
+      source: ${{ needs.validate.outputs.sha }}
+      artifact_name: python-public-${{ github.run_id }}
+      manifest: ${{ needs.build.outputs.manifest }}
+      artifact_source: registry
