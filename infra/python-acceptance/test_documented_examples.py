@@ -1,5 +1,6 @@
 import httpx
 import pytest
+from deepagents.backends import FilesystemBackend
 from documented_examples import GREETING, MODEL, SCRIPT, ScriptedConversation, main, model_endpoint
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, ToolMessage
@@ -90,3 +91,14 @@ def test_program_execution_refuses_an_ambient_workstation(monkeypatch):
     monkeypatch.delenv("HARAKIRI_PYTHON_ACCEPTANCE", raising=False)
     with pytest.raises(AssertionError):
         main()
+
+
+def test_local_file_tool_uses_the_virtual_root(tmp_path):
+    conversation = ScriptedConversation(workdir=str(tmp_path), virtual_paths=True)
+    response = conversation.respond({"model": MODEL, "tools": TOOLS, "messages": []})
+    arguments = response["message"]["tool_calls"][0]["function"]["arguments"]
+    assert arguments["file_path"] == "/hello.sh"
+    backend = FilesystemBackend(root_dir=tmp_path, virtual_mode=True)
+    result = backend.write(**arguments)
+    assert result.error is None
+    assert (tmp_path / "hello.sh").read_text() == SCRIPT

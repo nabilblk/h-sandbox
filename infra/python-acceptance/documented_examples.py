@@ -23,8 +23,9 @@ SCRIPT = f"printf '{GREETING}\\n'\n"
 class ScriptedConversation:
     """Only inference is simulated; tool results must come back from the real graph."""
 
-    def __init__(self, *, workdir: str, existing: bool = False) -> None:
+    def __init__(self, *, workdir: str, existing: bool = False, virtual_paths: bool = False) -> None:
         self.workdir = workdir
+        self.file_path = "/hello.sh" if virtual_paths else f"{workdir}/hello.sh"
         self.existing = existing
         self.responses = 0
         self.completed = False
@@ -41,10 +42,10 @@ class ScriptedConversation:
         message: dict = {"role": "assistant", "content": ""}
         if self.responses == 0 and not self.existing:
             name = "write_file"
-            arguments = {"file_path": f"{self.workdir}/hello.sh", "content": SCRIPT}
+            arguments = {"file_path": self.file_path, "content": SCRIPT}
         elif self.responses == (0 if self.existing else 1):
             if not self.existing:
-                assert outputs[-1] == f"Updated file {self.workdir}/hello.sh"
+                assert outputs[-1] == f"Updated file {self.file_path}"
             name = "execute"
             arguments = {"command": "pwd" if self.existing else "bash hello.sh"}
         else:
@@ -174,7 +175,9 @@ def main():
                     if name == "first_local.py"
                     else client.templates.get(os.environ["HARAKIRI_TEMPLATE"]).workdir
                 )
-                conversation = ScriptedConversation(workdir=workdir)
+                conversation = ScriptedConversation(
+                    workdir=workdir, virtual_paths=name == "first_local.py"
+                )
                 execute(programs / name, directory, conversation)
                 created = [
                     sandbox for sandbox in client.sandboxes.list() if sandbox.id not in before
