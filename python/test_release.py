@@ -141,7 +141,8 @@ def test_only_not_found_can_be_treated_as_unpublished(candidate, monkeypatch):
     for code in (404, 403, 429, 500):
 
         def fail(*_, code=code):
-            raise urllib.error.HTTPError("https://pypi.org", code, "failure", {}, None)
+            with urllib.error.HTTPError("https://pypi.org", code, "failure", {}, None) as error:
+                raise error
 
         monkeypatch.setattr(release, "read_url", fail)
         if code == 404:
@@ -174,6 +175,20 @@ def test_download_size_is_bounded(monkeypatch):
     monkeypatch.setattr(release.urllib.request, "build_opener", lambda *_: Opener())
     with pytest.raises(ValueError, match="exceeds"):
         release.read_url("https://files.pythonhosted.org/a", "files.pythonhosted.org")
+
+
+def test_http_error_response_is_closed_before_propagation(monkeypatch):
+    response = io.BytesIO(b"not found")
+
+    class Opener:
+        def open(self, *_args, **_kwargs):
+            raise urllib.error.HTTPError("https://pypi.org/x", 404, "missing", {}, response)
+
+    monkeypatch.setattr(release.urllib.request, "build_opener", lambda *_: Opener())
+    with pytest.raises(urllib.error.HTTPError) as caught:
+        release.read_url("https://pypi.org/x", "pypi.org")
+    assert caught.value.code == 404
+    assert response.closed
 
 
 def test_workflow_source_must_be_reviewed_main(monkeypatch):

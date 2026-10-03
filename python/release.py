@@ -136,7 +136,12 @@ def read_url(url: str, host: str) -> bytes:
             return None
 
     opener = urllib.request.build_opener(NoRedirect())
-    with opener.open(url, timeout=30) as response:
+    try:
+        response = opener.open(url, timeout=30)
+    except urllib.error.HTTPError as error:
+        error.close()
+        raise
+    with response:
         data = response.read(MAX_RESPONSE + 1)
     require(len(data) <= MAX_RESPONSE, "Registry response exceeds the release verification limit")
     return data
