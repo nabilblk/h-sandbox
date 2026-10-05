@@ -146,6 +146,12 @@ fixture supplied a host path to the local backend's virtual filesystem; the
 fixture now uses `/hello.sh`, with a regression test. Public programs and package
 wheel hashes did not change.
 
+The final implementation-head rerun
+[37123514557](https://github.com/nabilblk/h-sandbox/actions/runs/37123514557)
+also passed all 13 gates and owned cleanup from PR merge source
+`e954dc196e180bb7c6f2f33d5726560439b39c60` (head `fdc7e4d`). Its four exported
+programs and both candidate wheel hashes match the retained October 3 receipt.
+
 PR #66 is held, not merged: the workspace audit newly reports
 [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) through the
 existing TypeScript Deep Agents dependency. npm's suggested `braces` 3.0.4 is not
@@ -157,8 +163,47 @@ qualification, SDK-before-adapter publication, public `pip`/`uv` consumers,
 hash-checked partial-release recovery and a same-source TestPyPI gate before
 production. Its locally tested implementation is not proof of a published
 package. GitHub `testpypi` and `pypi` environments now require maintainer review and
-permit only `main`. Registry account ownership and pending publisher bindings
-remain unconfirmed. No package publication or k0s rollout has occurred.
+permit only `main`. The user confirmed `nabilblk` as the intended account owner
+on both PyPI and TestPyPI. Registry-side 2FA and pending publisher bindings still
+needed verification at that checkpoint; the username alone does not establish
+package ownership. Release-tooling package CI
+[37124905061](https://github.com/nabilblk/h-sandbox/actions/runs/37124905061)
+passed 135 tests across Python 3.11-3.14 and the macOS/Windows consumers; this does
+not override the repository audit failure. No package publication or k0s rollout
+has occurred.
+
+### Publishing Setup (2026-10-05)
+
+Maintainer `nabilblk` completed 2FA privately on PyPI and TestPyPI. Authenticated
+publisher pages now confirm both accounts and all four pending GitHub publishers
+for `nabilblk/h-sandbox`, workflow `python-release.yml`:
+
+| Registry | Package | Protected GitHub environment |
+| --- | --- | --- |
+| TestPyPI | `h-sandbox` | `testpypi` |
+| TestPyPI | `h-sandbox-deepagents` | `testpypi-deepagents` |
+| PyPI | `h-sandbox` | `pypi` |
+| PyPI | `h-sandbox-deepagents` | `pypi-deepagents` |
+
+Both registries rejected registering a second pending project with an identical
+repository/workflow/environment tuple. Separate adapter environments fix that
+bootstrap collision and preserve per-package approval. All four GitHub
+environments require `nabilblk` review and allow only the `main` branch. The
+workflow, its regression assertion and operator guide use those exact bindings.
+No reusable publishing token was created or requested. Pending publishers do not
+reserve names; project creation/ownership must still be verified after publishing.
+
+The final release-tooling native run
+[37124905006](https://github.com/nabilblk/h-sandbox/actions/runs/37124905006)
+passed all 13 gates, owned cleanup and private-material removal at head `b41dc87`
+(PR merge source `9e3bb0a90dd6e5f9503ca169475c8dfac94b87a0`). Candidate wheel
+hashes match the retained October 3 receipt. This run predates the environment
+binding correction and is not evidence of public-package publication.
+The existing JavaScript audit still blocks merging PRs #66/#68; no audit bypass,
+package publication, deployment or local cluster operation has occurred.
+Local verification of the environment correction passed all 135 Python tests,
+Ruff checks/formatting and actionlint for the four Python workflows. The SDK and
+adapter package sources and versions are unchanged.
 
 The next integration should make this promise concrete:
 
@@ -547,10 +592,11 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 7: Publish and Verify The Preview
 
-**Status**: In Progress; release tooling and GitHub environments prepared, registry setup and delivery pending
+**Status**: In Progress; registry publishers and protected environments configured, merge and delivery pending
 **Deliverables**: Public Python preview artifacts, protected unattended publishing and a verified public documentation rollout.
 
-- [ ] Confirm PyPI ownership for both names, maintainer access/2FA and project metadata. Use exact repository/workflow/environment Trusted Publisher bindings, including pending publishers for first publication where supported.
+- [x] Confirm maintainer access/2FA and all four pending Trusted Publisher bindings with exact repository/workflow/package-specific environment identities; protect the matching GitHub environments.
+- [ ] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects.
 - [ ] Introduce independently versioned Python preview releases, provisionally `0.1.0rc1`, with distinct tags such as `python-sdk-v0.1.0rc1` and `python-deepagents-v0.1.0rc1`. Verify they cannot trigger npm or unrelated image/chart releases.
 - [ ] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
 - [ ] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
@@ -661,6 +707,7 @@ Checked during planning on 2026-10-01. These sources inform the contract but are
 | 2026-10-01 | Do not change the existing cluster or customer installations. | This is a client integration milestone with isolated acceptance. | Testing by rebuilding the running lab or adding BackgroundAgent. |
 | 2026-10-01 | Keep the native large-file gate mandatory and independent of agent/recovery gates. | rc.10 failed a 1 MiB upload; passing the mocked 16 MiB memory fixture is not live transfer proof. A provider correction needs separate review and release evidence. | Shrink the fixture and claim qualification; bypass the API in Python; silently patch the runner's API. |
 | 2026-10-02 | Release the provider correction as an immutable API-only maintenance image and qualify Python against its public digest. | Native acceptance must consume independently reviewed, publicly available server artifacts. Existing tags and the chart/web baseline stay unchanged; both installation identities are recorded. | Replace rc.12 in place; silently build an API inside Python acceptance; publish unchanged packages/charts. |
+| 2026-10-05 | Give the Python adapter separate protected registry environments: `testpypi-deepagents` and `pypi-deepagents`. | Both registries reject two pending projects with the same repository/workflow/environment identity. Separate identities also retain package-specific approval and avoid bootstrap tokens. | Reusable bootstrap tokens; sequential manual publisher replacement; a duplicate publishing workflow. |
 
 ## Tech Debt Incurred
 

@@ -1,6 +1,6 @@
 # Python Agents Candidate
 
-Status: **unreleased candidate; native qualification passed**, October 2, 2026.
+Status: **unreleased candidate; native qualification passed**, updated October 5, 2026.
 
 - SDK `h-sandbox==0.1.0rc1`; import `harakiri`.
 - Optional adapter `h-sandbox-deepagents==0.1.0rc1`; import `harakiri_deepagents`.
@@ -173,8 +173,23 @@ PR #66's merge is currently held by the existing JavaScript dependency audit:
 `braces` through the TypeScript framework dependency, and no patched npm version
 was available on October 3. The audit threshold remains unchanged.
 
-**Not completed:** merge, public PyPI
-name/publisher setup, publication, public-artifact
+### October 5: Trusted Publishers Configured
+
+Authenticated PyPI and TestPyPI account pages confirm maintainer `nabilblk` and
+pending publishers for both packages, tied to `nabilblk/h-sandbox` and
+`python-release.yml`. SDK jobs use `testpypi`/`pypi`; adapter jobs use
+`testpypi-deepagents`/`pypi-deepagents`. All four GitHub environments require
+maintainer approval and restrict deployments to `main`. The separate adapter
+identity is required because a second pending project cannot reuse the same
+repository/workflow/environment tuple. Workflow tests and the release guide now
+enforce that distinction. No reusable token was created.
+
+The final release-tooling [native run](https://github.com/nabilblk/h-sandbox/actions/runs/37124905006)
+passed all 13 gates with the same candidate wheel hashes and confirmed fixture
+cleanup. That run predates the environment correction and is still candidate
+evidence, not a completed publication. The dependency audit blocker above remains.
+
+**Not completed:** merge, registry project creation and publication, public-artifact
 native verification, public documentation deployment and independent adopter
 evidence. Source installation is documented; do not announce public availability
 or stable support from this candidate record.

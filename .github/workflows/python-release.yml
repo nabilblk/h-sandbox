@@ -8,7 +8,7 @@ on:
         type: string
         required: true
       registry:
-        description: Separate registry and protected GitHub environment
+        description: Registry with separate protected SDK and adapter environments
         type: choice
         options: [testpypi, pypi]
         default: testpypi
@@ -176,7 +176,7 @@ jobs:
     needs: [build, verify-sdk]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    environment: ${{ inputs.registry }}
+    environment: ${{ inputs.registry }}-deepagents
     permissions:
       contents: read
       id-token: write

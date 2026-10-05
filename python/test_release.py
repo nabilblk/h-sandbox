@@ -244,10 +244,15 @@ def test_publishing_workflow_keeps_identity_out_of_build_and_runtime_jobs():
     assert "refs/heads/main" in jobs["validate"]["if"]
     assert "vars.RELEASE_REPOSITORY" in jobs["validate"]["if"]
     publishers = {name for name, job in jobs.items() if job.get("permissions", {}).get("id-token")}
-    assert publishers == {"publish-sdk", "publish-adapter"}
+    # Pending projects cannot share the same repository/workflow/environment identity.
+    environments = {
+        "publish-sdk": "${{ inputs.registry }}",
+        "publish-adapter": "${{ inputs.registry }}-deepagents",
+    }
+    assert publishers == set(environments)
     for name in publishers:
         job = jobs[name]
-        assert job["environment"] == "${{ inputs.registry }}"
+        assert job["environment"] == environments[name]
         assert not any("install" in step.get("run", "") for step in job["steps"])
         actions = [step for step in job["steps"] if "uses" in step]
         assert all(len(step["uses"].rsplit("@", 1)[-1]) == 40 for step in actions)
