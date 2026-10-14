@@ -1,6 +1,6 @@
 # Deep Agents for Python
 
-**Unreleased candidate:** `h-sandbox-deepagents==0.1.0rc1` with
+**Developer preview:** [`h-sandbox-deepagents==0.1.0rc1`](https://pypi.org/project/h-sandbox-deepagents/0.1.0rc1/) with
 `h-sandbox==0.1.0rc1` and **Python** `deepagents==0.7.21`. This is distinct from
 the published TypeScript adapter and its framework version.
 
@@ -18,18 +18,18 @@ The local example executes shell commands on the host and is **not isolated**.
 
 ## Prepare the Model Once
 
-From the repository root:
+In an activated Python 3.11+ environment:
 
 ```sh
-uv sync --project python --frozen
+python -m pip install "h-sandbox-deepagents==0.1.0rc1" "langchain-ollama==1.1.0"
 export HARAKIRI_API_URL=https://your-harakiri-api.example.com
-export HARAKIRI_API_KEY=your-scoped-key
 export HARAKIRI_TEMPLATE=your-installed-template
 export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
+# Supply HARAKIRI_API_KEY through private application configuration.
 ```
 
-The locked example environment includes `langchain-ollama==1.1.0`. Start your own
-Ollama server and install that model explicitly before running a task. A local
+The adapter installs its compatible SDK and exact framework dependency. Start your
+own Ollama server and install that model explicitly before running a task. A local
 model is not bundled with Harakiri. Other tool-capable models need their matching
 LangChain integration and credentials **in your Python application**, not forwarded
 to the sandbox. Free hosted model availability is not a CI dependency.
@@ -38,10 +38,13 @@ The selected template must have Python 3, bash and the standard Unix tools used 
 the pinned framework, including `find`, `grep` and `sed`. No silent package install
 or template substitution occurs. A working directory is not a filesystem jail.
 
-```sh
-uv run --project python examples/python-first-task/first_sandbox.py
-uv run --project python examples/python-first-task/first_async.py
-```
+Download [first_sandbox.py](https://sb.harakiri.io/docs/examples/python/first_sandbox.py)
+and [first_model.py](https://sb.harakiri.io/docs/examples/python/first_model.py)
+into the same directory. Run `python first_sandbox.py` there. The
+[async example](https://sb.harakiri.io/docs/examples/python/first_async.py) uses
+the same model module and configuration. No repository checkout is required for
+these first tasks. The larger repair and recovery examples include fixtures;
+follow their individual instructions from a checkout.
 
 Review the risks before running `first_local.py` on your host. Native acceptance
 runs local tool workloads only on disposable infrastructure.
@@ -106,7 +109,7 @@ that limit plus ten seconds. Neither observation timeout nor client cancellation
 automatically kills a remote process. `task` cleanup is a separate owned boundary.
 
 See the [SDK guide](../python-sdk.md) for API scope, configuration and typed errors,
-and [qualification status](../release-notes/python-agents-preview.md) before release.
+and [qualification status](../release-notes/python-agents-preview.md).
 The adapter's exact framework dependency is intentional; a compatibility probe
 does not silently widen the supported version range.
 

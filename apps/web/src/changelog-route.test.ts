@@ -13,6 +13,12 @@ test("changelog route renders release entries and active public navigation", () 
   }));
 
   assert.match(markup, /Changelog/);
+  assert.match(markup, /Python agents on Harakiri/);
+  assert.match(markup, /h-sandbox==0\.1\.0rc1/);
+  assert.match(markup, /h-sandbox-deepagents==0\.1\.0rc1/);
+  assert.match(markup, /Python Deep Agents 0\.7\.21/);
+  assert.match(markup, /independent adoption evidence/);
+  assert.match(markup, /api-2026-10-02\.1/);
   assert.match(markup, /Sandbox switching and readable logs/);
   assert.match(markup, /Web maintenance \(rc\.12\)/);
   assert.match(markup, /changes only the web image/);

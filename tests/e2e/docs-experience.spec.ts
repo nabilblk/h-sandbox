@@ -4,7 +4,7 @@ test("Python guides preserve source, aligned comparison, search and mobile navig
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/#docs/deepagents-python");
   await expect(page.getByRole("heading", { name: "Deep Agents for Python", exact: true })).toBeVisible();
-  await expect(page.locator("article .docs-notice")).toContainText("publication is pending");
+  await expect(page.locator("article .docs-notice")).toContainText("Developer preview on PyPI");
   const markdown = await (await request.get("/docs/deepagents-python.md")).text();
   for (const name of ["first_local.py", "first_sandbox.py", "first_model.py", "first_async.py", "first_existing.py"]) {
     const block = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: name }) });

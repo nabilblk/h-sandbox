@@ -1,9 +1,9 @@
 # Harakiri SDK
 
 This guide covers the published **TypeScript** SDK. For the independently versioned
-Python candidate, see [Python SDK](python-sdk.md) and
-[Deep Agents for Python](integrations/deepagents-python.md). Python publication is
-pending and its first-preview surface is intentionally smaller.
+Python preview on PyPI, see [Python SDK](python-sdk.md) and
+[Deep Agents for Python](integrations/deepagents-python.md). Its first-preview
+surface is intentionally smaller.
 
 ## Reliability In SDK rc.12
 

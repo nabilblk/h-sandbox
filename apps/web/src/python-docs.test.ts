@@ -8,7 +8,7 @@ import { searchDocPages } from "./docs-navigation";
 import { pythonExamples } from "./python-doc-snippets";
 import { pythonDeepagentsDocs, pythonSdkDocs } from "./python-docs";
 
-test("Python guides expose exact runnable examples without claiming a PyPI release", () => {
+test("Python guides install exact previews and expose matching runnable examples", () => {
   const assets = documentationAssets();
   assert.ok(searchDocPages(docPages, "Python SDK").some(page => page.id === "python-sdk"));
   assert.ok(searchDocPages(docPages, "SQLite").some(page => page.id === "deepagents-python"));
@@ -22,11 +22,16 @@ test("Python guides expose exact runnable examples without claiming a PyPI relea
   for (const page of [pythonSdkDocs, pythonDeepagentsDocs]) {
     const rendered = renderToStaticMarkup(page.body);
     assert.match(rendered, /hljs-keyword/);
-    assert.match(assets.get(`docs/${page.id}.md`)!, /publication is pending/i);
-    assert.doesNotMatch(rendered, /pip install h-sandbox==/);
+    const guide = assets.get(`docs/${page.id}.md`)!;
+    assert.match(guide, /Developer preview on PyPI/);
+    assert.match(guide, /python -m pip install "h-sandbox(?:-deepagents)?==0\.1\.0rc1"/);
+    assert.doesNotMatch(guide, /unreleased|publication is pending|pip install \.\/packages/);
   }
   assert.match(markdown, /custom application tools are not automatically sandboxed/i);
   assert.match(markdown, /exactly-once/);
+  assert.match(markdown, /python first_sandbox\.py/);
+  assert.match(markdown, /into the same directory/);
+  assert.match(markdown, /langchain-ollama==1\.1\.0/);
   assert.ok(markdown.indexOf("## Same agent, remote tools") < markdown.indexOf("## Prepare your environment"));
   assert.ok(assets.get("docs/deepagents.md")!.includes("Developer preview on npm"));
 });

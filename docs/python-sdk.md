@@ -1,23 +1,25 @@
 # Python SDK
 
-**Unreleased candidate:** `h-sandbox==0.1.0rc1`, imported as `harakiri`.
-PyPI publication and public-artifact qualification are pending. These are source
-installation instructions, not a claim that the package is published.
+**Developer preview:** [`h-sandbox==0.1.0rc1`](https://pypi.org/project/h-sandbox/0.1.0rc1/),
+imported as `harakiri`. This is an independently versioned preview, not a stable
+release. See the [release record](release-notes/python-agents-preview.md) for
+registry qualification and the separate independent-adoption milestone.
 
 ## Start with one task
 
-Python 3.11 or newer is required. From the repository root:
+Python 3.11 or newer is required. In an activated virtual environment:
 
 ```sh
-uv sync --project python --frozen
+python -m pip install "h-sandbox==0.1.0rc1"
 export HARAKIRI_API_URL=https://your-harakiri-api.example.com
-export HARAKIRI_API_KEY=your-scoped-api-key
 export HARAKIRI_TEMPLATE=your-installed-template
+# Supply HARAKIRI_API_KEY through private application configuration.
 ```
 
-For a core-only environment, use `python -m pip install ./packages/python-sdk`.
-The core does not import Deep Agents, run a Node process, or need Kubernetes or
-provider credentials. Model integrations belong in the application environment.
+No repository checkout is required. The core does not import Deep Agents, run a
+Node process, or need Kubernetes or provider credentials. Model integrations
+belong in the application environment. Contributors can use the separately
+documented [locked source environment](development/python-contributing.md).
 
 ```python
 import os

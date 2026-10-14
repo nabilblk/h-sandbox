@@ -156,6 +156,23 @@ receipts from the workflow run. The public artifact includes
 these as release assets when publishing the scoped Python GitHub releases.
 Workflow success is not evidence of independent adoption or live docs deployment.
 
+Verify PyPI publication attestations separately from hash equality. For example,
+the following command downloads a wheel and verifies its signature and publishing
+repository identity through PyPI's Integrity API:
+
+```sh
+uvx --from pypi-attestations==0.0.30 pypi-attestations verify pypi \
+  --repository https://github.com/nabilblk/h-sandbox \
+  pypi:h_sandbox-0.1.0rc1-py3-none-any.whl
+```
+
+Repeat for the adapter wheel and both source distributions. Inspect the provenance
+publisher's workflow and package-specific environment too. Preserve the result
+with the exact archive hashes; do not treat the existence of provenance JSON as a
+cryptographic verification. An attestation establishes publishing identity, not
+that the package is free of vulnerabilities. See
+[PyPI's verification guide](https://docs.pypi.org/attestations/consuming-attestations/).
+
 Use independent tags `python-sdk-v0.1.0rc1` and
 `python-deepagents-v0.1.0rc1`, not application `v*` tags. Build once and qualify the
 exact wheel/sdist hashes before the protected OIDC publication job. Publish SDK

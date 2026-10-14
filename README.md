@@ -73,9 +73,9 @@ LLM credentials. Then try [persistent workspaces](https://sb.harakiri.io/#docs/w
 or a [real OpenCode workflow](https://sb.harakiri.io/#demos).
 Publication and native installation results are recorded separately in the candidate receipt.
 
-Python developers can evaluate the [unreleased Python SDK](docs/python-sdk.md) and
-[Python Deep Agents integration](docs/integrations/deepagents-python.md) from source.
-PyPI publication is pending; this is not a stable or already-published package claim.
+Python developers can install the [Python SDK](docs/python-sdk.md) and optional
+[Python Deep Agents integration](docs/integrations/deepagents-python.md) from PyPI.
+Both use the independent `0.1.0rc1` developer-preview version, not a stable channel.
 
 ## Agent Demos
 

@@ -205,6 +205,76 @@ Local verification of the environment correction passed all 135 Python tests,
 Ruff checks/formatting and actionlint for the four Python workflows. The SDK and
 adapter package sources and versions are unchanged.
 
+### Release Resumption (2026-10-14)
+
+Nabil authorized completing delivery and approved a scoped, 30-day exception for
+the two tested TypeScript `braces` paths. [PR #69](https://github.com/nabilblk/h-sandbox/pull/69)
+merged published tooling fixes and the fail-closed audit policy after repository,
+installed-consumer, demo and native SDK checks passed. The dependency is not
+fixed; local-filesystem backends remain exposed. The
+[assessment](../../security/dependency-audit-2026-10.md) and
+[removal issue #70](https://github.com/nabilblk/h-sandbox/issues/70) retain that
+risk and the November 13 expiry.
+
+Both Python branches were refreshed against `main` without changing their file
+trees. [Implementation native acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38624621658)
+and [delivery native acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38624649471)
+passed all configured gates and cleanup before the ancestry-only refresh.
+The updated package READMEs produce new artifact hashes; native delivery confirms
+the same wheels as two reproducible local builds:
+
+- SDK wheel: `187b70c2ab24b5f9d9970bc2087b8c08d4f916ae00924377b8a9ef7e25e61475`.
+- Adapter wheel: `aed49c5c6befe7cf9c77126bcb022c0934cdbf6a8fe6c1e2c3d257c822f7dcd7`.
+
+The [fresh standalone rehearsal](https://github.com/nabilblk/h-sandbox/actions/runs/38625877902)
+passed, including cleanup. An earlier image-build failure in run 38624621443 did
+not recur; its private diagnostic was not exported, so no precise cause is
+claimed. Refreshed implementation run 38625878043 and final delivery run
+[38629677586](https://github.com/nabilblk/h-sandbox/actions/runs/38629677586)
+passed, including cleanup. PRs #66 and #68 merged without changing their tested
+file trees. The reviewed release source is
+`a18c152b4eff32617b2aa4e6136bf1af08169713`. TestPyPI release run
+[38632582104](https://github.com/nabilblk/h-sandbox/actions/runs/38632582104)
+was dispatched with publication enabled; its native qualification and separate
+protected SDK/adapter gates remain mandatory. No package publication is claimed
+at this checkpoint. Prepared PyPI installation guides remain local until actual
+registry verification succeeds.
+
+That first release run failed before publication: the locked Twine 6.2 validator
+rejects the metadata 2.5 emitted by Hatchling. Consumer checks passed, but ordinary
+package CI had not run strict metadata validation. [PR #71](https://github.com/nabilblk/h-sandbox/pull/71)
+locks the upstream metadata-support fix in Twine 7.0.0 and adds the strict check
+to every package-check invocation. All four local archives remain byte-identical;
+`pip`/`uv` consumers and 30 release-policy tests pass. No SDK runtime change,
+metadata downgrade, validation bypass or publication is included in that fix.
+
+PR #71 merged after repository, Python matrix and native checks passed. Release
+run [38633897608](https://github.com/nabilblk/h-sandbox/actions/runs/38633897608)
+uses source `fa8df3f3548a90b76a2b665c909f72cafbde052f`. Both TestPyPI projects
+are published; anonymous `pip`/`uv` consumers and all four publisher attestation
+verifications passed. Final public-artifact native qualification passed all 13
+gates and cleanup. Immediate registry metadata 404s after successful uploads
+required failed-read-only reruns; the archives were not uploaded again.
+[PR #72](https://github.com/nabilblk/h-sandbox/pull/72) merged bounded visibility
+polling after 37 release-policy tests, repository CI, Python CI and native
+acceptance passed. Production run
+[38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
+was dispatched from the sealed `fa8df3f` source before that merge. Its publication
+jobs now succeeded in SDK-first order; both production projects expose the exact
+four qualified archives. Independent verification of all four production
+publisher attestations passed. Public-artifact native qualification remains
+pending at this checkpoint. Production metadata visibility required the same
+failed-verification-only reruns; no package was uploaded twice.
+
+Read-only lab inspection found Helm revision 48 still running the rc.10 API.
+The separately released `api-2026-10-02.1` image is needed for the documented
+large-file contract. Anonymous checksum, architecture and source-label checks
+passed again. An API-only dry run also changes the web pod's shared configuration
+checksum, so delivery will combine the API maintenance image and new docs image
+in one guarded rollout. No deployment has occurred at this checkpoint. Preserve
+the rc.10 chart, all credentials and public origins; do not run bootstrap,
+migrations, customer installation or provider restarts.
+
 The next integration should make this promise concrete:
 
 > Take an existing Python agent, change its execution backend, and run its tools on your own Harakiri installation.
@@ -592,19 +662,19 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 7: Publish and Verify The Preview
 
-**Status**: In Progress; registry publishers and protected environments configured, merge and delivery pending
-**Deliverables**: Public Python preview artifacts, protected unattended publishing and a verified public documentation rollout.
+**Status**: In Progress; both registries published, final production native verification and deployment pending
+**Deliverables**: Public Python preview artifacts, protected tokenless CI publishing and a verified public documentation rollout. Dispatch and environment approval remain explicit maintainer actions.
 
 - [x] Confirm maintainer access/2FA and all four pending Trusted Publisher bindings with exact repository/workflow/package-specific environment identities; protect the matching GitHub environments.
-- [ ] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects.
+- [x] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects. The previously authenticated maintainer bindings created both projects through their exact package-specific OIDC identities; archive metadata and publisher attestations are verified.
 - [ ] Introduce independently versioned Python preview releases, provisionally `0.1.0rc1`, with distinct tags such as `python-sdk-v0.1.0rc1` and `python-deepagents-v0.1.0rc1`. Verify they cannot trigger npm or unrelated image/chart releases.
-- [ ] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
-- [ ] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
-- [ ] Publish the SDK first, verify its public files/digests, then publish the adapter tested against that exact public SDK dependency. Record partial success rather than blindly rerunning or overwriting a version.
-- [ ] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
+- [x] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
+- [x] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
+- [x] Publish the SDK first, verify its public files/digests, then publish the adapter tested against that exact public SDK dependency. Record partial success rather than blindly rerunning or overwriting a version.
+- [x] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
 - [ ] Rerun a fresh native consumer using the actual public package pair and supported server baseline. Local candidate success alone is not public-artifact qualification.
 - [ ] Publish release notes and source links with separate statuses for SDK publication, adapter publication, native verification and public documentation deployment.
-- [ ] Deploy only the web/documentation update when authorized, using the existing guarded deployment process. Preserve API/auth origins, operator values, secrets and running workloads; no API/chart/schema upgrade is required by this plan.
+- [ ] Deploy the authorized web/documentation update using the existing guarded deployment process. The lab also needs the separately released `api-2026-10-02.1` file-transfer correction; qualify and record that explicit image change separately from the Python packages. Preserve API/auth origins, operator values, secrets and running workloads. Do not change chart, schema or identity configuration.
 - [ ] Verify public docs load the new routes and exact install commands. Keep previous packages available for rollback; fix releases with a new version and use yanking only with a documented incident reason.
 
 **Exit gate**: Both public artifacts install and run, the release receipt matches their hashes, Trusted Publishing is configured, and the live documentation is verified. No reusable PyPI token is requested in chat or stored in the repository.

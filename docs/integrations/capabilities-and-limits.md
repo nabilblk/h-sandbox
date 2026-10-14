@@ -85,9 +85,10 @@ See the [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 9. Download artifacts.
 10. Renew while active, then kill and delete route references on cleanup.
 
-## Python Candidate
+## Python Preview
 
-The [unreleased Python SDK](../python-sdk.md) covers a deliberately smaller API
+The [Python SDK preview on PyPI](../python-sdk.md) covers a deliberately smaller API
 surface than TypeScript. Its [Deep Agents backend](deepagents-python.md) is optional.
-See the candidate matrix and qualification record before assuming language parity
-or PyPI availability. Python does not introduce a provider-specific bypass.
+Both packages are versioned independently at `0.1.0rc1`. See the preview matrix and
+qualification record before assuming language parity or stable support. Python
+does not introduce a provider-specific bypass.

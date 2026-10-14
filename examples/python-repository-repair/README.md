@@ -1,11 +1,15 @@
 # Independently Verified Repository Repair
 
 Prepare [model and sandbox access](../../docs/integrations/deepagents-python.md).
-Run from the repository root:
+With the published packages installed in an activated environment, run from the
+repository root (the checkout supplies the fixture, not the installed packages):
 
 ```sh
-uv run --project python examples/python-repository-repair/repair.py
+python examples/python-repository-repair/repair.py
 ```
+
+Contributors testing source instead use
+`uv run --project python examples/python-repository-repair/repair.py`.
 
 The fixture has four tests, two deliberately failing. The real agent inspects and
 repairs `totals.py` through sandbox tools. The application compares the original

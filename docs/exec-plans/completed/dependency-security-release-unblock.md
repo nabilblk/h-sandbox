@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-10
 **Author**: Codex, with Nabil
-**Status**: In Progress
+**Status**: Completed
 **Priority**: Release prerequisite; numeric priority not assigned
 **Estimated effort**: 1-2 engineering days, with external review separate
 
@@ -32,9 +32,9 @@ this dependency correction itself.
   vulnerable code from reachable Harakiri behavior; no blanket safety claim.
 - [x] Any `braces` correction or risk decision is explicit, tested, reviewable
   and does not silently lower the workspace audit threshold or hide other paths.
-- [ ] Installed consumers retain documented matching behavior and public API
+- [x] Installed consumers retain documented matching behavior and public API
   compatibility; repository, package, web and demo checks pass as applicable.
-- [ ] A dedicated PR records evidence, remaining risks and the next release gate.
+- [x] A dedicated PR records evidence, remaining risks and the next release gate.
 
 ## Phases
 
@@ -49,7 +49,7 @@ this dependency correction itself.
 
 ### Phase 2: Resolve the Unpatched Dependency Deliberately
 
-**Status**: Complete locally; hosted consumer qualification pending
+**Status**: Complete
 
 - [x] Choose the smallest maintainable correction from proven exposure, not the
   audit label alone; document any limitation of a repository-only patch for npm
@@ -61,14 +61,14 @@ this dependency correction itself.
 
 ### Phase 3: Qualify and Deliver the Correction
 
-**Status**: In Progress
+**Status**: Complete
 
 - [x] Run focused checks and inspect the regenerated dependency diff.
-- [ ] Run complete relevant checks on the dedicated branch; use hosted PostgreSQL
+- [x] Run complete relevant checks on the dedicated branch; use hosted PostgreSQL
   and browser CI rather than the developer's running services.
-- [ ] Document exact results, support boundaries and release impact.
-- [ ] Commit/push a dedicated PR without merging or publishing failing changes.
-- [ ] Update this plan after qualification; keep incomplete gates explicit.
+- [x] Document exact results, support boundaries and release impact.
+- [x] Commit/push a dedicated PR without merging or publishing failing changes.
+- [x] Update this plan after qualification; keep incomplete gates explicit.
 
 ## Decision Log
 
@@ -93,11 +93,22 @@ The unresolved `braces` advisory is accepted only under the scoped gate describe
 in [the exposure report](../../security/dependency-audit-2026-10.md). Owner:
 `nabilblk`; expiry: 2026-11-13T00:00:00Z. Remove after an upstream correction is
 qualified or the dependency is removed. Renewal requires explicit review.
+Follow-up: [issue #70](https://github.com/nabilblk/h-sandbox/issues/70), assigned
+to `nabilblk`. Completing this delivery plan does not resolve that advisory.
 
 ## Completion Notes
 
-Local checkpoint: full workspace build, Deep Agents typecheck, 47 focused
+Delivered on October 14 through [PR #69](https://github.com/nabilblk/h-sandbox/pull/69),
+merged as `a9035431b71fe5361c73b934fc47d84ba37c1637` after all checks passed.
+Full workspace build, Deep Agents typecheck, 47 focused
 adapter/framework tests, 105 web tests and seven audit-policy tests pass. The
-matcher suite includes five exposure tests. Hosted full checks and installed
-consumers remain pending. No package, deployment or live-cluster change has
-occurred.
+matcher suite includes five exposure tests. Hosted
+[repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/38622474759)
+passed, including PostgreSQL/browser contracts, image builds and all six
+Node 20/22/24 npm/pnpm framework consumers.
+[Demo checks](https://github.com/nabilblk/h-sandbox/actions/runs/38622474682) and
+[native SDK acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38622474214)
+also passed, including the real model repair and owned cleanup on disposable
+infrastructure. No local model, live sandbox, package publication or existing
+deployment change was performed by this correction. Python publication remains
+a separate delivery gate.
