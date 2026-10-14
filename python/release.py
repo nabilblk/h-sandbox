@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 import tomllib
 import urllib.error
 import urllib.parse
@@ -25,6 +26,12 @@ REGISTRIES = {
 }
 VERSION = re.compile(r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)rc[1-9]\d*")
 MAX_RESPONSE = 16 * 1024 * 1024
+PUBLICATION_ATTEMPTS = 12
+PUBLICATION_INTERVAL = 5
+
+
+class PublicationPendingError(ValueError):
+    """The registry has not exposed every expected archive yet."""
 
 
 def require(condition: bool, message: str) -> None:
@@ -173,8 +180,22 @@ def public_files(registry: str, project: dict, *, allow_missing: bool) -> dict[s
         data = read_url(file["url"], artifact_host)
         require(digest(data) == project["files"][name], "Public archive hash mismatch")
         received[name] = data
-    require(allow_missing or set(received) == set(project["files"]), "Public release is incomplete")
+    if not allow_missing and set(received) != set(project["files"]):
+        raise PublicationPendingError("Public release is incomplete")
     return received
+
+
+def wait_for_public_files(registry: str, project: dict) -> dict[str, bytes]:
+    for attempt in range(PUBLICATION_ATTEMPTS):
+        try:
+            return public_files(registry, project, allow_missing=False)
+        except (urllib.error.HTTPError, PublicationPendingError) as error:
+            if isinstance(error, urllib.error.HTTPError) and error.code != 404:
+                raise
+            if attempt == PUBLICATION_ATTEMPTS - 1:
+                raise
+            time.sleep(PUBLICATION_INTERVAL)
+    raise AssertionError("Publication polling must return or raise")
 
 
 def stage(
@@ -194,7 +215,7 @@ def download(manifest: dict, registry: str, project_keys: list[str], target: Pat
     receipt = {"registry": registry, "source": manifest["source"], "projects": {}}
     for key in project_keys:
         project = manifest["projects"][key]
-        for name, data in public_files(registry, project, allow_missing=False).items():
+        for name, data in wait_for_public_files(registry, project).items():
             require(not (target / name).is_symlink(), "Download target cannot be a symlink")
             (target / name).write_bytes(data)
         receipt["projects"][key] = project
