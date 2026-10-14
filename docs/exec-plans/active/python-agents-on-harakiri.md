@@ -240,6 +240,14 @@ protected SDK/adapter gates remain mandatory. No package publication is claimed
 at this checkpoint. Prepared PyPI installation guides remain local until actual
 registry verification succeeds.
 
+That first release run failed before publication: the locked Twine 6.2 validator
+rejects the metadata 2.5 emitted by Hatchling. Consumer checks passed, but ordinary
+package CI had not run strict metadata validation. [PR #71](https://github.com/nabilblk/h-sandbox/pull/71)
+locks the upstream metadata-support fix in Twine 7.0.0 and adds the strict check
+to every package-check invocation. All four local archives remain byte-identical;
+`pip`/`uv` consumers and 30 release-policy tests pass. No SDK runtime change,
+metadata downgrade, validation bypass or publication is included in that fix.
+
 Read-only lab inspection found Helm revision 48 still running the rc.10 API.
 The separately released `api-2026-10-02.1` image is needed for the documented
 large-file contract. Anonymous checksum, architecture and source-label checks
