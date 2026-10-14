@@ -56,6 +56,98 @@ configure pending Trusted Publishers on PyPI and TestPyPI for this repository,
 the exact release workflow filename and a protected GitHub environment. No token,
 password or recovery code belongs in chat, Git or a CI receipt.
 
+The intended maintainer account is `nabilblk` on both PyPI and TestPyPI. Sign in
+and enable 2FA separately on each registry. Account identity is separate from
+the GitHub publisher identity below; a username does not authorize GitHub to
+publish and a pending publisher does not reserve a package name.
+Complete any required recovery-code setup privately before enabling 2FA. Confirm
+that **Publishing** opens its publisher form rather than redirecting to account
+security setup; a successful login alone is not publishing readiness.
+
+Use [TestPyPI account publishing](https://test.pypi.org/manage/account/publishing/)
+and [PyPI account publishing](https://pypi.org/manage/account/publishing/) to add
+one pending GitHub publisher for each package on each registry, four entries in
+total. Do not create a reusable API token for this workflow.
+
+For each registry, configure **both** `h-sandbox` and `h-sandbox-deepagents`:
+
+| Publisher field | Value |
+| --- | --- |
+| GitHub owner | `nabilblk` |
+| Repository | `h-sandbox` |
+| Workflow filename | `python-release.yml` |
+
+Use the package-specific environment from this table:
+
+| Registry | Project name | GitHub environment |
+| --- | --- | --- |
+| TestPyPI | `h-sandbox` | `testpypi` |
+| TestPyPI | `h-sandbox-deepagents` | `testpypi-deepagents` |
+| PyPI | `h-sandbox` | `pypi` |
+| PyPI | `h-sandbox-deepagents` | `pypi-deepagents` |
+
+Pending projects cannot share the same repository/workflow/environment identity.
+The adapter therefore uses its own environment, including its own approval. Do
+not reuse the SDK environment for the adapter or leave the environment blank.
+
+Create all four matching GitHub environments with required maintainer review and a
+deployment branch policy permitting only `main`. The release workflow checks
+`RELEASE_REPOSITORY` against the running repository and accepts only a full commit
+SHA already on `origin/main`. Creating the workflow does not create registry
+accounts, reserve names or configure publisher bindings.
+
+### Qualify, Then Publish
+
+After the implementation and release workflow have passed review and merged:
+
+```sh
+git fetch origin main
+RELEASE_SHA=$(git rev-parse origin/main)
+gh workflow run python-release.yml --ref main \
+  -f release_sha="$RELEASE_SHA" -f registry=testpypi -F publish=false
+```
+
+This builds wheel/sdist once, checks clean installed consumers, records a
+hash-bound manifest and runs native qualification on an owned GitHub-hosted
+fixture. It requests no publishing identity and touches no existing deployment.
+The following separate invocation enables TestPyPI publication:
+
+```sh
+gh workflow run python-release.yml --ref main \
+  -f release_sha="$RELEASE_SHA" -f registry=testpypi -F publish=true
+```
+
+Review the protected `testpypi` and then `testpypi-deepagents` environment requests.
+Only the two publication jobs receive `id-token: write`; they install or build no
+package code. They use
+the pinned official PyPA action and generate publication attestations. The SDK
+publishes first. Anonymous verification downloads its actual registry files and
+checks their hashes before testing the candidate adapter. Only then may the
+adapter publish. The public pair is verified with clean `uv` and `pip` consumers
+and rerun through native acceptance without rebuilding.
+
+Once that entire TestPyPI run is successful, supply its numeric run ID:
+
+```sh
+TESTPYPI_RUN=123456789
+gh workflow run python-release.yml --ref main \
+  -f release_sha="$RELEASE_SHA" -f registry=pypi -F publish=true \
+  -f testpypi_run="$TESTPYPI_RUN"
+```
+
+Production checks the prior run belongs to this repository/workflow, completed
+successfully on `main`, and contains TestPyPI evidence for the **same source and
+all four archive hashes**. Expired or absent GitHub evidence fails closed; rerun
+qualification instead of bypassing it. Required reviewers must inspect the
+source, qualification result and registry before approving `pypi` and then
+`pypi-deepagents` publication.
+
+Download `python-qualified-RUN_ID`, `python-public-RUN_ID` and the two native
+receipts from the workflow run. The public artifact includes
+`registry-receipt.json`; the manifest records source and archive hashes. Preserve
+these as release assets when publishing the scoped Python GitHub releases.
+Workflow success is not evidence of independent adoption or live docs deployment.
+
 Use independent tags `python-sdk-v0.1.0rc1` and
 `python-deepagents-v0.1.0rc1`, not application `v*` tags. Build once and qualify the
 exact wheel/sdist hashes before the protected OIDC publication job. Publish SDK
@@ -71,6 +163,12 @@ available, or increment the affected version and requalify. Yank only with a
 documented incident reason; retain safe previous releases for rollback. Review
 release notes, installed hashes, support bounds and documentation deployment as
 separate statuses. Independent adoption remains separate from CI success.
+
+The publisher stages only missing files after downloading and checking every
+already-published file against the qualified manifest. A different hash, yanked
+file, unexpected archive, unauthorized response or registry outage stops delivery.
+There is no blanket `skip-existing` switch. TestPyPI artifacts are downloaded
+explicitly; third-party dependencies resolve only through the public PyPI index.
 
 References: [PyPI pending publishers](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/),
 [SDK contract](../python-sdk.md), [design](python-client-design.md).

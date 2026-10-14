@@ -577,6 +577,7 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pyyaml" },
     { name = "ruff" },
     { name = "twine" },
 ]
@@ -597,6 +598,7 @@ dev = [
     { name = "mypy", specifier = ">=1.15,<2" },
     { name = "pytest", specifier = ">=8.3,<10" },
     { name = "pytest-asyncio", specifier = ">=1,<2" },
+    { name = "pyyaml", specifier = ">=6,<7" },
     { name = "ruff", specifier = ">=0.12,<1" },
     { name = "twine", specifier = ">=6,<7" },
 ]
