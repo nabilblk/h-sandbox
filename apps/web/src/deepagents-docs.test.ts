@@ -30,6 +30,10 @@ test("framework integration is a searchable first-class guide with matching code
   assert.ok(markdown.indexOf("## Use an existing sandbox") < markdown.indexOf("## Persistent workflows"));
   assert.ok(markdown.indexOf("## Persistent workflows") < markdown.indexOf("## Repair a repository"));
   assert.ok(markdown.includes("local example runs shell commands on your machine"));
+  assert.ok(markdown.includes("local-filesystem backends remain exposed"));
+  assert.ok(markdown.includes("November 13, 2026"));
+  assert.ok(markdown.includes("exception is not a patch"));
+  assert.ok(markdown.includes("docs/security/dependency-audit-2026-10.md"));
   assert.ok(markdown.includes("not a fresh live-model or native-runtime run"));
   assert.ok(markdown.includes("A model reply is not proof of a correct artifact"));
   assert.ok(markdown.includes("confirms cleanup before the reply is printed"));
