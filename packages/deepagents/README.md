@@ -78,6 +78,12 @@ these preview contracts are evolving. `--save-exact` resolves the moving `next`
 channel to a concrete version; commit your application's lockfile. Other
 framework or SDK versions need a fresh compatibility run.
 
+The framework currently includes an unpatched `braces` dependency advisory.
+Harakiri's remote search path does not invoke the affected parser, but the
+framework's local-filesystem backend can. See the
+[dependency exposure assessment](https://github.com/nabilblk/h-sandbox/blob/main/docs/security/dependency-audit-2026-10.md)
+before using local backends or custom matching tools with untrusted input.
+
 ## Run the First Task
 
 Use the complete dependency set above, plus `tsx` and your chosen LangChain

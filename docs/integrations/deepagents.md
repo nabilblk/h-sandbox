@@ -131,6 +131,13 @@ substitute. Framework packages are peers/development dependencies here, never
 dependencies of the core SDK, CLI, API or dashboard runtime. Publication remains
 gated on reviewed source and the complete native acceptance receipt.
 
+The framework's `braces` 3.0.3 dependency has an unresolved advisory. The
+[exposure assessment](../security/dependency-audit-2026-10.md) records the tested
+remote-search boundary and the affected local-filesystem paths. This is not a
+claim that a sandbox backend isolates all framework code: glob result matching
+still occurs in the application process, and custom tools keep their own trust
+boundaries.
+
 ## Ownership
 
 | Surface | Owns runtime? | Creates/resumes? | Termination |

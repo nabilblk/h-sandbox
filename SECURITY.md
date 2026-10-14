@@ -61,3 +61,11 @@ credential rotation privately. Removing a string from Git does not revoke it.
 See [docs/opensandbox-boundaries.md](docs/opensandbox-boundaries.md) and
 [docs/template-security.md](docs/template-security.md) for the detailed
 architecture rules.
+
+## Dependency Review
+
+`pnpm security:audit` retains the high/critical dependency gate and prints the
+raw registry report. The only current exception is the explicitly reviewed
+`braces` 3.0.3 exposure through the pinned TypeScript Deep Agents peer, expiring
+2026-11-13 at 00:00 UTC. It is not an upstream fix or protection for local
+framework backends. See the [scope, tests and removal conditions](docs/security/dependency-audit-2026-10.md).
