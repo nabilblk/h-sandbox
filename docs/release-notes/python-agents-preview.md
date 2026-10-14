@@ -1,6 +1,6 @@
 # Python Agents Preview
 
-Status: **PyPI SDK and adapter published; final native verification and deployment in progress**, updated October 14, 2026.
+Status: **preview published, qualified and deployed; independent adoption pending**, updated October 14, 2026.
 
 - SDK `h-sandbox==0.1.0rc1`; import `harakiri`.
 - Optional adapter `h-sandbox-deepagents==0.1.0rc1`; import `harakiri_deepagents`.
@@ -35,9 +35,17 @@ private-material removal in
 The [permanent TestPyPI receipt](evidence/python-testpypi-2026-10-14.json)
 retains the public-file, attestation and native qualification evidence.
 [Production run 38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
-passed pre-publication native qualification and published the SDK before the
-adapter. Final public-artifact native verification and the lab deployment remain
-pending at this checkpoint.
+passed both pre-publication and public-artifact native qualification, including
+all 13 gates and cleanup, and published the SDK before the adapter. The
+[production receipt](evidence/python-pypi-2026-10-14.json) retains exact archives,
+verified publisher identities, installed package versions and model/tool results.
+Fresh name-based production installs with both `pip` and `uv` also passed import
+and dependency checks outside the checkout; they executed no local agent tools.
+
+Scoped GitHub prereleases include archives, manifests, publisher provenance and
+verification receipts: [Python SDK](https://github.com/nabilblk/h-sandbox/releases/tag/python-sdk-v0.1.0rc1)
+and [Python Deep Agents](https://github.com/nabilblk/h-sandbox/releases/tag/python-deepagents-v0.1.0rc1).
+Both target the reviewed package source above. Stable channels remain unchanged.
 
 Install in an activated Python 3.11+ environment:
 
@@ -63,6 +71,35 @@ The release manifest SHA-256 is
 `f6f6c9367e6e60682204acbbddbedf0d1e5abdb224c33ae4910b66c9a75d6511`.
 The October 2-5 candidate hashes below are historical, not these publication
 artifacts. Updated package READMEs account for the changed archive hashes.
+
+### Live Documentation and Lab Delivery
+
+[PR #73](https://github.com/nabilblk/h-sandbox/pull/73) published the guides and
+changelog. Web [publication run 38644415702](https://github.com/nabilblk/h-sandbox/actions/runs/38644415702)
+produced the amd64/arm64 image from
+`a1d945c68bae15ed861842185550090b9f056383`. The guarded k0s upgrade advanced Helm
+revision 48 to 49, combining that web image with the already released
+`api-2026-10-02.1` API maintenance image. The
+[delivery receipt](evidence/python-lab-delivery-2026-10-14.json) records their
+exact digests, the unchanged rc.10 chart, 23 protected resources and all seven
+unrelated running pods preserved. No migration hooks, provider, cluster, tunnel
+or identity-service restart was performed; public configuration is byte-identical.
+
+The live [Python SDK](https://sb.harakiri.io/#docs/python-sdk) and
+[Python Deep Agents](https://sb.harakiri.io/#docs/deepagents-python) pages, Markdown
+exports, inventory and downloadable programs are verified. All 12 live browser
+tests passed after origin reconnection, including 320-1440px layouts. The login
+flow uses the public Keycloak issuer, public callback and S256 PKCE; no login
+credentials were submitted for this check. Five consecutive web/API/OIDC probes
+returned 200. File-transfer and model execution tests ran only on disposable
+native infrastructure, not the existing lab.
+
+The first browser run recorded one 502 and 11 passes; an initial API probe also
+returned 502. Forwarding logs identify old pod-bound connections after the
+rolling update, followed by automatic launchd reconnection. This is not a
+zero-downtime hosting claim. [Issue #74](https://github.com/nabilblk/h-sandbox/issues/74)
+tracks origin handover hardening; no unrelated infrastructure change was hidden
+inside this release.
 
 ### Delivery Corrections and Boundaries
 
