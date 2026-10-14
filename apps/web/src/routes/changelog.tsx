@@ -5,6 +5,20 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-10-14-python-preview",
+    version: "Python SDK and Deep Agents 0.1.0rc1",
+    date: "October 14, 2026",
+    title: "Python agents on Harakiri",
+    items: [
+      "Published h-sandbox==0.1.0rc1 and h-sandbox-deepagents==0.1.0rc1 on PyPI for Python 3.11+. The typed sync/async SDK has no agent-framework dependency; Python packages use independent preview versions.",
+      "Run disposable tasks with readiness and bounded cleanup, or borrow an application-owned sandbox. Track commands, preserve acknowledged references during interruption, transfer verified text/binary files and recover retained workspace files without replaying commands.",
+      "Use the real Python Deep Agents 0.7.21 framework with Harakiri shell and filesystem backends. The application still owns its model, agent loop, checkpoints and custom tools. Local filesystem backends are not isolated.",
+      "Added first-class Python guides, aligned local-versus-sandbox examples, matching downloadable programs, repository repair and single-worker recovery tutorials. Exact pip installation replaces source-checkout setup for the first task.",
+      "Verified exact wheel and source-distribution hashes, GitHub OIDC publisher attestations and native amd64 workflows. Large-file transfers require the separately published API maintenance image api-2026-10-02.1; plain rc.10 and rc.12 images lack the upload correction.",
+      "This is a developer preview, not full TypeScript API parity, stable framework support or independent adoption evidence. npm versions, chart versions and stable channels are unchanged."
+    ]
+  },
+  {
     id: "2026-09-30-sandbox-ui",
     version: "Web maintenance (rc.12)",
     date: "September 30, 2026",

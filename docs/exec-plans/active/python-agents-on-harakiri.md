@@ -260,7 +260,11 @@ polling after 37 release-policy tests, repository CI, Python CI and native
 acceptance passed. Production run
 [38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
 was dispatched from the sealed `fa8df3f` source before that merge. Its publication
-and public-artifact qualification remain pending at this checkpoint.
+jobs now succeeded in SDK-first order; both production projects expose the exact
+four qualified archives. Independent verification of all four production
+publisher attestations passed. Public-artifact native qualification remains
+pending at this checkpoint. Production metadata visibility required the same
+failed-verification-only reruns; no package was uploaded twice.
 
 Read-only lab inspection found Helm revision 48 still running the rc.10 API.
 The separately released `api-2026-10-02.1` image is needed for the documented
@@ -658,16 +662,16 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 7: Publish and Verify The Preview
 
-**Status**: In Progress; implementation merged, TestPyPI published, production and deployment pending
-**Deliverables**: Public Python preview artifacts, protected unattended publishing and a verified public documentation rollout.
+**Status**: In Progress; both registries published, final production native verification and deployment pending
+**Deliverables**: Public Python preview artifacts, protected tokenless CI publishing and a verified public documentation rollout. Dispatch and environment approval remain explicit maintainer actions.
 
 - [x] Confirm maintainer access/2FA and all four pending Trusted Publisher bindings with exact repository/workflow/package-specific environment identities; protect the matching GitHub environments.
-- [ ] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects.
+- [x] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects. The previously authenticated maintainer bindings created both projects through their exact package-specific OIDC identities; archive metadata and publisher attestations are verified.
 - [ ] Introduce independently versioned Python preview releases, provisionally `0.1.0rc1`, with distinct tags such as `python-sdk-v0.1.0rc1` and `python-deepagents-v0.1.0rc1`. Verify they cannot trigger npm or unrelated image/chart releases.
 - [x] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
 - [x] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
-- [ ] Publish the SDK first, verify its public files/digests, then publish the adapter tested against that exact public SDK dependency. Record partial success rather than blindly rerunning or overwriting a version.
-- [ ] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
+- [x] Publish the SDK first, verify its public files/digests, then publish the adapter tested against that exact public SDK dependency. Record partial success rather than blindly rerunning or overwriting a version.
+- [x] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
 - [ ] Rerun a fresh native consumer using the actual public package pair and supported server baseline. Local candidate success alone is not public-artifact qualification.
 - [ ] Publish release notes and source links with separate statuses for SDK publication, adapter publication, native verification and public documentation deployment.
 - [ ] Deploy the authorized web/documentation update using the existing guarded deployment process. The lab also needs the separately released `api-2026-10-02.1` file-transfer correction; qualify and record that explicit image change separately from the Python packages. Preserve API/auth origins, operator values, secrets and running workloads. Do not change chart, schema or identity configuration.

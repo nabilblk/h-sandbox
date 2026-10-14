@@ -1,6 +1,6 @@
 # Python Agents Preview
 
-Status: **TestPyPI published; production delivery in progress**, updated October 14, 2026.
+Status: **PyPI SDK and adapter published; final native verification and deployment in progress**, updated October 14, 2026.
 
 - SDK `h-sandbox==0.1.0rc1`; import `harakiri`.
 - Optional adapter `h-sandbox-deepagents==0.1.0rc1`; import `harakiri_deepagents`.
@@ -25,15 +25,32 @@ The reviewed package source is
 [#66](https://github.com/nabilblk/h-sandbox/pull/66),
 [#68](https://github.com/nabilblk/h-sandbox/pull/68) and
 [#71](https://github.com/nabilblk/h-sandbox/pull/71) are merged.
-Both projects now exist on TestPyPI, published through separate GitHub OIDC
-identities. Anonymous downloads match all four sealed archive hashes, and all
-four PyPI publisher attestations passed cryptographic verification.
+Both projects now exist on TestPyPI and production PyPI, published through
+separate GitHub OIDC identities. Anonymous downloads match all four sealed
+archive hashes on both registries, and all eight publisher attestations passed
+cryptographic verification.
 Post-publication native qualification passed all 13 gates, fixture cleanup and
 private-material removal in
 [release run 38633897608](https://github.com/nabilblk/h-sandbox/actions/runs/38633897608).
+The [permanent TestPyPI receipt](evidence/python-testpypi-2026-10-14.json)
+retains the public-file, attestation and native qualification evidence.
 [Production run 38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
-is now checking the same source and exact archive hashes. Production PyPI
-publication and the lab deployment are not yet complete.
+passed pre-publication native qualification and published the SDK before the
+adapter. Final public-artifact native verification and the lab deployment remain
+pending at this checkpoint.
+
+Install in an activated Python 3.11+ environment:
+
+```sh
+python -m pip install "h-sandbox==0.1.0rc1"
+# Optional framework integration; includes its exact SDK and framework dependency.
+python -m pip install "h-sandbox-deepagents==0.1.0rc1"
+```
+
+Public projects: [SDK](https://pypi.org/project/h-sandbox/0.1.0rc1/) and
+[Deep Agents adapter](https://pypi.org/project/h-sandbox-deepagents/0.1.0rc1/).
+Model integrations are separate application dependencies; see the
+[Python integration guide](../integrations/deepagents-python.md).
 
 | Archive | SHA-256 |
 | --- | --- |
@@ -53,7 +70,7 @@ artifacts. Updated package READMEs account for the changed archive hashes.
   failed before uploading: Twine 6.2 rejected metadata 2.5. PR #71 pins Twine 7
   and runs strict metadata checks in ordinary package CI, not only on release.
   Package runtime code and sealed archive bytes did not change.
-- TestPyPI briefly returned metadata 404 after each successful package upload.
+- Both registries briefly returned metadata 404 after each successful package upload.
   Only failed verification jobs were rerun after public hashes matched; no
   archives were overwritten or republished. [PR #72](https://github.com/nabilblk/h-sandbox/pull/72)
   is merged and adds bounded polling for missing/incomplete publication metadata. Integrity,
