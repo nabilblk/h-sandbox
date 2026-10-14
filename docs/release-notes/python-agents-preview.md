@@ -1,13 +1,15 @@
-# Python Agents Candidate
+# Python Agents Preview
 
-Status: **unreleased candidate; native qualification passed**, updated October 5, 2026.
+Status: **TestPyPI published; production delivery in progress**, updated October 14, 2026.
 
 - SDK `h-sandbox==0.1.0rc1`; import `harakiri`.
 - Optional adapter `h-sandbox-deepagents==0.1.0rc1`; import `harakiri_deepagents`.
 - Exact Python framework candidate: `deepagents==0.7.21`.
 - Focused sync/async SDK, borrowed backend, explicit owned lifecycle, bounded
   commands/files, acknowledgement recovery and retained workspace examples.
-- This candidate changes no API, schema, npm package, deployed cluster or provider.
+- Python packages have independent preview versions. They do not publish npm
+  packages, charts or provider images. The lab's API maintenance and documentation
+  rollout are recorded separately below.
 
 Local contract tests, strict type checks and clean wheel/sdist consumers are
 implemented. Native Linux amd64 qualification retains the immutable published
@@ -15,6 +17,55 @@ chart/web `0.5.0-rc.10` baseline and applies the separately published API mainte
 release `api-2026-10-02.1`. Both identities and the template are digest-pinned in
 `infra/python-acceptance/versions.json`, without repinning TypeScript acceptance.
 Runner results and candidate hashes are recorded separately from publication.
+
+## October 14 Release Record
+
+The reviewed package source is
+`fa8df3f3548a90b76a2b665c909f72cafbde052f`. PRs
+[#66](https://github.com/nabilblk/h-sandbox/pull/66),
+[#68](https://github.com/nabilblk/h-sandbox/pull/68) and
+[#71](https://github.com/nabilblk/h-sandbox/pull/71) are merged.
+Both projects now exist on TestPyPI, published through separate GitHub OIDC
+identities. Anonymous downloads match all four sealed archive hashes, and all
+four PyPI publisher attestations passed cryptographic verification.
+Post-publication native qualification passed all 13 gates, fixture cleanup and
+private-material removal in
+[release run 38633897608](https://github.com/nabilblk/h-sandbox/actions/runs/38633897608).
+[Production run 38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
+is now checking the same source and exact archive hashes. Production PyPI
+publication and the lab deployment are not yet complete.
+
+| Archive | SHA-256 |
+| --- | --- |
+| `h_sandbox-0.1.0rc1-py3-none-any.whl` | `187b70c2ab24b5f9d9970bc2087b8c08d4f916ae00924377b8a9ef7e25e61475` |
+| `h_sandbox-0.1.0rc1.tar.gz` | `440787d19a1ce99021813c1b505ec161fc1cb961432315313c806ce1b15067b9` |
+| `h_sandbox_deepagents-0.1.0rc1-py3-none-any.whl` | `aed49c5c6befe7cf9c77126bcb022c0934cdbf6a8fe6c1e2c3d257c822f7dcd7` |
+| `h_sandbox_deepagents-0.1.0rc1.tar.gz` | `91cfc5e47937ffb42cbdf8035c448bdafa02cdb67aecc9452aea458dbf9931f0` |
+
+The release manifest SHA-256 is
+`f6f6c9367e6e60682204acbbddbedf0d1e5abdb224c33ae4910b66c9a75d6511`.
+The October 2-5 candidate hashes below are historical, not these publication
+artifacts. Updated package READMEs account for the changed archive hashes.
+
+### Delivery Corrections and Boundaries
+
+- [The first release attempt](https://github.com/nabilblk/h-sandbox/actions/runs/38632582104)
+  failed before uploading: Twine 6.2 rejected metadata 2.5. PR #71 pins Twine 7
+  and runs strict metadata checks in ordinary package CI, not only on release.
+  Package runtime code and sealed archive bytes did not change.
+- TestPyPI briefly returned metadata 404 after each successful package upload.
+  Only failed verification jobs were rerun after public hashes matched; no
+  archives were overwritten or republished. [PR #72](https://github.com/nabilblk/h-sandbox/pull/72)
+  is merged and adds bounded polling for missing/incomplete publication metadata. Integrity,
+  authentication and unexpected-file failures remain fatal.
+- The approved TypeScript-only `braces` exception expires November 13, 2026.
+  It is not a fix or a clean audit. The two tested paths, remaining local-backend
+  exposure and removal work are documented in the
+  [security assessment](../security/dependency-audit-2026-10.md) and
+  [issue #70](https://github.com/nabilblk/h-sandbox/issues/70).
+- Publisher attestations identify the publishing repository, workflow and
+  environment; they do not prove package safety or independent adoption.
+  Stable promotion and independent developer acceptance remain separate gates.
 
 ## Review Corrections
 
@@ -38,7 +89,7 @@ the old failing API image was not silently substituted with a runner-built one.
 The review fixes passed [package CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947022360)
 and [repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/36947022380).
 
-## Current Qualification
+## Historical Qualification (October 2)
 
 [Native run 36947872246](https://github.com/nabilblk/h-sandbox/actions/runs/36947872246)
 passed all required gates, including fixture cleanup and private-material removal.
@@ -76,7 +127,7 @@ gate, distinct from the native SDK, recovery and model-repair workflows above.
 also passed independently on its unchanged published baseline, including cleanup.
 That separate run does not substitute for the Python candidate receipt.
 
-No Python package was published and no existing deployment was changed. The
+At that checkpoint, no Python package was published and no existing deployment was changed. The
 following history preserves failed attempts rather than treating passing subcases
 as full qualification.
 
@@ -189,7 +240,7 @@ passed all 13 gates with the same candidate wheel hashes and confirmed fixture
 cleanup. That run predates the environment correction and is still candidate
 evidence, not a completed publication. The dependency audit blocker above remains.
 
-**Not completed:** merge, registry project creation and publication, public-artifact
+**Not completed as of October 5:** merge, registry project creation and publication, public-artifact
 native verification, public documentation deployment and independent adopter
 evidence. Source installation is documented; do not announce public availability
 or stable support from this candidate record.

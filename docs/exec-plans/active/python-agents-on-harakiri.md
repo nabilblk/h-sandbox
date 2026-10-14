@@ -248,6 +248,20 @@ to every package-check invocation. All four local archives remain byte-identical
 `pip`/`uv` consumers and 30 release-policy tests pass. No SDK runtime change,
 metadata downgrade, validation bypass or publication is included in that fix.
 
+PR #71 merged after repository, Python matrix and native checks passed. Release
+run [38633897608](https://github.com/nabilblk/h-sandbox/actions/runs/38633897608)
+uses source `fa8df3f3548a90b76a2b665c909f72cafbde052f`. Both TestPyPI projects
+are published; anonymous `pip`/`uv` consumers and all four publisher attestation
+verifications passed. Final public-artifact native qualification passed all 13
+gates and cleanup. Immediate registry metadata 404s after successful uploads
+required failed-read-only reruns; the archives were not uploaded again.
+[PR #72](https://github.com/nabilblk/h-sandbox/pull/72) merged bounded visibility
+polling after 37 release-policy tests, repository CI, Python CI and native
+acceptance passed. Production run
+[38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
+was dispatched from the sealed `fa8df3f` source before that merge. Its publication
+and public-artifact qualification remain pending at this checkpoint.
+
 Read-only lab inspection found Helm revision 48 still running the rc.10 API.
 The separately released `api-2026-10-02.1` image is needed for the documented
 large-file contract. Anonymous checksum, architecture and source-label checks
@@ -644,14 +658,14 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 7: Publish and Verify The Preview
 
-**Status**: In Progress; registry publishers and protected environments configured, merge and delivery pending
+**Status**: In Progress; implementation merged, TestPyPI published, production and deployment pending
 **Deliverables**: Public Python preview artifacts, protected unattended publishing and a verified public documentation rollout.
 
 - [x] Confirm maintainer access/2FA and all four pending Trusted Publisher bindings with exact repository/workflow/package-specific environment identities; protect the matching GitHub environments.
 - [ ] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects.
 - [ ] Introduce independently versioned Python preview releases, provisionally `0.1.0rc1`, with distinct tags such as `python-sdk-v0.1.0rc1` and `python-deepagents-v0.1.0rc1`. Verify they cannot trigger npm or unrelated image/chart releases.
-- [ ] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
-- [ ] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
+- [x] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
+- [x] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
 - [ ] Publish the SDK first, verify its public files/digests, then publish the adapter tested against that exact public SDK dependency. Record partial success rather than blindly rerunning or overwriting a version.
 - [ ] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
 - [ ] Rerun a fresh native consumer using the actual public package pair and supported server baseline. Local candidate success alone is not public-artifact qualification.
