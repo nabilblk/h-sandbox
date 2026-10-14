@@ -3,6 +3,7 @@
 **Created**: 2026-10-01
 **Author**: Codex, with product direction from Nabil
 **Status**: In Progress
+**Latest checkpoint (2026-10-14)**: Phase 7 delivery is complete. Both Python previews are on PyPI, public-artifact native acceptance passed, and docs/API maintenance are deployed on k0s. Phase 8 independent adoption remains open; do not archive this plan as complete.
 **Priority**: {P0-P3}; numeric priority not assigned, next agreed integration milestone
 **Estimated effort**: Provisional 15-25 engineering days, delivered sequentially; external adoption and publishing approvals are separate calendar dependencies
 **Source baseline**: `6d05f0fd42ae6005e2f004ceca3fc9977b7f4071`
@@ -125,12 +126,13 @@ substituted with CI.
 - [x] Execute all four exported introductory programs against installed wheels
   and real local/remote tools on the disposable runner. Only inference is scripted
   for this gate; the digest-pinned real-model repair remains a separate requirement.
-- [ ] Merge PR #66 after its final checks and retain the documentation receipt.
-- [ ] Implement and test protected Python release workflows; confirm PyPI/TestPyPI
+- [x] Merge PR #66 after its final checks and retain the documentation receipt. Completed October 14.
+- [x] Implement and test protected Python release workflows; confirm PyPI/TestPyPI
   ownership and Trusted Publisher bindings before publication.
-- [ ] Qualify public packages, roll out the documented release deliberately, and
-  verify live docs, authentication and file transfers. Keep adoption pending until
-  independently observed.
+- [x] Qualify public packages, roll out the documented release deliberately, and
+  verify live docs/authentication plus file transfers on the disposable native
+  runner. No agent workload was run on the existing lab. Keep adoption pending
+  until independently observed.
 
 The new documentation consumer extracts website downloads, checks them against
 the exported Markdown and source, then executes the unmodified files outside the
@@ -275,6 +277,35 @@ in one guarded rollout. No deployment has occurred at this checkpoint. Preserve
 the rc.10 chart, all credentials and public origins; do not run bootstrap,
 migrations, customer installation or provider restarts.
 
+### Delivery Verified (2026-10-14)
+
+[Production release run 38640173942](https://github.com/nabilblk/h-sandbox/actions/runs/38640173942)
+completed successfully, including all 13 public-artifact native gates, real-model
+repair, fixture cleanup and private-material removal. Both registry pairs expose
+the exact sealed archives, with all eight publisher attestations verified.
+Production name-based `pip`/`uv` installation, dependency checks and imports passed
+outside the checkout. A separate core-only install confirms no Deep Agents or
+LangChain dependency. The [permanent production receipt](../../release-notes/evidence/python-pypi-2026-10-14.json)
+and scoped [SDK](https://github.com/nabilblk/h-sandbox/releases/tag/python-sdk-v0.1.0rc1)
+and [adapter](https://github.com/nabilblk/h-sandbox/releases/tag/python-deepagents-v0.1.0rc1)
+prereleases preserve the artifacts and evidence.
+
+Documentation PR #73 merged after required checks; its separate native check also
+passed. Web image publication run 38644415702 passed for both architectures.
+The [guarded k0s delivery receipt](../../release-notes/evidence/python-lab-delivery-2026-10-14.json)
+records revision 48 to 49, exact API/web digests, unchanged chart/configuration,
+23 protected resources and seven unrelated running pods preserved. No migrations,
+cluster, provider, tunnel or identity-service restart was performed. Public login
+uses its existing issuer/callback and S256 PKCE. The final live suite passed all
+12 browser checks; Markdown, inventory, code downloads and preview pins agree.
+
+Initial web/API 502s exposed pod-bound local forwards during image handover.
+Logs confirm automatic supervision reconnected them; five subsequent checks of
+all public origins passed. [Issue #74](https://github.com/nabilblk/h-sandbox/issues/74)
+tracks that limitation without a zero-downtime claim. The TypeScript dependency
+exception remains open in #70 until removed or explicitly re-reviewed before
+November 13. Phase 8 still needs an independent developer; CI is not adoption.
+
 The next integration should make this promise concrete:
 
 > Take an existing Python agent, change its execution backend, and run its tools on your own Harakiri installation.
@@ -301,7 +332,7 @@ The public Python `deepagents` package observed during planning is `0.7.21`, req
 
 ## Success Criteria
 
-- [ ] A developer installs the released Python SDK without Node, the monorepo, Kubernetes credentials, provider credentials or a framework dependency.
+- [x] A developer installs the released Python SDK without Node, the monorepo, Kubernetes credentials, provider credentials or a framework dependency.
 - [x] The first-task comparison contains genuine `create_deep_agent` calls in both examples, with the same model, prompt and invocation; the sandbox difference is backend construction and explicit ownership.
 - [x] A standalone Python program creates or connects to a sandbox, waits for execution readiness, runs commands, transfers verified files and confirms owned cleanup through the public Harakiri API. The separate 1 MiB/16 MiB native gate passed against the published API maintenance image.
 - [x] Sync and async consumers have typed, documented behavior and bounded request/observation/cleanup operations. An async workflow does not block the event loop with synchronous network calls.
@@ -309,8 +340,8 @@ The public Python `deepagents` package observed during planning is `0.7.21`, req
 - [x] A replacement Python process observes a saved command reference without resubmitting the command or automatically replaying an interrupted graph.
 - [x] Partial file transfers retain completed paths and causes, including cancellation between files. Large supported binary transfers remain within the tested memory budget. Contract/memory fixtures and native 1 MiB/16 MiB round trips are distinct passing checks.
 - [x] Borrowed runtime and retained workspace ownership survives client closure, graph interruption and adapter disposal. Owned disposable tasks clean up on success and failure within an independent budget. Graph interruption uses actual framework/SQLite contract tests; runtime lifetime and release have native evidence.
-- [ ] Exact built artifacts pass clean-install, native sandbox and actual framework acceptance on isolated runners; publication is followed by verification of the public artifacts.
-- [ ] Public guides, repository docs, package READMEs, technical contracts, contributor instructions and release operations describe the same supported surface and exact package versions.
+- [x] Exact built artifacts pass clean-install, native sandbox and actual framework acceptance on isolated runners; publication is followed by verification of the public artifacts.
+- [x] Public guides, repository docs, package READMEs, technical contracts, contributor instructions and release operations describe the same supported surface and exact package versions.
 - [ ] At least one independent Python developer completes the documented repair-and-test workflow on their installation without private patches or a maintainer-operated session; limitations and feedback are recorded.
 
 Engineering preview readiness and independent adoption are separate milestones. Do not mark an unexecuted acceptance gate passed because the corresponding code or documentation exists.
@@ -642,7 +673,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 6: Complete Documentation and Public UX
 
-**Status**: Complete for the candidate; live publication and deployment remain in Phase 7
+**Status**: Complete; public-artifact and live documentation verification are recorded in Phase 7
 **Deliverables**: One coherent learning path across website, Git and package documentation, plus technical/contributor/operator material.
 
 - [x] Add `docs/python-sdk.md` and `docs/integrations/deepagents-python.md`: installation, environment, first task, existing sandbox, async use, lifecycle, commands/files, retained workspace, error recovery and supported-version matrix.
@@ -662,20 +693,20 @@ The recovery example is application code. Use an official LangGraph SQLite check
 
 ### Phase 7: Publish and Verify The Preview
 
-**Status**: In Progress; both registries published, final production native verification and deployment pending
+**Status**: Complete; registry publication, public-artifact native verification, scoped releases and live deployment verified October 14
 **Deliverables**: Public Python preview artifacts, protected tokenless CI publishing and a verified public documentation rollout. Dispatch and environment approval remain explicit maintainer actions.
 
 - [x] Confirm maintainer access/2FA and all four pending Trusted Publisher bindings with exact repository/workflow/package-specific environment identities; protect the matching GitHub environments.
 - [x] Verify project creation, ownership and metadata for both names after first publication; pending publishers do not reserve names or create projects. The previously authenticated maintainer bindings created both projects through their exact package-specific OIDC identities; archive metadata and publisher attestations are verified.
-- [ ] Introduce independently versioned Python preview releases, provisionally `0.1.0rc1`, with distinct tags such as `python-sdk-v0.1.0rc1` and `python-deepagents-v0.1.0rc1`. Verify they cannot trigger npm or unrelated image/chart releases.
+- [x] Introduce independently versioned Python preview releases, `0.1.0rc1`, with distinct tags `python-sdk-v0.1.0rc1` and `python-deepagents-v0.1.0rc1`. Verify they cannot trigger npm or unrelated image/chart releases.
 - [x] Build wheel/sdist once from the reviewed source; qualify those exact hashes. Use separate read-only build/test jobs and a protected publication job with only required OIDC permissions.
 - [x] Test publication against TestPyPI under separate publisher bindings. Do not mix TestPyPI with the production index through unrestricted `--extra-index-url`; keep artifact selection and dependency resolution explicit.
 - [x] Publish the SDK first, verify its public files/digests, then publish the adapter tested against that exact public SDK dependency. Record partial success rather than blindly rerunning or overwriting a version.
 - [x] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
-- [ ] Rerun a fresh native consumer using the actual public package pair and supported server baseline. Local candidate success alone is not public-artifact qualification.
-- [ ] Publish release notes and source links with separate statuses for SDK publication, adapter publication, native verification and public documentation deployment.
-- [ ] Deploy the authorized web/documentation update using the existing guarded deployment process. The lab also needs the separately released `api-2026-10-02.1` file-transfer correction; qualify and record that explicit image change separately from the Python packages. Preserve API/auth origins, operator values, secrets and running workloads. Do not change chart, schema or identity configuration.
-- [ ] Verify public docs load the new routes and exact install commands. Keep previous packages available for rollback; fix releases with a new version and use yanking only with a documented incident reason.
+- [x] Rerun a fresh native consumer using the actual public package pair and supported server baseline. Local candidate success alone is not public-artifact qualification.
+- [x] Publish release notes and source links with separate statuses for SDK publication, adapter publication, native verification and public documentation deployment.
+- [x] Deploy the authorized web/documentation update using the existing guarded deployment process. The lab also needs the separately released `api-2026-10-02.1` file-transfer correction; qualify and record that explicit image change separately from the Python packages. Preserve API/auth origins, operator values, secrets and running workloads. Do not change chart, schema or identity configuration.
+- [x] Verify public docs load the new routes and exact install commands. Keep previous packages available for rollback; fix releases with a new version and use yanking only with a documented incident reason.
 
 **Exit gate**: Both public artifacts install and run, the release receipt matches their hashes, Trusted Publishing is configured, and the live documentation is verified. No reusable PyPI token is requested in chat or stored in the repository.
 
@@ -778,18 +809,29 @@ Checked during planning on 2026-10-01. These sources inform the contract but are
 | 2026-10-01 | Keep the native large-file gate mandatory and independent of agent/recovery gates. | rc.10 failed a 1 MiB upload; passing the mocked 16 MiB memory fixture is not live transfer proof. A provider correction needs separate review and release evidence. | Shrink the fixture and claim qualification; bypass the API in Python; silently patch the runner's API. |
 | 2026-10-02 | Release the provider correction as an immutable API-only maintenance image and qualify Python against its public digest. | Native acceptance must consume independently reviewed, publicly available server artifacts. Existing tags and the chart/web baseline stay unchanged; both installation identities are recorded. | Replace rc.12 in place; silently build an API inside Python acceptance; publish unchanged packages/charts. |
 | 2026-10-05 | Give the Python adapter separate protected registry environments: `testpypi-deepagents` and `pypi-deepagents`. | Both registries reject two pending projects with the same repository/workflow/environment identity. Separate identities also retain package-specific approval and avoid bootstrap tokens. | Reusable bootstrap tokens; sequential manual publisher replacement; a duplicate publishing workflow. |
+| 2026-10-14 | Accept the user-approved, exact-path TypeScript `braces` exception until November 13 while retaining the high-severity gate elsewhere. | Preserve a fail-closed audit without claiming the vulnerable dependency is fixed; removal is tracked in #70. | Disable the audit gate; hide affected local-filesystem backends; change an unqualified framework version. |
+| 2026-10-14 | Close technical preview delivery while keeping independent adoption open. | Public packages, native consumers, publisher identities and live deployment are verified; maintainer/CI evidence cannot substitute for a separate developer. | Archive the entire plan after publication. |
 
 ## Tech Debt Incurred
 
-None incurred by planning. Deferred features in the capability matrix are deliberate scope limits, not hidden parity claims. Record any implementation shortcuts here with an owner, consequence and exit condition before accepting them.
+Deferred features in the capability matrix are deliberate scope limits, not hidden parity claims. Two delivery follow-ups are assigned to `nabilblk`:
+
+- [Issue #70](https://github.com/nabilblk/h-sandbox/issues/70): remove the two-path `braces` 3.0.3 exception before `2026-11-13T00:00:00Z`, or explicitly re-review the risk. The gate fails on expiry or changed paths; affected TypeScript local-filesystem backends remain exposed.
+- [Issue #74](https://github.com/nabilblk/h-sandbox/issues/74): replace or harden the lab's pod-bound origin forwarding and prove handover without web/API 502s. Automatic reconnection restored this deployment, but it is not zero-downtime evidence.
 
 ## Completion Notes
 
-Implementation is in [PR #66](https://github.com/nabilblk/h-sandbox/pull/66), not yet
-merged. Candidate Python packages are not published. Full candidate native
-acceptance passed against the separately merged and published API maintenance
-release; failed historical attempts and remaining delivery gates are retained in
-[the candidate record](../../release-notes/python-agents-preview.md).
-No production deployment, local cluster operation or Brain change has been made.
-Keep this plan active until the remaining documentation, public-artifact and
-independent-adopter gates are evidenced; do not archive it as completed.
+As of October 14, [PR #66](https://github.com/nabilblk/h-sandbox/pull/66) and the
+release/documentation corrections are merged. Both Python packages are published
+as `0.1.0rc1` on TestPyPI and PyPI; their exact public archives passed native
+acceptance and publisher attestation verification. The authorized k0s rollout
+delivered the documentation and previously released API maintenance correction,
+preserving unrelated workloads and configuration. The
+[delivery record](../../release-notes/python-agents-preview.md) retains exact
+identities, verification evidence and failed historical attempts. No Brain change
+was made.
+
+Phases 1-7 are complete. Keep this plan active for Phase 8: an independent Python
+developer must complete the documented workflow without private patches or a
+maintainer-operated session, and their feedback must be recorded. Do not archive
+it as completed or claim stable readiness from the preview evidence.

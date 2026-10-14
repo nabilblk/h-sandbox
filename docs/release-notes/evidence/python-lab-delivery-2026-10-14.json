@@ -1,0 +1,115 @@
+{
+  "kind": "python-preview-lab-delivery",
+  "verifiedAt": "2026-10-14T22:11:45.495Z",
+  "environment": "maintainer-k0s-lab",
+  "chart": {
+    "version": "0.5.0-rc.10",
+    "sha256": "9fb11b234041ef55c518850fb60572d66921f4441dc524bbaa67cae6c94428a7",
+    "unchanged": true
+  },
+  "helmRevision": {
+    "before": 48,
+    "after": 49
+  },
+  "images": {
+    "api": {
+      "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.12-provider-files.a55df31@sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+      "source": "a55df315825b0e4788b35b71af571c4f0d11ac23",
+      "version": "0.5.0-rc.12",
+      "release": "api-2026-10-02.1",
+      "digest": "sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+      "published": true,
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "digest": "sha256:72d3e5783757864cc7eddf39ac5d3732ae9022959aa8a781bc70f0f88f4228e4",
+          "configDigest": "sha256:487db7a92b424797d63c2c0ca05579ad11967c8b60fb8e99d657486a676adfeb"
+        },
+        {
+          "architecture": "arm64",
+          "digest": "sha256:fd00ed859f396e532360d09f36871f671af6643ef0a44c5c34c98387cbe9391c",
+          "configDigest": "sha256:543d2dca951c8691d0767a651c266f8e3cc01dbc61ee085858bb5c53c8ac18d1"
+        }
+      ]
+    },
+    "web": {
+      "image": "core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.12-python-docs.a1d945c@sha256:0dc47c343d57325eea36ab1939d71ffbe66493faa7e667e89add07a30ac14f28",
+      "digest": "sha256:0dc47c343d57325eea36ab1939d71ffbe66493faa7e667e89add07a30ac14f28",
+      "source": "a1d945c68bae15ed861842185550090b9f056383",
+      "version": "0.5.0-rc.12",
+      "published": true,
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "digest": "sha256:849e3f96848713f09d47dc259097b3f80a4a0160495078e5a40e922ac2277011",
+          "configDigest": "sha256:ab593545ffe0f20b073bfe33c3f9fa4bf4f17a464a2586a9731aab047a2173ba"
+        },
+        {
+          "architecture": "arm64",
+          "digest": "sha256:0e09e5f9ef9cb8a1844415b4540bd7e7d71604f73353e09f0d6e6aeb702637b8",
+          "configDigest": "sha256:424cafeb37194d116be892e98ab58005e6304031bb4bd9b70938e1ed9f48da88"
+        }
+      ]
+    }
+  },
+  "webPublication": "https://github.com/nabilblk/h-sandbox/actions/runs/38644415702",
+  "imageVerification": "Anonymous OCI index, platform manifest and config digests plus source/version labels; no image publisher attestations claimed.",
+  "changes": [
+    "ConfigMap/harakiri-config",
+    "Deployment/harakiri-api",
+    "Deployment/harakiri-scheduler",
+    "Deployment/harakiri-template-builder",
+    "Deployment/harakiri-web"
+  ],
+  "protectedResourceCount": 23,
+  "unrelatedRunningPodsPreserved": 7,
+  "publicConfigurationUnchanged": true,
+  "migrationHooksExecuted": false,
+  "providerRestarted": false,
+  "clusterOrTunnelRestarted": false,
+  "liveDocumentation": {
+    "routes": [
+      "https://sb.harakiri.io/#docs/python-sdk",
+      "https://sb.harakiri.io/#docs/deepagents-python"
+    ],
+    "markdownAndInventoryVerified": true,
+    "downloadSourceEquality": true,
+    "browserTestsPassed": 12,
+    "viewports": [
+      320,
+      390,
+      768,
+      1024,
+      1440
+    ],
+    "initialBrowserRun": {
+      "passed": 11,
+      "failed": 1,
+      "cause": "Cloudflare 502 while the web port-forward still targeted the replaced pod",
+      "at": "2026-10-14T22:11:35Z"
+    }
+  },
+  "authentication": {
+    "issuer": "https://sb-auth.harakiri.io/realms/harakiri",
+    "redirectUri": "https://sb.harakiri.io/",
+    "responseType": "code",
+    "pkce": "S256",
+    "credentialsSubmitted": false
+  },
+  "availability": {
+    "successfulConsecutiveChecks": 5,
+    "checkedEndpoints": [
+      "web",
+      "api-health",
+      "oidc-discovery"
+    ],
+    "windowStart": "2026-10-14T22:13:50.914Z",
+    "windowEnd": "2026-10-14T22:14:13.883Z",
+    "allStatus200": true,
+    "initialApi502At": "2026-10-14T22:13:03.021Z",
+    "diagnosis": "Local forwarding logs identify stale pod connections; existing launchd supervision automatically rebound them.",
+    "followUp": "https://github.com/nabilblk/h-sandbox/issues/74",
+    "zeroDowntimeClaimed": false
+  },
+  "fileTransferAcceptance": "Actual 1 MiB/16 MiB round trips ran on disposable native amd64 infrastructure, not the existing lab."
+}

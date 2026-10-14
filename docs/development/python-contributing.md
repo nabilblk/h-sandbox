@@ -58,13 +58,21 @@ the supported range. Keep core independent of framework/model dependencies.
 
 ## PyPI Bootstrap and Release Gate
 
+As of October 14, 2026, both `0.1.0rc1` projects are published on TestPyPI and
+production PyPI through the four identities below. Full public-artifact native
+qualification, publisher attestation verification and live documentation delivery
+are retained in the [release record](../release-notes/python-agents-preview.md).
+Existing project publishers need no new account bootstrap or reusable token for
+the next preview; dispatch and protected-environment approval remain required.
+The setup instructions below also document how to bootstrap a new registry or fork.
+
 Publication is a separately authorized phase. Neither project name is reserved by
 a successful build. The maintainer must enable 2FA, confirm project ownership and
 configure pending Trusted Publishers on PyPI and TestPyPI for this repository,
 the exact release workflow filename and a protected GitHub environment. No token,
 password or recovery code belongs in chat, Git or a CI receipt.
 
-The intended maintainer account is `nabilblk` on both PyPI and TestPyPI. Sign in
+The configured maintainer account is `nabilblk` on both PyPI and TestPyPI. Sign in
 and enable 2FA separately on each registry. Account identity is separate from
 the GitHub publisher identity below; a username does not authorize GitHub to
 publish and a pending publisher does not reserve a package name.
@@ -74,8 +82,10 @@ security setup; a successful login alone is not publishing readiness.
 
 Use [TestPyPI account publishing](https://test.pypi.org/manage/account/publishing/)
 and [PyPI account publishing](https://pypi.org/manage/account/publishing/) to add
-one pending GitHub publisher for each package on each registry, four entries in
-total. Do not create a reusable API token for this workflow.
+one pending GitHub publisher for each package on each registry when bootstrapping,
+four entries in total. After first publication, inspect the existing project's
+publisher configuration instead of trying to recreate its pending project.
+Do not create a reusable API token for this workflow.
 
 For each registry, configure **both** `h-sandbox` and `h-sandbox-deepagents`:
 

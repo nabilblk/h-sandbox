@@ -151,7 +151,7 @@ application logging of attached output, causes or file contents still needs care
 
 ## Supported Surface
 
-The candidate covers discovery, capacity, create/connect/readiness/renew/kill,
+The preview covers discovery, capacity, create/connect/readiness/renew/kill,
 finite/tracked commands, text/binary files, sandbox logs and retained workspaces.
 It intentionally does not port every TypeScript method: PTY, SSE, pause/resume,
 snapshots, routes, Git helpers, Vault administration, template builds and usage
@@ -160,10 +160,10 @@ removed.
 
 Package/contract checks pass on Python 3.11-3.14. Full native Linux amd64 acceptance
 passed on Python 3.12.3 with the rc.10 chart/web baseline and the separately pinned
-`api-2026-10-02.1` API image. This is candidate-wheel evidence, not a claim that
-every server version or a public PyPI artifact has been qualified. Consult the
-[candidate delivery record](release-notes/python-agents-preview.md) for exact hashes,
-dependency versions and remaining release gates.
+`api-2026-10-02.1` API image, including fresh consumers of the actual TestPyPI and
+production PyPI archives. This does not qualify every server version. Consult the
+[delivery record](release-notes/python-agents-preview.md) for exact hashes,
+dependency versions, deployment evidence and the remaining independent-adoption gate.
 
 Next: [Python Deep Agents](integrations/deepagents-python.md),
 [technical design](development/python-client-design.md),
