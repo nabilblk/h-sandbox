@@ -3,11 +3,16 @@
 Prepare [SDK access](../../docs/python-sdk.md), then create an **application-owned**
 sandbox with an attached retained workspace and save its public ID. Do not place
 this workflow inside a disposable `task` context across workers or approval pauses.
+With the published SDK installed in an activated environment, run from the
+repository root:
 
 ```sh
-uv run --project python examples/python-workflow-recovery/worker.py start --sandbox-id "$HARAKIRI_SANDBOX_ID"
-uv run --project python examples/python-workflow-recovery/worker.py observe
+python examples/python-workflow-recovery/worker.py start --sandbox-id "$HARAKIRI_SANDBOX_ID"
+python examples/python-workflow-recovery/worker.py observe
 ```
+
+Contributors testing source can prefix each program path with
+`uv run --project python` instead of `python`.
 
 These are separate processes. The first persists an intent in `workflow.sqlite`,
 submits one detached command, commits the acknowledged ID and exits. The second
@@ -18,6 +23,7 @@ unknown submission is deliberate application work, not automatic agent replay.
 `approval.py` uses the real `create_deep_agent`, `interrupt_on={"execute": True}`
 and `langgraph-checkpoint-sqlite==3.1.1`. It requires the model setup described in
 [the integration guide](../../docs/integrations/deepagents-python.md). Run it once
+after installing `python -m pip install "langgraph-checkpoint-sqlite==3.1.1"`
 for the demonstration thread; do not repeatedly submit its initial prompt to
 resume a checkpoint. Review pending tools and explicitly supply a LangGraph
 resume command in the owning application. The borrowed sandbox survives client

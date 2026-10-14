@@ -229,9 +229,16 @@ the same wheels as two reproducible local builds:
 The [fresh standalone rehearsal](https://github.com/nabilblk/h-sandbox/actions/runs/38625877902)
 passed, including cleanup. An earlier image-build failure in run 38624621443 did
 not recur; its private diagnostic was not exported, so no precise cause is
-claimed. Required repository checks pass; refreshed Python native runs and the
-merge/publication sequence remain in progress. Neither registry has a project
-yet, and no package publication is claimed.
+claimed. Refreshed implementation run 38625878043 and final delivery run
+[38629677586](https://github.com/nabilblk/h-sandbox/actions/runs/38629677586)
+passed, including cleanup. PRs #66 and #68 merged without changing their tested
+file trees. The reviewed release source is
+`a18c152b4eff32617b2aa4e6136bf1af08169713`. TestPyPI release run
+[38632582104](https://github.com/nabilblk/h-sandbox/actions/runs/38632582104)
+was dispatched with publication enabled; its native qualification and separate
+protected SDK/adapter gates remain mandatory. No package publication is claimed
+at this checkpoint. Prepared PyPI installation guides remain local until actual
+registry verification succeeds.
 
 Read-only lab inspection found Helm revision 48 still running the rc.10 API.
 The separately released `api-2026-10-02.1` image is needed for the documented

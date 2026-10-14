@@ -13,11 +13,9 @@ export const pythonSdkDocs: DocPage = {
   toc: ["Start with one task", "Configuration", "Choose ownership", "Commands and files", "Asyncio", "Recover without replay", "Limits and qualification"],
   body: <>
     <h2>Start with one task</h2>
-    <aside className="docs-notice"><p><strong>Unreleased Python candidate.</strong> SDK <code>h-sandbox==0.1.0rc1</code> passed native candidate qualification; PyPI publication is pending. The source installation below is distinct from the <a href="#docs/typescript-sdk">published TypeScript SDK</a>.</p></aside>
-    <p>Use Python 3.11 or newer. The core package calls the Harakiri API; it does not need Node, Kubernetes credentials, a provider SDK or LangChain. Start from the <a href={`${source}/docs/python-sdk.md`}>candidate source</a>.</p>
-    <CodeBlock language="bash" filename="From the repository root">{`uv sync --project python --frozen
-# Or install only the framework-free SDK:
-python -m pip install ./packages/python-sdk`}</CodeBlock>
+    <aside className="docs-notice"><p><strong>Developer preview on PyPI.</strong> Install <a href="https://pypi.org/project/h-sandbox/0.1.0rc1/"><code>h-sandbox==0.1.0rc1</code></a>. This is an independently versioned Python package, not a stable release or a replacement for the <a href="#docs/typescript-sdk">TypeScript SDK</a>.</p></aside>
+    <p>Use Python 3.11 or newer and an activated virtual environment. The core package calls the Harakiri API; it does not need this repository, Node, Kubernetes credentials, a provider SDK or LangChain.</p>
+    <CodeBlock language="bash" filename="Install from PyPI">{`python -m pip install "h-sandbox==0.1.0rc1"`}</CodeBlock>
     <CodeBlock language="python" filename="one_task.py">{`import os
 from harakiri import HarakiriClient
 
@@ -84,8 +82,8 @@ assert sandbox.files.read_bytes("report.bin") == b"verified bytes"`}</CodeBlock>
 
     <h2>Limits and qualification</h2>
     <p>Timeout arguments are seconds. Defaults: HTTP request 120s, readiness 180s, cleanup 90s and command observation 120s. Remote command limits are separate. JSON responses are bounded to 24 MiB; binary files use buffered base64 with size and SHA-256 verification. This is not streaming.</p>
-    <aside className="docs-notice"><p><strong>Large transfers require the corrected API image.</strong> Native 1 MiB and 16 MiB round trips passed with the <a href={`${source}/docs/release-notes/2026-10-02-provider-files-delivery.md`}>API maintenance release <code>api-2026-10-02.1</code></a>. Plain rc.10 and rc.12 images lack that upload correction. This qualifies the candidate wheels against that exact image, not a published Python package.</p></aside>
-    <p>The candidate covers discovery, capacity, lifecycle, finite/tracked commands, files, logs and retained workspaces. PTY, SSE, pause/resume, snapshots, routes, Git helpers, Vault administration, template builds and usage history methods remain outside this Python preview. See the <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification record</a> for executed gates and pending publication/adoption evidence.</p>
+    <aside className="docs-notice"><p><strong>Large transfers require the corrected API image.</strong> Native 1 MiB and 16 MiB round trips passed with the <a href={`${source}/docs/release-notes/2026-10-02-provider-files-delivery.md`}>API maintenance release <code>api-2026-10-02.1</code></a>. Plain rc.10 and rc.12 images lack that upload correction. Qualification applies to that exact server image, not every server release.</p></aside>
+    <p>The preview covers discovery, capacity, lifecycle, finite/tracked commands, files, logs and retained workspaces. PTY, SSE, pause/resume, snapshots, routes, Git helpers, Vault administration, template builds and usage history methods remain outside this Python preview. See the <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification record</a> for public-artifact checks and the separate, still-open independent-adoption milestone.</p>
     <p>Next: <a href="#docs/deepagents-python">Deep Agents for Python</a> or the <a href={`${source}/docs/development/python-client-design.md`}>technical contract</a>.</p>
   </>
 };
@@ -99,7 +97,7 @@ export const pythonDeepagentsDocs: DocPage = {
   toc: ["Same agent, remote tools", "Prepare your environment", "Run the first task", "Borrow an existing sandbox", "Native async tools", "Repair and independently verify", "Recovery and approval", "Failure contracts"],
   body: <>
     <h2>Same agent, remote tools</h2>
-    <aside className="docs-notice"><p><strong>Unreleased candidate.</strong> Python adapter <code>h-sandbox-deepagents==0.1.0rc1</code> targets Python <code>deepagents==0.7.21</code> and SDK <code>h-sandbox==0.1.0rc1</code>. PyPI publication is pending. Looking for <a href="#docs/deepagents">TypeScript</a>?</p></aside>
+    <aside className="docs-notice"><p><strong>Developer preview on PyPI.</strong> Install <a href="https://pypi.org/project/h-sandbox-deepagents/0.1.0rc1/"><code>h-sandbox-deepagents==0.1.0rc1</code></a>, targeting Python <code>deepagents==0.7.21</code> and SDK <code>h-sandbox==0.1.0rc1</code>. Looking for <a href="#docs/deepagents">TypeScript</a>?</p></aside>
     <p>Your application still runs the model, agent loop and checkpoints. Harakiri runs the framework's shell and file tools. Custom application tools are not automatically sandboxed. Both examples use the real <code>create_deep_agent</code>, the same prompt and the same model.</p>
     <div className="docs-code-comparison"><div className="docs-code-comparison-grid">
       <section aria-label="Python without a sandbox"><h3>Without a sandbox</h3><p>Tools run on your machine.</p><CodeBlock language="python" filename="first_local.py">{pythonExamples["first_local.py"]}</CodeBlock></section>
@@ -108,8 +106,8 @@ export const pythonDeepagentsDocs: DocPage = {
     <p><strong>The local example is not isolated.</strong> A working directory is not a filesystem jail. Run local agent shell tools only in a disposable environment. The Harakiri task context owns cleanup; client closure alone does not delete a runtime.</p>
 
     <h2>Prepare your environment</h2>
-    <p>Start with the <a href="#docs/python-sdk">Python SDK setup</a>. The locked source environment includes the optional adapter, the exact framework and <code>langchain-ollama==1.1.0</code>. Use a template with Python 3, bash, find, grep and sed. No automatic template substitution or package installation occurs.</p>
-    <CodeBlock language="bash" filename="Explicit model setup">{`uv sync --project python --frozen
+    <p>Start with the <a href="#docs/python-sdk">Python SDK configuration</a>. In your activated Python environment, install the adapter and the model integration below. The adapter installs its compatible SDK and exact framework dependency. Use a template with Python 3, bash, find, grep and sed. No packages are silently installed inside the sandbox.</p>
+    <CodeBlock language="bash" filename="Install the adapter and model integration">{`python -m pip install "h-sandbox-deepagents==0.1.0rc1" "langchain-ollama==1.1.0"
 export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
 # Start your own Ollama server and install this model first.
 # Other models require their LangChain integration and application credentials.`}</CodeBlock>
@@ -117,7 +115,8 @@ export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
     <p>A local model is not bundled with Harakiri. Model credentials stay in your application; they are not automatically forwarded to sandbox tools. Free hosted endpoint availability is not a compatibility guarantee.</p>
 
     <h2>Run the first task</h2>
-    <CodeBlock language="bash" filename="From the candidate source root">{`uv run --project python examples/python-first-task/first_sandbox.py`}</CodeBlock>
+    <p>Download <code>first_sandbox.py</code> and <code>first_model.py</code> from the list below into the same directory. Run with the environment configured above; no repository checkout is needed.</p>
+    <CodeBlock language="bash" filename="From the example directory">{`python first_sandbox.py`}</CodeBlock>
     <p>Matching downloadable source: {Object.keys(pythonExamples).map((name, index) => <span key={name}>{index > 0 && ", "}<a download href={`/docs/examples/python/${name}`}>{name}</a></span>)}. Displayed, downloaded and repository programs are checked for equality.</p>
 
     <h2>Borrow an existing sandbox</h2>
@@ -130,7 +129,8 @@ export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
 
     <h2>Repair and independently verify</h2>
     <p>The <a href={`${source}/examples/python-repository-repair`}>repository repair example</a> gives a real model a broken totals function. Four original tests include two failures. After the agent's work, the application checks that the tests were not changed, reruns the original tests independently, retrieves the patch and confirms cleanup. A model reply alone is not proof of a correct artifact.</p>
-    <CodeBlock language="bash" filename="Repair workflow">{`uv run --project python examples/python-repository-repair/repair.py`}</CodeBlock>
+    <p>This larger example includes test fixtures. From a repository checkout, keep using the activated environment with the published packages:</p>
+    <CodeBlock language="bash" filename="From the repository root">{`python examples/python-repository-repair/repair.py`}</CodeBlock>
 
     <h2>Recovery and approval</h2>
     <p>The <a href={`${source}/examples/python-workflow-recovery`}>single-worker recovery example</a> commits command intent before submission and acknowledgement before observation. A second process observes the saved command without resubmission. Missing acknowledgement requires reconciliation, not replay.</p>
