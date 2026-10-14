@@ -61,8 +61,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Audit workspace dependencies
-        run: pnpm audit --audit-level=high
+      - name: Verify scoped audit policy
+        run: node --test scripts/check-dependency-audit.test.mjs
+
+      - name: Audit workspace dependencies (reviewed exception expires 2026-11-13)
+        run: pnpm security:audit
+
+      - name: Verify framework matcher exposure boundary
+        run: |
+          pnpm --filter @h-sandbox/deepagents build
+          pnpm --filter @h-sandbox/deepagents exec node --test --import tsx test/matcher-security.test.ts
 
       - name: Check OpenAPI document
         run: pnpm openapi:check
