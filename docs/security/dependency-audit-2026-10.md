@@ -84,8 +84,13 @@ pnpm security:audit
 All five exposure tests pass locally. After the published fixes, the raw audit
 still exits nonzero with one high finding and reports nine moderate findings.
 The reviewed gate prints that full report before evaluating the one exception;
-it never labels the dependency fixed. Repository and installed-consumer
-qualification remain required before merge.
+it never labels the dependency fixed. [PR #69](https://github.com/nabilblk/h-sandbox/pull/69)
+merged after [repository CI](https://github.com/nabilblk/h-sandbox/actions/runs/38622474759),
+all six Node 20/22/24 npm/pnpm framework consumers,
+[demo checks](https://github.com/nabilblk/h-sandbox/actions/runs/38622474682) and
+[native SDK acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38622474214)
+passed. Native acceptance used a disposable GitHub-hosted fixture, including a
+real model repair and cleanup; no existing lab deployment was changed.
 
 ## Approved Temporary Exception
 
@@ -94,6 +99,7 @@ Owner and approver: **nabilblk**, explicitly approved on 2026-10-14. Expiry:
 adopt and qualify an upstream correction, or remove the dependency. Any renewal
 requires a new exposure review and explicit maintainer approval, not an automatic
 date extension.
+Tracked removal: [issue #70](https://github.com/nabilblk/h-sandbox/issues/70).
 
 `scripts/check-dependency-audit.mjs` implements the reviewed gate:
 
