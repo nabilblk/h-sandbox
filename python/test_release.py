@@ -135,6 +135,69 @@ def test_postpublish_verification_requires_complete_files(candidate, monkeypatch
         release.public_files("pypi", sdk, allow_missing=False)
 
 
+def test_public_download_waits_for_visibility_without_uploading(candidate, monkeypatch):
+    directory, manifest, _ = candidate
+    sdk = manifest["projects"]["sdk"]
+    expected = {name: name.encode() for name in sdk["files"]}
+    missing = urllib.error.HTTPError("https://pypi.org/x", 404, "missing", {}, None)
+    missing.close()
+    outcomes = [
+        missing,
+        release.PublicationPendingError("Public release is incomplete"),
+        expected,
+    ]
+    calls, sleeps = [], []
+
+    def read(registry, project, *, allow_missing):
+        calls.append((registry, project, allow_missing))
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(release, "public_files", read)
+    monkeypatch.setattr(release.time, "sleep", sleeps.append)
+    target = directory / "public"
+    release.download(manifest, "pypi", ["sdk"], target)
+    assert calls == [("pypi", sdk, False)] * 3
+    assert sleeps == [release.PUBLICATION_INTERVAL] * 2
+    assert {file.name: file.read_bytes() for file in target.glob("*.whl")} == {
+        name: content for name, content in expected.items() if name.endswith(".whl")
+    }
+
+
+@pytest.mark.parametrize("failure", ["missing", "incomplete", "403", "429", "500", "integrity"])
+def test_visibility_polling_is_bounded_and_does_not_mask_failures(candidate, monkeypatch, failure):
+    directory, manifest, _ = candidate
+    error = (
+        release.PublicationPendingError("Public release is incomplete")
+        if failure == "incomplete"
+        else ValueError("Public archive hash mismatch")
+        if failure == "integrity"
+        else urllib.error.HTTPError(
+            "https://pypi.org/x", 404 if failure == "missing" else int(failure), "failure", {}, None
+        )
+    )
+    if isinstance(error, urllib.error.HTTPError):
+        error.close()
+    calls, sleeps = [], []
+
+    def read(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise error
+
+    monkeypatch.setattr(release, "public_files", read)
+    monkeypatch.setattr(release.time, "sleep", sleeps.append)
+    target = directory / "public"
+    with pytest.raises(type(error)) as caught:
+        release.download(manifest, "pypi", ["sdk"], target)
+    assert caught.value is error
+    attempts = release.PUBLICATION_ATTEMPTS if failure in {"missing", "incomplete"} else 1
+    assert len(calls) == attempts
+    assert sleeps == [release.PUBLICATION_INTERVAL] * (attempts - 1)
+    assert list(target.iterdir()) == []
+
+
 def test_only_not_found_can_be_treated_as_unpublished(candidate, monkeypatch):
     _, manifest, _ = candidate
     sdk = manifest["projects"]["sdk"]

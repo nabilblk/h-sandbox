@@ -178,5 +178,13 @@ file, unexpected archive, unauthorized response or registry outage stops deliver
 There is no blanket `skip-existing` switch. TestPyPI artifacts are downloaded
 explicitly; third-party dependencies resolve only through the public PyPI index.
 
+A completed upload can precede public JSON/file visibility. Download verification
+allows at most 12 read attempts, five seconds apart, only for HTTP 404 or an
+incomplete set of expected files. Normal request timeouts still apply. Each
+attempt rechecks identity, hashes and yank status; integrity errors, unexpected
+files and other HTTP failures stop immediately. Staging and uploading do not use
+this retry policy. If visibility remains delayed, inspect the registry before
+rerunning failed verification jobs; never overwrite or republish a changed file.
+
 References: [PyPI pending publishers](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/),
 [SDK contract](../python-sdk.md), [design](python-client-design.md).
