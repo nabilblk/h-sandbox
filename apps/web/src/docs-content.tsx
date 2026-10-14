@@ -17,6 +17,7 @@ import { workspaceOperationsDocs } from "./workspace-operations-docs";
 import { uiProductTourDocs } from "./ui-product-tour-docs";
 import { typescriptSdkDocs } from "./typescript-sdk-docs";
 import { deepagentsDocs } from "./deepagents-docs";
+import { pythonSdkDocs, pythonDeepagentsDocs } from "./python-docs";
 import { publishedSdkInstall, publishedCliInstall, publishedSdkVersion, publishedWorker, publishedArtifacts, publishedOpenCodeHeadless, publishedOpenCodeServer } from "./sdk-doc-examples";
 
 export type DocPage = {
@@ -64,6 +65,8 @@ export const docPages: DocPage[] = [
   authorizationDocs,
   typescriptSdkDocs,
   deepagentsDocs,
+  pythonSdkDocs,
+  pythonDeepagentsDocs,
   ...agentDemoTutorials.map((tutorial): DocPage => ({
     id: tutorial.id, section: "Agent demos", title: tutorial.title, lede: tutorial.lede,
     navTitle: ({ "cli-agent-repair": "CLI: repair code", "ui-agent-app": "UI: build an app", "sdk-agent-report": "SDK: generate a report", "browser-agent-qa": "SDK: browser QA" } as Record<string, string>)[tutorial.id],

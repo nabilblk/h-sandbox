@@ -1,8 +1,10 @@
-# Provider File Transfer Fix: Unreleased Candidate
+# Provider File Transfer Fix: Candidate Qualification
 
 Provider PR [#67](https://github.com/nabilblk/h-sandbox/pull/67) is independent of
 the Python SDK candidate in [#66](https://github.com/nabilblk/h-sandbox/pull/66).
-This note does not announce a server release or a production deployment.
+This note records the original source-candidate qualification. The subsequent
+[API maintenance delivery](2026-10-02-provider-files-delivery.md) records merge
+and publication separately. No production deployment is claimed.
 
 ## Failure and Correction
 

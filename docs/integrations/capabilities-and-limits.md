@@ -27,10 +27,10 @@ what applications can rely on without knowing OpenSandbox internals.
 
 ## Partial
 
-### Unreleased Phase 2B Preview
+### Published Workspace Preview
 
-Matching source builds add organization-owned persistent workspaces and command
-event streams through API/SDK/CLI/dashboard. These are **not included in 0.4.0**.
+The 0.5.0 release candidates include organization-owned persistent workspaces and
+command event streams through API/TypeScript SDK/CLI/dashboard. These are **not included in 0.4.0**.
 Workspace allocation requires operator opt-in, retained native PVC support and
 disabled runtime fallback. One sandbox owns a workspace; archive retains files
 and quota. Snapshot/restore with workspaces is rejected. Command events are an
@@ -55,7 +55,7 @@ See [workspace limits and acceptance](../persistent-workspaces.md).
 
 ## Limits To Read From Configuration
 
-**Unreleased, migration 038:** organization `maxConcurrency` is enforced through
+**Published from rc.9, migration 038:** organization `maxConcurrency` is enforced through
 atomic execution reservations. `GET /v1/org/capacity` reports known counts or
 explicit unknown inventory. Create/restore/resume may return
 `409 organization_capacity_exceeded` or `503 organization_capacity_unavailable`.
@@ -75,7 +75,7 @@ See the [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 ## Recommended External App Flow
 
 1. Create a sandbox with an idempotency key.
-2. Wait until `running` or `idle`.
+2. Wait for execution readiness, not just a `running` or `idle` status.
 3. Write project files.
 4. Run setup commands.
 5. Start long-running processes as detached commands.
@@ -84,3 +84,10 @@ See the [capacity concept](https://sb.harakiri.io/#docs/execution-capacity).
 8. Poll command status and fetch command logs.
 9. Download artifacts.
 10. Renew while active, then kill and delete route references on cleanup.
+
+## Python Candidate
+
+The [unreleased Python SDK](../python-sdk.md) covers a deliberately smaller API
+surface than TypeScript. Its [Deep Agents backend](deepagents-python.md) is optional.
+See the candidate matrix and qualification record before assuming language parity
+or PyPI availability. Python does not introduce a provider-specific bypass.

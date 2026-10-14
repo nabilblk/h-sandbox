@@ -35,7 +35,8 @@ policy, templates and product lifecycle.
 This is a **self-hosted Developer Preview**, not a hosted-service SLA or a
 hostile multi-tenant production guarantee. Start with the
 [preview scope and operator checklist](docs/developer-preview.md).
-Concurrency admission and historical usage metering are not implemented.
+Atomic organization concurrency admission and observed usage history are available
+in the release candidate; unavailable observations remain explicit gaps, not estimates.
 Workspace persistence is not a backup; Vault and egress require an enforceable
 runtime profile. Restricted OpenShift support is not certified by Helm rendering.
 
@@ -71,6 +72,10 @@ to create a sandbox, run a checked Python command and clean up. It requires no
 LLM credentials. Then try [persistent workspaces](https://sb.harakiri.io/#docs/workspaces)
 or a [real OpenCode workflow](https://sb.harakiri.io/#demos).
 Publication and native installation results are recorded separately in the candidate receipt.
+
+Python developers can evaluate the [unreleased Python SDK](docs/python-sdk.md) and
+[Python Deep Agents integration](docs/integrations/deepagents-python.md) from source.
+PyPI publication is pending; this is not a stable or already-published package claim.
 
 ## Agent Demos
 

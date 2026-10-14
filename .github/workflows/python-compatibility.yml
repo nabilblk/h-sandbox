@@ -1,0 +1,32 @@
+name: Python upstream compatibility probe
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - run: uv sync --project python --frozen
+      - name: Override only this disposable probe environment
+        run: uv pip install --python python/.venv/bin/python --upgrade deepagents
+      - name: Report resolved upstream and exercise the real protocol
+        run: |
+          python/.venv/bin/python -c 'from importlib.metadata import version; print("Unqualified upstream probe:", version("deepagents"))'
+          python/.venv/bin/python -m pytest -q -c python/pyproject.toml packages/python-sdk/tests packages/python-deepagents/tests
+      - name: Keep support policy explicit
+        if: always()
+        run: echo 'This probe does not widen dependency bounds, publish artifacts, or qualify native runtimes.' >> "$GITHUB_STEP_SUMMARY"

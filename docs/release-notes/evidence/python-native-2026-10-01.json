@@ -1,0 +1,182 @@
+{
+  "kind": "python-agents-candidate",
+  "published": false,
+  "candidateSource": "0a227a22f14581c3e4762c88e6531b57cf33f04c",
+  "architecture": "amd64",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "passed"
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed"
+    },
+    {
+      "gate": "template-import",
+      "status": "passed"
+    },
+    {
+      "gate": "installed-candidate-wheels",
+      "status": "passed"
+    },
+    {
+      "gate": "native-sdk-and-framework",
+      "status": "passed"
+    },
+    {
+      "gate": "provider-loss-and-unconfirmed-cleanup",
+      "status": "passed"
+    },
+    {
+      "gate": "native-remote-deadline",
+      "status": "passed"
+    },
+    {
+      "gate": "native-large-artifact-limits",
+      "status": "failed",
+      "failure": {
+        "kind": "acceptance_check",
+        "check": "Python boundary consumer failed; private command evidence retained"
+      }
+    },
+    {
+      "gate": "real-model-repair",
+      "status": "passed"
+    },
+    {
+      "gate": "key-revocation",
+      "status": "passed"
+    }
+  ],
+  "startedAt": "2026-10-01T13:10:54.807Z",
+  "limits": [
+    "Single-worker SQLite example, not HA or exactly-once",
+    "One real model repair, not a model benchmark",
+    "No packages published or existing deployment changed"
+  ],
+  "installation": {
+    "version": "0.5.0-rc.10",
+    "source": "3ff2aaaffe6d92a8c2db7333f6d8c79a144c5207",
+    "architecture": "amd64",
+    "anonymousArtifacts": true,
+    "freshInstallation": true,
+    "nativeTemplateImage": true,
+    "templateManifestSha256": "9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3"
+  },
+  "template": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3",
+  "wheels": {
+    "h_sandbox-0.1.0rc1-py3-none-any.whl": "6dd3117d9523786080313ffdfb47209938d072f61df471b0ec26e80dfa0769a8",
+    "h_sandbox_deepagents-0.1.0rc1-py3-none-any.whl": "e1dd6152b9bdcf068a5aad4aaf007e78baa5e12d16f2d5fa41934f30ebc4ef4d"
+  },
+  "native": {
+    "results": [
+      {
+        "gate": "scoped-key-denial",
+        "status": "passed"
+      },
+      {
+        "gate": "sync-lifecycle-tools-files-cleanup",
+        "status": "passed"
+      },
+      {
+        "gate": "native-async-tools",
+        "status": "passed"
+      },
+      {
+        "gate": "separate-worker-and-expired-runtime-file-recovery",
+        "status": "passed"
+      }
+    ],
+    "observations": {},
+    "python": "3.12.3",
+    "packages": {
+      "h-sandbox": "0.1.0rc1",
+      "h-sandbox-deepagents": "0.1.0rc1",
+      "deepagents": "0.7.21",
+      "httpx": "0.28.1"
+    }
+  },
+  "boundaries": {
+    "native-remote-deadline": {
+      "results": [
+        {
+          "gate": "native-remote-deadline",
+          "status": "passed"
+        }
+      ],
+      "observations": {
+        "remoteDeadline": {
+          "exitCode": -1,
+          "finishReason": "error",
+          "frameworkVisibleNotice": true
+        }
+      },
+      "python": "3.12.3",
+      "packages": {
+        "h-sandbox": "0.1.0rc1",
+        "h-sandbox-deepagents": "0.1.0rc1",
+        "deepagents": "0.7.21",
+        "httpx": "0.28.1"
+      }
+    }
+  },
+  "nativeFailures": [
+    {
+      "gate": "native-1-and-16-mib-artifacts",
+      "type": "ProviderError",
+      "frames": [
+        {
+          "function": "__get_result",
+          "line": 401
+        },
+        {
+          "function": "_call_func",
+          "line": 265
+        },
+        {
+          "function": "write",
+          "line": 126
+        },
+        {
+          "function": "request",
+          "line": 137
+        }
+      ],
+      "observations": {},
+      "status": 502,
+      "code": "runtime_files_unavailable"
+    }
+  ],
+  "model": {
+    "image": "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
+    "name": "qwen3:4b-instruct",
+    "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+    "status": "verified",
+    "originalTestSha256": "1a438c38dc275a1f6cd8c983bb96a02acb83003e180ec9c7c75cbf6e54b059d9",
+    "patchSha256": "37af9257d4c15a86c533cbae3b4b8b9b3c5d850ffb6dd4e6e55804f94c59e9a2",
+    "originalTests": 4,
+    "modelResponses": 10,
+    "toolResponses": 9,
+    "ownedCleanup": "confirmed"
+  },
+  "status": "failed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-10-01T13:30:00.312Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

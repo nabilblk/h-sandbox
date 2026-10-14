@@ -5,6 +5,7 @@ import { DocumentationExportContext } from "./components/docs-code";
 import { docPages, type DocPage } from "./docs-content";
 import { groupDocPages } from "./docs-navigation";
 import { deepagentsLocalTask, deepagentsSandboxTask, deepagentsModelSetup } from "./deepagents-docs";
+import { pythonExamples } from "./python-doc-snippets";
 
 const markdown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced", bulletListMarker: "-" });
 markdown.use(gfm);
@@ -45,6 +46,9 @@ export function documentationAssets() {
   const ordered = groups.flatMap((group) => group.pages);
   if (new Set(ordered.map((page) => page.id)).size !== docPages.length || ordered.length !== docPages.length) throw new Error("Documentation inventory is incomplete or duplicated");
   const assets = new Map(ordered.map((page) => [`docs/${page.id}.md`, renderDocMarkdown(page)]));
+  for (const [name, program] of Object.entries(pythonExamples)) {
+    assets.set(`docs/examples/python/${name}`, `${program}\n`);
+  }
   for (const [name, source] of [["first-local", deepagentsLocalTask], ["first-sandbox", deepagentsSandboxTask], ["first-model", deepagentsModelSetup]]) {
     assets.set(`docs/examples/deepagents/${name}.ts`, `${source}\n`);
   }

@@ -5,11 +5,11 @@ import { namespaces, ownershipLabel, validateArtifactManifest } from "./safety.m
 import { installClients } from "./clients.mjs";
 import { verifyNativeTemplate } from "./image.mjs";
 
-export async function install(ctx) {
-  const templateEvidence = await verifyNativeTemplate(pinned.opencodeImage);
-  const base = `https://github.com/nabilblk/h-sandbox/releases/download/v${pinned.version}/`;
-  const bytes = await download(`${base}artifact-manifest.json`, pinned.manifestSha256);
-  const manifest = validateArtifactManifest(JSON.parse(bytes), pinned);
+export async function install(ctx, baseline = pinned) {
+  const templateEvidence = await verifyNativeTemplate(baseline.opencodeImage);
+  const base = `https://github.com/nabilblk/h-sandbox/releases/download/v${baseline.version}/`;
+  const bytes = await download(`${base}artifact-manifest.json`, baseline.manifestSha256);
+  const manifest = validateArtifactManifest(JSON.parse(bytes), baseline);
   ctx.save("artifact-manifest.json", manifest);
   for (const name of ["harakiri", "opensandbox"]) {
     const chart = manifest.charts[name];
@@ -17,7 +17,7 @@ export async function install(ctx) {
   }
   const configuration = createConfiguration({ webOrigin: origins.web, apiOrigin: origins.api, authOrigin: origins.auth, email: "operator@acceptance.example.test" });
   const values = configuration["harakiri-values.json"];
-  values.image = { api: { tag: `${pinned.version}@${pinned.images.api}` }, web: { tag: `${pinned.version}@${pinned.images.web}` } };
+  values.image = { api: { tag: `${baseline.version}@${baseline.images.api}` }, web: { tag: `${baseline.version}@${baseline.images.web}` } };
   values.config.TEMPLATE_BUILDER_JOB_IMAGE = manifest.images.api.image;
   for (const [name, value] of Object.entries(configuration)) ctx.save(name, value);
   ctx.k(["apply", "-f", "infra/preview/dependencies.yaml"]);
@@ -35,5 +35,5 @@ export async function install(ctx) {
     check(response.status === expected, "Installed public endpoint check failed");
     if (url.includes("openid-configuration")) check((await response.json()).issuer === `${origins.auth}/realms/harakiri`, "Installed issuer mismatch");
   }
-  return { version: pinned.version, source: pinned.source, architecture: "amd64", anonymousArtifacts: true, freshInstallation: true, ...templateEvidence };
+  return { version: baseline.version, source: baseline.source, architecture: "amd64", anonymousArtifacts: true, freshInstallation: true, ...templateEvidence };
 }

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "h-sandbox-deepagents"
+version = "0.1.0rc1"
+description = "Harakiri sandbox backends for Python Deep Agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "Harakiri contributors"}]
+dependencies = ["h-sandbox==0.1.0rc1", "deepagents==0.7.21", "anyio>=4.9,<5"]
+classifiers = ["Development Status :: 3 - Alpha", "Typing :: Typed"]
+
+[project.urls]
+Documentation = "https://sb.harakiri.io/#docs/deepagents-python"
+Repository = "https://github.com/nabilblk/h-sandbox"
+Issues = "https://github.com/nabilblk/h-sandbox/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/harakiri_deepagents"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE", "pyproject.toml"]

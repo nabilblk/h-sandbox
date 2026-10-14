@@ -1,5 +1,51 @@
 import { expect, test } from "@playwright/test";
 
+test("Python guides preserve source, aligned comparison, search and mobile navigation", async ({ page, context, request }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/#docs/deepagents-python");
+  await expect(page.getByRole("heading", { name: "Deep Agents for Python", exact: true })).toBeVisible();
+  await expect(page.locator("article .docs-notice")).toContainText("publication is pending");
+  const markdown = await (await request.get("/docs/deepagents-python.md")).text();
+  for (const name of ["first_local.py", "first_sandbox.py", "first_model.py", "first_async.py", "first_existing.py"]) {
+    const block = page.locator(".doc-code").filter({ has: page.locator(".doc-code-label", { hasText: name }) });
+    const source = await block.locator("pre code").textContent();
+    await block.getByRole("button", { name: `Copy ${name} code`, exact: true }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(source);
+    expect(markdown).toContain(source!);
+    expect((await (await request.get(`/docs/examples/python/${name}`)).text()).trimEnd()).toBe(source);
+    const event = page.waitForEvent("download");
+    await page.getByRole("link", { name, exact: true }).click();
+    expect((await event).suggestedFilename()).toBe(name);
+  }
+  const comparison = page.locator(".docs-code-comparison");
+  for (const width of [1440, 1024, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await comparison.scrollIntoViewIfNeeded();
+    const panels = comparison.locator("section");
+    const a = (await panels.nth(0).boundingBox())!;
+    const b = (await panels.nth(1).boundingBox())!;
+    if ((await comparison.boundingBox())!.width >= 760) {
+      for (const selector of ["h3", "p", ".doc-code", "pre"]) {
+        const first = (await panels.nth(0).locator(selector).boundingBox())!;
+        const second = (await panels.nth(1).locator(selector).boundingBox())!;
+        expect(Math.abs(first.y - second.y)).toBeLessThan(1);
+        expect(Math.abs(first.height - second.height)).toBeLessThan(1);
+      }
+    } else {
+      expect(b.y).toBeGreaterThan(a.y + a.height);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.screenshot({ path: `test-results/python-comparison-${width}.png` });
+    await page.goto("/#docs/python-sdk");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.goto("/#docs/deepagents-python");
+  }
+  await page.getByLabel("Browse docs").selectOption("python-sdk");
+  await expect(page.getByRole("heading", { name: "Python SDK", exact: true })).toBeVisible();
+  await page.goto("/#docs/deepagents-python?section=recovery-and-approval");
+  await expect(page.locator("#recovery-and-approval")).toBeFocused();
+});
+
 test("Deep Agents guide exposes npm setup, highlighted programs and ownership guidance", async ({ page, context, request }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/#docs/typescript-sdk");

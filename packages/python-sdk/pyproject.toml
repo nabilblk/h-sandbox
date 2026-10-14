@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "h-sandbox"
+version = "0.1.0rc1"
+description = "Typed Python client for the Harakiri sandbox control plane"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{name = "Harakiri contributors"}]
+dependencies = ["anyio>=4.9,<5", "httpx>=0.28.1,<0.29", "pydantic>=2.10,<3"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://sb.harakiri.io"
+Documentation = "https://sb.harakiri.io/#docs/python-sdk"
+Repository = "https://github.com/nabilblk/h-sandbox"
+Issues = "https://github.com/nabilblk/h-sandbox/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/harakiri"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE", "pyproject.toml"]

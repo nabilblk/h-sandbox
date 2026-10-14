@@ -1,5 +1,10 @@
 # Harakiri SDK
 
+This guide covers the published **TypeScript** SDK. For the independently versioned
+Python candidate, see [Python SDK](python-sdk.md) and
+[Deep Agents for Python](integrations/deepagents-python.md). Python publication is
+pending and its first-preview surface is intentionally smaller.
+
 ## Reliability In SDK rc.12
 
 The [Reliable Framework Workflows guide](integrations/reliable-framework-workflows.md)
