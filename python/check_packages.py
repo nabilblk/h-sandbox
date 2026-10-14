@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -67,6 +68,11 @@ def main() -> None:
         files = sorted(distribution.glob(pattern))
         if len(files) != 2:
             raise RuntimeError("Expected exactly one core and one adapter artifact for each format")
+        run(
+            [sys.executable, "-m", "twine", "check", "--strict", *(str(file) for file in files)],
+            cwd=ROOT,
+            env=env,
+        )
         core = next(file for file in files if file.name.startswith("h_sandbox-"))
         adapter = next(file for file in files if file.name.startswith("h_sandbox_deepagents-"))
         with tempfile.TemporaryDirectory(prefix="harakiri-python-consumer-") as directory:

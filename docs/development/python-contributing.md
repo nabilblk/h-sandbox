@@ -20,10 +20,18 @@ outside the checkout: local, owned, async and borrowed programs use real tools a
 a loopback scripted Ollama endpoint. Inference is explicitly simulated for that
 repeatable documentation gate; the separate digest-pinned real-model repair still
 must pass. Local shell examples execute only on the disposable GitHub runner.
-The package script builds wheel and sdist, installs each in a clean consumer
+The package script builds wheel and sdist, validates their metadata and README
+with `twine check --strict`, then installs each in a clean consumer
 outside the checkout and checks public imports, metadata, typing and 16 MiB
 binary transfer against a controlled HTTP fixture. Linux additionally enforces a 256 MiB address-space budget on
 the model-free transfer process; this is not a memory budget for Deep Agents.
+
+Twine 7 or newer is required for the core metadata 2.5 emitted by the selected
+Hatchling builder. Twine 6.2 rejected otherwise installable archives in the first
+[TestPyPI release attempt](https://github.com/nabilblk/h-sandbox/actions/runs/38632582104),
+before publication. The validator is now locked to 7.0.0 and runs in ordinary
+package CI as well as release qualification. No metadata downgrade or validation
+bypass is used. See the [upstream fix](https://twine.readthedocs.io/en/latest/changelog.html#twine-7-0-0-2026-07-27).
 
 Native acceptance must run only through the GitHub-hosted ownership-guarded
 workflow. Never invoke bootstrap against a workstation, ambient kubeconfig or
