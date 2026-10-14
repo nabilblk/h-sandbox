@@ -1,9 +1,17 @@
 # Deep Agents on Harakiri
 
-An optional backend for the real Python `deepagents` framework. Development
-preview: public PyPI publication and public-artifact qualification are pending.
-The qualification record distinguishes source-candidate evidence. The contract targets
-Deep Agents `0.7.21` and Python SDK `0.1.0rc1` exactly.
+An optional backend for the real Python `deepagents` framework. Developer
+preview `0.1.0rc1` targets Deep Agents `0.7.21` and Python SDK `0.1.0rc1`
+exactly, on Python 3.11 or newer. See the
+[release record](https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/python-agents-preview.md)
+for publication status, exact artifacts and native qualification evidence.
+
+Version-pinned PyPI installation, including the exact SDK and framework
+dependencies:
+
+```sh
+python -m pip install "h-sandbox-deepagents==0.1.0rc1"
+```
 
 ```python
 from deepagents import create_deep_agent
@@ -27,7 +35,7 @@ for native async I/O. Use a borrowed sandbox, not a disposable `task` context,
 when the graph pauses for human approval. Checkpoints do not extend runtime TTL.
 
 The [complete integration guide](https://github.com/nabilblk/h-sandbox/blob/main/docs/integrations/deepagents-python.md)
-covers model setup, source installation, template utilities, partial transfers,
+covers model setup, installation, template utilities, partial transfers,
 truncation, observed command recovery and current qualification status. Standard
 output is bounded to 64 KiB by default; abnormal termination remains visible to
 the actual framework tools. No distributed exactly-once recovery is claimed.
