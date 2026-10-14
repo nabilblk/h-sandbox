@@ -205,6 +205,43 @@ Local verification of the environment correction passed all 135 Python tests,
 Ruff checks/formatting and actionlint for the four Python workflows. The SDK and
 adapter package sources and versions are unchanged.
 
+### Release Resumption (2026-10-14)
+
+Nabil authorized completing delivery and approved a scoped, 30-day exception for
+the two tested TypeScript `braces` paths. [PR #69](https://github.com/nabilblk/h-sandbox/pull/69)
+merged published tooling fixes and the fail-closed audit policy after repository,
+installed-consumer, demo and native SDK checks passed. The dependency is not
+fixed; local-filesystem backends remain exposed. The
+[assessment](../../security/dependency-audit-2026-10.md) and
+[removal issue #70](https://github.com/nabilblk/h-sandbox/issues/70) retain that
+risk and the November 13 expiry.
+
+Both Python branches were refreshed against `main` without changing their file
+trees. [Implementation native acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38624621658)
+and [delivery native acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38624649471)
+passed all configured gates and cleanup before the ancestry-only refresh.
+The updated package READMEs produce new artifact hashes; native delivery confirms
+the same wheels as two reproducible local builds:
+
+- SDK wheel: `187b70c2ab24b5f9d9970bc2087b8c08d4f916ae00924377b8a9ef7e25e61475`.
+- Adapter wheel: `aed49c5c6befe7cf9c77126bcb022c0934cdbf6a8fe6c1e2c3d257c822f7dcd7`.
+
+The [fresh standalone rehearsal](https://github.com/nabilblk/h-sandbox/actions/runs/38625877902)
+passed, including cleanup. An earlier image-build failure in run 38624621443 did
+not recur; its private diagnostic was not exported, so no precise cause is
+claimed. Required repository checks pass; refreshed Python native runs and the
+merge/publication sequence remain in progress. Neither registry has a project
+yet, and no package publication is claimed.
+
+Read-only lab inspection found Helm revision 48 still running the rc.10 API.
+The separately released `api-2026-10-02.1` image is needed for the documented
+large-file contract. Anonymous checksum, architecture and source-label checks
+passed again. An API-only dry run also changes the web pod's shared configuration
+checksum, so delivery will combine the API maintenance image and new docs image
+in one guarded rollout. No deployment has occurred at this checkpoint. Preserve
+the rc.10 chart, all credentials and public origins; do not run bootstrap,
+migrations, customer installation or provider restarts.
+
 The next integration should make this promise concrete:
 
 > Take an existing Python agent, change its execution backend, and run its tools on your own Harakiri installation.
@@ -604,7 +641,7 @@ The recovery example is application code. Use an official LangGraph SQLite check
 - [ ] Verify anonymous clean `pip` and `uv` installation outside the checkout, package metadata/license/typing files, dependency bounds and provenance/attestations where supported. Public instructions use exact preview pins.
 - [ ] Rerun a fresh native consumer using the actual public package pair and supported server baseline. Local candidate success alone is not public-artifact qualification.
 - [ ] Publish release notes and source links with separate statuses for SDK publication, adapter publication, native verification and public documentation deployment.
-- [ ] Deploy only the web/documentation update when authorized, using the existing guarded deployment process. Preserve API/auth origins, operator values, secrets and running workloads; no API/chart/schema upgrade is required by this plan.
+- [ ] Deploy the authorized web/documentation update using the existing guarded deployment process. The lab also needs the separately released `api-2026-10-02.1` file-transfer correction; qualify and record that explicit image change separately from the Python packages. Preserve API/auth origins, operator values, secrets and running workloads. Do not change chart, schema or identity configuration.
 - [ ] Verify public docs load the new routes and exact install commands. Keep previous packages available for rollback; fix releases with a new version and use yanking only with a documented incident reason.
 
 **Exit gate**: Both public artifacts install and run, the release receipt matches their hashes, Trusted Publishing is configured, and the live documentation is verified. No reusable PyPI token is requested in chat or stored in the repository.
