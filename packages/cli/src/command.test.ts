@@ -128,6 +128,77 @@ const runCli = async (args: string[], options: { api: { url: string }; cwd?: str
   };
 };
 
+test("doctor checks configuration, scoped API access and readiness without writes", async () => {
+  const api = await startMockApi((request) => ({ body: request.path === "/v1/org/capacity"
+    ? { capacity: { state: "enforced" } }
+    : { readiness: { status: "ready" } } }));
+  try {
+    const result = await runCli(["doctor", "sbx_workbench", "--json"], { api });
+    assert.equal(result.exitCode, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.checks.map((check: { status: string }) => check.status), ["pass", "pass", "pass"]);
+    assert.deepEqual(api.requests.map((request) => `${request.method} ${request.path}`), ["GET /v1/org/capacity", "GET /v1/sandboxes/sbx_workbench/readiness"]);
+    assert.ok(!result.stdout.includes("hk_test_cli"));
+  } finally { await api.close(); }
+});
+
+test("doctor reports permission failures without reflecting remote secret-bearing messages", async () => {
+  const api = await startMockApi(() => ({ status: 403, body: { error: "forbidden", message: "secret:hunter2" } }));
+  try {
+    const result = await runCli(["doctor", "--json"], { api });
+    assert.equal(result.exitCode, 1);
+    assert.equal(JSON.parse(result.stdout).ok, false);
+    assert.match(result.stdout, /Access denied/);
+    assert.doesNotMatch(result.stdout + result.stderr, /hunter2|hk_test_cli/);
+  } finally { await api.close(); }
+});
+
+test("doctor rejects missing keys and unsafe URLs before making requests", async () => {
+  const api = await startMockApi(() => ({}));
+  try {
+    for (const env of [{ HARAKIRI_API_KEY: "" }, { HARAKIRI_API_URL: "https://user:password@example.test" }, { HARAKIRI_API_URL: "http://example.test" }]) {
+      const result = await runCli(["doctor", "--json"], { api, env });
+      assert.equal(result.exitCode, 1);
+      assert.equal(JSON.parse(result.stdout).checks[0].status, "fail");
+      assert.doesNotMatch(result.stdout, /password/);
+    }
+    assert.equal(api.requests.length, 0);
+  } finally { await api.close(); }
+});
+
+test("status checks readiness and includes only an explicitly configured workbench URL", async () => {
+  const api = await startMockApi(() => ({ body: { sandbox: { id: "sbx_workbench", status: "pending" }, readiness: { status: "starting", checkedAt: "2026-10-15T12:00:00Z" } } }));
+  try {
+    const result = await runCli(["status", "sbx_workbench", "--check", "--web-url", "https://sandbox.example.test/", "--json"], { api });
+    assert.equal(result.exitCode, 1);
+    assert.equal(JSON.parse(result.stdout).workbenchUrl, "https://sandbox.example.test/#dashboard/sandboxes/sbx_workbench?tab=overview");
+    assert.deepEqual(api.requests.map((request) => `${request.method} ${request.path}`), ["GET /v1/sandboxes/sbx_workbench/readiness"]);
+    const invalid = await runCli(["status", "sbx_workbench", "--web-url", "javascript:alert(1)"], { api });
+    assert.equal(invalid.exitCode, 1);
+    assert.equal(api.requests.length, 1);
+  } finally { await api.close(); }
+});
+
+test("doctor bounds an unresponsive API and metrics distinguish unavailable counters", async () => {
+  let unresponsive = true;
+  const api = await startMockApi(() => unresponsive ? { stream: "", keepOpen: true } : { body: {
+    current: { cpu: 0, mem: 2, diskIo: 0, networkOut: 0 }, series: [], observedAt: null, availableFields: ["cpu", "mem"]
+  } });
+  try {
+    const diagnostic = await runCli(["doctor", "--json", "--timeout-ms", "25"], { api });
+    assert.equal(diagnostic.exitCode, 1);
+    assert.match(diagnostic.stdout, /failed or timed out/);
+    unresponsive = false;
+    const metrics = await runCli(["metrics", "sbx_workbench"], { api });
+    assert.equal(metrics.exitCode, 0, metrics.stderr);
+    assert.match(metrics.stdout, /cpu\t0%/);
+    assert.match(metrics.stdout, /disk_io\tunavailable/);
+    assert.match(metrics.stdout, /network_out\tunavailable/);
+    assert.match(metrics.stdout, /observed_at\tunknown/);
+  } finally { await api.close(); }
+});
+
 const buildRow = (overrides: Record<string, unknown>) => ({
   id: "bld_payload",
   organizationId: "org_cli",

@@ -159,10 +159,10 @@ jobs:
           pnpm install --frozen-lockfile
       - name: Check adapter and examples
         run: pnpm --filter @h-sandbox/deepagents typecheck
-      - name: Test real frameworks and public declarations through installed tarballs
+      - name: Test adapter tarball against its declared published SDK peer
         env:
           HARAKIRI_DEEPAGENTS_PACKAGE_MANAGER: ${{ matrix.package-manager }}
-        run: pnpm --filter @h-sandbox/deepagents test:package
+        run: pnpm --filter @h-sandbox/deepagents test:package --release-candidate
 
   durable-framework:
     name: Persistent framework recovery (PostgreSQL, separate workers)
@@ -249,7 +249,7 @@ jobs:
       - name: Verify documentation, authorization UI, sandbox navigation and preview states
         env:
           HARAKIRI_E2E_MANAGED_SERVER: "1"
-        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts tests/e2e/capacity.spec.ts tests/e2e/usage-observations.spec.ts tests/e2e/sandbox-detail.spec.ts
+        run: pnpm exec playwright test tests/e2e/docs-experience.spec.ts tests/e2e/authorization.spec.ts tests/e2e/preview-readiness.spec.ts tests/e2e/capacity.spec.ts tests/e2e/usage-observations.spec.ts tests/e2e/sandbox-detail.spec.ts tests/e2e/sandbox-workbench.spec.ts
 
   chart:
     name: Helm chart

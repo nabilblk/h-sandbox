@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { AuthSessionExpiredError, type AuthSession } from "./auth.js";
-import { ApiResponseError, createRequester } from "./api-client/request.js";
+import { ApiResponseError, createRequester, readBoundedJson } from "./api-client/request.js";
+
+test("bounded JSON responses stop reading beyond the byte budget", async () => {
+  let cancelled = false;
+  const response = new Response(new ReadableStream({
+    pull(controller) { controller.enqueue(new Uint8Array(100)); },
+    cancel() { cancelled = true; }
+  }));
+  await assert.rejects(readBoundedJson(response, 150), /transfer limit/);
+  assert.equal(cancelled, true);
+  assert.deepEqual(await readBoundedJson(new Response('{"ok":true}'), 11), { ok: true });
+  await assert.rejects(readBoundedJson(new Response("{}"), 2, AbortSignal.abort(new Error("cancelled"))), /cancelled/);
+});
 
 const makeSession = (tokens: Array<string | null | Error>): AuthSession => {
   const calls: number[] = [];
@@ -26,6 +38,71 @@ const makeSession = (tokens: Array<string | null | Error>): AuthSession => {
     calls
   } as AuthSession & { calls: number[] };
 };
+
+for (const forcedRefresh of [false, true]) {
+  test(`cancellation interrupts ${forcedRefresh ? "forced" : "initial"} token refresh without replaying after late authentication`, async () => {
+    let calls = 0;
+    let resolveToken!: (token: string) => void;
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => { entered = resolve; });
+    const session = makeSession([]);
+    let tokens = 0;
+    session.getAccessToken = () => {
+      if (forcedRefresh && tokens++ === 0) return Promise.resolve("old-token");
+      entered();
+      return new Promise<string>((resolve) => { resolveToken = resolve; });
+    };
+    Object.defineProperty(globalThis, "fetch", { configurable: true, value: async () => {
+      calls++;
+      return new Response('{"error":"unauthorized"}', { status: 401 });
+    } });
+    const controller = new AbortController();
+    const result = createRequester(session)("/v1/me", { signal: controller.signal });
+    await waiting;
+    const reason = new Error("Request timed out. Refresh to try again.");
+    controller.abort(reason);
+    await assert.rejects(result, (error) => error === reason);
+    resolveToken("late-token");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(calls, forcedRefresh ? 1 : 0);
+  });
+}
+
+test("cancelling one caller does not cancel another caller's shared authentication", async () => {
+  let resolveToken!: (token: string) => void;
+  const pending = new Promise<string>((resolve) => { resolveToken = resolve; });
+  const session = makeSession([]);
+  let tokenCalls = 0;
+  session.getAccessToken = () => { tokenCalls++; return pending; };
+  let sends = 0;
+  Object.defineProperty(globalThis, "fetch", { configurable: true, value: async () => {
+    sends++;
+    return new Response('{"ok":true}');
+  } });
+  const request = createRequester(session);
+  await assert.rejects(request("/v1/me", { signal: AbortSignal.abort(new Error("already cancelled")) }), /already cancelled/);
+  assert.equal(tokenCalls, 0);
+  const controller = new AbortController();
+  const cancelled = request("/v1/me", { signal: controller.signal });
+  const surviving = request("/v1/me");
+  controller.abort(new Error("cancelled caller"));
+  await assert.rejects(cancelled, /cancelled caller/);
+  resolveToken("shared-token");
+  assert.deepEqual(await surviving, { ok: true });
+  assert.equal(sends, 1);
+});
+
+test("late authentication rejection remains handled after caller cancellation", async () => {
+  let rejectToken!: (cause: Error) => void;
+  const session = makeSession([]);
+  session.getAccessToken = () => new Promise<string>((_resolve, reject) => { rejectToken = reject; });
+  const controller = new AbortController();
+  const result = createRequester(session)("/v1/me", { signal: controller.signal });
+  controller.abort(new Error("cancelled caller"));
+  await assert.rejects(result, /cancelled caller/);
+  rejectToken(new Error("late refresh failure"));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+});
 
 test("request refreshes before sending an authenticated API call", async () => {
   const seen = [] as string[];

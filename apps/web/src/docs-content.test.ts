@@ -135,7 +135,7 @@ test("workspaces have separate concept, tutorial, reference and operations pages
     assert.equal(page.section, section);
     const markup = renderToStaticMarkup(page.body);
     assert.doesNotMatch(markup, /href="https:\/\/github.com\/nabilblk\/h-sandbox/);
-    assert.ok(markup.includes(`Published preview: ${publishedSdkVersion}`));
+    assert.ok(markup.includes(`Core candidate: ${publishedSdkVersion}`));
   }
   const concept = renderToStaticMarkup(docPages.find((page) => page.id === "workspaces")!.body);
   for (const [status] of workspaceStates) assert.ok(concept.includes(status));

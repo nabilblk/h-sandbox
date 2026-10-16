@@ -702,6 +702,8 @@ const schemas: Record<string, JsonSchema> = {
     path: string
   }, ["ok", "path"]),
   SandboxMetricsResponse: objectSchema({
+    observedAt: nullableString,
+    availableFields: arrayOf({ type: "string", enum: ["cpu", "mem", "diskIo", "networkOut", "cpuCount", "memTotal"] }),
     current: objectSchema({
       cpu: number,
       mem: number,
@@ -711,7 +713,7 @@ const schemas: Record<string, JsonSchema> = {
       memTotal: integer
     }, ["cpu", "mem", "diskIo", "networkOut"]),
     series: arrayOf(objectSchema({ ts: string, cpu: number, mem: number }))
-  }),
+  }, ["current", "series"]),
   ExposeSandboxRouteBody: objectSchema({
     port: integer,
     protocol: { type: "string", enum: ["http", "https"] },
@@ -1749,7 +1751,7 @@ export const openApiDocument = {
       post: secured({ tags: ["Sandbox Runtime"], summary: "Rename a sandbox file", operationId: "renameSandboxFile", parameters: [pathId], requestBody: jsonBody(ref("SandboxFileRenameBody")), responses: { ...ok("Renamed sandbox file", ref("SandboxFileRenameResponse")), ...authErrorResponses } })
     },
     "/v1/sandboxes/{id}/metrics": {
-      get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox metrics", operationId: "getSandboxMetrics", parameters: [pathId], responses: { ...ok("Sandbox metrics", ref("SandboxMetricsResponse")), ...authErrorResponses } })
+      get: secured({ tags: ["Sandbox Runtime"], summary: "Read sandbox metrics", operationId: "getSandboxMetrics", parameters: [pathId], responses: { ...ok("Sandbox metrics", ref("SandboxMetricsResponse")), ...authErrorResponses, "503": jsonResponse("Current runtime metrics unavailable; cached values are not substituted", ref("ApiErrorResponse")) } })
     },
     "/v1/sandboxes/{id}/credentials": {
       get: secured({ tags: ["Credential Vault"], summary: "List sandbox credential attachments", operationId: "listSandboxCredentials", parameters: [pathId], responses: { ...ok("Sandbox credential attachments", ref("SandboxCredentialsResponse")), ...authErrorResponses } }),

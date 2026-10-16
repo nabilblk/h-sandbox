@@ -253,6 +253,10 @@ HARAKIRI_DEEPAGENTS_ACCEPTANCE=disposable-runtime \
   pnpm --filter @h-sandbox/deepagents test:native
 ```
 
+The package check installs the adapter archive with its exact published SDK
+peer. It does not assume the independently released workspace SDK is compatible.
+Use `test:package --source` only when the workspace SDK version matches that peer.
+
 Local contract tests use the actual Deep Agents and LangGraph libraries with a
 scripted model and synthetic API, not real inference or a runtime. The native
 command exercises remote shell/file operations with scripted decisions. Real

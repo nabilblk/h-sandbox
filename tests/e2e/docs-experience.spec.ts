@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { publishedSdkVersion } from "../../apps/web/src/sdk-doc-examples";
 
 test("Python guides preserve source, aligned comparison, search and mobile navigation", async ({ page, context, request }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -178,8 +179,8 @@ test("TypeScript candidate guide is discoverable, copyable and exported on deskt
   await page.goto("/#docs/sdk-cli");
   await page.locator("article").getByRole("link", { name: "TypeScript SDK guide", exact: true }).click();
   await expect(page.getByRole("heading", { name: "TypeScript SDK", exact: true })).toBeVisible();
-  await expect(page.locator("article")).toContainText("TypeScript SDK 0.5.0-rc.12");
-  await expect(page.locator("article")).toContainText("rc.10 does not include them");
+  await expect(page.locator("article")).toContainText(`TypeScript SDK ${publishedSdkVersion}`);
+  await expect(page.locator("article")).toContainText("rc.10 does not include the rc.11 task helpers or rc.12 request controls");
   const block = page.locator(".doc-code").filter({ hasText: "first-task.mts" });
   const raw = await block.locator("pre code").textContent();
   await block.getByRole("button", { name: "Copy first-task.mts code" }).click();

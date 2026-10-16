@@ -13,6 +13,12 @@ test("changelog route renders release entries and active public navigation", () 
   }));
 
   assert.match(markup, /Changelog/);
+  const candidate = markup.match(/<article class="changelog-entry">([\s\S]*?)<\/article>/)?.[1];
+  assert.ok(candidate);
+  for (const fact of ["v0.5.0-rc.13 (candidate)", "Sandbox Workbench", "execution readiness", "lazy-loaded xterm.js PTY", "256 KiB", "SHA-256", "16 MiB", "finishReason", "deleted elsewhere", "1,000 entries", "500,000 characters", "503 sandbox_metrics_unavailable", "availableFields", "observedAt", "harakiri doctor", "status --check", "HARAKIRI_WEB_URL", "api-2026-10-02.1", "npm next", "stable latest unchanged at 0.4.0", "no database migration", "Deep Agents 0.1.0-rc.2", "exactly SDK rc.12", "Qualification and delivery status are recorded separately"]) {
+    assert.ok(candidate.includes(fact), fact);
+  }
+  assert.doesNotMatch(candidate, /published on npm|all .*gates passed|native .*passed|deployed to/i);
   assert.match(markup, /Python agents on Harakiri/);
   assert.match(markup, /h-sandbox==0\.1\.0rc1/);
   assert.match(markup, /h-sandbox-deepagents==0\.1\.0rc1/);

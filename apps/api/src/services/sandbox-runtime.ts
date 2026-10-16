@@ -1442,13 +1442,13 @@ export const renameSandboxFile = async (
 export const getSandboxMetrics = async (
   input: { organizationId: string; sandboxId: string },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider }
-): Promise<RuntimeMetricsSnapshot | null> => {
+): Promise<{ kind: "ok"; metrics: RuntimeMetricsSnapshot } | { kind: "not_found" | "unavailable" }> => {
   const query = dependencies.query ?? defaultQuery;
   const sandbox = await query<{ opensandbox_id: string | null; cpu_pct: number; memory_mb: number }>(
     "SELECT opensandbox_id, cpu_pct, memory_mb FROM sandboxes WHERE id = $1 AND organization_id = $2",
     [input.sandboxId, input.organizationId]
   );
-  if (!sandbox.rowCount) return null;
+  if (!sandbox.rowCount) return { kind: "not_found" };
   const liveMetrics = await dependencies.runtimeProvider.metrics(runtimeRef(dependencies.runtimeProvider, sandbox.rows[0].opensandbox_id)).catch(() => null);
   if (liveMetrics) {
     await query("UPDATE sandboxes SET cpu_pct = $1, memory_mb = $2, updated_at = now() WHERE id = $3", [
@@ -1456,13 +1456,9 @@ export const getSandboxMetrics = async (
       liveMetrics.current.mem,
       input.sandboxId
     ]);
-    return liveMetrics;
+    return { kind: "ok", metrics: liveMetrics };
   }
-  const ts = new Date().toISOString();
-  return {
-    current: { cpu: sandbox.rows[0].cpu_pct, mem: sandbox.rows[0].memory_mb, diskIo: 0, networkOut: 0 },
-    series: [{ ts, cpu: sandbox.rows[0].cpu_pct, mem: sandbox.rows[0].memory_mb }]
-  };
+  return { kind: "unavailable" };
 };
 
 type SandboxEgressRow = {

@@ -3,19 +3,21 @@ import type { SandboxCommandSummary, SandboxSummary } from "@harakiri/shared";
 import { api } from "../api";
 import { Dialog } from "../components/dialog";
 import { Icon } from "../components/icon";
+import { workbenchRoute } from "../workbench";
 
 const outputLimit = 200_000;
 export const boundedCommandOutput = (current: string, next: string) => (current + next).slice(-outputLimit);
 const running = (command?: SandboxCommandSummary) => command?.status === "running" || command?.status === "queued";
 
-export function SandboxCommandsPane({ sandbox }: { sandbox: SandboxSummary }) {
+export function SandboxCommandsPane({ sandbox, initialCommandId }: { sandbox: SandboxSummary; initialCommandId?: string }) {
   const [commands, setCommands] = useState<SandboxCommandSummary[]>([]);
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(initialCommandId ?? "");
   const [output, setOutput] = useState("");
   const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [following, setFollowing] = useState(false);
+  const [following, setFollowing] = useState(Boolean(initialCommandId));
+  const [copyStatus, setCopyStatus] = useState("");
   const [commandText, setCommandText] = useState("");
   const [editedCwd, setCwd] = useState<string>();
   const cwd = editedCwd ?? sandbox.runtimeMetadata?.workdir ?? "/";
@@ -25,13 +27,31 @@ export function SandboxCommandsPane({ sandbox }: { sandbox: SandboxSummary }) {
   const outputLength = useRef(0);
   const outputRef = useRef<HTMLPreElement>(null);
   const stickToBottom = useRef(true);
+  const refreshRequest = useRef<AbortController | null>(null);
   const selected = commands.find((command) => command.id === selectedId);
   const refresh = useCallback(async () => {
-    try { setCommands((await api.commands(sandbox.id)).commands); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load commands."); }
-    finally { setLoading(false); }
-  }, [sandbox.id]);
-  useEffect(() => { void refresh(); }, [refresh]);
+    refreshRequest.current?.abort();
+    const controller = new AbortController();
+    refreshRequest.current = controller;
+    const deadline = setTimeout(() => controller.abort(new Error("Command refresh timed out.")), 20_000);
+    try {
+      const { commands: latest } = await api.commands(sandbox.id, controller.signal);
+      const linked = selectedId ? (await api.command(sandbox.id, selectedId, controller.signal)).command : undefined;
+      controller.signal.throwIfAborted();
+      setCommands(linked ? [linked, ...latest.filter((command) => command.id !== linked.id)] : latest);
+      setError("");
+    }
+    catch (cause) {
+      if (refreshRequest.current === controller) setError(cause instanceof Error ? cause.message : "Unable to load commands.");
+    } finally {
+      clearTimeout(deadline);
+      if (refreshRequest.current === controller) { refreshRequest.current = null; setLoading(false); }
+    }
+  }, [sandbox.id, selectedId]);
+  useEffect(() => {
+    void refresh();
+    return () => { const pending = refreshRequest.current; refreshRequest.current = null; pending?.abort(); };
+  }, [refresh]);
   useEffect(() => {
     if (!following || !selectedId) return;
     const controller = new AbortController();
@@ -93,11 +113,13 @@ export function SandboxCommandsPane({ sandbox }: { sandbox: SandboxSummary }) {
         </button>)}
       </aside>
       <div className="command-output-area"><header className="command-output-toolbar"><div><strong>{selected ? "Output" : "No command selected"}</strong>{selected ? <small className="mono muted">{selected.id}</small> : null}</div>
-        {selected ? <div className="workspace-actions"><span className="tag">{following ? "Following" : selected.status}{selected.exitCode !== null ? ` / exit ${selected.exitCode}` : ""}</span>
+        {selected ? <div className="workspace-actions"><span className="tag">{following ? "Following" : selected.status}{selected.exitCode !== null ? ` / exit ${selected.exitCode}` : selected.finishReason ? ` / ${selected.finishReason}` : ""}</span>
+          <button className="btn btn-sm" title="Copy command link" aria-label="Copy command link" onClick={() => void navigator.clipboard.writeText(new URL(`#${workbenchRoute(sandbox.id, "commands", selected.id)}`, location.href).href).then(() => setCopyStatus("Command link copied."), () => setCopyStatus("Unable to copy command link."))}><Icon name="copy" /></button>
           <button className="btn btn-sm" onClick={() => setFollowing(!following)}><Icon name={following ? "pause" : "play"} /> {following ? "Stop viewing" : "Follow output"}</button>
           {running(selected) ? <button className="btn btn-sm" onClick={() => setConfirmKill(true)}><Icon name="stop" /> Terminate</button> : null}
         </div> : null}
       </header>
+      {copyStatus ? <p role="status" className="workbench-notice">{copyStatus}</p> : null}
       {truncated ? <p className="workspace-notice" role="status">Showing the latest 200,000 characters. Earlier output is available through command logs while retained by the runtime.</p> : null}
       <pre className="command-live-output" ref={outputRef} tabIndex={0} aria-label="Command output" onScroll={(event) => { const el = event.currentTarget; stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40; }}>{output || (selected && running(selected) ? "Waiting for output..." : "No output.")}</pre>
       </div>

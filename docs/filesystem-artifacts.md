@@ -96,6 +96,26 @@ harakiri file-rm sbx_... --path /workspace/out.bin
 `file-upload` computes and sends `sha256`. `file-download` validates the
 returned checksum before writing to stdout or disk.
 
+## Sandbox Workbench (rc.13)
+
+The [Sandbox Workbench](sandbox-workbench.md) requires matching `0.5.0-rc.13`
+API/web versions. It adds inert UTF-8 previews (256 KiB), destination-confirmed
+uploads and verified downloads to the dashboard. Preview and transfer payloads
+are checked for byte size and SHA-256. Browser transfers are buffered and capped
+at 16 MiB or the lower server limit. Cancelled uploads may have completed
+remotely; inspect before retrying. This is not an editor, deletion UI, streaming
+transport or atomic create-only write.
+
+Refresh reloads a selected file's preview even when its name and size are
+unchanged. If the file was deleted elsewhere, the next successful listing
+removes its preview. A failed listing hides stale preview contents.
+
+Core rc.13 includes the OpenSandbox transfer correction previously delivered
+as `api-2026-10-02.1`: provider-native multipart uploads and binary downloads,
+without the old shell argument-size and chunked-base64 failure modes. The
+[maintenance receipt](release-notes/2026-10-02-provider-files-delivery.md) records
+that earlier delivery, not rc.13 qualification. No migration is required.
+
 ## Degraded Provider States
 
 When OpenSandbox file operations are unavailable, Harakiri returns provider
@@ -105,6 +125,7 @@ integrations can expose a clear partial-state UI.
 
 ## Future Scale-Up
 
-The v1 JSON/base64 path is reliable for small and medium artifacts. Large
-streaming, multipart uploads, or signed transfer URLs are intentionally left as
-future scale-up work once OpenSandbox exposes a matching provider contract.
+The public v1 API still buffers JSON/base64. Public streaming uploads/downloads,
+multipart endpoints and signed transfer URLs remain future work. Native
+multipart/binary transport inside the provider bridge does not remove the
+public API's memory requirements or decoded byte limit.

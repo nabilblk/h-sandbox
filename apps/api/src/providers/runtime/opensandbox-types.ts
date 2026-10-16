@@ -71,10 +71,7 @@ export type SandboxLogEntry = {
   source: "control-plane" | "sandbox";
 };
 
-export type SandboxMetricsSnapshot = {
-  current: { cpu: number; mem: number; diskIo: number; networkOut: number; cpuCount?: number; memTotal?: number };
-  series: Array<{ ts: string; cpu: number; mem: number }>;
-};
+export type SandboxMetricsSnapshot = import("@harakiri/shared").SandboxMetricsResponse;
 
 export type SandboxRouteTarget = {
   routeKey: string;

@@ -984,9 +984,25 @@ test("openSandbox.metrics reads metrics through the resolved execd endpoint", as
   const result = await openSandbox.metrics("osbx-real");
 
   assert.deepEqual(result, {
+    observedAt: "2026-05-24T12:00:00.000Z",
+    availableFields: ["cpu", "mem", "cpuCount", "memTotal"],
     current: { cpu: 13, mem: 128, diskIo: 0, networkOut: 0, cpuCount: 2, memTotal: 2048 },
     series: [{ ts: "2026-05-24T12:00:00.000Z", cpu: 13, mem: 128 }]
   });
+});
+
+test("openSandbox.metrics does not invent timestamps or missing measurements", async () => {
+  let metric: Record<string, unknown> = { cpu_used_pct: 0, mem_used_mib: 1 };
+  globalThis.fetch = async (input) => requestUrl(input).includes("/endpoints/")
+    ? execdEndpointResponse({}) : jsonResponse(metric);
+  const result = await openSandbox.metrics("osbx-metric-validation");
+  assert.equal(result.observedAt, null);
+  assert.deepEqual(result.series, []);
+  assert.deepEqual(result.availableFields, ["cpu", "mem"]);
+  for (const invalid of [{}, { cpu_used_pct: 3 }, { cpu_used_pct: -1, mem_used_mib: 1 }, { cpu_used_pct: "0", mem_used_mib: 1 }]) {
+    metric = invalid;
+    await assert.rejects(openSandbox.metrics("osbx-metric-validation"), /invalid CPU or memory/);
+  }
 });
 
 test("openSandbox.logs uses OpenSandbox diagnostics instead of direct Kubernetes pod logs", async () => {

@@ -4,6 +4,7 @@ import type {
   EgressNetworkPolicy,
   EgressNetworkRule,
   RunResult,
+  SandboxMetricsResponse,
   SandboxFileEncoding
 } from "@harakiri/shared";
 import type { WebSocket } from "ws";
@@ -258,17 +259,7 @@ export type RuntimeLogEntry = {
   source: "control-plane" | "sandbox";
 };
 
-export type RuntimeMetricsSnapshot = {
-  current: {
-    cpu: number;
-    mem: number;
-    diskIo: number;
-    networkOut: number;
-    cpuCount?: number;
-    memTotal?: number;
-  };
-  series: Array<{ ts: string; cpu: number; mem: number }>;
-};
+export type RuntimeMetricsSnapshot = SandboxMetricsResponse;
 
 export type RuntimeRouteTarget = {
   routeKey: string;

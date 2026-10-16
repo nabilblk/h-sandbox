@@ -476,8 +476,9 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
   app.get("/v1/sandboxes/:id/metrics", async (request, reply) => {
     const { id } = request.params as { id: string };
     const metrics = await getSandboxMetrics({ organizationId: request.auth.organizationId, sandboxId: id }, { query, runtimeProvider });
-    if (!metrics) return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
-    return metrics satisfies SandboxMetricsResponse;
+    if (metrics.kind === "not_found") return reply.code(404).send(apiErrorResponse("sandbox_not_found"));
+    if (metrics.kind !== "ok") return reply.code(503).send(apiErrorResponse("sandbox_metrics_unavailable", { message: "The runtime did not provide current metrics. Retry when the runtime is available." }));
+    return metrics.metrics satisfies SandboxMetricsResponse;
   });
 
   app.get("/v1/sandboxes/:id/credentials", async (request, reply) => {

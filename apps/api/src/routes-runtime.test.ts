@@ -179,6 +179,30 @@ test("OpenAPI contract is served without authentication", async () => {
   }
 });
 
+test("metrics route separates scoped missing resources from unavailable observations", async () => {
+  const app = Fastify();
+  let present = true;
+  await registerRoutes(app, {
+    requireAuth: fakeAuth,
+    runtimeProvider: { ...routeRuntimeProvider({}), metrics: async () => { throw new Error("private upstream details"); } },
+    query: async (text, params) => {
+      assert.match(text, /FROM sandboxes WHERE id = \$1 AND organization_id = \$2/);
+      assert.deepEqual(params, ["sbx_metrics", "org_route"]);
+      return { rowCount: present ? 1 : 0, rows: present ? [{ opensandbox_id: "fake_provider", cpu_pct: 88, memory_mb: 999 }] as never[] : [] };
+    }
+  });
+  try {
+    const unavailable = await app.inject({ method: "GET", url: "/v1/sandboxes/sbx_metrics/metrics" });
+    assert.equal(unavailable.statusCode, 503);
+    assert.equal(unavailable.json().error, "sandbox_metrics_unavailable");
+    assert.doesNotMatch(unavailable.body, /private upstream|999|88/);
+    present = false;
+    const missing = await app.inject({ method: "GET", url: "/v1/sandboxes/sbx_metrics/metrics" });
+    assert.equal(missing.statusCode, 404);
+    assert.equal(missing.json().error, "sandbox_not_found");
+  } finally { await app.close(); }
+});
+
 test("credential preset routes expose sanitized built-in catalog entries", async () => {
   const app = Fastify();
   await registerRoutes(app, {

@@ -30,23 +30,38 @@ test("complete public programs and exported code use the same tested source", ()
   assert.ok(readFileSync(new URL("docs/tutorials.md", root), "utf8").includes(publishedSdkExamples.worker));
 });
 
-test("current install guidance consistently pins the published preview", () => {
+test("documentation pins match the core manifests and SDK archive version", () => {
+  for (const path of ["package.json", "apps/api/package.json", "apps/web/package.json", "packages/shared/package.json", "packages/sdk/package.json", "packages/cli/package.json"]) {
+    const manifest = JSON.parse(readFileSync(new URL(path, root), "utf8"));
+    assert.equal(publishedSdkVersion, manifest.version, path);
+  }
+  const sdk = JSON.parse(readFileSync(new URL("packages/sdk/package.json", root), "utf8"));
+  const reference = documentationAssets().get("docs/workspace-reference.md")!;
+  assert.ok(reference.includes(`h-sandbox-sdk-${sdk.version}.tgz`));
+  assert.ok(reference.includes(`h-sandbox-cli-${sdk.version}.tgz`));
+});
+
+test("current install guidance pins the candidate with deliberate per-page exceptions", () => {
   const assets = documentationAssets();
+  // Historical installation evidence and the independently versioned adapter's exact SDK peer.
+  const pageVersions: Record<string, string> = { "install-kubernetes": "0.5.0-rc.10", deepagents: "0.5.0-rc.12" };
   for (const id of ["quickstart", "sdk-cli", "hands-on-tutorials", "workspace-reference"]) {
     assert.ok(assets.get(`docs/${id}.md`)!.includes(publishedSdkInstall), id);
   }
   for (const page of docPages.filter((page) => page.section !== "Agent demos" && page.id !== "cli-live-preview")) {
     const markdown = assets.get(`docs/${page.id}.md`)!;
     for (const install of markdown.matchAll(/(?:npm install|pnpm add)[^\n]*@h-sandbox\/(?:sdk|cli)([^\s\n]*)/g)) {
-      const version = page.id === "install-kubernetes" ? "0.5.0-rc.10" : publishedSdkVersion;
+      const version = pageVersions[page.id] ?? publishedSdkVersion;
       assert.equal(install[1], "@" + version, `${page.id}: ${install[0]}`);
     }
   }
   const candidate = assets.get("docs/typescript-sdk.md")!;
-  assert.match(candidate, /TypeScript SDK 0.5.0-rc.12/);
+  assert.ok(candidate.includes(`TypeScript SDK ${publishedSdkVersion}`));
   assert.match(candidate, /rc.10 does not include/);
   assert.ok(assets.get("docs/errors-troubleshooting.md")!.includes("HarakiriSandboxCreationError"));
   assert.ok(!assets.get("docs/template-builds.md")!.includes("HarakiriSandboxCreationError"));
+  assert.ok(assets.get("docs/deepagents.md")!.includes("@h-sandbox/sdk@0.5.0-rc.12"));
+  assert.ok(assets.get("docs/install-kubernetes.md")!.includes("@h-sandbox/sdk@0.5.0-rc.10"));
 });
 
 test("affected repository guides resolve their local and public documentation links", () => {

@@ -73,6 +73,9 @@ export async function setupSandboxDetail(page: Page) {
         : { error: "unavailable", message: "Logs temporarily unavailable." } });
     }
     if (resource === "commands") return route.fulfill({ json: { commands: [] } });
+    if (resource === "readiness") return route.fulfill({ json: {
+      sandbox: state.details.get(id), readiness: { status: ["running", "idle"].includes(state.details.get(id)?.status ?? "") ? "ready" : "not_running", checkedAt: "2026-10-15T12:00:00Z" }
+    } });
     if (resource === "terminal") return route.fulfill({ status: 409, json: { error: "fixture_disabled", message: "Terminal disabled in UI fixtures." } });
     if (state.details.has(id)) {
       await state.detailGates.get(id);

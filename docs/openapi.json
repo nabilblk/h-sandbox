@@ -7253,6 +7253,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Current runtime metrics unavailable; cached values are not substituted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -14508,6 +14518,7 @@
           "runtime_file_operation_unsupported",
           "runtime_file_operation_failed",
           "runtime_files_unavailable",
+          "sandbox_metrics_unavailable",
           "sandbox_terminal_session_not_found",
           "sandbox_command_session_not_found",
           "sandbox_terminal_attach_closed",
@@ -17441,6 +17452,26 @@
       "SandboxMetricsResponse": {
         "type": "object",
         "properties": {
+          "observedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "availableFields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "cpu",
+                "mem",
+                "diskIo",
+                "networkOut",
+                "cpuCount",
+                "memTotal"
+              ]
+            }
+          },
           "current": {
             "type": "object",
             "properties": {

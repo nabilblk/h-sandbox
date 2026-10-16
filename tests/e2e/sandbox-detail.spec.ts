@@ -103,7 +103,7 @@ test("a bounded long list scrolls independently and includes an older selected s
   await list.evaluate((node) => { node.scrollTop = node.scrollHeight; });
   await expect(list.getByText("Showing the 200 most recent sandboxes.")).toBeInViewport();
   await expect(page.locator(".detail-tabs")).toBeInViewport();
-  await expect(page.getByRole("searchbox")).toBeInViewport();
+  await expect(page.getByRole("searchbox", { name: "Search recent sandboxes" })).toBeInViewport();
 });
 
 test("refresh failures retain the list and retry recovers without leaving the sandbox", async ({ page }) => {
@@ -153,13 +153,13 @@ test("a delayed log response cannot replace the next sandbox's output", async ({
   await sandboxLink(page, "sbx_agent").click();
   await expect(page.getByText("Loading logs...", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Sandbox logs" })).not.toContainText("Output from sbx_python");
+  const abortedLogs = page.waitForEvent("requestfailed", (request) => new URL(request.url()).pathname === "/v1/sandboxes/sbx_agent/logs");
   await sandboxLink(page, "sbx_previous").click();
   await expect(page.getByRole("region", { name: "Sandbox logs" })).toContainText("Output from sbx_previous");
-  const lateLogs = page.waitForResponse((response) => new URL(response.url()).pathname === "/v1/sandboxes/sbx_agent/logs");
+  await abortedLogs;
   pending.resolve();
-  await lateLogs;
   await expect(page.getByRole("region", { name: "Sandbox logs" })).not.toContainText("Output from sbx_agent");
-  expect(state.requests.filter((request) => request.includes("terminal/attach-ticket"))).toHaveLength(1);
+  expect(state.requests.filter((request) => request.includes("terminal/attach-ticket"))).toHaveLength(0);
 });
 
 test("initial list loading, empty results and errors remain explicit", async ({ page }) => {

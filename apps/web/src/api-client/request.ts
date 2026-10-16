@@ -24,6 +24,19 @@ const isNetworkError = (error: unknown) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Token refresh is shared by the session. Cancel this caller's wait, not the refresh itself.
+const accessToken = (session: AuthSession, validity: number, signal?: AbortSignal | null) => {
+  signal?.throwIfAborted();
+  const pending = session.getAccessToken(validity);
+  if (!signal) return pending;
+  return new Promise<string | null>((resolve, reject) => {
+    const abort = () => { signal.removeEventListener("abort", abort); reject(signal.reason); };
+    signal.addEventListener("abort", abort, { once: true });
+    pending.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    if (signal.aborted) abort();
+  });
+};
+
 const authHeaders = (token: string | null) => {
   if (token) return { authorization: `Bearer ${token}` };
   if (API_KEY) return { "x-api-key": API_KEY };
@@ -49,6 +62,7 @@ const fetchWithRetry = async (url: string, init: RequestInit) => {
 
 export const createResponseRequester = (session: AuthSession = auth) => {
   const send = async (path: string, init: RequestInit, token: string | null) => {
+    init.signal?.throwIfAborted();
     const hasBody = init.body !== undefined;
     const credentials = authHeaders(token);
     if (!credentials) throw new Error("Missing authentication. Sign in with Keycloak or configure PUBLIC_API_KEY.");
@@ -71,7 +85,7 @@ export const createResponseRequester = (session: AuthSession = auth) => {
   return async (path: string, init: RequestInit = {}) => {
     let token: string | null;
     try {
-      token = await session.getAccessToken(30);
+      token = await accessToken(session, 30, init.signal);
     } catch (error) {
       if (error instanceof AuthSessionExpiredError) throw new Error(sessionExpiredMessage);
       if (isNetworkError(error)) throw new Error(authUnavailableMessage);
@@ -83,7 +97,7 @@ export const createResponseRequester = (session: AuthSession = auth) => {
     } catch (error) {
       if (!token || !(error instanceof ApiResponseError) || error.status !== 401) throw error;
       try {
-        const refreshed = await session.getAccessToken(-1);
+        const refreshed = await accessToken(session, -1, init.signal);
         return await send(path, init, refreshed);
       } catch (refreshError) {
         if (refreshError instanceof AuthSessionExpiredError) throw new Error(sessionExpiredMessage);
@@ -100,3 +114,33 @@ export const createRequester = (session: AuthSession = auth) => {
 
 export const requestResponse = createResponseRequester();
 export const request = createRequester();
+
+export async function boundedRequest<T>(path: string, maxBytes: number, init: RequestInit = {}): Promise<T> {
+  const response = await requestResponse(path, init);
+  return readBoundedJson<T>(response, maxBytes, init.signal);
+}
+
+export async function readBoundedJson<T>(response: Response, maxBytes: number, signal?: AbortSignal | null): Promise<T> {
+  if (!response.body) throw new Error("Empty response body.");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    for (;;) {
+      signal?.throwIfAborted();
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.length;
+      if (length > maxBytes) throw new Error("Response exceeds the workbench transfer limit.");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+  signal?.throwIfAborted();
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  return JSON.parse(new TextDecoder().decode(bytes)) as T;
+}
