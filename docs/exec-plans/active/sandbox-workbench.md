@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-15
 **Author**: Codex with project maintainer
-**Status**: Review fixes and release qualification in progress
+**Status**: Implemented, reviewed and delivered; independent acceptance pending
 **Priority**: P1 (next milestone selected by maintainer)
 **Estimated effort**: Multi-session feature and acceptance work
 
@@ -36,8 +36,9 @@ existing k0s lab, preserving operator values, secrets and unrelated workloads.
 - [x] Focused contracts/unit/browser tests pass, including mobile layouts,
       stale-response races, cancellation, denied access and untrusted output.
 - [x] Technical/public documentation describes delivered behavior and limits.
-- [ ] Native acceptance and independent developer acceptance are recorded
-      separately from fixture tests, without unapproved lab operations.
+- [x] Native acceptance is recorded separately from fixture tests, without
+      unapproved lab operations.
+- [ ] Independent developer acceptance is recorded separately from CI.
 
 ## Scope And Boundaries
 
@@ -97,13 +98,14 @@ existing k0s lab, preserving operator values, secrets and unrelated workloads.
 - [x] Record exact results, unresolved limitations and release scope.
 
 ### Phase 7: Native And Independent Acceptance
-**Status**: Authorized October 16; runner harness ready for CI
+**Status**: Native acceptance passed October 16; independent acceptance pending
 - [x] Request approval for disposable-runner native acceptance when local checks pass.
 - [x] Add source API/web installation and sanitized native browser receipts with
       ownership-guarded cleanup; 27 hermetic harness checks passed.
-- [ ] Prove interactive tool, transfer, denial diagnosis, observer recovery and cleanup.
+- [x] Prove interactive tool, transfer, denial diagnosis, observer recovery and cleanup.
 - [ ] Record independent developer acceptance without treating CI as adoption.
-- [ ] Release/deploy only on explicit instruction; archive only when accepted scope is complete.
+- [x] Release/deploy only on explicit instruction and record delivery evidence.
+- [ ] Archive only when independent acceptance has evidence or the maintainer explicitly changes scope.
 
 ## Review Follow-Up (October 16)
 
@@ -180,3 +182,40 @@ checks passed locally. GitHub-to-npm read-only Trusted Publishing verification
 passed in run 38928329760. These checks are not native or deployment evidence.
 No new database migration is required. docs/cot and Brain remain untouched.
 Keep this plan active until its remaining acceptance has actual evidence.
+
+### October 16 Native Qualification
+
+[PR #76](https://github.com/nabilblk/h-sandbox/pull/76) merged at
+`da9d925dbef473d07e7a5b63e74280ee68e2486c`. Its tree is identical to the reviewed
+head `340f31d2e56e54432e450ff1f37023f207e6707f` and the Workbench acceptance
+merge tree `ffbba9c78bcb49a8a2bf44c13028cbbd23a4f26b`.
+
+- [CI](https://github.com/nabilblk/h-sandbox/actions/runs/38931312953): required
+  checks, 76 browser contracts, installed consumers, documentation and image/chart
+  validation passed.
+- [Native Workbench](https://github.com/nabilblk/h-sandbox/actions/runs/38931313130):
+  all 11 amd64 gates passed, including PKCE onboarding, real PTY resize/reconnect,
+  a checked 1 MiB file transfer, live logs/metrics, command deep-link reload and
+  denied attach. Test-owned resources and private runner material were cleaned.
+- [Native SDK](https://github.com/nabilblk/h-sandbox/actions/runs/38932294782): all
+  16 gates and cleanup passed on the final head. Framework checks used their own
+  consumer with the adapter's exact SDK rc.12 peer. The candidate SDK was rc.13;
+  this is not a claim that the adapter supports an rc.13 peer.
+
+These are source-built candidate tests on disposable runners, not published-image
+installation evidence or independent adoption.
+
+### October 16 Delivery
+
+The [rc.13 delivery record](../../release-notes/0.5.0-rc.13-delivery.md) records
+published multi-architecture API/web images, chart and npm SDK/CLI archives;
+anonymous metadata/integrity verification; the resolved npm propagation delay;
+and k0s revision 50 with preserved rc.10 chart/operator configuration and rc.13
+image digests. All four application deployments were ready and 13 unrelated
+active pods were preserved. Public docs, API, OIDC and login redirect checks
+passed after automatic forward recovery from two observed 502s. No provider,
+cluster, tunnel, customer installation or unrelated workload was restarted.
+
+The only remaining plan acceptance is an independent developer's Workbench
+experience. Keep this plan active; CI and the maintainer-operated lab do not
+complete that criterion.

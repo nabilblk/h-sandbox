@@ -120,10 +120,15 @@ existing `status` behavior without new flags is unchanged.
   binary download/upload, confirmation, cancellation, filters, failure states,
   deep links and desktop/mobile screenshots.
 
-The release review reports all 28 browser fixture checks passing for the review
-fixes; this documentation preparation has not rerun those browser checks.
-Fixture tests do not prove native-provider behavior or independent adoption.
-The native acceptance harness is underway. No completed rc.13 CI run, native
-acceptance receipt, publication or deployment is asserted by this guide. No
-running lab, customer namespace, host process or tunnel is part of these local
-documentation checks.
+The October 16 release review passed all 28 focused Workbench/detail fixture
+checks. [CI](https://github.com/nabilblk/h-sandbox/actions/runs/38931312953)
+passed all 76 browser contracts. These fixture checks are distinct from
+[native amd64 acceptance](https://github.com/nabilblk/h-sandbox/actions/runs/38931313130),
+which passed 11 gates with real PTY input/resize/reconnect, verified binary
+transfers, logs, metrics, command deep links, denied attach and owned cleanup.
+
+Native tests built the reviewed API/web source on a disposable GitHub runner;
+they did not use the running lab or a customer installation. They are not a
+substitute for independent developer acceptance or proof that published images
+were installed. Publication and deployment evidence belongs in the
+[rc.13 release record](release-notes/0.5.0-rc.13.md).
