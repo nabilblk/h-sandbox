@@ -13,7 +13,7 @@ const require = createRequire(join(integration, "package.json"));
 const tooling = createRequire(join(root, "package.json"));
 const ts = tooling("typescript");
 const consumerNode = process.env.HARAKIRI_DEEPAGENTS_TEST_NODE ?? process.execPath;
-const mode = process.argv[2] ?? "--source";
+const mode = process.argv[2] ?? "--release-candidate";
 const packageManager = process.env.HARAKIRI_DEEPAGENTS_PACKAGE_MANAGER ?? "npm";
 assert.ok(["npm", "pnpm"].includes(packageManager), "Consumer package manager must be npm or pnpm");
 assert.ok(process.argv.length <= 3 && ["--source", "--release-candidate", "--published"].includes(mode), "Unknown package verification mode");
@@ -29,6 +29,11 @@ const run = (command, args, cwd) => execFileSync(command, args, { cwd, env, stdi
 try {
   const manifest = JSON.parse(readFileSync(join(integration, "package.json"), "utf8"));
   const packages = [];
+  if (mode === "--source") {
+    const sdk = JSON.parse(readFileSync(join(root, "packages/sdk/package.json"), "utf8"));
+    assert.equal(sdk.version, manifest.peerDependencies["@h-sandbox/sdk"],
+      "Source-pair qualification requires a matching declared SDK peer; use --release-candidate for the independently versioned adapter");
+  }
   if (mode !== "--source") {
     assert.notEqual(manifest.private, true, "Adapter is not qualified for publication");
     const sdkVersion = manifest.peerDependencies["@h-sandbox/sdk"];

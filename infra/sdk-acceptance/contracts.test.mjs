@@ -26,6 +26,21 @@ test("framework acceptance is runner-owned, loopback-only and uses the documente
   assert.doesNotMatch(fixture, /child_process|kubectl|k0s|KUBECONFIG/);
 });
 
+test("independent adapter qualification cannot replace or broaden the candidate SDK", () => {
+  const source = fs.readFileSync(new URL("./framework.mjs", import.meta.url), "utf8");
+  assert.match(source, /const consumer = ctx\.file\("framework-consumer"\)/);
+  assert.match(source, /manifest\.peerDependencies\["@h-sandbox\/sdk"\]/);
+  assert.match(source, /`@h-sandbox\/sdk@\$\{sdkVersion\}`/);
+  assert.match(source, /sdkVersion, framework:/);
+  assert.doesNotMatch(source, /ctx\.consumer/);
+  const checker = fs.readFileSync(new URL("../../scripts/test-deepagents-package.mjs", import.meta.url), "utf8");
+  assert.match(checker, /process\.argv\[2\] \?\? "--release-candidate"/);
+  assert.match(checker, /assert\.equal\(sdk\.version, manifest\.peerDependencies\["@h-sandbox\/sdk"\]/);
+  const workflow = fs.readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.match(workflow, /test:package --release-candidate/);
+  for (const text of [source, checker, workflow]) assert.doesNotMatch(text, /--legacy-peer-deps|--force-install/);
+});
+
 test("model failure diagnostics cannot serialize prompts, credentials or arbitrary error fields", () => {
   const error = new Error("private-model-output", { cause: new TypeError("secret") });
   error.stage = "readiness";

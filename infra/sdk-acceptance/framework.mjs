@@ -18,6 +18,13 @@ export async function exerciseFramework(ctx, template, gate) {
   check(archives.length === 1, "Adapter archive is ambiguous");
   const archive = ctx.file(archives[0]);
   const manifest = JSON.parse(fs.readFileSync(new URL("package.json", pkg)));
+  const sdkVersion = manifest.peerDependencies["@h-sandbox/sdk"];
+  check(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(sdkVersion), "Adapter requires an exact published SDK peer");
+  // The adapter has its own release contract. Do not replace the candidate SDK
+  // consumer or silently install an unsupported core version beside the adapter.
+  const consumer = ctx.file("framework-consumer");
+  fs.mkdirSync(consumer);
+  fs.writeFileSync(path.join(consumer, "package.json"), JSON.stringify({ private: true, type: "module" }));
   const peers = Object.entries(manifest.devDependencies).filter(([name]) => name !== "@h-sandbox/sdk")
     .map(([name, version]) => `${name}@${version}`);
   const env = { ...process.env, NPM_CONFIG_USERCONFIG: ctx.file("npmrc"), NPM_CONFIG_GLOBALCONFIG: ctx.file("npmrc-global"),
@@ -25,26 +32,28 @@ export async function exerciseFramework(ctx, template, gate) {
     HARAKIRI_DEEPAGENTS_ACCEPTANCE: "disposable-runtime", HARAKIRI_API_URL: origins.api,
     HARAKIRI_API_KEY: ctx.read("client-key.json").token, HARAKIRI_TEMPLATE: template };
   delete env.NPM_TOKEN; delete env.NODE_AUTH_TOKEN;
-  ctx.execute("npm", ["install", "--prefix", ctx.consumer, "--ignore-scripts", "--no-audit", "--no-fund",
-    archive, ...peers, "@langchain/ollama@1.3.0"], "Install adapter consumer", { env });
+  ctx.execute("npm", ["install", "--prefix", consumer, "--ignore-scripts", "--no-audit", "--no-fund",
+    archive, `@h-sandbox/sdk@${sdkVersion}`, ...peers, "@langchain/ollama@1.3.0"], "Install adapter consumer", { env });
+  check(JSON.parse(fs.readFileSync(path.join(consumer, "node_modules/@h-sandbox/sdk/package.json"))).version === sdkVersion,
+    "Adapter consumer did not install its declared SDK peer");
   for (const name of ["test/native.mts", "test/scripted-model.ts", "examples/run-repair.ts"]) {
-    fs.copyFileSync(new URL(name, pkg), path.join(ctx.consumer, path.basename(name)));
+    fs.copyFileSync(new URL(name, pkg), path.join(consumer, path.basename(name)));
   }
-  fs.copyFileSync(new URL("./model-repair.mts", import.meta.url), path.join(ctx.consumer, "model-repair.mts"));
-  fs.copyFileSync(new URL("./model-failure.mjs", import.meta.url), path.join(ctx.consumer, "model-failure.mjs"));
+  fs.copyFileSync(new URL("./model-repair.mts", import.meta.url), path.join(consumer, "model-repair.mts"));
+  fs.copyFileSync(new URL("./model-failure.mjs", import.meta.url), path.join(consumer, "model-failure.mjs"));
   for (const name of ["text-tool-model.mts", "text-tool-model.test.mts"]) {
-    fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
+    fs.copyFileSync(new URL(name, import.meta.url), path.join(consumer, name));
   }
-  ctx.execute("node", ["--import", "tsx", "--test", "text-tool-model.test.mts"], "Verify model transport compatibility", { cwd: ctx.consumer, env });
-  const run = file => ctx.execute("node", ["--import", "tsx", file], "Framework runtime verification", { cwd: ctx.consumer, env });
+  ctx.execute("node", ["--import", "tsx", "--test", "text-tool-model.test.mts"], "Verify model transport compatibility", { cwd: consumer, env });
+  const run = file => ctx.execute("node", ["--import", "tsx", file], "Framework runtime verification", { cwd: consumer, env });
   await gate("framework-native-tools", () => run("native.mts"));
   await gate("framework-durable-recovery", async () => {
     ctx.guard();
-    for (const directory of ["test", "examples"]) fs.mkdirSync(path.join(ctx.consumer, directory), { recursive: true });
+    for (const directory of ["test", "examples"]) fs.mkdirSync(path.join(consumer, directory), { recursive: true });
     for (const name of ["test/durable-worker.ts", "test/scripted-model.ts", "examples/durable-store.ts", "examples/durable-workflow.ts"]) {
-      fs.copyFileSync(new URL(name, pkg), path.join(ctx.consumer, name));
+      fs.copyFileSync(new URL(name, pkg), path.join(consumer, name));
     }
-    fs.copyFileSync(new URL("./durable-workflows.mts", import.meta.url), path.join(ctx.consumer, "durable-workflows.mts"));
+    fs.copyFileSync(new URL("./durable-workflows.mts", import.meta.url), path.join(consumer, "durable-workflows.mts"));
     let container;
     try {
       container = ctx.execute("docker", ["run", "--detach", "--name", `harakiri-framework-pg-${ctx.identity.id}`,
@@ -59,7 +68,7 @@ export async function exerciseFramework(ctx, template, gate) {
         catch { return false; }
       });
       ctx.execute("node", ["--import", "tsx", "durable-workflows.mts"], "Verify native workflow recovery", {
-        cwd: ctx.consumer, env: { ...env, WORKFLOW_DATABASE_URL: `postgresql://postgres@${address}/postgres` }
+        cwd: consumer, env: { ...env, WORKFLOW_DATABASE_URL: `postgresql://postgres@${address}/postgres` }
       });
     } finally {
       if (container && /^[a-f0-9]{64}$/.test(container)) {
@@ -91,14 +100,14 @@ export async function exerciseFramework(ctx, template, gate) {
       check(models.some(item => item.name === model.name && item.digest === model.digest), "Model digest drift");
       try { run("model-repair.mts"); }
       catch (error) {
-        const file = path.join(ctx.consumer, "model-failure.json");
+        const file = path.join(consumer, "model-failure.json");
         if (!fs.existsSync(file)) throw error;
         const failure = JSON.parse(fs.readFileSync(file, "utf8"));
         // Validate again at the public evidence boundary, including fixed stage names.
         const safe = modelFailure(failure);
         throw new AcceptanceCheckError(`Model repair: ${JSON.stringify(safe)}`);
       }
-      const result = JSON.parse(fs.readFileSync(path.join(ctx.consumer, "model-result.json"), "utf8"));
+      const result = JSON.parse(fs.readFileSync(path.join(consumer, "model-result.json"), "utf8"));
       check(result.status === "verified", "Model repair did not record independent verification");
       modelCalls = modelCounters(result.model);
       check(modelCalls.responses > 0, "Model repair did not call the model");
@@ -110,5 +119,5 @@ export async function exerciseFramework(ctx, template, gate) {
       }
     }
   });
-  return { adapterTarballSha256: sha256(fs.readFileSync(archive)), framework: manifest.peerDependencies.deepagents, model, modelCalls };
+  return { adapterTarballSha256: sha256(fs.readFileSync(archive)), sdkVersion, framework: manifest.peerDependencies.deepagents, model, modelCalls };
 }

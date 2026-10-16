@@ -121,6 +121,10 @@ existing k0s lab, preserving operator values, secrets and unrelated workloads.
   token-refresh paths with unit regressions.
 - Native acceptance and independent adoption remain distinct. Automated native
   evidence does not substitute for an external developer's experience.
+- The first CI pass exposed an independent-version test bug: adapter consumers
+  installed core rc.13 despite their exact rc.12 peer. Consumer CI now uses the
+  declared published peer; native framework tests have a separate consumer and
+  record that SDK version. No peer override or adapter compatibility change.
 
 ## Decision Log
 | Date | Decision | Rationale | Alternatives Considered |

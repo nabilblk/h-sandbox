@@ -265,6 +265,10 @@ pnpm --filter @h-sandbox/deepagents test
 pnpm --filter @h-sandbox/deepagents test:package
 ```
 
+Package checks consume the adapter's exact published SDK peer in a clean
+consumer. `test:package --source` is available for a source pair with matching
+versions; a core-only release does not broaden adapter compatibility.
+
 These exercise the real framework against a deterministic model/API fixture;
 they do not prove native shell compatibility or model quality. Installed-package
 checks use ESM imports and strict declaration compilation in a clean consumer,
