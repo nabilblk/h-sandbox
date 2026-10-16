@@ -31,6 +31,7 @@ import "./styles-demos.css";
 import "./styles-workspaces.css";
 import "./styles-capacity.css";
 import "./styles-usage.css";
+import "./styles-workbench.css";
 
 const pendingPublicRouteKey = "harakiri_pending_public_route";
 
@@ -151,7 +152,7 @@ const App = ({ initialAuth, initialRoute }: { initialAuth: AuthSnapshot; initial
   ) : route === "onboarding" ? (
     <OnboardingRoute go={go} profile={profile} />
   ) : (route === "detail" || isSandboxDetailRoute(route)) && routeDetailId ? (
-    <SandboxDetailRoute id={routeDetailId} go={go} openSandbox={openSandbox} />
+    <SandboxDetailRoute id={routeDetailId} route={route} go={go} openSandbox={openSandbox} />
   ) : isDocsRoute(route) ? (
     <Suspense fallback={<main className="docs-loading" role="status">Loading documentation...</main>}><DocsRoute selectedId={route === "docs" ? undefined : route.slice(5)} go={go} profile={profile} onSignIn={signIn} onSignOut={signOut} authStatus={authState.status} /></Suspense>
   ) : route === "demos" || route.startsWith("demos/") ? (

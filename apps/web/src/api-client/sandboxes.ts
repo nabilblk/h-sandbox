@@ -12,6 +12,10 @@ import type {
   SandboxCommandsResponse,
   SandboxEgressResponse,
   SandboxFilesResponse,
+  SandboxFileStatResponse,
+  SandboxFileDownloadResponse,
+  SandboxFileUploadBody,
+  SandboxFileUploadResponse,
   SandboxLogsResponse,
   SandboxMetricsResponse,
   SandboxResponse,
@@ -26,7 +30,7 @@ import type {
   TestSandboxEgressResponse
 } from "@harakiri/shared";
 import { observeCommandStream, type CommandStreamOptions } from "@h-sandbox/sdk";
-import { request, requestResponse } from "./request";
+import { boundedRequest, request, requestResponse } from "./request";
 
 export const sandboxesApi = {
   sandboxes: (params = "") => request<SandboxesResponse>(`/v1/sandboxes${params}`),
@@ -50,7 +54,7 @@ export const sandboxesApi = {
       method: "POST",
       body: JSON.stringify(body)
     }),
-  commands: (id: string) => request<SandboxCommandsResponse>(`/v1/sandboxes/${id}/commands`),
+  commands: (id: string, signal?: AbortSignal) => request<SandboxCommandsResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands`, { signal }),
   command: (id: string, commandId: string, signal?: AbortSignal) => request<SandboxCommandResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}`, { signal }),
   commandLogs: (id: string, commandId: string, signal?: AbortSignal) => request<SandboxCommandLogsResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands/${encodeURIComponent(commandId)}/logs`, { signal }),
   startCommand: (id: string, command: string, cwd: string, options: { timeoutMs?: number } = {}) => request<SandboxCommandResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/commands`, {
@@ -62,13 +66,19 @@ export const sandboxesApi = {
   ),
   killCommand: (id: string, commandId: string) =>
     request<SandboxCommandResponse>(`/v1/sandboxes/${id}/commands/${encodeURIComponent(commandId)}`, { method: "DELETE" }),
-  terminalAttachTicket: (id: string) =>
-    request<SandboxTerminalAttachTicketResponse>(`/v1/sandboxes/${id}/terminal/attach-ticket`, { method: "POST" }),
-  logs: (id: string) => request<SandboxLogsResponse>(`/v1/sandboxes/${id}/logs`),
-  files: (id: string, path?: string) =>
-    request<SandboxFilesResponse>(`/v1/sandboxes/${id}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`),
-  metrics: (id: string) =>
-    request<SandboxMetricsResponse>(`/v1/sandboxes/${id}/metrics`),
+  terminalAttachTicket: (id: string, signal?: AbortSignal) =>
+    request<SandboxTerminalAttachTicketResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/terminal/attach-ticket`, { method: "POST", signal }),
+  logs: (id: string, signal?: AbortSignal) => boundedRequest<SandboxLogsResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/logs`, 2 * 1024 * 1024, { signal }),
+  files: (id: string, path?: string, signal?: AbortSignal) =>
+    request<SandboxFilesResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/files${path ? `?path=${encodeURIComponent(path)}` : ""}`, { signal }),
+  fileStat: (id: string, path: string, signal?: AbortSignal) =>
+    request<SandboxFileStatResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/files/stat?path=${encodeURIComponent(path)}`, { signal }),
+  downloadFile: (id: string, path: string, maxBytes: number, signal?: AbortSignal) =>
+    boundedRequest<SandboxFileDownloadResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/files/download?path=${encodeURIComponent(path)}`, 4 * Math.ceil(maxBytes / 3) + 8192, { signal }),
+  uploadFile: (id: string, body: SandboxFileUploadBody, signal?: AbortSignal) =>
+    request<SandboxFileUploadResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/files/upload`, { method: "POST", body: JSON.stringify(body), signal }),
+  metrics: (id: string, signal?: AbortSignal) =>
+    request<SandboxMetricsResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/metrics`, { signal }),
   routes: (id: string) => request<SandboxRoutesResponse>(`/v1/sandboxes/${id}/routes`),
   exposeRoute: (id: string, body: ExposeSandboxRouteBody) =>
     request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes`, { method: "POST", body: JSON.stringify(body) }),

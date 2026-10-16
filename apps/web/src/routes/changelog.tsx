@@ -5,6 +5,22 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-10-16-v0-5-0-rc-13",
+    version: "v0.5.0-rc.13 (candidate)",
+    date: "October 16, 2026",
+    title: "Sandbox Workbench",
+    items: [
+      "Start with execution readiness, expiry, execution-slot state, working directory, workspace and runtime capabilities in Overview. Readiness describes the execution service, not application health.",
+      "Open a lazy-loaded xterm.js PTY with ANSI, raw keys, resize, interrupt and explicit reconnect through one-time authorized tickets. Opening Overview does not start a shell; reconnect does not promise recovery of an earlier shell.",
+      "Inspect inert UTF-8 previews up to 256 KiB, confirm upload destinations and verify preview/transfer byte size and SHA-256. Browser transfers remain buffered and capped at 16 MiB or the lower server limit. Cancellation cannot undo a write already accepted remotely.",
+      "Refresh selected commands by ID even outside the recent-command list, then read final status, exit code or finishReason without resubmitting work. File refresh reloads same-size previews and removes previews for files deleted elsewhere.",
+      "Search and filter logs by text, source and level/event, with manual refresh or serial follow. Retained snapshots are bounded to 1,000 entries and 500,000 characters, not a durable replay stream.",
+      "Return 503 sandbox_metrics_unavailable when current provider metrics are unavailable instead of fabricating observations from persisted values. Optional availableFields and observedAt identify measured fields and provider time; unmeasured disk/network counters display as unavailable, not zero.",
+      "Add read-only harakiri doctor checks, status --check readiness exit codes and explicit --web-url or HARAKIRI_WEB_URL dashboard links. Include the provider file-transfer correction previously delivered as api-2026-10-02.1.",
+      "Core release candidate only: matching application/chart versions and SDK/CLI targeting npm next, with stable latest unchanged at 0.4.0 and no database migration. TypeScript and Python adapters retain their independent versions and pins; Deep Agents 0.1.0-rc.2 still requires exactly SDK rc.12. Qualification and delivery status are recorded separately."
+    ]
+  },
+  {
     id: "2026-10-14-python-preview",
     version: "Python SDK and Deep Agents 0.1.0rc1",
     date: "October 14, 2026",
@@ -313,7 +329,7 @@ export const ChangelogRoute = ({ go, profile, onSignIn, onSignOut, authStatus }:
       <div className="changelog-head">
         <span className="changelog-kicker"><Icon name="logs" size={14} /> Release notes</span>
         <h1>Changelog</h1>
-        <p>Verified product changes from the repository and release artifacts. Months without a release are recorded as pauses, not padded with placeholder features.</p>
+        <p>Product changes from the repository and release records. See <a href="https://github.com/nabilblk/h-sandbox/releases">GitHub releases</a> for qualification and delivery status. Months without a release are recorded as pauses.</p>
       </div>
       <div className="changelog-list">
         {entries.map((entry) => (

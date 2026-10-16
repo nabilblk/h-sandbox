@@ -8,6 +8,7 @@ import { collectEnv, collectString, parsePositiveInt, printProgress } from "../u
 import { createCredentialInputsFromSpecs } from "./credential-options.js";
 import { gitCredentialsFromOptions } from "./git.js";
 import { followCommand } from "./command-stream.js";
+import { workbenchLink } from "../diagnostics.js";
 
 const stdinFramePrefix = 0x00;
 const stdoutFramePrefix = 0x01;
@@ -340,11 +341,18 @@ export const registerSandboxCommands = (program: Command) => {
     .argument("<id>", "sandbox id")
     .description("Show sandbox status")
     .option("--json", "print sandbox status as JSON")
-    .action(async (id, options: { json?: boolean }) => {
+    .option("--check", "also check execution readiness (read-only)")
+    .option("--web-url <url>", "include a dashboard link using this explicit web base URL")
+    .action(async (id, options: { json?: boolean; check?: boolean; webUrl?: string }) => {
+      const webUrl = options.webUrl ?? process.env.HARAKIRI_WEB_URL;
+      const workbenchUrl = webUrl ? workbenchLink(webUrl, id) : undefined;
       const client = await apiClient();
-      const result = await client.getSandbox(id);
+      const health = options.check ? await client.sandboxes.readiness(id) : undefined;
+      const result = health ?? await client.getSandbox(id);
+      const readiness = health?.readiness;
+      if (readiness && readiness.status !== "ready") process.exitCode = 1;
       if (options.json) {
-        console.log(JSON.stringify(result, null, 2));
+        console.log(JSON.stringify({ ...result, ...(workbenchUrl ? { workbenchUrl } : {}) }, null, 2));
         return;
       }
       const runtime = result.sandbox.runtimeMetadata;
@@ -352,6 +360,8 @@ export const registerSandboxCommands = (program: Command) => {
       console.log(`created-at\t${result.sandbox.createdAt}`);
       console.log(`ttl-seconds\t${result.sandbox.ttlSeconds}`);
       console.log(`expires-at\t${result.sandbox.expiresAt ?? "-"}`);
+      if (readiness) console.log(`execution-readiness\t${readiness.status}\t${readiness.checkedAt}`);
+      if (workbenchUrl) console.log(`workbench\t${workbenchUrl}`);
       if (!runtime) {
         if (result.sandbox.publicUrl) console.log(`url\t${result.sandbox.publicUrl}`);
         return;
@@ -751,16 +761,20 @@ export const registerSandboxCommands = (program: Command) => {
     .command("metrics")
     .argument("<id>", "sandbox id")
     .description("Read sandbox metrics")
-    .action(async (id) => {
+    .option("--json", "print raw metrics and measurement metadata")
+    .action(async (id, options: { json?: boolean }) => {
       const client = await apiClient();
       const result = await client.getSandboxMetrics(id);
+      if (options.json) { printJson(result); return; }
       const current = result.current;
-      console.log(`cpu\t${current.cpu}%`);
-      console.log(`mem\t${current.mem} MB`);
-      console.log(`disk_io\t${current.diskIo}`);
-      console.log(`network_out\t${current.networkOut}`);
+      const fields = result.availableFields ?? ["cpu", "mem"];
+      console.log(`cpu\t${fields.includes("cpu") ? `${current.cpu}%` : "unavailable"}`);
+      console.log(`mem\t${fields.includes("mem") ? `${current.mem} MiB` : "unavailable"}`);
+      console.log(`disk_io\t${fields.includes("diskIo") ? current.diskIo : "unavailable"}`);
+      console.log(`network_out\t${fields.includes("networkOut") ? current.networkOut : "unavailable"}`);
       if (current.cpuCount !== undefined) console.log(`cpu_count\t${current.cpuCount}`);
-      if (current.memTotal !== undefined) console.log(`mem_total\t${current.memTotal} MB`);
+      if (current.memTotal !== undefined) console.log(`mem_total\t${current.memTotal} MiB`);
+      console.log(`observed_at\t${result.observedAt === undefined ? result.series.at(-1)?.ts ?? "unknown" : result.observedAt ?? "unknown"}`);
       console.log(`series\t${result.series.length}`);
     });
 

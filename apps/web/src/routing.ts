@@ -1,10 +1,11 @@
 import type { Route } from "./routes/types";
+import { workbenchLocation } from "./workbench";
 
 export const isDocsRoute = (route: string): route is "docs" | `docs/${string}` =>
   route === "docs" || /^docs\/[a-z0-9-]+(?:\?section=[a-z0-9-]+)?$/.test(route);
 
 export const isSandboxDetailRoute = (route: string): route is `dashboard/sandboxes/${string}` =>
-  /^dashboard\/sandboxes\/[^/]+$/.test(route);
+  workbenchLocation(route) !== null;
 
 export const isRoute = (route: string): route is Route =>
   route === "landing" ||
@@ -32,9 +33,9 @@ export const routeFromHash = (hash: string): Route => {
 export const sandboxDetailIdFromRoute = (route: Route) => {
   if (!isSandboxDetailRoute(route)) return "";
   try {
-    return decodeURIComponent(route.slice("dashboard/sandboxes/".length));
+    return decodeURIComponent(route.split("?")[0].slice("dashboard/sandboxes/".length));
   } catch {
-    return route.slice("dashboard/sandboxes/".length);
+    return route.split("?")[0].slice("dashboard/sandboxes/".length);
   }
 };
 

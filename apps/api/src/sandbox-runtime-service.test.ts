@@ -836,7 +836,7 @@ test("listSandboxLogs merges control-plane and provider logs chronologically", a
   ]);
 });
 
-test("getSandboxMetrics returns persisted metrics when provider metrics are unavailable", async () => {
+test("getSandboxMetrics does not present persisted metrics as a current observation", async () => {
   const calls: Array<{ text: string; params?: unknown[] }> = [];
   const metrics = await getSandboxMetrics(
     { organizationId: "org_runtime", sandboxId: "sbx_runtime" },
@@ -849,9 +849,21 @@ test("getSandboxMetrics returns persisted metrics when provider metrics are unav
     }
   );
 
-  assert.equal(metrics?.current.cpu, 19);
-  assert.equal(metrics?.current.mem, 512);
+  assert.deepEqual(metrics, { kind: "unavailable" });
   assert(!calls.some((call) => call.text.includes("UPDATE sandboxes SET cpu_pct")));
+});
+
+test("getSandboxMetrics separates missing sandboxes from failed provider observations", async () => {
+  let calls = 0;
+  const runtimeProvider = fakeRuntimeProvider({ metrics: async () => { calls++; throw new Error("private provider failure"); } });
+  const input = { organizationId: "org_runtime", sandboxId: "sbx_runtime" };
+  assert.deepEqual(await getSandboxMetrics(input, { runtimeProvider, query: async (_text, params) => {
+    assert.deepEqual(params, [input.sandboxId, input.organizationId]);
+    return { rows: [], rowCount: 0 };
+  } }), { kind: "not_found" });
+  assert.equal(calls, 0);
+  assert.deepEqual(await getSandboxMetrics(input, { runtimeProvider, query: async () => ({ rows: [{ opensandbox_id: "provider_sbx" }] as never[], rowCount: 1 }) }), { kind: "unavailable" });
+  assert.equal(calls, 1);
 });
 
 test("testSandboxEgress sends a newline-safe shell command to the runtime", async () => {

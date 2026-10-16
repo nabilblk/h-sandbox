@@ -198,6 +198,7 @@ export const deepagentsDocs: DocPage = {
 
     <h2>Installation</h2>
     <p>Use Node 22 or 24 LTS. Node 20 is retained as a legacy compatibility check, not a recommendation for new applications. Install the adapter and SDK directly from npm; no monorepo build is required. Adapter 0.1.0-rc.2 uses exactly SDK 0.5.0-rc.12 and Deep Agents 1.14.0. Earlier SDK versions do not include all required request controls.</p>
+    <p>The core rc.13 candidate does not change this adapter's exact peer requirements. Keep the rc.12 SDK pin on this page; rc.13 SDK compatibility is not claimed for adapter 0.1.0-rc.2.</p>
     <p>The backend integration needs three direct packages. <code>--save-exact</code> records the concrete version resolved from <code>next</code>; commit your application's lockfile.</p>
     <CodeBlock language="bash" filename="Minimal integration">{`npm install --save-exact @h-sandbox/deepagents@next @h-sandbox/sdk@0.5.0-rc.12 deepagents@1.14.0`}</CodeBlock>
     <p>For the runnable programs on this page, add the model factory and its compatible framework peers together in a clean application. This explicit set also supports the later repair example; do not mix independent framework version ranges or bypass peer errors.</p>

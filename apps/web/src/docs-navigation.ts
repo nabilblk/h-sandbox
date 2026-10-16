@@ -6,7 +6,7 @@ export const docGroups = [
   { title: "Getting started", pages: ["overview", "developer-preview", "ui-product-tour", "quickstart", "vision-architecture", "sdk-cli", "typescript-sdk", "python-sdk"] },
   { title: "Self-hosting", pages: ["install-kubernetes", "backup-recovery", "operator-monitoring"] },
   { title: "Concepts", pages: ["execution-capacity", "usage-observations", "workspaces", "authorization", "security-model"] },
-  { title: "Sandbox guides", pages: ["create-sandbox", "sandbox-lifecycle", "sandbox-processes", "filesystem-artifacts", "routes", "outbound-access", "credential-vault"] },
+  { title: "Sandbox guides", pages: ["sandbox-workbench", "create-sandbox", "sandbox-lifecycle", "sandbox-processes", "filesystem-artifacts", "routes", "outbound-access", "credential-vault"] },
   { title: "Integrations", pages: ["deepagents", "deepagents-python"] },
   { title: "Templates", pages: ["custom-templates", "template-builds", "sdk-usage", "opencode-template", "open-agents-template", "template-troubleshooting"] },
   { title: "Tutorials", pages: ["hands-on-tutorials", "cli-live-preview", "persistent-workspaces", "usage-tutorial"] },

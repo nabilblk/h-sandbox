@@ -2226,6 +2226,10 @@ export type SandboxFileRemoveResponse = {
 };
 
 export type SandboxMetricsResponse = {
+  /** Provider observation time, not the time a cached response was served. */
+  observedAt?: string | null;
+  /** Fields actually measured by the provider. Legacy placeholder fields are excluded. */
+  availableFields?: Array<"cpu" | "mem" | "diskIo" | "networkOut" | "cpuCount" | "memTotal">;
   current: {
     cpu: number;
     mem: number;

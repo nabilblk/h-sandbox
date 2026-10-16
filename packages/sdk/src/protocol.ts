@@ -2062,6 +2062,8 @@ export type SandboxFileRemoveResponse = {
 };
 
 export type SandboxMetricsResponse = {
+  observedAt?: string | null;
+  availableFields?: Array<"cpu" | "mem" | "diskIo" | "networkOut" | "cpuCount" | "memTotal">;
   current: {
     cpu: number;
     mem: number;

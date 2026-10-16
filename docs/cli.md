@@ -27,12 +27,14 @@ command or write whose outcome is unknown. See the
 
 ## Workspace and Live Output Preview
 
-**Published preview baseline: 0.5.0-rc.10.** the following commands require the
-matching API. Stable npm 0.4.0 (`latest`) does not include them. Workspace
-allocation also requires operator opt-in.
+**Core candidate: 0.5.0-rc.13.** The following commands require a compatible
+workspace/live-output API; Workbench diagnostics require rc.13. Stable npm
+0.4.0 (`latest`) does not include these preview features. Workspace allocation
+also requires operator opt-in. Confirm candidate availability as described in
+the [release notes](release-notes/0.5.0-rc.13.md) before installing.
 
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.10
+npm install -g @h-sandbox/cli@0.5.0-rc.13
 ```
 
 ```bash
@@ -57,8 +59,12 @@ API as the SDK and dashboard.
 
 ## Install
 
+The core rc.13 SDK/CLI release targets npm `next`, not a promotion of stable
+`latest` from `0.4.0`. These exact commands identify the candidate to install
+after publication; this guide is not a registry or deployment receipt.
+
 ```bash
-npm install -g @h-sandbox/cli@0.5.0-rc.9
+npm install -g @h-sandbox/cli@0.5.0-rc.13
 harakiri --version
 ```
 
@@ -85,6 +91,38 @@ The CLI resolves configuration in this order:
 3. Saved config at `~/.config/harakiri/config.json`.
 
 Browser sign-in remains a Keycloak concern. CLI automation uses API keys.
+
+## Workbench Diagnostics (rc.13)
+
+Requires CLI `0.5.0-rc.13` and a matching API for the full Workbench metrics
+contract. No database migration is introduced by rc.13.
+
+```bash
+harakiri doctor
+harakiri doctor sbx_example --json --timeout-ms 10000
+harakiri status sbx_example --check --web-url https://sandbox.example.com --json
+harakiri metrics sbx_example --json
+```
+
+`doctor` checks configuration and a capacity read (`org:read`); an ID adds
+execution readiness (`sandboxes:read`). It performs no writes. Failed checks
+exit 1 without printing secrets or remote error bodies. Success does not prove
+every permission, runtime capability or workload health. The per-request timeout
+defaults to 10s, with a maximum of 60s.
+
+`status --check` reports execution readiness and exits 1 if it is not ready.
+`--web-url`, or `HARAKIRI_WEB_URL`, adds a direct dashboard link without opening
+a browser or guessing an origin. Existing `status` output is unchanged when
+these options are absent. Use HTTPS base URLs without credentials, queries or
+fragments; diagnostics allow HTTP only on loopback.
+
+Human-readable metrics distinguish missing measurements from zero, while
+`--json` retains the wire response, `availableFields` and `observedAt` metadata.
+API rc.13 returns `503 sandbox_metrics_unavailable` when the provider cannot
+supply current metrics instead of synthesizing them from persisted values.
+An absent sandbox still returns 404. A new CLI cannot remove an old API's
+cached fallback; upgrade the API too. See the
+[workbench contracts and limits](sandbox-workbench.md).
 
 ## Sandbox Lifecycle
 

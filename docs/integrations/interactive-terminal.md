@@ -1,5 +1,16 @@
 # Interactive Terminals
 
+The [Sandbox Workbench](../sandbox-workbench.md) requires matching `0.5.0-rc.13`
+API/web versions and replaces the dashboard's line-oriented output with a
+lazy-loaded xterm.js PTY. It handles ANSI, raw keys, resize and explicit
+reconnect through the existing one-time ticket contract. Opening Overview
+does not load the terminal or start a shell.
+Reconnect is not a promise of restoring a previous shell. OSC clipboard writes
+and hyperlink escapes are disabled; output and scrollback are bounded. This
+candidate introduces no database migration. Feature documentation is not
+publication, deployment or native acceptance evidence; see the
+[rc.13 release notes](../release-notes/0.5.0-rc.13.md).
+
 Harakiri exposes interactive sandbox terminals through the OpenSandbox runtime
 plane. The CLI and dashboard should use Harakiri authentication and
 authorization, then Harakiri bridges the connection to OpenSandbox `execd`.

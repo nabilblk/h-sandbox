@@ -73,6 +73,10 @@ test("framework preview pins its published SDK peer and keeps framework dependen
   const manifest = JSON.parse(readFileSync(new URL("packages/deepagents/package.json", root), "utf8"));
   assert.notEqual(manifest.private, true);
   assert.equal(manifest.peerDependencies["@h-sandbox/sdk"], "0.5.0-rc.12");
+  assert.equal(manifest.version, "0.1.0-rc.2");
+  const markdown = documentationAssets().get("docs/deepagents.md")!;
+  assert.ok(markdown.includes("rc.13 SDK compatibility is not claimed"));
+  assert.doesNotMatch(markdown, /@h-sandbox\/sdk@0\.5\.0-rc\.13/);
   assert.equal(manifest.peerDependencies.deepagents, "1.14.0");
   for (const path of ["packages/sdk", "packages/cli", "apps/api", "apps/web"]) {
     const pkg = JSON.parse(readFileSync(new URL(`${path}/package.json`, root), "utf8"));

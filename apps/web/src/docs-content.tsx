@@ -15,6 +15,7 @@ import { workspaceTutorialDocs } from "./workspace-tutorial-docs";
 import { workspaceReferenceDocs } from "./workspace-reference-docs";
 import { workspaceOperationsDocs } from "./workspace-operations-docs";
 import { uiProductTourDocs } from "./ui-product-tour-docs";
+import { workbenchDocs } from "./workbench-docs";
 import { typescriptSdkDocs } from "./typescript-sdk-docs";
 import { deepagentsDocs } from "./deepagents-docs";
 import { pythonSdkDocs, pythonDeepagentsDocs } from "./python-docs";
@@ -62,6 +63,7 @@ export const docPages: DocPage[] = [
   operatorMonitoringDocs,
   overviewDocs,
   uiProductTourDocs,
+  workbenchDocs,
   authorizationDocs,
   typescriptSdkDocs,
   deepagentsDocs,
@@ -274,7 +276,7 @@ test "$(harakiri file-read "$RESTORED_ID" --path /workspace/checkpoint.txt)" = "
         <p><code>{"@h-sandbox/sdk"}</code> is the TypeScript integration package. <code>{"@h-sandbox/cli"}</code> installs the <code>{"harakiri"}</code> executable for local development and CI scripts.</p>
         <p>The <a href="#docs/typescript-sdk">TypeScript SDK guide</a> covers task-oriented execution, process reconnect, native text/bytes and confirmed cleanup introduced in rc.11. The lower-level response-envelope methods below remain supported.</p>
         <CodeBlock language="bash">{`${publishedSdkInstall}\n${publishedCliInstall}`}</CodeBlock>
-        <p>These commands pin the published preview <code>{publishedSdkVersion}</code>. Unversioned npm installs select the older 0.4.0 stable package, which lacks workspaces, streaming, capacity and usage history. Use a matching operator deployment.</p>
+        <p>These commands pin core candidate <code>{publishedSdkVersion}</code>. Confirm <a href="#docs/developer-preview">candidate availability</a> before installing. Unversioned npm installs select the older 0.4.0 stable package, which lacks workspaces, streaming, capacity and usage history. Use a matching operator deployment; the Deep Agents guide deliberately keeps its adapter's exact rc.12 SDK peer.</p>
         <h2>Configure</h2>
         <p>Create an API key in the dashboard, then pass it through environment variables or <code>{"harakiri login"}</code>. Browser sign-in still belongs to Keycloak; API keys are for server-side integrations and local tools.</p>
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"`}</CodeBlock>
@@ -339,6 +341,7 @@ test "$(harakiri file-read "$RESTORED_ID" --path /workspace/checkpoint.txt)" = "
         <h2>Configure</h2>
         <CodeBlock language="bash">{`export HARAKIRI_API_URL=https://sb-api.harakiri.io\nexport HARAKIRI_API_KEY=hk_live_...\nharakiri login --api-url "$HARAKIRI_API_URL" --api-key "$HARAKIRI_API_KEY"\nharakiri config`}</CodeBlock>
         <p>The CLI resolves explicit flags first, then environment variables, then saved config. Browser sign-in remains Keycloak-owned; CLI automation uses API keys.</p>
+        <p><strong>Requires CLI 0.5.0-rc.13:</strong> <code>harakiri doctor [id]</code> checks configuration and read access; <code>status --check --web-url</code> adds readiness and a dashboard link. See <a href="#docs/sandbox-workbench">Sandbox workbench</a> for candidate requirements, scopes, exit codes and transfer limits.</p>
         <p><strong>Since 0.5.0-rc.9:</strong> <code>harakiri capacity --json</code> reports execution slots; create/resume accept explicit retry keys. Use a matching capacity-aware API. See <a href="#docs/execution-capacity">execution capacity</a> for the contract and runnable tutorial.</p>
         <p><strong>From 0.5.0-rc.10:</strong> <code>harakiri usage --period 24h|7d|30d --json</code> reads historical observations. It requires the matching history API and <code>org:read</code>; it is not included in rc.9. See <a href="#docs/usage-observations">Usage observations</a>.</p>
         <h2>Lifecycle</h2>
@@ -486,15 +489,16 @@ const { result } = await client.runSandbox(sandboxId, {
         <h2>Artifacts</h2>
         <p>Use artifacts for binary payloads, generated reports, and archives. The v1 transfer mode is <code>{"json-base64"}</code>; responses include <code>{"transfer.encoding=base64"}</code> and <code>{"transfer.maxBytes"}</code> so clients can reject unsupported modes before moving large files.</p>
         <h2>SDK</h2>
-        <p>This complete example validates the transfer envelope, bytes and SHA-256. Run it as <code>node artifacts.mjs</code> after <a href="#docs/sdk-cli">installing and configuring the published SDK</a>.</p>
+        <p>This complete example validates the transfer envelope, bytes and SHA-256. Run it as <code>node artifacts.mjs</code> after <a href="#docs/sdk-cli">installing and configuring the matching SDK</a>.</p>
         <CodeBlock language="javascript" filename="artifacts.mjs">{publishedArtifacts}</CodeBlock>
         <p>The <a href="#docs/typescript-sdk?section=files-and-artifacts">rc.11 byte helpers</a> reduce this to <code>files.write(path, bytes)</code> and <code>readBytes(path)</code>, with validation inside the SDK. They are not available in npm rc.10. Raw <code>artifacts.upload/download</code> and object-input file calls remain supported.</p>
         <h2>CLI</h2>
         <CodeBlock language="bash">{`harakiri files sbx_... --path /workspace\nharakiri file-write sbx_... --path /workspace/task.txt --content ready --parents\nharakiri file-upload sbx_... --path /workspace/out.bin --from ./out.bin --parents\nharakiri file-download sbx_... --path /workspace/out.bin --to ./out.bin\nharakiri file-download sbx_... --path /workspace/out.bin --json --to ./out.bin`}</CodeBlock>
         <h2>Dashboard</h2>
-        <p>The Files tab shows directories, files, empty paths, loading state, provider source, and provider warnings. Very large directories are capped in the UI and should be narrowed by path.</p>
+        <p>The rc.13 <a href="#docs/sandbox-workbench">Workbench Filesystem pane</a> adds inert UTF-8 previews up to 256 KiB, destination-confirmed uploads and downloads checked for size and SHA-256. Refresh reloads the selected preview, including same-size changes; deleted files disappear from the preview after a successful listing. Failed listings hide stale previews. The UI displays at most 300 directory entries.</p>
+        <p>Cancelled uploads may already have reached the server. Inspect the destination before retrying. There is no editor, deletion UI, streaming transport or atomic create-only upload.</p>
         <h2>Limits</h2>
-        <p><code>{"SANDBOX_FILE_ARTIFACT_MAX_BYTES"}</code> controls the decoded artifact limit and defaults to 16 MiB. Large streaming, multipart uploads, or signed transfer URLs are future scale-up work after OpenSandbox exposes a matching provider contract.</p>
+        <p><code>{"SANDBOX_FILE_ARTIFACT_MAX_BYTES"}</code> controls the decoded artifact limit and defaults to 16 MiB; the browser uses 16 MiB or the lower server limit. Core rc.13 includes the native provider upload/download fix previously delivered as <code>api-2026-10-02.1</code>. The public API still buffers JSON/base64; provider-side multipart transport does not make public large-file streaming or signed transfer URLs available.</p>
       </>
     )
   },
@@ -895,6 +899,7 @@ curl --fail --silent --show-error --connect-timeout 3 --max-time 5 \\
         <p>Start with <a href="#docs/quickstart">the quickstart</a> for connection setup, <a href="#docs/security-model">the security model</a> for access boundaries, and <a href="#docs/errors-troubleshooting">errors and troubleshooting</a> for failures. Workspace operations have a dedicated <a href="#docs/workspace-reference">API, SDK and CLI reference</a>.</p>
         <p><strong>Since 0.5.0-rc.9:</strong> <code>GET /v1/org/capacity</code> requires <code>org:read</code> and returns execution reservations for the authenticated organization. The <a href="#docs/execution-capacity">capacity reference</a> covers counting, idempotency and revision-checked limit edits.</p>
         <p><strong>From 0.5.0-rc.10:</strong> <code>GET /v1/usage/history</code> requires <code>from</code>, <code>to</code>, <code>resolution</code> and <code>org:read</code>. It returns nullable measurements, coverage and UTC buckets; the existing summary remains unchanged. Read <a href="#docs/usage-observations">the metric contract and errors</a> before interpreting the numbers.</p>
+        <p><strong>From 0.5.0-rc.13:</strong> <code>GET /v1/sandboxes/:id/metrics</code> returns <code>503 sandbox_metrics_unavailable</code> when current provider metrics are unavailable, not persisted CPU/memory values presented as new observations. Optional <code>availableFields</code> and <code>observedAt</code> describe measured fields and provider time. Missing sandboxes still return 404. See <a href="#docs/sandbox-workbench?section=diagnose-with-logs-and-metrics">Workbench metrics</a>.</p>
         <h2>Templates</h2>
         <span className="api-endpoint"><span className="api-method get">GET</span><code>/v1/templates</code></span>
         <span className="api-endpoint"><span className="api-method post">POST</span><code>/v1/templates</code></span>

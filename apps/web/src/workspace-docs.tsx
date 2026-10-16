@@ -2,7 +2,7 @@ import type { DocPage } from "./docs-content";
 import { publishedSdkVersion } from "./sdk-doc-examples";
 
 export const WorkspaceReleaseNote = () => <aside className="docs-notice" aria-label="Release availability">
-  <p><strong>Published preview: {publishedSdkVersion}.</strong> Persistent storage is opt-in and requires matching API, scheduler, SDK and CLI versions. Stable 0.4.0 does not include it. k0s acceptance has passed; restricted OpenShift acceptance is pending.</p>
+  <p><strong>Core candidate: {publishedSdkVersion}.</strong> Check <a href="#docs/developer-preview">qualification and delivery status</a> before installing. Persistent storage is opt-in and requires matching API, scheduler, SDK and CLI versions. Stable 0.4.0 does not include it. k0s acceptance is version-specific; restricted OpenShift requires separate qualification.</p>
   <p>See <a href="#docs/workspace-reference">Distribution and prerequisites</a> before installing. Renewal coordination was corrected in rc.3 (migration 036); current installs need all migrations for rc.10, including capacity and usage. Follow <a href="#docs/install-kubernetes">the current installation guide</a>; following command output alone does not keep a sandbox alive.</p>
 </aside>;
 
