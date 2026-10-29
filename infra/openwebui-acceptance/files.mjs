@@ -67,7 +67,7 @@ export async function transferFailures(page) {
     await network.detach();
   }
   try {
-    await files.getByRole("button", { name: "Refresh", exact: true }).click();
+    await refreshFiles(page);
     await delay(10000);
     check(attempts === 1, "Interrupted native upload was replayed");
     check(await files.getByText("interrupted.bin", { exact: true }).count() === 0, "Incomplete upload appeared as successful");

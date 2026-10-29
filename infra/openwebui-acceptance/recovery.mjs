@@ -84,7 +84,7 @@ export async function replaceRuntime(ctx, operator, template, page) {
     const current = (await operator.client.workspaces.get(workspace.id)).workspace;
     return current.status === "available" && !current.attachedSandboxId;
   }, 180000);
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await refreshFiles(page);
   let replacement;
   await until("Replacement ready through native browser", async () => {
     const current = (await operator.client.workspaces.get(workspace.id)).workspace;
@@ -99,12 +99,15 @@ export async function replaceRuntime(ctx, operator, template, page) {
 
 export async function revokeAndRecover(ctx, client, template, page, admin) {
   const before = await runtime(client, template);
-  const terminal = page.getByRole("button", { name: "Open terminal", exact: true });
+  const dock = page.locator(".terminal-dock");
+  const expand = dock.getByRole("button", { name: "Expand terminal", exact: true });
+  if (await expand.isVisible()) await expand.click();
+  const terminal = dock.getByRole("button", { name: "Open terminal", exact: true });
   const socketOpened = page.waitForEvent("websocket", socket => new URL(socket.url()).pathname.includes("/api/v1/terminals/harakiri/api/terminals/"));
-  if (!(await terminal.isVisible())) await page.getByRole("button", { name: "Close terminal", exact: true }).click();
+  if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
   await terminal.click();
   const socket = await socketOpened;
-  await until("Native terminal ready before revocation", () => page.locator(".xterm-helper-textarea").isVisible());
+  await until("Native terminal ready before revocation", () => dock.locator(".xterm-helper-textarea:visible").isVisible());
   let closed = false;
   socket.on("close", () => { closed = true; });
   await client.routes.delete(before.id, 8000);
@@ -117,6 +120,6 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
   const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace/demo");
   check(recovered.ok, "Operator reset did not recover native file access");
   check((await runtime(client, template)).id === before.id, "Grant recovery replaced runtime");
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await refreshFiles(page);
   return { revokedSocketClosed: true, revokedHttpDenied: true, operatorGrantRecovered: true, sameRuntime: true };
 }
