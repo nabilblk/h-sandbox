@@ -4,7 +4,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { ownedDocker, cleanupDocker, compatibility } from "./stack.mjs";
-import { publicReceipt } from "./receipt.mjs";
+import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
 
@@ -71,6 +71,12 @@ test("browser exercises real native paths without fulfilling or substituting mod
   assert.match(stack, /model\.digest/);
   assert.match(stack, /--cacert/);
   assert.match(stack, /owned ephemeral registry/);
+});
+
+test("failure diagnostics retain only bounded non-sensitive categories", () => {
+  assert.deepEqual(safeFailure({ kind: "browser", reason: "ambiguous_locator", message: "PRIVATE" }), { kind: "browser", reason: "ambiguous_locator" });
+  assert.deepEqual(safeFailure({ kind: "PRIVATE", reason: "PRIVATE", type: "PRIVATE", status: "PRIVATE" }), { kind: "withheld" });
+  assert.deepEqual(safeFailure({ kind: "http", status: 429 }), { kind: "http", status: 429 });
 });
 
 test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit public artifact paths", () => {

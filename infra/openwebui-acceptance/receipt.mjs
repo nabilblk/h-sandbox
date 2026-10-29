@@ -18,6 +18,16 @@ const flags = new Set([
   "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview"
 ]);
 const cleanups = new Set(["browser", "runtimes", "workspaces", "key", "docker", "portForwards"]);
+const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
+
+export function safeFailure(failure) {
+  return {
+    kind: ["http", "browser", "exception", "acceptance_check"].includes(failure.kind) ? failure.kind : "withheld",
+    ...(browserReasons.has(failure.reason) ? { reason: failure.reason } : {}),
+    ...(["TypeError", "TimeoutError", "SyntaxError", "ReferenceError"].includes(failure.type) ? { type: failure.type } : {}),
+    ...(Number.isInteger(failure.status) && failure.status >= 400 && failure.status <= 599 ? { status: failure.status } : {})
+  };
+}
 
 export function publicReceipt(receipt) {
   const result = { kind: "openwebui-native", published: false, architecture: "amd64", openwebui: compatibility.openwebui, openTerminal: compatibility.openTerminal, model,
@@ -26,7 +36,7 @@ export function publicReceipt(receipt) {
       evidence: Object.fromEntries(Object.entries(item.evidence ?? {}).filter(([key, value]) =>
         (flags.has(key) && typeof value === "boolean") || (["downloadSha256", "fileSha256"].includes(key) && typeof value === "string" && /^[a-f0-9]{64}$/.test(value))
         || (key === "bytes" && Number.isSafeInteger(value) && value >= 0))),
-      ...(item.failure ? { failure: { kind: ["http", "browser", "exception", "acceptance_check"].includes(item.failure.kind) ? item.failure.kind : "withheld" } } : {}) })) };
+      ...(item.failure ? { failure: safeFailure(item.failure) } : {}) })) };
   if (typeof receipt.source === "string" && /^[a-f0-9]{40}$/.test(receipt.source)) result.source = receipt.source;
   if (typeof receipt.runId === "string" && /^\d+-\d+$/.test(receipt.runId)) result.runId = receipt.runId;
   if (receipt.images) {

@@ -7,7 +7,7 @@ import { installWorkbenchCandidate } from "../workbench-acceptance/candidate.mjs
 import { assertPortsFree, buildImages, installPrivateRegistry, startApplications, cleanupDocker } from "./stack.mjs";
 import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation, browserDiagnostics } from "./browser.mjs";
 import { restart, replaceRuntime, twoUsersAndQuota, revokeAndRecover } from "./recovery.mjs";
-import { gates, publicReceipt } from "./receipt.mjs";
+import { gates, publicReceipt, safeFailure } from "./receipt.mjs";
 import { liveFiles, transferFailures, svgIsolation, relativeAssetBoundary } from "./files.mjs";
 
 process.umask(0o077);
@@ -78,7 +78,7 @@ try {
   receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });
   receipt.status = "failed";
   process.exitCode = 1;
-  console.error(`OpenWebUI acceptance failed: ${activeGate}`);
+  console.error(`OpenWebUI acceptance failed: ${activeGate} ${JSON.stringify(safeFailure(publicFailure(error)))}`);
   await browserDiagnostics(page).catch(() => {});
 } finally {
   await finishReceipt(receipt, {

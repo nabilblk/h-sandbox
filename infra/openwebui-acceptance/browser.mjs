@@ -71,10 +71,17 @@ export async function configureTerminal(page, credentials) {
 
 export async function selectTerminal(page) {
   console.log("OpenWebUI browser: select connected terminal and wait for file browser");
-  await page.getByRole("button", { name: "Terminal", exact: true }).click();
+  await page.locator("#message-input-container").getByRole("button", { name: "Terminal", exact: true }).click();
   await page.getByRole("menuitemradio", { name: "Harakiri acceptance", exact: true }).click();
+  console.log("OpenWebUI browser: connected terminal selected");
   await page.getByRole("region", { name: "File browser", exact: true }).waitFor({ timeout: 300000 });
-  await page.getByRole("button", { name: "Refresh", exact: true }).waitFor();
+  await fileRefreshButton(page).waitFor();
+  console.log("OpenWebUI browser: native file controls visible");
+}
+
+function fileRefreshButton(page) {
+  // In pinned 0.12.4 only the file toolbar declares type=button; Ports has a second Refresh.
+  return page.getByRole("region", { name: "File browser", exact: true }).locator('button[type="button"][aria-label="Refresh"]');
 }
 
 export function chatWitness(page) {
@@ -128,7 +135,7 @@ export async function runChat(page, witness) {
     return witness.state.completed;
   }, 600000);
   check(witness.state.toolCalls > 0, "No native tool event observed from real model");
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await refreshFiles(page);
   await page.locator("[data-file-row]").filter({ has: page.getByText("demo", { exact: true }) }).getByText("demo", { exact: true }).click();
   for (const name of ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"]) {
     await page.locator("[data-file-row]").getByText(name, { exact: true }).waitFor();
@@ -138,10 +145,13 @@ export async function runChat(page, witness) {
 
 export async function shell(page, witness) {
   console.log("OpenWebUI browser: shell input, ANSI, resize, interrupt, reconnect");
-  const open = page.getByRole("button", { name: "Open terminal", exact: true });
+  const dock = page.locator(".terminal-dock");
+  const expand = dock.getByRole("button", { name: "Expand terminal", exact: true });
+  if (await expand.isVisible()) await expand.click();
+  const open = dock.getByRole("button", { name: "Open terminal", exact: true });
   if (await open.isVisible()) await open.click();
-  else await page.getByRole("button", { name: "Shell", exact: true }).click();
-  const input = page.locator(".xterm-helper-textarea");
+  else await dock.getByRole("tab", { name: "Shell", exact: true }).click();
+  const input = dock.locator('.xterm-helper-textarea:visible');
   await input.waitFor();
   const send = async command => { await input.focus(); await page.keyboard.insertText(command); await page.keyboard.press("Enter"); };
   await send("printf '\\033[32mNATIVE_SHELL_OK\\033[0m\\n'; printf 'SIZE_A:'; stty size");
@@ -157,9 +167,9 @@ export async function shell(page, witness) {
   await send("printf 'INTERRUPT_%s\\n' OK");
   await until("Native shell interrupt", () => /INTERRUPT_OK/.test(witness.output()));
   const sockets = witness.state.sockets;
-  await page.getByRole("button", { name: "Close terminal", exact: true }).click();
+  await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
   await until("Native socket closed", () => witness.state.closed > 0);
-  await page.getByRole("button", { name: "Open terminal", exact: true }).click();
+  await dock.getByRole("button", { name: "Open terminal", exact: true }).click();
   await until("Native shell reconnected", () => witness.state.sockets > sockets);
   await send("printf 'RECONNECT_%s\\n' OK");
   await until("Native reconnect output", () => /RECONNECT_OK/.test(witness.output()));
@@ -178,7 +188,7 @@ export async function downloadSelected(page) {
 export async function refreshFiles(page) {
   const [response] = await Promise.all([
     page.waitForResponse(response => /^\/api\/v1\/terminals\/harakiri\/files\/(list|read|view)$/.test(new URL(response.url()).pathname), { timeout: 300000 }),
-    page.getByRole("region", { name: "File browser", exact: true }).getByRole("button", { name: "Refresh", exact: true }).click()
+    fileRefreshButton(page).click()
   ]);
   check(response.ok() && !(await response.finished()), "Native file refresh failed");
 }
