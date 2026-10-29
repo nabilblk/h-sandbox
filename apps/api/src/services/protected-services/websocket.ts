@@ -22,10 +22,15 @@ export const proxyServiceWebSocket = (
     perMessageDeflate: false
   });
   let stopped = false;
+  const pending: { data: RawData; binary: boolean; size: number }[] = [];
+  let pendingBytes = 0;
+  let sending = false;
   let idle: ReturnType<typeof setTimeout>;
   const stop = (code: number, reason: string) => {
     if (stopped) return;
     stopped = true;
+    pending.length = 0;
+    pendingBytes = 0;
     clearTimeout(idle);
     signal.removeEventListener("abort", revoked);
     // Bound the close handshake too: an unresponsive peer must not retain a lease.
@@ -58,12 +63,39 @@ export const proxyServiceWebSocket = (
       else if (!stopped) source.resume();
     });
   };
-  // Install listeners synchronously and pause reads until the upstream handshake completes.
+  const pump = () => {
+    if (stopped || sending || upstream.readyState !== WebSocket.OPEN) return;
+    const frame = pending[0];
+    if (!frame) { client.resume(); return; }
+    sending = true;
+    activity();
+    upstream.send(frame.data, { binary: frame.binary }, (error) => {
+      sending = false;
+      if (error) { stop(1011, "Service connection failed"); return; }
+      if (stopped) return;
+      pending.shift();
+      pendingBytes -= frame.size;
+      pump();
+    });
+  };
+  // pause() stops future reads, not frames already decoded in this TCP chunk.
+  // Bound that handshake queue and preserve first-frame application auth order.
   client.pause();
-  client.on("message", forward(client, upstream));
+  client.on("message", (data, binary) => {
+    if (stopped) return;
+    const size = Array.isArray(data) ? data.reduce((sum, part) => sum + part.length, 0) : data.byteLength;
+    if (pending.length >= 64 || pendingBytes + size > limits.websocketMessageBytes) {
+      stop(1013, "Service input queue full");
+      return;
+    }
+    client.pause();
+    pending.push({ data, binary, size });
+    pendingBytes += size;
+    pump();
+  });
   upstream.on("message", forward(upstream, client));
   upstream.once("open", () => {
-    if (!stopped) client.resume();
+    pump();
   });
   for (const socket of [client, upstream]) {
     socket.once("close", (code) => stop(code === 1000 ? 1000 : 1011, "Service connection closed"));

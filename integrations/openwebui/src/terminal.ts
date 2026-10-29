@@ -15,11 +15,18 @@ export const attachTerminal = (
   let stopped = false;
   let touchPending = false;
   let touchedAt = 0;
+  const pending: { bytes: RawData; binary: boolean; size: number }[] = [];
+  let pendingBytes = 0;
+  let sending = false;
+  let upstreamReady = false;
+  let noteInput = () => {};
   let lifetime: ReturnType<typeof setTimeout> | undefined;
   let idle: ReturnType<typeof setTimeout> | undefined;
   const stop = (code = 1011, reason = "Terminal connection ended") => {
     if (stopped) return;
     stopped = true;
+    pending.length = 0;
+    pendingBytes = 0;
     controller.abort();
     clearTimeout(authDeadline);
     clearTimeout(lifetime);
@@ -56,10 +63,25 @@ export const attachTerminal = (
   };
   client.on("error", () => stop());
   client.once("close", () => stop(1000));
+  const pump = () => {
+    if (stopped || sending || !upstreamReady || !upstream) return;
+    const frame = pending[0];
+    if (!frame) { client.resume(); return; }
+    sending = true;
+    activity();
+    // OpenWebUI sends JSON ping/resize frames even without user input.
+    if (frame.binary && frame.size > 0) noteInput();
+    upstream.send(frame.bytes, { binary: frame.binary }, (error) => {
+      sending = false;
+      if (error) { stop(); return; }
+      if (stopped) return;
+      pending.shift();
+      pendingBytes -= frame.size;
+      pump();
+    });
+  };
   client.once("message", async (data, binary) => {
     client.pause();
-    const earlyFrame = () => stop(1013, "Wait for terminal connection");
-    client.on("message", earlyFrame);
     try {
       const size = Array.isArray(data) ? data.reduce((sum, part) => sum + part.length, 0) : data.byteLength;
       if (binary || size > 4096) {
@@ -79,6 +101,17 @@ export const attachTerminal = (
         return;
       }
       clearTimeout(authDeadline);
+      // Native OpenWebUI sends resize immediately after auth. Reads are paused,
+      // but ws may already have decoded more frames from the same TCP chunk.
+      client.on("message", (bytes, isBinary) => {
+        if (stopped) return;
+        const size = Array.isArray(bytes) ? bytes.reduce((sum, part) => sum + part.length, 0) : bytes.byteLength;
+        if (pending.length >= 64 || pendingBytes + size > 1024 * 1024) { stop(1013, "Terminal input queue full"); return; }
+        client.pause();
+        pending.push({ bytes, binary: isBinary, size });
+        pendingBytes += size;
+        pump();
+      });
       const identity = identityFor(config.ADAPTER_INSTANCE_ID, request.headers);
       const session = await sessions.resolve(identity, false, controller.signal);
       if (stopped) return;
@@ -96,7 +129,7 @@ export const attachTerminal = (
         handshakeTimeout: 10000
       });
       const remote = upstream;
-      client.on("message", (bytes, isBinary) => {
+      noteInput = () => {
         // Renewal follows actual input, never output polling or a health probe.
         if (!touchPending && Date.now() - touchedAt >= 30000) {
           touchPending = true;
@@ -108,8 +141,7 @@ export const attachTerminal = (
               touchPending = false;
             });
         }
-        forward(client, remote)(bytes, isBinary);
-      });
+      };
       remote.on("message", forward(remote, client));
       remote.once("open", () => {
         if (stopped) {
@@ -119,8 +151,8 @@ export const attachTerminal = (
         remote.send(JSON.stringify({ type: "auth", token: session.serviceKey }), (error) => {
           if (error) stop();
           else if (!stopped) {
-            client.off("message", earlyFrame);
-            client.resume();
+            upstreamReady = true;
+            pump();
           }
         });
       });

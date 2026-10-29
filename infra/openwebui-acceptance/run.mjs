@@ -5,8 +5,8 @@ import { operatorSession } from "../acceptance/browser.mjs";
 import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
 import { installWorkbenchCandidate } from "../workbench-acceptance/candidate.mjs";
 import { assertPortsFree, buildImages, installPrivateRegistry, startApplications, cleanupDocker } from "./stack.mjs";
-import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation } from "./browser.mjs";
-import { restart, replaceRuntime, twoUsersAndQuota } from "./recovery.mjs";
+import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation, browserDiagnostics } from "./browser.mjs";
+import { restart, replaceRuntime, twoUsersAndQuota, revokeAndRecover } from "./recovery.mjs";
 import { gates, publicReceipt } from "./receipt.mjs";
 
 process.umask(0o077);
@@ -29,9 +29,9 @@ try {
   publish();
   await assertPortsFree();
   await gate("published-installation", () => install(ctx));
-  await gate("source-candidate", async () => { candidate = await installWorkbenchCandidate(ctx); });
-  await gate("candidate-images", async () => { images = await buildImages(ctx); });
-  await gate("private-registry", async () => { image = await installPrivateRegistry(ctx, candidate, images); });
+  await gate("source-candidate", async () => { candidate = await installWorkbenchCandidate(ctx); receipt.images = candidate.images; });
+  await gate("candidate-images", async () => { images = await buildImages(ctx); receipt.images = { ...receipt.images, ...images }; });
+  await gate("private-registry", async () => { image = await installPrivateRegistry(ctx, candidate, images); receipt.images = { ...receipt.images, ...images }; });
   await gate("oidc-onboarding", async () => { operator = await operatorSession(ctx); });
   await gate("native-template", async () => {
     await operator.client.createTemplate({ id: template, name: "Open Terminal acceptance", image, visibility: "private", cpuCount: 1, memoryMb: 1024,
@@ -64,6 +64,7 @@ try {
   await gate("native-previews", () => previews(page));
   await gate("native-transfers-isolation", () => transfersAndIsolation(page));
   await gate("adapter-restart", () => restart(ctx, operator.client, template, page));
+  await gate("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
   await gate("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
   await gate("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
   receipt.status = "configured_gates_passed";
@@ -73,6 +74,7 @@ try {
   receipt.status = "failed";
   process.exitCode = 1;
   console.error(`OpenWebUI acceptance failed: ${activeGate}`);
+  await browserDiagnostics(page).catch(() => {});
 } finally {
   await finishReceipt(receipt, {
     runtimes: async () => {

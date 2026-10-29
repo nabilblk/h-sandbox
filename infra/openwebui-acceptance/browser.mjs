@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import { check, until, sha256 } from "../acceptance/context.mjs";
 import { webOrigin, adapterOrigin } from "./stack.mjs";
 
@@ -9,6 +10,8 @@ export async function signup(page, credentials, second = false) {
   await page.goto(`${webOrigin}/auth`);
   const fullName = page.getByPlaceholder("Enter Your Full Name", { exact: true });
   if (second) await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  else await page.getByRole("button", { name: "Get started", exact: true }).click();
+  console.log("OpenWebUI browser: signup form ready");
   await fullName.fill(second ? "Acceptance User" : "Acceptance Administrator");
   await page.getByPlaceholder("Enter Your Email", { exact: true }).fill(second ? "user@acceptance.example.test" : "admin@acceptance.example.test");
   await page.getByPlaceholder("Enter Your Password", { exact: true }).fill(credentials.password);
@@ -17,6 +20,7 @@ export async function signup(page, credentials, second = false) {
   const accepted = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/auths/signup"));
   await page.getByRole("button", { name: second ? "Create Account" : "Create Admin Account", exact: true }).click();
   const response = await accepted;
+  console.log(`OpenWebUI browser: signup response ${response.status()}`);
   check(response.ok(), "OpenWebUI signup rejected");
   const account = await response.json();
   check(typeof account.id === "string" && typeof account.token === "string", "OpenWebUI signup identity missing");
@@ -155,7 +159,7 @@ export async function previews(page) {
   };
   await files.locator("[data-file-row]").getByText("report.json", { exact: true }).click();
   const report = await downloadSelected(page);
-  check(JSON.stringify(JSON.parse(report)) === JSON.stringify({ North: 17, South: 7, total: 24 }), "Model report totals differ");
+  assert.deepEqual(JSON.parse(report), { North: 17, South: 7, total: 24 }, "Model report totals differ");
   await choose("chart.png");
   await until("Native image preview decoded", () => files.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100 && image.naturalHeight > 100)));
   const png = await downloadSelected(page);
@@ -170,7 +174,19 @@ export async function previews(page) {
   check((await frame.locator("body").innerText()).includes("24"), "HTML preview does not show actual total");
   await until("Relative chart in HTML preview", () => frame.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100)));
   check(!(await page.locator('iframe[title="HTML Preview"]').getAttribute("sandbox")).includes("allow-same-origin"), "Preview allows chat origin authority");
+  // Only the generated synthetic report/chat, never account or connection settings.
+  await page.screenshot({ path: "openwebui-report-desktop.png" });
   return { jsonPreview: true, imagePreview: true, pdfPreview: true, htmlPreview: true, relativeAssets: true, downloadSha256: sha256(report) };
+}
+
+export async function browserDiagnostics(page) {
+  if (!page || page.isClosed()) return;
+  const controls = {};
+  for (const name of ["Get started", "Create Admin Account", "Add Connection", "Terminal", "Send message", "Stop", "Refresh"]) {
+    controls[name] = await page.getByRole("button", { name, exact: true }).first().isVisible().catch(() => false);
+  }
+  // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.
+  console.log(`OpenWebUI browser state: ${JSON.stringify(controls)}`);
 }
 
 export async function upload(page, file) {

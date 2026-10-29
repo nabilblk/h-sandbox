@@ -73,7 +73,7 @@ test("browser exercises real native paths without fulfilling or substituting mod
   assert.match(stack, /owned ephemeral registry/);
 });
 
-test("workflow is read-only, hosted-only, bounded, cleanup-always and receipt-only", () => {
+test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit public artifact paths", () => {
   const source = read("../../.github/workflows/openwebui-acceptance.yml");
   assert.match(source, /runs-on: ubuntu-24\.04/);
   assert.match(source, /head\.repo\.full_name == github\.repository/);
@@ -82,7 +82,7 @@ test("workflow is read-only, hosted-only, bounded, cleanup-always and receipt-on
   assert.match(source, /timeout-minutes: 90/);
   assert.match(source, /if: always\(\)\s+run: node infra\/openwebui-acceptance\/cleanup.mjs/);
   assert.match(source, /if: always\(\)\s+run: node infra\/acceptance\/cleanup.mjs/);
-  assert.match(source, /path: standalone-acceptance-report.json\n/);
+  assert.match(source, /path: \|\s+standalone-acceptance-report.json\s+openwebui-report-desktop.png\n/);
   assert.doesNotMatch(source, /secrets\.|pull_request_target|packages: write|id-token: write|npm publish|self-hosted/);
   for (const match of source.matchAll(/uses: (.+)/g)) assert.match(match[1], /^[\w/-]+@[a-f0-9]{40} # v4$/);
 });

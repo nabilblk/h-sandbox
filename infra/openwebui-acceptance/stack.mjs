@@ -13,13 +13,13 @@ const registry = "registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6
 export const label = "harakiri.openwebui.acceptance";
 const nameFor = (ctx, service) => `harakiri-openwebui-${service}-${ctx.identity.id}`;
 
-export function ownedDocker(ctx, service, args) {
+export function ownedDocker(ctx, service, args, command = []) {
   ctx.guard();
   check(["registry", "bindings", "adapter", "model", "webui"].includes(service), "Unknown owned container");
   const name = nameFor(ctx, service);
   const inspected = JSON.parse(ctx.execute("docker", ["inspect", name], "Inspect owned container"))[0];
   check(inspected.Config?.Labels?.[label] === ctx.identity.id, "Refuse unrelated Docker container");
-  return ctx.execute("docker", [...args, name], `Owned ${service} operation`);
+  return ctx.execute("docker", [...args, name, ...command], `Owned ${service} operation`);
 }
 
 function run(ctx, service, image, args, env = {}) {
@@ -106,6 +106,7 @@ export async function installPrivateRegistry(ctx, candidate, images) {
   const tag = `openwebui-ca-${ctx.identity.id}`;
   const apiImage = `localhost/harakiri/harakiri-api:${tag}`;
   ctx.execute("docker", ["build", "-t", apiImage, caContext], "Add isolated registry public CA");
+  images.apiWithRegistryCa = { imageConfigDigest: ctx.execute("docker", ["image", "inspect", "--format={{.Id}}", apiImage], "Identify CA-equipped candidate").trim() };
   const archive = ctx.file("openwebui-api-ca.tar");
   try {
     ctx.execute("docker", ["save", "-o", archive, apiImage], "Export CA-equipped candidate");

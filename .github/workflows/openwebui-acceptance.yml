@@ -88,11 +88,13 @@ jobs:
       - name: Clean owned cluster and private material
         if: always()
         run: node infra/acceptance/cleanup.mjs
-      - name: Export only sanitized receipt
+      - name: Export sanitized receipt and synthetic report screenshot
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: openwebui-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: standalone-acceptance-report.json
+          path: |
+            standalone-acceptance-report.json
+            openwebui-report-desktop.png
           if-no-files-found: warn
           retention-days: 14

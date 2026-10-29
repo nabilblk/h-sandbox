@@ -1,4 +1,5 @@
 import { check, until } from "../acceptance/context.mjs";
+import assert from "node:assert/strict";
 import { adapterOrigin, webOrigin, ownedDocker } from "./stack.mjs";
 import { signup, selectTerminal } from "./browser.mjs";
 
@@ -84,9 +85,38 @@ export async function replaceRuntime(ctx, operator, template, page) {
     return current.status === "available" && !current.attachedSandboxId;
   }, 180000);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await until("Replacement accepted through native browser", async () => {
+  let replacement;
+  await until("Replacement ready through native browser", async () => {
     const current = (await operator.client.workspaces.get(workspace.id)).workspace;
-    return current.attachedSandboxId && current.attachedSandboxId !== original.id;
+    if (!current.attachedSandboxId || current.attachedSandboxId === original.id) return false;
+    replacement = await runtime(operator.client, template);
+    return replacement.id === current.attachedSandboxId && replacement.status === "running";
   }, 300000);
+  const result = await operator.client.files.read(replacement.id, "/workspace/demo/report.json");
+  assert.deepEqual(JSON.parse(result.content), { North: 17, South: 7, total: 24 }, "Retained report differs after runtime replacement");
   return { confirmedRelease: true, retainedWorkspace: true, replacement: true };
+}
+
+export async function revokeAndRecover(ctx, client, template, page, admin) {
+  const before = await runtime(client, template);
+  const terminal = page.getByRole("button", { name: "Open terminal", exact: true });
+  const socketOpened = page.waitForEvent("websocket", socket => new URL(socket.url()).pathname.includes("/api/v1/terminals/harakiri/api/terminals/"));
+  if (!(await terminal.isVisible())) await page.getByRole("button", { name: "Close terminal", exact: true }).click();
+  await terminal.click();
+  const socket = await socketOpened;
+  await until("Native terminal ready before revocation", () => page.locator(".xterm-helper-textarea").isVisible());
+  let closed = false;
+  socket.on("close", () => { closed = true; });
+  await client.routes.delete(before.id, 8000);
+  await until("Revoked native terminal disconnected", () => closed, 15000);
+  const denied = await webuiRequest(admin, "terminals/harakiri/files/list?path=/workspace");
+  check(!denied.ok, "Revoked grant accepted a fresh native request");
+  const inspect = JSON.parse(ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "inspect", "--user-id", admin.id]));
+  check(typeof inspect.generation === "string", "Operator generation missing");
+  ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "reset-grant", "--user-id", admin.id, "--expect-generation", inspect.generation]);
+  const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?path=/workspace/demo");
+  check(recovered.ok, "Operator reset did not recover native file access");
+  check((await runtime(client, template)).id === before.id, "Grant recovery replaced runtime");
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  return { revokedSocketClosed: true, revokedHttpDenied: true, operatorGrantRecovered: true, sameRuntime: true };
 }

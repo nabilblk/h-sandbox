@@ -131,11 +131,15 @@ test("OpenWebUI first-message authentication translates to a per-instance key be
     server.close();
   });
   let sessionsResolved = 0;
+  let renewals = 0;
   let auth: unknown;
+  const frames: { text: string; binary: boolean }[] = [];
   let authenticatedUpstream: () => void = () => {};
   const ready = new Promise<void>((resolve) => {
     authenticatedUpstream = resolve;
   });
+  let controlsReceived: () => void = () => {};
+  const controls = new Promise<void>((resolve) => { controlsReceived = resolve; });
   wss.on("connection", (socket, req) => {
     assert.equal(req.url, "/api/terminals/id?user_id=one");
     socket.once("message", (data) => {
@@ -143,12 +147,15 @@ test("OpenWebUI first-message authentication translates to a per-instance key be
       authenticatedUpstream();
     });
     socket.on("message", (data, binary) => {
+      frames.push({ text: data.toString(), binary });
+      if (data.toString() === '{"type":"ping"}') controlsReceived();
       if (binary) socket.send(data, { binary });
     });
   });
   const sessions: SessionManager = {
     resolve: async () => {
       sessionsResolved++;
+      await new Promise((resolve) => setTimeout(resolve, 40));
       return {
         sandboxId: "sbx",
         expiresAt: Date.now() + 60000,
@@ -160,7 +167,7 @@ test("OpenWebUI first-message authentication translates to a per-instance key be
         })
       };
     },
-    touch: async () => {}
+    touch: async () => { renewals++; }
   };
   const app = await buildAdapter(config, sessions, {});
   const address = await app.listen({ host: "127.0.0.1", port: 0 });
@@ -178,13 +185,23 @@ test("OpenWebUI first-message authentication translates to a per-instance key be
   t.after(() => good.terminate());
   await once(good, "open");
   good.send(JSON.stringify({ type: "auth", token: config.OPENWEBUI_ADAPTER_KEY }));
+  good.send(JSON.stringify({ type: "resize", cols: 80, rows: 24 }));
+  good.send(JSON.stringify({ type: "ping" }));
   await ready;
+  await controls;
+  assert.equal(renewals, 0, "keepalive and resize must not extend sandbox TTL");
   assert.deepEqual(auth, { type: "auth", token: "instance-key" });
+  assert.deepEqual(frames.slice(0, 3), [
+    { text: JSON.stringify({ type: "auth", token: "instance-key" }), binary: false },
+    { text: JSON.stringify({ type: "resize", cols: 80, rows: 24 }), binary: false },
+    { text: JSON.stringify({ type: "ping" }), binary: false }
+  ]);
   const echoed = once(good, "message");
   good.send(Buffer.from("printf hello\r"));
   const [data, binary] = await echoed;
   assert.equal(binary, true);
   assert.equal(data.toString(), "printf hello\r");
+  assert.equal(renewals, 1, "only binary shell input requests renewal");
   good.close();
   await once(good, "close");
 });

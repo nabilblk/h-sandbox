@@ -374,7 +374,7 @@ test("WebSocket frames preserve text/binary and revoked access disconnects both 
   const f = await fixture(t, (_req, res) => {
     res.end("http");
   });
-  const wss = new WebSocketServer({ server: f.upstream });
+  const wss = new WebSocketServer({ server: f.upstream, verifyClient: (_info, done) => { setTimeout(() => done(true), 30); } });
   t.after(() => {
     for (const ws of wss.clients) ws.terminate();
     wss.close();
@@ -387,13 +387,15 @@ test("WebSocket frames preserve text/binary and revoked access disconnects both 
   t.after(() => client.terminate());
   await once(client, "open");
   // Upgrade completion and upstream completion are intentionally separate; first-frame auth must not be lost.
-  for (const value of [JSON.stringify({ type: "auth", token: "app-secret" }), Buffer.from([0, 128, 255])]) {
-    const reply = once(client, "message");
-    client.send(value);
-    const [data, binary] = await reply;
-    assert.deepEqual(data, Buffer.isBuffer(value) ? value : Buffer.from(value));
-    assert.equal(binary, Buffer.isBuffer(value));
-  }
+  const values = [JSON.stringify({ type: "auth", token: "app-secret" }), JSON.stringify({ type: "resize", cols: 80, rows: 24 }), Buffer.from([0, 128, 255])];
+  const frames: { data: Buffer; binary: boolean }[] = [];
+  const replies = new Promise<void>((resolve) => client.on("message", (data, binary) => {
+    frames.push({ data: Buffer.from(data as Buffer), binary });
+    if (frames.length === values.length) resolve();
+  }));
+  for (const value of values) client.send(value);
+  await replies;
+  assert.deepEqual(frames, values.map(value => ({ data: Buffer.isBuffer(value) ? value : Buffer.from(value), binary: Buffer.isBuffer(value) })));
   const closed = once(client, "close");
   f.state.active = false;
   assert.equal((await closed)[0], 1008);
