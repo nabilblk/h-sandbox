@@ -51,6 +51,9 @@ jobs:
         run: |
           docker build --platform=linux/amd64 -f "$DOCKERFILE" -t "harakiri-audit:$COMPONENT" "$BUILD_CONTEXT"
           docker save --output "$RUNNER_TEMP/candidate.tar" "harakiri-audit:$COMPONENT"
+      - name: Verify non-root template startup without external network
+        if: matrix.component == 'terminal'
+        run: docker run --rm --network=none harakiri-audit:terminal /usr/local/bin/harakiri-open-terminal-smoke
       - name: Scan OS and application dependencies without mounting a Docker socket
         run: >-
           docker run --rm

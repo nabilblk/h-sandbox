@@ -23,6 +23,8 @@ const checks = new Set([
   "Native cold-start file listing failed", "Native file refresh failed", "No native tool event observed from real model",
   "Native model response reported an error", "Real chat submitted with terminal: deadline exceeded",
   "Real model response completed: deadline exceeded", "Native shell output: deadline exceeded",
+  "Native shell connected: deadline exceeded", "Native resize frame sent: deadline exceeded",
+  "Native terminal ready before revocation: deadline exceeded",
   "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
   "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded",
   "Owned workspace released before archival: deadline exceeded"

@@ -163,10 +163,13 @@ export async function shell(page, witness) {
   else await dock.getByRole("tab", { name: "Shell", exact: true }).click();
   const input = dock.locator('.xterm-helper-textarea:visible');
   await input.waitFor();
+  await until("Native shell connected", () => witness.state.sockets > 0 && witness.state.resizeFrames > 0, 45000);
   const send = async command => { await input.focus(); await page.keyboard.insertText(command); await page.keyboard.press("Enter"); };
   await send("printf '\\033[32mNATIVE_SHELL_OK\\033[0m\\n'; printf 'SIZE_A:'; stty size");
   await until("Native shell output", () => /\u001b\[32mNATIVE_SHELL_OK/.test(witness.output()) && /SIZE_A:\d+ \d+/.test(witness.output()));
+  const resizeFrames = witness.state.resizeFrames;
   await page.setViewportSize({ width: 1120, height: 820 });
+  await until("Native resize frame sent", () => witness.state.resizeFrames > resizeFrames, 10000);
   await send("printf 'SIZE_B:'; stty size");
   await until("Native remote terminal resize", () => {
     const a = witness.output().match(/SIZE_A:(\d+) (\d+)/), b = witness.output().match(/SIZE_B:(\d+) (\d+)/);
@@ -175,12 +178,15 @@ export async function shell(page, witness) {
   await send("sleep 60");
   await page.keyboard.press("Control+C");
   await send("printf 'INTERRUPT_%s\\n' OK");
-  await until("Native shell interrupt", () => /INTERRUPT_OK/.test(witness.output()));
+  await until("Native shell interrupt", () => /INTERRUPT_OK/.test(witness.output()), 10000);
   const sockets = witness.state.sockets;
+  const resized = witness.state.resizeFrames;
+  const closed = witness.state.closed;
   await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
-  await until("Native socket closed", () => witness.state.closed > 0);
-  await dock.getByRole("button", { name: "Open terminal", exact: true }).click();
-  await until("Native shell reconnected", () => witness.state.sockets > sockets);
+  await until("Native socket closed", () => witness.state.closed > closed);
+  if (await expand.isVisible()) await expand.click();
+  if (await open.isVisible()) await open.click();
+  await until("Native shell reconnected", () => witness.state.sockets > sockets && witness.state.resizeFrames > resized);
   await send("printf 'RECONNECT_%s\\n' OK");
   await until("Native reconnect output", () => /RECONNECT_OK/.test(witness.output()));
   await page.setViewportSize({ width: 1440, height: 1000 });

@@ -103,11 +103,17 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
   const expand = dock.getByRole("button", { name: "Expand terminal", exact: true });
   if (await expand.isVisible()) await expand.click();
   const terminal = dock.getByRole("button", { name: "Open terminal", exact: true });
-  const socketOpened = page.waitForEvent("websocket", socket => new URL(socket.url()).pathname.includes("/api/v1/terminals/harakiri/api/terminals/"));
+  let received = false;
+  const socketOpened = page.waitForEvent("websocket", socket => {
+    if (!new URL(socket.url()).pathname.includes("/api/v1/terminals/harakiri/api/terminals/")) return false;
+    socket.on("framereceived", ({ payload }) => { received ||= Buffer.isBuffer(payload) && payload.length > 0; });
+    return true;
+  });
   if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
-  await terminal.click();
+  if (await expand.isVisible()) await expand.click();
+  if (await terminal.isVisible()) await terminal.click();
   const socket = await socketOpened;
-  await until("Native terminal ready before revocation", () => dock.locator(".xterm-helper-textarea:visible").isVisible());
+  await until("Native terminal ready before revocation", () => received, 45000);
   let closed = false;
   socket.on("close", () => { closed = true; });
   await client.routes.delete(before.id, 8000);

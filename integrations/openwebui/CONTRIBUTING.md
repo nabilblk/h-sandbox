@@ -39,8 +39,13 @@ pnpm docs:check
 
 The PostgreSQL command needs `initdb` and `pg_ctl`. It creates a new private
 Unix-socket instance and removes only that instance. Never substitute an existing
-application database. Ordinary adapter tests skip the two database-dependent
+application database. Ordinary adapter tests skip the database-dependent
 cases; the PostgreSQL command and CI run them explicitly.
+
+The binding lock must cover the configured cold-start deadline, not just a warm
+HTTP request. Native OpenWebUI initializes files, processes and ports concurrently.
+Keep lock waiting cancellable and bounded; never replay a forwarded mutation to
+hide a startup failure.
 
 The production-package test verifies an isolated bundle, not workspace imports.
 Image builds/scans and browser acceptance are separate gates. Do not infer native
