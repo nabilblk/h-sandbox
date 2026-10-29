@@ -34,7 +34,9 @@ import {
 import { config } from "../config.js";
 import { workspacePolicy } from "./persistent-workspaces.js";
 import { renewSandboxLease, type LeaseDependencies } from "./sandbox-lease.js";
-import { constantEquals, hashApiKey, makeId } from "../crypto.js";
+import { hashApiKey, makeId } from "../crypto.js";
+import { sandboxRouteAccessTokenHeader } from "./protected-services/access.js";
+export { getSandboxRouteProxyTarget, sandboxRouteAccessTokenHeader, sandboxRouteAccessTokenQueryParam } from "./protected-services/access.js";
 import type {
   RuntimeFileError,
   RuntimeFileListResult,
@@ -222,9 +224,6 @@ const normalizeRouteState = (state: string): SandboxRouteState =>
 
 const normalizeRouteAccessMode = (mode: string | null | undefined): SandboxRouteAccessMode =>
   mode === "token" ? "token" : "public";
-
-export const sandboxRouteAccessTokenHeader = "x-harakiri-route-token";
-export const sandboxRouteAccessTokenQueryParam = "harakiri_route_token";
 
 const routeAccessTokenHint = (token: string) => `${token.slice(0, 8)}...${token.slice(-4)}`;
 
@@ -1899,153 +1898,6 @@ export const createSandboxRoute = async (
     accessToken: access?.token,
     accessHeaderName: access ? sandboxRouteAccessTokenHeader : undefined
   };
-};
-
-type SandboxRouteProxyRow = {
-  id: string;
-  routeKey: string;
-  host: string;
-  targetUrl: string;
-  provider: string;
-  state: string;
-  accessMode: string;
-  accessTokenHash: string | null;
-  accessHeaderName: string | null;
-};
-
-export type SandboxRouteProxyTargetResult =
-  | { kind: "not_found" }
-  | { kind: "route_not_ready"; state: SandboxRouteState }
-  | { kind: "public_route" }
-  | { kind: "unauthorized"; headerName: string }
-  | { kind: "ok"; targetUrl: string; headerName: string; provider: string; host: string; routeKey: string };
-
-export const getSandboxRouteProxyTarget = async (
-  input: { routeKey: string; token?: string | null },
-  query: Query = defaultQuery
-): Promise<SandboxRouteProxyTargetResult> => {
-  const result = await query<SandboxRouteProxyRow>(
-    `SELECT id::text,
-            route_key AS "routeKey",
-            host,
-            target_url AS "targetUrl",
-            provider,
-            state,
-            COALESCE(access_mode, 'public') AS "accessMode",
-            access_token_hash AS "accessTokenHash",
-            access_header_name AS "accessHeaderName"
-     FROM sandbox_routes
-     WHERE route_key = $1 AND state <> 'terminated'
-     ORDER BY created_at DESC
-     LIMIT 1`,
-    [input.routeKey]
-  );
-  const route = result.rows[0];
-  if (!route) return { kind: "not_found" };
-  const state = normalizeRouteState(route.state);
-  if (state !== "ready") return { kind: "route_not_ready", state };
-  const headerName = route.accessHeaderName ?? sandboxRouteAccessTokenHeader;
-  if (normalizeRouteAccessMode(route.accessMode) !== "token") return { kind: "public_route" };
-  if (!route.accessTokenHash || !input.token) return { kind: "unauthorized", headerName };
-  const presentedHash = hashApiKey(input.token);
-  if (!constantEquals(presentedHash, route.accessTokenHash)) return { kind: "unauthorized", headerName };
-  await query("UPDATE sandbox_routes SET last_used_at = now(), updated_at = now() WHERE id = $1", [route.id]);
-  return { kind: "ok", targetUrl: route.targetUrl, headerName, provider: route.provider, host: route.host, routeKey: route.routeKey };
-};
-
-type SandboxRouteProxyHeaderValue = string | string[] | undefined;
-
-export type SandboxRouteProxyRequestResult =
-  | Exclude<SandboxRouteProxyTargetResult, { kind: "ok" }>
-  | { kind: "upstream_unreachable"; message: string }
-  | { kind: "ok"; status: number; headers: Record<string, string>; body: Buffer };
-
-const proxyBodyFromRequest = (method: string, body: unknown): string | ArrayBuffer | undefined => {
-  if (method === "GET" || method === "HEAD" || body === undefined) return undefined;
-  if (Buffer.isBuffer(body)) {
-    const copy = new Uint8Array(body.byteLength);
-    copy.set(body);
-    return copy.buffer;
-  }
-  return typeof body === "string" ? body : JSON.stringify(body);
-};
-
-const proxyHeadersFromRequest = (headers: Record<string, SandboxRouteProxyHeaderValue>) => {
-  const upstreamHeaders = new Headers();
-  const skipHeaders = new Set([
-    "host",
-    "connection",
-    "content-length",
-    "transfer-encoding",
-    "keep-alive",
-    "upgrade",
-    "proxy-authenticate",
-    "proxy-authorization",
-    sandboxRouteAccessTokenHeader
-  ]);
-  for (const [key, value] of Object.entries(headers)) {
-    if (skipHeaders.has(key.toLowerCase()) || value === undefined) continue;
-    if (Array.isArray(value)) value.forEach((entry) => upstreamHeaders.append(key, entry));
-    else upstreamHeaders.set(key, value);
-  }
-  return upstreamHeaders;
-};
-
-const opensandboxGatewayProxyTarget = (target: Extract<SandboxRouteProxyTargetResult, { kind: "ok" }>) => {
-  if (target.provider !== "opensandbox-gateway") return null;
-  const gatewayUrl = config.openSandboxGatewayUrl.trim();
-  if (!gatewayUrl) return null;
-  return {
-    baseUrl: gatewayUrl.replace(/\/+$/, ""),
-    routeKey: target.routeKey
-  };
-};
-
-export const proxySandboxRouteRequest = async (
-  input: {
-    routeKey: string;
-    path?: string;
-    url: string;
-    method: string;
-    headers: Record<string, SandboxRouteProxyHeaderValue>;
-    body: unknown;
-    token?: string | null;
-  },
-  dependencies: { query?: Query; fetch?: typeof fetch } = {}
-): Promise<SandboxRouteProxyRequestResult> => {
-  const query = dependencies.query ?? defaultQuery;
-  const fetcher = dependencies.fetch ?? fetch;
-  const target = await getSandboxRouteProxyTarget({ routeKey: input.routeKey, token: input.token }, query);
-  if (target.kind !== "ok") return target;
-
-  const originalUrl = new URL(input.url, "http://harakiri.local");
-  originalUrl.searchParams.delete(sandboxRouteAccessTokenQueryParam);
-  const gatewayTarget = opensandboxGatewayProxyTarget(target);
-  const upstreamBaseUrl = gatewayTarget?.baseUrl ?? target.targetUrl;
-  const upstreamBase = upstreamBaseUrl.endsWith("/") ? upstreamBaseUrl : `${upstreamBaseUrl}/`;
-  const upstreamUrl = new URL(input.path ?? "", upstreamBase);
-  upstreamUrl.search = originalUrl.searchParams.toString();
-  const upstreamHeaders = proxyHeadersFromRequest(input.headers);
-  if (gatewayTarget) upstreamHeaders.set("OpenSandbox-Ingress-To", gatewayTarget.routeKey);
-
-  let upstream: Awaited<ReturnType<typeof fetch>>;
-  try {
-    upstream = await fetcher(upstreamUrl, {
-      method: input.method,
-      headers: upstreamHeaders,
-      body: proxyBodyFromRequest(input.method, input.body)
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { kind: "upstream_unreachable", message };
-  }
-
-  const headers: Record<string, string> = {};
-  for (const header of ["content-type", "cache-control", "etag", "last-modified", "location"]) {
-    const value = upstream.headers.get(header);
-    if (value) headers[header] = value;
-  }
-  return { kind: "ok", status: upstream.status, headers, body: Buffer.from(await upstream.arrayBuffer()) };
 };
 
 export const deleteSandboxRoute = async (

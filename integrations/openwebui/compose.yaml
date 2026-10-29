@@ -1,0 +1,55 @@
+name: harakiri-openwebui-evaluation
+services:
+  bindings:
+    image: postgres:16.15-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    environment:
+      POSTGRES_DB: openwebui_adapter
+      POSTGRES_USER: adapter
+      POSTGRES_PASSWORD: ${ADAPTER_DATABASE_PASSWORD:?Set ADAPTER_DATABASE_PASSWORD}
+    volumes:
+      - bindings:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U adapter -d openwebui_adapter"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    mem_limit: 512m
+  adapter:
+    image: harakiri-openwebui-adapter:source-candidate
+    build:
+      context: ../..
+      dockerfile: integrations/openwebui/Dockerfile
+    environment:
+      HARAKIRI_API_URL: ${HARAKIRI_API_URL:?Set HARAKIRI_API_URL}
+      HARAKIRI_API_KEY: ${HARAKIRI_API_KEY:?Set HARAKIRI_API_KEY}
+      HARAKIRI_TEMPLATE: ${HARAKIRI_TEMPLATE:-open-terminal}
+      ADAPTER_INSTANCE_ID: ${ADAPTER_INSTANCE_ID:?Set ADAPTER_INSTANCE_ID}
+      ADAPTER_DATABASE_URL: postgresql://adapter:${ADAPTER_DATABASE_PASSWORD:?Set ADAPTER_DATABASE_PASSWORD}@bindings:5432/openwebui_adapter
+      ADAPTER_ENCRYPTION_KEY: ${ADAPTER_ENCRYPTION_KEY:?Set ADAPTER_ENCRYPTION_KEY}
+      OPENWEBUI_ADAPTER_KEY: ${OPENWEBUI_ADAPTER_KEY:?Set OPENWEBUI_ADAPTER_KEY}
+      ADAPTER_MAX_CONNECTIONS: "8"
+      ADAPTER_MAX_REQUEST_BYTES: "16777216"
+    depends_on:
+      bindings:
+        condition: service_healthy
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    mem_limit: 512m
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:v0.12.4@sha256:a5b9e403d19154796850679c8c5d1295301cee954be8b84ddd62af92426558f7
+    ports:
+      - "127.0.0.1:${OPENWEBUI_PORT:-28580}:8080"
+    environment:
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?Set WEBUI_SECRET_KEY}
+      ENABLE_COMMUNITY_SHARING: "false"
+      ENABLE_SIGNUP: "true"
+      # OpenWebUI can rewrite upstream headers. Retain opaque-origin preview isolation.
+      TERMINAL_PROXY_HEADERS: '{"Content-Security-Policy":"sandbox allow-scripts allow-forms allow-downloads","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer","Cache-Control":"private, no-store"}'
+    volumes:
+      - openwebui:/app/backend/data
+    depends_on: [adapter]
+    mem_limit: 2g
+volumes:
+  bindings:
+  openwebui:

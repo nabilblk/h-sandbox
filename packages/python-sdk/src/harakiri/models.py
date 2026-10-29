@@ -281,6 +281,34 @@ class Ok(Model):
     ok: bool
 
 
+class RouteSummary(Model):
+    port: int = Field(ge=1, le=65535)
+    protocol: str
+    access_mode: str
+    route_key: str
+    url: str
+    state: str
+    access_header_name: str | None = None
+
+
+class RouteResponse(Model):
+    route: RouteSummary
+    sandbox_id: str | None = None
+    access_token: str | None = Field(default=None, repr=False)
+    access_header_name: str | None = None
+
+
+class RoutesResponse(Model):
+    routes: list[RouteSummary]
+
+
+class RouteConnection(Model):
+    """Explicit scoped connection for HTTPX or a server-side WebSocket library."""
+
+    url: str
+    headers: dict[str, str] = Field(repr=False)
+
+
 class ObservedCommand(Model):
     command: CommandSummary
     logs: CommandLogs

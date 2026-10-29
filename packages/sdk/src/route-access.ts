@@ -1,14 +1,19 @@
-import type { SandboxRouteSummary, SandboxRouteResponse } from "./protocol.js";
+import type { SandboxRouteSummary } from "./protocol.js";
 import { observe, type ObservationOptions } from "./observation.js";
 import { HarakiriWaitTimeoutError } from "./operation-errors.js";
 
-export type RouteLike = SandboxRouteSummary | SandboxRouteResponse;
+/** Persist the service address and grant, without retaining provider implementation metadata. */
+export type RouteAddress = Pick<SandboxRouteSummary, "url" | "routeKey" | "accessMode" | "accessHeaderName">;
+export type RouteGrant = { route: RouteAddress; accessToken?: string; accessHeaderName?: string };
+export type RouteLike = RouteAddress | RouteGrant;
 export type RouteBasicAuth = { username: string; password: string };
 export type RouteAccessHeadersOptions = { basicAuth?: RouteBasicAuth };
 export type CreateRouteFetchOptions = RouteAccessHeadersOptions & {
   fetch?: typeof fetch;
   headers?: HeadersInit;
 };
+export type RouteWebSocketRequestOptions = RouteAccessHeadersOptions & { headers?: HeadersInit };
+export type RouteWebSocketRequest = { url: string; headers: Record<string, string> };
 export type WaitForRouteHttpOptions = CreateRouteFetchOptions & ObservationOptions & {
   path?: string;
   init?: RequestInit;
@@ -16,7 +21,7 @@ export type WaitForRouteHttpOptions = CreateRouteFetchOptions & ObservationOptio
 };
 export type ExposeAndWaitOptions = WaitForRouteHttpOptions;
 
-const isResponse = (route: RouteLike): route is SandboxRouteResponse => "route" in route;
+const isResponse = (route: RouteLike): route is RouteGrant => "route" in route;
 const summary = (route: RouteLike) => isResponse(route) ? route.route : route;
 
 const base64 = (value: string) => {
@@ -35,6 +40,7 @@ export const routeAccessHeaders = (route: RouteLike, options: RouteAccessHeaders
 const requestUrl = (route: RouteLike, input: string | URL | Request) => {
   const base = new URL(summary(route).url);
   const value = input instanceof Request ? input.url : String(input);
+  if (/[\\\u0000-\u001f\u007f]/.test(value)) throw new TypeError("Route paths cannot contain control characters or backslashes.");
   const prefix = base.pathname.replace(/\/+$/, "");
   const root = new URL(base);
   root.pathname = `${prefix}/`;
@@ -44,10 +50,21 @@ const requestUrl = (route: RouteLike, input: string | URL | Request) => {
     throw new TypeError("Route fetch is restricted to its route origin and path.");
   }
   // Proxies may decode before routing; reject nested escapes and traversal before adding credentials.
-  if (/%(?:2f|5c|25)/i.test(url.pathname) || decodeURIComponent(url.pathname).split("/").some((part) => part === ".." || part === ".")) {
+  if (/%(?:2f|5c|25|0[0-9a-f]|1[0-9a-f]|7f)/i.test(url.pathname) || decodeURIComponent(url.pathname).split("/").some((part) => part === ".." || part === ".")) {
     throw new TypeError("Route fetch does not accept encoded path traversal or separators.");
   }
   return url.toString();
+};
+
+/** Server-side WebSocket options. No credentials are placed in the URL or subprotocol. */
+export const routeWebSocketRequest = (
+  route: RouteLike, path = "/", options: RouteWebSocketRequestOptions = {}
+): RouteWebSocketRequest => {
+  const url = new URL(requestUrl(route, path));
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  const headers = new Headers(options.headers);
+  for (const [key, value] of Object.entries(routeAccessHeaders(route, options))) headers.set(key, value);
+  return { url: url.toString(), headers: Object.fromEntries(headers) };
 };
 
 /** Scoped Fetch adapter. Redirects are manual so credentials never follow an unchecked Location. */

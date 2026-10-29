@@ -1,0 +1,2 @@
+open-terminal==0.14.6
+matplotlib>=3.10,<4

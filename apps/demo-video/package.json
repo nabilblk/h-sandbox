@@ -14,7 +14,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "remotion": "4.0.520",
-    "zod": "4.4.3"
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@playwright/test": "1.60.0",

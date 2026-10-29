@@ -1,5 +1,25 @@
 # October 2026 Dependency Audit
 
+## Reassessment On October 29
+
+The [braces advisory](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) was
+withdrawn upstream on October 23 as not practically exploitable. The current npm
+audit no longer reports it. The temporary exception is therefore **retired**, not
+extended: the gate now rejects every high/critical finding, including that same
+GHSA if it returns. Registry errors and incomplete reports still fail closed.
+The historical assessment below and the bounded parser-exposure tests remain;
+withdrawal is not a claim that braces was patched or that local tools are isolated.
+
+This candidate also raises Vite 7.3.6 to 7.3.7 for
+[GHSA-587h-7wmj-h5pm](https://github.com/advisories/GHSA-587h-7wmj-h5pm) and Zod
+4.4.3 to 4.6.6 for
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), with
+bounded workspace overrides for vulnerable version ranges. Local audit reports
+zero high/critical and fourteen moderate findings after these changes. These are
+source-candidate changes, not a claim that deployed installations were updated.
+
+## Historical October 14 Decision
+
 Status on 2026-10-14: two published fixes applied; Nabil approved a scoped
 exception for the remaining `braces` finding, expiring 2026-11-13 at 00:00 UTC.
 The high-severity threshold for every other finding is unchanged.

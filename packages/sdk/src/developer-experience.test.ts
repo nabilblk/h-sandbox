@@ -5,7 +5,7 @@ import { inspect } from "node:util";
 import test from "node:test";
 import {
   HarakiriClient, HarakiriCommandEndedError, HarakiriRunError, HarakiriSandboxCreationError,
-  HarakiriWaitTimeoutError, createRouteFetch, waitForRouteHttp,
+  HarakiriWaitTimeoutError, createRouteFetch, routeWebSocketRequest, waitForRouteHttp,
   type SandboxRouteResponse, type SandboxSummary
 } from "./index.js";
 
@@ -19,6 +19,22 @@ const route = (url = "https://api.example.invalid/route/one"): SandboxRouteRespo
   accessToken: "dummy-route-secret"
 });
 const clientFor = (fetch: typeof globalThis.fetch) => new HarakiriClient({ apiUrl: "https://control.example.invalid", apiKey: "dummy-api-secret", fetch });
+
+test("renewal accepts cancellation without retrying the side effect", async () => {
+  const controller = new AbortController();
+  let calls = 0;
+  const client = clientFor(async (url, init) => {
+    calls++;
+    assert.equal(new URL(String(url)).pathname, "/v1/sandboxes/sbx%2Fone/renew");
+    const signal = init!.signal!;
+    return new Promise<Response>((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      controller.abort(new Error("owner disconnected"));
+    });
+  });
+  await assert.rejects(client.renewSandbox("sbx/one", { signal: controller.signal }), /owner disconnected/);
+  assert.equal(calls, 1);
+});
 
 test("clients and sandbox handles do not serialize or inspect the control-plane key", async () => {
   const client = clientFor(async (_url, init) => {
@@ -40,9 +56,21 @@ test("scoped fetch rejects foreign origins and sibling or encoded paths before s
     "https://foreign.invalid/", "//foreign.invalid/", "http://api.example.invalid/route/one",
     "https://api.example.invalid/route/two", "https://api.example.invalid/route/one-more",
     "https://user:secret@api.example.invalid/route/one", "../two", "%2e%2e/two",
-    "%252e%252e/two", "child%2f..%2f..%2fother", "child%5c..%5cother"
+    "%252e%252e/two", "child%2f..%2f..%2fother", "child%5c..%5cother", "child%0ax", "child%7fx", "child\nx"
   ]) await assert.rejects(scoped(input), TypeError);
   assert.equal(calls, 0);
+});
+
+test("service WebSocket options preserve scoped authentication without URL credentials", () => {
+  const request = routeWebSocketRequest(route(), "/api/terminals/abc?user_id=one", {
+    headers: { authorization: "Bearer application-key", "x-route-token": "overridden" }
+  });
+  assert.equal(request.url, "wss://api.example.invalid/route/one/api/terminals/abc?user_id=one");
+  assert.deepEqual(request.headers, { authorization: "Bearer application-key", "x-route-token": "dummy-route-secret" });
+  assert.equal(request.url.includes("secret"), false);
+  for (const path of ["//evil.invalid/", "../two", "%2fother", "https://api.example.invalid/sibling"]) {
+    assert.throws(() => routeWebSocketRequest(route(), path), TypeError);
+  }
 });
 
 test("scoped fetch preserves Request bodies, headers, cancellation and init replacement semantics", async () => {
