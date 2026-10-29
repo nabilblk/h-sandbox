@@ -5,7 +5,8 @@ export const gates = new Set([
   "published-installation", "source-candidate", "candidate-images", "private-registry", "oidc-onboarding",
   "native-template", "applications", "native-admin-setup", "native-cold-start", "native-model-artifacts",
   "native-shell", "native-previews", "native-transfers-isolation", "adapter-restart",
-  "grant-revocation-recovery", "runtime-replacement", "two-users-quota"
+  "grant-revocation-recovery", "runtime-replacement", "two-users-quota",
+  "native-live-files", "native-transfer-failures", "native-svg-mobile"
 ]);
 const flags = new Set([
   "singleSubmission", "realModel", "nativeTools", "generatedFilesVisible", "shellInput", "ansiOutput",
@@ -13,7 +14,8 @@ const flags = new Set([
   "relativeAssets", "binaryRoundTrip", "hostileParentBlocked", "hostileStorageBlocked", "sameRuntime",
   "durableMapping", "nativeQuotaDenial", "twoUsers", "identityTamperingDenied", "noDuplicateRuntime",
   "confirmedRelease", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
-  "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered"
+  "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
+  "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview"
 ]);
 const cleanups = new Set(["browser", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 

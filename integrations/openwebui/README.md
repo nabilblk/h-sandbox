@@ -23,6 +23,9 @@ API is used.
   Per-chat orchestration contexts are not supported.
 - The configured OpenWebUI server is trusted to assert `X-User-Id`. Possession of
   the adapter key grants this authority. Headers alone are not user authentication.
+  Trusted administrators configure that key in their settings UI; it is not a
+  secret from those administrators. Ordinary chat clients receive neither that
+  key nor Harakiri service keys or route grants.
 - Use a dedicated Harakiri organization. This does **not** add per-user resource
   ACLs to Harakiri; members with direct organization access keep those permissions.
 - Open Terminal executions are not Harakiri Commands. No unified command audit,
@@ -169,8 +172,8 @@ end-to-end streaming for every OpenWebUI operation.
 ## 5. Lifecycle, retention and cleanup
 
 Defaults: 15-minute runtime TTL, 4-hour maximum session age. Actual mutations or
-shell input can renew at most every 30 seconds. Health checks, file listings and
-output polling do not renew. A socket closes after 60 seconds without frames;
+shell input can renew at most every 30 seconds. Health checks, file listings,
+output polling and automatic terminal ping/resize frames do not renew. A socket closes after 60 seconds without frames;
 reconnect explicitly. A connected browser alone is not a perpetual lease.
 
 After confirmed termination and workspace release, the next user operation can
@@ -273,3 +276,5 @@ lists native, security, recovery and independent self-service acceptance gates.
 Do not change `nativeAcceptance` or label the pair supported without those results.
 Read the [architecture decision](../../docs/protected-services-design.md) before
 changing credential boundaries or the context mapping.
+The [contributor guide](CONTRIBUTING.md) describes module ownership, the isolated
+native runner, evidence handling and release gates.

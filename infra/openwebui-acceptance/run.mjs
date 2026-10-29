@@ -8,6 +8,7 @@ import { assertPortsFree, buildImages, installPrivateRegistry, startApplications
 import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation, browserDiagnostics } from "./browser.mjs";
 import { restart, replaceRuntime, twoUsersAndQuota, revokeAndRecover } from "./recovery.mjs";
 import { gates, publicReceipt } from "./receipt.mjs";
+import { liveFiles, transferFailures, svgIsolation } from "./files.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -48,12 +49,12 @@ try {
   await gate("native-admin-setup", async () => {
     page = await operator.browser.newPage({ viewport: { width: 1440, height: 1000 } });
     page.setDefaultTimeout(45000);
+    witness = chatWitness(page);
     admin = await signup(page, credentials);
     await configureTerminal(page, credentials);
     check((await operator.client.capacity()).capacity.inUse === 0, "Discovery allocated a runtime");
     return { discoveryNoAllocation: true };
   });
-  witness = chatWitness(page);
   await gate("native-cold-start", async () => {
     await selectTerminal(page);
     await until("Native file browser provisioned exactly one runtime", async () => (await operator.client.capacity()).capacity.inUse === 1, 300000);
@@ -63,6 +64,9 @@ try {
   await gate("native-shell", () => shell(page, witness));
   await gate("native-previews", () => previews(page));
   await gate("native-transfers-isolation", () => transfersAndIsolation(page));
+  await gate("native-live-files", () => liveFiles(page, operator.client, template));
+  await gate("native-transfer-failures", () => transferFailures(page));
+  await gate("native-svg-mobile", () => svgIsolation(page));
   await gate("adapter-restart", () => restart(ctx, operator.client, template, page));
   await gate("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
   await gate("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));

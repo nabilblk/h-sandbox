@@ -96,5 +96,6 @@ jobs:
           path: |
             standalone-acceptance-report.json
             openwebui-report-desktop.png
+            openwebui-preview-mobile.png
           if-no-files-found: warn
           retention-days: 14

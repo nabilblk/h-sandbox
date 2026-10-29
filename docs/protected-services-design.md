@@ -65,8 +65,12 @@ resource ACLs through this integration.
 HTTP carries the configured bearer credential. The terminal WebSocket instead
 authenticates with its first JSON frame; it must not allocate a sandbox before
 that frame is verified. The adapter translates this credential into a unique
-Open Terminal instance credential. Harakiri and adapter credentials must never
-enter a sandbox, browser, URL or model prompt.
+Open Terminal instance credential. Harakiri control-plane credentials and route
+grants never enter the sandbox or an end user's browser. The adapter key is
+configured in the trusted OpenWebUI administrator settings, where administrators
+can access it; it must not be exposed in ordinary chat clients, URLs or model
+prompts. Sandbox code can inspect its own Open Terminal credential, which grants
+no access to other users' sandboxes or the Harakiri control plane.
 
 OpenWebUI buffers HTTP request bodies in this candidate release. Harakiri's
 streaming request transport alone cannot promise end-to-end streaming uploads.

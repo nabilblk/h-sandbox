@@ -7,6 +7,8 @@ export const prompt = `Use the connected terminal, not a code block in your repl
 
 export async function signup(page, credentials, second = false) {
   console.log(`OpenWebUI browser: ${second ? "second user" : "administrator"} signup`);
+  const acknowledge = page.getByRole("button", { name: "Okay, Let's Go!", exact: true });
+  await page.addLocatorHandler(acknowledge, () => acknowledge.click());
   await page.goto(`${webOrigin}/auth`);
   const fullName = page.getByPlaceholder("Enter Your Full Name", { exact: true });
   if (second) await page.getByRole("button", { name: "Sign up", exact: true }).click();
@@ -25,7 +27,6 @@ export async function signup(page, credentials, second = false) {
   const account = await response.json();
   check(typeof account.id === "string" && typeof account.token === "string", "OpenWebUI signup identity missing");
   await page.waitForURL(url => url.pathname !== "/auth");
-  const acknowledge = page.getByRole("button", { name: /Okay, Let's Go!/i });
   if (await acknowledge.isVisible()) await acknowledge.click();
   return account;
 }
@@ -34,19 +35,30 @@ export async function configureTerminal(page, credentials) {
   console.log("OpenWebUI browser: native administrator integration settings");
   await page.goto(`${webOrigin}/?settings=admin%3Aintegrations`);
   await page.getByRole("button", { name: "Add Connection", exact: true }).last().click();
+  console.log("OpenWebUI browser: terminal connection dialog opened");
+  const dialog = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Add Terminal Connection", exact: true }) });
   await page.locator("#terminal-name").fill("Harakiri acceptance");
   await page.locator("#terminal-id").fill("harakiri");
   await page.locator("#terminal-url").fill(adapterOrigin);
   await page.getByPlaceholder("API Key", { exact: true }).fill(credentials.adapterKey);
+  console.log("OpenWebUI browser: verify terminal connection");
   const verified = page.waitForResponse(response => response.url().includes("/terminal_servers/verify"));
   await page.getByRole("button", { name: "Verify Connection", exact: true }).click();
-  check((await verified).ok(), "Native terminal connection verification rejected");
+  const verification = await verified;
+  check(verification.ok() && (await verification.json()).type === "terminal", "Native terminal connection verification rejected");
+  console.log("OpenWebUI browser: save verified terminal connection");
   await page.locator("#terminal-chat-uploads").selectOption("filesystem");
-  await page.getByRole("button", { name: "Save", exact: true }).last().click();
+  const persisted = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/configs/terminal_servers" && response.request().method() === "POST");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  check((await persisted).ok(), "Native terminal connection was not saved");
   await page.locator("#terminal-url").waitFor({ state: "hidden" });
   const enabled = page.locator("#terminal-0-control");
-  if (await enabled.getAttribute("aria-checked") === "false") await enabled.click();
-  await page.getByRole("button", { name: "Save", exact: true }).last().click();
+  if (await enabled.getAttribute("aria-checked") === "false") {
+    const toggled = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/configs/terminal_servers" && response.request().method() === "POST");
+    await enabled.click();
+    check((await toggled).ok(), "Native terminal connection was not enabled");
+  }
+  console.log("OpenWebUI browser: terminal connection persisted and enabled");
   await page.goto(webOrigin);
 }
 
@@ -59,7 +71,7 @@ export async function selectTerminal(page) {
 }
 
 export function chatWitness(page) {
-  const state = { submissions: 0, selectedTerminal: false, sockets: 0, toolCalls: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
+  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, sockets: 0, toolCalls: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
   let terminalOutput = "";
   const onRequest = request => {
     if (new URL(request.url()).pathname !== "/api/chat/completions" || request.method() !== "POST") return;
@@ -85,7 +97,14 @@ export function chatWitness(page) {
     } else if (url.pathname.startsWith("/ws/socket.io")) {
       socket.on("framereceived", ({ payload }) => {
         const text = payload.toString();
-        if (text.includes("tool_calls") || text.includes("tool_call") || text.includes("execute:tool")) state.toolCalls++;
+        if (!text.startsWith("42[")) return;
+        try {
+          const event = JSON.parse(text.slice(2))[1]?.data;
+          if (!["chat:completion", "response:completion"].includes(event?.type)) return;
+          state.completed ||= event.data?.done === true;
+          state.modelError ||= Boolean(event.data?.error);
+          if (event.data?.output?.some(item => item.type === "function_call_output")) state.toolCalls++;
+        } catch { /* Ignore non-event frames; never retain or export chat content. */ }
       });
     }
   });
@@ -97,10 +116,9 @@ export async function runChat(page, witness) {
   await page.locator("#chat-input").fill(prompt);
   await page.getByRole("button", { name: "Send message", exact: true }).click();
   await until("Real chat submitted with terminal", () => witness.state.submissions === 1 && witness.state.selectedTerminal, 45000);
-  await until("Real model response completed", async () => {
-    const stop = page.getByRole("button", { name: "Stop", exact: true });
-    const messages = page.locator('[id^="message-"]');
-    return await messages.count() >= 2 && !(await stop.isVisible());
+  await until("Real model response completed", () => {
+    check(!witness.state.modelError, "Native model response reported an error");
+    return witness.state.completed;
   }, 600000);
   check(witness.state.toolCalls > 0, "No native tool event observed from real model");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
@@ -182,21 +200,21 @@ export async function previews(page) {
 export async function browserDiagnostics(page) {
   if (!page || page.isClosed()) return;
   const controls = {};
-  for (const name of ["Get started", "Create Admin Account", "Add Connection", "Terminal", "Send message", "Stop", "Refresh"]) {
+  for (const name of ["Get started", "Create Admin Account", "Okay, Let's Go!", "Add Connection", "Verify Connection", "Terminal", "Send message", "Stop", "Refresh"]) {
     controls[name] = await page.getByRole("button", { name, exact: true }).first().isVisible().catch(() => false);
   }
   // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.
   console.log(`OpenWebUI browser state: ${JSON.stringify(controls)}`);
 }
 
-export async function upload(page, file) {
+export async function upload(page, file, waitForFile = true) {
   const files = page.getByRole("region", { name: "File browser", exact: true });
   await files.getByRole("button", { name: "demo", exact: true }).click();
   await files.getByRole("button", { name: "Actions", exact: true }).click();
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Upload", exact: true }).click();
   await (await chooser).setFiles(file);
-  await files.locator("[data-file-row]").getByText(file.name, { exact: true }).waitFor();
+  if (waitForFile) await files.locator("[data-file-row]").getByText(file.name, { exact: true }).waitFor();
 }
 
 export async function transfersAndIsolation(page) {
