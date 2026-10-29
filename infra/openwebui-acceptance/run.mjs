@@ -9,6 +9,7 @@ import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell,
 import { restart, replaceRuntime, twoUsersAndQuota, revokeAndRecover } from "./recovery.mjs";
 import { gates, publicReceipt, safeFailure } from "./receipt.mjs";
 import { liveFiles, transferFailures, svgIsolation, relativeAssetBoundary } from "./files.mjs";
+import { diagnose } from "./diagnostics.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -85,25 +86,7 @@ try {
   process.exitCode = 1;
   console.error(`OpenWebUI acceptance failed: ${activeGate} ${JSON.stringify(safeFailure(publicFailure(error)))}`);
   if (witness) console.log(`OpenWebUI protocol counters: ${JSON.stringify(witness.state)}`);
-  if (credentials) {
-    try {
-      const logs = ownedDocker(ctx, "adapter", ["logs", "--tail", "100"]);
-      const failures = logs.split("\n").flatMap(line => {
-        try {
-          const entry = JSON.parse(line);
-          const allowed = new Set(["context_busy", "sandbox_service_unavailable", "workspace_creation_unconfirmed", "workspace_release_unconfirmed",
-            "sandbox_recovery_required", "session_expired", "route_creation_unconfirmed", "service_grant_unavailable", "binding_decryption_failed",
-            "organization_capacity_exceeded", "personal_context_only", "invalid_context", "unsupported_service_path"]);
-          return allowed.has(entry.failure) ? [{ code: entry.failure,
-            ...(Number.isInteger(entry.upstreamStatus) && entry.upstreamStatus >= 400 && entry.upstreamStatus <= 599 ? { status: entry.upstreamStatus } : {}) }] : [];
-        } catch { return []; }
-      });
-      console.log(`OpenWebUI adapter failure categories: ${JSON.stringify(failures)}`);
-      const inventory = (await operator.client.listSandboxes()).sandboxes.filter(item => item.template === template);
-      console.log(`OpenWebUI runtime status counts: ${JSON.stringify(Object.fromEntries(
-        ["pending", "running", "idle", "paused", "resuming", "error", "terminated"].map(status => [status, inventory.filter(item => item.status === status).length])))}`);
-    } catch { console.log("OpenWebUI failure diagnostics unavailable"); }
-  }
+  if (credentials) await diagnose(ctx, operator.client, template);
   await browserDiagnostics(page).catch(() => {});
 } finally {
   await finishReceipt(receipt, {

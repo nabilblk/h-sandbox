@@ -7,6 +7,7 @@ import { ownedDocker, cleanupDocker, compatibility } from "./stack.mjs";
 import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
+import { adapterFailures, runtimeState } from "./diagnostics.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
 
@@ -79,6 +80,16 @@ test("failure diagnostics retain only bounded non-sensitive categories", () => {
   assert.deepEqual(safeFailure({ kind: "http", status: 429 }), { kind: "http", status: 429 });
   assert.deepEqual(safeFailure({ kind: "acceptance_check", check: "Native cold-start file listing failed" }), { kind: "acceptance_check", check: "Native cold-start file listing failed" });
   assert.deepEqual(safeFailure({ kind: "acceptance_check", check: "PRIVATE" }), { kind: "acceptance_check" });
+});
+
+test("runtime diagnostics never export source logs, identifiers or unknown failure fields", () => {
+  assert.deepEqual(adapterFailures('PRIVATE\n{"failure":"PRIVATE"}\n{"failure":"context_busy","upstreamStatus":409,"message":"PRIVATE"}'),
+    [{ code: "context_busy", status: 409 }]);
+  const result = runtimeState({ metadata: { name: "PRIVATE" }, status: { phase: "Failed", containerStatuses: [
+    { name: "PRIVATE", ready: false, state: { terminated: { reason: "Error", exitCode: 1, message: "PRIVATE" } } }
+  ] } }, "PRIVATE: Permission denied for PRIVATE");
+  assert.deepEqual(result, { phase: "Failed", containers: [{ ready: false, reason: "Error", exitCode: 1 }], errors: ["Permission denied"] });
+  assert.ok(!JSON.stringify(result).includes("PRIVATE"));
 });
 
 test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit public artifact paths", () => {
