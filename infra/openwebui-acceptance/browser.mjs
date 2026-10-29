@@ -8,7 +8,6 @@ export const prompt = `Use the connected terminal, not a code block in your repl
 export async function signup(page, credentials, second = false) {
   console.log(`OpenWebUI browser: ${second ? "second user" : "administrator"} signup`);
   const acknowledge = page.getByRole("button", { name: "Okay, Let's Go!", exact: true });
-  await page.addLocatorHandler(acknowledge, () => acknowledge.click());
   await page.goto(`${webOrigin}/auth`);
   const fullName = page.getByPlaceholder("Enter Your Full Name", { exact: true });
   if (second) await page.getByRole("button", { name: "Sign up", exact: true }).click();
@@ -27,7 +26,13 @@ export async function signup(page, credentials, second = false) {
   const account = await response.json();
   check(typeof account.id === "string" && typeof account.token === "string", "OpenWebUI signup identity missing");
   await page.waitForURL(url => url.pathname !== "/auth");
-  if (await acknowledge.isVisible()) await acknowledge.click();
+  if (!second) {
+    // A fresh admin always sees the release notes, after asynchronous app setup.
+    // Finish that modal before opening Settings; two modal focus traps conflict.
+    await acknowledge.click();
+    await acknowledge.waitFor({ state: "hidden" });
+    console.log("OpenWebUI browser: administrator welcome acknowledged");
+  }
   return account;
 }
 

@@ -133,6 +133,10 @@ Verify and save the connection. Verification fetches discovery/configuration
 without allocating a sandbox. A user's first real operation creates their
 workspace and sandbox. Cold-start waits are finite; if OpenWebUI times out first,
 inspect the existing sandbox and retry observation, not the original command.
+The pinned OpenWebUI file browser shows a generic connection error for failed
+directory requests, including capacity denial. Its network response preserves
+the HTTP status and adapter error code; operators should use those and Harakiri's
+capacity view to distinguish exhausted slots from an unreachable service.
 
 ## 4. Use a model, then inspect the actual result
 

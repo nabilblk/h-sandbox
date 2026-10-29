@@ -28,8 +28,10 @@ adapter tenant separation or safe handling of untrusted previews.
 
 Baseline inspected: `20c96ce`, following the
 [rc.13 Workbench delivery](../../release-notes/0.5.0-rc.13-delivery.md).
-Implementation started on branch `feat/protected-sandbox-services`. No native
-acceptance execution, publication or deployment has been performed. Do not change the running k0s lab, host processes,
+Implementation is on branch `feat/protected-sandbox-services`, draft PR #78.
+The maintainer authorized isolated GitHub-hosted native acceptance on October 29;
+that qualification is running. No publication or lab deployment has been performed.
+Do not change the running k0s lab, host processes,
 customer OpenShift installation, BackgroundAgent, Brain or `docs/cot`.
 
 ## Product Outcome
@@ -129,7 +131,7 @@ inside that organization.
 ## Phases
 
 ### Phase 1: Protocol And Ownership Qualification
-**Status**: In Progress
+**Status**: Complete; compatibility remains a candidate until native qualification
 - [x] Resolve adapter ownership: the maintainer requested a Harakiri reference
       adapter for standard OpenWebUI because the colleague's POC is inaccessible.
 - [x] Pin OpenWebUI/Open Terminal source commits and image/package digests after
@@ -146,7 +148,7 @@ inside that organization.
       Do not treat an untrusted session header as proof of ownership.
 - [x] Write a concise ADR for module boundaries, credential flow, compatibility,
       limits, activity/TTL behavior and the explicit ACL/audit deferrals.
-- [ ] Define one executable reference scenario and expected artifacts before
+- [x] Define one executable reference scenario and expected artifacts before
       implementation. Choose a reproducible local/free model with documented
       licensing, exact identity and bounded inference resources.
 
@@ -205,9 +207,9 @@ route, OpenCode and native-terminal consumers remain compatible.
       timeout, unsupported, expired-route, denied and capacity errors.
 - [x] Preserve one-time token disclosure and document durable adapter credential
       storage/recovery. No token in ordinary logs, screenshots or copied URLs.
-- [ ] Test installed archives on supported Node and Python versions, not only
+- [x] Test installed archives on supported Node and Python versions, not only
       workspace imports. Keep API examples small and typechecked/executable.
-- [ ] Keep CLI and existing route UI descriptions consistent with the agreed
+- [x] Keep CLI and existing route UI descriptions consistent with the agreed
       capability surface; avoid an unrelated dashboard redesign.
 
 Exit: a minimal TS/Python example starts an application, waits for its health,
@@ -215,7 +217,7 @@ uses a protected endpoint and cleans up without framework-specific core methods.
 
 ### Phase 4: Template And Real Adapter Integration
 **Status**: In Progress; source-built candidate, template build and native qualification pending
-- [ ] Build a pinned, non-privileged Open Terminal template with dependencies baked
+- [x] Build a pinned, non-privileged Open Terminal template with dependencies baked
       in, correct writable directories, deterministic startup and a health probe.
       No Docker socket, unnecessary capabilities or runtime package bootstrap.
 - [ ] Configure working directory and intended retained data under `/workspace`.
@@ -247,9 +249,9 @@ runtime for the reference workflow. This is not yet a release claim.
 
 ### Phase 5: OpenWebUI Acceptance And Review
 **Status**: In Progress; isolated GitHub acceptance authorized on 2026-10-29
-- [ ] Keep unit/contract tests, browser fixtures, real transport tests and native
+- [x] Keep unit/contract tests, browser fixtures, real transport tests and native
       OpenWebUI acceptance separate, with explicit evidence for each level.
-- [ ] Prepare disposable native-runner infrastructure, bounded test resources,
+- [x] Prepare disposable native-runner infrastructure, bounded test resources,
       ownership-labeled cleanup and secret-redacted artifacts. Obtain authorization
       before pushing/running hosted acceptance; never use the running lab by default.
 - [ ] Install the pinned Harakiri, provider, OpenWebUI, model and adapter artifacts
@@ -302,7 +304,7 @@ chat-to-artifact criterion. No automated replay that hides a failed model run.
       Avoid undocumented per-install patches or maintainer-specific cluster paths.
 - [x] SDK/API reference: generated contract changes and runnable TS/Python examples;
       explain response/stream ownership, cancellation and uncertain outcomes.
-- [ ] Contributor/internal docs: ADR, module ownership, compatibility matrix, local
+- [x] Contributor/internal docs: ADR, module ownership, compatibility matrix, local
       test entry points, native runner instructions, release gates and maintenance.
 - [x] State the deferred ACL and command-audit guarantees prominently. Document
       adapter-supported identity/context assumptions and upstream preview limits.
@@ -393,10 +395,40 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   in-flight query budget prevents timed-out callers from enqueueing unlimited work.
 - OpenWebUI and the adapter bound/buffer request bodies; only Harakiri transport
   streams uploads. Do not claim arbitrary-size, end-to-end streaming uploads.
-- Native provider/browser/model, image scan and independent installation evidence
-  remain absent. Local fixtures are not substitutes for these release gates.
+- Native OpenWebUI provider/browser/model and independent installation evidence
+  remain incomplete. Local fixtures are not substitutes for these release gates.
+- The pinned upstream file browser reduces directory failures to a generic
+  connection error. HTTP status/error codes remain available to operators;
+  quota-specific end-user copy requires upstream work, not a fake success body.
+- Candidate image scans reject fixable high/critical findings but retain unfixed
+  OS findings in their inventory; passing that gate is not a vulnerability-free claim.
 
 ## Completion Notes
+
+### Isolated Qualification Checkpoint, October 29
+
+- Draft [PR #78](https://github.com/nabilblk/h-sandbox/pull/78) contains the work.
+  General CI and supported Python package matrices passed. The initial source
+  revision also passed native TypeScript SDK, Python and Workbench regression
+  workflows; later revisions are requalified before the final review.
+- The OpenWebUI workflow creates only an owned GitHub-hosted amd64 cluster,
+  registry, application containers and synthetic accounts. Installation, source
+  images, TLS registry, normal template import, model pull and native administrator
+  signup have passed. Native connection/chat and the rest of the matrix are still
+  being debugged; do not mark this integration supported yet.
+- Corrected first-frame WebSocket bursts: native OpenWebUI sends resize directly
+  after authentication. Core and adapter keep an ordered, bounded queue. Automatic
+  JSON ping/resize frames no longer renew sandbox TTL; binary user input can.
+- Image audit [40885498067](https://github.com/nabilblk/h-sandbox/actions/runs/40885498067):
+  adapter 244 findings (57 high/critical, zero fixable high/critical); terminal 429
+  findings (80 high/critical, zero fixable high/critical). Inventories are retained.
+  Six fixable findings in unused npm-bundled dependencies were removed by excluding
+  package managers from the final adapter image, not by an audit exception.
+- Added generation-checked operator recovery, retained-file verification, native
+  text/binary transfer and interruption scenarios to the harness. Their presence
+  in source is not yet proof that they pass through OpenWebUI.
+- Independent self-service feedback and publication/deployment remain separate
+  open gates. The running Mac/k0s lab has not been changed.
 
 ### Local Implementation Checkpoint, October 29
 

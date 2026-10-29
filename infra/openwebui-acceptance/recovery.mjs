@@ -58,11 +58,11 @@ export async function twoUsersAndQuota(ctx, operator, template, browser, admin, 
     }, 300000);
     const files = page.getByRole("region", { name: "File browser", exact: true });
     check(await files.getByText("demo", { exact: true }).count() === 0, "Second user sees first workspace");
-    const forged = await fetch(`${webOrigin}/api/v1/terminals/harakiri/files/list?path=/workspace/demo`, {
+    const forged = await fetch(`${webOrigin}/api/v1/terminals/harakiri/files/list?directory=/workspace/demo`, {
       headers: { authorization: `Bearer ${user.token}`, "x-user-id": admin.id }, signal: AbortSignal.timeout(60000)
     });
     check(!forged.ok, "Forged identity exposed another workspace");
-    const unauthenticated = await fetch(`${adapterOrigin}/files/list?path=/workspace`, {
+    const unauthenticated = await fetch(`${adapterOrigin}/files/list?directory=/workspace`, {
       headers: { "x-user-id": admin.id }, signal: AbortSignal.timeout(10000)
     });
     check(unauthenticated.status === 401, "Adapter trusted unsigned identity");
@@ -109,12 +109,12 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
   socket.on("close", () => { closed = true; });
   await client.routes.delete(before.id, 8000);
   await until("Revoked native terminal disconnected", () => closed, 15000);
-  const denied = await webuiRequest(admin, "terminals/harakiri/files/list?path=/workspace");
+  const denied = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace");
   check(!denied.ok, "Revoked grant accepted a fresh native request");
   const inspect = JSON.parse(ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "inspect", "--user-id", admin.id]));
   check(typeof inspect.generation === "string", "Operator generation missing");
   ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "reset-grant", "--user-id", admin.id, "--expect-generation", inspect.generation]);
-  const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?path=/workspace/demo");
+  const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace/demo");
   check(recovered.ok, "Operator reset did not recover native file access");
   check((await runtime(client, template)).id === before.id, "Grant recovery replaced runtime");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
