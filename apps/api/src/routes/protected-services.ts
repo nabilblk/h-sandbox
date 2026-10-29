@@ -48,12 +48,16 @@ export const registerProtectedServiceRoutes = async (
         try {
           lease = connections.acquire(routeKey);
           const owned = lease;
+          const socket = request.raw.socket;
           let stopWatching = () => {};
           const cleanup = () => {
+            socket.off("close", cleanup);
             stopWatching();
             owned.release();
             owned.controller.abort();
           };
+          // ws can reject the handshake before wsHandler creates a WebSocket.
+          if (request.ws) socket.once("close", cleanup);
           reply.raw.once("close", () => {
             if (!request.ws) cleanup();
           });

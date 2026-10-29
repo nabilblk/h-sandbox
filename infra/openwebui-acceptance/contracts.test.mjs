@@ -79,6 +79,8 @@ test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit 
   assert.match(source, /head\.repo\.full_name == github\.repository/);
   assert.match(source, /persist-credentials: false/);
   assert.match(source, /contents: read/);
+  for (const dependency of ["apps/api/**", "packages/sdk/**", "packages/shared/**", "pnpm-lock.yaml", "infra/acceptance/**"])
+    assert.ok(source.includes(`"${dependency}"`), `Native qualification must follow ${dependency}`);
   assert.match(source, /timeout-minutes: 90/);
   assert.match(source, /if: always\(\)\s+run: node infra\/openwebui-acceptance\/cleanup.mjs/);
   assert.match(source, /if: always\(\)\s+run: node infra\/acceptance\/cleanup.mjs/);

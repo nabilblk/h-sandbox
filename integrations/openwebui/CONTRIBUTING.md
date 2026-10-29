@@ -49,8 +49,9 @@ compatibility from a mock upstream or green local unit tests.
 ## Native qualification
 
 The [Native OpenWebUI workflow](../../.github/workflows/openwebui-acceptance.yml)
-runs on a disposable GitHub-hosted Linux amd64 machine. Changes to the adapter,
-template or native harness trigger it for same-repository pull requests. It is
+runs on a disposable GitHub-hosted Linux amd64 machine. Changes to the API, SDK,
+shared contracts, dependencies, adapter, template or native harness trigger it
+for same-repository pull requests. It is
 also manually dispatchable after the workflow exists on the default branch.
 It has read-only repository permissions and does not publish artifacts to a
 package or container registry used by customers.

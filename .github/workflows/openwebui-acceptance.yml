@@ -4,6 +4,13 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "apps/api/**"
+      - "packages/shared/**"
+      - "packages/sdk/**"
+      - "db/migrations/**"
+      - "pnpm-lock.yaml"
+      - "infra/acceptance/**"
+      - "infra/workbench-acceptance/candidate.mjs"
       - "integrations/openwebui/**"
       - "examples/templates/open-terminal/**"
       - "infra/openwebui-acceptance/**"

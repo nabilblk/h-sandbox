@@ -39,9 +39,11 @@ export async function signup(page, credentials, second = false) {
 export async function configureTerminal(page, credentials) {
   console.log("OpenWebUI browser: native administrator integration settings");
   await page.goto(`${webOrigin}/?settings=admin%3Aintegrations`);
-  await page.getByRole("button", { name: "Add Connection", exact: true }).last().click();
-  console.log("OpenWebUI browser: terminal connection dialog opened");
+  const section = page.locator("section").filter({ has: page.getByRole("heading", { name: "Terminal", exact: true }) });
+  await section.getByRole("button", { name: "Add Connection", exact: true }).click();
   const dialog = page.getByRole("dialog").filter({ has: page.getByRole("heading", { name: "Add Terminal Connection", exact: true }) });
+  await dialog.waitFor();
+  console.log("OpenWebUI browser: terminal connection dialog opened");
   await page.locator("#terminal-name").fill("Harakiri acceptance");
   await page.locator("#terminal-id").fill("harakiri");
   await page.locator("#terminal-url").fill(adapterOrigin);
@@ -173,6 +175,14 @@ export async function downloadSelected(page) {
   return fs.readFileSync(await download.path());
 }
 
+export async function refreshFiles(page) {
+  const [response] = await Promise.all([
+    page.waitForResponse(response => /^\/api\/v1\/terminals\/harakiri\/files\/(list|read|view)$/.test(new URL(response.url()).pathname), { timeout: 300000 }),
+    page.getByRole("region", { name: "File browser", exact: true }).getByRole("button", { name: "Refresh", exact: true }).click()
+  ]);
+  check(response.ok() && !(await response.finished()), "Native file refresh failed");
+}
+
 export async function previews(page) {
   console.log("OpenWebUI browser: JSON, chart, PDF and HTML previews");
   const files = page.getByRole("region", { name: "File browser", exact: true });
@@ -207,6 +217,9 @@ export async function browserDiagnostics(page) {
   const controls = {};
   for (const name of ["Get started", "Create Admin Account", "Okay, Let's Go!", "Add Connection", "Verify Connection", "Terminal", "Send message", "Stop", "Refresh"]) {
     controls[name] = await page.getByRole("button", { name, exact: true }).first().isVisible().catch(() => false);
+  }
+  for (const id of ["terminal-name", "terminal-id", "terminal-url"]) {
+    controls[id] = await page.locator(`#${id}`).isVisible().catch(() => false);
   }
   // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.
   console.log(`OpenWebUI browser state: ${JSON.stringify(controls)}`);

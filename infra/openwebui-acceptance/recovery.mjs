@@ -1,7 +1,7 @@
 import { check, until } from "../acceptance/context.mjs";
 import assert from "node:assert/strict";
 import { adapterOrigin, webOrigin, ownedDocker } from "./stack.mjs";
-import { signup, selectTerminal } from "./browser.mjs";
+import { signup, selectTerminal, refreshFiles } from "./browser.mjs";
 
 export async function runtime(client, template) {
   const all = (await client.listSandboxes()).sandboxes.filter(item => item.template === template && item.status !== "terminated");
@@ -15,8 +15,7 @@ export async function restart(ctx, client, template, page) {
   await until("Adapter restart health", async () => {
     try { return (await fetch(`${adapterOrigin}/health`)).ok; } catch { return false; }
   });
-  await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await until("Native file browser after adapter restart", () => page.getByRole("button", { name: "Refresh", exact: true }).isEnabled());
+  await refreshFiles(page);
   check((await runtime(client, template)).id === before.id, "Adapter restart replaced accepted runtime");
   return { sameRuntime: true, durableMapping: true };
 }
@@ -51,17 +50,18 @@ export async function twoUsersAndQuota(ctx, operator, template, browser, admin, 
     check((await runtime(operator.client, template)).id === first.id, "Quota denial allocated an extra runtime");
     const { capacity } = await operator.client.capacity();
     await operator.request("/v1/org/settings", "PATCH", { maxConcurrency: 2, expectedCapacityRevision: capacity.revision });
-    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    await refreshFiles(page);
     await until("Second user native file browser", async () => {
       const all = (await operator.client.listSandboxes()).sandboxes.filter(item => item.template === template && item.status === "running");
       return all.length === 2;
     }, 300000);
     const files = page.getByRole("region", { name: "File browser", exact: true });
     check(await files.getByText("demo", { exact: true }).count() === 0, "Second user sees first workspace");
+    check((await webuiRequest(user, "terminals/harakiri/files/list?directory=/workspace")).ok, "Second user cannot read their own workspace");
     const forged = await fetch(`${webOrigin}/api/v1/terminals/harakiri/files/list?directory=/workspace/demo`, {
       headers: { authorization: `Bearer ${user.token}`, "x-user-id": admin.id }, signal: AbortSignal.timeout(60000)
     });
-    check(!forged.ok, "Forged identity exposed another workspace");
+    check([400, 403, 404].includes(forged.status), "Forged identity was not rejected by the isolated filesystem");
     const unauthenticated = await fetch(`${adapterOrigin}/files/list?directory=/workspace`, {
       headers: { "x-user-id": admin.id }, signal: AbortSignal.timeout(10000)
     });

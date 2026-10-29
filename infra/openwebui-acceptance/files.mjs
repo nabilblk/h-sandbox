@@ -1,6 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { check, until } from "../acceptance/context.mjs";
-import { upload, downloadSelected } from "./browser.mjs";
+import { upload, downloadSelected, refreshFiles } from "./browser.mjs";
 import { runtime } from "./recovery.mjs";
 
 const fileBrowser = page => page.getByRole("region", { name: "File browser", exact: true });
@@ -19,7 +19,7 @@ export async function liveFiles(page, client, template) {
   const sandbox = await runtime(client, template);
   await until("Independent native edit verification", async () =>
     (await client.files.read(sandbox.id, "/workspace/demo/live.txt")).content === "Changed in OpenWebUI\n");
-  await files.getByRole("button", { name: "Refresh", exact: true }).click();
+  await refreshFiles(page);
   check((await downloadSelected(page)).toString() === "Changed in OpenWebUI\n", "Preview serves stale bytes after edit");
   return { textRoundTrip: true, nativeEdit: true, freshPreview: true };
 }

@@ -156,6 +156,29 @@ test("HTTP grant validation precedes forwarding; query token is not forwarded", 
   assert.equal(f.state.touches, 1);
 });
 
+test("a rejected WebSocket handshake releases its connection admission", async (t) => {
+  const f = await fixture(t, (_request, response) => response.end("ok"), { connectionsPerRoute: 1 });
+  const rejected = await new Promise<number | undefined>((resolve, reject) => {
+    const request = httpRequest(f.url, { headers: {
+      ...f.headers,
+      connection: "Upgrade",
+      upgrade: "websocket",
+      "sec-websocket-version": "13",
+      "sec-websocket-key": "invalid"
+    } }, response => {
+      response.resume();
+      response.once("end", () => resolve(response.statusCode));
+    });
+    request.on("error", reject);
+    request.end();
+  });
+  assert.equal(rejected, 400);
+  await delay(30);
+  const response = await fetch(f.url, { headers: f.headers });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "ok");
+});
+
 test("OpenSandbox gateway routing uses the configured gateway and overwrites spoofed headers", async (t) => {
   const f = await fixture(t, (req, res) => {
     assert.equal(req.url, "/health");
