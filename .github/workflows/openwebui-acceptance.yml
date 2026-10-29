@@ -1,0 +1,98 @@
+name: Native OpenWebUI acceptance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "integrations/openwebui/**"
+      - "examples/templates/open-terminal/**"
+      - "infra/openwebui-acceptance/**"
+      - ".github/workflows/openwebui-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: openwebui-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  candidate-image-audit:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: adapter
+            dockerfile: integrations/openwebui/Dockerfile
+            context: .
+          - component: terminal
+            dockerfile: examples/templates/open-terminal/Dockerfile
+            context: examples/templates/open-terminal
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build exact candidate and export locally
+        env:
+          COMPONENT: ${{ matrix.component }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          BUILD_CONTEXT: ${{ matrix.context }}
+        run: |
+          docker build --platform=linux/amd64 -f "$DOCKERFILE" -t "harakiri-audit:$COMPONENT" "$BUILD_CONTEXT"
+          docker save --output "$RUNNER_TEMP/candidate.tar" "harakiri-audit:$COMPONENT"
+      - name: Scan OS and application dependencies without mounting a Docker socket
+        run: >-
+          docker run --rm
+          --mount "type=bind,src=$RUNNER_TEMP/candidate.tar,dst=/candidate.tar,readonly"
+          --mount "type=bind,src=$PWD,dst=/report"
+          aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+          image --input /candidate.tar --scanners vuln --format json
+          --output /report/openwebui-image-audit.json --exit-code 0
+      - name: Require no fixable high or critical image findings
+        run: node infra/openwebui-acceptance/image-audit.mjs openwebui-image-audit.json
+      - name: Export image vulnerability inventory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openwebui-image-audit-${{ matrix.component }}-${{ github.run_id }}
+          path: openwebui-image-audit.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  native-amd64-openwebui:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4
+      - name: Verify ownership and receipt contracts
+        run: node --test infra/acceptance/safety.test.mjs infra/openwebui-acceptance/*.test.mjs
+      - name: Bootstrap only a fresh GitHub-hosted native amd64 cluster
+        timeout-minutes: 10
+        run: node infra/acceptance/bootstrap.mjs
+      - name: Qualify unmodified OpenWebUI and real local-model workflow
+        timeout-minutes: 70
+        run: node infra/openwebui-acceptance/run.mjs
+      - name: Clean owned OpenWebUI containers
+        if: always()
+        run: node infra/openwebui-acceptance/cleanup.mjs
+      - name: Clean owned cluster and private material
+        if: always()
+        run: node infra/acceptance/cleanup.mjs
+      - name: Export only sanitized receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openwebui-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: standalone-acceptance-report.json
+          if-no-files-found: warn
+          retention-days: 14

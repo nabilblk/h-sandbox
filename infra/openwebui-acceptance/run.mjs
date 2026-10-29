@@ -1,0 +1,100 @@
+import fs from "node:fs";
+import { context, check, until } from "../acceptance/context.mjs";
+import { install } from "../acceptance/install.mjs";
+import { operatorSession } from "../acceptance/browser.mjs";
+import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
+import { installWorkbenchCandidate } from "../workbench-acceptance/candidate.mjs";
+import { assertPortsFree, buildImages, installPrivateRegistry, startApplications, cleanupDocker } from "./stack.mjs";
+import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation } from "./browser.mjs";
+import { restart, replaceRuntime, twoUsersAndQuota } from "./recovery.mjs";
+import { gates, publicReceipt } from "./receipt.mjs";
+
+process.umask(0o077);
+const ctx = context();
+ctx.guard();
+const receipt = { status: "running", source: process.env.GITHUB_SHA, runId: ctx.identity.id, results: [] };
+const publish = () => fs.writeFileSync("standalone-acceptance-report.json", `${JSON.stringify(publicReceipt(receipt), null, 2)}\n`, { mode: 0o600 });
+const template = `acceptance-open-terminal-${ctx.identity.id}`;
+let activeGate, candidate, images, image, operator, credentials, page, admin, witness;
+async function gate(name, action) {
+  check(gates.has(name), "Unknown OpenWebUI acceptance gate");
+  activeGate = name;
+  ctx.guard();
+  console.log(`OpenWebUI acceptance: ${name}`);
+  const evidence = await action();
+  receipt.results.push({ gate: name, status: "passed", evidence });
+  publish();
+}
+try {
+  publish();
+  await assertPortsFree();
+  await gate("published-installation", () => install(ctx));
+  await gate("source-candidate", async () => { candidate = await installWorkbenchCandidate(ctx); });
+  await gate("candidate-images", async () => { images = await buildImages(ctx); });
+  await gate("private-registry", async () => { image = await installPrivateRegistry(ctx, candidate, images); });
+  await gate("oidc-onboarding", async () => { operator = await operatorSession(ctx); });
+  await gate("native-template", async () => {
+    await operator.client.createTemplate({ id: template, name: "Open Terminal acceptance", image, visibility: "private", cpuCount: 1, memoryMb: 1024,
+      workdir: "/workspace", defaultEntrypoint: ["/usr/local/bin/harakiri-open-terminal"], runtimeFamily: "custom" });
+    const { build } = await operator.client.createTemplateBuild(template, { sourceType: "image", imageDestination: image });
+    await until("Native template import and pull preflight", async () => {
+      const result = await operator.client.getTemplateBuild(build.id);
+      check(!["failed", "canceled"].includes(result.build.status), "Native template import failed");
+      return result.build.status === "success";
+    }, 600000);
+    return { ready: true };
+  });
+  await gate("applications", async () => { credentials = await startApplications(ctx, images, template); });
+  await gate("native-admin-setup", async () => {
+    page = await operator.browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    page.setDefaultTimeout(45000);
+    admin = await signup(page, credentials);
+    await configureTerminal(page, credentials);
+    check((await operator.client.capacity()).capacity.inUse === 0, "Discovery allocated a runtime");
+    return { discoveryNoAllocation: true };
+  });
+  witness = chatWitness(page);
+  await gate("native-cold-start", async () => {
+    await selectTerminal(page);
+    await until("Native file browser provisioned exactly one runtime", async () => (await operator.client.capacity()).capacity.inUse === 1, 300000);
+    return { ready: true, noDuplicateRuntime: true };
+  });
+  await gate("native-model-artifacts", () => runChat(page, witness));
+  await gate("native-shell", () => shell(page, witness));
+  await gate("native-previews", () => previews(page));
+  await gate("native-transfers-isolation", () => transfersAndIsolation(page));
+  await gate("adapter-restart", () => restart(ctx, operator.client, template, page));
+  await gate("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
+  await gate("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
+  receipt.status = "configured_gates_passed";
+} catch (error) {
+  ctx.save("openwebui-failure.json", { gate: activeGate, message: error.message, stack: error.stack });
+  receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });
+  receipt.status = "failed";
+  process.exitCode = 1;
+  console.error(`OpenWebUI acceptance failed: ${activeGate}`);
+} finally {
+  await finishReceipt(receipt, {
+    runtimes: async () => {
+      if (!operator) return;
+      for (const sandbox of (await operator.client.listSandboxes()).sandboxes.filter(item => item.template === template && item.status !== "terminated")) {
+        await operator.client.killSandbox(sandbox.id);
+      }
+      await until("All owned runtime capacity released", async () => (await operator.client.capacity()).capacity.inUse === 0, 180000);
+    },
+    workspaces: async () => {
+      if (!operator) return;
+      for (const workspace of (await operator.client.workspaces.list()).workspaces.filter(item => item.name.startsWith(`openwebui-acceptance-${ctx.identity.id}-`))) {
+        check(workspace.status === "available" && !workspace.attachedSandboxId, "Owned workspace not released");
+        await operator.client.workspaces.archive(workspace.id);
+      }
+    },
+    key: async () => {
+      if (operator) await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
+    },
+    browser: async () => { if (operator) await operator.browser.close(); },
+    docker: () => cleanupDocker(ctx), portForwards: () => ctx.stopForwards()
+  });
+  if (receipt.status === "failed") process.exitCode = 1;
+  publish();
+}
