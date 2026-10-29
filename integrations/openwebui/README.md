@@ -35,6 +35,12 @@ API is used.
   Harakiri control-plane key. Runtime isolation remains the provider's responsibility.
 - Native PDF/PNG/HTML previews and PTY behavior remain qualification gates. Office
   conversion and notebooks are excluded. Do not enable unsafe preview origins.
+- HTML reports must be self-contained: embed images as data URLs and use inline
+  styles. With OpenWebUI's default SameSite=Lax cookies, an opaque-origin preview
+  cannot authenticate relative image/CSS/JS requests. Do not enable
+  `allow-same-origin`, weaken session-cookie policy, or put tokens into asset URLs
+  to bypass this boundary. Download multi-file applications instead; this profile
+  does not qualify live port-hosted applications with authenticated relative assets.
 
 ## 1. Prepare Harakiri
 
@@ -157,7 +163,9 @@ South,7
 North,5
 Read this CSV with Python, aggregate totals by region and write report.json
 containing {"North":17,"South":7,"total":24}. Use matplotlib to create chart.png
-and report.pdf from those totals. Create an index.html that displays the totals.
+and report.pdf from those totals. Create a self-contained index.html with heading
+Sales report, total 24, and the same chart embedded as a data:image/png;base64 URL.
+Do not use relative or external assets in the HTML.
 Verify the JSON by reading it back and show me links to the generated files.
 Do not install packages or download data. Report tool failures honestly.
 ```

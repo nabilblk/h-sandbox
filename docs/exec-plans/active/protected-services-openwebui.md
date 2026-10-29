@@ -384,6 +384,7 @@ or explicitly identified candidate artifacts. Record which was tested.
 | 2026-10-29 | Separate HTTP/WS connection descriptions in SDKs | Preserve application authentication without depending on a framework-specific socket client | Bundle an OpenWebUI client into the general SDK (rejected) |
 | 2026-10-29 | Remove the withdrawn braces audit exception; patch Vite/Zod security floors | The authoritative advisory was withdrawn, while two new high-severity findings required real upgrades; every high/critical finding remains blocking | Renew or broaden the old exception (rejected) |
 | 2026-10-29 | Package only production adapter dependencies and compiled runtime modules | The evaluation image must not ship the monorepo's development dependencies or compiled tests; verify the same isolated bundle locally | Copy all node_modules and source files into the final image (rejected) |
+| 2026-10-29 | Qualify self-contained HTML reports; explicitly test relative-asset denial | An isolated real-browser probe confirmed that opaque frames cannot authenticate relative assets with OpenWebUI's default SameSite=Lax session cookie; keep the native browser check and document the unsupported multi-file preview | Grant same-origin authority, weaken cookies or put session credentials in asset URLs (rejected) |
 
 ## Tech Debt Incurred
 
@@ -402,6 +403,9 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   quota-specific end-user copy requires upstream work, not a fake success body.
 - Candidate image scans reject fixable high/critical findings but retain unfixed
   OS findings in their inventory; passing that gate is not a vulnerability-free claim.
+- HTML previews require embedded assets. Authenticated relative assets and live
+  multi-file application previews need a separate upstream-safe design; they are
+  not included in this profile. The native negative check remains required.
 
 ## Completion Notes
 
@@ -427,6 +431,11 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 - Added generation-checked operator recovery, retained-file verification, native
   text/binary transfer and interruption scenarios to the harness. Their presence
   in source is not yet proof that they pass through OpenWebUI.
+- Source review reproduced a rejected WebSocket-handshake admission leak. The
+  regression failed with an incorrect 429 before the fix and passes after raw
+  socket-close cleanup; the API suite now passes 394 tests with 10 explicit
+  infrastructure-dependent skips. Native qualification also follows API/SDK and
+  shared-contract changes, not only adapter edits.
 - Independent self-service feedback and publication/deployment remain separate
   open gates. The running Mac/k0s lab has not been changed.
 

@@ -6,6 +6,20 @@ import { runtime } from "./recovery.mjs";
 const fileBrowser = page => page.getByRole("region", { name: "File browser", exact: true });
 const isUpload = request => new URL(request.url()).pathname === "/api/v1/terminals/harakiri/files/upload";
 
+export async function relativeAssetBoundary(page) {
+  const html = `<!doctype html><h1>Relative asset boundary</h1><pre id="result">pending</pre>
+<img src="chart.png" onload="document.querySelector('#result').textContent='loaded'" onerror="document.querySelector('#result').textContent='requires session'">`;
+  await upload(page, { name: "relative-asset.html", mimeType: "text/html", buffer: Buffer.from(html) });
+  const [response] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/files/serve/workspace/demo/chart.png")),
+    fileBrowser(page).locator("[data-file-row]").getByText("relative-asset.html", { exact: true }).click()
+  ]);
+  check([401, 403].includes(response.status()), "Opaque preview unexpectedly has session authority for relative assets");
+  const frame = page.frameLocator('iframe[title="HTML Preview"]');
+  await until("Relative asset has a finite rejected outcome", async () => (await frame.locator("#result").innerText()) === "requires session");
+  return { relativeAssetsRequireSession: true };
+}
+
 export async function liveFiles(page, client, template) {
   const files = fileBrowser(page);
   await upload(page, { name: "live.txt", mimeType: "text/plain", buffer: Buffer.from("Original text\n") });

@@ -76,6 +76,14 @@ OpenWebUI buffers HTTP request bodies in this candidate release. Harakiri's
 streaming request transport alone cannot promise end-to-end streaming uploads.
 Open Terminal's file-browser root is a UI hint, not a filesystem security boundary.
 
+HTML report previews must be self-contained. A browser probe confirmed that an
+opaque-origin iframe can load its initial document with the default SameSite=Lax
+session cookie, but cannot send that cookie on relative asset requests. Embed
+report images as data URLs. Never solve this by granting same-origin authority,
+weakening session-cookie policy or placing credentials in asset URLs. Native
+qualification includes both a positive self-contained report and an explicit
+relative-asset rejection check; live multi-file application previews are excluded.
+
 The maintainer requested a reference adapter for standard OpenWebUI because the
 colleague's POC is inaccessible. It must be separately distributable, keep durable context bindings and credentials,
 and coordinate existing workspace/capacity APIs. It must not copy the separately
@@ -84,7 +92,7 @@ licensed Open WebUI Terminals orchestrator or become another runtime scheduler.
 ## Acceptance scenario
 
 A real model in unmodified OpenWebUI reads a CSV in `/workspace/demo`,
-computes totals and creates JSON, PNG, PDF and HTML artifacts. Independently
+computes totals and creates JSON, PNG, PDF and self-contained HTML artifacts. Independently
 verify their contents and downloaded hashes. Then exercise native file browsing,
 shell input/resize/reconnect and document previews. Test two users, concurrent
 first access, quota rejection, interrupted transfers, adapter restart and sandbox

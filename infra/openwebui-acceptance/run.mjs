@@ -8,7 +8,7 @@ import { assertPortsFree, buildImages, installPrivateRegistry, startApplications
 import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation, browserDiagnostics } from "./browser.mjs";
 import { restart, replaceRuntime, twoUsersAndQuota, revokeAndRecover } from "./recovery.mjs";
 import { gates, publicReceipt } from "./receipt.mjs";
-import { liveFiles, transferFailures, svgIsolation } from "./files.mjs";
+import { liveFiles, transferFailures, svgIsolation, relativeAssetBoundary } from "./files.mjs";
 
 process.umask(0o077);
 const ctx = context();
@@ -63,6 +63,7 @@ try {
   await gate("native-model-artifacts", () => runChat(page, witness));
   await gate("native-shell", () => shell(page, witness));
   await gate("native-previews", () => previews(page));
+  await gate("native-relative-assets-limit", () => relativeAssetBoundary(page));
   await gate("native-transfers-isolation", () => transfersAndIsolation(page));
   await gate("native-live-files", () => liveFiles(page, operator.client, template));
   await gate("native-transfer-failures", () => transferFailures(page));

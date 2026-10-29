@@ -82,7 +82,8 @@ node packages/cli/dist/index.js template build \\
       <CodeBlock language="plaintext">{`Use the connected terminal. Work in /workspace/demo.
 Create sales.csv with region,amount rows North,12; South,7; North,5.
 Read it with Python. Write report.json with North=17, South=7, total=24.
-Use matplotlib to create chart.png and report.pdf, and write index.html.
+Use matplotlib to create chart.png and report.pdf, and write a self-contained index.html.
+Embed the same chart as a data:image/png;base64 URL, with no relative or external assets.
 Read the JSON back to verify it. Show links to the files.
 Do not install packages or download data. Report tool failures honestly.`}</CodeBlock>
       <p>
@@ -117,6 +118,12 @@ Do not install packages or download data. Report tool failures honestly.`}</Code
         Protected routes remove platform credentials and cookies, bound transfers and connections, and revalidate
         grants. OpenWebUI must preserve opaque-origin preview isolation. Do not add <code>allow-same-origin</code> to
         make a preview work. A file-browser root is not a filesystem boundary.
+      </p>
+      <p>
+        HTML previews must be self-contained. OpenWebUI's default session cookies are not sent by an opaque-origin
+        preview when it requests protected relative images, styles or scripts. Embed report assets as data URLs;
+        do not weaken cookie policy or put credentials into URLs. Live multi-file application previews are not
+        qualified by this profile.
       </p>
       <p>
         OpenWebUI may buffer uploads and some responses, so incremental Harakiri transport does not imply end-to-end

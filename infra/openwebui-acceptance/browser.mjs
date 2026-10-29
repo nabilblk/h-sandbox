@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { check, until, sha256 } from "../acceptance/context.mjs";
 import { webOrigin, adapterOrigin } from "./stack.mjs";
 
-export const prompt = `Use the connected terminal, not a code block in your reply. Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5. Use Python csv and matplotlib to group sales by region. Write /workspace/demo/report.json with exactly {"North":17,"South":7,"total":24}, a bar chart /workspace/demo/chart.png and /workspace/demo/report.pdf, and /workspace/demo/index.html containing a heading Sales report, the total 24 and the chart using a relative image URL. Run your code and verify the files. Do not install or download anything. Finish with the computed totals and links to the files.`;
+export const prompt = `Use the connected terminal, not a code block in your reply. Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5. Use Python csv and matplotlib to group sales by region. Write /workspace/demo/report.json with exactly {"North":17,"South":7,"total":24}, a bar chart /workspace/demo/chart.png and /workspace/demo/report.pdf, and /workspace/demo/index.html containing a heading Sales report, the total 24 and the same chart embedded as a data:image/png;base64 URL. The HTML must be self-contained, with no relative or external assets. Run your code and verify the files. Do not install or download anything. Finish with the computed totals and links to the files.`;
 
 export async function signup(page, credentials, second = false) {
   console.log(`OpenWebUI browser: ${second ? "second user" : "administrator"} signup`);
@@ -205,11 +205,13 @@ export async function previews(page) {
   const frame = page.frameLocator('iframe[title="HTML Preview"]');
   await frame.getByRole("heading", { name: "Sales report", exact: false }).waitFor();
   check((await frame.locator("body").innerText()).includes("24"), "HTML preview does not show actual total");
-  await until("Relative chart in HTML preview", () => frame.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100)));
+  await until("Embedded chart in HTML preview", () => frame.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100)));
+  const embedded = await frame.locator('img[src^="data:image/png;base64,"]').first().getAttribute("src");
+  check(sha256(Buffer.from(embedded.split(",", 2)[1], "base64")) === sha256(png), "Embedded chart differs from downloaded PNG");
   check(!(await page.locator('iframe[title="HTML Preview"]').getAttribute("sandbox")).includes("allow-same-origin"), "Preview allows chat origin authority");
   // Only the generated synthetic report/chat, never account or connection settings.
   await page.screenshot({ path: "openwebui-report-desktop.png" });
-  return { jsonPreview: true, imagePreview: true, pdfPreview: true, htmlPreview: true, relativeAssets: true, downloadSha256: sha256(report) };
+  return { jsonPreview: true, imagePreview: true, pdfPreview: true, htmlPreview: true, embeddedAssets: true, downloadSha256: sha256(report) };
 }
 
 export async function browserDiagnostics(page) {

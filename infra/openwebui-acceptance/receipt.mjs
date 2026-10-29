@@ -6,12 +6,12 @@ export const gates = new Set([
   "native-template", "applications", "native-admin-setup", "native-cold-start", "native-model-artifacts",
   "native-shell", "native-previews", "native-transfers-isolation", "adapter-restart",
   "grant-revocation-recovery", "runtime-replacement", "two-users-quota",
-  "native-live-files", "native-transfer-failures", "native-svg-mobile"
+  "native-live-files", "native-transfer-failures", "native-svg-mobile", "native-relative-assets-limit"
 ]);
 const flags = new Set([
   "singleSubmission", "realModel", "nativeTools", "generatedFilesVisible", "shellInput", "ansiOutput",
   "remoteResize", "interrupt", "reconnect", "jsonPreview", "imagePreview", "pdfPreview", "htmlPreview",
-  "relativeAssets", "binaryRoundTrip", "hostileParentBlocked", "hostileStorageBlocked", "sameRuntime",
+  "embeddedAssets", "relativeAssetsRequireSession", "binaryRoundTrip", "hostileParentBlocked", "hostileStorageBlocked", "sameRuntime",
   "durableMapping", "nativeQuotaDenial", "twoUsers", "identityTamperingDenied", "noDuplicateRuntime",
   "confirmedRelease", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
