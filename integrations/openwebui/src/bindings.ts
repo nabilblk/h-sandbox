@@ -76,7 +76,8 @@ export class BindingCipher {
 export class PostgresBindings implements BindingStore {
   constructor(
     readonly pool: Pool,
-    readonly cipher: BindingCipher
+    readonly cipher: BindingCipher,
+    readonly lockTimeoutMs = 10000
   ) {}
 
   async migrate() {
@@ -119,7 +120,7 @@ export class PostgresBindings implements BindingStore {
     let broken = false;
     const lock = BigInt.asIntN(64, BigInt(`0x${key.slice(0, 16)}`)).toString();
     try {
-      const deadline = Date.now() + 10000;
+      const deadline = Date.now() + this.lockTimeoutMs;
       while (!locked) {
         signal?.throwIfAborted();
         const result = await connection.query<{ locked: boolean }>(

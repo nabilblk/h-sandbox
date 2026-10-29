@@ -13,7 +13,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
   statement_timeout: 5000
 });
-const store = new PostgresBindings(pool, new BindingCipher(Buffer.from(config.ADAPTER_ENCRYPTION_KEY, "hex")));
+// Concurrent file/port probes must be able to wait for the same cold start.
+const store = new PostgresBindings(pool, new BindingCipher(Buffer.from(config.ADAPTER_ENCRYPTION_KEY, "hex")),
+  config.ADAPTER_READY_TIMEOUT_MS + 45000);
 const client = new HarakiriClient({
   apiUrl: config.HARAKIRI_API_URL,
   apiKey: config.HARAKIRI_API_KEY,

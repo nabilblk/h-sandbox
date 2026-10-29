@@ -17,14 +17,15 @@ const flags = new Set([
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
   "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview"
 ]);
-const cleanups = new Set(["browser", "runtimes", "workspaces", "key", "docker", "portForwards"]);
+const cleanups = new Set(["browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
 const checks = new Set([
   "Native cold-start file listing failed", "Native file refresh failed", "No native tool event observed from real model",
   "Native model response reported an error", "Real chat submitted with terminal: deadline exceeded",
   "Real model response completed: deadline exceeded", "Native shell output: deadline exceeded",
   "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
-  "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded"
+  "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded",
+  "Owned workspace released before archival: deadline exceeded"
 ]);
 
 export function safeFailure(failure) {
@@ -55,6 +56,7 @@ export function publicReceipt(receipt) {
     }
   }
   if (receipt.runnerProcesses) result.runnerProcesses = { status: receipt.runnerProcesses.status === "passed" ? "passed" : "failed",
-    checks: receipt.runnerProcesses.checks.filter(item => cleanups.has(item.name)).map(item => ({ name: item.name, status: item.status === "passed" ? "passed" : "failed" })) };
+    checks: receipt.runnerProcesses.checks.filter(item => cleanups.has(item.name)).map(item => ({ name: item.name, status: item.status === "passed" ? "passed" : "failed",
+      ...(item.failure ? { failure: safeFailure(item.failure) } : {}) })) };
   return result;
 }

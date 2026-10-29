@@ -11,6 +11,7 @@ on:
       - "pnpm-lock.yaml"
       - "infra/acceptance/**"
       - "infra/workbench-acceptance/candidate.mjs"
+      - "infra/sdk-acceptance/framework.mjs"
       - "integrations/openwebui/**"
       - "examples/templates/open-terminal/**"
       - "infra/openwebui-acceptance/**"

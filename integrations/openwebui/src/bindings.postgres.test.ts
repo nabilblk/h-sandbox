@@ -1,11 +1,35 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { Pool } from "pg";
 import { BindingCipher, PostgresBindings } from "./bindings.js";
 
 const database = process.env.OPENWEBUI_TEST_DATABASE_URL;
 if (process.env.OPENWEBUI_TEST_REQUIRED === "1" && !database) throw new Error("Required adapter database is missing");
+
+test("cold-start waiters honor the configured lock budget and cancellation", { skip: !database }, async (t) => {
+  const pool = new Pool({ connectionString: database, max: 4, connectionTimeoutMillis: 1000, statement_timeout: 2000 });
+  t.after(() => pool.end());
+  const cipher = new BindingCipher(randomBytes(32));
+  const coldStart = new PostgresBindings(pool, cipher, 3000);
+  const impatient = new PostgresBindings(pool, cipher, 100);
+  await coldStart.migrate();
+  const identity = randomBytes(32).toString("hex");
+  let entered!: () => void;
+  const ready = new Promise<void>(resolve => { entered = resolve; });
+  const owner = coldStart.withBinding(identity, async (binding, save) => {
+    entered();
+    await delay(500);
+    binding.sandboxId = "sbx_shared";
+    await save(binding);
+  });
+  await ready;
+  const waiter = coldStart.withBinding(identity, async binding => binding.sandboxId, AbortSignal.timeout(3000));
+  await assert.rejects(impatient.withBinding(identity, async () => assert.fail("Lock must remain held")), /context_busy/);
+  await owner;
+  assert.equal(await waiter, "sbx_shared");
+});
 
 test(
   "PostgreSQL serializes two adapter replicas and preserves encrypted intent across failure",

@@ -4,7 +4,7 @@ import { install } from "../acceptance/install.mjs";
 import { operatorSession } from "../acceptance/browser.mjs";
 import { finishReceipt, publicFailure } from "../acceptance/receipt.mjs";
 import { installWorkbenchCandidate } from "../workbench-acceptance/candidate.mjs";
-import { assertPortsFree, buildImages, installPrivateRegistry, startApplications, cleanupDocker } from "./stack.mjs";
+import { assertPortsFree, buildImages, installPrivateRegistry, startApplications, cleanupDocker, ownedDocker } from "./stack.mjs";
 import { signup, configureTerminal, selectTerminal, chatWitness, runChat, shell, previews, transfersAndIsolation, browserDiagnostics } from "./browser.mjs";
 import { restart, replaceRuntime, twoUsersAndQuota, revokeAndRecover } from "./recovery.mjs";
 import { gates, publicReceipt, safeFailure } from "./receipt.mjs";
@@ -60,6 +60,7 @@ try {
       page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/terminals/harakiri/files/list", { timeout: 300000 }),
       selectTerminal(page)
     ]);
+    console.log(`OpenWebUI cold-start HTTP status: ${response.status()}`);
     check(response.ok() && !(await response.finished()), "Native cold-start file listing failed");
     await until("Native file browser provisioned exactly one runtime", async () => (await operator.client.capacity()).capacity.inUse === 1, 300000);
     return { ready: true, noDuplicateRuntime: true };
@@ -84,9 +85,33 @@ try {
   process.exitCode = 1;
   console.error(`OpenWebUI acceptance failed: ${activeGate} ${JSON.stringify(safeFailure(publicFailure(error)))}`);
   if (witness) console.log(`OpenWebUI protocol counters: ${JSON.stringify(witness.state)}`);
+  if (credentials) {
+    try {
+      const logs = ownedDocker(ctx, "adapter", ["logs", "--tail", "100"]);
+      const failures = logs.split("\n").flatMap(line => {
+        try {
+          const entry = JSON.parse(line);
+          const allowed = new Set(["context_busy", "sandbox_service_unavailable", "workspace_creation_unconfirmed", "workspace_release_unconfirmed",
+            "sandbox_recovery_required", "session_expired", "route_creation_unconfirmed", "service_grant_unavailable", "binding_decryption_failed",
+            "organization_capacity_exceeded", "personal_context_only", "invalid_context", "unsupported_service_path"]);
+          return allowed.has(entry.failure) ? [{ code: entry.failure,
+            ...(Number.isInteger(entry.upstreamStatus) && entry.upstreamStatus >= 400 && entry.upstreamStatus <= 599 ? { status: entry.upstreamStatus } : {}) }] : [];
+        } catch { return []; }
+      });
+      console.log(`OpenWebUI adapter failure categories: ${JSON.stringify(failures)}`);
+      const inventory = (await operator.client.listSandboxes()).sandboxes.filter(item => item.template === template);
+      console.log(`OpenWebUI runtime status counts: ${JSON.stringify(Object.fromEntries(
+        ["pending", "running", "idle", "paused", "resuming", "error", "terminated"].map(status => [status, inventory.filter(item => item.status === status).length])))}`);
+    } catch { console.log("OpenWebUI failure diagnostics unavailable"); }
+  }
   await browserDiagnostics(page).catch(() => {});
 } finally {
   await finishReceipt(receipt, {
+    browser: async () => { if (operator) await operator.browser.close(); },
+    adapter: async () => {
+      // Stop background chat/port polling from allocating a replacement during cleanup.
+      if (credentials) ownedDocker(ctx, "adapter", ["stop", "--time", "10"]);
+    },
     runtimes: async () => {
       if (!operator) return;
       for (const sandbox of (await operator.client.listSandboxes()).sandboxes.filter(item => item.template === template && item.status !== "terminated")) {
@@ -97,14 +122,16 @@ try {
     workspaces: async () => {
       if (!operator) return;
       for (const workspace of (await operator.client.workspaces.list()).workspaces.filter(item => item.name.startsWith(`openwebui-acceptance-${ctx.identity.id}-`))) {
-        check(workspace.status === "available" && !workspace.attachedSandboxId, "Owned workspace not released");
+        await until("Owned workspace released before archival", async () => {
+          const { workspace: current } = await operator.client.workspaces.get(workspace.id);
+          return current.status === "available" && !current.attachedSandboxId;
+        }, 180000);
         await operator.client.workspaces.archive(workspace.id);
       }
     },
     key: async () => {
       if (operator) await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
     },
-    browser: async () => { if (operator) await operator.browser.close(); },
     docker: () => cleanupDocker(ctx), portForwards: () => ctx.stopForwards()
   });
   if (receipt.status === "failed") process.exitCode = 1;

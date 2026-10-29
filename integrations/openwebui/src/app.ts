@@ -1,6 +1,7 @@
 import { Readable } from "node:stream";
 import Fastify, { type FastifyRequest } from "fastify";
 import websocket from "@fastify/websocket";
+import { HarakiriApiError } from "@h-sandbox/sdk";
 import { AdapterError, type AdapterConfig } from "./config.js";
 import { authenticated, identityFor, servicePath } from "./identity.js";
 import { publicError, type SessionManager } from "./sessions.js";
@@ -44,10 +45,13 @@ export const buildAdapter = async (config: AdapterConfig, sessions: SessionManag
       return reply.code(401).send({ error: "adapter_authentication_required" });
     }
   });
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof Error && "statusCode" in error && error.statusCode === 413)
       return reply.code(413).send({ error: "adapter_request_too_large" });
     const failure = publicError(error);
+    request.log.warn({ failure: failure.code,
+      ...(error instanceof HarakiriApiError ? { upstreamStatus: error.status } : {})
+    }, "Sandbox service request failed");
     if (failure.status === 503 || failure.status === 429) reply.header("retry-after", "3");
     return reply.code(failure.status).send({ error: failure.code });
   });

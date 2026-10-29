@@ -87,7 +87,7 @@ test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit 
   assert.match(source, /head\.repo\.full_name == github\.repository/);
   assert.match(source, /persist-credentials: false/);
   assert.match(source, /contents: read/);
-  for (const dependency of ["apps/api/**", "packages/sdk/**", "packages/shared/**", "pnpm-lock.yaml", "infra/acceptance/**"])
+  for (const dependency of ["apps/api/**", "packages/sdk/**", "packages/shared/**", "pnpm-lock.yaml", "infra/acceptance/**", "infra/sdk-acceptance/framework.mjs"])
     assert.ok(source.includes(`"${dependency}"`), `Native qualification must follow ${dependency}`);
   assert.match(source, /timeout-minutes: 90/);
   assert.match(source, /if: always\(\)\s+run: node infra\/openwebui-acceptance\/cleanup.mjs/);
@@ -95,6 +95,14 @@ test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit 
   assert.match(source, /path: \|\s+standalone-acceptance-report.json\s+openwebui-report-desktop.png\n/);
   assert.doesNotMatch(source, /secrets\.|pull_request_target|packages: write|id-token: write|npm publish|self-hosted/);
   for (const match of source.matchAll(/uses: (.+)/g)) assert.match(match[1], /^[\w/-]+@[a-f0-9]{40} # v4$/);
+});
+
+test("native cleanup stops request producers before releasing owned resources", () => {
+  const source = read("./run.mjs").split("await finishReceipt(receipt,", 2)[1];
+  for (const [before, after] of [["browser:", "adapter:"], ["adapter:", "runtimes:"], ["runtimes:", "workspaces:"]]) {
+    assert.ok(source.indexOf(before) >= 0 && source.indexOf(before) < source.indexOf(after));
+  }
+  assert.match(source, /Owned workspace released before archival/);
 });
 
 test("all native modules parse without executing the destructive entrypoint", () => {

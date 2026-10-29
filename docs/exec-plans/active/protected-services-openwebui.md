@@ -445,6 +445,16 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   gives the native schema a 16K context and asks Python to encode report assets
   instead of allowing base64 generation in model text. One chat per run remains
   mandatory; no response replay or fixture artifact replaces it.
+- Run [40900260855](https://github.com/nabilblk/h-sandbox/actions/runs/40900260855)
+  added an actual successful-file-response requirement to cold start and failed
+  before model invocation. The earlier allocation-only check was insufficient.
+  Concurrent adapter waiters now have the same bounded cold-start lock budget as
+  the provisioning request, with cancellation still enforced. A new real
+  PostgreSQL test verifies short-budget denial and longer-budget shared state.
+  Failure diagnostics expose only allowlisted categories/status counts. Cleanup
+  stops browser and adapter producers before terminating runtimes, then waits for
+  confirmed workspace detachment before archival. These changes require another
+  native run; they are not evidence that the previous failure is resolved.
 
 ### Local Implementation Checkpoint, October 29
 
