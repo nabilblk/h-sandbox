@@ -438,6 +438,13 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   shared-contract changes, not only adapter edits.
 - Independent self-service feedback and publication/deployment remain separate
   open gates. The running Mac/k0s lab has not been changed.
+- Run [40895607724](https://github.com/nabilblk/h-sandbox/actions/runs/40895607724)
+  passed native administrator configuration and cold-start allocation, then the
+  real local-model chat exceeded its ten-minute limit. That is a failed model
+  attempt, not a qualification receipt. The next profile bounds generated tokens,
+  gives the native schema a 16K context and asks Python to encode report assets
+  instead of allowing base64 generation in model text. One chat per run remains
+  mandatory; no response replay or fixture artifact replaces it.
 
 ### Local Implementation Checkpoint, October 29
 

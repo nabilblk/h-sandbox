@@ -59,6 +59,59 @@ candidate transport. The operator must configure:
   `sandboxes:write`, `workspaces:read` and
   `workspaces:write`. Check the current authorization reference when minting it.
 
+### Install the matching candidate API
+
+After installing the baseline in a **disposable evaluation cluster**, use the
+same checkout for the API and adapter. The native qualification target is Linux
+amd64. Authenticate Docker to your own registry privately and set these values:
+
+```bash
+export KUBECONFIG=/absolute/path/to/evaluation-kubeconfig
+export HARAKIRI_REGISTRY=registry.example.com
+export HARAKIRI_IMAGE_PROJECT=evaluation
+export HARAKIRI_NAMESPACE=harakiri-evaluation
+export HARAKIRI_VALUES=/absolute/path/to/evaluation-values.yaml
+```
+
+`HARAKIRI_VALUES` must be the complete values file used to install that baseline,
+including its public URLs, existing Secrets, provider configuration and retained
+storage. Do not substitute chart defaults or another installation's values. Check
+the selected cluster and release before proceeding:
+
+```bash
+kubectl config current-context
+helm list --namespace "$HARAKIRI_NAMESPACE"
+git diff --exit-code HEAD
+SOURCE_REV=$(git rev-parse --verify HEAD)
+for COMPONENT in api web; do
+  docker buildx build --platform linux/amd64 \
+    --file "apps/$COMPONENT/Dockerfile" \
+    --tag "$HARAKIRI_REGISTRY/$HARAKIRI_IMAGE_PROJECT/harakiri-$COMPONENT:openwebui-$SOURCE_REV" \
+    --push .
+done
+helm upgrade harakiri ./infra/charts/harakiri \
+  --namespace "$HARAKIRI_NAMESPACE" \
+  --values "$HARAKIRI_VALUES" \
+  --set-string image.registry="$HARAKIRI_REGISTRY" \
+  --set-string image.repository="$HARAKIRI_IMAGE_PROJECT" \
+  --set-string image.api.name=harakiri-api \
+  --set-string image.web.name=harakiri-web \
+  --set-string image.api.tag="openwebui-$SOURCE_REV" \
+  --set-string image.web.tag="openwebui-$SOURCE_REV" \
+  --set-string config.TEMPLATE_BUILDER_JOB_IMAGE="$HARAKIRI_REGISTRY/$HARAKIRI_IMAGE_PROJECT/harakiri-api:openwebui-$SOURCE_REV" \
+  --wait --timeout 10m
+```
+
+This assumes the baseline release is named `harakiri`; use its actual name if
+different. The registry must be trusted by the cluster and its pull credentials
+must already be configured. No TLS bypass or direct pod access is required.
+The chart shares its registry/project between API and web, so both images are
+built here; the scheduler and template builder also use the candidate API image.
+Record the commit and resulting registry digests. This is a source qualification
+path, not a published release or an instruction to upgrade a working lab.
+
+### Build the Open Terminal template
+
 Configure `HARAKIRI_API_URL` and `HARAKIRI_API_KEY` privately in your terminal.
 Build the template through the normal public CLI (with an operator key allowed
 to build templates):
@@ -122,7 +175,9 @@ hosts, including the database, and do not weaken certificate verification.
 
 ## 3. Add the native Open Terminal connection
 
-In OpenWebUI 0.12.4, open **Admin Panel > Settings > Integrations > Open Terminal**.
+In OpenWebUI 0.12.4, open **Admin Panel > Settings > Integrations**, then use
+**Add Connection** in the **Terminal** section. The Tools and Knowledge sections
+have different connections with the same button label.
 Add a connection with:
 
 | Field | Value |
@@ -149,14 +204,20 @@ capacity view to distinguish exhausted slots from an unreachable service.
 Configure a tool-capable model in OpenWebUI's normal Connections settings. No
 model key is required by this adapter. The reference scenario targets the local
 `qwen3:4b-instruct` model through Ollama, with native tool calling, thinking off
-and enough context for the terminal schema. The model runs outside the sandbox.
+and a 16,384-token context for the terminal schema. The bounded evaluation profile
+uses temperature 0, seed 42 and at most 3,072 generated tokens per model response;
+these settings are not a deterministic-output guarantee. The model runs outside the sandbox.
+For this focused workflow, disable the model's unrelated built-in tools in
+OpenWebUI's model capabilities while keeping **Terminal** enabled. These are normal
+OpenWebUI model settings, not changes to its source or the adapter's tool schema.
 Record its exact digest when testing; a mutable model name is not proof of a
 reproducible run. Inspect its license and resource requirements separately.
 
 Open a new chat, select the model and the terminal connection, and send:
 
 ```text
-Use the connected terminal tools. Work only under /workspace/demo.
+Use the connected terminal's run_command tool to execute one Python script.
+Work only under /workspace/demo. Do not answer with a code block.
 Create sales.csv with columns region,amount and these rows:
 North,12
 South,7
@@ -166,7 +227,9 @@ containing {"North":17,"South":7,"total":24}. Use matplotlib to create chart.png
 and report.pdf from those totals. Create a self-contained index.html with heading
 Sales report, total 24, and the same chart embedded as a data:image/png;base64 URL.
 Do not use relative or external assets in the HTML.
+Compute the base64 with Python from the PNG; never generate or print it as model text.
 Verify the JSON by reading it back and show me links to the generated files.
+If the command is still running, inspect its status until done.
 Do not install packages or download data. Report tool failures honestly.
 ```
 

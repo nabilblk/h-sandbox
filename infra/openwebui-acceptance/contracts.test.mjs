@@ -77,6 +77,8 @@ test("failure diagnostics retain only bounded non-sensitive categories", () => {
   assert.deepEqual(safeFailure({ kind: "browser", reason: "ambiguous_locator", message: "PRIVATE" }), { kind: "browser", reason: "ambiguous_locator" });
   assert.deepEqual(safeFailure({ kind: "PRIVATE", reason: "PRIVATE", type: "PRIVATE", status: "PRIVATE" }), { kind: "withheld" });
   assert.deepEqual(safeFailure({ kind: "http", status: 429 }), { kind: "http", status: 429 });
+  assert.deepEqual(safeFailure({ kind: "acceptance_check", check: "Native cold-start file listing failed" }), { kind: "acceptance_check", check: "Native cold-start file listing failed" });
+  assert.deepEqual(safeFailure({ kind: "acceptance_check", check: "PRIVATE" }), { kind: "acceptance_check" });
 });
 
 test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit public artifact paths", () => {

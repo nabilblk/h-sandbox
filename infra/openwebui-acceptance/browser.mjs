@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { check, until, sha256 } from "../acceptance/context.mjs";
 import { webOrigin, adapterOrigin } from "./stack.mjs";
 
-export const prompt = `Use the connected terminal, not a code block in your reply. Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5. Use Python csv and matplotlib to group sales by region. Write /workspace/demo/report.json with exactly {"North":17,"South":7,"total":24}, a bar chart /workspace/demo/chart.png and /workspace/demo/report.pdf, and /workspace/demo/index.html containing a heading Sales report, the total 24 and the same chart embedded as a data:image/png;base64 URL. The HTML must be self-contained, with no relative or external assets. Run your code and verify the files. Do not install or download anything. Finish with the computed totals and links to the files.`;
+export const prompt = `Use the connected terminal's run_command tool to execute one Python script, not a code block in your reply. The script must create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5, read that CSV and aggregate sales by region using Python csv. Write /workspace/demo/report.json with exactly {"North":17,"South":7,"total":24}. Use matplotlib's Agg backend to generate /workspace/demo/chart.png and /workspace/demo/report.pdf. Write /workspace/demo/index.html with heading Sales report, total 24 and the same PNG embedded as a data:image/png;base64 URL. Compute the base64 with Python from the generated PNG; never generate or print the base64 as model text. Read the JSON back to verify it and print only the small totals dictionary and file names. If the command is still running, inspect its status until done. Do not install or download anything, and do not use relative or external assets in the HTML. Finish with a brief summary and file links.`;
 
 export async function signup(page, credentials, second = false) {
   console.log(`OpenWebUI browser: ${second ? "second user" : "administrator"} signup`);
@@ -85,7 +85,8 @@ function fileRefreshButton(page) {
 }
 
 export function chatWitness(page) {
-  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, sockets: 0, toolCalls: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
+  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, modelEvents: 0, sockets: 0, toolCalls: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
+  const toolCalls = new Set();
   let terminalOutput = "";
   const onRequest = request => {
     if (new URL(request.url()).pathname !== "/api/chat/completions" || request.method() !== "POST") return;
@@ -115,9 +116,13 @@ export function chatWitness(page) {
         try {
           const event = JSON.parse(text.slice(2))[1]?.data;
           if (!["chat:completion", "response:completion"].includes(event?.type)) return;
+          state.modelEvents++;
           state.completed ||= event.data?.done === true;
           state.modelError ||= Boolean(event.data?.error);
-          if (event.data?.output?.some(item => item.type === "function_call_output")) state.toolCalls++;
+          for (const item of event.data?.output ?? []) {
+            if (item.type === "function_call_output" && typeof item.call_id === "string") toolCalls.add(item.call_id);
+          }
+          state.toolCalls = toolCalls.size;
         } catch { /* Ignore non-event frames; never retain or export chat content. */ }
       });
     }
@@ -130,10 +135,15 @@ export async function runChat(page, witness) {
   await page.locator("#chat-input").fill(prompt);
   await page.getByRole("button", { name: "Send message", exact: true }).click();
   await until("Real chat submitted with terminal", () => witness.state.submissions === 1 && witness.state.selectedTerminal, 45000);
+  let heartbeat = 0;
   await until("Real model response completed", () => {
+    if (Date.now() - heartbeat > 30000) {
+      console.log(`OpenWebUI model progress: ${JSON.stringify({ events: witness.state.modelEvents, toolCalls: witness.state.toolCalls, completed: witness.state.completed })}`);
+      heartbeat = Date.now();
+    }
     check(!witness.state.modelError, "Native model response reported an error");
     return witness.state.completed;
-  }, 600000);
+  }, 900000);
   check(witness.state.toolCalls > 0, "No native tool event observed from real model");
   await refreshFiles(page);
   await page.locator("[data-file-row]").filter({ has: page.getByText("demo", { exact: true }) }).getByText("demo", { exact: true }).click();

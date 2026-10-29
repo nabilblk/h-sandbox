@@ -19,11 +19,19 @@ const flags = new Set([
 ]);
 const cleanups = new Set(["browser", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
+const checks = new Set([
+  "Native cold-start file listing failed", "Native file refresh failed", "No native tool event observed from real model",
+  "Native model response reported an error", "Real chat submitted with terminal: deadline exceeded",
+  "Real model response completed: deadline exceeded", "Native shell output: deadline exceeded",
+  "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
+  "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded"
+]);
 
 export function safeFailure(failure) {
   return {
     kind: ["http", "browser", "exception", "acceptance_check"].includes(failure.kind) ? failure.kind : "withheld",
     ...(browserReasons.has(failure.reason) ? { reason: failure.reason } : {}),
+    ...(checks.has(failure.check) ? { check: failure.check } : {}),
     ...(["TypeError", "TimeoutError", "SyntaxError", "ReferenceError"].includes(failure.type) ? { type: failure.type } : {}),
     ...(Number.isInteger(failure.status) && failure.status >= 400 && failure.status <= 599 ? { status: failure.status } : {})
   };

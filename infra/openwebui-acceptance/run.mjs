@@ -56,7 +56,11 @@ try {
     return { discoveryNoAllocation: true };
   });
   await gate("native-cold-start", async () => {
-    await selectTerminal(page);
+    const [response] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/terminals/harakiri/files/list", { timeout: 300000 }),
+      selectTerminal(page)
+    ]);
+    check(response.ok() && !(await response.finished()), "Native cold-start file listing failed");
     await until("Native file browser provisioned exactly one runtime", async () => (await operator.client.capacity()).capacity.inUse === 1, 300000);
     return { ready: true, noDuplicateRuntime: true };
   });
@@ -79,6 +83,7 @@ try {
   receipt.status = "failed";
   process.exitCode = 1;
   console.error(`OpenWebUI acceptance failed: ${activeGate} ${JSON.stringify(safeFailure(publicFailure(error)))}`);
+  if (witness) console.log(`OpenWebUI protocol counters: ${JSON.stringify(witness.state)}`);
   await browserDiagnostics(page).catch(() => {});
 } finally {
   await finishReceipt(receipt, {
