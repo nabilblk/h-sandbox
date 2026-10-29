@@ -3,11 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
+import { EventEmitter } from "node:events";
 import { ownedDocker, cleanupDocker, compatibility } from "./stack.mjs";
 import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
 import { adapterFailures, runtimeState } from "./diagnostics.mjs";
+import { chatWitness } from "./browser.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
 
@@ -80,6 +82,23 @@ test("failure diagnostics retain only bounded non-sensitive categories", () => {
   assert.deepEqual(safeFailure({ kind: "http", status: 429 }), { kind: "http", status: 429 });
   assert.deepEqual(safeFailure({ kind: "acceptance_check", check: "Native cold-start file listing failed" }), { kind: "acceptance_check", check: "Native cold-start file listing failed" });
   assert.deepEqual(safeFailure({ kind: "acceptance_check", check: "PRIVATE" }), { kind: "acceptance_check" });
+});
+
+test("native tool witness counts item and snapshot events without retaining output", () => {
+  const page = new EventEmitter();
+  const witness = chatWitness(page);
+  const socket = new EventEmitter();
+  socket.url = () => "ws://127.0.0.1:28580/ws/socket.io/?transport=websocket";
+  page.emit("websocket", socket);
+  const item = { type: "function_call_output", call_id: "PRIVATE", status: "failed", output: [{ text: "PRIVATE" }] };
+  for (const data of [{ item }, { output: [item], done: true }]) {
+    socket.emit("framereceived", { payload: `42${JSON.stringify(["chat-events", { data: { type: "response:completion", data } }])}` });
+  }
+  assert.equal(witness.state.toolCalls, 1);
+  assert.equal(witness.state.toolFailures, 1);
+  assert.equal(witness.state.completed, true);
+  assert.ok(!JSON.stringify(witness.state).includes("PRIVATE"));
+  assert.equal(witness.output(), "");
 });
 
 test("runtime diagnostics never export source logs, identifiers or unknown failure fields", () => {

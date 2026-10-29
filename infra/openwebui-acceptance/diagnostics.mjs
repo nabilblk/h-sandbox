@@ -40,6 +40,13 @@ export async function diagnose(ctx, client, template) {
     const inventory = (await client.listSandboxes()).sandboxes.filter(item => item.template === template);
     console.log(`OpenWebUI runtime status counts: ${JSON.stringify(Object.fromEntries(
       ["pending", "running", "idle", "paused", "resuming", "error", "terminated"].map(status => [status, inventory.filter(item => item.status === status).length])))}`);
+    const running = inventory.filter(item => item.status === "running");
+    if (running.length === 1) {
+      const { files } = await client.files.list(running[0].id, "/workspace/demo", { requestTimeoutMs: 10000 });
+      const names = new Set(files.map(file => file.name));
+      console.log(`OpenWebUI expected artifact presence: ${JSON.stringify(Object.fromEntries(
+        ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"].map(name => [name, names.has(name)])))}`);
+    }
   } catch { console.log("OpenWebUI runtime inventory unavailable"); }
   try {
     // Read-only infrastructure diagnostics in the ownership-guarded test cluster,

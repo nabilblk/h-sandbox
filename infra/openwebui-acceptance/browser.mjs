@@ -85,8 +85,9 @@ function fileRefreshButton(page) {
 }
 
 export function chatWitness(page) {
-  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, modelEvents: 0, sockets: 0, toolCalls: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
+  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, modelEvents: 0, sockets: 0, toolCalls: 0, toolFailures: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
   const toolCalls = new Set();
+  const toolFailures = new Set();
   let terminalOutput = "";
   const onRequest = request => {
     if (new URL(request.url()).pathname !== "/api/chat/completions" || request.method() !== "POST") return;
@@ -119,10 +120,14 @@ export function chatWitness(page) {
           state.modelEvents++;
           state.completed ||= event.data?.done === true;
           state.modelError ||= Boolean(event.data?.error);
-          for (const item of event.data?.output ?? []) {
-            if (item.type === "function_call_output" && typeof item.call_id === "string") toolCalls.add(item.call_id);
+          for (const item of [...event.data?.output ?? [], ...event.data?.item ? [event.data.item] : []]) {
+            if (item.type === "function_call_output" && typeof item.call_id === "string") {
+              toolCalls.add(item.call_id);
+              if (item.status === "failed") toolFailures.add(item.call_id);
+            }
           }
           state.toolCalls = toolCalls.size;
+          state.toolFailures = toolFailures.size;
         } catch { /* Ignore non-event frames; never retain or export chat content. */ }
       });
     }
@@ -145,10 +150,19 @@ export async function runChat(page, witness) {
     return witness.state.completed;
   }, 900000);
   check(witness.state.toolCalls > 0, "No native tool event observed from real model");
+  console.log(`OpenWebUI model completed: ${JSON.stringify({ toolCalls: witness.state.toolCalls, toolFailures: witness.state.toolFailures })}`);
+  console.log("OpenWebUI browser: refresh generated artifacts");
   await refreshFiles(page);
-  await page.locator("[data-file-row]").filter({ has: page.getByText("demo", { exact: true }) }).getByText("demo", { exact: true }).click();
+  const files = page.getByRole("region", { name: "File browser", exact: true });
+  // A native tool event or artifact link can already have navigated into demo.
+  // Use its breadcrumb when present, otherwise enter it from the root listing.
+  const breadcrumb = files.locator('button[type="button"]').getByText("demo", { exact: true });
+  console.log("OpenWebUI browser: navigate to generated artifact directory");
+  if (await breadcrumb.isVisible()) await breadcrumb.click();
+  else await files.locator("[data-file-row]").getByText("demo", { exact: true }).click();
   for (const name of ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"]) {
-    await page.locator("[data-file-row]").getByText(name, { exact: true }).waitFor();
+    console.log(`OpenWebUI browser: verify generated ${name}`);
+    await files.locator("[data-file-row]").getByText(name, { exact: true }).waitFor();
   }
   return { singleSubmission: true, realModel: true, nativeTools: true, generatedFilesVisible: true };
 }
@@ -248,6 +262,11 @@ export async function browserDiagnostics(page) {
   }
   for (const id of ["terminal-name", "terminal-id", "terminal-url"]) {
     controls[id] = await page.locator(`#${id}`).isVisible().catch(() => false);
+  }
+  const files = page.getByRole("region", { name: "File browser", exact: true });
+  controls.demoBreadcrumb = await files.locator('button[type="button"]').getByText("demo", { exact: true }).isVisible().catch(() => false);
+  for (const name of ["demo", "sales.csv", "report.json", "chart.png", "report.pdf", "index.html"]) {
+    controls[name] = await files.locator("[data-file-row]").getByText(name, { exact: true }).isVisible().catch(() => false);
   }
   // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.
   console.log(`OpenWebUI browser state: ${JSON.stringify(controls)}`);

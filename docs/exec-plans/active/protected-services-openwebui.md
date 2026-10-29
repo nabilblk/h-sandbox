@@ -455,6 +455,13 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   stops browser and adapter producers before terminating runtimes, then waits for
   confirmed workspace detachment before archival. These changes require another
   native run; they are not evidence that the previous failure is resolved.
+- Run [40902830780](https://github.com/nabilblk/h-sandbox/actions/runs/40902830780)
+  now passed cold-start HTTP file listing with exactly one runtime. The real model
+  completed one native tool call, but artifact navigation timed out afterwards;
+  file contents, shell and recovery are therefore not yet qualified. All owned
+  resource cleanup checks passed. The next browser check handles native directory
+  changes and records fixed artifact-presence flags and tool failure counts rather
+  than exporting chat content or tool output.
 
 ### Local Implementation Checkpoint, October 29
 
