@@ -411,6 +411,17 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Run [41001219049](https://github.com/nabilblk/h-sandbox/actions/runs/41001219049)
+  passed 21 of 22 gates. The Qwen 3.5 profile completed the single-submission task,
+  including its own corrections, with all five generated files. Independently
+  checked JSON totals, PNG bytes, PDF rendering and embedded HTML chart identity
+  passed. The only failure was HTML viewport overflow; this is still not full
+  qualification. Shell, all transfer/isolation/recovery/user/quota gates and every
+  cleanup check passed. All six other workflows also passed. The next harness
+  waits a bounded five seconds for preview layout and records numeric dimensions
+  plus a synthetic screenshot even on failure. It retains the same prompt/model,
+  rejects persistent overflow and does not edit generated output.
+
 - Run [40998343857](https://github.com/nabilblk/h-sandbox/actions/runs/40998343857)
   failed with a model-generated `NameError`, followed by an invalid tool request
   and the 900-second model deadline. The harness now records all dependent gates

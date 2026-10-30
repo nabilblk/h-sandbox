@@ -9,7 +9,7 @@ import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
 import { adapterFailures, runtimeState, toolResult } from "./diagnostics.mjs";
-import { chatWitness } from "./browser.mjs";
+import { chatWitness, previewLayout } from "./browser.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
 
@@ -96,6 +96,23 @@ test("mobile acceptance reopens the file after the native responsive remount", (
   assert.ok(source.indexOf('getByText("isolation.svg"') < source.indexOf('getByText("Synthetic SVG preview"'));
   assert.match(source, /preview\.x \+ preview\.width <= 390/);
   assert.match(source, /preview\.y \+ preview\.height <= 844/);
+});
+
+test("HTML layout diagnostics retain only dimensions and fixed style flags", () => {
+  const chart = { src: "PRIVATE", getBoundingClientRect: () => ({ width: 640.2 }) };
+  const result = previewLayout({
+    scrollWidth: 672,
+    querySelector: () => chart,
+    ownerDocument: {
+      compatMode: "BackCompat", body: { innerHTML: "PRIVATE", getBoundingClientRect: () => ({ width: 368 }) },
+      defaultView: { innerWidth: 400, getComputedStyle: () => ({ maxWidth: "none", cssText: "PRIVATE" }) }
+    }
+  });
+  assert.deepEqual(result, { viewportWidth: 400, documentWidth: 672, bodyWidth: 368, chartWidth: 640,
+    chartMaxWidth100Percent: false, standardsMode: false });
+  const source = read("./browser.mjs");
+  assert.match(source, /until\("HTML report fits its preview pane"/);
+  assert.match(source, /finally \{[\s\S]*?openwebui-report-desktop\.png/);
 });
 
 test("upload failure is an explicit pre-dispatch network fault, not a fake response or partial-write claim", () => {

@@ -33,6 +33,7 @@ const checks = new Set([
   "Downloaded chart is not PNG", "Downloaded report is not PDF", "HTML preview does not show actual total",
   "Embedded chart differs from downloaded PNG", "Preview allows chat origin authority",
   "HTML report overflows its preview pane",
+  "HTML report fits its preview pane: deadline exceeded",
   "Relative asset has a finite rejected outcome: deadline exceeded",
   "Opaque preview unexpectedly has session authority for relative assets",
   "Oversize upload finishes visibly: deadline exceeded", "Rejected upload appeared as successful",
