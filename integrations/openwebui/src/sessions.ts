@@ -94,7 +94,7 @@ export class Sessions {
               throw new AdapterError(409, "workspace_release_unconfirmed");
             binding = newBinding(workspaceId);
             await save(binding);
-          } else if (["paused", "suspending", "pausing", "failed", "terminating"].includes(sandbox.status)) {
+          } else if (sandbox.status === "paused" || sandbox.status === "pausing" || sandbox.status === "error") {
             throw new AdapterError(409, "sandbox_recovery_required");
           } else if (Date.now() >= binding.createdAt + config.ADAPTER_MAX_SESSION_SECONDS * 1000) {
             await this.client.killSandbox(binding.sandboxId, { signal });

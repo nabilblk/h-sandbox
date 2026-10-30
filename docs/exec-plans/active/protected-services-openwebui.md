@@ -411,6 +411,12 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- A final source pass reproduced an adapter recovery-status mismatch: the API
+  emits `error`, not `failed`. The adapter now returns `409
+  sandbox_recovery_required` immediately for `error`, `paused` and `pausing`,
+  without readiness polling, new grants or resource mutation. A failing-then-
+  passing regression checks all three actual public states and unchanged bindings.
+
 - Run [41001219049](https://github.com/nabilblk/h-sandbox/actions/runs/41001219049)
   passed 21 of 22 gates. The Qwen 3.5 profile completed the single-submission task,
   including its own corrections, with all five generated files. Independently

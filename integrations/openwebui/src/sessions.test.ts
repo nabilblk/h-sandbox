@@ -287,6 +287,29 @@ test("terminated runtime replacement waits for confirmed workspace release", asy
   assert.equal(store.values.get(identity.bindingKey)?.sandboxId, "sbx_old");
 });
 
+test("paused and failed runtime states require operator recovery without polling or mutation", async () => {
+  for (const status of ["pausing", "paused", "error"] as const) {
+    const store = new TestBindings();
+    const identity = identityFor("test", { "x-user-id": "one" });
+    const binding = { ...newBinding("ws_one"), sandboxId: "sbx_owned" };
+    store.values.set(identity.bindingKey, binding);
+    const requests: string[] = [];
+    const client = new HarakiriClient({
+      apiUrl: "https://control.test", apiKey: "key",
+      fetch: async (url, init) => {
+        const request = `${init?.method ?? "GET"} ${new URL(String(url)).pathname}`;
+        requests.push(request);
+        assert.equal(request, "GET /v1/sandboxes/sbx_owned");
+        return Response.json({ sandbox: { id: "sbx_owned", status } });
+      }
+    });
+    await assert.rejects(new Sessions(client, store, testConfig()).resolve(identity, "open"),
+      { status: 409, code: "sandbox_recovery_required" });
+    assert.deepEqual(requests, ["GET /v1/sandboxes/sbx_owned"]);
+    assert.deepEqual(store.values.get(identity.bindingKey), binding);
+  }
+});
+
 test("cancelled shell renewal keeps its binding and never repeats the mutation", async () => {
   const store = new TestBindings();
   const identity = identityFor("test", { "x-user-id": "one" });
