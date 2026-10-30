@@ -47,6 +47,7 @@ test("concurrent first access and adapter restart reuse one durable workspace, s
     server.close();
   });
   const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const createdAt = new Date().toISOString();
   const creates = { workspaces: 0, sandboxes: 0, routes: 0, renewals: 0 };
   const client = new HarakiriClient({
     apiUrl: "https://control.test",
@@ -61,7 +62,7 @@ test("concurrent first access and adapter restart reuse one durable workspace, s
       if (path === "/v1/sandboxes" && init?.method === "POST") {
         creates.sandboxes++;
         assert.equal(JSON.parse(String(init.body)).workspaceId, "ws_one");
-        return Response.json({ sandbox: { id: "sbx_one", status: "pending" } }, { status: 202 });
+        return Response.json({ sandbox: { id: "sbx_one", status: "pending", createdAt } }, { status: 202 });
       }
       if (path === "/v1/sandboxes/sbx_one/routes") {
         creates.routes++;
@@ -91,10 +92,12 @@ test("concurrent first access and adapter restart reuse one durable workspace, s
   });
   const store = new TestBindings();
   const identity = identityFor(config.ADAPTER_INSTANCE_ID, { "x-user-id": "one" });
+  store.values.set(identity.bindingKey, { ...newBinding(), createdAt: 0 });
   const sessions = new Sessions(client, store, config);
   const results = await Promise.all(Array.from({ length: 6 }, () => sessions.resolve(identity, "open")));
   assert.equal(new Set(results.map((session) => session.sandboxId)).size, 1);
   assert.deepEqual(creates, { workspaces: 1, sandboxes: 1, routes: 1, renewals: 0 });
+  assert.equal(store.values.get(identity.bindingKey)?.createdAt, Date.parse(createdAt));
   const restarted = new Sessions(client, store, config);
   assert.equal((await restarted.resolve(identity, "open")).sandboxId, "sbx_one");
   assert.equal(creates.sandboxes, 1);
@@ -189,7 +192,7 @@ test("readiness cancellation preserves the accepted sandbox and releases local a
     fetch: async (url, init) => {
       if (String(url).endsWith("/v1/sandboxes") && init?.method === "POST") {
         created++;
-        return Response.json({ sandbox: { id: "sbx_owned", status: "pending" } }, { status: 202 });
+        return Response.json({ sandbox: { id: "sbx_owned", status: "pending", createdAt: new Date().toISOString() } }, { status: 202 });
       }
       if (String(url).endsWith("/readiness")) {
         observed();

@@ -2,7 +2,7 @@ import { ownedDocker } from "./stack.mjs";
 
 const failures = new Set(["context_busy", "sandbox_service_unavailable", "workspace_creation_unconfirmed", "workspace_release_unconfirmed",
   "sandbox_recovery_required", "sandbox_session_inactive", "session_expired", "route_creation_unconfirmed", "service_grant_unavailable", "binding_decryption_failed",
-  "organization_capacity_exceeded", "personal_context_only", "invalid_context", "unsupported_service_path"]);
+  "organization_capacity_exceeded", "sandbox_creation_time_unavailable", "personal_context_only", "invalid_context", "unsupported_service_path"]);
 const reasons = new Set(["CrashLoopBackOff", "ErrImagePull", "ImagePullBackOff", "CreateContainerConfigError", "CreateContainerError",
   "ContainerCreating", "PodInitializing", "OOMKilled", "Error", "Completed"]);
 const signatures = ["Permission denied", "Operation not permitted", "Read-only file system", "Address already in use",

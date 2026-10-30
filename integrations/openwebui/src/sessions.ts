@@ -119,7 +119,12 @@ export class Sessions {
             },
             { signal }
           );
+          const createdAt = Date.parse(response.sandbox.createdAt);
+          if (!Number.isFinite(createdAt)) throw new AdapterError(503, "sandbox_creation_time_unavailable");
           binding.sandboxId = response.sandbox.id;
+          // Empty bindings and quota waits are not runtime age. An idempotent
+          // replay retains the accepted runtime's original server timestamp.
+          binding.createdAt = createdAt;
           binding.renewedAt = Date.now();
           await save(binding);
         }

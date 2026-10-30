@@ -258,7 +258,7 @@ Open a new chat, select the model and the terminal connection, and send:
 ```text
 Use the connected terminal's tools, not a code block in your reply.
 First use write_file to save a Python script at /workspace/report.py. Do not put Python source in a shell command or heredoc.
-Then use run_command with command="python /workspace/report.py", cwd=/workspace and wait=30.
+Then use run_command with command="python /workspace/report.py", cwd=/workspace and wait=5.
 The script must first create /workspace/demo with pathlib.Path.mkdir(parents=True, exist_ok=True).
 Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5.
 Read this CSV with Python csv and aggregate sales by region.

@@ -421,6 +421,9 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   new mutations and input to existing processes. Polling, stale process input and
   PTY reconnect cannot allocate resources. Focused regression tests pass; native
   replacement acceptance now requires three real polling denials before refresh.
+- Runtime age now starts at the API's accepted sandbox creation timestamp, not
+  at an earlier empty binding or quota wait. Idempotent recovery retains the
+  original timestamp; a regression covers an old binding followed by first use.
 - The next harness preserves a failed real-model gate while continuing independent
   transport/recovery checks after stopping the model through the native UI. It
   neither retries the prompt nor seeds substitute artifacts. Fixed exception

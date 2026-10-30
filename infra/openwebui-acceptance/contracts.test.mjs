@@ -154,6 +154,20 @@ test("tool diagnostics distinguish process failure without publishing arguments 
   }) }] }), { failed: false, exitCodes: [1], states: ["completed"], errors: ["No such file or directory"] });
   assert.deepEqual(toolResult({ output: [{ type: "input_text", text: '{"error":"PRIVATE"}' }] }),
     { failed: true, exitCodes: [], states: [], errors: [] });
+  assert.deepEqual(toolResult({ status: "completed", output: [{ type: "input_text", text: JSON.stringify({
+    status: "done", exit_code: 1, output: "Traceback PRIVATE\nNameError: PRIVATE is not defined"
+  }) }] }), { failed: false, exitCodes: [1], states: ["done"], errors: ["Traceback", "NameError"] });
+});
+
+test("a failed model gate stays failed while independent native checks continue", () => {
+  const source = read("./run.mjs");
+  assert.match(source, /scenarioFailed = true/);
+  assert.match(source, /status: "failed", failure: publicFailure\(error\)/);
+  assert.match(source, /receipt\.status = scenarioFailed \? "failed" : "configured_gates_passed"/);
+  const model = source.indexOf('await scenario("native-model-artifacts"');
+  const stop = source.indexOf('name: "Stop", exact: true', model);
+  assert.ok(model > 0 && stop > model && source.indexOf('await scenario("native-shell"', stop) > stop);
+  assert.doesNotMatch(source, /files\.write\(|commands\.run\(/);
 });
 
 test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit public artifact paths", () => {
