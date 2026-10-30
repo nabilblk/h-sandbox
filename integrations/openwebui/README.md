@@ -268,7 +268,7 @@ Read this CSV with Python csv and aggregate sales by region.
 Write report.json containing exactly {"North":17,"South":7,"total":24}.
 Use matplotlib's Agg backend to generate chart.png and report.pdf from the totals.
 Write a self-contained index.html with heading Sales report, total 24, and the same PNG embedded as a data:image/png;base64 URL.
-Make the HTML responsive: add a viewport meta tag and inline CSS body{margin:16px;font-family:system-ui} img{max-width:100%;height:auto}.
+Make the HTML responsive with a viewport meta tag. Use body style="margin:16px;font-family:system-ui" and img style="max-width:100%;height:auto" (inline attributes, no CSS template braces).
 Keep all five files in /workspace/demo. Do not use relative or external assets in the HTML.
 Compute the base64 with Python from the PNG; never generate or print the base64 as model text.
 Read the JSON back to verify it. Print only the small totals dictionary and file names.

@@ -411,6 +411,23 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Run [40992319708](https://github.com/nabilblk/h-sandbox/actions/runs/40992319708)
+  passed 20 of 22 gates, including the corrected browser upload-failure test and
+  real grant revocation/operator recovery on the same runtime. All cleanup passed.
+  The real model's script exited 1 with a `KeyError`; JSON/PNG/PDF existed and
+  their independent preview checks passed, but HTML was absent. The model and
+  complete-preview gates correctly remained failed. This is not a qualified run.
+  The next shared prompt uses inline style attributes rather than literal CSS
+  braces, avoiding a common Python string-template collision without supplying a
+  prewritten report script or weakening file/viewport checks. The full native
+  TypeScript, Python, Workbench and CI workflows passed on this source revision.
+- Public documentation now wraps the prose prompt while preserving its exact
+  copied bytes. Browser inspection at 390px and 1440px found no page/prompt
+  overflow or JavaScript error; copying succeeded. All 122 web tests, production
+  build, typecheck and documentation-link checks passed. Image scans for run
+  40992319708 found zero fixable high/critical findings, with 57 and 80 unfixed
+  high/critical findings retained in the adapter and template inventories.
+
 - Run [40990470590](https://github.com/nabilblk/h-sandbox/actions/runs/40990470590)
   passed all generated JSON/PNG/PDF/HTML previews, relative-asset denial, real chat,
   two-user separation/quota and the previous recovery checks except grant
