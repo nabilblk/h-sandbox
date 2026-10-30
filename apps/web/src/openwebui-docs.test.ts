@@ -19,7 +19,7 @@ test("OpenWebUI candidate is discoverable without claiming released browser qual
     "rc.13",
     "0.14.6",
     "0.12.4",
-    "qwen3:4b-instruct"
+    "qwen3.5:4b-q4_K_M"
   ])
     assert.ok(html.includes(text), `Missing boundary: ${text}`);
   const markdown = documentationAssets().get("docs/openwebui.md");

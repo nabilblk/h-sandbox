@@ -411,6 +411,21 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Run [40998343857](https://github.com/nabilblk/h-sandbox/actions/runs/40998343857)
+  failed with a model-generated `NameError`, followed by an invalid tool request
+  and the 900-second model deadline. The harness now records all dependent gates
+  as failed and completes every in-process and workflow cleanup check. Shell,
+  cold start and adapter restart passed; this is not native qualification.
+  All other workflows, full local workspace tests/typechecks, the five isolated
+  PostgreSQL tests and production package checks passed. Gitleaks found no tracked
+  secrets. npm had zero high/critical findings, with 14 moderate and 5 low remaining.
+  The next candidate changes only the OpenWebUI inference profile to digest-pinned
+  Qwen 3.5 4B/Ollama 0.40.13, using upstream non-thinking sampling guidance within
+  the same 6 GiB/3 CPU, 16K context, 3,072 output-token and 900-second bounds.
+  It keeps the real prompt and artifact checks; no supplied script, response replay,
+  paid inference or SDK acceptance-model change. This is a new qualification target.
+  Added receipt-completeness guards and an independent self-service handoff checklist.
+
 - Run [40994701987](https://github.com/nabilblk/h-sandbox/actions/runs/40994701987)
   failed the model scenario with a Python `SyntaxError` and no report directory.
   The earlier CSS-template explanation was a hypothesis, not a verified cause.

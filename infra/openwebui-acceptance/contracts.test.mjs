@@ -4,13 +4,12 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import { EventEmitter } from "node:events";
-import { ownedDocker, cleanupDocker, compatibility } from "./stack.mjs";
+import { ownedDocker, cleanupDocker, compatibility, model } from "./stack.mjs";
 import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
 import { adapterFailures, runtimeState, toolResult } from "./diagnostics.mjs";
 import { chatWitness } from "./browser.mjs";
-import { model } from "../sdk-acceptance/framework.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
 
@@ -80,7 +79,7 @@ test("browser exercises real native paths without fulfilling or substituting mod
   assert.match(stack, /owned ephemeral registry/);
 });
 
-test("optional self-service model uses the qualified image without a host port", () => {
+test("optional self-service model uses the candidate image without a host port", () => {
   const compose = read("../../integrations/openwebui/compose.yaml");
   const service = compose.split("  model:\n", 2)[1].split("\nvolumes:", 1)[0];
   assert.ok(service.includes(`image: ${model.image}`));

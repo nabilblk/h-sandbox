@@ -93,7 +93,7 @@ node packages/cli/dist/index.js template build \\
       <h2>Chat to artifacts</h2>
       <p>
         Configure a tool-capable model through OpenWebUI. The reference scenario uses local Ollama with{" "}
-        <code>qwen3:4b-instruct</code>; no paid model key is needed by the adapter. Native tool calling, model identity,
+        <code>qwen3.5:4b-q4_K_M</code>; no paid model key is needed by the adapter. Native tool calling, model identity,
         resource limits and actual outcomes must be recorded in qualification.
       </p>
       <CodeBlock language="plaintext" wrap>{openwebuiReportPrompt}</CodeBlock>

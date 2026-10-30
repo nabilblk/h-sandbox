@@ -33,7 +33,7 @@ pnpm --filter @harakiri/openwebui-adapter typecheck
 pnpm --filter @harakiri/openwebui-adapter test
 pnpm --filter @harakiri/openwebui-adapter test:postgres
 pnpm --filter @harakiri/openwebui-adapter test:package
-node --test infra/openwebui-acceptance/contracts.test.mjs
+node --test infra/openwebui-acceptance/*.test.mjs
 pnpm docs:check
 ```
 
@@ -89,6 +89,10 @@ private environment files and exception text are not uploaded. Cleanup runs even
 after failure and removes only ownership-checked resources. Download and inspect
 the screenshots before claiming visual qualification. Evidence artifacts expire
 after 14 days; retain a sanitized release receipt in Git before release.
+The compatibility record must reference the retained receipt and its SHA-256.
+Local qualification tests reject missing/failed gates, incomplete cleanup and
+changed upstream or model identities. Source qualification is not publication
+or independent adopter acceptance.
 
 Separate image jobs inventory OS and application vulnerabilities and reject
 fixable high/critical findings. Passing that gate does not mean that unfixed OS

@@ -3,9 +3,9 @@ import path from "node:path";
 import net from "node:net";
 import { randomBytes } from "node:crypto";
 import { check, origins, until } from "../acceptance/context.mjs";
-import { model } from "../sdk-acceptance/framework.mjs";
 
 export const compatibility = JSON.parse(fs.readFileSync(new URL("../../integrations/openwebui/compatibility.json", import.meta.url)));
+export const model = compatibility.model;
 export const webOrigin = "http://127.0.0.1:28580";
 export const adapterOrigin = "http://127.0.0.1:28581";
 const postgres = "postgres:16.15-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938";
@@ -150,7 +150,7 @@ export async function startApplications(ctx, images, template) {
   run(ctx, "webui", compatibility.openwebui.image, ["--memory=2g", "--cpus=1"], {
     PORT: "28580", WEBUI_SECRET_KEY: credentials.webuiSecret, ENABLE_COMMUNITY_SHARING: "false", ENABLE_SIGNUP: "true",
     DEFAULT_USER_ROLE: "user", DEFAULT_MODELS: model.name, OLLAMA_BASE_URL: "http://127.0.0.1:11434", ENABLE_OPENAI_API: "false",
-    DEFAULT_MODEL_PARAMS: JSON.stringify({ temperature: 0, seed: 42, num_ctx: 16384, num_predict: 3072, think: false }),
+    DEFAULT_MODEL_PARAMS: JSON.stringify(model.parameters),
     DEFAULT_MODEL_METADATA: JSON.stringify({ capabilities: { builtin_tools: false, terminal: true } }),
     ENABLE_VERSION_UPDATE_CHECK: "false", ENABLE_AUTOMATIONS: "false", ENABLE_TITLE_GENERATION: "false", ENABLE_TAGS_GENERATION: "false",
     ENABLE_FOLLOW_UP_GENERATION: "false",

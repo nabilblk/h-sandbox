@@ -1,5 +1,4 @@
-import { compatibility } from "./stack.mjs";
-import { model } from "../sdk-acceptance/framework.mjs";
+import { compatibility, model } from "./stack.mjs";
 
 export const gates = new Set([
   "published-installation", "source-candidate", "candidate-images", "private-registry", "oidc-onboarding",

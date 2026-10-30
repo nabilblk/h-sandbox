@@ -217,7 +217,7 @@ docker compose --env-file integrations/openwebui/.env \
   -f integrations/openwebui/compose.yaml --profile local-model up -d model
 docker compose --env-file integrations/openwebui/.env \
   -f integrations/openwebui/compose.yaml --profile local-model exec -T model \
-  ollama pull qwen3:4b-instruct
+  ollama pull qwen3.5:4b-q4_K_M
 ```
 
 In **Admin Panel > Settings > Connections**, enable Ollama and add
@@ -230,8 +230,8 @@ docker compose --env-file integrations/openwebui/.env \
   -f integrations/openwebui/compose.yaml exec -T openwebui python -c '
 import json, urllib.request
 models = json.load(urllib.request.urlopen("http://model:11434/api/tags", timeout=10))["models"]
-model = next(item for item in models if item["name"] == "qwen3:4b-instruct")
-expected = "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
+model = next(item for item in models if item["name"] == "qwen3.5:4b-q4_K_M")
+expected = "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04"
 if model["digest"].removeprefix("sha256:") != expected:
     raise SystemExit("Model digest differs from the qualification candidate")
 print(model["name"], model["digest"])
@@ -246,15 +246,20 @@ cache, separate from user workspaces and the adapter binding database.
 
 Configure a tool-capable model in OpenWebUI's normal Connections settings. No
 model key is required by this adapter. The reference scenario targets the local
-`qwen3:4b-instruct` model through Ollama, with native tool calling, thinking off
+`qwen3.5:4b-q4_K_M` model through Ollama 0.40.13, with native tool calling, thinking off
 and a 16,384-token context for the terminal schema. The bounded evaluation profile
-uses temperature 0, seed 42 and at most 3,072 generated tokens per model response;
+uses temperature 0.7, top-p 0.8, top-k 20, min-p 0, presence penalty 1.5,
+repeat penalty 1, seed 42 and at most 3,072 generated tokens per model response;
 these settings are not a deterministic-output guarantee. The model runs outside the sandbox.
 For this focused workflow, disable the model's unrelated built-in tools in
 OpenWebUI's model capabilities while keeping **Terminal** enabled. These are normal
 OpenWebUI model settings, not changes to its source or the adapter's tool schema.
 Record its exact digest when testing; a mutable model name is not proof of a
 reproducible run. Inspect its license and resource requirements separately.
+The profile follows the upstream [non-thinking sampling guidance](https://huggingface.co/Qwen/Qwen3.5-4B#best-practices)
+with a deliberately smaller output budget. The prior Qwen 3 4B profile produced
+code errors in this workflow and is not a qualified fallback. Changing the model
+does not change Harakiri or OpenWebUI's tool implementation.
 
 Open a new chat, select the model and the terminal connection, and send:
 
@@ -410,3 +415,23 @@ Read the [architecture decision](../../docs/protected-services-design.md) before
 changing credential boundaries or the context mapping.
 The [contributor guide](CONTRIBUTING.md) describes module ownership, the isolated
 native runner, evidence handling and release gates.
+
+### Independent self-service handoff
+
+Maintainer-operated CI is not proof that a new operator can install the integration
+without assistance. For that separate acceptance, use a fresh evaluation environment
+and follow this guide without private patches or maintainer-provisioned sandboxes.
+Record the following in the adopter's issue or handoff report:
+
+- Source commit, platform/architecture, storage profile, upstream versions and
+  model/image digests. Do not include credentials or expanded Compose settings.
+- Which installation commands worked unchanged and where the guide was unclear.
+- The real chat's tool outcomes and independently checked JSON totals, plus whether
+  PNG/PDF/HTML previews, shell resize/interrupt and text/binary transfers worked.
+- Two-user file separation, quota denial and retained files after a controlled
+  runtime replacement. Use only synthetic data and disposable test resources.
+- Explicit cleanup: stop owned runtimes, confirm capacity/storage release, revoke
+  the dedicated key, and account for retained workspaces and database volumes.
+
+Report failures as failures, including model errors. A successful SDK-only check,
+an earlier CI receipt or a model's success claim cannot replace these observations.

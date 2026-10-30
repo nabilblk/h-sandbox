@@ -99,12 +99,18 @@ first access, quota rejection, interrupted transfers, adapter restart and sandbo
 replacement with retained files. Do not equate curl fixtures with this browser
 acceptance or retained files with retained processes.
 
-Reference model: Ollama `qwen3:4b-instruct`, digest
-`0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0`,
-with the previously qualified local inference image
-`ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3`.
+Reference model: Ollama `qwen3.5:4b-q4_K_M`, digest
+`d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04`,
+with the dedicated local inference image
+`ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429`.
 Use bounded CPU/memory and native OpenWebUI tool calls, not a synthetic model.
 This identity is a test candidate, not evidence that the new workflow passed.
+The earlier shared Qwen 3 4B profile repeatedly produced invalid report scripts;
+the OpenWebUI candidate now has its own recorded inference profile. Existing
+TypeScript/Python acceptance model pins are unchanged. The model's
+[official card](https://huggingface.co/Qwen/Qwen3.5-4B) and
+[Ollama identity](https://ollama.com/library/qwen3.5:4b-q4_K_M) document licensing,
+tool support and sampling guidance, not this integration's reliability.
 
 ## Upstream Security And Licensing Review
 

@@ -52,7 +52,7 @@ services:
     mem_limit: 2g
   model:
     profiles: [local-model]
-    image: ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3
+    image: ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429
     environment:
       OLLAMA_NO_CLOUD: "1"
       OLLAMA_CONTEXT_LENGTH: "16384"

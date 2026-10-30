@@ -10,6 +10,24 @@
     "source": "431fc2bccf98fd1e197a0d47a5140f495ba017eb",
     "license": "MIT"
   },
+  "model": {
+    "image": "ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429",
+    "name": "qwen3.5:4b-q4_K_M",
+    "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+    "license": "Apache-2.0",
+    "parameters": {
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "top_k": 20,
+      "min_p": 0,
+      "presence_penalty": 1.5,
+      "repeat_penalty": 1,
+      "seed": 42,
+      "num_ctx": 16384,
+      "num_predict": 3072,
+      "think": false
+    }
+  },
   "connection": "administrator-configured bearer connection, server-to-server",
   "context": "one personal workspace per OpenWebUI user and adapter instance",
   "deferred": ["per-resource Harakiri user ACLs", "Harakiri command-level audit for Open Terminal", "Office document conversion", "notebooks", "customer OpenShift certification"],
