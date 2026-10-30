@@ -188,6 +188,10 @@ test("runtime capability vocabulary separates command and interactive terminal s
 test("OpenAPI contract publishes the current HTTP surface", () => {
   assert.equal(openApiDocument.openapi, "3.1.0");
   assert.deepEqual([...openApiPathMethodPairs].sort(), [
+    ...["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"].flatMap((method) => [
+      `${method} /v1/route-proxy/{routeKey}`,
+      `${method} /v1/route-proxy/{routeKey}/{servicePath}`
+    ]),
     "DELETE /v1/api-keys/{id}",
     "DELETE /v1/credential-secrets/{id}",
     "DELETE /v1/dynamic-credential-issuers/{id}",
@@ -304,5 +308,5 @@ test("OpenAPI contract publishes the current HTTP surface", () => {
     "POST /v1/workspaces",
     "POST /v1/workspaces/{id}/archive",
     "PUT /v1/sandboxes/{id}/files"
-  ]);
+  ].sort());
 });

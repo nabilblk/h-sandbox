@@ -24,11 +24,12 @@ class AsyncHarakiriClient:
         trust_env: bool = False,
         max_response_bytes: int = 24 * 1024 * 1024,
         http_client: httpx.AsyncClient | None = None,
+        service_http_client: httpx.AsyncClient | None = None,
     ) -> None:
         config = ClientConfig(
             api_url, api_key, request_timeout, ca_bundle, trust_env, max_response_bytes
         )
-        self._transport = Transport(config, http_client)
+        self._transport = Transport(config, http_client, service_http_client)
         self.sandboxes = AsyncSandboxes(self._transport)
         self.templates = AsyncTemplates(self._transport)
         self.workspaces = AsyncWorkspaces(self._transport)

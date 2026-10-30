@@ -17,8 +17,10 @@ import { HarakiriCommandEndedError, HarakiriWaitTimeoutError, HarakiriRunError, 
 export { HarakiriCommandEndedError, HarakiriWaitTimeoutError, HarakiriRunError, HarakiriSandboxCreationError } from "./operation-errors.js";
 import { createRouteFetch, routeAccessHeaders, waitForRouteHttp } from "./route-access.js";
 import type { RouteLike, RouteAccessHeadersOptions, CreateRouteFetchOptions, WaitForRouteHttpOptions, ExposeAndWaitOptions } from "./route-access.js";
-export { createRouteFetch, routeAccessHeaders, waitForRouteHttp } from "./route-access.js";
+export { createRouteFetch, routeAccessHeaders, routeWebSocketRequest, waitForRouteHttp } from "./route-access.js";
 export type { RouteLike, RouteBasicAuth, RouteAccessHeadersOptions, CreateRouteFetchOptions, WaitForRouteHttpOptions, ExposeAndWaitOptions } from "./route-access.js";
+export type { RouteWebSocketRequest, RouteWebSocketRequestOptions } from "./route-access.js";
+export type { RouteAddress, RouteGrant } from "./route-access.js";
 import type { WorkspaceResponse, WorkspacesResponse, CreateWorkspaceBody } from "./workspaces.js";
 import type { UsageHistoryOptions, UsageHistoryResponse } from "./usage-history.js";
 export type { UsageHistoryOptions, UsageHistoryResolution, UsageHistoryResponse, UsageHistoryBucket, UsageCoverageStatus, UsageTimeRange, UsageOperationCounts, UsageOutcomeCounts } from "./usage-history.js";
@@ -1376,9 +1378,9 @@ export class HarakiriClient {
   };
 
   readonly routes = {
-    expose: (id: string, input: ExposePortInput) => this.exposePort(id, input),
-    list: (id: string) => this.listRoutes(id),
-    delete: (id: string, port: number) => this.deleteRoute(id, port),
+    expose: (id: string, input: ExposePortInput, options: RequestOptions = {}) => this.exposePort(id, input, options),
+    list: (id: string, options: RequestOptions = {}) => this.listRoutes(id, options),
+    delete: (id: string, port: number, options: RequestOptions = {}) => this.deleteRoute(id, port, options),
     getHost: (id: string, port: number) => this.getHost(id, port),
     getUrl: (id: string, port: number) => this.getRouteUrl(id, port),
     exposeAndWait: (id: string, input: ExposePortInput, options: ExposeAndWaitOptions = {}) => this.exposeAndWaitForHttp(id, input, options),
@@ -1746,8 +1748,8 @@ export class HarakiriClient {
     });
   }
 
-  renewSandbox(id: string) {
-    return this.request<OkResponse>(`/v1/sandboxes/${id}/renew`, { method: "POST" });
+  renewSandbox(id: string, options: RequestOptions = {}) {
+    return this.request<OkResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/renew`, { method: "POST" }, options);
   }
 
   pauseSandbox(id: string) {
@@ -2320,8 +2322,8 @@ export class HarakiriClient {
       });
   }
 
-  listRoutes(id: string) {
-    return this.request<SandboxRoutesResponse>(`/v1/sandboxes/${id}/routes`);
+  listRoutes(id: string, options: RequestOptions = {}) {
+    return this.request<SandboxRoutesResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/routes`, {}, options);
   }
 
   listSandboxRoutes(id: string) {
@@ -2646,8 +2648,8 @@ export class HarakiriClient {
     return this.request<AuditEventsResponse>(`/v1/audit-events${suffix}`);
   }
 
-  exposePort(id: string, input: ExposePortInput) {
-    return this.request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes`, {
+  exposePort(id: string, input: ExposePortInput, options: RequestOptions = {}) {
+    return this.request<SandboxRouteResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/routes`, {
       method: "POST",
       body: JSON.stringify({
         port: input.port,
@@ -2655,15 +2657,15 @@ export class HarakiriClient {
         accessMode: input.accessMode ?? "public",
         labels: input.labels
       })
-    });
+    }, options);
   }
 
   exposeSandboxRoute(id: string, input: ExposePortInput) {
     return this.exposePort(id, input);
   }
 
-  deleteRoute(id: string, port: number) {
-    return this.request<SandboxRouteResponse>(`/v1/sandboxes/${id}/routes/${encodeURIComponent(String(port))}`, { method: "DELETE" });
+  deleteRoute(id: string, port: number, options: RequestOptions = {}) {
+    return this.request<SandboxRouteResponse>(`/v1/sandboxes/${encodeURIComponent(id)}/routes/${encodeURIComponent(String(port))}`, { method: "DELETE" }, options);
   }
 
   deleteSandboxRoute(id: string, port: number) {

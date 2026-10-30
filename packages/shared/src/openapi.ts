@@ -93,6 +93,31 @@ const secured = (operation: Operation): Operation => ({
   ...operation
 });
 
+const serviceOperations = (withPath: boolean): Record<string, Operation> => Object.fromEntries(
+  ["get", "head", "post", "put", "patch", "delete", "options"].map((method) => [method, {
+    tags: ["Routes"],
+    summary: "Forward a protected sandbox service request",
+    description: "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+    operationId: `${method}ProtectedService${withPath ? "Path" : "Root"}`,
+    security: [{ routeToken: [] }],
+    parameters: [parameter("routeKey", "path", string), ...(withPath ? [parameter("servicePath", "path", string)] : [])],
+    ...(["post", "put", "patch", "delete"].includes(method) ? { requestBody: { required: false, content: { "*/*": { schema: { type: "string", format: "binary" } } } } } : {}),
+    responses: {
+      default: { description: "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.", content: { "*/*": { schema: { type: "string", format: "binary" } } } },
+      "401": jsonResponse("route_token_required", ref("ApiErrorResponse")),
+      "404": jsonResponse("route_not_found: deleted, expired or unavailable runtime", ref("ApiErrorResponse")),
+      "409": jsonResponse("route_not_ready or route_proxy_requires_token_route", ref("ApiErrorResponse")),
+      "413": jsonResponse("route_proxy_request_too_large", ref("ApiErrorResponse")),
+      "431": jsonResponse("route_proxy_headers_too_large", ref("ApiErrorResponse")),
+      "429": jsonResponse("route_proxy_connection_limit", ref("ApiErrorResponse")),
+      "501": jsonResponse("route_proxy_ws_subprotocol_unsupported", ref("ApiErrorResponse")),
+      "502": jsonResponse("Target, upstream, redirect or response-size failure", ref("ApiErrorResponse")),
+      "503": jsonResponse("route_proxy_authorization_unavailable", ref("ApiErrorResponse")),
+      "504": jsonResponse("Connection or idle deadline exceeded", ref("ApiErrorResponse"))
+    }
+  }])
+);
+
 const pathId = parameter("id", "path", string);
 const commandIdPath = parameter("commandId", "path", string);
 const sessionIdPath = parameter("sessionId", "path", string);
@@ -1861,6 +1886,8 @@ export const openApiDocument = {
     "/v1/sandboxes/{id}/routes/{port}": {
       delete: secured({ tags: ["Routes"], summary: "Delete a sandbox route", operationId: "deleteSandboxRoute", parameters: [pathId, portPath], responses: { ...ok("Deleted sandbox route", ref("SandboxRouteResponse")), ...authErrorResponses } })
     },
+    "/v1/route-proxy/{routeKey}": serviceOperations(false),
+    "/v1/route-proxy/{routeKey}/{servicePath}": serviceOperations(true),
     "/v1/api-keys": {
       get: secured({ tags: ["API Keys"], summary: "List API keys", operationId: "listApiKeys", responses: { ...ok("API keys", ref("ApiKeysResponse")), ...authErrorResponses } }),
       post: secured({ tags: ["API Keys"], summary: "Create an API key", operationId: "createApiKey", requestBody: jsonBody(ref("CreateApiKeyBody")), responses: { ...created("Created API key", ref("CreateApiKeyResponse")), ...authErrorResponses } })
@@ -1911,6 +1938,12 @@ export const openApiDocument = {
   },
   components: {
     securitySchemes: {
+      routeToken: {
+        type: "apiKey",
+        in: "header",
+        name: "x-harakiri-route-token",
+        description: "One-time service grant, not an organization API key. Prefer this header to the legacy harakiri_route_token query parameter."
+      },
       apiKey: {
         type: "apiKey",
         in: "header",

@@ -24,6 +24,8 @@ export async function checkPublicTypes(sandbox: HarakiriSandbox) {
   const task = await sandbox.processes.start({ command: "node worker.mjs" });
   const legacyCommand: SandboxCommandResponse = task;
   const legacyRoute: SandboxRouteResponse = await sandbox.routes.expose({ port: 3000, accessMode: "token" });
+  const route = await sandbox.routes.expose({ port: 8000, accessMode: "token" });
+  const connection: { url: string; headers: Record<string, string> } = route.webSocketRequest("/events");
   const client = HarakiriClient.fromEnv({ env: { HARAKIRI_API_URL: "https://api.example.invalid", HARAKIRI_API_KEY: "dummy" }, requestTimeoutMs: 15_000 });
   await client.sandboxes.create({ template: "selected", wait: false }, request);
   await client.sandboxes.connect("authorized-id", request);
@@ -47,5 +49,5 @@ export async function checkPublicTypes(sandbox: HarakiriSandbox) {
   await sandbox.files.write("input", { arbitrary: true });
   // @ts-expect-error A file write needs content.
   await sandbox.files.write("input");
-  return { result, envelope, legacyWrite, filePath, legacyCommand, legacyRoute, legacyWorkspace, timeout };
+  return { result, envelope, legacyWrite, filePath, legacyCommand, legacyRoute, legacyWorkspace, timeout, connection };
 }

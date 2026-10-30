@@ -2,7 +2,7 @@ import { credentialActor, type AuthContext } from "../auth-context.js";
 import { revalidatePrincipal } from "../auth.js";
 import { hasScope } from "../authorization.js";
 import { watchTerminalAuthorization } from "../live-authorization.js";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply } from "fastify";
 import type {
   SandboxFileMkdirResponse,
   SandboxFileDownloadResponse,
@@ -65,15 +65,12 @@ import {
   renameSandboxFile,
   runSandboxCommand,
   runSandboxCommandSession,
-  proxySandboxRouteRequest,
   statSandboxFile,
   testSandboxEgress,
   updateSandboxEgress,
   downloadSandboxFileArtifact,
   uploadSandboxFileArtifact,
   writeSandboxFile,
-  sandboxRouteAccessTokenHeader,
-  sandboxRouteAccessTokenQueryParam,
   type Audit,
   type SandboxEventRecorder
 } from "../services/sandbox-runtime.js";
@@ -146,39 +143,6 @@ export const registerSandboxRuntimeRoutes = async (app: FastifyInstance, depende
     const value = headers["idempotency-key"];
     return Array.isArray(value) ? value[0] : typeof value === "string" ? value : undefined;
   };
-
-  const proxySandboxRoute = async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as { routeKey: string; "*": string | undefined };
-    const queryParams = request.query as Record<string, string | string[] | undefined>;
-    const tokenHeader = request.headers[sandboxRouteAccessTokenHeader];
-    const tokenFromHeader = Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader;
-    const tokenFromQuery = queryParams[sandboxRouteAccessTokenQueryParam];
-    const token = tokenFromHeader ?? (Array.isArray(tokenFromQuery) ? tokenFromQuery[0] : tokenFromQuery);
-    const result = await proxySandboxRouteRequest(
-      {
-        routeKey: params.routeKey,
-        path: params["*"],
-        url: request.url,
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-        token
-      },
-      { query }
-    );
-    if (result.kind === "not_found") return reply.code(404).send(apiErrorResponse("route_not_found"));
-    if (result.kind === "route_not_ready") return reply.code(409).send(apiErrorResponse("route_not_ready", { state: result.state }));
-    if (result.kind === "public_route") return reply.code(409).send(apiErrorResponse("route_proxy_requires_token_route"));
-    if (result.kind === "unauthorized") return reply.code(401).send(apiErrorResponse("route_token_required", { headerName: result.headerName }));
-    if (result.kind === "upstream_unreachable") {
-      return reply.code(502).send(apiErrorResponse("route_proxy_upstream_unreachable", { message: result.message }));
-    }
-    for (const [header, value] of Object.entries(result.headers)) reply.header(header, value);
-    return reply.code(result.status).send(result.body);
-  };
-
-  app.all("/v1/route-proxy/:routeKey", proxySandboxRoute);
-  app.all("/v1/route-proxy/:routeKey/*", proxySandboxRoute);
 
   app.get("/v1/runtime/capabilities", async () => {
     return getRuntimeCapabilities(runtimeProvider) satisfies RuntimeCapabilitiesResponse;

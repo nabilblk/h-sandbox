@@ -1,0 +1,47 @@
+{
+  "status": "source-qualified-unreleased",
+  "openwebui": {
+    "version": "0.12.4",
+    "source": "33c1978d5bad52a31df75ea55143025dfad18d16",
+    "image": "ghcr.io/open-webui/open-webui:v0.12.4@sha256:a5b9e403d19154796850679c8c5d1295301cee954be8b84ddd62af92426558f7"
+  },
+  "openTerminal": {
+    "version": "0.14.6",
+    "source": "431fc2bccf98fd1e197a0d47a5140f495ba017eb",
+    "license": "MIT"
+  },
+  "model": {
+    "image": "ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429",
+    "name": "qwen3.5:4b-q4_K_M",
+    "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+    "license": "Apache-2.0",
+    "parameters": {
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "top_k": 20,
+      "min_p": 0,
+      "presence_penalty": 1.5,
+      "repeat_penalty": 1,
+      "seed": 42,
+      "num_ctx": 16384,
+      "num_predict": 3072,
+      "think": false
+    }
+  },
+  "connection": "administrator-configured bearer connection, server-to-server",
+  "scenario": {
+    "id": "csv-chart-native-documents-v1",
+    "promptSha256": "47e495a9c6e9f8c3d1ea535f7f3eb56fe78e8402bafb49f35256d7fcf063b751",
+    "modelArtifacts": ["sales.csv", "report.json", "chart.png"],
+    "previewFixtures": ["preview-fixture.pdf", "preview-fixture.html"]
+  },
+  "context": "one personal workspace per OpenWebUI user and adapter instance",
+  "deferred": ["per-resource Harakiri user ACLs", "Harakiri command-level audit for Open Terminal", "Office document conversion", "notebooks", "customer OpenShift certification"],
+  "nativeAcceptance": {
+    "source": "3c3e914a3d4a8e097ff7141f3035f8cbe17e87aa",
+    "runId": "41008469790-1",
+    "workflowUrl": "https://github.com/nabilblk/h-sandbox/actions/runs/41008469790",
+    "receipt": "docs/operations/evidence/openwebui-41008469790.json",
+    "receiptSha256": "3e48d76701e9cc3c7d366f135a9097ef704a27ae5f43263efc00a13980e3279a"
+  }
+}

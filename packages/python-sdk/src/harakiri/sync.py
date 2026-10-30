@@ -35,6 +35,7 @@ from .models import (
 )
 from .processes import AsyncProcess, AsyncProcesses
 from .resources import AsyncCapacity, AsyncRuntime, AsyncTemplates, AsyncWorkspaces
+from .route_sync import Routes
 from .sandboxes import AsyncSandbox, AsyncSandboxes, AsyncSandboxTask
 
 Resource = TypeVar("Resource")
@@ -184,6 +185,7 @@ class Sandbox(_Resource[AsyncSandbox]):
         super().__init__(bridge, resource)
         self.files = Files(bridge, resource.files)
         self.processes = Processes(bridge, resource.processes)
+        self.routes = Routes(bridge, resource.routes)
 
     @property
     def id(self) -> str:
@@ -382,6 +384,7 @@ class HarakiriClient:
         trust_env: bool = False,
         max_response_bytes: int = 24 * 1024 * 1024,
         http_client: httpx.AsyncClient | None = None,
+        service_http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._async = AsyncHarakiriClient(
             api_url=api_url,
@@ -391,6 +394,7 @@ class HarakiriClient:
             trust_env=trust_env,
             max_response_bytes=max_response_bytes,
             http_client=http_client,
+            service_http_client=service_http_client,
         )
         self._bridge = Bridge()
         self.sandboxes = Sandboxes(self._bridge, self._async.sandboxes)

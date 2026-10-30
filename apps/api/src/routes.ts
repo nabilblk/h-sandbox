@@ -20,6 +20,8 @@ import { registerOrgSettingsRoutes } from "./routes/org-settings.js";
 import { registerRegistryCredentialRoutes } from "./routes/registry-credentials.js";
 import { registerSandboxRoutes } from "./routes/sandboxes.js";
 import { registerSandboxRuntimeRoutes } from "./routes/sandbox-runtime.js";
+import { registerProtectedServiceRoutes } from "./routes/protected-services.js";
+import { protectedServiceLimits } from "./services/protected-services/limits.js";
 import { publicRoutePaths, registerSystemRoutes } from "./routes/system.js";
 import { registerTemplateBuildRoutes } from "./routes/template-builds.js";
 import { registerTemplateRoutes } from "./routes/templates.js";
@@ -58,7 +60,7 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
   const authHandler = dependencies.requireAuth ?? requireAuth;
   const audit = dependencies.recordAudit ?? defaultAudit;
   const event = dependencies.recordSandboxEvent ?? createSandboxEventRecorder(query);
-  await app.register(websocket);
+  await app.register(websocket, { options: { maxPayload: protectedServiceLimits().websocketMessageBytes, perMessageDeflate: false } });
   await registerSystemRoutes(app);
 
   app.addHook("preHandler", async (request, reply) => {
@@ -72,6 +74,7 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
   });
 
   await registerAccountRoutes(app, { query, recordAudit: audit, keycloakAdmin: dependencies.keycloakAdmin ?? keycloakAdminClient });
+  await registerProtectedServiceRoutes(app, { query });
   await registerTemplateRoutes(app, { query, recordAudit: audit });
   await registerTemplateBuildRoutes(app, { query, recordAudit: audit });
   await registerApiKeyRoutes(app, { query, recordAudit: audit });

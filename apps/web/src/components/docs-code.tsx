@@ -30,9 +30,9 @@ export function highlightCode(code: string, language: string): ReactNode {
   catch { return code; }
 }
 
-type CodeBlockProps = { children: string; language: CodeLanguage; filename?: string };
+type CodeBlockProps = { children: string; language: CodeLanguage; filename?: string; wrap?: boolean };
 
-export const CodeBlock = memo(function CodeBlock({ children: code, language, filename }: CodeBlockProps) {
+export const CodeBlock = memo(function CodeBlock({ children: code, language, filename, wrap = false }: CodeBlockProps) {
   const highlighted = useMemo(() => highlightCode(code, language), [code, language]);
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -47,7 +47,7 @@ export const CodeBlock = memo(function CodeBlock({ children: code, language, fil
     } catch { setStatus("failed"); }
   };
   const label = filename ?? codeLanguages[language] ?? "Text";
-  return <figure className="doc-code" data-language={language}>
+  return <figure className="doc-code" data-language={language} data-wrap={wrap || undefined}>
     <figcaption className="doc-code-bar">
       <span className="doc-code-label"><span aria-hidden="true"><Icon name={language === "bash" ? "terminal" : "file"} /></span>{label}</span>
       <span className="doc-code-actions">

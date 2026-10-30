@@ -1,0 +1,285 @@
+{
+  "kind": "openwebui-native",
+  "published": false,
+  "architecture": "amd64",
+  "openwebui": {
+    "version": "0.12.4",
+    "source": "33c1978d5bad52a31df75ea55143025dfad18d16",
+    "image": "ghcr.io/open-webui/open-webui:v0.12.4@sha256:a5b9e403d19154796850679c8c5d1295301cee954be8b84ddd62af92426558f7"
+  },
+  "openTerminal": {
+    "version": "0.14.6",
+    "source": "431fc2bccf98fd1e197a0d47a5140f495ba017eb",
+    "license": "MIT"
+  },
+  "model": {
+    "image": "ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429",
+    "name": "qwen3.5:4b-q4_K_M",
+    "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+    "license": "Apache-2.0",
+    "parameters": {
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "top_k": 20,
+      "min_p": 0,
+      "presence_penalty": 1.5,
+      "repeat_penalty": 1,
+      "seed": 42,
+      "num_ctx": 16384,
+      "num_predict": 3072,
+      "think": false
+    }
+  },
+  "scenario": {
+    "id": "csv-chart-native-documents-v1",
+    "promptSha256": "47e495a9c6e9f8c3d1ea535f7f3eb56fe78e8402bafb49f35256d7fcf063b751",
+    "modelArtifacts": [
+      "sales.csv",
+      "report.json",
+      "chart.png"
+    ],
+    "previewFixtures": [
+      "preview-fixture.pdf",
+      "preview-fixture.html"
+    ]
+  },
+  "status": "failed",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "source-candidate",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "candidate-images",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "private-registry",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "native-template",
+      "status": "passed",
+      "evidence": {
+        "ready": true
+      }
+    },
+    {
+      "gate": "applications",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "native-admin-setup",
+      "status": "passed",
+      "evidence": {
+        "discoveryNoAllocation": true
+      }
+    },
+    {
+      "gate": "native-cold-start",
+      "status": "passed",
+      "evidence": {
+        "ready": true,
+        "noDuplicateRuntime": true
+      }
+    },
+    {
+      "gate": "native-model-artifacts",
+      "status": "passed",
+      "evidence": {
+        "singleSubmission": true,
+        "realModel": true,
+        "nativeTools": true,
+        "generatedFilesVisible": true
+      }
+    },
+    {
+      "gate": "native-shell",
+      "status": "passed",
+      "evidence": {
+        "shellInput": true,
+        "ansiOutput": true,
+        "remoteResize": true,
+        "interrupt": true,
+        "reconnect": true
+      }
+    },
+    {
+      "gate": "native-previews",
+      "status": "passed",
+      "evidence": {
+        "jsonPreview": true,
+        "imagePreview": true,
+        "pdfPreview": true,
+        "htmlPreview": true,
+        "embeddedAssets": true,
+        "rendererFixturesUploaded": true,
+        "modelReportVerified": true,
+        "downloadSha256": "e8efcbfa557c89344d9790a73534f8033b2b4123a487235da6f7be2754059071"
+      }
+    },
+    {
+      "gate": "native-relative-assets-limit",
+      "status": "passed",
+      "evidence": {
+        "relativeAssetsRequireSession": true
+      }
+    },
+    {
+      "gate": "native-transfers-isolation",
+      "status": "passed",
+      "evidence": {
+        "binaryRoundTrip": true,
+        "bytes": 1048576,
+        "fileSha256": "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+        "hostileParentBlocked": true,
+        "hostileStorageBlocked": true
+      }
+    },
+    {
+      "gate": "native-live-files",
+      "status": "passed",
+      "evidence": {
+        "textRoundTrip": true,
+        "nativeEdit": true,
+        "freshPreview": true
+      }
+    },
+    {
+      "gate": "native-transfer-failures",
+      "status": "passed",
+      "evidence": {
+        "oversizeRejected": true,
+        "uploadTransportFailure": true,
+        "failureBeforeDispatch": true,
+        "noUploadReplay": true
+      }
+    },
+    {
+      "gate": "native-svg-mobile",
+      "status": "passed",
+      "evidence": {
+        "svgScriptBlocked": true,
+        "mobilePreview": true
+      }
+    },
+    {
+      "gate": "adapter-restart",
+      "status": "passed",
+      "evidence": {
+        "sameRuntime": true,
+        "durableMapping": true
+      }
+    },
+    {
+      "gate": "grant-revocation-recovery",
+      "status": "failed",
+      "evidence": {},
+      "failure": {
+        "kind": "acceptance_check",
+        "check": "Native terminal ready before revocation: deadline exceeded"
+      }
+    },
+    {
+      "gate": "runtime-replacement",
+      "status": "passed",
+      "evidence": {
+        "confirmedRelease": true,
+        "passivePollingNoAllocation": true,
+        "retainedWorkspace": true,
+        "replacement": true
+      }
+    },
+    {
+      "gate": "two-users-quota",
+      "status": "passed",
+      "evidence": {
+        "nativeQuotaDenial": true,
+        "twoUsers": true,
+        "identityTamperingDenied": true,
+        "noDuplicateRuntime": true
+      }
+    },
+    {
+      "gate": "native-browser-errors",
+      "status": "passed",
+      "evidence": {
+        "noBrowserScriptErrors": true
+      }
+    }
+  ],
+  "source": "953f6dd76d23b025529080b5568e0de097f92215",
+  "runId": "41010130131-1",
+  "images": {
+    "api": {
+      "imageConfigDigest": "sha256:c09f96927f5194396de2483b3ec7ef65881c32ba8b47420647bb2f5c674e7278"
+    },
+    "apiWithRegistryCa": {
+      "imageConfigDigest": "sha256:329cd3558b5e17adf221de8f2e903c5032d33ac349f22a5f5a48d06a6c86a315"
+    },
+    "web": {
+      "imageConfigDigest": "sha256:288e060a1c75a65ae42049b235dad6591617f0340ba97ba3ca443a4351536a73"
+    },
+    "adapter": {
+      "imageConfigDigest": "sha256:a17f5f4a88c9a1ad4df5998b4f58d3f45281cb2e9102a2e886503b4331a13335"
+    },
+    "terminal": {
+      "imageConfigDigest": "sha256:54603acb04ef82727fdda86db9fbb241469d00168e710c965ee05d4568c6cb7c"
+    }
+  },
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "chatBrowser",
+        "status": "passed"
+      },
+      {
+        "name": "adapter",
+        "status": "passed"
+      },
+      {
+        "name": "runtimes",
+        "status": "passed"
+      },
+      {
+        "name": "workspaces",
+        "status": "passed"
+      },
+      {
+        "name": "key",
+        "status": "passed"
+      },
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "docker",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

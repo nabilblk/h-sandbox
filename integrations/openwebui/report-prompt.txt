@@ -1,0 +1,12 @@
+Use the connected terminal's tools, not a code block in your reply.
+First use write_file to save a Python script at /workspace/report.py. Do not put Python source in a shell command or heredoc.
+Then use run_command with command="python /workspace/report.py", cwd=/workspace and wait=5.
+The script must first create /workspace/demo with pathlib.Path.mkdir(parents=True, exist_ok=True).
+Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5.
+Read this CSV with Python csv and aggregate sales by region.
+Write report.json containing exactly {"North":17,"South":7,"total":24}.
+Use matplotlib's Agg backend to save a bar chart of the two regional totals as chart.png.
+Keep these three files in /workspace/demo. No PDF, HTML or additional formats are needed for this task.
+Read the JSON back to verify it. Print only the small totals dictionary and file names.
+Check the command's exit_code and output before claiming success. If still running, inspect its status until done.
+Do not install packages or download data. Report failures honestly. Finish with a brief summary and file links.

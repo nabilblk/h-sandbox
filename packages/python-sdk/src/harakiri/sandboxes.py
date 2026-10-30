@@ -35,6 +35,7 @@ from .models import (
     SandboxSummary,
 )
 from .processes import AsyncProcesses, command_body
+from .routes import AsyncRoutes
 
 
 class AsyncSandbox:
@@ -53,6 +54,7 @@ class AsyncSandbox:
             self.summary.runtime_metadata.limits.file_artifact_max_bytes,
         )
         self.processes = AsyncProcesses(transport, self.id, self.workdir)
+        self.routes = AsyncRoutes(transport, self.id)
 
     @property
     def id(self) -> str:

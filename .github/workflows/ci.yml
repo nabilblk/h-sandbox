@@ -61,10 +61,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify scoped audit policy
+      - name: Verify dependency audit policy
         run: node --test scripts/check-dependency-audit.test.mjs
 
-      - name: Audit workspace dependencies (reviewed exception expires 2026-11-13)
+      - name: Audit workspace dependencies (no high or critical exceptions)
         run: pnpm security:audit
 
       - name: Verify framework matcher exposure boundary
@@ -105,6 +105,12 @@ jobs:
       - name: API tests
         run: pnpm --filter @harakiri/api test
 
+      - name: Protected service authorization and live revocation (PostgreSQL)
+        env:
+          SERVICE_PROXY_TEST_REQUIRED: "1"
+          SERVICE_PROXY_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+        run: pnpm --filter @harakiri/api exec node --test --import tsx src/protected-services-postgres.test.ts
+
       - name: Capacity invariants and fault injection (real PostgreSQL)
         env:
           CAPACITY_TEST_REQUIRED: "1"
@@ -113,6 +119,15 @@ jobs:
 
       - name: Web typecheck and tests
         run: pnpm --filter @harakiri/web typecheck && pnpm --filter @harakiri/web test
+
+      - name: Optional OpenWebUI adapter contracts and durable bindings
+        env:
+          OPENWEBUI_TEST_REQUIRED: "1"
+          OPENWEBUI_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+        run: pnpm --filter @harakiri/openwebui-adapter typecheck && pnpm --filter @harakiri/openwebui-adapter test
+
+      - name: Optional OpenWebUI production bundle
+        run: pnpm --filter @harakiri/openwebui-adapter test:package
 
       - name: Usage observations and query budget (disposable PostgreSQL)
         env:
@@ -418,8 +433,16 @@ jobs:
         include:
           - component: api
             dockerfile: apps/api/Dockerfile
+            context: .
           - component: web
             dockerfile: apps/web/Dockerfile
+            context: .
+          - component: openwebui-adapter
+            dockerfile: integrations/openwebui/Dockerfile
+            context: .
+          - component: open-terminal-template
+            dockerfile: examples/templates/open-terminal/Dockerfile
+            context: examples/templates/open-terminal
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -431,7 +454,7 @@ jobs:
       - name: Build (validate Dockerfile, no push)
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: .
+          context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: false
           cache-from: type=gha,scope=${{ matrix.component }}

@@ -18,6 +18,7 @@ import { uiProductTourDocs } from "./ui-product-tour-docs";
 import { workbenchDocs } from "./workbench-docs";
 import { typescriptSdkDocs } from "./typescript-sdk-docs";
 import { deepagentsDocs } from "./deepagents-docs";
+import { openwebuiDocs } from "./openwebui-docs";
 import { pythonSdkDocs, pythonDeepagentsDocs } from "./python-docs";
 import { publishedSdkInstall, publishedCliInstall, publishedSdkVersion, publishedWorker, publishedArtifacts, publishedOpenCodeHeadless, publishedOpenCodeServer } from "./sdk-doc-examples";
 
@@ -67,6 +68,7 @@ export const docPages: DocPage[] = [
   authorizationDocs,
   typescriptSdkDocs,
   deepagentsDocs,
+  openwebuiDocs,
   pythonSdkDocs,
   pythonDeepagentsDocs,
   ...agentDemoTutorials.map((tutorial): DocPage => ({
@@ -507,7 +509,7 @@ const { result } = await client.runSandbox(sandboxId, {
     section: "Sandboxes",
     title: "Routes",
     lede: "Expose HTTP services from a sandbox with public or token-protected URLs.",
-    toc: ["Access modes", "Readiness", "SDK", "CLI", "Cleanup"],
+    toc: ["Access modes", "Readiness", "SDK", "CLI", "Protected service candidate", "Cleanup"],
     body: (
       <>
         <h2>Access modes</h2>
@@ -521,6 +523,10 @@ const { result } = await client.runSandbox(sandboxId, {
         <p>If an adapter needs synchronous <code>{"domain(port)"}</code> behavior, pre-expose the route and cache the returned summary by sandbox ID and port. Keep the one-time token in your application if the route is token-protected.</p>
         <h2>CLI</h2>
         <CodeBlock language="bash">{`harakiri expose sbx_... --port 5173 --access token --label vite --wait --wait-path /\nharakiri routes sbx_... --json\nharakiri open sbx_... --port 5173 --token "$HARAKIRI_ROUTE_TOKEN"`}</CodeBlock>
+        <h2>Protected service candidate</h2>
+        <p><strong>Not included in rc.13:</strong> the current source candidate adds incremental raw HTTP, bounded binary/multipart transfer, generic service WebSockets and Python route helpers. Use matching source builds and the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/routes.md">transport contract</a> before evaluating it. The <a href="#docs/openwebui">OpenWebUI workflow</a> passed through the provider gateway on Linux amd64; test your own ingress separately. Existing native PTY support is a separate protocol.</p>
+        <p>The proxy preserves application authorization, removes platform credentials and cookies, rejects cross-service redirects and rechecks route/runtime access. Default limits are 32 MiB requests, 64 MiB responses, 1 MiB WebSocket messages, 60 seconds idle and one hour per connection. An interrupted stream may contain partial output; side effects are never automatically replayed.</p>
+        <p>Service traffic does not renew sandbox TTL. Route deletion, runtime termination/expiry or failed authorization revalidation closes open connections. Per-process connection limits do not replace organization execution capacity. The optional <a href="#docs/openwebui">OpenWebUI candidate</a> uses this generic capability through a separate adapter.</p>
         <h2>Cleanup</h2>
         <p>Use the Network tab delete control or <code>{"harakiri unexpose"}</code> when the preview is no longer needed. Sandbox termination also disables active route records.</p>
         <CodeBlock language="bash">{`harakiri unexpose sbx_... --port 5173`}</CodeBlock>

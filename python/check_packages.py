@@ -132,6 +132,7 @@ def main() -> None:
                 env=env,
             )
             run([str(python), str(ROOT / "python" / "memory_artifact.py")], cwd=consumer, env=env)
+            run([str(python), str(ROOT / "python" / "routes_consumer.py")], cwd=consumer, env=env)
             run(
                 [
                     *installer,

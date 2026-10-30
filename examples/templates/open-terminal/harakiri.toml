@@ -1,0 +1,14 @@
+name = "Open Terminal"
+id = "open-terminal"
+dockerfile = "Dockerfile"
+visibility = "internal"
+description = "Personal Open Terminal service for OpenWebUI, with Bash, Python and document artifacts."
+runtime_family = "open-terminal"
+cpu_count = 1
+memory_mb = 2048
+workdir = "/workspace"
+ports = [8000]
+aliases = ["open-terminal"]
+tags = ["integration", "openwebui"]
+start_command = "/usr/local/bin/harakiri-open-terminal"
+ready_command = "harakiri-open-terminal-smoke"

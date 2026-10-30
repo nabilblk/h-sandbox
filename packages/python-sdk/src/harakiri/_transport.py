@@ -27,7 +27,7 @@ from .errors import (
     UnsupportedError,
     ValidationError,
 )
-from .models import Capacity, Model
+from .models import Capacity, Model, RouteConnection
 
 Response = TypeVar("Response", bound=Model)
 Query = dict[str, str | int | bool]
@@ -72,7 +72,12 @@ def api_error(status: int, body: bytearray) -> ApiError:
 
 
 class Transport:
-    def __init__(self, config: ClientConfig, http_client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        config: ClientConfig,
+        http_client: httpx.AsyncClient | None = None,
+        service_http_client: httpx.AsyncClient | None = None,
+    ) -> None:
         self.config = config
         self._owned = http_client is None
         self._http = http_client or httpx.AsyncClient(
@@ -81,12 +86,85 @@ class Transport:
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
         )
         self._closed = False
+        self._service_owned = service_http_client is None
+        self._services = service_http_client
 
     async def close(self) -> None:
         if not self._closed:
             self._closed = True
-            if self._owned:
-                await self._http.aclose()
+            try:
+                if self._owned:
+                    await self._http.aclose()
+            finally:
+                if self._service_owned and self._services is not None:
+                    await self._services.aclose()
+
+    async def service_request(
+        self,
+        method: str,
+        connection: RouteConnection,
+        *,
+        content: str | bytes | None = None,
+        json: object = None,
+        request_timeout: float | None = None,
+    ) -> httpx.Response:
+        if self._closed:
+            raise RuntimeError("This Harakiri client is closed")
+        if self._services is None:
+            self._services = httpx.AsyncClient(
+                verify=self.config.tls_context(),
+                trust_env=self.config.trust_env,
+                limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+            )
+        timeout = seconds(
+            self.config.request_timeout if request_timeout is None else request_timeout,
+            "request_timeout",
+        )
+        # Construct directly, not with build_request: client-level cookies, default
+        # headers and authentication must never cross into an untrusted service.
+        request = httpx.Request(
+            method,
+            connection.url,
+            content=content,
+            json=json,
+            headers={**connection.headers, "accept-encoding": "identity"},
+            extensions={"timeout": httpx.Timeout(timeout).as_dict()},
+        )
+        response: httpx.Response | None = None
+        try:
+            with anyio.fail_after(timeout):
+                response = await self._services.send(
+                    request, stream=True, auth=None, follow_redirects=False
+                )
+                if response.headers.get("content-encoding", "identity") != "identity":
+                    raise ProtocolError(
+                        "Compressed service response is not accepted", method=method
+                    )
+                raw = bytearray()
+                async for chunk in response.aiter_bytes(chunk_size=32 * 1024):
+                    if len(raw) + len(chunk) > self.config.max_response_bytes:
+                        raise ProtocolError(
+                            "Service response exceeds the byte limit", method=method
+                        )
+                    raw.extend(chunk)
+                return httpx.Response(
+                    response.status_code,
+                    headers=response.headers,
+                    content=bytes(raw),
+                    request=request,
+                )
+        except (TimeoutError, httpx.TimeoutException) as cause:
+            raise RequestTimeoutError(
+                "Local service request deadline expired", method=method
+            ) from cause
+        except httpx.HTTPError as cause:
+            raise RequestError(
+                "Service request failed; outcome may be unknown", method=method
+            ) from cause
+        finally:
+            if response is not None:
+                with anyio.move_on_after(5, shield=True):
+                    await response.aclose()
 
     async def request(
         self,

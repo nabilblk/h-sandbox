@@ -12155,6 +12155,2058 @@
         }
       }
     },
+    "/v1/route-proxy/{routeKey}": {
+      "get": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "getProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "headProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "postProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "putProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "patchProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "deleteProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "optionsProtectedServiceRoot",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/route-proxy/{routeKey}/{servicePath}": {
+      "get": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "getProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "headProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "postProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "putProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "patchProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "deleteProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "*/*": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "options": {
+        "tags": [
+          "Routes"
+        ],
+        "summary": "Forward a protected sandbox service request",
+        "description": "Source candidate: bounded raw HTTP transport, including incremental responses and binary/multipart bodies. GET also accepts WebSocket upgrades without subprotocol negotiation. Authenticate with the one-time route grant, not the control-plane key. Authorization is reserved for the application. The optional path suffix may contain unencoded slashes but cannot escape the route prefix. No automatic retries or redirect following; faults after response headers close the stream. See docs/routes.md for limits, revocation and ownership.",
+        "operationId": "optionsProtectedServicePath",
+        "security": [
+          {
+            "routeToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "routeKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePath",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "route_token_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "route_not_found: deleted, expired or unavailable runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "route_not_ready or route_proxy_requires_token_route",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "route_proxy_request_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "route_proxy_connection_limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "route_proxy_headers_too_large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "route_proxy_ws_subprotocol_unsupported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Target, upstream, redirect or response-size failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "route_proxy_authorization_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Connection or idle deadline exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Application response or transport error. Application status, bytes and allowed MIME/range headers are preserved.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/api-keys": {
       "get": {
         "security": [
@@ -14158,6 +16210,12 @@
   },
   "components": {
     "securitySchemes": {
+      "routeToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-harakiri-route-token",
+        "description": "One-time service grant, not an organization API key. Prefer this header to the legacy harakiri_route_token query parameter."
+      },
       "apiKey": {
         "type": "apiKey",
         "in": "header",
@@ -14579,6 +16637,20 @@
           "route_proxy_requires_token_route",
           "route_token_required",
           "route_proxy_upstream_unreachable",
+          "route_proxy_invalid_target",
+          "route_proxy_invalid_path",
+          "route_proxy_redirect_rejected",
+          "route_proxy_authorization_unavailable",
+          "route_proxy_headers_too_large",
+          "route_proxy_ws_subprotocol_unsupported",
+          "route_proxy_connection_limit",
+          "route_proxy_shutdown",
+          "route_proxy_access_revoked",
+          "route_proxy_lifetime_exceeded",
+          "route_proxy_request_too_large",
+          "route_proxy_connect_timeout",
+          "route_proxy_idle_timeout",
+          "route_proxy_response_too_large",
           "route_access_mode_conflict",
           "template_not_found",
           "template_not_ready",

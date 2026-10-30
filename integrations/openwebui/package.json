@@ -1,0 +1,32 @@
+{
+  "name": "@harakiri/openwebui-adapter",
+  "version": "0.1.0-dev.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "open-terminal.openapi.json", "OPEN_TERMINAL_LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "compatibility.json"],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "pnpm --filter @h-sandbox/sdk build && pnpm clean && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @h-sandbox/sdk build && tsc -p tsconfig.tests.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --import tsx src/*.test.ts",
+    "test:postgres": "node scripts/test-postgres.mjs",
+    "test:package": "node scripts/check-package.mjs",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@h-sandbox/sdk": "workspace:*",
+    "@fastify/websocket": "^11.2.0",
+    "fastify": "^5.12.3",
+    "pg": "^8.16.3",
+    "ws": "^8.21.0",
+    "zod": "^4.6.6"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.13"
+  }
+}

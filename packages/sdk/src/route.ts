@@ -1,6 +1,6 @@
 import type { HarakiriClient } from "./index.js";
 import type { SandboxRouteResponse, SandboxRouteSummary } from "./protocol.js";
-import { createRouteFetch, waitForRouteHttp, type CreateRouteFetchOptions, type WaitForRouteHttpOptions } from "./route-access.js";
+import { createRouteFetch, routeWebSocketRequest, waitForRouteHttp, type CreateRouteFetchOptions, type RouteWebSocketRequestOptions, type WaitForRouteHttpOptions } from "./route-access.js";
 
 /** An explicit exposure. Its scoped fetch sends route credentials, never the control-plane key. */
 export class HarakiriRoute implements SandboxRouteResponse {
@@ -25,6 +25,8 @@ export class HarakiriRoute implements SandboxRouteResponse {
   }
   /** Adapter for HTTP-based agent SDKs, optionally adding service-level Basic authentication. */
   createFetch(options: CreateRouteFetchOptions = {}) { return createRouteFetch(this, options); }
+  /** Pass these options to a server-side WebSocket library such as ws. */
+  webSocketRequest(path = "/", options: RouteWebSocketRequestOptions = {}) { return routeWebSocketRequest(this, path, options); }
   waitForHttp(options: WaitForRouteHttpOptions = {}) { return waitForRouteHttp(this, options); }
   delete() { return this.#client.deleteRoute(this.#sandboxId, this.port); }
 }

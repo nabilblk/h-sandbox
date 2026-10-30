@@ -33,3 +33,8 @@ for the supported surface, installation, request deadlines, partial outcomes
 and release qualification status. For asyncio, use `AsyncHarakiriClient`, `async with`
 and awaited resource methods. No event-loop bridge or model dependency is required
 by the asynchronous API. Python 3.11 is the minimum.
+
+Source candidate only (not in 0.1.0rc1): `sandbox.routes` adds protected service
+exposure, HTTP health polling, bounded requests and scoped WebSocket connection
+headers. See the [service contract](https://github.com/nabilblk/h-sandbox/blob/main/docs/routes.md)
+for response ownership, cancellation, limits and the matching API requirement.
