@@ -1,10 +1,11 @@
 # OpenWebUI Source Qualification
 
-**Status: incomplete; not a released integration.** Neither retained run
-qualifies the integration: one failed HTML viewport fit, and the next failed
-model-generated Python execution. All owned cleanup checks passed. A subsequent
-scenario is being evaluated; do not combine partial results from different
-runs into a passing receipt.
+**Status: incomplete; not a released integration.** The latest retained run
+passes the real-model workflow and all document previews, but fails mobile SVG
+navigation and adapter-restart checks. All owned cleanup checks passed. The
+responsive test now waits for the actual mobile drawer and always restores the
+desktop viewport; a complete rerun is required. Do not combine partial results
+from different runs into a passing receipt.
 
 This report covers the optional adapter for unmodified OpenWebUI and generic
 Harakiri protected HTTP/WebSocket services. It is not customer OpenShift
@@ -27,6 +28,14 @@ addresses or Kubernetes exec.
 
 ## Retained Evidence
 
+- [Run 41006611568](https://github.com/nabilblk/h-sandbox/actions/runs/41006611568):
+  branch source `5fb516afdd103088762dcdf7bc1e20138a409e60`, merge checkout
+  `b4a3fecbf6d314bdb280bd52d903d66783914894`. Its
+  [sanitized receipt](evidence/openwebui-41006611568.json) records 20 passed checks
+  and two browser timeouts. One real chat completed with three tool calls and no
+  tool failures; exact totals, decoded PNG, native PDF/HTML fixture round trips,
+  embedded chart identity and HTML viewport fit passed. The desktop capture was
+  inspected. Mobile and restart checks still require a complete passing run.
 - [Run 41003628810](https://github.com/nabilblk/h-sandbox/actions/runs/41003628810):
   branch source `1dc65fe8af1801803ec88252e9c9d8ef9834de64`, merge checkout
   `8125219dd982c37ed4dcee0fe77b4aa153c9e541`. Its

@@ -410,6 +410,17 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ## Completion Notes
 
+- Run [41006611568](https://github.com/nabilblk/h-sandbox/actions/runs/41006611568)
+  passed 20/22 checks with all owned cleanup passing. The revised real-model
+  scenario completed in one submission, three tool calls and no tool failures.
+  Exact JSON/PNG and separately labeled native PDF/HTML fixture previews passed,
+  including byte checks and viewport fit. Mobile SVG and adapter restart timed
+  out. Review found the mobile test could act on the old desktop FileNav during
+  responsive remount and left the mobile viewport active on failure. It now
+  scopes navigation to the native mobile drawer and restores desktop in finally;
+  two lifecycle regressions pass. The exact failed receipt is retained. A full
+  native rerun remains required; no partial-run qualification is claimed.
+
 ### Qualification Checkpoint, October 30
 
 - Run [41003628810](https://github.com/nabilblk/h-sandbox/actions/runs/41003628810)

@@ -102,6 +102,7 @@ export async function transferFailures(page) {
 }
 
 export async function svgIsolation(page) {
+  console.log("OpenWebUI SVG: upload and verify desktop sanitization");
   const bytes = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="80" onload="document.documentElement.dataset.harakiriPreviewProbe='executed'">
 <script>document.documentElement.dataset.harakiriPreviewProbe='executed'</script>
 <text x="10" y="40">Synthetic SVG preview</text></svg>`;
@@ -111,16 +112,30 @@ export async function svgIsolation(page) {
   await files.getByText("Synthetic SVG preview", { exact: true }).waitFor();
   check(await files.locator(".svg-preview script, .svg-preview [onload]").count() === 0, "SVG executable markup survived sanitization");
   check(!(await page.locator("html").getAttribute("data-harakiri-preview-probe")), "SVG executed with chat authority");
-  await page.setViewportSize({ width: 390, height: 844 });
-  if (!(await files.isVisible())) await page.getByRole("button", { name: "Controls", exact: true }).click();
-  // The native responsive layout remounts FileNav and retains its directory,
-  // not the selected preview. Open the file in the mobile instance explicitly.
-  await files.locator("[data-file-row]").getByText("isolation.svg", { exact: true }).click();
-  await files.getByText("Synthetic SVG preview", { exact: true }).waitFor();
-  const preview = await files.locator(".svg-preview").boundingBox();
-  check(preview && preview.x >= 0 && preview.y >= 0 && preview.x + preview.width <= 390 && preview.y + preview.height <= 844,
-    "Native mobile preview falls outside the viewport");
-  await page.screenshot({ path: "openwebui-preview-mobile.png" });
-  await page.setViewportSize({ width: 1440, height: 1000 });
+  await mobileSvgPreview(page);
   return { svgScriptBlocked: true, mobilePreview: true };
+}
+
+export async function mobileSvgPreview(page) {
+  const drawer = page.locator('.modal[data-swipe-panel="right"]');
+  const files = drawer.getByRole("region", { name: "File browser", exact: true });
+  try {
+    console.log("OpenWebUI SVG: wait for mobile drawer remount");
+    await page.setViewportSize({ width: 390, height: 844 });
+    // Resizing returns before Svelte replaces the desktop FileNav. Scope to the
+    // native drawer so a still-visible desktop row cannot consume this click.
+    await files.waitFor();
+    console.log("OpenWebUI SVG: open file in mobile drawer");
+    await files.locator("[data-file-row]").getByText("isolation.svg", { exact: true }).click();
+    await files.getByText("Synthetic SVG preview", { exact: true }).waitFor();
+    const preview = await files.locator(".svg-preview").boundingBox();
+    check(preview && preview.x >= 0 && preview.y >= 0 && preview.x + preview.width <= 390 && preview.y + preview.height <= 844,
+      "Native mobile preview falls outside the viewport");
+    await page.screenshot({ path: "openwebui-preview-mobile.png" });
+  } finally {
+    console.log("OpenWebUI SVG: restore desktop viewport");
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await drawer.waitFor({ state: "hidden" });
+    await fileBrowser(page).waitFor();
+  }
 }
