@@ -79,6 +79,7 @@
 .doc-code-actions button:hover { border-color: #56616c; background: #343e47; color: #fff; }
 .docs-app .doc-code pre { margin: 0; padding: 20px; background: transparent; border: 0; border-radius: 0; max-width: 100%; overflow: auto; font: 12px/1.85 var(--font-mono); tab-size: 2; color: #e6edf3; scrollbar-width: thin; scrollbar-color: #677781 transparent; }
 .doc-code pre code { font: inherit; background: transparent; padding: 0; border: 0; white-space: pre; }
+.doc-code[data-wrap="true"] pre, .doc-code[data-wrap="true"] pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
 .doc-code .hljs-comment, .doc-code .hljs-quote { color: #a3b2be; }
 .doc-code .hljs-keyword, .doc-code .hljs-selector-tag, .doc-code .hljs-literal { color: #ff9caa; }
 .doc-code .hljs-string, .doc-code .hljs-regexp, .doc-code .hljs-addition { color: #ace3be; }

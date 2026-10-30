@@ -95,7 +95,7 @@ node packages/cli/dist/index.js template build \\
         <code>qwen3:4b-instruct</code>; no paid model key is needed by the adapter. Native tool calling, model identity,
         resource limits and actual outcomes must be recorded in qualification.
       </p>
-      <CodeBlock language="plaintext">{openwebuiReportPrompt}</CodeBlock>
+      <CodeBlock language="plaintext" wrap>{openwebuiReportPrompt}</CodeBlock>
       <p>
         This is the acceptance recipe, not a claimed passing demo. Inspect the tool calls, browse the files, open
         image/PDF previews, download the JSON and verify its exact contents independently. Exercise shell input, resize,

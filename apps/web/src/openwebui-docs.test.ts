@@ -9,6 +9,7 @@ import { docGroups } from "./docs-navigation.js";
 test("OpenWebUI candidate is discoverable without claiming released browser qualification", () => {
   assert.ok(docGroups.some((group) => group.title === "Integrations" && group.pages.some((id) => id === "openwebui")));
   const html = renderToStaticMarkup(openwebuiDocs.body);
+  assert.match(html, /data-language="plaintext" data-wrap="true"/);
   for (const text of [
     "Source candidate",
     "not yet natively qualified",

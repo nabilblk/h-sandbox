@@ -73,6 +73,16 @@ test("syntax grammars produce escaped React text and unknown languages stay read
   assert.equal(highlightCode(raw, "unknown-language"), raw);
 });
 
+test("prose prompts opt into wrapping without changing code whitespace or ordinary blocks", () => {
+  const code = "First line.\n  Keep this indentation.\n";
+  const ordinary = renderToStaticMarkup(createElement(CodeBlock, { language: "plaintext", children: code }));
+  const wrapped = renderToStaticMarkup(createElement(CodeBlock, { language: "plaintext", children: code, wrap: true }));
+  assert.doesNotMatch(ordinary, /data-wrap/);
+  assert.match(wrapped, /data-wrap="true"/);
+  assert.ok(wrapped.includes(code));
+  assert.equal(wrapped.replace(' data-wrap="true"', ""), ordinary);
+});
+
 test("every rendered documentation pre has a labelled shared code surface", () => {
   let total = 0;
   for (const page of docPages) {
