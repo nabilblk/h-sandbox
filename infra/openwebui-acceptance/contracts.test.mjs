@@ -8,7 +8,7 @@ import { ownedDocker, cleanupDocker, compatibility } from "./stack.mjs";
 import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
-import { adapterFailures, runtimeState } from "./diagnostics.mjs";
+import { adapterFailures, runtimeState, toolResult } from "./diagnostics.mjs";
 import { chatWitness } from "./browser.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
@@ -109,6 +109,14 @@ test("runtime diagnostics never export source logs, identifiers or unknown failu
   ] } }, "PRIVATE: Permission denied for PRIVATE");
   assert.deepEqual(result, { phase: "Failed", containers: [{ ready: false, reason: "Error", exitCode: 1 }], errors: ["Permission denied"] });
   assert.ok(!JSON.stringify(result).includes("PRIVATE"));
+});
+
+test("tool diagnostics distinguish process failure without publishing arguments or output", () => {
+  assert.deepEqual(toolResult({ status: "completed", output: [{ type: "input_text", text: JSON.stringify({
+    command: "PRIVATE", status: "completed", exit_code: 1, output: "PRIVATE: No such file or directory"
+  }) }] }), { failed: false, exitCodes: [1], states: ["completed"], errors: ["No such file or directory"] });
+  assert.deepEqual(toolResult({ output: [{ type: "input_text", text: '{"error":"PRIVATE"}' }] }),
+    { failed: true, exitCodes: [], states: [], errors: [] });
 });
 
 test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit public artifact paths", () => {

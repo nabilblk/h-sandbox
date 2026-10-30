@@ -24,7 +24,9 @@ model = ChatOllama(
     seed=0,
     num_ctx=8192,
     num_predict=1024,
-    client_kwargs={"timeout": 180},
+    # CPU-only hosted runners can spend several minutes evaluating the tool schema.
+    # Keep a finite read deadline inside the independent 12-minute workflow budget.
+    client_kwargs={"timeout": 300},
 )
 started = time.monotonic()
 # This Linux-only harness budget leaves time for the SDK's independent cleanup.

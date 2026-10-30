@@ -2,8 +2,9 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 import { check, until, sha256 } from "../acceptance/context.mjs";
 import { webOrigin, adapterOrigin } from "./stack.mjs";
+import { toolResult } from "./diagnostics.mjs";
 
-export const prompt = `Use the connected terminal's run_command tool to execute one Python script, not a code block in your reply. The script must create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5, read that CSV and aggregate sales by region using Python csv. Write /workspace/demo/report.json with exactly {"North":17,"South":7,"total":24}. Use matplotlib's Agg backend to generate /workspace/demo/chart.png and /workspace/demo/report.pdf. Write /workspace/demo/index.html with heading Sales report, total 24 and the same PNG embedded as a data:image/png;base64 URL. Compute the base64 with Python from the generated PNG; never generate or print the base64 as model text. Read the JSON back to verify it and print only the small totals dictionary and file names. If the command is still running, inspect its status until done. Do not install or download anything, and do not use relative or external assets in the HTML. Finish with a brief summary and file links.`;
+export const prompt = fs.readFileSync(new URL("../../integrations/openwebui/report-prompt.txt", import.meta.url), "utf8").trim();
 
 export async function signup(page, credentials, second = false) {
   console.log(`OpenWebUI browser: ${second ? "second user" : "administrator"} signup`);
@@ -120,8 +121,9 @@ export function chatWitness(page) {
           state.modelEvents++;
           state.completed ||= event.data?.done === true;
           state.modelError ||= Boolean(event.data?.error);
-          for (const item of [...event.data?.output ?? [], ...event.data?.item ? [event.data.item] : []]) {
+          for (const item of [...(event.data?.output ?? []), ...(event.data?.item ? [event.data.item] : [])]) {
             if (item.type === "function_call_output" && typeof item.call_id === "string") {
+              if (!toolCalls.has(item.call_id)) console.log(`OpenWebUI tool result: ${JSON.stringify(toolResult(item))}`);
               toolCalls.add(item.call_id);
               if (item.status === "failed") toolFailures.add(item.call_id);
             }
@@ -182,7 +184,12 @@ export async function shell(page, witness) {
   await send("printf '\\033[32mNATIVE_SHELL_OK\\033[0m\\n'; printf 'SIZE_A:'; stty size");
   await until("Native shell output", () => /\u001b\[32mNATIVE_SHELL_OK/.test(witness.output()) && /SIZE_A:\d+ \d+/.test(witness.output()));
   const resizeFrames = witness.state.resizeFrames;
-  await page.setViewportSize({ width: 1120, height: 820 });
+  const handle = await page.getByRole("region", { name: "File browser", exact: true }).locator(".cursor-row-resize").boundingBox();
+  check(handle, "Native terminal resize handle missing");
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(handle.x + handle.width / 2, handle.y - 100, { steps: 8 });
+  await page.mouse.up();
   await until("Native resize frame sent", () => witness.state.resizeFrames > resizeFrames, 10000);
   await send("printf 'SIZE_B:'; stty size");
   await until("Native remote terminal resize", () => {

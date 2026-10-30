@@ -8,6 +8,24 @@ const reasons = new Set(["CrashLoopBackOff", "ErrImagePull", "ImagePullBackOff",
 const signatures = ["Permission denied", "Operation not permitted", "Read-only file system", "Address already in use",
   "ModuleNotFoundError", "No such command", "No such file or directory", "Traceback"];
 
+export function toolResult(item) {
+  const result = { failed: item.status === "failed", exitCodes: [], states: [], errors: [] };
+  for (const part of Array.isArray(item.output) ? item.output.slice(0, 16) : []) {
+    if (part.type !== "input_text" || typeof part.text !== "string") continue;
+    const text = part.text.slice(0, 65536);
+    for (const signature of [...signatures, "SyntaxError", "ValidationError", "HTTP error 422", "command not found"]) {
+      if (text.includes(signature) && !result.errors.includes(signature)) result.errors.push(signature);
+    }
+    try {
+      const data = JSON.parse(text);
+      if (Number.isInteger(data.exit_code) && data.exit_code >= -255 && data.exit_code <= 255) result.exitCodes.push(data.exit_code);
+      if (["running", "completed", "finished", "failed", "error", "killed", "timeout"].includes(data.status)) result.states.push(data.status);
+      result.failed ||= Boolean(data.error);
+    } catch { /* Non-JSON output remains private; only fixed signatures leave this function. */ }
+  }
+  return result;
+}
+
 export function adapterFailures(logs) {
   return logs.split("\n").flatMap(line => {
     try {
@@ -42,10 +60,14 @@ export async function diagnose(ctx, client, template) {
       ["pending", "running", "idle", "paused", "resuming", "error", "terminated"].map(status => [status, inventory.filter(item => item.status === status).length])))}`);
     const running = inventory.filter(item => item.status === "running");
     if (running.length === 1) {
-      const { files } = await client.files.list(running[0].id, "/workspace/demo", { requestTimeoutMs: 10000 });
-      const names = new Set(files.map(file => file.name));
-      console.log(`OpenWebUI expected artifact presence: ${JSON.stringify(Object.fromEntries(
-        ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"].map(name => [name, names.has(name)])))}`);
+      try {
+        const { files } = await client.files.list(running[0].id, "/workspace/demo", { requestTimeoutMs: 10000 });
+        const names = new Set(files.map(file => file.name));
+        console.log(`OpenWebUI expected artifact presence: ${JSON.stringify(Object.fromEntries(
+          ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"].map(name => [name, names.has(name)])))}`);
+      } catch (error) {
+        console.log(`OpenWebUI artifact listing unavailable: ${Number.isInteger(error.status) ? error.status : "unknown"}`);
+      }
     }
   } catch { console.log("OpenWebUI runtime inventory unavailable"); }
   try {

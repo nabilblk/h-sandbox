@@ -462,6 +462,18 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   resource cleanup checks passed. The next browser check handles native directory
   changes and records fixed artifact-presence flags and tool failure counts rather
   than exporting chat content or tool output.
+- Run [40907628895](https://github.com/nabilblk/h-sandbox/actions/runs/40907628895)
+  completed a real tool invocation but had no visible `demo` directory and could
+  not list the expected artifacts. A completed tool wrapper is not proof of a
+  successful process. The next candidate records only bounded exit codes/error
+  categories, explicitly creates the working directory in the model task, and
+  keeps that exact prompt synchronized across native, operator and public docs.
+  Native terminal resize now drags the actual panel handle instead of resizing a
+  browser around a fixed-width/fixed-height terminal. All cleanup checks passed.
+- Python native run 40907628932 passed SDK, files, recovery and deadline gates,
+  then hit a 180-second model HTTP read timeout within its 720-second total budget.
+  The isolated CPU-model read deadline is now 300 seconds; the total budget and
+  independent cleanup remain unchanged. This is not a retry or a waived gate.
 
 ### Local Implementation Checkpoint, October 29
 

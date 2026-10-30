@@ -216,21 +216,19 @@ reproducible run. Inspect its license and resource requirements separately.
 Open a new chat, select the model and the terminal connection, and send:
 
 ```text
-Use the connected terminal's run_command tool to execute one Python script.
-Work only under /workspace/demo. Do not answer with a code block.
-Create sales.csv with columns region,amount and these rows:
-North,12
-South,7
-North,5
-Read this CSV with Python, aggregate totals by region and write report.json
-containing {"North":17,"South":7,"total":24}. Use matplotlib to create chart.png
-and report.pdf from those totals. Create a self-contained index.html with heading
-Sales report, total 24, and the same chart embedded as a data:image/png;base64 URL.
-Do not use relative or external assets in the HTML.
-Compute the base64 with Python from the PNG; never generate or print it as model text.
-Verify the JSON by reading it back and show me links to the generated files.
-If the command is still running, inspect its status until done.
-Do not install packages or download data. Report tool failures honestly.
+Use the connected terminal's run_command tool, not a code block in your reply.
+Run one Python script with cwd=/workspace and wait=30.
+The script must first create /workspace/demo with pathlib.Path.mkdir(parents=True, exist_ok=True).
+Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5.
+Read this CSV with Python csv and aggregate sales by region.
+Write report.json containing exactly {"North":17,"South":7,"total":24}.
+Use matplotlib's Agg backend to generate chart.png and report.pdf from the totals.
+Write a self-contained index.html with heading Sales report, total 24, and the same PNG embedded as a data:image/png;base64 URL.
+Keep all five files in /workspace/demo. Do not use relative or external assets in the HTML.
+Compute the base64 with Python from the PNG; never generate or print the base64 as model text.
+Read the JSON back to verify it. Print only the small totals dictionary and file names.
+Check the command's exit_code and output before claiming success. If still running, inspect its status until done.
+Do not install packages or download data. Report failures honestly. Finish with a brief summary and file links.
 ```
 
 Check the tool calls, not just the model's prose. In OpenWebUI's file browser,
