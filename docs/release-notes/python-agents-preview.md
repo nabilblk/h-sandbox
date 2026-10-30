@@ -1,5 +1,9 @@
 # Python Agents Preview
 
+For the newer protected-service API and coordinated SDK/adapter update, see
+[Python 0.1.0rc2](python-0.1.0rc2.md). The October 14 rc1 publication and earlier
+qualification records below are historical and retain their original identities.
+
 Status: **preview published, qualified and deployed; independent adoption pending**, updated October 14, 2026.
 
 - SDK `h-sandbox==0.1.0rc1`; import `harakiri`.

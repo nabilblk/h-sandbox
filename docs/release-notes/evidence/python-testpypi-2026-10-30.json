@@ -1,0 +1,350 @@
+{
+  "kind": "python-preview-publication-evidence",
+  "registry": "testpypi",
+  "source": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+  "manifestSha256": "39530ba010d19fcf199a10fb3f3c3f6ef9befbe546225d8399a2f8018e9a8c9e",
+  "projects": {
+    "deepagents": {
+      "files": {
+        "h_sandbox_deepagents-0.1.0rc2-py3-none-any.whl": "989c7aab3bb3523479b33699d8121aef60a9ddfcad0a67158bd2b726fe7930fb",
+        "h_sandbox_deepagents-0.1.0rc2.tar.gz": "2afa8ec38796f7f0957f2ea290d91ca0d5bd244dcb2fd5a8be0406a8fc695a79"
+      },
+      "name": "h-sandbox-deepagents",
+      "version": "0.1.0rc2"
+    },
+    "sdk": {
+      "files": {
+        "h_sandbox-0.1.0rc2-py3-none-any.whl": "ddd71ab1a3cea95baf9645d10a6d08108e1e885010d11b0a5d3aeeb6a163fdb7",
+        "h_sandbox-0.1.0rc2.tar.gz": "4a8a79597946a4e2f34ec40cc26aa371c2e50e921d040d04a28ff27e9498efd6"
+      },
+      "name": "h-sandbox",
+      "version": "0.1.0rc2"
+    }
+  },
+  "attestations": {
+    "verifier": "pypi-attestations==0.0.30",
+    "verifiedAt": "2026-10-30T10:49:13.506Z",
+    "results": [
+      {
+        "filename": "h_sandbox_deepagents-0.1.0rc2-py3-none-any.whl",
+        "sha256": "989c7aab3bb3523479b33699d8121aef60a9ddfcad0a67158bd2b726fe7930fb",
+        "publisher": {
+          "environment": "testpypi-deepagents",
+          "kind": "GitHub",
+          "repository": "nabilblk/h-sandbox",
+          "workflow": "python-release.yml"
+        },
+        "cryptographicallyVerified": true
+      },
+      {
+        "filename": "h_sandbox_deepagents-0.1.0rc2.tar.gz",
+        "sha256": "2afa8ec38796f7f0957f2ea290d91ca0d5bd244dcb2fd5a8be0406a8fc695a79",
+        "publisher": {
+          "environment": "testpypi-deepagents",
+          "kind": "GitHub",
+          "repository": "nabilblk/h-sandbox",
+          "workflow": "python-release.yml"
+        },
+        "cryptographicallyVerified": true
+      },
+      {
+        "filename": "h_sandbox-0.1.0rc2-py3-none-any.whl",
+        "sha256": "ddd71ab1a3cea95baf9645d10a6d08108e1e885010d11b0a5d3aeeb6a163fdb7",
+        "publisher": {
+          "environment": "testpypi",
+          "kind": "GitHub",
+          "repository": "nabilblk/h-sandbox",
+          "workflow": "python-release.yml"
+        },
+        "cryptographicallyVerified": true
+      },
+      {
+        "filename": "h_sandbox-0.1.0rc2.tar.gz",
+        "sha256": "4a8a79597946a4e2f34ec40cc26aa371c2e50e921d040d04a28ff27e9498efd6",
+        "publisher": {
+          "environment": "testpypi",
+          "kind": "GitHub",
+          "repository": "nabilblk/h-sandbox",
+          "workflow": "python-release.yml"
+        },
+        "cryptographicallyVerified": true
+      }
+    ]
+  },
+  "limits": [
+    "Publisher identity and archive-integrity verification, not a package safety guarantee.",
+    "Package source is bound by the sealed release manifest; publisher workflow revision may be newer than that source.",
+    "Native Python regression uses the pinned rc.10 chart/web plus published API maintenance baseline, not rc.14 generic WebSockets.",
+    "One real model repair and maintainer-operated CI, not independent adoption or a benchmark.",
+    "No existing lab deployment was changed by this qualification workflow."
+  ],
+  "run": "https://github.com/nabilblk/h-sandbox/actions/runs/41039245672",
+  "attempt": 4,
+  "workflowSource": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+  "testpypiRun": "https://github.com/nabilblk/h-sandbox/actions/runs/41039245672",
+  "nativeArtifact": "python-native-python-public-41039245672-41039245672-4",
+  "nativeReceiptSha256": "97d2a35f45f0bb8755c52e16d32a98c48e26f48dfec98e52d97679186e63b250",
+  "native": {
+    "kind": "python-agents-published",
+    "artifactSource": "registry",
+    "published": true,
+    "candidateSource": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+    "architecture": "amd64",
+    "results": [
+      {
+        "gate": "published-installation",
+        "status": "passed"
+      },
+      {
+        "gate": "published-api-maintenance",
+        "status": "passed"
+      },
+      {
+        "gate": "oidc-onboarding",
+        "status": "passed"
+      },
+      {
+        "gate": "template-import",
+        "status": "passed"
+      },
+      {
+        "gate": "foreign-organization-fixture",
+        "status": "passed"
+      },
+      {
+        "gate": "installed-candidate-wheels",
+        "status": "passed"
+      },
+      {
+        "gate": "installed-documentation-examples",
+        "status": "passed"
+      },
+      {
+        "gate": "native-sdk-and-framework",
+        "status": "passed"
+      },
+      {
+        "gate": "provider-loss-and-unconfirmed-cleanup",
+        "status": "passed"
+      },
+      {
+        "gate": "native-remote-deadline",
+        "status": "passed"
+      },
+      {
+        "gate": "native-large-artifact-limits",
+        "status": "passed"
+      },
+      {
+        "gate": "real-model-repair",
+        "status": "passed"
+      },
+      {
+        "gate": "key-revocation",
+        "status": "passed"
+      }
+    ],
+    "startedAt": "2026-10-30T10:55:06.227Z",
+    "limits": [
+      "Single-worker SQLite example, not HA or exactly-once",
+      "One real model repair, not a model benchmark",
+      "This qualification job publishes no packages and changes no existing deployment"
+    ],
+    "installation": {
+      "version": "0.5.0-rc.10",
+      "source": "3ff2aaaffe6d92a8c2db7333f6d8c79a144c5207",
+      "architecture": "amd64",
+      "anonymousArtifacts": true,
+      "freshInstallation": true,
+      "nativeTemplateImage": true,
+      "templateManifestSha256": "9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3"
+    },
+    "apiMaintenance": {
+      "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.12-provider-files.a55df31@sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+      "source": "a55df315825b0e4788b35b71af571c4f0d11ac23",
+      "version": "0.5.0-rc.12",
+      "release": "api-2026-10-02.1",
+      "digest": "sha256:f927bda60dd79bcd5754ff48bdb9813d74a18b633a00d848d9c4b5b7e770fab2",
+      "published": true,
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "digest": "sha256:72d3e5783757864cc7eddf39ac5d3732ae9022959aa8a781bc70f0f88f4228e4",
+          "configDigest": "sha256:487db7a92b424797d63c2c0ca05579ad11967c8b60fb8e99d657486a676adfeb"
+        },
+        {
+          "architecture": "arm64",
+          "digest": "sha256:fd00ed859f396e532360d09f36871f671af6643ef0a44c5c34c98387cbe9391c",
+          "configDigest": "sha256:543d2dca951c8691d0767a651c266f8e3cc01dbc61ee085858bb5c53c8ac18d1"
+        }
+      ],
+      "runningImageVerified": true
+    },
+    "template": "core.campus.clusterdiali.me/harakiri/templates/opencode@sha256:9de3016f67d741ceddc30919a844601d3d549317e6d94d5d2ec4816225611ca3",
+    "wheels": {
+      "h_sandbox-0.1.0rc2-py3-none-any.whl": "ddd71ab1a3cea95baf9645d10a6d08108e1e885010d11b0a5d3aeeb6a163fdb7",
+      "h_sandbox_deepagents-0.1.0rc2-py3-none-any.whl": "989c7aab3bb3523479b33699d8121aef60a9ddfcad0a67158bd2b726fe7930fb"
+    },
+    "examples": {
+      "kind": "installed-documentation-examples",
+      "inference": "deterministic-ollama-protocol-fixture-not-a-real-model",
+      "tools": "real-local-shell-and-harakiri-runtime",
+      "sources": {
+        "first_async.py": "6f7dc74f1b7e40401e789838edb26c658ed5a1676e850084343a0986d3e46263",
+        "first_existing.py": "768749e4a1af2645a15730a649ef032b5eec07d873ef48ea6dca719473bf3c88",
+        "first_local.py": "107c3a6b83983728172e72be375d5a2dd8de85b38d8e7ca3a097149dd596a442",
+        "first_model.py": "29759fc95588a0bc90d7cfa541fdd292048c3603fdf7902cce0f2ce16f0d1230",
+        "first_sandbox.py": "97b194122444595728513976f0815aef48b53b7b79a443af7d107372d12954ee"
+      },
+      "results": [
+        {
+          "program": "first_local.py",
+          "status": "passed",
+          "modelResponses": 3
+        },
+        {
+          "program": "first_sandbox.py",
+          "status": "passed",
+          "modelResponses": 3
+        },
+        {
+          "program": "first_async.py",
+          "status": "passed",
+          "modelResponses": 3
+        },
+        {
+          "program": "first_existing.py",
+          "status": "passed",
+          "modelResponses": 2
+        }
+      ]
+    },
+    "native": {
+      "results": [
+        {
+          "gate": "scoped-key-denial",
+          "status": "passed"
+        },
+        {
+          "gate": "cross-organization-denial",
+          "status": "passed"
+        },
+        {
+          "gate": "sync-lifecycle-tools-files-cleanup",
+          "status": "passed"
+        },
+        {
+          "gate": "native-async-tools",
+          "status": "passed"
+        },
+        {
+          "gate": "separate-worker-and-expired-runtime-file-recovery",
+          "status": "passed"
+        }
+      ],
+      "observations": {},
+      "python": "3.12.3",
+      "packages": {
+        "h-sandbox": "0.1.0rc2",
+        "h-sandbox-deepagents": "0.1.0rc2",
+        "deepagents": "0.7.21",
+        "httpx": "0.28.1",
+        "anyio": "4.15.1",
+        "pydantic": "2.14.2",
+        "langchain": "1.4.7",
+        "langchain-core": "1.7.3",
+        "langgraph": "1.2.18",
+        "langgraph-checkpoint": "4.3.1",
+        "langgraph-checkpoint-sqlite": "3.1.1",
+        "langchain-ollama": "1.1.0"
+      }
+    },
+    "boundaries": {
+      "native-remote-deadline": {
+        "results": [
+          {
+            "gate": "native-remote-deadline",
+            "status": "passed"
+          }
+        ],
+        "observations": {
+          "remoteDeadline": {
+            "exitCode": -1,
+            "finishReason": "error",
+            "frameworkVisibleNotice": true
+          }
+        },
+        "python": "3.12.3",
+        "packages": {
+          "h-sandbox": "0.1.0rc2",
+          "h-sandbox-deepagents": "0.1.0rc2",
+          "deepagents": "0.7.21",
+          "httpx": "0.28.1",
+          "anyio": "4.15.1",
+          "pydantic": "2.14.2",
+          "langchain": "1.4.7",
+          "langchain-core": "1.7.3",
+          "langgraph": "1.2.18",
+          "langgraph-checkpoint": "4.3.1",
+          "langgraph-checkpoint-sqlite": "3.1.1",
+          "langchain-ollama": "1.1.0"
+        }
+      },
+      "native-large-artifact-limits": {
+        "results": [
+          {
+            "gate": "native-1-and-16-mib-artifacts",
+            "status": "passed"
+          }
+        ],
+        "observations": {},
+        "python": "3.12.3",
+        "packages": {
+          "h-sandbox": "0.1.0rc2",
+          "h-sandbox-deepagents": "0.1.0rc2",
+          "deepagents": "0.7.21",
+          "httpx": "0.28.1",
+          "anyio": "4.15.1",
+          "pydantic": "2.14.2",
+          "langchain": "1.4.7",
+          "langchain-core": "1.7.3",
+          "langgraph": "1.2.18",
+          "langgraph-checkpoint": "4.3.1",
+          "langgraph-checkpoint-sqlite": "3.1.1",
+          "langchain-ollama": "1.1.0"
+        }
+      }
+    },
+    "model": {
+      "image": "ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3",
+      "name": "qwen3:4b-instruct",
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+      "status": "verified",
+      "originalTestSha256": "1a438c38dc275a1f6cd8c983bb96a02acb83003e180ec9c7c75cbf6e54b059d9",
+      "patchSha256": "37af9257d4c15a86c533cbae3b4b8b9b3c5d850ffb6dd4e6e55804f94c59e9a2",
+      "originalTests": 4,
+      "modelResponses": 5,
+      "toolResponses": 4,
+      "ownedCleanup": "confirmed"
+    },
+    "status": "configured_gates_passed",
+    "runnerProcesses": {
+      "status": "passed",
+      "checks": [
+        {
+          "name": "browser",
+          "status": "passed"
+        },
+        {
+          "name": "portForwards",
+          "status": "passed"
+        }
+      ]
+    },
+    "completedAt": "2026-10-30T11:10:55.792Z",
+    "cleanup": {
+      "status": "passed",
+      "privateMaterialRemoved": true
+    }
+  }
+}

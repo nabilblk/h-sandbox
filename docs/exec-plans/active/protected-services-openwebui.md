@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-28
 **Author**: Codex with project maintainer
-**Status**: Source-qualified; authorized release/deployment in progress; independent self-service remains open
+**Status**: Preview published and deployed; independent self-service and published OpenWebUI workflow acceptance remain open
 **Priority**: P1
 **Estimated effort**: Multi-session; estimate after protocol and ownership qualification
 
@@ -33,8 +33,9 @@ The maintainer authorized isolated GitHub-hosted native acceptance on October 29
 all 22 native gates and owned cleanup passed in run 41008469790 on October 30.
 The maintainer subsequently authorized merge, publication and the existing k0s
 lab upgrade on October 30. Core rc.14 and the optional adapter/template are
-published, and the guarded core upgrade reached Helm revision 51. Python
-publication remains in progress. See the [delivery record](../../release-notes/0.5.0-rc.14-delivery.md).
+published, and the guarded core upgrade reached Helm revision 51. Python SDK
+and adapter 0.1.0rc2 are published on TestPyPI and PyPI; public-artifact native
+qualification passed on both. See the [delivery record](../../release-notes/0.5.0-rc.14-delivery.md).
 Do not change unrelated host processes, customer OpenShift, BackgroundAgent,
 Brain or `docs/cot`. Independent operator self-service acceptance remains open.
 
@@ -72,7 +73,7 @@ Terminal, a model server or the adapter.
       tested without automatic replay of uncertain execution.
 - [ ] Public and operator documentation enables a clean self-service installation
       and clearly states deferred ACL/audit guarantees.
-- [ ] Security/correctness and public-API/maintainability reviews are resolved;
+- [x] Security/correctness and public-API/maintainability reviews are resolved;
       versioned artifacts, provenance/checksums and acceptance receipts are recorded
       before claiming a released integration.
 
@@ -323,17 +324,20 @@ Exit: the documented path reproduces the actual OpenWebUI workflow with released
 or explicitly identified candidate artifacts. Record which was tested.
 
 ### Phase 7: Release And Completion
-**Status**: In Progress; user authorized merge, publication and k0s deployment on 2026-10-30
+**Status**: In Progress; preview distribution and k0s deployment verified, independent installation remains open
 - [x] Select versions from actual compatibility changes; preserve independent
       adapter/framework peers and stable channels unless deliberately changed.
 - [x] Run standard CI, installed-package tests, native OpenWebUI acceptance and
       OSS/security review against the exact candidate source.
-- [ ] With explicit instruction, merge/publish core packages/images/chart and the
+- [x] With explicit instruction, merge/publish core packages/images/chart and the
       optional template/adapter artifacts owned by this project. Do not overwrite
       accepted package versions or immutable image/chart tags.
-- [ ] Verify anonymous artifact installation and the self-service guide using the
-      published identities. Record differences from source-built acceptance.
-- [ ] Publish truthful release notes, compatibility limits and sanitized receipts.
+- [x] Verify anonymous npm/Python archive installation, publisher identities and
+      OCI manifests/chart contents. Retain exact source and digest receipts.
+- [ ] Exercise the complete OpenWebUI guide against the published adapter/template
+      pair and obtain independent operator self-service evidence. Source-built
+      native acceptance and registry verification do not substitute for this gate.
+- [x] Publish truthful release notes, compatibility limits and sanitized receipts.
       Deploy to the public lab only with separate authorization and preservation
       of existing configuration, credentials, storage and running workloads.
 - [ ] Archive this plan only when its agreed acceptance, documentation and delivery
@@ -343,6 +347,21 @@ or explicitly identified candidate artifacts. Record which was tested.
 
 ### Delivery Checkpoint (2026-10-30)
 
+- Core/chart/npm rc.14, OpenWebUI adapter rc.0 and the Open Terminal image are
+  published. k0s Helm revision 51 uses verified images, preserving configuration,
+  credentials, seven PVCs and unrelated workloads. Public web/API/OIDC and
+  desktop/mobile documentation checks passed. The optional OpenWebUI stack was
+  not installed into the public lab.
+- Python 0.1.0rc2 passed TestPyPI run 41039245672 and production run 41046454958,
+  including all 13 post-publication native gates, runner cleanup and private
+  material removal on each registry. All four archive hashes match between
+  registries; all eight publisher attestations verified cryptographically. Fresh
+  production `pip`/`uv` consumers passed outside the checkout. The receipts retain
+  their older API regression baseline, not an invented rc.14 WebSocket claim.
+- PR #81 merged as `ab81baab0d14c201938d49337f7168b098d439f4` after all 23 checks
+  passed, including another native OpenWebUI run. Its post-merge CI also passed.
+  Publication metadata 404s required verification-only reruns; no accepted archive
+  was replaced. Longer bounded metadata visibility handling remains follow-up work.
 - Release PR #79 merged as `ea2f9feb8b51a85b5981f87ec2859b53a219334f` after all
   36 checks passed. Reviewed head `3f8dc85`, native merge checkout `2d9b09e`,
   and the released source share tree `62384490a1a3d3d2570de91693e62025fc529e1a`.
