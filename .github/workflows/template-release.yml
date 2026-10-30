@@ -2,6 +2,12 @@ name: Release template images (Harbor)
 
 on:
   workflow_dispatch:
+    inputs:
+      template:
+        description: Catalog template name, or all for the complete catalog
+        type: string
+        required: true
+        default: all
   push:
     branches: [main]
     paths:
@@ -29,6 +35,8 @@ jobs:
         with:
           persist-credentials: false
       - id: catalog
+        env:
+          TEMPLATE_SELECTION: ${{ github.event_name == 'push' && 'all' || inputs.template }}
         run: echo "templates=$(node infra/templates/release.mjs matrix)" >> "$GITHUB_OUTPUT"
   images:
     needs: catalog
