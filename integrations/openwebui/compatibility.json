@@ -38,10 +38,10 @@
   "context": "one personal workspace per OpenWebUI user and adapter instance",
   "deferred": ["per-resource Harakiri user ACLs", "Harakiri command-level audit for Open Terminal", "Office document conversion", "notebooks", "customer OpenShift certification"],
   "nativeAcceptance": {
-    "source": "3c3e914a3d4a8e097ff7141f3035f8cbe17e87aa",
-    "runId": "41008469790-1",
-    "workflowUrl": "https://github.com/nabilblk/h-sandbox/actions/runs/41008469790",
-    "receipt": "docs/operations/evidence/openwebui-41008469790.json",
-    "receiptSha256": "3e48d76701e9cc3c7d366f135a9097ef704a27ae5f43263efc00a13980e3279a"
+    "source": "5148f852b1e65264706859c7f9f2c22df5e450d8",
+    "runId": "41017083195-1",
+    "workflowUrl": "https://github.com/nabilblk/h-sandbox/actions/runs/41017083195",
+    "receipt": "docs/operations/evidence/openwebui-41017083195.json",
+    "receiptSha256": "85e2b6056a69974772989b5ef886074e6bd41ea55e0f9041e29ef8cb31a73c05"
   }
 }

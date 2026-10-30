@@ -24,7 +24,7 @@ test("Python guides install exact previews and expose matching runnable examples
     assert.match(rendered, /hljs-keyword/);
     const guide = assets.get(`docs/${page.id}.md`)!;
     assert.match(guide, /Developer preview on PyPI/);
-    assert.match(guide, /python -m pip install "h-sandbox(?:-deepagents)?==0\.1\.0rc1"/);
+    assert.match(guide, /python -m pip install "h-sandbox(?:-deepagents)?==0\.1\.0rc2"/);
     assert.doesNotMatch(guide, /unreleased|publication is pending|pip install \.\/packages/);
   }
   assert.match(markdown, /custom application tools are not automatically sandboxed/i);

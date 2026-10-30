@@ -78,3 +78,23 @@ test("adapter releases are separately versioned, reviewed, public and SDK-pinned
     assert.throws(() => releaseSource(commit({ ...manifest, publishConfig: { access: "restricted" } }), root), /public/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test("OpenWebUI has an independent immutable container release, never core or npm coordinates", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "harakiri-openwebui-release-"));
+  const env = { ...process.env, HOME: root, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
+  const git = (...args) => execFileSync("git", args, { cwd: root, env, encoding: "utf8", stdio: "pipe" }).trim();
+  try {
+    git("init", "-b", "main"); git("config", "user.name", "Release Test"); git("config", "user.email", "release@example.test");
+    fs.mkdirSync(path.join(root, "integrations/openwebui"), { recursive: true });
+    fs.writeFileSync(path.join(root, "integrations/openwebui/package.json"), JSON.stringify({ name: "@harakiri/openwebui-adapter", private: true, version: "0.1.0-rc.0" }));
+    git("add", "."); git("commit", "-m", "Reviewed container release");
+    const sha = git("rev-parse", "HEAD");
+    git("update-ref", "refs/remotes/origin/main", sha); git("tag", "openwebui-v0.1.0-rc.0");
+    const input = { repository: "example/sandbox", allowedRepository: "example/sandbox", workflowRef: "refs/heads/main", packageSet: "openwebui", component: "openwebui-adapter", sourceRef: "openwebui-v0.1.0-rc.0" };
+    assert.deepEqual(releaseSource(input, root), { sha, short_sha: sha.slice(0, 12), version: "0.1.0-rc.0", prerelease: "true" });
+    for (const component of ["all", "api", "web", undefined]) assert.throws(() => releaseSource({ ...input, component }, root), /only their adapter image/);
+    for (const override of [{ chartVersion: "0.1.0-rc.0" }, { imageTag: "other" }, { distTag: "next" }]) assert.throws(() => releaseSource({ ...input, ...override }, root), /exact image version/);
+    assert.throws(() => releaseSource({ ...input, sourceRef: sha, packageSet: "core" }, root), /independent package set/);
+    assert.throws(() => releaseSource({ ...input, sourceRef: "v0.1.0-rc.0" }, root), /version tag/);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});

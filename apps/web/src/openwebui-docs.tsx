@@ -24,7 +24,7 @@ export const openwebuiDocs: DocPage = {
   toc: [
     "Availability",
     "Responsibilities",
-    "Install the candidate",
+    "Install the preview",
     "Connect OpenWebUI",
     "Chat to artifacts",
     "Retention and recovery",
@@ -35,10 +35,10 @@ export const openwebuiDocs: DocPage = {
       <h2>Availability</h2>
       <aside className="docs-notice">
         <p>
-          <strong>Source candidate, natively qualified but not released.</strong> This integration requires the candidate API,
-          SDK, adapter and template from the same checkout. Core rc.13 does not contain generic application WebSocket
-          support; Python 0.1.0rc1 does not contain the new route helpers. There is no published adapter package or
-          image to install yet.
+          <strong>Developer preview: core 0.5.0-rc.14 and adapter 0.1.0-rc.0.</strong> Use the matching API and
+          template; core rc.13 does not contain generic application WebSocket support. Python route helpers require
+          0.1.0rc2. The adapter is a separate container, not an npm package. Check the{" "}
+          <a href={`${source}/docs/release-notes/0.5.0-rc.14.md`}>release record</a> for publication status and exact image identities.
         </p>
       </aside>
       <p>
@@ -59,20 +59,19 @@ export const openwebuiDocs: DocPage = {
         The initial context is one personal workspace per user and adapter instance. Chats from that user share files; a
         chat session does not create a private workspace. Model inference stays outside the sandbox.
       </p>
-      <h2>Install the candidate</h2>
+      <h2>Install the preview</h2>
       <p>
         Start with an isolated <a href="#docs/install-kubernetes">Harakiri installation</a>, retained workspace support,
-        a working template registry and spare execution capacity. Build the matching source API first, then the{" "}
+        a working template registry and spare execution capacity. Install the matching core preview first, then the{" "}
         <a href={`${source}/examples/templates/open-terminal/README.md`}>Open Terminal template</a>. Do not replace a
         working production installation for evaluation.
       </p>
-      <CodeBlock language="bash">{`pnpm install --frozen-lockfile
-pnpm --filter @h-sandbox/cli build
-node packages/cli/dist/index.js template build \\
+      <CodeBlock language="bash">{`npm install -g @h-sandbox/cli@0.5.0-rc.14
+harakiri template build \\
   --name open-terminal examples/templates/open-terminal`}</CodeBlock>
       <p>
         Follow the <a href={`${source}/integrations/openwebui/README.md`}>complete self-service installation guide</a>{" "}
-        for the source-built adapter, private PostgreSQL bindings, secrets and pinned OpenWebUI Compose profile. The
+        for the versioned adapter image, private PostgreSQL bindings, secrets and pinned OpenWebUI Compose profile. The
         profile does not install or modify Kubernetes. Keep the Harakiri API key, adapter key, binding encryption key
         and OpenWebUI session secret separate.
       </p>

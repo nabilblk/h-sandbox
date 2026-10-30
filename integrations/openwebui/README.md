@@ -1,10 +1,11 @@
 # OpenWebUI with Harakiri
 
-**Source-qualified candidate, not a released integration.** Build the
-API, SDK and adapter from the same checkout. Core 0.5.0-rc.13 does not provide the
-new generic WebSocket transport. Do not install this adapter against rc.13 and
-assume the shell works. All 22 native gates passed on Linux amd64 in
-[run 41008469790](https://github.com/nabilblk/h-sandbox/actions/runs/41008469790).
+**Developer preview: adapter 0.1.0-rc.0, core 0.5.0-rc.14.** Check the
+[release record](../../docs/release-notes/0.5.0-rc.14.md) for publication status
+and exact image identities before installing. Core rc.13 does not provide the
+new generic WebSocket transport; Python route helpers require 0.1.0rc2.
+All 22 native source gates passed on Linux amd64 in
+[run 41017083195](https://github.com/nabilblk/h-sandbox/actions/runs/41017083195).
 The [qualification report](../../docs/operations/openwebui-source-acceptance.md)
 retains the exact source, receipt, inspected captures and limitations;
 [compatibility.json](compatibility.json) pins upstream identities. This is not
@@ -47,11 +48,11 @@ API is used.
 
 ## 1. Prepare Harakiri
 
-Use an isolated supported Kubernetes installation running this source candidate.
+Use an isolated supported Kubernetes installation running core 0.5.0-rc.14.
 Do not overwrite a working installation just to evaluate the adapter. See the
 [Kubernetes guide](https://sb.harakiri.io/#docs/install-kubernetes) for the baseline
 installation and [protected service contract](../../docs/routes.md) for the
-candidate transport. The operator must configure:
+transport. The operator must configure:
 
 - A template builder and registry reachable by runtime nodes.
 - Retained workspaces with the existing single-writer storage profile.
@@ -62,16 +63,14 @@ candidate transport. The operator must configure:
   `sandboxes:write`, `workspaces:read` and
   `workspaces:write`. Check the current authorization reference when minting it.
 
-### Install the matching candidate API
+### Install the matching preview
 
-After installing the baseline in a **disposable evaluation cluster**, use the
-same checkout for the API and adapter. The native qualification target is Linux
-amd64. Authenticate Docker to your own registry privately and set these values:
+After installing the baseline in a **disposable evaluation cluster**, retain its
+complete operator values and use the matching chart and images. The native
+OpenWebUI qualification target is Linux amd64. Set these values:
 
 ```bash
 export KUBECONFIG=/absolute/path/to/evaluation-kubeconfig
-export HARAKIRI_REGISTRY=registry.example.com
-export HARAKIRI_IMAGE_PROJECT=evaluation
 export HARAKIRI_NAMESPACE=harakiri-evaluation
 export HARAKIRI_VALUES=/absolute/path/to/evaluation-values.yaml
 ```
@@ -84,34 +83,30 @@ the selected cluster and release before proceeding:
 ```bash
 kubectl config current-context
 helm list --namespace "$HARAKIRI_NAMESPACE"
-git diff --exit-code HEAD
-SOURCE_REV=$(git rev-parse --verify HEAD)
-for COMPONENT in api web; do
-  docker buildx build --platform linux/amd64 \
-    --file "apps/$COMPONENT/Dockerfile" \
-    --tag "$HARAKIRI_REGISTRY/$HARAKIRI_IMAGE_PROJECT/harakiri-$COMPONENT:openwebui-$SOURCE_REV" \
-    --push .
-done
-helm upgrade harakiri ./infra/charts/harakiri \
+helm pull oci://core.campus.clusterdiali.me/harakiri/charts/harakiri \
+  --version 0.5.0-rc.14
+helm upgrade harakiri ./harakiri-0.5.0-rc.14.tgz \
   --namespace "$HARAKIRI_NAMESPACE" \
   --values "$HARAKIRI_VALUES" \
-  --set-string image.registry="$HARAKIRI_REGISTRY" \
-  --set-string image.repository="$HARAKIRI_IMAGE_PROJECT" \
+  --set-string image.registry=core.campus.clusterdiali.me \
+  --set-string image.repository=harakiri \
   --set-string image.api.name=harakiri-api \
   --set-string image.web.name=harakiri-web \
-  --set-string image.api.tag="openwebui-$SOURCE_REV" \
-  --set-string image.web.tag="openwebui-$SOURCE_REV" \
-  --set-string config.TEMPLATE_BUILDER_JOB_IMAGE="$HARAKIRI_REGISTRY/$HARAKIRI_IMAGE_PROJECT/harakiri-api:openwebui-$SOURCE_REV" \
+  --set-string image.api.tag=0.5.0-rc.14 \
+  --set-string image.web.tag=0.5.0-rc.14 \
+  --set-string config.TEMPLATE_BUILDER_JOB_IMAGE=core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.14 \
   --wait --timeout 10m
 ```
 
 This assumes the baseline release is named `harakiri`; use its actual name if
 different. The registry must be trusted by the cluster and its pull credentials
 must already be configured. No TLS bypass or direct pod access is required.
-The chart shares its registry/project between API and web, so both images are
-built here; the scheduler and template builder also use the candidate API image.
-Record the commit and resulting registry digests. This is a source qualification
-path, not a published release or an instruction to upgrade a working lab.
+The scheduler and template builder also use the API image. Before upgrading,
+back up PostgreSQL and its associated Vault keys and retained storage; review
+the rendered changes privately. Migration 040 changes route uniqueness indexes.
+Do not run a schema down-migration or roll back the core while active adapters
+depend on generic WebSockets. See the release record for verified digests and
+delivery evidence. A build or smoke check is not independent operator acceptance.
 
 ### Build the Open Terminal template
 
@@ -120,17 +115,24 @@ Build the template through the normal public CLI (with an operator key allowed
 to build templates):
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm --filter @h-sandbox/cli build
-node packages/cli/dist/index.js template build \
+npm install -g @h-sandbox/cli@0.5.0-rc.14
+harakiri template build \
   --name open-terminal examples/templates/open-terminal
-node packages/cli/dist/index.js template builds --query open-terminal
+harakiri template builds --query open-terminal
 ```
 
 The template starts Open Terminal 0.14.6 on port 8000. Wait for a successful
 digest-pinned build before configuring the adapter. Runtime readiness alone is
 not application readiness; the adapter also probes `/health` through the grant.
 See [the template](../../examples/templates/open-terminal/README.md).
+The release also publishes a multi-architecture template image. To import its
+verified digest instead of rebuilding, set `OPEN_TERMINAL_IMAGE` to the image
+reference in the delivery receipt and retain this directory's runtime metadata:
+
+```bash
+harakiri template build --name open-terminal --source image \
+  --image "$OPEN_TERMINAL_IMAGE" examples/templates/open-terminal
+```
 
 ## 2. Configure the separate adapter
 
@@ -161,7 +163,9 @@ the expanded `docker compose config` output into CI logs.
 docker compose --env-file integrations/openwebui/.env \
   -f integrations/openwebui/compose.yaml config --quiet
 docker compose --env-file integrations/openwebui/.env \
-  -f integrations/openwebui/compose.yaml up -d --build
+  -f integrations/openwebui/compose.yaml pull
+docker compose --env-file integrations/openwebui/.env \
+  -f integrations/openwebui/compose.yaml up -d --no-build
 ```
 
 Open `http://127.0.0.1:28580` and create the first administrator. OpenWebUI 0.12.4

@@ -1,7 +1,8 @@
 # OpenWebUI Source Qualification
 
-**Status: source-qualified; not a released integration.**
-[Run 41008469790](https://github.com/nabilblk/h-sandbox/actions/runs/41008469790)
+**Status: source-qualified; publication tracked separately in the
+[rc.14 release record](../release-notes/0.5.0-rc.14.md).**
+[Run 41017083195](https://github.com/nabilblk/h-sandbox/actions/runs/41017083195)
 passed all 22 native gates in one run, all eight in-process cleanup checks and
 external cluster/private-material cleanup. Desktop and mobile captures were
 inspected. Independent adopter acceptance and published-artifact qualification
@@ -27,6 +28,18 @@ the runtime through Harakiri's public APIs and the provider gateway, never pod
 addresses or Kubernetes exec.
 
 ## Retained Evidence
+
+Latest complete revalidation: branch `217f50ad39f0b7bab6e48d743a3a859488ee4280`,
+tested PR merge `5148f852b1e65264706859c7f9f2c22df5e450d8`, all 22 native gates,
+all cleanup and all seven PR workflows passed. Its [receipt](evidence/openwebui-41017083195.json)
+has SHA-256 `85e2b6056a69974772989b5ef886074e6bd41ea55e0f9041e29ef8cb31a73c05`.
+Inspected [desktop](evidence/openwebui-41017083195-desktop.png) and
+[mobile](evidence/openwebui-41017083195-mobile.png) captures show the real UI;
+one chat used three actual native tool calls without an observed tool failure.
+No uncaught browser error was observed. This revalidates the edit/readiness
+correction, but does not establish the root cause of earlier native browser errors.
+
+The previous complete pass is retained below as historical evidence:
 
 - Qualified branch source: `d353053b5f545151f6226056fef44e06bdce6bad`;
   actual tested PR merge checkout: `3c3e914a3d4a8e097ff7141f3035f8cbe17e87aa`.
@@ -57,7 +70,7 @@ addresses or Kubernetes exec.
   preview loading as an absent optional control. A failing-then-passing regression
   now requires waiting for Edit and for UI save completion before refresh, and
   checks refreshed visible content as well as downloaded bytes. This correction
-  still requires native revalidation; it does not explain away the earlier errors.
+  passed native revalidation in run 41017083195; it does not explain away the earlier errors.
 - [Run 41012642644](https://github.com/nabilblk/h-sandbox/actions/runs/41012642644)
   tested branch `f578e3a6983785603f016ccadef28206738dbb10` as merge
   `8559ecbe3cd00c0f3f06b040024556bc9dfa0030`. Its

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 export async function assertUnpublished({ registry, project, version, component, imageTag }, request = fetch) {
   assert.match(registry, /^[a-z0-9.-]+(?::\d+)?$/);
   assert.match(project, /^[a-z0-9_-]+$/);
+  assert.ok(["all", "api", "web", "openwebui-adapter"].includes(component), "Unknown release component");
   const repositories = component === "all" ? ["harakiri-api", "harakiri-web", "charts/harakiri"] : [`harakiri-${component}`];
   for (const repository of repositories) {
     const tag = repository.startsWith("charts/") ? version : imageTag || version;

@@ -6,13 +6,14 @@ import { openwebuiDocs, openwebuiReportPrompt } from "./openwebui-docs.js";
 import { documentationAssets } from "./docs-export.js";
 import { docGroups } from "./docs-navigation.js";
 
-test("OpenWebUI source qualification is discoverable without claiming a release", () => {
+test("OpenWebUI preview is discoverable with explicit versions and qualification boundaries", () => {
   assert.ok(docGroups.some((group) => group.title === "Integrations" && group.pages.some((id) => id === "openwebui")));
   const html = renderToStaticMarkup(openwebuiDocs.body);
   assert.match(html, /data-language="plaintext" data-wrap="true"/);
   for (const text of [
-    "Source candidate",
-    "natively qualified but not released",
+    "Developer preview: core 0.5.0-rc.14 and adapter 0.1.0-rc.0",
+    "separate container, not an npm package",
+    "Python route helpers require",
     "All 22 native checks passed on Linux amd64",
     "Independent installation and published-artifact acceptance remain separate gates",
     "No new per-user Harakiri ACLs",

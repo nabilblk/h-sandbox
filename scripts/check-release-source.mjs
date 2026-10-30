@@ -9,8 +9,8 @@ export function releaseSource(input, cwd = process.cwd()) {
   assert.ok(input.repository && input.repository === input.allowedRepository, "Publishing repository is not enabled");
   assert.equal(input.workflowRef, "refs/heads/main", "Publication must run from main");
   const packageSet = input.packageSet || "core";
-  assert.ok(["core", "deepagents"].includes(packageSet), "Unknown release package set");
-  const tagPrefix = packageSet === "deepagents" ? "deepagents-v" : "v";
+  assert.ok(["core", "deepagents", "openwebui"].includes(packageSet), "Unknown release package set");
+  const tagPrefix = { core: "v", deepagents: "deepagents-v", openwebui: "openwebui-v" }[packageSet];
   const ref = input.sourceRef || input.workflowSha;
   const isTag = typeof ref === "string" && ref.startsWith(tagPrefix) && versionPattern.test(ref.slice(tagPrefix.length));
   assert.ok(isTag || /^[a-f0-9]{40}$/.test(ref ?? ""), "Source must be a version tag or full commit SHA");
@@ -27,7 +27,15 @@ export function releaseSource(input, cwd = process.cwd()) {
     assert.equal(manifest.publishConfig?.access, "public", "Adapter must be public");
     assert.ok(versionPattern.test(manifest.peerDependencies?.["@h-sandbox/sdk"] ?? ""), "Adapter requires an exact released SDK peer");
     version = manifest.version;
+  } else if (packageSet === "openwebui") {
+    assert.equal(input.component, "openwebui-adapter", "OpenWebUI releases publish only their adapter image");
+    assert.ok(!input.chartVersion && !input.imageTag && !input.distTag, "OpenWebUI releases use their exact image version, not chart or npm overrides");
+    const manifest = JSON.parse(git("show", `${sha}:integrations/openwebui/package.json`));
+    assert.equal(manifest.name, "@harakiri/openwebui-adapter");
+    assert.equal(manifest.private, true, "OpenWebUI is a container distribution, not an npm package");
+    version = manifest.version;
   } else {
+    assert.notEqual(input.component, "openwebui-adapter", "OpenWebUI requires its independent package set");
     const versions = ["package.json", "apps/api/package.json", "apps/web/package.json", "packages/shared/package.json", "packages/sdk/package.json", "packages/cli/package.json"]
       .map(file => JSON.parse(git("show", `${sha}:${file}`)).version);
     version = versions[0];

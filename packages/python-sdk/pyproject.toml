@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "h-sandbox"
-version = "0.1.0rc1"
+version = "0.1.0rc2"
 description = "Typed Python client for the Harakiri sandbox control plane"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{name = "Harakiri contributors"}]
-dependencies = ["anyio>=4.9,<5", "httpx>=0.28.1,<0.29", "pydantic>=2.10,<3"]
+dependencies = ["anyio>=4.9,<5", "certifi>=2026.10.18", "httpx>=0.28.1,<0.29", "pydantic>=2.10,<3"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3 :: Only",

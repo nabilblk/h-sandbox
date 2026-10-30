@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "h-sandbox-deepagents"
-version = "0.1.0rc1"
+version = "0.1.0rc2"
 description = "Harakiri sandbox backends for Python Deep Agents"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{name = "Harakiri contributors"}]
-dependencies = ["h-sandbox==0.1.0rc1", "deepagents==0.7.21", "anyio>=4.9,<5"]
+dependencies = ["h-sandbox==0.1.0rc2", "deepagents==0.7.21", "anyio>=4.9,<5"]
 classifiers = ["Development Status :: 3 - Alpha", "Typing :: Typed"]
 
 [project.urls]

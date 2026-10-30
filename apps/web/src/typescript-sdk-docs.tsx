@@ -46,11 +46,11 @@ export const typescriptSdkDocs: DocPage = {
   toc: ["Availability", "Connect", "First task", "Processes and reconnect", "Files and artifacts", "Protected services", "Retained workspaces", "Git and agents", "Failure and cleanup", "Compatibility", "Recipes and evidence"],
   body: <>
     <h2>Availability</h2>
-    <aside className="docs-notice"><p><strong>TypeScript SDK 0.5.0-rc.13.</strong> These examples pin <code>@h-sandbox/sdk@0.5.0-rc.13</code>; npm rc.10 does not include the rc.11 task helpers or rc.12 request controls. This core release candidate targets <code>next</code>, not a stable-release promotion. See <a href="#docs/developer-preview">Preview scope</a> for qualification and delivery status, and the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.13.md">release notes</a> for version-specific changes.</p></aside>
+    <aside className="docs-notice"><p><strong>TypeScript SDK 0.5.0-rc.14.</strong> These examples pin <code>@h-sandbox/sdk@0.5.0-rc.14</code>; npm rc.10 does not include the rc.11 task helpers or rc.12 request controls. This core release candidate targets <code>next</code>, not a stable-release promotion. See <a href="#docs/developer-preview">Preview scope</a> for qualification and delivery status, and the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.14.md">release notes</a> for version-specific changes.</p></aside>
     <p>Use Node.js 22 LTS for the SDK preview. Source compatibility checks also cover Node 24 LTS; Node 20 is a legacy check, not a recommendation for new applications. The SDK targets Harakiri API 0.5.0-rc.9 or newer with execution readiness and capacity admission. Usage history additionally requires rc.10 or newer; truthful Workbench metrics require API rc.13. Templates must exist in your installation; retained workspaces also require operator-enabled storage. This is a server-side SDK, not a way to expose control-plane keys to a browser.</p>
     <h2>Connect</h2>
     <p>Pin the SDK in your server-side application and commit its lockfile. Unversioned installation still selects the older stable channel.</p>
-    <CodeBlock language="bash" filename="Install the SDK">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.13
+    <CodeBlock language="bash" filename="Install the SDK">{`npm install --save-exact @h-sandbox/sdk@0.5.0-rc.14
 npm install --save-dev tsx
 export HARAKIRI_API_URL="https://sandbox-api.example.com"
 export HARAKIRI_TEMPLATE="python-3.12"

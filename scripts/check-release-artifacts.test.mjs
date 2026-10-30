@@ -16,3 +16,12 @@ test("release absence checks fail closed and include the chart", async () => {
   await assert.rejects(assertUnpublished(input, async () => new Response(null, { status: ++lookups === 2 ? 200 : 404 })));
   assert.equal(lookups, 2, "a partially published bundle must stop, not fill or overwrite the remaining coordinates");
 });
+
+test("OpenWebUI publication checks only its independent image", async () => {
+  const input = { registry: "registry.example.com", project: "sandbox", version: "0.1.0-rc.0", component: "openwebui-adapter" };
+  const urls = [];
+  await assertUnpublished(input, async url => { urls.push(url); return new Response(null, { status: 404 }); });
+  assert.equal(urls.length, 1);
+  assert.ok(urls[0].endsWith("/harakiri-openwebui-adapter/artifacts/0.1.0-rc.0"));
+  await assert.rejects(assertUnpublished({ ...input, component: "unknown" }), /Unknown release component/);
+});
