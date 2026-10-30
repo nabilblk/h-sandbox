@@ -10,6 +10,7 @@ import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
 import { adapterFailures, runtimeState, toolResult } from "./diagnostics.mjs";
 import { chatWitness, previewLayout } from "./browser.mjs";
+import { previewHtml, previewDocuments } from "./preview-documents.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
 
@@ -113,6 +114,30 @@ test("HTML layout diagnostics retain only dimensions and fixed style flags", () 
   const source = read("./browser.mjs");
   assert.match(source, /until\("HTML report fits its preview pane"/);
   assert.match(source, /finally \{[\s\S]*?openwebui-report-desktop\.png/);
+});
+
+test("native renderer fixtures cannot substitute for missing model artifacts", async () => {
+  const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const html = previewHtml(png, 24);
+  assert.match(html, /Preview fixture rendered from the agent's verified results/);
+  assert.match(html, /Total sales: 24/);
+  assert.match(html, /max-width:100%;height:auto/);
+  assert.doesNotMatch(html, /https?:|<script/);
+  assert.throws(() => previewHtml(png, "PRIVATE"));
+  assert.throws(() => previewHtml(Buffer.from("PRIVATE"), 24));
+  let closed = false;
+  await assert.rejects(previewDocuments({ newContext: async () => ({
+    newPage: async () => { throw new Error("renderer failed"); },
+    close: async () => { closed = true; }
+  }) }, png, 24), /renderer failed/);
+  assert.equal(closed, true);
+  const source = read("./browser.mjs");
+  const chat = source.split("export async function runChat", 2)[1].split("export async function shell", 1)[0];
+  assert.doesNotMatch(chat, /previewDocuments|upload\(/);
+  const previews = source.split("export async function previews", 2)[1];
+  assert.ok(previews.indexOf("assert.deepEqual(JSON.parse(report)") < previews.indexOf("await previewDocuments("));
+  for (const name of compatibility.scenario.modelArtifacts) assert.ok(chat.includes(`"${name}"`));
+  for (const name of compatibility.scenario.previewFixtures) assert.ok(previews.includes(`name: "${name}"`));
 });
 
 test("upload failure is an explicit pre-dispatch network fault, not a fake response or partial-write claim", () => {

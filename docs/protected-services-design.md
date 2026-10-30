@@ -92,8 +92,12 @@ licensed Open WebUI Terminals orchestrator or become another runtime scheduler.
 ## Acceptance scenario
 
 A real model in unmodified OpenWebUI reads a CSV in `/workspace/demo`,
-computes totals and creates JSON, PNG, PDF and self-contained HTML artifacts. Independently
-verify their contents and downloaded hashes. Then exercise native file browsing,
+computes totals and creates JSON and PNG artifacts. Independently verify the
+report contents and decoded chart. Separately render labeled PDF/self-contained
+HTML fixtures from those verified results, upload through native OpenWebUI and
+verify their downloaded hashes, rendering and viewport fit. These fixtures qualify
+document handling, not model authorship; they cannot satisfy or replace the real
+chat-to-artifact gate. Then exercise native file browsing,
 shell input/resize/reconnect and document previews. Test two users, concurrent
 first access, quota rejection, interrupted transfers, adapter restart and sandbox
 replacement with retained files. Do not equate curl fixtures with this browser

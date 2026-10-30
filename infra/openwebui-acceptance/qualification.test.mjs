@@ -20,9 +20,13 @@ function verify(receipt, record) {
   assert.deepEqual(receipt.openwebui, compatibility.openwebui);
   assert.deepEqual(receipt.openTerminal, compatibility.openTerminal);
   assert.deepEqual(receipt.model, model);
+  assert.deepEqual(receipt.scenario, compatibility.scenario);
   assert.equal(receipt.results.length, gates.size);
   assert.deepEqual(new Set(receipt.results.map(result => result.gate)), gates);
   for (const result of receipt.results) assert.equal(result.status, "passed", result.gate);
+  const previews = receipt.results.find(result => result.gate === "native-previews").evidence;
+  assert.equal(previews.modelReportVerified, true);
+  assert.equal(previews.rendererFixturesUploaded, true);
   for (const name of ["api", "apiWithRegistryCa", "web", "adapter", "terminal"])
     assert.match(receipt.images[name].imageConfigDigest, /^sha256:[a-f0-9]{64}$/);
   assert.equal(receipt.runnerProcesses.status, "passed");
@@ -33,6 +37,8 @@ function verify(receipt, record) {
 }
 
 test("recorded native qualification matches a complete retained source receipt, never a release claim", () => {
+  const prompt = fs.readFileSync(new URL("../../integrations/openwebui/report-prompt.txt", import.meta.url));
+  assert.equal(createHash("sha256").update(prompt).digest("hex"), compatibility.scenario.promptSha256);
   const record = compatibility.nativeAcceptance;
   if (record === null) {
     assert.equal(compatibility.status, "candidate-not-qualified");
@@ -49,8 +55,9 @@ test("partial runs, missing cleanup and changed upstream pins cannot qualify the
   const receipt = {
     kind: "openwebui-native", published: false, architecture: "amd64", status: "configured_gates_passed",
     source: "a".repeat(40), runId: "123-1", openwebui: compatibility.openwebui,
-    openTerminal: compatibility.openTerminal, model,
-    results: [...gates].map(gate => ({ gate, status: "passed" })),
+    openTerminal: compatibility.openTerminal, model, scenario: compatibility.scenario,
+    results: [...gates].map(gate => ({ gate, status: "passed",
+      evidence: gate === "native-previews" ? { modelReportVerified: true, rendererFixturesUploaded: true } : {} })),
     images: Object.fromEntries(["api", "apiWithRegistryCa", "web", "adapter", "terminal"].map(name =>
       [name, { imageConfigDigest: `sha256:${"b".repeat(64)}` }])),
     runnerProcesses: { status: "passed", checks: cleanupNames.map(name => ({ name, status: "passed" })) },
@@ -68,6 +75,8 @@ test("partial runs, missing cleanup and changed upstream pins cannot qualify the
     value => { value.cleanup.privateMaterialRemoved = false; },
     value => { value.openwebui.version = "unqualified"; },
     value => { value.model.digest = "unqualified"; },
+    value => { value.scenario.promptSha256 = "unqualified"; },
+    value => { delete value.results.find(result => result.gate === "native-previews").evidence.rendererFixturesUploaded; },
     value => { value.published = true; }
   ]) {
     const invalid = structuredClone(receipt);

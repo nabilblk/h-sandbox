@@ -69,7 +69,10 @@ template import and runtime image-pull path. It does not weaken TLS verification
 
 The browser uses unmodified, pinned OpenWebUI with its normal administrator
 settings and Open Terminal integration. A pinned local Ollama model processes
-synthetic CSV data and generates JSON, PNG, PDF and HTML artifacts. Native tests
+synthetic CSV data and generates JSON and PNG artifacts. After independently
+checking those results, separately labeled PDF/HTML renderer fixtures are created
+and uploaded through the native file browser. They test document handling, not
+model authorship, and never replace the agent's three required files. Native tests
 exercise shell frames, previews, transfers, user separation, capacity denial,
 restart, retained files and revoked-grant recovery. Failure injection is explicit;
 the harness never supplies a fake model response or silently replays a failed

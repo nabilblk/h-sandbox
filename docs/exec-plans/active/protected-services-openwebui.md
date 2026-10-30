@@ -275,7 +275,7 @@ runtime for the reference workflow. This is not yet a release claim.
 | File browsing and live changes | Generated/edited files appear through OpenWebUI's file browser; refresh shows current bytes, not stale previews |
 | Shell | Interactive input, ANSI output, resize, interrupt and disconnect/reconnect work through OpenWebUI; connection identity remains correct |
 | Upload/download | OpenWebUI UI transfers text and binary files, with independent byte/hash checks, size-limit errors and interrupted-upload behavior |
-| Document and application preview | Preview the required generated PDF/image/HTML or port-served application in OpenWebUI; verify actual content, MIME and navigation, not merely an iframe URL |
+| Document preview | Independently verify the agent-generated JSON/PNG, then upload clearly labeled PDF/HTML renderer fixtures through the native UI; check bytes, actual rendering, MIME, viewport fit and isolation. Renderer fixtures are not model-authorship evidence |
 | Untrusted preview | Hostile HTML/SVG/content cannot execute with the chat application's authority or steal credentials; preserve necessary browser isolation/headers |
 | Two users and contexts | The adapter never cross-routes identities, files, terminals or credentials; test asserted-ID tampering. This is not proof of new Harakiri resource ACLs |
 | Concurrent first requests | File browser, chat and terminal initialization do not allocate duplicate runtimes or exceed organization capacity |
@@ -385,6 +385,7 @@ or explicitly identified candidate artifacts. Record which was tested.
 | 2026-10-29 | Remove the withdrawn braces audit exception; patch Vite/Zod security floors | The authoritative advisory was withdrawn, while two new high-severity findings required real upgrades; every high/critical finding remains blocking | Renew or broaden the old exception (rejected) |
 | 2026-10-29 | Package only production adapter dependencies and compiled runtime modules | The evaluation image must not ship the monorepo's development dependencies or compiled tests; verify the same isolated bundle locally | Copy all node_modules and source files into the final image (rejected) |
 | 2026-10-29 | Qualify self-contained HTML reports; explicitly test relative-asset denial | An isolated real-browser probe confirmed that opaque frames cannot authenticate relative assets with OpenWebUI's default SameSite=Lax session cookie; keep the native browser check and document the unsupported multi-file preview | Grant same-origin authority, weaken cookies or put session credentials in asset URLs (rejected) |
+| 2026-10-30 | Separate real-agent CSV/JSON/PNG generation from deterministic PDF/HTML renderer fixtures uploaded through native OpenWebUI | Repeated model authoring errors obscured product transport/preview evidence. Real model success remains mandatory and cannot be supplied by fixtures; document provenance and prompt SHA-256 are explicit | Keep rewriting a five-format prompt until lucky success, skip the model gate, or present fixtures as agent output (rejected) |
 
 ## Tech Debt Incurred
 
@@ -410,6 +411,18 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 ## Completion Notes
 
 ### Qualification Checkpoint, October 30
+
+- Run [41003628810](https://github.com/nabilblk/h-sandbox/actions/runs/41003628810)
+  again failed the five-format model task: repeated generated Python errors and
+  the 900-second deadline, with PDF/HTML missing. Every cleanup check and all six
+  other workflows passed. No preview-layout conclusion can be drawn from that
+  run. The scenario is now explicitly versioned as `csv-chart-native-documents-v1`:
+  a single real chat must create CSV, correct JSON and a decoded PNG. Only after
+  those checks, separately named PDF/HTML fixtures are rendered from the verified
+  results and uploaded through OpenWebUI. Their hashes, native previews, responsive
+  layout and isolation remain mandatory. No generated file is replaced, no model
+  response is faked, no chat is replayed, and no PDF/HTML authorship claim is made.
+  The compatibility record and receipts now include the scenario and prompt hash.
 
 - A final source pass reproduced an adapter recovery-status mismatch: the API
   emits `error`, not `failed`. The adapter now returns `409

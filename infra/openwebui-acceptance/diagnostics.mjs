@@ -69,7 +69,7 @@ export async function diagnose(ctx, client, template) {
         const { files } = await client.files.list(running[0].id, "/workspace/demo", { requestTimeoutMs: 10000 });
         const names = new Set(files.map(file => file.name));
         console.log(`OpenWebUI expected artifact presence: ${JSON.stringify(Object.fromEntries(
-          ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"].map(name => [name, names.has(name)])))}`);
+          ["sales.csv", "report.json", "chart.png", "preview-fixture.pdf", "preview-fixture.html"].map(name => [name, names.has(name)])))}`);
       } catch (error) {
         console.log(`OpenWebUI artifact listing unavailable: ${Number.isInteger(error.status) ? error.status : "unknown"}`);
       }

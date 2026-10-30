@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { check, until, sha256 } from "../acceptance/context.mjs";
 import { webOrigin, adapterOrigin } from "./stack.mjs";
 import { toolResult } from "./diagnostics.mjs";
+import { previewDocuments } from "./preview-documents.mjs";
 
 export const prompt = fs.readFileSync(new URL("../../integrations/openwebui/report-prompt.txt", import.meta.url), "utf8").trim();
 
@@ -172,7 +173,7 @@ export async function runChat(page, witness) {
   console.log("OpenWebUI browser: navigate to generated artifact directory");
   if (await breadcrumb.isVisible()) await breadcrumb.click();
   else await files.locator("[data-file-row]").getByText("demo", { exact: true }).click();
-  for (const name of ["sales.csv", "report.json", "chart.png", "report.pdf", "index.html"]) {
+  for (const name of ["sales.csv", "report.json", "chart.png"]) {
     console.log(`OpenWebUI browser: verify generated ${name}`);
     await files.locator("[data-file-row]").getByText(name, { exact: true }).waitFor();
   }
@@ -261,8 +262,11 @@ export async function previews(page) {
   const png = await downloadSelected(page);
   check(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), "Downloaded chart is not PNG");
   await until("Native image preview decoded", () => files.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100 && image.naturalHeight > 100)));
-  console.log("OpenWebUI preview: PNG decoded, opening PDF");
-  await choose("report.pdf");
+  console.log("OpenWebUI preview: generated JSON/PNG verified; upload separate PDF/HTML renderer fixtures");
+  const documents = await previewDocuments(page.context().browser(), png, JSON.parse(report).total);
+  await upload(page, { name: "preview-fixture.pdf", mimeType: "application/pdf", buffer: documents.pdf });
+  await upload(page, { name: "preview-fixture.html", mimeType: "text/html", buffer: documents.html });
+  await choose("preview-fixture.pdf");
   await until("Native PDF preview rendered", () => files.locator(".pdf-page-wrapper canvas").evaluateAll(canvases => canvases.some(canvas => {
     if (canvas.width < 100 || canvas.height < 100) return false;
     const pixels = canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -274,8 +278,10 @@ export async function previews(page) {
   })));
   const pdf = await downloadSelected(page);
   check(pdf.subarray(0, 5).toString() === "%PDF-", "Downloaded report is not PDF");
+  check(sha256(pdf) === sha256(documents.pdf), "Native PDF fixture round trip differs");
   console.log("OpenWebUI preview: PDF rendered, opening HTML");
-  await choose("index.html");
+  await choose("preview-fixture.html");
+  check(sha256(await downloadSelected(page)) === sha256(documents.html), "Native HTML fixture round trip differs");
   const frame = page.frameLocator('iframe[title="HTML Preview"]');
   await frame.getByRole("heading", { name: "Sales report", exact: false }).waitFor();
   check((await frame.locator("body").innerText()).includes("24"), "HTML preview does not show actual total");
@@ -292,7 +298,8 @@ export async function previews(page) {
     console.log(`OpenWebUI preview layout: ${JSON.stringify(await frame.locator("html").evaluate(previewLayout))}`);
     await page.screenshot({ path: "openwebui-report-desktop.png" });
   }
-  return { jsonPreview: true, imagePreview: true, pdfPreview: true, htmlPreview: true, embeddedAssets: true, downloadSha256: sha256(report) };
+  return { jsonPreview: true, imagePreview: true, pdfPreview: true, htmlPreview: true, embeddedAssets: true,
+    rendererFixturesUploaded: true, modelReportVerified: true, downloadSha256: sha256(report) };
 }
 
 export function previewLayout(root) {
@@ -319,7 +326,7 @@ export async function browserDiagnostics(page) {
   }
   const files = page.getByRole("region", { name: "File browser", exact: true });
   controls.demoBreadcrumb = await files.locator('button[type="button"]').getByText("demo", { exact: true }).isVisible().catch(() => false);
-  for (const name of ["demo", "sales.csv", "report.json", "chart.png", "report.pdf", "index.html"]) {
+  for (const name of ["demo", "sales.csv", "report.json", "chart.png", "preview-fixture.pdf", "preview-fixture.html"]) {
     controls[name] = await files.locator("[data-file-row]").getByText(name, { exact: true }).isVisible().catch(() => false);
   }
   // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.

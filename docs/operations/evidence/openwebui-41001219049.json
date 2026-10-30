@@ -1,0 +1,268 @@
+{
+  "kind": "openwebui-native",
+  "published": false,
+  "architecture": "amd64",
+  "openwebui": {
+    "version": "0.12.4",
+    "source": "33c1978d5bad52a31df75ea55143025dfad18d16",
+    "image": "ghcr.io/open-webui/open-webui:v0.12.4@sha256:a5b9e403d19154796850679c8c5d1295301cee954be8b84ddd62af92426558f7"
+  },
+  "openTerminal": {
+    "version": "0.14.6",
+    "source": "431fc2bccf98fd1e197a0d47a5140f495ba017eb",
+    "license": "MIT"
+  },
+  "model": {
+    "image": "ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429",
+    "name": "qwen3.5:4b-q4_K_M",
+    "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+    "license": "Apache-2.0",
+    "parameters": {
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "top_k": 20,
+      "min_p": 0,
+      "presence_penalty": 1.5,
+      "repeat_penalty": 1,
+      "seed": 42,
+      "num_ctx": 16384,
+      "num_predict": 3072,
+      "think": false
+    }
+  },
+  "status": "failed",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "source-candidate",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "candidate-images",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "private-registry",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "oidc-onboarding",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "native-template",
+      "status": "passed",
+      "evidence": {
+        "ready": true
+      }
+    },
+    {
+      "gate": "applications",
+      "status": "passed",
+      "evidence": {}
+    },
+    {
+      "gate": "native-admin-setup",
+      "status": "passed",
+      "evidence": {
+        "discoveryNoAllocation": true
+      }
+    },
+    {
+      "gate": "native-cold-start",
+      "status": "passed",
+      "evidence": {
+        "ready": true,
+        "noDuplicateRuntime": true
+      }
+    },
+    {
+      "gate": "native-model-artifacts",
+      "status": "passed",
+      "evidence": {
+        "singleSubmission": true,
+        "realModel": true,
+        "nativeTools": true,
+        "generatedFilesVisible": true
+      }
+    },
+    {
+      "gate": "native-shell",
+      "status": "passed",
+      "evidence": {
+        "shellInput": true,
+        "ansiOutput": true,
+        "remoteResize": true,
+        "interrupt": true,
+        "reconnect": true
+      }
+    },
+    {
+      "gate": "native-previews",
+      "status": "failed",
+      "evidence": {},
+      "failure": {
+        "kind": "acceptance_check",
+        "check": "HTML report overflows its preview pane"
+      }
+    },
+    {
+      "gate": "native-relative-assets-limit",
+      "status": "passed",
+      "evidence": {
+        "relativeAssetsRequireSession": true
+      }
+    },
+    {
+      "gate": "native-transfers-isolation",
+      "status": "passed",
+      "evidence": {
+        "binaryRoundTrip": true,
+        "bytes": 1048576,
+        "fileSha256": "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
+        "hostileParentBlocked": true,
+        "hostileStorageBlocked": true
+      }
+    },
+    {
+      "gate": "native-live-files",
+      "status": "passed",
+      "evidence": {
+        "textRoundTrip": true,
+        "nativeEdit": true,
+        "freshPreview": true
+      }
+    },
+    {
+      "gate": "native-transfer-failures",
+      "status": "passed",
+      "evidence": {
+        "oversizeRejected": true,
+        "uploadTransportFailure": true,
+        "failureBeforeDispatch": true,
+        "noUploadReplay": true
+      }
+    },
+    {
+      "gate": "native-svg-mobile",
+      "status": "passed",
+      "evidence": {
+        "svgScriptBlocked": true,
+        "mobilePreview": true
+      }
+    },
+    {
+      "gate": "adapter-restart",
+      "status": "passed",
+      "evidence": {
+        "sameRuntime": true,
+        "durableMapping": true
+      }
+    },
+    {
+      "gate": "grant-revocation-recovery",
+      "status": "passed",
+      "evidence": {
+        "revokedSocketClosed": true,
+        "revokedHttpDenied": true,
+        "operatorGrantRecovered": true,
+        "sameRuntime": true
+      }
+    },
+    {
+      "gate": "runtime-replacement",
+      "status": "passed",
+      "evidence": {
+        "confirmedRelease": true,
+        "passivePollingNoAllocation": true,
+        "retainedWorkspace": true,
+        "replacement": true
+      }
+    },
+    {
+      "gate": "two-users-quota",
+      "status": "passed",
+      "evidence": {
+        "nativeQuotaDenial": true,
+        "twoUsers": true,
+        "identityTamperingDenied": true,
+        "noDuplicateRuntime": true
+      }
+    },
+    {
+      "gate": "native-browser-errors",
+      "status": "passed",
+      "evidence": {
+        "noBrowserScriptErrors": true
+      }
+    }
+  ],
+  "source": "8273ba753b8167f15ee5e8e6111d43e17fc9ee91",
+  "runId": "41001219049-1",
+  "images": {
+    "api": {
+      "imageConfigDigest": "sha256:9a7129d73140102a093b614a0fbf3fd79c979263863c98e7bf2ae6408680e67f"
+    },
+    "apiWithRegistryCa": {
+      "imageConfigDigest": "sha256:39422dae6e2be7646769dfecb54658459cd83e557f8a27d9721e96f87265c1a6"
+    },
+    "web": {
+      "imageConfigDigest": "sha256:71e12e5165e5634123a2e45d1159737571f37aa4e9789dc093b297ad9baac477"
+    },
+    "adapter": {
+      "imageConfigDigest": "sha256:8f03cc1fc53a6d061bad9972414d3c0d5e06eaa61ad3b06f61a762bd1e665bb0"
+    },
+    "terminal": {
+      "imageConfigDigest": "sha256:dc34891580a9123affacda8dc2f0dedc5dd31a5ac978c40a19ea713d3f73e922"
+    }
+  },
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "chatBrowser",
+        "status": "passed"
+      },
+      {
+        "name": "adapter",
+        "status": "passed"
+      },
+      {
+        "name": "runtimes",
+        "status": "passed"
+      },
+      {
+        "name": "workspaces",
+        "status": "passed"
+      },
+      {
+        "name": "key",
+        "status": "passed"
+      },
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "docker",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

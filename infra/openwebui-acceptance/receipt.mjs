@@ -14,7 +14,8 @@ const flags = new Set([
   "durableMapping", "nativeQuotaDenial", "twoUsers", "identityTamperingDenied", "noDuplicateRuntime",
   "confirmedRelease", "passivePollingNoAllocation", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
-  "freshPreview", "oversizeRejected", "uploadTransportFailure", "failureBeforeDispatch", "noUploadReplay", "svgScriptBlocked", "mobilePreview", "noBrowserScriptErrors"
+  "freshPreview", "oversizeRejected", "uploadTransportFailure", "failureBeforeDispatch", "noUploadReplay", "svgScriptBlocked", "mobilePreview", "noBrowserScriptErrors",
+  "rendererFixturesUploaded", "modelReportVerified"
 ]);
 const cleanups = new Set(["chatBrowser", "browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
@@ -34,6 +35,7 @@ const checks = new Set([
   "Embedded chart differs from downloaded PNG", "Preview allows chat origin authority",
   "HTML report overflows its preview pane",
   "HTML report fits its preview pane: deadline exceeded",
+  "Native PDF fixture round trip differs", "Native HTML fixture round trip differs",
   "Relative asset has a finite rejected outcome: deadline exceeded",
   "Opaque preview unexpectedly has session authority for relative assets",
   "Oversize upload finishes visibly: deadline exceeded", "Rejected upload appeared as successful",
@@ -61,7 +63,7 @@ export function safeFailure(failure) {
 }
 
 export function publicReceipt(receipt) {
-  const result = { kind: "openwebui-native", published: false, architecture: "amd64", openwebui: compatibility.openwebui, openTerminal: compatibility.openTerminal, model,
+  const result = { kind: "openwebui-native", published: false, architecture: "amd64", openwebui: compatibility.openwebui, openTerminal: compatibility.openTerminal, model, scenario: compatibility.scenario,
     status: ["running", "failed", "configured_gates_passed"].includes(receipt.status) ? receipt.status : "failed",
     results: (receipt.results ?? []).filter(item => gates.has(item.gate)).map(item => ({ gate: item.gate, status: item.status === "passed" ? "passed" : "failed",
       evidence: Object.fromEntries(Object.entries(item.evidence ?? {}).filter(([key, value]) =>

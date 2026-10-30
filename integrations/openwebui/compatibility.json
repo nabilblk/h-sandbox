@@ -29,6 +29,12 @@
     }
   },
   "connection": "administrator-configured bearer connection, server-to-server",
+  "scenario": {
+    "id": "csv-chart-native-documents-v1",
+    "promptSha256": "47e495a9c6e9f8c3d1ea535f7f3eb56fe78e8402bafb49f35256d7fcf063b751",
+    "modelArtifacts": ["sales.csv", "report.json", "chart.png"],
+    "previewFixtures": ["preview-fixture.pdf", "preview-fixture.html"]
+  },
   "context": "one personal workspace per OpenWebUI user and adapter instance",
   "deferred": ["per-resource Harakiri user ACLs", "Harakiri command-level audit for Open Terminal", "Office document conversion", "notebooks", "customer OpenShift certification"],
   "nativeAcceptance": null

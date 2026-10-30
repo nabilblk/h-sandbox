@@ -10,12 +10,8 @@ The script must first create /workspace/demo with pathlib.Path.mkdir(parents=Tru
 Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5.
 Read this CSV with Python csv and aggregate sales by region.
 Write report.json containing exactly {"North":17,"South":7,"total":24}.
-Use matplotlib's Agg backend to generate chart.png and report.pdf from the totals.
-Write a self-contained index.html with heading Sales report, total 24, and the same PNG embedded as a data:image/png;base64 URL.
-Build the HTML with xml.etree.ElementTree Element, SubElement and tostring(method="html"), using attribute dictionaries, not an HTML string template.
-Include a viewport meta tag. Set the body style to margin:16px;font-family:system-ui and the img style to max-width:100%;height:auto so the report fits a narrow preview.
-Keep all five files in /workspace/demo. Do not use relative or external assets in the HTML.
-Compute the base64 with Python from the PNG; never generate or print the base64 as model text.
+Use matplotlib's Agg backend to save a bar chart of the two regional totals as chart.png.
+Keep these three files in /workspace/demo. No PDF, HTML or additional formats are needed for this task.
 Read the JSON back to verify it. Print only the small totals dictionary and file names.
 Check the command's exit_code and output before claiming success. If still running, inspect its status until done.
 Do not install packages or download data. Report failures honestly. Finish with a brief summary and file links.`;
@@ -99,8 +95,13 @@ node packages/cli/dist/index.js template build \\
       <CodeBlock language="plaintext" wrap>{openwebuiReportPrompt}</CodeBlock>
       <p>
         This is the acceptance recipe, not a claimed passing demo. Inspect the tool calls, browse the files, open
-        image/PDF previews, download the JSON and verify its exact contents independently. Exercise shell input, resize,
+        the chart preview, download the JSON and verify its exact contents independently. Exercise shell input, resize,
         interrupt and reconnect. A convincing model reply without these artifacts is not success.
+      </p>
+      <p>
+        Test document previews separately: upload a PDF or a self-contained HTML report through the native file browser
+        and inspect it. Native acceptance uses clearly labeled renderer fixtures for these formats, uploaded through
+        that same interface after verifying the agent's JSON and PNG. These fixtures are not model-generated results.
       </p>
       <h2>Retention and recovery</h2>
       <p>
