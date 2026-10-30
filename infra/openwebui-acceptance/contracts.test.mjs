@@ -101,6 +101,20 @@ test("native tool witness counts item and snapshot events without retaining outp
   assert.equal(witness.output(), "");
 });
 
+test("a completed tool wrapper does not hide a failed process", () => {
+  const page = new EventEmitter();
+  const witness = chatWitness(page);
+  const socket = new EventEmitter();
+  socket.url = () => "ws://127.0.0.1:28580/ws/socket.io/?transport=websocket";
+  page.emit("websocket", socket);
+  const item = { type: "function_call_output", call_id: "PRIVATE", status: "completed",
+    output: [{ type: "input_text", text: JSON.stringify({ exit_code: 127, command: "PRIVATE" }) }] };
+  socket.emit("framereceived", { payload: `42${JSON.stringify(["chat-events", { data: { type: "response:completion", data: { item } } }])}` });
+  assert.equal(witness.state.toolCalls, 1);
+  assert.equal(witness.state.toolFailures, 1);
+  assert.ok(!JSON.stringify(witness.state).includes("PRIVATE"));
+});
+
 test("runtime diagnostics never export source logs, identifiers or unknown failure fields", () => {
   assert.deepEqual(adapterFailures('PRIVATE\n{"failure":"PRIVATE"}\n{"failure":"context_busy","upstreamStatus":409,"message":"PRIVATE"}'),
     [{ code: "context_busy", status: 409 }]);
@@ -137,7 +151,7 @@ test("workflow is read-only, hosted-only, bounded, cleanup-always with explicit 
 
 test("native cleanup stops request producers before releasing owned resources", () => {
   const source = read("./run.mjs").split("await finishReceipt(receipt,", 2)[1];
-  for (const [before, after] of [["browser:", "adapter:"], ["adapter:", "runtimes:"], ["runtimes:", "workspaces:"]]) {
+  for (const [before, after] of [["chatBrowser:", "adapter:"], ["adapter:", "runtimes:"], ["runtimes:", "workspaces:"], ["key:", "browser:"]]) {
     assert.ok(source.indexOf(before) >= 0 && source.indexOf(before) < source.indexOf(after));
   }
   assert.match(source, /Owned workspace released before archival/);

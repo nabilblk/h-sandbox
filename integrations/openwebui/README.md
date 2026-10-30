@@ -4,8 +4,8 @@
 API, SDK and adapter from the same checkout. Core 0.5.0-rc.13 does not provide the
 new generic WebSocket transport. Do not install this adapter against rc.13 and
 assume the shell works. Qualification status and upstream pins are recorded in
-[compatibility.json](compatibility.json); a null receipt means not yet tested
-through the real OpenWebUI application.
+[compatibility.json](compatibility.json); a null receipt means no complete passing
+native qualification has been recorded. Failed or partial runs do not qualify the pair.
 
 This optional adapter connects **unmodified OpenWebUI** to Harakiri through its
 native Open Terminal connection. Harakiri manages runtime capacity, lifecycle,
@@ -216,8 +216,9 @@ reproducible run. Inspect its license and resource requirements separately.
 Open a new chat, select the model and the terminal connection, and send:
 
 ```text
-Use the connected terminal's run_command tool, not a code block in your reply.
-Run one Python script with cwd=/workspace and wait=30.
+Use the connected terminal's tools, not a code block in your reply.
+First use write_file to save a Python script at /workspace/report.py. Do not put Python source in a shell command or heredoc.
+Then use run_command with command="python /workspace/report.py", cwd=/workspace and wait=30.
 The script must first create /workspace/demo with pathlib.Path.mkdir(parents=True, exist_ok=True).
 Create /workspace/demo/sales.csv with header region,sales and rows North,12; South,7; North,5.
 Read this CSV with Python csv and aggregate sales by region.

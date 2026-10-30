@@ -17,7 +17,7 @@ const flags = new Set([
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
   "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview"
 ]);
-const cleanups = new Set(["browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
+const cleanups = new Set(["chatBrowser", "browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
 const checks = new Set([
   "Native cold-start file listing failed", "Native file refresh failed", "No native tool event observed from real model",

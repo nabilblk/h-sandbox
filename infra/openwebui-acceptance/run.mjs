@@ -90,7 +90,7 @@ try {
   await browserDiagnostics(page).catch(() => {});
 } finally {
   await finishReceipt(receipt, {
-    browser: async () => { if (operator) await operator.browser.close(); },
+    chatBrowser: async () => { if (page) await page.close(); },
     adapter: async () => {
       // Stop background chat/port polling from allocating a replacement during cleanup.
       if (credentials) ownedDocker(ctx, "adapter", ["stop", "--time", "10"]);
@@ -115,6 +115,9 @@ try {
     key: async () => {
       if (operator) await operator.request(`/v1/api-keys/${ctx.read("client-key.json").id}`, "DELETE");
     },
+    // Keep the separate Harakiri operator page available for OIDC renewal until
+    // its cleanup key is revoked, even when a long model run outlives the token.
+    browser: async () => { if (operator) await operator.browser.close(); },
     docker: () => cleanupDocker(ctx), portForwards: () => ctx.stopForwards()
   });
   if (receipt.status === "failed") process.exitCode = 1;

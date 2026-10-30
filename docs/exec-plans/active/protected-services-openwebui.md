@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-28
 **Author**: Codex with project maintainer
-**Status**: In progress; local implementation, no deployment authorized
+**Status**: In progress; implementation and isolated native qualification, no deployment authorized
 **Priority**: P1
 **Estimated effort**: Multi-session; estimate after protocol and ownership qualification
 
@@ -409,6 +409,31 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ## Completion Notes
 
+### Qualification Checkpoint, October 30
+
+- Candidate `ee0c95b0dd8bcf0dd67efeb2aa80e8e758cc3390` is pushed to draft PR #78.
+  General CI, Python package checks, demo checks and native Workbench acceptance
+  pass. Native TypeScript SDK run 40981236453 and Python run 40981236456 also pass,
+  including their independent real-model scenarios and cleanup.
+- OpenWebUI run 40981236554 failed: the actual model command exited 127 with a
+  `SyntaxError`, despite the upstream tool wrapper reporting completion. The
+  artifact directory was absent. The tutorial now asks the model to write a Python
+  file with the native file tool before executing it, avoiding nested shell/source
+  quoting. Tool failure counters now include nonzero process exits. This requires
+  another complete native run; no model output is supplied by the test harness.
+- That longer run also exposed cleanup attempting OIDC renewal after closing the
+  operator browser. Cleanup now closes the OpenWebUI page first, stops the adapter,
+  releases runtimes/storage and revokes the key before closing the separate
+  operator page. Runtime/storage/Docker cleanup passed in the failed run; the key
+  check did not. No complete native OpenWebUI qualification is claimed.
+- Local workspace typechecks and the isolated production adapter package pass.
+  The API suite passes 394 tests with 10 explicit infrastructure-dependent skips;
+  the separate PostgreSQL run passes all four adapter/core database checks.
+- Inspected the public integration guide at 1440x1000 and 390x844, including the
+  tutorial prompt. No horizontal page overflow or browser JavaScript errors were
+  observed. The temporary documentation browser/server were closed afterward.
+  This is documentation QA, not evidence for native OpenWebUI previews.
+
 ### Isolated Qualification Checkpoint, October 29
 
 - Draft [PR #78](https://github.com/nabilblk/h-sandbox/pull/78) contains the work.
@@ -519,12 +544,13 @@ Current evidence (rerun against the final candidate before release):
 - Gitleaks 8.30.1 reports zero findings for tracked source and for the separately
   inventoried new candidate files. `docs/cot` was excluded and remains untouched.
 
-Next: implement and run the owned native OpenWebUI browser/model harness, build
+At this earlier checkpoint, next steps were to implement and run the owned native OpenWebUI browser/model harness, build
 and scan the images, close the full recovery/security matrix and obtain independent
 self-service feedback. The harness itself is not yet complete. Local contract tests
 and the docs browser check do not satisfy these gates.
 
-No native OpenWebUI browser or real-model acceptance has run at this checkpoint.
+No native OpenWebUI browser or real-model acceptance had run at that checkpoint;
+the later isolated-qualification entries above supersede this historical status.
 On 2026-10-29 the user instructed continuing through the remaining qualification;
 a dedicated branch/PR and disposable GitHub-hosted acceptance are authorized.
 Merge, publication and production/lab deployment remain separate decisions.

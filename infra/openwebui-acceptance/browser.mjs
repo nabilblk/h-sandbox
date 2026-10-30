@@ -123,9 +123,10 @@ export function chatWitness(page) {
           state.modelError ||= Boolean(event.data?.error);
           for (const item of [...(event.data?.output ?? []), ...(event.data?.item ? [event.data.item] : [])]) {
             if (item.type === "function_call_output" && typeof item.call_id === "string") {
-              if (!toolCalls.has(item.call_id)) console.log(`OpenWebUI tool result: ${JSON.stringify(toolResult(item))}`);
+              const result = toolResult(item);
+              if (!toolCalls.has(item.call_id)) console.log(`OpenWebUI tool result: ${JSON.stringify(result)}`);
               toolCalls.add(item.call_id);
-              if (item.status === "failed") toolFailures.add(item.call_id);
+              if (result.failed || result.exitCodes.some(code => code !== 0)) toolFailures.add(item.call_id);
             }
           }
           state.toolCalls = toolCalls.size;
