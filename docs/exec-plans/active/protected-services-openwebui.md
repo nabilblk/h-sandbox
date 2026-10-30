@@ -411,6 +411,15 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ## Completion Notes
 
+- Revalidation run 41012642644 passed 19/22 gates, all cleanup and all six other
+  workflows. The exact terminal observer now passes revocation/recovery, but the
+  SVG scenario times out before mobile navigation, followed by restart timeout
+  and two uncaught browser errors. The failed receipt is retained. Added bounded
+  upload-stage and exception-category/static-bundle diagnostics; no raw error
+  messages, documents or credentials are exported. The current PR remains draft
+  pending diagnosis and a complete passing revalidation. The earlier source pass
+  remains historical evidence, not proof that these new failures are resolved.
+
 - Revalidation run 41010130131 passed 21/22 gates and all cleanup, but timed out
   observing shell readiness before revocation. All other workflows on `11c235d`
   passed. The native observer could capture an older shell's late socket instead

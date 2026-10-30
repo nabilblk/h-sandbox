@@ -107,8 +107,10 @@ export async function svgIsolation(page) {
 <script>document.documentElement.dataset.harakiriPreviewProbe='executed'</script>
 <text x="10" y="40">Synthetic SVG preview</text></svg>`;
   await upload(page, { name: "isolation.svg", mimeType: "image/svg+xml", buffer: Buffer.from(bytes) });
+  console.log("OpenWebUI SVG: uploaded, selecting desktop preview");
   const files = fileBrowser(page);
   await files.locator("[data-file-row]").getByText("isolation.svg", { exact: true }).click();
+  console.log("OpenWebUI SVG: selected, waiting for rendered text");
   await files.getByText("Synthetic SVG preview", { exact: true }).waitFor();
   check(await files.locator(".svg-preview script, .svg-preview [onload]").count() === 0, "SVG executable markup survived sanitization");
   check(!(await page.locator("html").getAttribute("data-harakiri-preview-probe")), "SVG executed with chat authority");

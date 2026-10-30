@@ -8,7 +8,7 @@ import { ownedDocker, cleanupDocker, compatibility, model } from "./stack.mjs";
 import { publicReceipt, safeFailure } from "./receipt.mjs";
 import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
-import { adapterFailures, runtimeState, toolResult } from "./diagnostics.mjs";
+import { adapterFailures, browserError, runtimeState, toolResult } from "./diagnostics.mjs";
 import { chatWitness, previewLayout } from "./browser.mjs";
 import { previewHtml, previewDocuments } from "./preview-documents.mjs";
 
@@ -182,6 +182,15 @@ test("native tool witness counts item and snapshot events without retaining outp
   page.emit("pageerror", new Error("PRIVATE"));
   assert.equal(witness.state.browserErrors, 1);
   assert.ok(!JSON.stringify(witness.state).includes("PRIVATE"));
+});
+
+test("browser exception diagnostics exclude messages, document URLs and arbitrary stack frames", () => {
+  const diagnostic = browserError({ name: "TypeError", message: "Cannot read properties of null (reading 'PRIVATE')",
+    stack: "PRIVATE\n at http://127.0.0.1:28580/_app/immutable/chunks/fixture-123.js:3:42\n at https://PRIVATE/path?token=PRIVATE\n at http://127.0.0.1:28580/api/PRIVATE:4:5" });
+  assert.deepEqual(diagnostic, { type: "TypeError", symptoms: ["null_property"], locations: ["/_app/immutable/chunks/fixture-123.js:3:42"] });
+  assert.ok(!JSON.stringify(diagnostic).includes("PRIVATE"));
+  assert.deepEqual(browserError({ name: "PRIVATE", message: "PRIVATE", stack: "PRIVATE" }), { type: "withheld", symptoms: [], locations: [] });
+  assert.deepEqual(browserError(null), { type: "withheld", symptoms: [], locations: [] });
 });
 
 test("a completed tool wrapper does not hide a failed process", () => {

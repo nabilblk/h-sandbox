@@ -2,7 +2,7 @@ import fs from "node:fs";
 import assert from "node:assert/strict";
 import { check, until, sha256 } from "../acceptance/context.mjs";
 import { webOrigin, adapterOrigin } from "./stack.mjs";
-import { toolResult } from "./diagnostics.mjs";
+import { browserError, toolResult } from "./diagnostics.mjs";
 import { previewDocuments } from "./preview-documents.mjs";
 
 export const prompt = fs.readFileSync(new URL("../../integrations/openwebui/report-prompt.txt", import.meta.url), "utf8").trim();
@@ -99,7 +99,10 @@ export function chatWitness(page) {
   let terminalOutput = "";
   // Expected HTTP/CSP denials are not uncaught JavaScript exceptions. Never log
   // exception messages because they can contain document contents or credentials.
-  page.on("pageerror", () => state.browserErrors++);
+  page.on("pageerror", error => {
+    state.browserErrors++;
+    if (state.browserErrors <= 8) console.log(`OpenWebUI browser error categories: ${JSON.stringify(browserError(error))}`);
+  });
   const onRequest = request => {
     if (new URL(request.url()).pathname !== "/api/chat/completions" || request.method() !== "POST") return;
     state.submissions++;
@@ -318,7 +321,7 @@ export function previewLayout(root) {
 export async function browserDiagnostics(page) {
   if (!page || page.isClosed()) return;
   const controls = {};
-  for (const name of ["Get started", "Create Admin Account", "Okay, Let's Go!", "Add Connection", "Verify Connection", "Terminal", "Send message", "Stop", "Refresh"]) {
+  for (const name of ["Get started", "Create Admin Account", "Okay, Let's Go!", "Add Connection", "Verify Connection", "Terminal", "Send message", "Stop", "Refresh", "Actions", "Upload"]) {
     controls[name] = await page.getByRole("button", { name, exact: true }).first().isVisible().catch(() => false);
   }
   for (const id of ["terminal-name", "terminal-id", "terminal-url"]) {
@@ -326,7 +329,8 @@ export async function browserDiagnostics(page) {
   }
   const files = page.getByRole("region", { name: "File browser", exact: true });
   controls.demoBreadcrumb = await files.locator('button[type="button"]').getByText("demo", { exact: true }).isVisible().catch(() => false);
-  for (const name of ["demo", "sales.csv", "report.json", "chart.png", "preview-fixture.pdf", "preview-fixture.html"]) {
+  controls.uploading = await files.getByText("Uploading...", { exact: true }).isVisible().catch(() => false);
+  for (const name of ["demo", "sales.csv", "report.json", "chart.png", "preview-fixture.pdf", "preview-fixture.html", "isolation.svg"]) {
     controls[name] = await files.locator("[data-file-row]").getByText(name, { exact: true }).isVisible().catch(() => false);
   }
   // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.
@@ -343,14 +347,19 @@ export async function browserDiagnostics(page) {
 
 export async function upload(page, file, waitForFile = true) {
   const files = page.getByRole("region", { name: "File browser", exact: true });
+  console.log("OpenWebUI native upload: navigate to directory");
   await files.getByRole("button", { name: "demo", exact: true }).click();
+  console.log("OpenWebUI native upload: open actions");
   await files.getByRole("button", { name: "Actions", exact: true }).click();
+  console.log("OpenWebUI native upload: open file chooser");
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
     page.getByRole("button", { name: "Upload", exact: true }).click()
   ]);
+  console.log("OpenWebUI native upload: submit file chooser");
   await chooser.setFiles(file);
   if (waitForFile) await files.locator("[data-file-row]").getByText(file.name, { exact: true }).waitFor();
+  console.log("OpenWebUI native upload: chooser submitted and requested observation complete");
 }
 
 export async function transfersAndIsolation(page) {

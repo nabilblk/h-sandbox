@@ -47,6 +47,16 @@ addresses or Kubernetes exec.
 
 ### Failed Runs And Harness Corrections
 
+- [Run 41012642644](https://github.com/nabilblk/h-sandbox/actions/runs/41012642644)
+  tested branch `f578e3a6983785603f016ccadef28206738dbb10` as merge
+  `8559ecbe3cd00c0f3f06b040024556bc9dfa0030`. Its
+  [receipt](evidence/openwebui-41012642644.json) records 19/22 gates and complete
+  cleanup. Exact terminal correlation, revocation and recovery passed. The SVG
+  scenario timed out before switching to mobile, adapter restart then timed out,
+  and two uncaught browser errors were observed. These are unresolved failures,
+  not a passing revalidation. Diagnostics now identify native upload stages and
+  bounded exception categories/static bundle locations without exporting messages,
+  document content or credentials. All six other workflows passed.
 - [Run 41010130131](https://github.com/nabilblk/h-sandbox/actions/runs/41010130131)
   revalidated documentation commit `11c235d4a34d46b51f24cacb191c37d86b8a1115`
   as merge `953f6dd76d23b025529080b5568e0de097f92215`. Its

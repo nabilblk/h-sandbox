@@ -13,6 +13,29 @@ const toolErrors = [...signatures, "SyntaxError", "IndentationError", "NameError
   "HTTP error 422", "HTTP error 503", "command not found", "unterminated string literal",
   "unexpected character after line continuation character", "invalid syntax", "was never closed"];
 
+export function browserError(error) {
+  const message = typeof error?.message === "string" ? error.message.slice(0, 16384) : "";
+  const stack = typeof error?.stack === "string" ? error.stack.slice(0, 16384) : "";
+  const symptoms = {
+    null_property: /Cannot read properties of null/,
+    undefined_property: /Cannot read properties of undefined/,
+    not_callable: /is not a function/,
+    detached_node: /(?:removeChild|insertBefore)/,
+    resize_observer: /ResizeObserver loop/,
+    dynamic_import: /Failed to fetch dynamically imported module/,
+    network: /(?:Failed to fetch|NetworkError)/
+  };
+  // Only fixed categories and the pinned app's static bundle locations leave
+  // the runner. Messages, arbitrary stack frames and document URLs stay private.
+  const locations = [...stack.matchAll(/http:\/\/127\.0\.0\.1:28580(\/_app\/immutable\/(?:chunks|nodes|entry)\/[a-zA-Z0-9_-]{1,80}\.js:\d{1,6}:\d{1,8})/g)]
+    .slice(0, 3).map(match => match[1]);
+  return {
+    type: ["Error", "TypeError", "ReferenceError", "RangeError", "SyntaxError", "SecurityError", "AbortError"].includes(error?.name) ? error.name : "withheld",
+    symptoms: Object.entries(symptoms).filter(([, pattern]) => pattern.test(message)).map(([name]) => name),
+    locations
+  };
+}
+
 export function toolResult(item) {
   const result = { failed: item.status === "failed", exitCodes: [], states: [], errors: [] };
   for (const part of Array.isArray(item.output) ? item.output.slice(0, 16) : []) {
