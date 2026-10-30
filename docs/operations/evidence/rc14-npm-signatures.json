@@ -1,0 +1,42 @@
+{
+  "kind": "npm-public-consumer-signature-verification",
+  "at": "2026-10-30T10:58:28.089Z",
+  "node": "v26.0.0",
+  "npm": "11.12.1",
+  "registry": "https://registry.npmjs.org/",
+  "outsideCheckout": true,
+  "installScripts": false,
+  "registrySignaturesVerified": 6,
+  "attestationsVerified": 4,
+  "requested": ["@h-sandbox/sdk@0.5.0-rc.14", "@h-sandbox/cli@0.5.0-rc.14"],
+  "verifiedAttestations": [
+    {
+      "name": "@h-sandbox/cli",
+      "version": "0.5.0-rc.14",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@h-sandbox%2fcli@0.5.0-rc.14"
+    },
+    {
+      "name": "@h-sandbox/sdk",
+      "version": "0.5.0-rc.14",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@h-sandbox%2fsdk@0.5.0-rc.14"
+    },
+    {
+      "name": "smol-toml",
+      "version": "1.9.1",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/smol-toml@1.9.1"
+    },
+    {
+      "name": "eventsource-parser",
+      "version": "3.1.1",
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/eventsource-parser@3.1.1"
+    }
+  ],
+  "invalid": [],
+  "missing": [],
+  "cliVersion": "0.5.0-rc.14",
+  "sdkImport": "passed",
+  "limitations": [
+    "Publisher/archive authenticity, not package safety or vulnerability freedom.",
+    "No sandbox or model execution was performed by this consumer smoke."
+  ]
+}
