@@ -33,6 +33,12 @@ or Python 0.1.0rc1. Use matching source builds for evaluation; native provider a
 OpenWebUI qualification remains open. Existing native Harakiri PTY is a different
 protocol and does not establish application WebSocket support.
 
+The `tokenRoutes` entry in `/v1/runtime/capabilities` reports route-exposure
+availability, not an end-to-end WebSocket ingress check. A deployment proxy may
+still reject upgrades or impose shorter timeouts. Test application HTTP and
+WebSocket access through the returned public route, never a pod address, and
+keep authentication failures explicit rather than falling back to a public route.
+
 Route creation records the provider readiness state as `ready`, `provisioning`,
 or `unhealthy`. That state tells you whether the provider route exists. It does
 not prove the application inside the sandbox has finished booting.

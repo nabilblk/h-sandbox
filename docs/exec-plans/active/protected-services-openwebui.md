@@ -52,11 +52,11 @@ Terminal, a model server or the adapter.
       responses, bounded multipart/binary transfers and WebSocket connections.
 - [x] Authentication, destination validation, cancellation, resource bounds and
       connection revocation have explicit tested behavior.
-- [ ] The existing public/token HTTP route contracts, SDK consumers, native PTY,
+- [x] The existing public/token HTTP route contracts, SDK consumers, native PTY,
       OpenCode integrations and Workbench have no unintended regressions.
 - [x] TypeScript and Python expose the agreed service operations through their
       existing API patterns, without framework-specific core methods.
-- [ ] A versioned, non-privileged Open Terminal template has reproducible startup,
+- [x] A versioned, non-privileged Open Terminal template has reproducible startup,
       application health checks and explicit persistent-storage behavior.
 - [ ] A real, distributable adapter connects unmodified OpenWebUI to Harakiri
       through public APIs; its ownership and support boundary are documented.
@@ -64,7 +64,7 @@ Terminal, a model server or the adapter.
       upload/download and document-preview use case described by the colleague.
 - [ ] A real model-driven workflow passes without requiring a paid model service;
       fixture tests and real-model evidence are reported separately.
-- [ ] Recovery, concurrent requests, quota exhaustion and access denial are
+- [x] Recovery, concurrent requests, quota exhaustion and access denial are
       tested without automatic replay of uncertain execution.
 - [ ] Public and operator documentation enables a clean self-service installation
       and clearly states deferred ACL/audit guarantees.
@@ -157,7 +157,7 @@ and an explicit list of generic Harakiri gaps. Do not copy the enterprise Termin
 implementation into an OSS adapter; review licenses independently.
 
 ### Phase 2: Protected Application Transport
-**Status**: In Progress; local socket tests pass, real provider acceptance pending
+**Status**: Complete for the source candidate; real gateway HTTP/WS and recovery passed in run 40992319708
 - [x] Extract focused transport, target-resolution, authorization and connection
       lifecycle modules. Keep route handlers thin and provider logic behind the
       existing interface; avoid growing the large runtime service module further.
@@ -184,7 +184,7 @@ implementation into an OSS adapter; review licenses independently.
 - [x] Define configurable finite transfer, header, connection, idle and buffering
       limits with stable errors. Add low-cardinality diagnostics without secrets,
       query tokens, raw documents or unbounded command/output payloads.
-- [ ] Report protocol capabilities honestly when a provider/deployment cannot
+- [x] Report protocol capabilities honestly when a provider/deployment cannot
       support them. Test through the real provider gateway without pod-IP or
       Kubernetes-exec workarounds.
 
@@ -193,7 +193,7 @@ transfer larger than the previous whole-response buffering test case. Existing
 route, OpenCode and native-terminal consumers remain compatible.
 
 ### Phase 3: SDK And Operator Experience
-**Status**: In Progress; local installed-package checks pass, supported CI matrices and native acceptance pending
+**Status**: Complete for the source candidate; installed-package matrices and native TS/Python regressions passed
 - [x] Reuse the TypeScript route object and SDK transport conventions for exposure,
       scoped access, application health polling and deletion. Preserve Request
       semantics, cancellation and credential origin/path restrictions.
@@ -216,14 +216,14 @@ Exit: a minimal TS/Python example starts an application, waits for its health,
 uses a protected endpoint and cleans up without framework-specific core methods.
 
 ### Phase 4: Template And Real Adapter Integration
-**Status**: In Progress; source-built candidate, template build and native qualification pending
+**Status**: Implemented as a source-built candidate; final model/preview qualification remains in Phase 5
 - [x] Build a pinned, non-privileged Open Terminal template with dependencies baked
       in, correct writable directories, deterministic startup and a health probe.
       No Docker socket, unnecessary capabilities or runtime package bootstrap.
-- [ ] Configure working directory and intended retained data under `/workspace`.
+- [x] Configure working directory and intended retained data under `/workspace`.
       A file-browser root is a UI hint, not a filesystem authorization boundary.
       Document transient service/session state and initialize fresh storage safely.
-- [ ] Include tools needed by the agreed document scenario. Prove PDF/image/HTML
+- [x] Include tools needed by the agreed document scenario. Prove PDF/image/HTML
       preview separately; do not claim Office conversion without the required
       tools and native DOCX/PPTX acceptance.
 - [x] Use a separate Open Terminal instance for each selected sandbox context;
@@ -240,7 +240,7 @@ uses a protected endpoint and cleans up without framework-specific core methods.
       contexts, and preserve opaque session IDs safely. No browser-shared admin key.
 - [x] Preserve uncertain command/upload outcomes. Do not transparently replay
       side-effecting operations after a disconnect or upstream replacement.
-- [ ] Supply reproducible configuration/artifacts for the adapter. Reuse its own
+- [x] Supply reproducible configuration/artifacts for the adapter. Reuse its own
       release pipeline where appropriate; do not create a second implementation
       merely to satisfy an internal fixture test.
 
@@ -254,13 +254,13 @@ runtime for the reference workflow. This is not yet a release claim.
 - [x] Prepare disposable native-runner infrastructure, bounded test resources,
       ownership-labeled cleanup and secret-redacted artifacts. Obtain authorization
       before pushing/running hosted acceptance; never use the running lab by default.
-- [ ] Install the pinned Harakiri, provider, OpenWebUI, model and adapter artifacts
+- [x] Install the pinned Harakiri, provider, OpenWebUI, model and adapter artifacts
       in that isolated environment. Browser interactions must use the native
       Open Terminal integration, not a custom frontend or direct API substitute.
 - [ ] Execute every required scenario in the acceptance matrix below. Inspect
       desktop/mobile screenshots and browser errors; do not infer preview safety
       or visual correctness from a successful HTTP response.
-- [ ] Review source for correctness/security and independently for public API,
+- [x] Review source for correctness/security and independently for public API,
       modularity/readability and examples. Resolve findings with focused regressions.
 - [ ] Record exact revisions/digests, platform, versions, test results, known
       limits and owned cleanup. Do not publish credentials, user documents or
@@ -410,6 +410,17 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 ## Completion Notes
 
 ### Qualification Checkpoint, October 30
+
+- Source review covered transport authorization/expiry, path and credential
+  confinement, bounded connections, cancellation, encrypted bindings and explicit
+  recovery. A separate maintainability pass checked module ownership, TS/Python
+  route contracts, installed-package boundaries and self-service examples. Fixed
+  findings have regressions (handshake admission, grant uniqueness, polling/TTL,
+  interrupted multipart cleanup and revoked-grant lock starvation). This is
+  maintainer-agent review, not an independent external security certification.
+  Route documentation now explicitly distinguishes `tokenRoutes` discovery from
+  an actual HTTP/WebSocket deployment probe. Remaining model/preview and external
+  self-service/release gates are not covered by these reviews.
 
 - Run [40992319708](https://github.com/nabilblk/h-sandbox/actions/runs/40992319708)
   passed 20 of 22 gates, including the corrected browser upload-failure test and
