@@ -8,7 +8,7 @@ import test from "node:test";
 import WebSocket, { WebSocketServer } from "ws";
 import { buildAdapter } from "./app.js";
 import { BindingCipher, newBinding } from "./bindings.js";
-import { readConfig } from "./config.js";
+import { AdapterError, readConfig } from "./config.js";
 import { authenticated, identityFor, servicePath } from "./identity.js";
 import type { SessionManager } from "./sessions.js";
 
@@ -85,9 +85,9 @@ test("discovery, invalid credentials and invalid identity never provision resour
 test("HTTP forwarding never replays a failed execution and does not send the adapter credential", async () => {
   let executions = 0;
   const sessions: SessionManager = {
-    resolve: async (identity, activity) => {
+    resolve: async (identity, use) => {
       assert.equal(identity.userId, "user-one");
-      assert.equal(activity, true);
+      assert.equal(use, "mutate");
       return {
         sandboxId: "sandbox",
         expiresAt: Date.now() + 60000,
@@ -118,6 +118,38 @@ test("HTTP forwarding never replays a failed execution and does not send the ada
   } finally {
     await app.close();
   }
+});
+
+test("passive polling and stale process actions cannot provision a replacement", async () => {
+  let use: string | undefined;
+  const sessions: SessionManager = {
+    resolve: async (_identity, next) => {
+      use = next;
+      throw new AdapterError(409, "sandbox_session_inactive");
+    },
+    touch: async () => {}
+  };
+  const app = await buildAdapter(config, sessions, {});
+  try {
+    const requests = [
+      ["GET", "/execute", "observe"],
+      ["GET", "/execute/old/status?wait=0", "observe"],
+      ["GET", "/ports", "observe"],
+      ["GET", "/system", "observe"],
+      ["GET", "/api/terminals/user/output", "observe"],
+      ["POST", "/execute/old/input", "interact"],
+      ["DELETE", "/execute/old", "interact"],
+      ["DELETE", "/api/terminals/old", "interact"],
+      ["GET", "/files/list?directory=/workspace", "open"],
+      ["POST", "/execute", "mutate"],
+      ["POST", "/api/terminals", "mutate"]
+    ] as const;
+    for (const [method, url, expected] of requests) {
+      const response = await app.inject({ method, url, headers: { authorization, "x-user-id": "one" } });
+      assert.equal(response.statusCode, 409);
+      assert.equal(use, expected, `${method} ${url}`);
+    }
+  } finally { await app.close(); }
 });
 
 test("OpenWebUI first-message authentication translates to a per-instance key before PTY frames", async (t) => {
@@ -153,7 +185,8 @@ test("OpenWebUI first-message authentication translates to a per-instance key be
     });
   });
   const sessions: SessionManager = {
-    resolve: async () => {
+    resolve: async (_identity, use) => {
+      assert.equal(use, "observe", "attaching an existing PTY must not create a runtime");
       sessionsResolved++;
       await new Promise((resolve) => setTimeout(resolve, 40));
       return {

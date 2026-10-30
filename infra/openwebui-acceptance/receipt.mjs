@@ -13,7 +13,7 @@ const flags = new Set([
   "remoteResize", "interrupt", "reconnect", "jsonPreview", "imagePreview", "pdfPreview", "htmlPreview",
   "embeddedAssets", "relativeAssetsRequireSession", "binaryRoundTrip", "hostileParentBlocked", "hostileStorageBlocked", "sameRuntime",
   "durableMapping", "nativeQuotaDenial", "twoUsers", "identityTamperingDenied", "noDuplicateRuntime",
-  "confirmedRelease", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
+  "confirmedRelease", "passivePollingNoAllocation", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
   "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview", "noBrowserScriptErrors"
 ]);
@@ -28,6 +28,7 @@ const checks = new Set([
   "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
   "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded",
   "Owned workspace released before archival: deadline exceeded",
+  "Native polling recreated a terminated runtime",
   "Native browser has uncaught JavaScript errors", "Second native browser has uncaught JavaScript errors"
 ]);
 

@@ -4,8 +4,18 @@ import websocket from "@fastify/websocket";
 import { HarakiriApiError } from "@h-sandbox/sdk";
 import { AdapterError, type AdapterConfig } from "./config.js";
 import { authenticated, identityFor, servicePath } from "./identity.js";
-import { publicError, type SessionManager } from "./sessions.js";
+import { publicError, type SessionManager, type SessionUse } from "./sessions.js";
 import { attachTerminal } from "./terminal.js";
+
+const sessionUse = (method: string, path: string): SessionUse => {
+  if (method === "OPTIONS") return "observe";
+  const pathname = decodeURIComponent(path.split("?", 1)[0]);
+  const readOnly = ["GET", "HEAD", "OPTIONS"].includes(method);
+  const opensWorkspace = /^\/(?:files|skills|proxy)(?:\/|$)/.test(pathname);
+  const startsProcess = method === "POST" && /^\/(?:execute|api\/terminals)\/?$/.test(pathname);
+  if (opensWorkspace || startsProcess) return readOnly ? "open" : "mutate";
+  return readOnly ? "observe" : "interact";
+};
 
 export const buildAdapter = async (config: AdapterConfig, sessions: SessionManager, openapi: unknown) => {
   const app = Fastify({
@@ -71,7 +81,7 @@ export const buildAdapter = async (config: AdapterConfig, sessions: SessionManag
     });
     const session = await sessions.resolve(
       identity,
-      !["GET", "HEAD", "OPTIONS"].includes(request.method),
+      sessionUse(request.method, path),
       controller.signal
     );
     controller.signal.throwIfAborted();

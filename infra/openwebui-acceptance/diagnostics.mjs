@@ -1,25 +1,29 @@
 import { ownedDocker } from "./stack.mjs";
 
 const failures = new Set(["context_busy", "sandbox_service_unavailable", "workspace_creation_unconfirmed", "workspace_release_unconfirmed",
-  "sandbox_recovery_required", "session_expired", "route_creation_unconfirmed", "service_grant_unavailable", "binding_decryption_failed",
+  "sandbox_recovery_required", "sandbox_session_inactive", "session_expired", "route_creation_unconfirmed", "service_grant_unavailable", "binding_decryption_failed",
   "organization_capacity_exceeded", "personal_context_only", "invalid_context", "unsupported_service_path"]);
 const reasons = new Set(["CrashLoopBackOff", "ErrImagePull", "ImagePullBackOff", "CreateContainerConfigError", "CreateContainerError",
   "ContainerCreating", "PodInitializing", "OOMKilled", "Error", "Completed"]);
 const signatures = ["Permission denied", "Operation not permitted", "Read-only file system", "Address already in use",
   "ModuleNotFoundError", "No such command", "No such file or directory", "Traceback"];
+const toolErrors = [...signatures, "SyntaxError", "IndentationError", "NameError", "UnboundLocalError",
+  "TypeError", "ValueError", "KeyError", "AttributeError", "AssertionError", "ImportError", "FileNotFoundError",
+  "PermissionError", "UnicodeDecodeError", "JSONDecodeError", "ValidationError", "HTTP error 400", "HTTP error 404",
+  "HTTP error 422", "HTTP error 503", "command not found"];
 
 export function toolResult(item) {
   const result = { failed: item.status === "failed", exitCodes: [], states: [], errors: [] };
   for (const part of Array.isArray(item.output) ? item.output.slice(0, 16) : []) {
     if (part.type !== "input_text" || typeof part.text !== "string") continue;
     const text = part.text.slice(0, 65536);
-    for (const signature of [...signatures, "SyntaxError", "ValidationError", "HTTP error 422", "command not found"]) {
+    for (const signature of toolErrors) {
       if (text.includes(signature) && !result.errors.includes(signature)) result.errors.push(signature);
     }
     try {
       const data = JSON.parse(text);
       if (Number.isInteger(data.exit_code) && data.exit_code >= -255 && data.exit_code <= 255) result.exitCodes.push(data.exit_code);
-      if (["running", "completed", "finished", "failed", "error", "killed", "timeout"].includes(data.status)) result.states.push(data.status);
+      if (["running", "done", "completed", "finished", "failed", "error", "killed", "timeout"].includes(data.status)) result.states.push(data.status);
       result.failed ||= Boolean(data.error);
     } catch { /* Non-JSON output remains private; only fixed signatures leave this function. */ }
   }

@@ -34,6 +34,7 @@ export type Session = {
   serviceKey: string;
 };
 export type SessionManager = Pick<Sessions, "resolve" | "touch">;
+export type SessionUse = "observe" | "open" | "mutate" | "interact";
 
 export class Sessions {
   #pending = 0;
@@ -43,25 +44,28 @@ export class Sessions {
     readonly config: AdapterConfig
   ) {}
 
-  async resolve(identity: Identity, activity: boolean, cancellation?: AbortSignal): Promise<Session> {
+  async resolve(identity: Identity, use: SessionUse, cancellation?: AbortSignal): Promise<Session> {
     if (this.#pending >= this.config.ADAPTER_MAX_CONNECTIONS) throw new AdapterError(503, "context_busy");
     this.#pending++;
     const deadline = AbortSignal.timeout(this.config.ADAPTER_READY_TIMEOUT_MS + 45000);
     const signal = cancellation ? AbortSignal.any([cancellation, deadline]) : deadline;
     try {
-      return await this.resolveBinding(identity, activity, signal);
+      return await this.resolveBinding(identity, use, signal);
     } finally {
       this.#pending--;
     }
   }
 
-  private async resolveBinding(identity: Identity, activity: boolean, signal: AbortSignal): Promise<Session> {
+  private async resolveBinding(identity: Identity, use: SessionUse, signal: AbortSignal): Promise<Session> {
     return this.store.withBinding(
       identity.bindingKey,
       async (original, save) => {
         signal.throwIfAborted();
         let binding = original;
         const config = this.config;
+        const canCreate = use === "open" || use === "mutate";
+        // Polling and requests for an existing process must not allocate a runtime.
+        if (!binding.sandboxId && !canCreate) throw new AdapterError(409, "sandbox_session_inactive");
         if (!binding.workspaceId) {
           // The API allows 80 characters. The digest includes the full instance
           // and user IDs, so truncating the display prefix cannot merge identities.
@@ -84,6 +88,7 @@ export class Sessions {
         if (binding.sandboxId) {
           const { sandbox } = await this.client.getSandbox(binding.sandboxId, { signal });
           if (sandbox.status === "terminated") {
+            if (!canCreate) throw new AdapterError(409, "sandbox_session_inactive");
             const { workspace } = await this.client.workspaces.get(workspaceId, { signal });
             if (workspace.status !== "available" || workspace.attachedSandboxId)
               throw new AdapterError(409, "workspace_release_unconfirmed");
@@ -142,7 +147,7 @@ export class Sessions {
         const headers = applicationHeaders(identity, binding.serviceKey);
         const health = await waitForRouteHttp(route, { path: "/health", headers, timeoutMs: 30000, signal });
         await health.body?.cancel();
-        if (activity) await this.renew(binding, save, signal);
+        if (use === "mutate" || use === "interact") await this.renew(binding, save, signal);
         return {
           sandboxId: binding.sandboxId,
           expiresAt: binding.createdAt + config.ADAPTER_MAX_SESSION_SECONDS * 1000,

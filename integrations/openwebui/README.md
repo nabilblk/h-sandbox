@@ -296,9 +296,13 @@ Defaults: 15-minute runtime TTL, 4-hour maximum session age. Actual mutations or
 shell input can renew at most every 30 seconds. Health checks, file listings,
 output polling and automatic terminal ping/resize frames do not renew. A socket closes after 60 seconds without frames;
 reconnect explicitly. A connected browser alone is not a perpetual lease.
+Process/port polling and reconnecting an old PTY never allocate a runtime. They
+return `409 sandbox_session_inactive` when the previous runtime has ended.
 
 After confirmed termination and workspace release, the next user operation can
-create a fresh runtime on the retained workspace. Processes, PTYs and execution
+create a fresh runtime on the retained workspace: refresh/open files, start a
+new command or open a new terminal. Input or cancellation targeting an old
+process cannot create a replacement. Processes, PTYs and execution
 IDs are not restored. A paused/failed runtime or uncertain release requires an
 operator decision; the adapter will not force a second writer.
 
@@ -328,6 +332,7 @@ and all owned resources are accounted for.
 | `workspace_creation_unconfirmed` | A creation response was lost; locate the deterministic workspace name and reconcile ownership, never blindly allocate another |
 | `route_creation_unconfirmed` | Use the generation-checked grant recovery command below; never edit encrypted records or allocate a replacement sandbox |
 | `sandbox_recovery_required` | Inspect paused/failed/terminating state and retained storage; no automatic resume or replacement is attempted |
+| `sandbox_session_inactive` | The previous runtime ended; refresh files or start a new command/terminal. Old process and PTY IDs cannot be resumed |
 | `workspace_release_unconfirmed` | Wait for confirmed provider cleanup and storage detach; do not force attach |
 | `binding_decryption_failed` | Restore the matching encryption key with its database backup; do not reset the binding |
 | `sandbox_service_unavailable` | Check sandbox readiness, template logs, port 8000, `/health`, route state, key scopes and API/provider reachability |

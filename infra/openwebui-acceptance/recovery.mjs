@@ -87,6 +87,13 @@ export async function replaceRuntime(ctx, operator, template, page) {
     const current = (await operator.client.workspaces.get(workspace.id)).workspace;
     return current.status === "available" && !current.attachedSandboxId;
   }, 180000);
+  // Observe actual native background requests before explicitly reopening files.
+  for (let index = 0; index < 3; index++) {
+    await page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/terminals/harakiri/execute"
+      && response.request().method() === "GET" && response.status() === 409);
+    const current = (await operator.client.workspaces.get(workspace.id)).workspace;
+    check(current.status === "available" && !current.attachedSandboxId, "Native polling recreated a terminated runtime");
+  }
   await refreshFiles(page);
   let replacement;
   await until("Replacement ready through native browser", async () => {
@@ -97,7 +104,7 @@ export async function replaceRuntime(ctx, operator, template, page) {
   }, 300000);
   const result = await operator.client.files.read(replacement.id, "/workspace/demo/report.json");
   assert.deepEqual(JSON.parse(result.content), { North: 17, South: 7, total: 24 }, "Retained report differs after runtime replacement");
-  return { confirmedRelease: true, retainedWorkspace: true, replacement: true };
+  return { confirmedRelease: true, passivePollingNoAllocation: true, retainedWorkspace: true, replacement: true };
 }
 
 export async function revokeAndRecover(ctx, client, template, page, admin) {

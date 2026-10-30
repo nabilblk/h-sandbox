@@ -92,17 +92,17 @@ test("concurrent first access and adapter restart reuse one durable workspace, s
   const store = new TestBindings();
   const identity = identityFor(config.ADAPTER_INSTANCE_ID, { "x-user-id": "one" });
   const sessions = new Sessions(client, store, config);
-  const results = await Promise.all(Array.from({ length: 6 }, () => sessions.resolve(identity, false)));
+  const results = await Promise.all(Array.from({ length: 6 }, () => sessions.resolve(identity, "open")));
   assert.equal(new Set(results.map((session) => session.sandboxId)).size, 1);
   assert.deepEqual(creates, { workspaces: 1, sandboxes: 1, routes: 1, renewals: 0 });
   const restarted = new Sessions(client, store, config);
-  assert.equal((await restarted.resolve(identity, false)).sandboxId, "sbx_one");
+  assert.equal((await restarted.resolve(identity, "open")).sandboxId, "sbx_one");
   assert.equal(creates.sandboxes, 1);
   // Polling is not activity. Only an explicit action can renew the lease.
   store.values.get(identity.bindingKey)!.renewedAt = 0;
-  await restarted.resolve(identity, false);
+  await restarted.resolve(identity, "observe");
   assert.equal(creates.renewals, 0);
-  await restarted.resolve(identity, true);
+  await restarted.resolve(identity, "interact");
   assert.equal(creates.renewals, 1);
 });
 
@@ -129,8 +129,49 @@ test("an unconfirmed route creation does not retry or replace a grant", async ()
     ADAPTER_ENCRYPTION_KEY: "a".repeat(64),
     OPENWEBUI_ADAPTER_KEY: "x".repeat(32)
   });
-  await assert.rejects(new Sessions(client, store, config).resolve(identity, true), /route_creation_unconfirmed/);
+  await assert.rejects(new Sessions(client, store, config).resolve(identity, "mutate"), /route_creation_unconfirmed/);
   assert.equal(mutations, 0);
+});
+
+test("observation and stale process input never create a workspace or replace a terminated runtime", async () => {
+  const store = new TestBindings();
+  const identity = identityFor("test", { "x-user-id": "one" });
+  const requests: string[] = [];
+  const client = new HarakiriClient({
+    apiUrl: "https://control.test", apiKey: "key",
+    fetch: async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      requests.push(`${init?.method ?? "GET"} ${path}`);
+      if (path === "/v1/sandboxes/sbx_old")
+        return Response.json({ sandbox: { id: "sbx_old", status: "terminated" } });
+      if (path === "/v1/workspaces/ws_one")
+        return Response.json({ workspace: { status: "available", attachedSandboxId: null } });
+      if (path === "/v1/sandboxes" && init?.method === "POST") {
+        assert.equal(JSON.parse(String(init.body)).workspaceId, "ws_one");
+        return Response.json({ error: "organization_capacity_exceeded" }, { status: 409 });
+      }
+      throw new Error(`Unexpected request ${path}`);
+    }
+  });
+  const sessions = new Sessions(client, store, testConfig());
+  for (const use of ["observe", "interact"] as const)
+    await assert.rejects(sessions.resolve(identity, use), /sandbox_session_inactive/);
+  assert.deepEqual(requests, []);
+  assert.equal(store.values.size, 0);
+
+  const binding = { ...newBinding("ws_one"), sandboxId: "sbx_old" };
+  store.values.set(identity.bindingKey, binding);
+  for (const use of ["observe", "interact"] as const)
+    await assert.rejects(sessions.resolve(identity, use), /sandbox_session_inactive/);
+  assert.deepEqual(requests, ["GET /v1/sandboxes/sbx_old", "GET /v1/sandboxes/sbx_old"]);
+  assert.deepEqual(store.values.get(identity.bindingKey), binding);
+
+  // An explicit file-browser open may create a replacement only after release.
+  await assert.rejects(sessions.resolve(identity, "open"), /organization_capacity_exceeded/);
+  assert.deepEqual(requests.slice(2), [
+    "GET /v1/sandboxes/sbx_old", "GET /v1/workspaces/ws_one", "POST /v1/sandboxes"
+  ]);
+  assert.notEqual(store.values.get(identity.bindingKey)?.generation, binding.generation);
 });
 
 test("readiness cancellation preserves the accepted sandbox and releases local admission", async () => {
@@ -161,16 +202,16 @@ test("readiness cancellation preserves the accepted sandbox and releases local a
   });
   const sessions = new Sessions(client, store, { ...testConfig(), ADAPTER_MAX_CONNECTIONS: 1 });
   const cancellation = new AbortController();
-  const call = sessions.resolve(identity, false, cancellation.signal);
+  const call = sessions.resolve(identity, "open", cancellation.signal);
   const rejected = assert.rejects(call, /caller disconnected/);
   await waiting;
-  await assert.rejects(sessions.resolve(identity, false), /context_busy/);
+  await assert.rejects(sessions.resolve(identity, "open"), /context_busy/);
   cancellation.abort(new Error("caller disconnected"));
   await rejected;
   assert.equal(store.values.get(identity.bindingKey)?.sandboxId, "sbx_owned");
   assert.equal(created, 1);
   await assert.rejects(
-    sessions.resolve(identity, false, AbortSignal.abort(new Error("already cancelled"))),
+    sessions.resolve(identity, "open", AbortSignal.abort(new Error("already cancelled"))),
     /already cancelled/
   );
 });
@@ -196,7 +237,7 @@ test("an uncertain create reuses its original intent even after adapter configur
     }
   });
   await assert.rejects(
-    new Sessions(client, store, testConfig()).resolve(identity, true),
+    new Sessions(client, store, testConfig()).resolve(identity, "mutate"),
     /organization_capacity_exceeded/
   );
   assert.equal(creates, 1);
@@ -222,7 +263,7 @@ test("terminated runtime replacement waits for confirmed workspace release", asy
     }
   });
   await assert.rejects(
-    new Sessions(client, store, testConfig()).resolve(identity, true),
+    new Sessions(client, store, testConfig()).resolve(identity, "mutate"),
     /workspace_release_unconfirmed/
   );
   assert.equal(mutations, 0);

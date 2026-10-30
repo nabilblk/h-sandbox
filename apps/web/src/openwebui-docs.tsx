@@ -104,8 +104,9 @@ node packages/cli/dist/index.js template build \\
       <p>
         Default runtime TTL is 15 minutes, with a four-hour session age ceiling. Mutations and shell input may renew at
         most every 30 seconds; health, listings and output polling do not. After confirmed termination and storage
-        release, a new runtime can reuse the retained workspace. Processes, execution IDs and old terminals are not
-        resumed.
+        release, opening/refreshing files or starting a new command can create a runtime on the retained workspace.
+        Automatic process polling and reconnecting an old terminal cannot create one. Processes, execution IDs and old
+        terminals are not resumed.
       </p>
       <p>
         Concurrent first requests coordinate through encrypted PostgreSQL bindings. Unknown create outcomes and lost

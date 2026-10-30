@@ -113,7 +113,7 @@ export const attachTerminal = (
         pump();
       });
       const identity = identityFor(config.ADAPTER_INSTANCE_ID, request.headers);
-      const session = await sessions.resolve(identity, false, controller.signal);
+      const session = await sessions.resolve(identity, "observe", controller.signal);
       if (stopped) return;
       lifetime = setTimeout(() => stop(1008, "Session expired"), Math.max(0, session.expiresAt - Date.now()));
       lifetime.unref();

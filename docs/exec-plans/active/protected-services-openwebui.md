@@ -411,6 +411,20 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Candidate `dc57f9d` passed CI, Workbench, TypeScript native (40983652131)
+  and Python native (40983652068). OpenWebUI run 40983652055 timed out after
+  12 real tool calls, with three nonzero process exits and three tool failures.
+  All five expected artifact names existed, but correctness and previews were
+  not verified. All cleanup checks, including key revocation, now passed.
+- Review found native process polling could recreate a terminated runtime.
+  Session resolution now distinguishes observation, explicit workspace opening,
+  new mutations and input to existing processes. Polling, stale process input and
+  PTY reconnect cannot allocate resources. Focused regression tests pass; native
+  replacement acceptance now requires three real polling denials before refresh.
+- The next harness preserves a failed real-model gate while continuing independent
+  transport/recovery checks after stopping the model through the native UI. It
+  neither retries the prompt nor seeds substitute artifacts. Fixed exception
+  categories improve diagnostics without exporting tool arguments or output.
 - Candidate `ee0c95b0dd8bcf0dd67efeb2aa80e8e758cc3390` is pushed to draft PR #78.
   General CI, Python package checks, demo checks and native Workbench acceptance
   pass. Native TypeScript SDK run 40981236453 and Python run 40981236456 also pass,

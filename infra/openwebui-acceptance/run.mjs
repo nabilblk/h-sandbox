@@ -18,6 +18,7 @@ const receipt = { status: "running", source: process.env.GITHUB_SHA, runId: ctx.
 const publish = () => fs.writeFileSync("standalone-acceptance-report.json", `${JSON.stringify(publicReceipt(receipt), null, 2)}\n`, { mode: 0o600 });
 const template = `acceptance-open-terminal-${ctx.identity.id}`;
 let activeGate, candidate, images, image, operator, credentials, page, admin, witness;
+let scenarioFailed = false;
 async function gate(name, action) {
   check(gates.has(name), "Unknown OpenWebUI acceptance gate");
   activeGate = name;
@@ -26,6 +27,18 @@ async function gate(name, action) {
   const evidence = await action();
   receipt.results.push({ gate: name, status: "passed", evidence });
   publish();
+}
+async function scenario(name, action) {
+  try { await gate(name, action); }
+  catch (error) {
+    scenarioFailed = true;
+    receipt.results.push({ gate: name, status: "failed", failure: publicFailure(error) });
+    console.error(`OpenWebUI acceptance failed: ${name} ${JSON.stringify(safeFailure(publicFailure(error)))}`);
+    console.log(`OpenWebUI protocol counters: ${JSON.stringify(witness.state)}`);
+    await diagnose(ctx, operator.client, template);
+    await browserDiagnostics(page).catch(() => {});
+    publish();
+  }
 }
 try {
   publish();
@@ -66,23 +79,27 @@ try {
     await until("Native file browser provisioned exactly one runtime", async () => (await operator.client.capacity()).capacity.inUse === 1, 300000);
     return { ready: true, noDuplicateRuntime: true };
   });
-  await gate("native-model-artifacts", () => runChat(page, witness));
-  await gate("native-shell", () => shell(page, witness));
-  await gate("native-previews", () => previews(page));
-  await gate("native-relative-assets-limit", () => relativeAssetBoundary(page));
-  await gate("native-transfers-isolation", () => transfersAndIsolation(page));
-  await gate("native-live-files", () => liveFiles(page, operator.client, template));
-  await gate("native-transfer-failures", () => transferFailures(page));
-  await gate("native-svg-mobile", () => svgIsolation(page));
-  await gate("adapter-restart", () => restart(ctx, operator.client, template, page));
-  await gate("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
-  await gate("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
-  await gate("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
-  await gate("native-browser-errors", () => {
+  await scenario("native-model-artifacts", () => runChat(page, witness));
+  // Keep a failed model scenario failed, but stop its producer and still inspect
+  // the independent transport/recovery features. Never seed replacement artifacts.
+  const stop = page.getByRole("button", { name: "Stop", exact: true });
+  if (await stop.isVisible()) { await stop.click(); await stop.waitFor({ state: "hidden" }); }
+  await scenario("native-shell", () => shell(page, witness));
+  await scenario("native-previews", () => previews(page));
+  await scenario("native-relative-assets-limit", () => relativeAssetBoundary(page));
+  await scenario("native-transfers-isolation", () => transfersAndIsolation(page));
+  await scenario("native-live-files", () => liveFiles(page, operator.client, template));
+  await scenario("native-transfer-failures", () => transferFailures(page));
+  await scenario("native-svg-mobile", () => svgIsolation(page));
+  await scenario("adapter-restart", () => restart(ctx, operator.client, template, page));
+  await scenario("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
+  await scenario("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
+  await scenario("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
+  await scenario("native-browser-errors", () => {
     check(witness.state.browserErrors === 0, "Native browser has uncaught JavaScript errors");
     return { noBrowserScriptErrors: true };
   });
-  receipt.status = "configured_gates_passed";
+  receipt.status = scenarioFailed ? "failed" : "configured_gates_passed";
 } catch (error) {
   ctx.save("openwebui-failure.json", { gate: activeGate, message: error.message, stack: error.stack });
   receipt.results.push({ gate: activeGate, status: "failed", failure: publicFailure(error) });
@@ -96,7 +113,7 @@ try {
   await finishReceipt(receipt, {
     chatBrowser: async () => { if (page) await page.close(); },
     adapter: async () => {
-      // Stop background chat/port polling from allocating a replacement during cleanup.
+      // Quiesce application requests before retiring owned runtimes and credentials.
       if (credentials) ownedDocker(ctx, "adapter", ["stop", "--time", "10"]);
     },
     runtimes: async () => {
