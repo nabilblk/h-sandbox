@@ -411,6 +411,16 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Run [40990470590](https://github.com/nabilblk/h-sandbox/actions/runs/40990470590)
+  passed all generated JSON/PNG/PDF/HTML previews, relative-asset denial, real chat,
+  two-user separation/quota and the previous recovery checks except grant
+  revocation. The only failed gates were the known loopback upload-fault test and
+  waiting for unsolicited output from a reattached PTY before revocation. The next
+  candidate explicitly executes a shell marker before revoking the grant. All
+  cleanup checks passed. Desktop/mobile captures were inspected; the generated
+  HTML chart overflowed its narrow pane despite decoding correctly, so the exact
+  shared prompt now requests responsive inline CSS and acceptance checks overflow.
+
 - Run [40986643266](https://github.com/nabilblk/h-sandbox/actions/runs/40986643266)
   passed a real single-submission local-model workflow: three native tool calls,
   no tool failures and verified retained JSON after runtime replacement. Shell,

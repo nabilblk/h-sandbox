@@ -276,6 +276,7 @@ export async function previews(page) {
   await until("Embedded chart in HTML preview", () => frame.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100)));
   const embedded = await frame.locator('img[src^="data:image/png;base64,"]').first().getAttribute("src");
   check(sha256(Buffer.from(embedded.split(",", 2)[1], "base64")) === sha256(png), "Embedded chart differs from downloaded PNG");
+  check(await frame.locator("html").evaluate(root => root.scrollWidth <= window.innerWidth), "HTML report overflows its preview pane");
   check(!(await page.locator('iframe[title="HTML Preview"]').getAttribute("sandbox")).includes("allow-same-origin"), "Preview allows chat origin authority");
   // Only the generated synthetic report/chat, never account or connection settings.
   await page.screenshot({ path: "openwebui-report-desktop.png" });

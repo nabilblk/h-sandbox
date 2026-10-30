@@ -122,17 +122,28 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
   const expand = dock.getByRole("button", { name: "Expand terminal", exact: true });
   if (await expand.isVisible()) await expand.click();
   const terminal = dock.getByRole("button", { name: "Open terminal", exact: true });
-  let received = false;
+  let output = "", connected = false;
   const socketOpened = page.waitForEvent("websocket", socket => {
     if (!new URL(socket.url()).pathname.includes("/api/v1/terminals/harakiri/api/terminals/")) return false;
-    socket.on("framereceived", ({ payload }) => { received ||= Buffer.isBuffer(payload) && payload.length > 0; });
+    socket.on("framereceived", ({ payload }) => {
+      if (Buffer.isBuffer(payload)) output = (output + payload.toString()).slice(-8192);
+    });
+    socket.on("framesent", ({ payload }) => {
+      try { connected ||= JSON.parse(String(payload)).type === "resize"; } catch { /* Binary PTY input. */ }
+    });
     return true;
   });
   if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
   if (await expand.isVisible()) await expand.click();
   if (await terminal.isVisible()) await terminal.click();
   const socket = await socketOpened;
-  await until("Native terminal ready before revocation", () => received, 45000);
+  await until("Native shell connected", () => connected, 45000);
+  // A reattached PTY may have no pending output. Exercise it instead of waiting
+  // for a spontaneous prompt; the command echo cannot satisfy this marker.
+  await dock.locator('.xterm-helper-textarea:visible').focus();
+  await page.keyboard.insertText("printf 'REVOCATION_%s\\n' READY");
+  await page.keyboard.press("Enter");
+  await until("Native terminal ready before revocation", () => output.includes("REVOCATION_READY"), 45000);
   let closed = false;
   socket.on("close", () => { closed = true; });
   await client.routes.delete(before.id, 8000);

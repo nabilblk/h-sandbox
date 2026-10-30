@@ -108,6 +108,13 @@ test("upload failure is an explicit pre-dispatch network fault, not a fake respo
   assert.doesNotMatch(source, /Fetch\.fulfillRequest|\.fulfill\(|emulateNetworkConditions/);
 });
 
+test("revocation first proves a working reattached shell without relying on prompt replay", () => {
+  const source = read("./recovery.mjs");
+  const marker = source.indexOf('output.includes("REVOCATION_READY")');
+  assert.ok(marker > 0 && source.indexOf("await client.routes.delete", marker) > marker);
+  assert.match(source, /printf 'REVOCATION_%s/);
+});
+
 test("failure diagnostics retain only bounded non-sensitive categories", () => {
   assert.deepEqual(safeFailure({ kind: "browser", reason: "ambiguous_locator", message: "PRIVATE" }), { kind: "browser", reason: "ambiguous_locator" });
   assert.deepEqual(safeFailure({ kind: "PRIVATE", reason: "PRIVATE", type: "PRIVATE", status: "PRIVATE" }), { kind: "withheld" });
