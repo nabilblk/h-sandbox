@@ -32,6 +32,8 @@ export async function twoUsersAndQuota(ctx, operator, template, browser, admin, 
   const userContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   try {
     const page = await userContext.newPage();
+    let browserErrors = 0;
+    page.on("pageerror", () => browserErrors++);
     page.setDefaultTimeout(45000);
     const user = await signup(page, credentials, true);
     // Grant this named account access through OpenWebUI's supported admin API.
@@ -66,6 +68,7 @@ export async function twoUsersAndQuota(ctx, operator, template, browser, admin, 
       headers: { "x-user-id": admin.id }, signal: AbortSignal.timeout(10000)
     });
     check(unauthenticated.status === 401, "Adapter trusted unsigned identity");
+    check(browserErrors === 0, "Second native browser has uncaught JavaScript errors");
     ctx.save("openwebui-second-user.json", { id: user.id });
     return { nativeQuotaDenial: true, twoUsers: true, identityTamperingDenied: true, noDuplicateRuntime: true };
   } finally { await userContext.close(); }

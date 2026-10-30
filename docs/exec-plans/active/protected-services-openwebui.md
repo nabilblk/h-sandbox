@@ -433,6 +433,16 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   tutorial prompt. No horizontal page overflow or browser JavaScript errors were
   observed. The temporary documentation browser/server were closed afterward.
   This is documentation QA, not evidence for native OpenWebUI previews.
+- Added an opt-in Compose local-model profile with the same pinned inference
+  image, bounded CPU/memory, no host model port and explicit digest verification.
+  Compose configuration validation passes with placeholder settings; it does not
+  constitute an independent adopter installation. The guide also distinguishes
+  asynchronous command observation from the proxy's finite first-byte budget.
+- Source review of pinned OpenWebUI found that its responsive layout remounts
+  FileNav and retains the directory, not the selected preview. The mobile check
+  now reopens the file and checks viewport bounds. Native browser checks also
+  count uncaught JavaScript errors without exporting their messages. All 16
+  harness contract tests pass; these changes still require native execution.
 
 ### Isolated Qualification Checkpoint, October 29
 

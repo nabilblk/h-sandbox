@@ -86,10 +86,13 @@ function fileRefreshButton(page) {
 }
 
 export function chatWitness(page) {
-  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, modelEvents: 0, sockets: 0, toolCalls: 0, toolFailures: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
+  const state = { submissions: 0, selectedTerminal: false, completed: false, modelError: false, modelEvents: 0, sockets: 0, toolCalls: 0, toolFailures: 0, browserErrors: 0, inputBytes: 0, outputBytes: 0, closed: 0, resizeFrames: 0 };
   const toolCalls = new Set();
   const toolFailures = new Set();
   let terminalOutput = "";
+  // Expected HTTP/CSP denials are not uncaught JavaScript exceptions. Never log
+  // exception messages because they can contain document contents or credentials.
+  page.on("pageerror", () => state.browserErrors++);
   const onRequest = request => {
     if (new URL(request.url()).pathname !== "/api/chat/completions" || request.method() !== "POST") return;
     state.submissions++;

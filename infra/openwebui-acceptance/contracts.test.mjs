@@ -10,6 +10,7 @@ import { runtime } from "./recovery.mjs";
 import { inspectImageAudit } from "./image-audit.mjs";
 import { adapterFailures, runtimeState, toolResult } from "./diagnostics.mjs";
 import { chatWitness } from "./browser.mjs";
+import { model } from "../sdk-acceptance/framework.mjs";
 
 const read = name => fs.readFileSync(new URL(name, import.meta.url), "utf8");
 
@@ -76,6 +77,25 @@ test("browser exercises real native paths without fulfilling or substituting mod
   assert.match(stack, /owned ephemeral registry/);
 });
 
+test("optional self-service model uses the qualified image without a host port", () => {
+  const compose = read("../../integrations/openwebui/compose.yaml");
+  const service = compose.split("  model:\n", 2)[1].split("\nvolumes:", 1)[0];
+  assert.ok(service.includes(`image: ${model.image}`));
+  assert.match(service, /profiles: \[local-model\]/);
+  assert.match(service, /mem_limit: 6g/);
+  assert.doesNotMatch(service, /ports:|privileged:|docker\.sock/);
+  const guide = read("../../integrations/openwebui/README.md");
+  assert.ok(guide.includes(model.digest));
+  assert.ok(guide.includes("http://model:11434"));
+});
+
+test("mobile acceptance reopens the file after the native responsive remount", () => {
+  const source = read("./files.mjs").split('await page.setViewportSize({ width: 390', 2)[1];
+  assert.ok(source.indexOf('getByText("isolation.svg"') < source.indexOf('getByText("Synthetic SVG preview"'));
+  assert.match(source, /preview\.x \+ preview\.width <= 390/);
+  assert.match(source, /preview\.y \+ preview\.height <= 844/);
+});
+
 test("failure diagnostics retain only bounded non-sensitive categories", () => {
   assert.deepEqual(safeFailure({ kind: "browser", reason: "ambiguous_locator", message: "PRIVATE" }), { kind: "browser", reason: "ambiguous_locator" });
   assert.deepEqual(safeFailure({ kind: "PRIVATE", reason: "PRIVATE", type: "PRIVATE", status: "PRIVATE" }), { kind: "withheld" });
@@ -99,6 +119,9 @@ test("native tool witness counts item and snapshot events without retaining outp
   assert.equal(witness.state.completed, true);
   assert.ok(!JSON.stringify(witness.state).includes("PRIVATE"));
   assert.equal(witness.output(), "");
+  page.emit("pageerror", new Error("PRIVATE"));
+  assert.equal(witness.state.browserErrors, 1);
+  assert.ok(!JSON.stringify(witness.state).includes("PRIVATE"));
 });
 
 test("a completed tool wrapper does not hide a failed process", () => {

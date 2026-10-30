@@ -6,7 +6,7 @@ export const gates = new Set([
   "native-template", "applications", "native-admin-setup", "native-cold-start", "native-model-artifacts",
   "native-shell", "native-previews", "native-transfers-isolation", "adapter-restart",
   "grant-revocation-recovery", "runtime-replacement", "two-users-quota",
-  "native-live-files", "native-transfer-failures", "native-svg-mobile", "native-relative-assets-limit"
+  "native-live-files", "native-transfer-failures", "native-svg-mobile", "native-relative-assets-limit", "native-browser-errors"
 ]);
 const flags = new Set([
   "singleSubmission", "realModel", "nativeTools", "generatedFilesVisible", "shellInput", "ansiOutput",
@@ -15,7 +15,7 @@ const flags = new Set([
   "durableMapping", "nativeQuotaDenial", "twoUsers", "identityTamperingDenied", "noDuplicateRuntime",
   "confirmedRelease", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
-  "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview"
+  "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview", "noBrowserScriptErrors"
 ]);
 const cleanups = new Set(["chatBrowser", "browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
@@ -27,7 +27,8 @@ const checks = new Set([
   "Native terminal ready before revocation: deadline exceeded",
   "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
   "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded",
-  "Owned workspace released before archival: deadline exceeded"
+  "Owned workspace released before archival: deadline exceeded",
+  "Native browser has uncaught JavaScript errors", "Second native browser has uncaught JavaScript errors"
 ]);
 
 export function safeFailure(failure) {

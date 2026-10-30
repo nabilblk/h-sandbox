@@ -201,6 +201,46 @@ capacity view to distinguish exhausted slots from an unreachable service.
 
 ## 4. Use a model, then inspect the actual result
 
+### Optional local model
+
+Skip this subsection if OpenWebUI already has a tool-capable model connection.
+The optional Compose profile starts a CPU-only Ollama server on the private
+Compose network. Reserve **6 GiB and 3 CPUs in addition to** the integration's
+resources and Harakiri runtimes. The initial image/model downloads require
+internet access; inference does not require a paid provider or cloud account.
+
+```bash
+docker compose --env-file integrations/openwebui/.env \
+  -f integrations/openwebui/compose.yaml --profile local-model up -d model
+docker compose --env-file integrations/openwebui/.env \
+  -f integrations/openwebui/compose.yaml --profile local-model exec -T model \
+  ollama pull qwen3:4b-instruct
+```
+
+In **Admin Panel > Settings > Connections**, enable Ollama and add
+`http://model:11434`. This is the OpenWebUI backend's address, not a browser URL.
+No model port is published on the host. Verify the downloaded identity from the
+OpenWebUI container before treating it as the reference model:
+
+```bash
+docker compose --env-file integrations/openwebui/.env \
+  -f integrations/openwebui/compose.yaml exec -T openwebui python -c '
+import json, urllib.request
+models = json.load(urllib.request.urlopen("http://model:11434/api/tags", timeout=10))["models"]
+model = next(item for item in models if item["name"] == "qwen3:4b-instruct")
+expected = "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
+if model["digest"].removeprefix("sha256:") != expected:
+    raise SystemExit("Model digest differs from the qualification candidate")
+print(model["name"], model["digest"])
+'
+```
+
+The model tag can change; a different digest is a different qualification target.
+Do not silently update the expected digest. The optional model volume is a download
+cache, separate from user workspaces and the adapter binding database.
+
+### Model settings and first chat
+
 Configure a tool-capable model in OpenWebUI's normal Connections settings. No
 model key is required by this adapter. The reference scenario targets the local
 `qwen3:4b-instruct` model through Ollama, with native tool calling, thinking off
@@ -243,6 +283,13 @@ improve buffering inside OpenWebUI: the pinned application buffers requests and
 some text/JSON responses. Harakiri's incremental transport is not a promise of
 end-to-end streaming for every OpenWebUI operation.
 
+For long-running commands, request `wait=0`, retain the returned process ID and
+use `get_process_status` to observe it. The default Harakiri service proxy allows
+10 seconds to receive response headers; a synchronous Open Terminal wait longer
+than that can lose its response while the command continues. Do not resubmit the
+command after a transport timeout. Operators can configure finite proxy budgets;
+see the [transport limits](../../docs/routes.md).
+
 ## 5. Lifecycle, retention and cleanup
 
 Defaults: 15-minute runtime TTL, 4-hour maximum session age. Actual mutations or
@@ -259,7 +306,7 @@ Stop the integration without deleting data:
 
 ```bash
 docker compose --env-file integrations/openwebui/.env \
-  -f integrations/openwebui/compose.yaml down
+  -f integrations/openwebui/compose.yaml --profile local-model down
 ```
 
 Stopping the adapter does not delete Harakiri resources. Revoke routes and stop

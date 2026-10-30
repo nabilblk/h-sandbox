@@ -50,6 +50,18 @@ services:
       - openwebui:/app/backend/data
     depends_on: [adapter]
     mem_limit: 2g
+  model:
+    profiles: [local-model]
+    image: ollama/ollama@sha256:fcf18828940c6919f6b9997d8f7a9730144c8df657589959732a73005a3464a3
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_CONTEXT_LENGTH: "16384"
+      OLLAMA_NUM_PARALLEL: "1"
+    volumes:
+      - model:/root/.ollama
+    mem_limit: 6g
+    cpus: 3
 volumes:
   bindings:
   openwebui:
+  model:

@@ -87,7 +87,13 @@ export async function svgIsolation(page) {
   check(!(await page.locator("html").getAttribute("data-harakiri-preview-probe")), "SVG executed with chat authority");
   await page.setViewportSize({ width: 390, height: 844 });
   if (!(await files.isVisible())) await page.getByRole("button", { name: "Controls", exact: true }).click();
+  // The native responsive layout remounts FileNav and retains its directory,
+  // not the selected preview. Open the file in the mobile instance explicitly.
+  await files.locator("[data-file-row]").getByText("isolation.svg", { exact: true }).click();
   await files.getByText("Synthetic SVG preview", { exact: true }).waitFor();
+  const preview = await files.locator(".svg-preview").boundingBox();
+  check(preview && preview.x >= 0 && preview.y >= 0 && preview.x + preview.width <= 390 && preview.y + preview.height <= 844,
+    "Native mobile preview falls outside the viewport");
   await page.screenshot({ path: "openwebui-preview-mobile.png" });
   await page.setViewportSize({ width: 1440, height: 1000 });
   return { svgScriptBlocked: true, mobilePreview: true };

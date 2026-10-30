@@ -78,6 +78,10 @@ try {
   await gate("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
   await gate("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
   await gate("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
+  await gate("native-browser-errors", () => {
+    check(witness.state.browserErrors === 0, "Native browser has uncaught JavaScript errors");
+    return { noBrowserScriptErrors: true };
+  });
   receipt.status = "configured_gates_passed";
 } catch (error) {
   ctx.save("openwebui-failure.json", { gate: activeGate, message: error.message, stack: error.stack });
