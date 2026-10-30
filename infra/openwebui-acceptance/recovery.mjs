@@ -30,7 +30,13 @@ async function webuiRequest(account, endpoint, method = "GET", body) {
 
 export async function twoUsersAndQuota(ctx, operator, template, browser, admin, credentials) {
   const userContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const original = await webuiRequest(admin, "auths/admin/config");
+  check(original.ok, "Admin signup configuration unavailable");
+  const settings = await original.json();
   try {
+    // Stock OpenWebUI disables signup after its first administrator is created.
+    check((await webuiRequest(admin, "auths/admin/config", "POST", { ...settings, ENABLE_SIGNUP: true, DEFAULT_USER_ROLE: "user" })).ok,
+      "Admin could not enable second user signup");
     const page = await userContext.newPage();
     let browserErrors = 0;
     page.on("pageerror", () => browserErrors++);
@@ -71,7 +77,10 @@ export async function twoUsersAndQuota(ctx, operator, template, browser, admin, 
     check(browserErrors === 0, "Second native browser has uncaught JavaScript errors");
     ctx.save("openwebui-second-user.json", { id: user.id });
     return { nativeQuotaDenial: true, twoUsers: true, identityTamperingDenied: true, noDuplicateRuntime: true };
-  } finally { await userContext.close(); }
+  } finally {
+    await userContext.close();
+    check((await webuiRequest(admin, "auths/admin/config", "POST", settings)).ok, "Admin signup configuration was not restored");
+  }
 }
 
 export async function replaceRuntime(ctx, operator, template, page) {
@@ -127,12 +136,15 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
   let closed = false;
   socket.on("close", () => { closed = true; });
   await client.routes.delete(before.id, 8000);
+  console.log("OpenWebUI recovery: grant revoked, waiting for socket closure");
   await until("Revoked native terminal disconnected", () => closed, 15000);
   const denied = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace");
   check(!denied.ok, "Revoked grant accepted a fresh native request");
+  console.log("OpenWebUI recovery: HTTP denied, resetting grant through operator command");
   const inspect = JSON.parse(ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "inspect", "--user-id", admin.id]));
   check(typeof inspect.generation === "string", "Operator generation missing");
   ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "reset-grant", "--user-id", admin.id, "--expect-generation", inspect.generation]);
+  console.log("OpenWebUI recovery: operator reset completed, reopening native files");
   const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace/demo");
   check(recovered.ok, "Operator reset did not recover native file access");
   check((await runtime(client, template)).id === before.id, "Grant recovery replaced runtime");

@@ -249,10 +249,12 @@ export async function previews(page) {
   });
   const report = await downloadSelected(page);
   assert.deepEqual(JSON.parse(report), { North: 17, South: 7, total: 24 }, "Model report totals differ");
+  console.log("OpenWebUI preview: JSON totals verified, opening PNG");
   await choose("chart.png");
-  await until("Native image preview decoded", () => files.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100 && image.naturalHeight > 100)));
   const png = await downloadSelected(page);
   check(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), "Downloaded chart is not PNG");
+  await until("Native image preview decoded", () => files.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100 && image.naturalHeight > 100)));
+  console.log("OpenWebUI preview: PNG decoded, opening PDF");
   await choose("report.pdf");
   await until("Native PDF preview rendered", () => files.locator(".pdf-page-wrapper canvas").evaluateAll(canvases => canvases.some(canvas => {
     if (canvas.width < 100 || canvas.height < 100) return false;
@@ -265,10 +267,12 @@ export async function previews(page) {
   })));
   const pdf = await downloadSelected(page);
   check(pdf.subarray(0, 5).toString() === "%PDF-", "Downloaded report is not PDF");
+  console.log("OpenWebUI preview: PDF rendered, opening HTML");
   await choose("index.html");
   const frame = page.frameLocator('iframe[title="HTML Preview"]');
   await frame.getByRole("heading", { name: "Sales report", exact: false }).waitFor();
   check((await frame.locator("body").innerText()).includes("24"), "HTML preview does not show actual total");
+  console.log("OpenWebUI preview: HTML totals verified, checking embedded chart");
   await until("Embedded chart in HTML preview", () => frame.locator("img").evaluateAll(images => images.some(image => image.naturalWidth > 100)));
   const embedded = await frame.locator('img[src^="data:image/png;base64,"]').first().getAttribute("src");
   check(sha256(Buffer.from(embedded.split(",", 2)[1], "base64")) === sha256(png), "Embedded chart differs from downloaded PNG");
@@ -294,6 +298,14 @@ export async function browserDiagnostics(page) {
   }
   // Fixed boolean inventory only: no DOM, URL, input values, cookies or user content.
   console.log(`OpenWebUI browser state: ${JSON.stringify(controls)}`);
+  const images = await files.locator("img").evaluateAll(items => items.slice(0, 10).map(image => ({
+    complete: image.complete, decoded: image.naturalWidth > 0, blob: image.src.startsWith("blob:")
+  }))).catch(() => []);
+  const preview = page.frameLocator('iframe[title="HTML Preview"]');
+  const embedded = await page.locator('iframe[title="HTML Preview"]').count() ? await preview.locator("img").evaluateAll(items => items.slice(0, 10).map(image => ({
+    complete: image.complete, decoded: image.naturalWidth > 0, data: image.src.startsWith("data:image/png;base64,")
+  }))).catch(() => []) : [];
+  console.log(`OpenWebUI image state: ${JSON.stringify({ images, embedded })}`);
 }
 
 export async function upload(page, file, waitForFile = true) {

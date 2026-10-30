@@ -10,13 +10,26 @@ export async function relativeAssetBoundary(page) {
   const html = `<!doctype html><h1>Relative asset boundary</h1><pre id="result">pending</pre>
 <img src="chart.png" onload="document.querySelector('#result').textContent='loaded'" onerror="document.querySelector('#result').textContent='requires session'">`;
   await upload(page, { name: "relative-asset.html", mimeType: "text/html", buffer: Buffer.from(html) });
-  const [response] = await Promise.all([
-    page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/files/serve/workspace/demo/chart.png")),
-    fileBrowser(page).locator("[data-file-row]").getByText("relative-asset.html", { exact: true }).click()
-  ]);
-  check([401, 403].includes(response.status()), "Opaque preview unexpectedly has session authority for relative assets");
-  const frame = page.frameLocator('iframe[title="HTML Preview"]');
-  await until("Relative asset has a finite rejected outcome", async () => (await frame.locator("#result").innerText()) === "requires session");
+  let denied = false, blocked = false, allowed = false;
+  const matches = request => new URL(request.url()).pathname.endsWith("/files/serve/workspace/demo/chart.png");
+  const onResponse = response => {
+    if (!matches(response.request())) return;
+    denied ||= [401, 403].includes(response.status());
+    allowed ||= response.ok();
+  };
+  const onFailure = request => { if (matches(request)) blocked = true; };
+  page.on("response", onResponse);
+  page.on("requestfailed", onFailure);
+  try {
+    await fileBrowser(page).locator("[data-file-row]").getByText("relative-asset.html", { exact: true }).click();
+    const frame = page.frameLocator('iframe[title="HTML Preview"]');
+    await until("Relative asset has a finite rejected outcome", async () => (await frame.locator("#result").innerText()) === "requires session");
+    // Chromium may hide the unauthorized cross-origin image response with ORB.
+    check((denied || blocked) && !allowed, "Opaque preview unexpectedly has session authority for relative assets");
+  } finally {
+    page.off("response", onResponse);
+    page.off("requestfailed", onFailure);
+  }
   return { relativeAssetsRequireSession: true };
 }
 
@@ -40,9 +53,11 @@ export async function liveFiles(page, client, template) {
 
 export async function transferFailures(page) {
   const files = fileBrowser(page);
+  console.log("OpenWebUI transfer: submit oversize native upload");
   const rejected = page.waitForResponse(response => isUpload(response.request()) && response.status() === 413);
   await upload(page, { name: "oversized.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(17 * 1024 * 1024) }, false);
   await rejected;
+  console.log("OpenWebUI transfer: oversize upload rejected with HTTP 413");
   await until("Oversize upload finishes visibly", () => files.getByText("Uploading...", { exact: true }).isVisible().then(value => !value));
   check(await files.getByText("oversized.bin", { exact: true }).count() === 0, "Rejected upload appeared as successful");
 
@@ -59,9 +74,11 @@ export async function transferFailures(page) {
     const interrupted = page.waitForEvent("requestfailed", isUpload);
     await upload(page, { name: "interrupted.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(1024 * 1024) }, false);
     await started;
+    console.log("OpenWebUI transfer: throttled upload started, interrupting transport");
     await delay(200);
     await network.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await interrupted;
+    console.log("OpenWebUI transfer: browser reported transport failure");
   } finally {
     await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await network.detach();

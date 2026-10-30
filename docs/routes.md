@@ -200,3 +200,24 @@ as incomplete and verify results before retrying side effects.
 
 The optional [OpenWebUI reference adapter](../integrations/openwebui/README.md)
 exercises this general contract. It does not add chat semantics to the core.
+
+### Database Upgrade
+
+Candidate migration `040_protected_route_uniqueness.sql` allows protected routes
+to share the API hostname. Each active route key remains globally unique, each
+active sandbox/port pair remains unique, and public hostnames remain unique among
+active public routes. Terminated route history does not block replacement.
+
+Before upgrading an existing database, check for ambiguous active route keys:
+
+```sql
+SELECT route_key, count(*)
+FROM sandbox_routes
+WHERE state <> 'terminated' AND route_key IS NOT NULL
+GROUP BY route_key
+HAVING count(*) > 1;
+```
+
+The expected result is zero rows. If duplicates exist, inspect ownership and
+revoke the unintended routes through the API before upgrading. The migration
+fails rather than silently deleting routes or choosing which grant to trust.

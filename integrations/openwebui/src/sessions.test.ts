@@ -36,8 +36,12 @@ class TestBindings implements BindingStore {
 }
 
 test("concurrent first access and adapter restart reuse one durable workspace, sandbox and grant", async (t) => {
+  let healthStatus = 200;
+  let healthRequests = 0;
   const server = createServer((req, res) => {
     assert.equal(req.headers["x-harakiri-route-token"], "grant");
+    healthRequests++;
+    res.statusCode = healthStatus;
     res.end("healthy");
   });
   server.listen(0, "127.0.0.1");
@@ -107,6 +111,16 @@ test("concurrent first access and adapter restart reuse one durable workspace, s
   assert.equal(creates.renewals, 0);
   await restarted.resolve(identity, "interact");
   assert.equal(creates.renewals, 1);
+  const binding = structuredClone(store.values.get(identity.bindingKey));
+  for (const status of [401, 403, 404, 410, 503]) {
+    healthStatus = status;
+    const requestsBefore = healthRequests;
+    await assert.rejects(restarted.resolve(identity, "open", AbortSignal.timeout(2000)),
+      status === 503 ? /sandbox_service_unavailable/ : /service_grant_unavailable/);
+    assert.equal(healthRequests, requestsBefore + 1, "Existing grants must fail without a readiness retry loop");
+    assert.deepEqual(store.values.get(identity.bindingKey), binding);
+  }
+  assert.deepEqual(creates, { workspaces: 1, sandboxes: 1, routes: 1, renewals: 1 });
 });
 
 test("an unconfirmed route creation does not retry or replace a grant", async () => {

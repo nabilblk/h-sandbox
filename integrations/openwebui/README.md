@@ -161,8 +161,11 @@ docker compose --env-file integrations/openwebui/.env \
   -f integrations/openwebui/compose.yaml up -d --build
 ```
 
-Open `http://127.0.0.1:28580`, create the first administrator, then disable public
-signup in OpenWebUI's settings. Bindings and OpenWebUI data use separate persistent
+Open `http://127.0.0.1:28580` and create the first administrator. OpenWebUI 0.12.4
+then disables public signup automatically. Add the intended users through its
+admin panel, or temporarily enable signup and approve their accounts, then disable
+signup again. Grant those users access to the Terminal connection below; creating
+an account alone does not grant access. Bindings and OpenWebUI data use separate persistent
 volumes. Neither the database nor adapter port is published on the host. Keep the
 OpenWebUI branding; it has its own [license](https://github.com/open-webui/open-webui/blob/v0.12.4/LICENSE),
 distinct from Harakiri's Apache-2.0 and Open Terminal's MIT license.

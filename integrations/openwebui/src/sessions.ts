@@ -129,6 +129,7 @@ export class Sessions {
           await save(binding);
         }
         await this.client.waitForSandbox(binding.sandboxId, { timeoutMs: config.ADAPTER_READY_TIMEOUT_MS, signal });
+        const newGrant = !binding.grant;
         if (!binding.grant) {
           if (binding.routeIntent) throw new AdapterError(409, "route_creation_unconfirmed");
           binding.routeIntent = true;
@@ -150,14 +151,24 @@ export class Sessions {
         }
         const route = routeResponse(binding);
         const headers = applicationHeaders(identity, binding.serviceKey);
-        const health = await waitForRouteHttp(route, { path: "/health", headers, timeoutMs: 30000, signal });
-        await health.body?.cancel();
+        const routeFetch = createRouteFetch(route, { headers });
+        // Only a newly exposed service needs a readiness loop. Retrying a revoked
+        // grant under the binding lock would block the operator's recovery.
+        const health = newGrant
+          ? await waitForRouteHttp(route, { path: "/health", headers, timeoutMs: 30000, signal })
+          : await routeFetch("/health", { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) });
+        try {
+          if ([401, 403, 404, 410].includes(health.status)) throw new AdapterError(409, "service_grant_unavailable");
+          if (!health.ok) throw new AdapterError(503, "sandbox_service_unavailable");
+        } finally {
+          await health.body?.cancel();
+        }
         if (use === "mutate" || use === "interact") await this.renew(binding, save, signal);
         return {
           sandboxId: binding.sandboxId,
           expiresAt: binding.createdAt + config.ADAPTER_MAX_SESSION_SECONDS * 1000,
           serviceKey: binding.serviceKey,
-          fetch: createRouteFetch(route, { headers }),
+          fetch: routeFetch,
           webSocketRequest: (path) => routeWebSocketRequest(route, path, { headers })
         };
       },

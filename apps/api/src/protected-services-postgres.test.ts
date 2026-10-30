@@ -19,6 +19,53 @@ if (process.env.SERVICE_PROXY_TEST_REQUIRED === "1" && !database) {
   throw new Error("Required protected-service test database is missing");
 }
 
+test("protected routes share an API host without sharing grants or active route identities", {
+  skip: !database, timeout: 30000
+}, async () => {
+  const connection = new pg.Client({ connectionString: database, statement_timeout: 5000 });
+  await connection.connect();
+  const schema = `service_${randomUUID().replaceAll("-", "")}`;
+  const query: Query = (sql, params) => connection.query(sql, params);
+  const organizations = [randomUUID(), randomUUID()];
+  const tokens = [randomBytes(32).toString("hex"), randomBytes(32).toString("hex")];
+  const insert = (index: number, port: number, key: string, mode = "token", host = "api.test") => query(
+    `INSERT INTO sandbox_routes(sandbox_id,organization_id,port,host,target_url,route_key,state,access_mode,access_token_hash,access_header_name)
+     VALUES ($1,$2,$3,$4,'http://service.test:8000',$5,'ready',$6,$7,'x-harakiri-route-token')`,
+    [`sbx_${index}`, organizations[index], port, host, key, mode, hashApiKey(tokens[index])]
+  );
+  try {
+    await query(`CREATE SCHEMA ${schema}`);
+    await query(`SET search_path TO ${schema}, public`);
+    const migrations = new URL("../../../db/migrations/", import.meta.url);
+    for (const name of (await readdir(migrations)).filter((name) => name.endsWith(".sql")).sort()) {
+      await query(await readFile(new URL(name, migrations), "utf8"));
+    }
+    await query("INSERT INTO templates(id,name,description,image,icon) VALUES ('service-test','Service','','test:1','box')");
+    for (const [index, organization] of organizations.entries()) {
+      await query("INSERT INTO organizations(id,name,slug) VALUES ($1,$2,$2)", [organization, `service-${index}`]);
+      await query("INSERT INTO sandboxes(id,organization_id,template_id,name,status,owner_label) VALUES ($1,$2,'service-test','service','running','test')", [`sbx_${index}`, organization]);
+      await insert(index, 8000, `owned-${index}`);
+    }
+    for (const index of [0, 1]) {
+      const routeKey = `owned-${index}`;
+      assert.equal((await getSandboxRouteProxyTarget({ routeKey, token: tokens[index] }, query)).kind, "ok");
+      assert.equal((await getSandboxRouteProxyTarget({ routeKey, token: tokens[1 - index] }, query)).kind, "unauthorized");
+    }
+    await assert.rejects(insert(1, 8001, "owned-0"), { code: "23505", constraint: "sandbox_routes_active_key_unique_idx" });
+    await assert.rejects(insert(0, 8000, "another"), { code: "23505", constraint: "sandbox_routes_active_port_unique_idx" });
+    await insert(0, 8080, "public-0", "public", "preview.test");
+    await assert.rejects(insert(1, 8080, "public-1", "public", "preview.test"), { code: "23505", constraint: "sandbox_routes_active_host_unique_idx" });
+    await query("UPDATE sandbox_routes SET state='terminated' WHERE route_key IN ('owned-0','public-0')");
+    await insert(0, 8000, "owned-0");
+    await insert(1, 8080, "public-1", "public", "preview.test");
+    assert.equal((await getSandboxRouteProxyTarget({ routeKey: "owned-0", token: tokens[0] }, query)).kind, "ok");
+  } finally {
+    await query("SET search_path TO public");
+    await query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+    await connection.end();
+  }
+});
+
 test("PostgreSQL grants enforce tenant, runtime, expiry and live revocation boundaries", {
   skip: !database, timeout: 30000
 }, async () => {

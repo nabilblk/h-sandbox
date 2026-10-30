@@ -411,6 +411,24 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Run [40986643266](https://github.com/nabilblk/h-sandbox/actions/runs/40986643266)
+  passed a real single-submission local-model workflow: three native tool calls,
+  no tool failures and verified retained JSON after runtime replacement. Shell,
+  binary SHA-256 round trip, live text editing, HTML/SVG isolation, mobile preview,
+  adapter restart, passive-polling denial and all owned cleanup checks passed.
+  Five gates failed: full document previews, relative-asset denial observation,
+  transfer failures, grant recovery and second-user signup. This is partial
+  evidence, not qualification. Python/TypeScript native checks and ordinary CI
+  passed on the same pushed candidate. The mobile screenshot was inspected.
+- Added failing-then-passing real PostgreSQL coverage for multiple protected
+  routes sharing the API hostname. Migration 040 preserves active port/public
+  host uniqueness and enforces unambiguous active route keys; no deployment DB
+  was changed. Added failing-then-passing adapter regression coverage for revoked
+  grants: existing health requests now fail promptly without mutation/retry,
+  releasing the binding lock for explicit operator recovery. Native user signup
+  now uses OpenWebUI's supported admin configuration after its automatic first-
+  administrator signup shutdown. These corrections still require a native rerun.
+
 - Candidate `dc57f9d` passed CI, Workbench, TypeScript native (40983652131)
   and Python native (40983652068). OpenWebUI run 40983652055 timed out after
   12 real tool calls, with three nonzero process exits and three tool failures.
