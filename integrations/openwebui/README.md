@@ -5,11 +5,13 @@
 and exact image identities before installing. Core rc.13 does not provide the
 new generic WebSocket transport; Python route helpers require 0.1.0rc2.
 All 22 native source gates passed on Linux amd64 in
-[run 41017083195](https://github.com/nabilblk/h-sandbox/actions/runs/41017083195).
+[run 41036129635](https://github.com/nabilblk/h-sandbox/actions/runs/41036129635).
 The [qualification report](../../docs/operations/openwebui-source-acceptance.md)
 retains the exact source, receipt, inspected captures and limitations;
 [compatibility.json](compatibility.json) pins upstream identities. This is not
-independent adopter acceptance or proof of published artifact installation.
+independent adopter acceptance or a full OpenWebUI workflow on published images.
+The [delivery receipt](../../docs/release-notes/0.5.0-rc.14-delivery.md) separately
+records anonymous registry verification and the core public-lab deployment.
 
 This optional adapter connects **unmodified OpenWebUI** to Harakiri through its
 native Open Terminal connection. Harakiri manages runtime capacity, lifecycle,
@@ -130,6 +132,7 @@ verified digest instead of rebuilding, set `OPEN_TERMINAL_IMAGE` to the image
 reference in the delivery receipt and retain this directory's runtime metadata:
 
 ```bash
+export OPEN_TERMINAL_IMAGE=core.campus.clusterdiali.me/harakiri/templates/open-terminal@sha256:a5c40ddf96eccd10a4d92a2e973da8ff6bb16f1bc9522ca36b48f5d7b3d33904
 harakiri template build --name open-terminal --source image \
   --image "$OPEN_TERMINAL_IMAGE" examples/templates/open-terminal
 ```

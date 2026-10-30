@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-30T10:34:34.973Z",
+  "source": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+  "templateSource": "eef734f6350aefbae8b7703e3bfc4da85ee55416",
+  "adapter": {
+    "reference": "core.campus.clusterdiali.me/harakiri/harakiri-openwebui-adapter:0.1.0-rc.0",
+    "digest": "sha256:6ffe19393a84d8e58fb5107dd67fec5823acd1d1f864bd6fefbee2dd2b1b5feb",
+    "platforms": [
+      {
+        "os": "linux",
+        "architecture": "amd64",
+        "manifest": "sha256:00a66df3fc733a183bdc3c823e3bdc6a05bafef3f1ba9523957829541bacfb6d",
+        "config": "sha256:d90232e707739a40c211b07a5564c28e36443732ec3d0bc32ec750b9e85f2ab0",
+        "revision": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+        "version": "0.1.0-rc.0"
+      },
+      {
+        "os": "linux",
+        "architecture": "arm64",
+        "manifest": "sha256:c2b8e422fa40145fdc82c17b2a4ed6fca7bdca4cde58ca8e1171539c375a5a28",
+        "config": "sha256:b38e299623cccad985ecb8a8aabacc67cd198f275c18f442af5cf78db9000ef5",
+        "revision": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+        "version": "0.1.0-rc.0"
+      }
+    ]
+  },
+  "terminal": {
+    "reference": "core.campus.clusterdiali.me/harakiri/templates/open-terminal:sha-eef734f6350aefbae8b7703e3bfc4da85ee55416-41041148531-1",
+    "digest": "sha256:a5c40ddf96eccd10a4d92a2e973da8ff6bb16f1bc9522ca36b48f5d7b3d33904",
+    "platforms": [
+      {
+        "os": "linux",
+        "architecture": "amd64",
+        "manifest": "sha256:da736b7115bc074e3e2db115da38c7ccc0bb8d331f548e1a4c815131dd2eb50e",
+        "config": "sha256:10706b502c795be58b1ee09cdd2afc51e1f40b9b02a2a6371dce32e0b45ebc17"
+      },
+      {
+        "os": "linux",
+        "architecture": "arm64",
+        "manifest": "sha256:3ca70b919bbe1d7b7e716c0466cd64b672d613708f553a79abddcc7093c21d53",
+        "config": "sha256:541d67b52d936a0c224c387e1c32001b1b30a65bc6d0075df67a363c10f769b0"
+      }
+    ]
+  },
+  "verification": "Anonymous indexes, child manifests and image configs; template provenance tied to run 41041148531, not source labels or cryptographic signatures. Template source is unchanged from native-qualified release tree."
+}

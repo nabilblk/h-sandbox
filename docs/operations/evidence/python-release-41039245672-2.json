@@ -1,0 +1,42 @@
+{
+  "kind": "python-agents-candidate",
+  "artifactSource": "candidate",
+  "published": false,
+  "candidateSource": "ea2f9feb8b51a85b5981f87ec2859b53a219334f",
+  "architecture": "amd64",
+  "results": [
+    {
+      "gate": "published-installation",
+      "status": "failed",
+      "failure": {
+        "kind": "exception",
+        "type": "TimeoutError"
+      }
+    }
+  ],
+  "startedAt": "2026-10-30T10:24:31.050Z",
+  "limits": [
+    "Single-worker SQLite example, not HA or exactly-once",
+    "One real model repair, not a model benchmark",
+    "This qualification job publishes no packages and changes no existing deployment"
+  ],
+  "status": "failed",
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-10-30T10:24:46.695Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}
