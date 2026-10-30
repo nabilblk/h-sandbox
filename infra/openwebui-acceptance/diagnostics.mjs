@@ -10,7 +10,8 @@ const signatures = ["Permission denied", "Operation not permitted", "Read-only f
 const toolErrors = [...signatures, "SyntaxError", "IndentationError", "NameError", "UnboundLocalError",
   "TypeError", "ValueError", "KeyError", "AttributeError", "AssertionError", "ImportError", "FileNotFoundError",
   "PermissionError", "UnicodeDecodeError", "JSONDecodeError", "ValidationError", "HTTP error 400", "HTTP error 404",
-  "HTTP error 422", "HTTP error 503", "command not found"];
+  "HTTP error 422", "HTTP error 503", "command not found", "unterminated string literal",
+  "unexpected character after line continuation character", "invalid syntax", "was never closed"];
 
 export function toolResult(item) {
   const result = { failed: item.status === "failed", exitCodes: [], states: [], errors: [] };

@@ -411,6 +411,18 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ### Qualification Checkpoint, October 30
 
+- Run [40994701987](https://github.com/nabilblk/h-sandbox/actions/runs/40994701987)
+  failed the model scenario with a Python `SyntaxError` and no report directory.
+  The earlier CSS-template explanation was a hypothesis, not a verified cause.
+  Missing files exposed an unhandled browser-response rejection in the harness;
+  the process stopped before its normal cleanup receipt. Workflow always-cleanup
+  removed the owned stack, but the normal cleanup gates cannot be claimed.
+  A failing-then-passing strict Node regression now covers event/response failures
+  during slower UI failures. Dependent scenarios explicitly fail on missing model
+  artifacts instead of cascading through absent UI controls. The shared recipe
+  requests ElementTree HTML construction, not a prewritten script, and retains
+  all correctness and viewport checks. Another full native run is required.
+
 - Source review covered transport authorization/expiry, path and credential
   confinement, bounded connections, cancellation, encrypted bindings and explicit
   recovery. A separate maintainability pass checked module ownership, TS/Python

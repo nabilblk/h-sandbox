@@ -176,6 +176,9 @@ test("tool diagnostics distinguish process failure without publishing arguments 
   assert.deepEqual(toolResult({ status: "completed", output: [{ type: "input_text", text: JSON.stringify({
     status: "done", exit_code: 1, output: "Traceback PRIVATE\nNameError: PRIVATE is not defined"
   }) }] }), { failed: false, exitCodes: [1], states: ["done"], errors: ["Traceback", "NameError"] });
+  assert.deepEqual(toolResult({ status: "completed", output: [{ type: "input_text", text: JSON.stringify({
+    exit_code: 1, output: "PRIVATE\nSyntaxError: unterminated string literal in PRIVATE"
+  }) }] }), { failed: false, exitCodes: [1], states: [], errors: ["SyntaxError", "unterminated string literal"] });
 });
 
 test("a failed model gate stays failed while independent native checks continue", () => {
@@ -186,6 +189,9 @@ test("a failed model gate stays failed while independent native checks continue"
   const model = source.indexOf('await scenario("native-model-artifacts"');
   const stop = source.indexOf('name: "Stop", exact: true', model);
   assert.ok(model > 0 && stop > model && source.indexOf('await scenario("native-shell"', stop) > stop);
+  assert.match(source, /check\(modelReady, "Model artifacts unavailable; dependent scenario not executed"\)/);
+  for (const gate of ["native-previews", "native-transfer-failures", "runtime-replacement", "two-users-quota"])
+    assert.ok(source.includes(`await afterModel("${gate}"`));
   assert.doesNotMatch(source, /files\.write\(|commands\.run\(/);
 });
 

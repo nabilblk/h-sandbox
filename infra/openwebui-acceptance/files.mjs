@@ -55,9 +55,10 @@ export async function liveFiles(page, client, template) {
 export async function transferFailures(page) {
   const files = fileBrowser(page);
   console.log("OpenWebUI transfer: submit oversize native upload");
-  const rejected = page.waitForResponse(response => isUpload(response.request()) && response.status() === 413);
-  await upload(page, { name: "oversized.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(17 * 1024 * 1024) }, false);
-  await rejected;
+  await Promise.all([
+    page.waitForResponse(response => isUpload(response.request()) && response.status() === 413),
+    upload(page, { name: "oversized.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(17 * 1024 * 1024) }, false)
+  ]);
   console.log("OpenWebUI transfer: oversize upload rejected with HTTP 413");
   await page.getByText("Upload failed: oversized.bin", { exact: true }).waitFor();
   await until("Oversize upload finishes visibly", () => files.getByText("Uploading...", { exact: true }).isVisible().then(value => !value));
@@ -67,25 +68,31 @@ export async function transferFailures(page) {
   // Chromium's network throttling does not reliably slow loopback uploads.
   // Partial-body interruption is covered separately by the core socket tests.
   const network = await page.context().newCDPSession(page);
+  const waiting = new AbortController();
   let attempts = 0;
   const count = request => { if (isUpload(request)) attempts++; };
   page.on("request", count);
   try {
-    await network.send("Fetch.enable", { patterns: [{ urlPattern: "*/api/v1/terminals/harakiri/files/upload?*", requestStage: "Request" }] });
-    const paused = once(network, "Fetch.requestPaused", { signal: AbortSignal.timeout(45000) });
-    const interrupted = page.waitForEvent("requestfailed", isUpload);
-    await upload(page, { name: "interrupted.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(1024 * 1024) }, false);
-    const [{ requestId }] = await paused;
-    console.log("OpenWebUI transfer: native upload paused before dispatch, injecting transport failure");
-    await network.send("Fetch.failRequest", { requestId, errorReason: "ConnectionReset" });
-    await interrupted;
-    await page.getByText("Upload failed: interrupted.bin", { exact: true }).waitFor();
-    console.log("OpenWebUI transfer: browser reported transport failure");
-  } finally {
-    await network.send("Fetch.disable");
-    await network.detach();
-  }
-  try {
+    try {
+      await network.send("Fetch.enable", { patterns: [{ urlPattern: "*/api/v1/terminals/harakiri/files/upload?*", requestStage: "Request" }] });
+      await Promise.all([
+        page.waitForEvent("requestfailed", isUpload),
+        (async () => {
+          const [[{ requestId }]] = await Promise.all([
+            once(network, "Fetch.requestPaused", { signal: AbortSignal.any([waiting.signal, AbortSignal.timeout(45000)]) }),
+            upload(page, { name: "interrupted.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(1024 * 1024) }, false)
+          ]);
+          console.log("OpenWebUI transfer: native upload paused before dispatch, injecting transport failure");
+          await network.send("Fetch.failRequest", { requestId, errorReason: "ConnectionReset" });
+        })()
+      ]);
+      await page.getByText("Upload failed: interrupted.bin", { exact: true }).waitFor();
+      console.log("OpenWebUI transfer: browser reported transport failure");
+    } finally {
+      waiting.abort();
+      try { await network.send("Fetch.disable"); }
+      finally { await network.detach(); }
+    }
     await refreshFiles(page);
     await delay(10000);
     check(attempts === 1, "Interrupted native upload was replayed");

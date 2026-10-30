@@ -29,7 +29,7 @@ async function gate(name, action) {
   publish();
 }
 async function scenario(name, action) {
-  try { await gate(name, action); }
+  try { await gate(name, action); return true; }
   catch (error) {
     scenarioFailed = true;
     receipt.results.push({ gate: name, status: "failed", failure: publicFailure(error) });
@@ -38,6 +38,7 @@ async function scenario(name, action) {
     await diagnose(ctx, operator.client, template);
     await browserDiagnostics(page).catch(() => {});
     publish();
+    return false;
   }
 }
 try {
@@ -79,22 +80,26 @@ try {
     await until("Native file browser provisioned exactly one runtime", async () => (await operator.client.capacity()).capacity.inUse === 1, 300000);
     return { ready: true, noDuplicateRuntime: true };
   });
-  await scenario("native-model-artifacts", () => runChat(page, witness));
+  const modelReady = await scenario("native-model-artifacts", () => runChat(page, witness));
+  const afterModel = (name, action) => scenario(name, () => {
+    check(modelReady, "Model artifacts unavailable; dependent scenario not executed");
+    return action();
+  });
   // Keep a failed model scenario failed, but stop its producer and still inspect
   // the independent transport/recovery features. Never seed replacement artifacts.
   const stop = page.getByRole("button", { name: "Stop", exact: true });
   if (await stop.isVisible()) { await stop.click(); await stop.waitFor({ state: "hidden" }); }
   await scenario("native-shell", () => shell(page, witness));
-  await scenario("native-previews", () => previews(page));
-  await scenario("native-relative-assets-limit", () => relativeAssetBoundary(page));
-  await scenario("native-transfers-isolation", () => transfersAndIsolation(page));
-  await scenario("native-live-files", () => liveFiles(page, operator.client, template));
-  await scenario("native-transfer-failures", () => transferFailures(page));
-  await scenario("native-svg-mobile", () => svgIsolation(page));
+  await afterModel("native-previews", () => previews(page));
+  await afterModel("native-relative-assets-limit", () => relativeAssetBoundary(page));
+  await afterModel("native-transfers-isolation", () => transfersAndIsolation(page));
+  await afterModel("native-live-files", () => liveFiles(page, operator.client, template));
+  await afterModel("native-transfer-failures", () => transferFailures(page));
+  await afterModel("native-svg-mobile", () => svgIsolation(page));
   await scenario("adapter-restart", () => restart(ctx, operator.client, template, page));
-  await scenario("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
-  await scenario("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
-  await scenario("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
+  await afterModel("grant-revocation-recovery", () => revokeAndRecover(ctx, operator.client, template, page, admin));
+  await afterModel("runtime-replacement", () => replaceRuntime(ctx, operator, template, page));
+  await afterModel("two-users-quota", () => twoUsersAndQuota(ctx, operator, template, operator.browser, admin, credentials));
   await scenario("native-browser-errors", () => {
     check(witness.state.browserErrors === 0, "Native browser has uncaught JavaScript errors");
     return { noBrowserScriptErrors: true };

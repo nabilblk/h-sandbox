@@ -52,9 +52,10 @@ export async function twoUsersAndQuota(ctx, operator, template, browser, admin, 
     const first = await runtime(operator.client, template);
     // The organization is still limited to one slot by the real onboarding fixture.
     await page.reload();
-    const denial = page.waitForResponse(response => response.url().includes("/api/v1/terminals/harakiri/") && response.status() === 429, { timeout: 300000 });
-    await selectTerminal(page);
-    await denial;
+    await Promise.all([
+      page.waitForResponse(response => response.url().includes("/api/v1/terminals/harakiri/") && response.status() === 429, { timeout: 300000 }),
+      selectTerminal(page)
+    ]);
     check((await runtime(operator.client, template)).id === first.id, "Quota denial allocated an extra runtime");
     const { capacity } = await operator.client.capacity();
     await operator.request("/v1/org/settings", "PATCH", { maxConcurrency: 2, expectedCapacityRevision: capacity.revision });
@@ -133,10 +134,14 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
     });
     return true;
   });
-  if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
-  if (await expand.isVisible()) await expand.click();
-  if (await terminal.isVisible()) await terminal.click();
-  const socket = await socketOpened;
+  const [socket] = await Promise.all([
+    socketOpened,
+    (async () => {
+      if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
+      if (await expand.isVisible()) await expand.click();
+      if (await terminal.isVisible()) await terminal.click();
+    })()
+  ]);
   await until("Native shell connected", () => connected, 45000);
   // A reattached PTY may have no pending output. Exercise it instead of waiting
   // for a spontaneous prompt; the command echo cannot satisfy this marker.

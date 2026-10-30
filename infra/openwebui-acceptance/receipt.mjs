@@ -20,6 +20,7 @@ const flags = new Set([
 const cleanups = new Set(["chatBrowser", "browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);
 const checks = new Set([
+  "Model artifacts unavailable; dependent scenario not executed",
   "Native cold-start file listing failed", "Native file refresh failed", "No native tool event observed from real model",
   "Native model response reported an error", "Real chat submitted with terminal: deadline exceeded",
   "Real model response completed: deadline exceeded", "Native shell output: deadline exceeded",

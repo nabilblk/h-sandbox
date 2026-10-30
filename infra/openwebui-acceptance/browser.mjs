@@ -19,9 +19,10 @@ export async function signup(page, credentials, second = false) {
   await page.getByPlaceholder("Enter Your Password", { exact: true }).fill(credentials.password);
   const confirmation = page.getByPlaceholder("Confirm Your Password", { exact: true });
   if (await confirmation.isVisible()) await confirmation.fill(credentials.password);
-  const accepted = page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/auths/signup"));
-  await page.getByRole("button", { name: second ? "Create Account" : "Create Admin Account", exact: true }).click();
-  const response = await accepted;
+  const [response] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname.endsWith("/auths/signup")),
+    page.getByRole("button", { name: second ? "Create Account" : "Create Admin Account", exact: true }).click()
+  ]);
   console.log(`OpenWebUI browser: signup response ${response.status()}`);
   check(response.ok(), "OpenWebUI signup rejected");
   const account = await response.json();
@@ -50,21 +51,26 @@ export async function configureTerminal(page, credentials) {
   await page.locator("#terminal-url").fill(adapterOrigin);
   await page.getByPlaceholder("API Key", { exact: true }).fill(credentials.adapterKey);
   console.log("OpenWebUI browser: verify terminal connection");
-  const verified = page.waitForResponse(response => response.url().includes("/terminal_servers/verify"));
-  await page.getByRole("button", { name: "Verify Connection", exact: true }).click();
-  const verification = await verified;
+  const [verification] = await Promise.all([
+    page.waitForResponse(response => response.url().includes("/terminal_servers/verify")),
+    page.getByRole("button", { name: "Verify Connection", exact: true }).click()
+  ]);
   check(verification.ok() && (await verification.json()).type === "terminal", "Native terminal connection verification rejected");
   console.log("OpenWebUI browser: save verified terminal connection");
   await page.locator("#terminal-chat-uploads").selectOption("filesystem");
-  const persisted = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/configs/terminal_servers" && response.request().method() === "POST");
-  await dialog.getByRole("button", { name: "Save", exact: true }).click();
-  check((await persisted).ok(), "Native terminal connection was not saved");
+  const [persisted] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/configs/terminal_servers" && response.request().method() === "POST"),
+    dialog.getByRole("button", { name: "Save", exact: true }).click()
+  ]);
+  check(persisted.ok(), "Native terminal connection was not saved");
   await page.locator("#terminal-url").waitFor({ state: "hidden" });
   const enabled = page.locator("#terminal-0-control");
   if (await enabled.getAttribute("aria-checked") === "false") {
-    const toggled = page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/configs/terminal_servers" && response.request().method() === "POST");
-    await enabled.click();
-    check((await toggled).ok(), "Native terminal connection was not enabled");
+    const [toggled] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === "/api/v1/configs/terminal_servers" && response.request().method() === "POST"),
+      enabled.click()
+    ]);
+    check(toggled.ok(), "Native terminal connection was not enabled");
   }
   console.log("OpenWebUI browser: terminal connection persisted and enabled");
   await page.goto(webOrigin);
@@ -220,9 +226,10 @@ export async function shell(page, witness) {
 }
 
 export async function downloadSelected(page) {
-  const event = page.waitForEvent("download");
-  await page.getByRole("region", { name: "File browser", exact: true }).getByRole("button", { name: "Download", exact: true }).click();
-  const download = await event;
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("region", { name: "File browser", exact: true }).getByRole("button", { name: "Download", exact: true }).click()
+  ]);
   check(!(await download.failure()), "Native file download failed");
   return fs.readFileSync(await download.path());
 }
@@ -313,9 +320,11 @@ export async function upload(page, file, waitForFile = true) {
   const files = page.getByRole("region", { name: "File browser", exact: true });
   await files.getByRole("button", { name: "demo", exact: true }).click();
   await files.getByRole("button", { name: "Actions", exact: true }).click();
-  const chooser = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Upload", exact: true }).click();
-  await (await chooser).setFiles(file);
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "Upload", exact: true }).click()
+  ]);
+  await chooser.setFiles(file);
   if (waitForFile) await files.locator("[data-file-row]").getByText(file.name, { exact: true }).waitFor();
 }
 
