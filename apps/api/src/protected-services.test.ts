@@ -347,6 +347,36 @@ test("chunked uploads cannot bypass the byte limit", async (t) => {
   incoming.resume();
 });
 
+test("interrupted multipart upload closes upstream without replay and releases admission", { timeout: 5000 }, async (t) => {
+  let calls = 0, received = 0, complete = false;
+  let receivedChunk = () => {}, closed = () => {};
+  const firstChunk = new Promise<void>(resolve => { receivedChunk = resolve; });
+  const disconnected = new Promise<void>(resolve => { closed = resolve; });
+  const f = await fixture(t, (req, res) => {
+    if (req.url !== "/upload") { res.end("healthy"); return; }
+    calls++;
+    req.on("data", chunk => { received += chunk.length; receivedChunk(); });
+    req.on("close", () => { complete = req.complete; closed(); });
+  }, { connectionsPerRoute: 1 });
+  const request = httpRequest(`${f.url}/upload`, {
+    method: "POST", headers: { ...f.headers, "content-type": "multipart/form-data; boundary=interrupted" }
+  });
+  request.on("error", () => {});
+  t.after(() => request.destroy());
+  const prefix = Buffer.concat([Buffer.from("--interrupted\r\n"), Buffer.alloc(32768)]);
+  request.write(prefix);
+  await firstChunk;
+  request.destroy();
+  await disconnected;
+  assert.equal(complete, false);
+  assert.ok(received > 0 && received <= prefix.length);
+  await delay(30);
+  const health = await fetch(`${f.url}/health`, { headers: f.headers });
+  assert.equal(health.status, 200);
+  assert.equal(await health.text(), "healthy");
+  assert.equal(calls, 1);
+});
+
 test("unknown-length response overflow is a broken transfer, not a successful truncated body", async (t) => {
   const f = await fixture(
     t,

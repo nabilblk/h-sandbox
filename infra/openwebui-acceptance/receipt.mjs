@@ -15,7 +15,7 @@ const flags = new Set([
   "durableMapping", "nativeQuotaDenial", "twoUsers", "identityTamperingDenied", "noDuplicateRuntime",
   "confirmedRelease", "passivePollingNoAllocation", "retainedWorkspace", "replacement", "discoveryNoAllocation", "ready",
   "revokedSocketClosed", "revokedHttpDenied", "operatorGrantRecovered", "textRoundTrip", "nativeEdit",
-  "freshPreview", "oversizeRejected", "interruptedUpload", "noUploadReplay", "svgScriptBlocked", "mobilePreview", "noBrowserScriptErrors"
+  "freshPreview", "oversizeRejected", "uploadTransportFailure", "failureBeforeDispatch", "noUploadReplay", "svgScriptBlocked", "mobilePreview", "noBrowserScriptErrors"
 ]);
 const cleanups = new Set(["chatBrowser", "browser", "adapter", "runtimes", "workspaces", "key", "docker", "portForwards"]);
 const browserReasons = new Set(["connection_refused", "connection_reset", "navigation_aborted", "browser_executable_missing", "ambiguous_locator", "browser_closed"]);

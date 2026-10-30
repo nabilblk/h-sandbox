@@ -334,6 +334,7 @@ and all owned resources are accounted for.
 | `context_busy` | A lifecycle action holds this user's binding; inspect/observe it before issuing another mutation |
 | `workspace_creation_unconfirmed` | A creation response was lost; locate the deterministic workspace name and reconcile ownership, never blindly allocate another |
 | `route_creation_unconfirmed` | Use the generation-checked grant recovery command below; never edit encrypted records or allocate a replacement sandbox |
+| `service_grant_unavailable` | Access to the saved route was denied; inspect/revoke it and use explicit grant recovery below. Health polling will not replace it automatically |
 | `sandbox_recovery_required` | Inspect paused/failed/terminating state and retained storage; no automatic resume or replacement is attempted |
 | `sandbox_session_inactive` | The previous runtime ended; refresh files or start a new command/terminal. Old process and PTY IDs cannot be resumed |
 | `workspace_release_unconfirmed` | Wait for confirmed provider cleanup and storage detach; do not force attach |

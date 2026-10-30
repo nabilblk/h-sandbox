@@ -428,6 +428,14 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   releasing the binding lock for explicit operator recovery. Native user signup
   now uses OpenWebUI's supported admin configuration after its automatic first-
   administrator signup shutdown. These corrections still require a native rerun.
+- A local Chromium/socket probe reproduced why the original upload interruption
+  check could not pass reliably: a 1 MiB loopback upload finished despite the
+  requested upload throttle, before the offline toggle. The replacement injects
+  `ConnectionReset` before native browser dispatch without fulfilling a response.
+  Its receipt states that boundary explicitly. A separate real core multipart
+  socket test interrupts after upstream bytes arrive, verifies upstream closure
+  and released admission, and rejects replay. Neither proves rollback of an
+  upload already accepted by Open Terminal.
 
 - Candidate `dc57f9d` passed CI, Workbench, TypeScript native (40983652131)
   and Python native (40983652068). OpenWebUI run 40983652055 timed out after

@@ -99,6 +99,15 @@ test("mobile acceptance reopens the file after the native responsive remount", (
   assert.match(source, /preview\.y \+ preview\.height <= 844/);
 });
 
+test("upload failure is an explicit pre-dispatch network fault, not a fake response or partial-write claim", () => {
+  const source = read("./files.mjs");
+  assert.match(source, /Fetch\.failRequest/);
+  assert.match(source, /errorReason: "ConnectionReset"/);
+  assert.match(source, /Fetch\.disable/);
+  assert.match(source, /failureBeforeDispatch: true/);
+  assert.doesNotMatch(source, /Fetch\.fulfillRequest|\.fulfill\(|emulateNetworkConditions/);
+});
+
 test("failure diagnostics retain only bounded non-sensitive categories", () => {
   assert.deepEqual(safeFailure({ kind: "browser", reason: "ambiguous_locator", message: "PRIVATE" }), { kind: "browser", reason: "ambiguous_locator" });
   assert.deepEqual(safeFailure({ kind: "PRIVATE", reason: "PRIVATE", type: "PRIVATE", status: "PRIVATE" }), { kind: "withheld" });

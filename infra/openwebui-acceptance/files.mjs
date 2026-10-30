@@ -1,4 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
+import { once } from "node:events";
 import { check, until } from "../acceptance/context.mjs";
 import { upload, downloadSelected, refreshFiles } from "./browser.mjs";
 import { runtime } from "./recovery.mjs";
@@ -58,29 +59,30 @@ export async function transferFailures(page) {
   await upload(page, { name: "oversized.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(17 * 1024 * 1024) }, false);
   await rejected;
   console.log("OpenWebUI transfer: oversize upload rejected with HTTP 413");
+  await page.getByText("Upload failed: oversized.bin", { exact: true }).waitFor();
   await until("Oversize upload finishes visibly", () => files.getByText("Uploading...", { exact: true }).isVisible().then(value => !value));
   check(await files.getByText("oversized.bin", { exact: true }).count() === 0, "Rejected upload appeared as successful");
 
-  // Real browser transport interruption, not a fulfilled/mock API response. The
-  // pinned OpenWebUI buffers uploads; interrupt before the full body reaches it.
+  // Inject a browser transport failure before dispatch, never a fake response.
+  // Chromium's network throttling does not reliably slow loopback uploads.
+  // Partial-body interruption is covered separately by the core socket tests.
   const network = await page.context().newCDPSession(page);
   let attempts = 0;
   const count = request => { if (isUpload(request)) attempts++; };
   page.on("request", count);
   try {
-    await network.send("Network.enable");
-    await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: 32768 });
-    const started = page.waitForRequest(isUpload);
+    await network.send("Fetch.enable", { patterns: [{ urlPattern: "*/api/v1/terminals/harakiri/files/upload?*", requestStage: "Request" }] });
+    const paused = once(network, "Fetch.requestPaused", { signal: AbortSignal.timeout(45000) });
     const interrupted = page.waitForEvent("requestfailed", isUpload);
     await upload(page, { name: "interrupted.bin", mimeType: "application/octet-stream", buffer: Buffer.alloc(1024 * 1024) }, false);
-    await started;
-    console.log("OpenWebUI transfer: throttled upload started, interrupting transport");
-    await delay(200);
-    await network.send("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    const [{ requestId }] = await paused;
+    console.log("OpenWebUI transfer: native upload paused before dispatch, injecting transport failure");
+    await network.send("Fetch.failRequest", { requestId, errorReason: "ConnectionReset" });
     await interrupted;
+    await page.getByText("Upload failed: interrupted.bin", { exact: true }).waitFor();
     console.log("OpenWebUI transfer: browser reported transport failure");
   } finally {
-    await network.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await network.send("Fetch.disable");
     await network.detach();
   }
   try {
@@ -89,7 +91,7 @@ export async function transferFailures(page) {
     check(attempts === 1, "Interrupted native upload was replayed");
     check(await files.getByText("interrupted.bin", { exact: true }).count() === 0, "Incomplete upload appeared as successful");
   } finally { page.off("request", count); }
-  return { oversizeRejected: true, interruptedUpload: true, noUploadReplay: true };
+  return { oversizeRejected: true, uploadTransportFailure: true, failureBeforeDispatch: true, noUploadReplay: true };
 }
 
 export async function svgIsolation(page) {

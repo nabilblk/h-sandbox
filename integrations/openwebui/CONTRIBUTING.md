@@ -75,6 +75,13 @@ restart, retained files and revoked-grant recovery. Failure injection is explici
 the harness never supplies a fake model response or silently replays a failed
 chat to obtain a passing result.
 
+The native failed-upload check injects a browser `ConnectionReset` before
+dispatch, then verifies the visible failure and absence of automatic replay. It
+does not claim that an already accepted upload is rolled back. A separate core
+socket test interrupts multipart data after the upstream receives its first
+bytes and checks connection/admission cleanup. OpenWebUI buffers the browser's
+body before forwarding, so these are deliberately different evidence levels.
+
 The public receipt contains only allowlisted booleans, hashes, versions and image
 identities. Fixed screenshot paths contain synthetic report/preview screens,
 never administrator settings. Raw browser traces, database contents, HTTP bodies,
