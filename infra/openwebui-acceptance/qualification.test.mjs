@@ -44,11 +44,28 @@ test("recorded native qualification matches a complete retained source receipt, 
     assert.equal(compatibility.status, "candidate-not-qualified");
     return;
   }
-  assert.equal(compatibility.status, "source-qualified-unreleased");
+  assert.ok(["source-qualified-unreleased", "preview-published"].includes(compatibility.status));
   assert.match(record.receipt, /^docs\/operations\/evidence\/openwebui-\d+\.json$/);
   const bytes = fs.readFileSync(new URL(`../../${record.receipt}`, import.meta.url));
   assert.equal(createHash("sha256").update(bytes).digest("hex"), record.receiptSha256);
   verify(JSON.parse(bytes), record);
+});
+
+test("publication metadata retains anonymous identities without promoting source qualification", () => {
+  if (compatibility.status !== "preview-published") return;
+  const publication = compatibility.publication;
+  assert.equal(publication.independentOperatorAcceptance, "pending");
+  assert.equal(publication.nativeWorkflowArtifacts, "source-built, not published-image qualification");
+  assert.match(publication.artifactReceipt, /^docs\/operations\/evidence\/[a-z0-9.-]+\.json$/);
+  assert.match(publication.record, /^docs\/release-notes\/[a-z0-9.-]+\.md$/);
+  assert.ok(fs.existsSync(new URL(`../../${publication.record}`, import.meta.url)));
+  const artifacts = JSON.parse(fs.readFileSync(new URL(`../../${publication.artifactReceipt}`, import.meta.url)));
+  assert.equal(artifacts.source, publication.source);
+  assert.ok(artifacts.adapter.reference.endsWith(`:${publication.adapterVersion}`));
+  for (const image of [artifacts.adapter, artifacts.terminal]) {
+    assert.match(image.digest, /^sha256:[a-f0-9]{64}$/);
+    assert.deepEqual(image.platforms.map(({ architecture }) => architecture).sort(), ["amd64", "arm64"]);
+  }
 });
 
 test("partial runs, missing cleanup and changed upstream pins cannot qualify the integration", () => {

@@ -2,7 +2,7 @@
 
 **Status: source-qualified; publication tracked separately in the
 [rc.14 release record](../release-notes/0.5.0-rc.14.md).**
-[Run 41017083195](https://github.com/nabilblk/h-sandbox/actions/runs/41017083195)
+[Run 41036129635](https://github.com/nabilblk/h-sandbox/actions/runs/41036129635)
 passed all 22 native gates in one run, all eight in-process cleanup checks and
 external cluster/private-material cleanup. Desktop and mobile captures were
 inspected. Independent adopter acceptance and published-artifact qualification
@@ -29,7 +29,18 @@ addresses or Kubernetes exec.
 
 ## Retained Evidence
 
-Latest complete revalidation: branch `217f50ad39f0b7bab6e48d743a3a859488ee4280`,
+Release revalidation: reviewed head `3f8dc85d53d59ce0812fba1660576adfde643742`,
+tested PR merge `2d9b09e1c7e3e4336ff225006942d64a4f116a34`, and released source
+`ea2f9feb8b51a85b5981f87ec2859b53a219334f` all have Git tree
+`62384490a1a3d3d2570de91693e62025fc529e1a`. All 22 native gates, cleanup,
+and all 36 PR checks passed. The [receipt](evidence/openwebui-41036129635.json)
+has SHA-256 `59241b3b6cae4e0d488be5b6a48d344c6ead559a131238dfccfec2174d0f3089`.
+The [desktop](evidence/openwebui-41036129635-desktop.png) and
+[mobile](evidence/openwebui-41036129635-mobile.png) captures were inspected.
+This run still builds from source; registry and lab verification are separate
+delivery evidence, not a second full OpenWebUI workflow on published images.
+
+Previous complete revalidation: branch `217f50ad39f0b7bab6e48d743a3a859488ee4280`,
 tested PR merge `5148f852b1e65264706859c7f9f2c22df5e450d8`, all 22 native gates,
 all cleanup and all seven PR workflows passed. Its [receipt](evidence/openwebui-41017083195.json)
 has SHA-256 `85e2b6056a69974772989b5ef886074e6bd41ea55e0f9041e29ef8cb31a73c05`.

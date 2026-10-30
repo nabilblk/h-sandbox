@@ -28,12 +28,15 @@ adapter tenant separation or safe handling of untrusted previews.
 
 Baseline inspected: `20c96ce`, following the
 [rc.13 Workbench delivery](../../release-notes/0.5.0-rc.13-delivery.md).
-Implementation is on branch `feat/protected-sandbox-services`, PR #78.
+Implementation was merged through PR #78; release preparation through PR #79.
 The maintainer authorized isolated GitHub-hosted native acceptance on October 29;
 all 22 native gates and owned cleanup passed in run 41008469790 on October 30.
-No publication or lab deployment has been performed.
-Do not change the running k0s lab, host processes,
-customer OpenShift installation, BackgroundAgent, Brain or `docs/cot`.
+The maintainer subsequently authorized merge, publication and the existing k0s
+lab upgrade on October 30. Core rc.14 and the optional adapter/template are
+published, and the guarded core upgrade reached Helm revision 51. Python
+publication remains in progress. See the [delivery record](../../release-notes/0.5.0-rc.14-delivery.md).
+Do not change unrelated host processes, customer OpenShift, BackgroundAgent,
+Brain or `docs/cot`. Independent operator self-service acceptance remains open.
 
 ## Product Outcome
 
@@ -59,7 +62,7 @@ Terminal, a model server or the adapter.
       existing API patterns, without framework-specific core methods.
 - [x] A versioned, non-privileged Open Terminal template has reproducible startup,
       application health checks and explicit persistent-storage behavior.
-- [ ] A real, distributable adapter connects unmodified OpenWebUI to Harakiri
+- [x] A real, distributable adapter connects unmodified OpenWebUI to Harakiri
       through public APIs; its ownership and support boundary are documented.
 - [x] Actual OpenWebUI browser acceptance proves the chat, shell, file browser,
       upload/download and document-preview use case described by the colleague.
@@ -323,7 +326,7 @@ or explicitly identified candidate artifacts. Record which was tested.
 **Status**: In Progress; user authorized merge, publication and k0s deployment on 2026-10-30
 - [x] Select versions from actual compatibility changes; preserve independent
       adapter/framework peers and stable channels unless deliberately changed.
-- [ ] Run standard CI, installed-package tests, native OpenWebUI acceptance and
+- [x] Run standard CI, installed-package tests, native OpenWebUI acceptance and
       OSS/security review against the exact candidate source.
 - [ ] With explicit instruction, merge/publish core packages/images/chart and the
       optional template/adapter artifacts owned by this project. Do not overwrite
@@ -340,6 +343,12 @@ or explicitly identified candidate artifacts. Record which was tested.
 
 ### Delivery Checkpoint (2026-10-30)
 
+- Release PR #79 merged as `ea2f9feb8b51a85b5981f87ec2859b53a219334f` after all
+  36 checks passed. Reviewed head `3f8dc85`, native merge checkout `2d9b09e`,
+  and the released source share tree `62384490a1a3d3d2570de91693e62025fc529e1a`.
+  Run 41036129635 passed all 22 OpenWebUI gates and cleanup; its sanitized receipt
+  and inspected desktop/mobile captures are retained in Git. The Python release
+  requires the fixed certifi floor; no new vulnerability waiver was added.
 - PR #78 merged as `6832aab883d31263dd8e12f2865287bd3f96d367` after all seven
   final workflows passed. Latest complete native receipt 41017083195 is retained
   in Git, with inspected desktop/mobile captures and earlier failures preserved.

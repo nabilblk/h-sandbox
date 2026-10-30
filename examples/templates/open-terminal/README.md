@@ -9,6 +9,20 @@ published template digest. The template release workflow tests native amd64 and
 arm64 startup at UID 1000 and an arbitrary non-root UID before publication;
 that image smoke does not establish full OpenWebUI workflow parity on arm64.
 
+The published October 30 preview can be imported without rebuilding. Run from
+the repository root with an authorized template-builder key configured privately:
+
+```bash
+export OPEN_TERMINAL_IMAGE=core.campus.clusterdiali.me/harakiri/templates/open-terminal@sha256:a5c40ddf96eccd10a4d92a2e973da8ff6bb16f1bc9522ca36b48f5d7b3d33904
+harakiri template build --name open-terminal --source image \
+  --image "$OPEN_TERMINAL_IMAGE" examples/templates/open-terminal
+```
+
+The image and both platform manifests are recorded in the
+[anonymous artifact receipt](../../../docs/operations/evidence/openwebui-rc0-artifacts.json).
+The local `harakiri.toml` remains necessary for runtime configuration; importing
+an image does not authorize a template alias change or prove application health.
+
 Build through the Harakiri CLI using this directory and `harakiri.toml`. The base
 image is digest-pinned and Python dependencies use a hash-locked requirements
 file. OS package installation uses the base distribution's security repositories;

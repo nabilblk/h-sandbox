@@ -1,0 +1,101 @@
+{
+  "deployment": {
+    "at": "2026-10-30T10:31:40.409Z",
+    "fromRevision": 50,
+    "toRevision": 51,
+    "migration": "040_protected_route_uniqueness.sql",
+    "protectedResources": 47,
+    "preservedPvcs": 7,
+    "preservedPods": 13,
+    "images": [
+      {
+        "name": "harakiri-api",
+        "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.14@sha256:d9fc5ed248939ab2ae756bebc530dda546a93690e5a1a832969c048120034be5"
+      },
+      {
+        "name": "harakiri-scheduler",
+        "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.14@sha256:d9fc5ed248939ab2ae756bebc530dda546a93690e5a1a832969c048120034be5"
+      },
+      {
+        "name": "harakiri-template-builder",
+        "image": "core.campus.clusterdiali.me/harakiri/harakiri-api:0.5.0-rc.14@sha256:d9fc5ed248939ab2ae756bebc530dda546a93690e5a1a832969c048120034be5"
+      },
+      {
+        "name": "harakiri-web",
+        "image": "core.campus.clusterdiali.me/harakiri/harakiri-web:0.5.0-rc.14@sha256:6cc8d5dabc5c29d412cbf6859f4e7ba979049f75dc1153346db0efc7c9069e60"
+      }
+    ],
+    "valuesPreservedExceptImages": true,
+    "secretsPreserved": true
+  },
+  "publicHealth": {
+    "observations": [
+      {
+        "at": "2026-10-30T10:38:38.863Z",
+        "endpoints": [
+          {
+            "url": "https://sb.harakiri.io",
+            "status": 200
+          },
+          {
+            "url": "https://sb-api.harakiri.io/health",
+            "status": 200
+          },
+          {
+            "url": "https://sb-auth.harakiri.io/realms/harakiri/.well-known/openid-configuration",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "at": "2026-10-30T10:38:42.131Z",
+        "endpoints": [
+          {
+            "url": "https://sb.harakiri.io",
+            "status": 200
+          },
+          {
+            "url": "https://sb-api.harakiri.io/health",
+            "status": 200
+          },
+          {
+            "url": "https://sb-auth.harakiri.io/realms/harakiri/.well-known/openid-configuration",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "at": "2026-10-30T10:38:45.448Z",
+        "endpoints": [
+          {
+            "url": "https://sb.harakiri.io",
+            "status": 200
+          },
+          {
+            "url": "https://sb-api.harakiri.io/health",
+            "status": 200
+          },
+          {
+            "url": "https://sb-auth.harakiri.io/realms/harakiri/.well-known/openid-configuration",
+            "status": 200
+          }
+        ]
+      }
+    ],
+    "runtimeConfig": {
+      "PUBLIC_API_URL": "https://sb-api.harakiri.io",
+      "PUBLIC_KEYCLOAK_CLIENT_ID": "harakiri-web",
+      "PUBLIC_KEYCLOAK_REALM": "harakiri",
+      "PUBLIC_KEYCLOAK_SILENT_CHECK_SSO": "false",
+      "PUBLIC_KEYCLOAK_URL": "https://sb-auth.harakiri.io",
+      "PUBLIC_WEB_URL": "https://sb.harakiri.io"
+    },
+    "anonymousProtectedStatus": 401,
+    "oidcOriginsVerified": true
+  },
+  "limits": [
+    "Observed web and API 502 during pod-bound forward recovery; supervision recovered without manual restart",
+    "Public browser checks are not authenticated workload acceptance",
+    "Optional OpenWebUI Compose stack was not installed in the lab"
+  ]
+}
