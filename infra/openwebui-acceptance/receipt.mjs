@@ -27,6 +27,8 @@ const checks = new Set([
   "Native terminal ready before revocation: deadline exceeded",
   "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
   "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded",
+  "Native foreground command started: deadline exceeded", "Native JSON preview rendered: deadline exceeded",
+  "Native PDF preview rendered: deadline exceeded",
   "Owned workspace released before archival: deadline exceeded",
   "Native polling recreated a terminated runtime",
   "Native browser has uncaught JavaScript errors", "Second native browser has uncaught JavaScript errors"

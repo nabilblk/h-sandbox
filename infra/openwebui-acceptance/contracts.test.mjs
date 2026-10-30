@@ -69,6 +69,9 @@ test("browser exercises real native paths without fulfilling or substituting mod
   assert.match(source, /filechooser/);
   assert.match(source, /HTML Preview/);
   assert.match(source, /xterm-helper-textarea/);
+  assert.match(source, /Native foreground command started/);
+  assert.match(source, /Native JSON preview rendered/);
+  assert.match(source, /getImageData/);
   assert.doesNotMatch(source, /\.fulfill\(|routeWebSocket\(|addInitScript\(|mockModel|scripted-model/);
   const stack = read("./stack.mjs");
   assert.doesNotMatch(stack, /skip_verify|NODE_TLS_REJECT_UNAUTHORIZED|--insecure|KUBECONFIG=/);

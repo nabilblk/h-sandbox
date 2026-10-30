@@ -200,7 +200,8 @@ export async function shell(page, witness) {
     const a = witness.output().match(/SIZE_A:(\d+) (\d+)/), b = witness.output().match(/SIZE_B:(\d+) (\d+)/);
     return a && b && (a[1] !== b[1] || a[2] !== b[2]);
   });
-  await send("sleep 60");
+  await send("printf 'WAIT_%s\\n' STARTED; sleep 60");
+  await until("Native foreground command started", () => /WAIT_STARTED/.test(witness.output()), 10000);
   await page.keyboard.press("Control+C");
   await send("printf 'INTERRUPT_%s\\n' OK");
   await until("Native shell interrupt", () => /INTERRUPT_OK/.test(witness.output()), 10000);
@@ -242,6 +243,10 @@ export async function previews(page) {
     await files.locator("[data-file-row]").getByText(name, { exact: true }).click();
   };
   await files.locator("[data-file-row]").getByText("report.json", { exact: true }).click();
+  await until("Native JSON preview rendered", async () => {
+    const text = await files.innerText();
+    return text.includes("North") && text.includes("South") && text.includes("24");
+  });
   const report = await downloadSelected(page);
   assert.deepEqual(JSON.parse(report), { North: 17, South: 7, total: 24 }, "Model report totals differ");
   await choose("chart.png");
@@ -249,7 +254,15 @@ export async function previews(page) {
   const png = await downloadSelected(page);
   check(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), "Downloaded chart is not PNG");
   await choose("report.pdf");
-  await files.locator("canvas").first().waitFor();
+  await until("Native PDF preview rendered", () => files.locator(".pdf-page-wrapper canvas").evaluateAll(canvases => canvases.some(canvas => {
+    if (canvas.width < 100 || canvas.height < 100) return false;
+    const pixels = canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height).data;
+    if (!pixels) return false;
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      if (pixels[offset + 3] > 0 && Math.min(pixels[offset], pixels[offset + 1], pixels[offset + 2]) < 240) return true;
+    }
+    return false;
+  })));
   const pdf = await downloadSelected(page);
   check(pdf.subarray(0, 5).toString() === "%PDF-", "Downloaded report is not PDF");
   await choose("index.html");
