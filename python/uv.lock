@@ -517,7 +517,7 @@ wheels = [
 
 [[package]]
 name = "h-sandbox"
-version = "0.1.0rc1"
+version = "0.1.0rc2"
 source = { editable = "../packages/python-sdk" }
 dependencies = [
     { name = "anyio" },
@@ -534,7 +534,7 @@ requires-dist = [
 
 [[package]]
 name = "h-sandbox-deepagents"
-version = "0.1.0rc1"
+version = "0.1.0rc2"
 source = { editable = "../packages/python-deepagents" }
 dependencies = [
     { name = "anyio" },
@@ -546,7 +546,7 @@ dependencies = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.9,<5" },
     { name = "deepagents", specifier = "==0.7.21" },
-    { name = "h-sandbox", specifier = "==0.1.0rc1" },
+    { name = "h-sandbox", specifier = "==0.1.0rc2" },
 ]
 
 [[package]]

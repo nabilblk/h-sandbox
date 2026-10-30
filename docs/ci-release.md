@@ -206,7 +206,27 @@ The [launch review](oss-launch-review.md) separates publication safety,
 artifact delivery, clean installation, independent evaluation and announcement.
 Repository visibility and announcement remain separate owner decisions.
 
-## Usage Candidate Qualification
+## Optional OpenWebUI Container
+
+The adapter stays out of the default core image matrix and is never published to
+npm. After review and merge, tag its independent package version and dispatch the
+same protected Harbor workflow explicitly:
+
+```bash
+gh workflow run release.yml --ref main \
+  -f release_ref=openwebui-v0.1.0-rc.0 -f component=openwebui-adapter
+```
+
+Source validation requires a full SHA on `origin/main` or the matching
+`openwebui-v` tag, the expected private container manifest and the exact adapter
+component. Chart, npm and ad-hoc image-version overrides are rejected. Existing
+or unverifiable registry coordinates stop publication; preview tags never move
+`latest`. Keep the native workflow, image audit and anonymous digest checks in
+the release receipt. The template image uses the existing template release
+workflow, with native amd64/arm64 smoke at the UIDs declared in its catalog.
+Image smoke is not a substitute for the full native OpenWebUI workflow.
+
+## Usage Candidate Qualification History
 
 The current usage changes are **unpublished source**, not an extension of the
 rc.9 delivery receipt. They retain the legacy summary and add migration 039,

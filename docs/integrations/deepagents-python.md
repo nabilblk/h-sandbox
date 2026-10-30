@@ -1,7 +1,7 @@
 # Deep Agents for Python
 
-**Developer preview:** [`h-sandbox-deepagents==0.1.0rc1`](https://pypi.org/project/h-sandbox-deepagents/0.1.0rc1/) with
-`h-sandbox==0.1.0rc1` and **Python** `deepagents==0.7.21`. This is distinct from
+**Developer preview:** [`h-sandbox-deepagents==0.1.0rc2`](https://pypi.org/project/h-sandbox-deepagents/0.1.0rc2/) with
+`h-sandbox==0.1.0rc2` and **Python** `deepagents==0.7.21`. This is distinct from
 the published TypeScript adapter and its framework version.
 
 ## What Runs Where
@@ -21,7 +21,7 @@ The local example executes shell commands on the host and is **not isolated**.
 In an activated Python 3.11+ environment:
 
 ```sh
-python -m pip install "h-sandbox-deepagents==0.1.0rc1" "langchain-ollama==1.1.0"
+python -m pip install "h-sandbox-deepagents==0.1.0rc2" "langchain-ollama==1.1.0"
 export HARAKIRI_API_URL=https://your-harakiri-api.example.com
 export HARAKIRI_TEMPLATE=your-installed-template
 export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct

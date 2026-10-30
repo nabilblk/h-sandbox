@@ -13,9 +13,9 @@ export const pythonSdkDocs: DocPage = {
   toc: ["Start with one task", "Configuration", "Choose ownership", "Commands and files", "Asyncio", "Recover without replay", "Limits and qualification"],
   body: <>
     <h2>Start with one task</h2>
-    <aside className="docs-notice"><p><strong>Developer preview on PyPI.</strong> Install <a href="https://pypi.org/project/h-sandbox/0.1.0rc1/"><code>h-sandbox==0.1.0rc1</code></a>. This is an independently versioned Python package, not a stable release or a replacement for the <a href="#docs/typescript-sdk">TypeScript SDK</a>.</p></aside>
+    <aside className="docs-notice"><p><strong>Developer preview on PyPI.</strong> Install <a href="https://pypi.org/project/h-sandbox/0.1.0rc2/"><code>h-sandbox==0.1.0rc2</code></a>. This is an independently versioned Python package, not a stable release or a replacement for the <a href="#docs/typescript-sdk">TypeScript SDK</a>.</p></aside>
     <p>Use Python 3.11 or newer and an activated virtual environment. The core package calls the Harakiri API; it does not need this repository, Node, Kubernetes credentials, a provider SDK or LangChain.</p>
-    <CodeBlock language="bash" filename="Install from PyPI">{`python -m pip install "h-sandbox==0.1.0rc1"`}</CodeBlock>
+    <CodeBlock language="bash" filename="Install from PyPI">{`python -m pip install "h-sandbox==0.1.0rc2"`}</CodeBlock>
     <CodeBlock language="python" filename="one_task.py">{`import os
 from harakiri import HarakiriClient
 
@@ -82,8 +82,9 @@ assert sandbox.files.read_bytes("report.bin") == b"verified bytes"`}</CodeBlock>
 
     <h2>Limits and qualification</h2>
     <p>Timeout arguments are seconds. Defaults: HTTP request 120s, readiness 180s, cleanup 90s and command observation 120s. Remote command limits are separate. JSON responses are bounded to 24 MiB; binary files use buffered base64 with size and SHA-256 verification. This is not streaming.</p>
-    <aside className="docs-notice"><p><strong>Large transfers require the corrected API image.</strong> Native 1 MiB and 16 MiB round trips passed with the <a href={`${source}/docs/release-notes/2026-10-02-provider-files-delivery.md`}>API maintenance release <code>api-2026-10-02.1</code></a>. Plain rc.10 and rc.12 images lack that upload correction. Core rc.13 includes the same fix, but the earlier qualification applies to that exact maintenance image, not every server release. Python package versions and tested pins remain unchanged.</p></aside>
-    <p>The preview covers discovery, capacity, lifecycle, finite/tracked commands, files, logs and retained workspaces. PTY, SSE, pause/resume, snapshots, routes, Git helpers, Vault administration, template builds and usage history methods remain outside this Python preview. See the <a href={`${source}/docs/release-notes/python-agents-preview.md`}>qualification record</a> for public-artifact checks and the separate, still-open independent-adoption milestone.</p>
+    <aside className="docs-notice"><p><strong>Large transfers require the corrected API image.</strong> Native 1 MiB and 16 MiB round trips passed with the <a href={`${source}/docs/release-notes/2026-10-02-provider-files-delivery.md`}>API maintenance release <code>api-2026-10-02.1</code></a>. Plain rc.10 and rc.12 images lack that upload correction. Core rc.13 and rc.14 include the same fix, but the earlier qualification applies to that exact maintenance image, not every server release.</p></aside>
+    <p>Python 0.1.0rc2 adds <code>sandbox.routes</code> for protected exposure, bounded HTTP requests, application-health polling and scoped WebSocket connection headers. Generic service WebSockets require API rc.14 and a compatible ingress. See the <a href="#docs/routes">route contract</a>; SDK HTTP responses are bounded and buffered, and your WebSocket library owns its connection.</p>
+    <p>The preview covers discovery, capacity, lifecycle, finite/tracked commands, files, logs, retained workspaces and routes. PTY, SSE, pause/resume, snapshots, Git helpers, Vault administration, template builds and usage history methods remain outside this Python preview. See the <a href={`${source}/docs/release-notes/0.5.0-rc.14.md`}>qualification record</a> for public-artifact checks and the separate, still-open independent-adoption milestone.</p>
     <p>Next: <a href="#docs/deepagents-python">Deep Agents for Python</a> or the <a href={`${source}/docs/development/python-client-design.md`}>technical contract</a>.</p>
   </>
 };
@@ -97,7 +98,7 @@ export const pythonDeepagentsDocs: DocPage = {
   toc: ["Same agent, remote tools", "Prepare your environment", "Run the first task", "Borrow an existing sandbox", "Native async tools", "Repair and independently verify", "Recovery and approval", "Failure contracts"],
   body: <>
     <h2>Same agent, remote tools</h2>
-    <aside className="docs-notice"><p><strong>Developer preview on PyPI.</strong> Install <a href="https://pypi.org/project/h-sandbox-deepagents/0.1.0rc1/"><code>h-sandbox-deepagents==0.1.0rc1</code></a>, targeting Python <code>deepagents==0.7.21</code> and SDK <code>h-sandbox==0.1.0rc1</code>. Looking for <a href="#docs/deepagents">TypeScript</a>?</p></aside>
+    <aside className="docs-notice"><p><strong>Developer preview on PyPI.</strong> Install <a href="https://pypi.org/project/h-sandbox-deepagents/0.1.0rc2/"><code>h-sandbox-deepagents==0.1.0rc2</code></a>, targeting Python <code>deepagents==0.7.21</code> and SDK <code>h-sandbox==0.1.0rc2</code>. Looking for <a href="#docs/deepagents">TypeScript</a>?</p></aside>
     <p>Your application still runs the model, agent loop and checkpoints. Harakiri runs the framework's shell and file tools. Custom application tools are not automatically sandboxed. Both examples use the real <code>create_deep_agent</code>, the same prompt and the same model.</p>
     <div className="docs-code-comparison"><div className="docs-code-comparison-grid">
       <section aria-label="Python without a sandbox"><h3>Without a sandbox</h3><p>Tools run on your machine.</p><CodeBlock language="python" filename="first_local.py">{pythonExamples["first_local.py"]}</CodeBlock></section>
@@ -107,7 +108,7 @@ export const pythonDeepagentsDocs: DocPage = {
 
     <h2>Prepare your environment</h2>
     <p>Start with the <a href="#docs/python-sdk">Python SDK configuration</a>. In your activated Python environment, install the adapter and the model integration below. The adapter installs its compatible SDK and exact framework dependency. Use a template with Python 3, bash, find, grep and sed. No packages are silently installed inside the sandbox.</p>
-    <CodeBlock language="bash" filename="Install the adapter and model integration">{`python -m pip install "h-sandbox-deepagents==0.1.0rc1" "langchain-ollama==1.1.0"
+    <CodeBlock language="bash" filename="Install the adapter and model integration">{`python -m pip install "h-sandbox-deepagents==0.1.0rc2" "langchain-ollama==1.1.0"
 export HARAKIRI_AGENT_MODEL=ollama:qwen3:4b-instruct
 # Start your own Ollama server and install this model first.
 # Other models require their LangChain integration and application credentials.`}</CodeBlock>

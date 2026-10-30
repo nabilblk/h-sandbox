@@ -5,6 +5,20 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-10-30-v0-5-0-rc-14",
+    version: "v0.5.0-rc.14 (candidate)",
+    date: "October 30, 2026",
+    title: "Protected services and OpenWebUI",
+    items: [
+      "Expose bounded HTTP, multipart/binary responses and generic application WebSockets through protected service routes. Scoped credentials, cookie stripping and live grant revalidation remain at the control-plane boundary; this is not Kubernetes exec.",
+      "Connect unmodified OpenWebUI 0.12.4 through a separate Open Terminal adapter. Encrypted PostgreSQL bindings map one retained personal workspace per user and adapter instance. Chats share that user's files; model inference stays outside the sandbox.",
+      "Add the non-root Open Terminal 0.14.6 template and self-service guides for chat-to-artifact workflows, shell, native files and document previews, retention and explicit recovery. PDF/HTML acceptance fixtures are separate from the model-generated CSV, JSON and PNG.",
+      "Release core SDK/CLI candidates on npm next, with stable latest unchanged at 0.4.0. Python route helpers target SDK 0.1.0rc2; its adapter keeps Deep Agents 0.7.21. The OpenWebUI adapter 0.1.0-rc.0 is a container, not an npm package. TypeScript Deep Agents pins remain unchanged.",
+      "Migration 040 separates protected/public route uniqueness. Preserve operator credentials, URLs and storage during upgrade; do not downgrade the schema while protected routes share a host. No new per-user Harakiri ACLs, unified Open Terminal command audit or customer OpenShift certification is claimed.",
+      "Source qualification, publication and deployment are recorded separately in the release receipt. Independent operator acceptance of the OpenWebUI installation remains open."
+    ]
+  },
+  {
     id: "2026-10-16-v0-5-0-rc-13",
     version: "v0.5.0-rc.13 (candidate)",
     date: "October 16, 2026",

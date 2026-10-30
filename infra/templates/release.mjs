@@ -17,7 +17,9 @@ export function releaseInput(env) {
   assert.match(tag || '', /^(?:\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?|sha-[a-f0-9]{12,40}(?:-\d+-\d+)?)$/, 'Use a release version or source SHA/run tag, never latest');
   const platform = env.TEMPLATE_PLATFORM || 'linux/amd64';
   assert.ok(['linux/amd64', 'linux/arm64'].includes(platform), 'Smoke one concrete architecture at a time');
-  return { ...template, platform, image: `${registry}/${project}/templates/${template.name}:${tag}` };
+  const users = template.users || ['0:0', '1001230000:0'];
+  assert.ok(users.length >= 2 && users.every((user) => /^\d+:\d+$/.test(user)), 'Declare explicit smoke UIDs');
+  return { ...template, users, platform, image: `${registry}/${project}/templates/${template.name}:${tag}` };
 }
 
 function main() {
@@ -27,10 +29,10 @@ function main() {
   const context = join(root, 'examples/templates', input.name);
   assert.ok(existsSync(join(context, 'Dockerfile')) && existsSync(join(context, 'smoke.sh')));
   run(['buildx', 'build', '--platform', input.platform, '--load', '--tag', input.image, context]);
-  for (const user of ['0:0', '1001230000:0']) {
+  for (const user of input.users) {
     run(['run', '--rm', '--platform', input.platform, '--user', user, '--cap-drop=ALL', '--security-opt=no-new-privileges', '--entrypoint', input.smoke, input.image], 90_000);
   }
-  console.log(`Template ${input.name}: ${input.platform}, root and arbitrary-UID smoke passed`);
+  console.log(`Template ${input.name}: ${input.platform}, UID smoke passed: ${input.users.join(', ')}`);
   if (process.argv[2] !== 'publish') return;
   // Publish only an image that passed both local runtime checks. No alias promotion.
   run(['push', input.image]);
@@ -38,7 +40,7 @@ function main() {
   assert.match(manifest.digest, /^sha256:[a-f0-9]{64}$/);
   const output = resolve(process.env.TEMPLATE_EVIDENCE_DIR || join(root, 'docs/artifacts/template-releases'));
   mkdirSync(output, { recursive: true });
-  writeFileSync(join(output, `${input.name}-${input.platform.split('/')[1]}.json`), JSON.stringify({ ...input, digest: manifest.digest, immutableImage: `${input.image.slice(0, input.image.lastIndexOf(':'))}@${manifest.digest}`, sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: Boolean(execFileSync('git', ['status', '--porcelain', '--', 'examples/templates', 'infra/templates'], { cwd: root, encoding: 'utf8' }).trim()), verifiedAt: new Date().toISOString(), tests: ['root', 'arbitrary-uid'], providerAcceptance: 'not-run' }, null, 2) + '\n');
+  writeFileSync(join(output, `${input.name}-${input.platform.split('/')[1]}.json`), JSON.stringify({ ...input, digest: manifest.digest, immutableImage: `${input.image.slice(0, input.image.lastIndexOf(':'))}@${manifest.digest}`, sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceDirty: Boolean(execFileSync('git', ['status', '--porcelain', '--', 'examples/templates', 'infra/templates'], { cwd: root, encoding: 'utf8' }).trim()), verifiedAt: new Date().toISOString(), tests: input.users.map((user) => `uid:${user}`), providerAcceptance: 'not-run' }, null, 2) + '\n');
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

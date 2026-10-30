@@ -6,6 +6,7 @@
     { "name": "node-20-app", "smoke": "harakiri-node-app-smoke" },
     { "name": "browser-chromium", "smoke": "harakiri-browser-chromium-smoke" },
     { "name": "open-agents-dev", "smoke": "harakiri-open-agents-smoke" },
-    { "name": "opencode", "smoke": "harakiri-opencode-smoke" }
+    { "name": "opencode", "smoke": "harakiri-opencode-smoke" },
+    { "name": "open-terminal", "smoke": "harakiri-open-terminal-smoke", "users": ["1000:0", "1001230000:0"] }
   ]
 }

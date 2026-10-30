@@ -27,11 +27,12 @@ safeguards are included in rc.13. Older rc.10 consumers need explicit redirect
 rejection and trusted relative paths. See the
 [SDK route contract](https://sb.harakiri.io/#docs/typescript-sdk?section=protected-services).
 
-**New source candidate:** incremental service HTTP, generic application
-WebSockets and Python route helpers described below are not delivered by rc.13
-or Python 0.1.0rc1. Use matching source builds for evaluation. The generic transport
+**From core 0.5.0-rc.14:** incremental service HTTP and generic application
+WebSockets require the matching API. Python route helpers require 0.1.0rc2;
+neither capability is supplied by rc.13 or Python 0.1.0rc1. Check the
+[release record](release-notes/0.5.0-rc.14.md) for delivery status. The generic transport
 passed the [native OpenWebUI workflow](operations/openwebui-source-acceptance.md)
-through the provider gateway on Linux amd64; this is not a published release or
+through the provider gateway on Linux amd64; this is not
 qualification of every ingress. Existing native Harakiri PTY is a different protocol
 and does not establish application WebSocket support.
 

@@ -38,7 +38,7 @@ on:
       component:
         description: "Publish all components and chart, or a single image only"
         type: choice
-        options: [all, api, web]
+        options: [all, api, web, openwebui-adapter]
         required: true
         default: all
 
@@ -81,6 +81,7 @@ jobs:
           RELEASE_IMAGE_TAG: ${{ inputs.image_tag }}
           RELEASE_CHART_VERSION: ${{ inputs.chart_version }}
           RELEASE_COMPONENT: ${{ inputs.component }}
+          RELEASE_PACKAGE_SET: ${{ inputs.component == 'openwebui-adapter' && 'openwebui' || 'core' }}
         run: node scripts/check-release-source.mjs
       - name: Refuse existing or unverifiable candidate artifacts
         env:
@@ -99,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: ${{ fromJSON(inputs.component == 'web' && '["web"]' || inputs.component == 'api' && '["api"]' || '["api","web"]') }}
+        component: ${{ fromJSON(inputs.component == 'openwebui-adapter' && '["openwebui-adapter"]' || inputs.component == 'web' && '["web"]' || inputs.component == 'api' && '["api"]' || '["api","web"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -155,7 +156,7 @@ jobs:
         with:
           context: .
           pull: true
-          file: apps/${{ matrix.component }}/Dockerfile
+          file: ${{ matrix.component == 'openwebui-adapter' && 'integrations/openwebui/Dockerfile' || format('apps/{0}/Dockerfile', matrix.component) }}
           platforms: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}

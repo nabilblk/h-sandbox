@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-28
 **Author**: Codex with project maintainer
-**Status**: Source-qualified; independent self-service and authorized delivery remain open
+**Status**: Source-qualified; authorized release/deployment in progress; independent self-service remains open
 **Priority**: P1
 **Estimated effort**: Multi-session; estimate after protocol and ownership qualification
 
@@ -320,8 +320,8 @@ Exit: the documented path reproduces the actual OpenWebUI workflow with released
 or explicitly identified candidate artifacts. Record which was tested.
 
 ### Phase 7: Release And Completion
-**Status**: Not Started; no publication/deployment authorization implied
-- [ ] Select versions from actual compatibility changes; preserve independent
+**Status**: In Progress; user authorized merge, publication and k0s deployment on 2026-10-30
+- [x] Select versions from actual compatibility changes; preserve independent
       adapter/framework peers and stable channels unless deliberately changed.
 - [ ] Run standard CI, installed-package tests, native OpenWebUI acceptance and
       OSS/security review against the exact candidate source.
@@ -337,6 +337,20 @@ or explicitly identified candidate artifacts. Record which was tested.
       criteria have evidence; do not equate green unit tests with completion.
 
 ## OSS Quality Gates
+
+### Delivery Checkpoint (2026-10-30)
+
+- PR #78 merged as `6832aab883d31263dd8e12f2865287bd3f96d367` after all seven
+  final workflows passed. Latest complete native receipt 41017083195 is retained
+  in Git, with inspected desktop/mobile captures and earlier failures preserved.
+- Selected core/chart/SDK/CLI rc.14, Python SDK/adapter 0.1.0rc2 and independent
+  OpenWebUI container 0.1.0-rc.0. TypeScript Deep Agents exact peers and npm stable
+  channels remain unchanged. Template publishing uses run-scoped immutable tags.
+- Publication and deployment are explicitly authorized. Use guarded main-only
+  workflows, anonymous verification and a configuration-preserving Helm upgrade.
+  Do not run the legacy seed/development deploy or touch customer environments.
+- Independent operator installation remains open; this plan must not be archived
+  merely because release delivery completes.
 
 - Cohesive modules with clear ownership; no OpenWebUI imports in generic core
   runtime services, no large catch-all proxy/adapter file and no speculative

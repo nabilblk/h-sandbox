@@ -15,7 +15,7 @@ services:
       retries: 12
     mem_limit: 512m
   adapter:
-    image: harakiri-openwebui-adapter:source-candidate
+    image: ${OPENWEBUI_ADAPTER_IMAGE:-core.campus.clusterdiali.me/harakiri/harakiri-openwebui-adapter:0.1.0-rc.0}
     build:
       context: ../..
       dockerfile: integrations/openwebui/Dockerfile

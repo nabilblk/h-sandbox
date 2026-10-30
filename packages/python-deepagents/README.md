@@ -1,16 +1,16 @@
 # Deep Agents on Harakiri
 
 An optional backend for the real Python `deepagents` framework. Developer
-preview `0.1.0rc1` targets Deep Agents `0.7.21` and Python SDK `0.1.0rc1`
+preview `0.1.0rc2` targets Deep Agents `0.7.21` and Python SDK `0.1.0rc2`
 exactly, on Python 3.11 or newer. See the
-[release record](https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/python-agents-preview.md)
+[release record](https://github.com/nabilblk/h-sandbox/blob/main/docs/release-notes/0.5.0-rc.14.md)
 for publication status, exact artifacts and native qualification evidence.
 
 Version-pinned PyPI installation, including the exact SDK and framework
 dependencies:
 
 ```sh
-python -m pip install "h-sandbox-deepagents==0.1.0rc1"
+python -m pip install "h-sandbox-deepagents==0.1.0rc2"
 ```
 
 ```python

@@ -1,8 +1,8 @@
 # Python SDK
 
-**Developer preview:** [`h-sandbox==0.1.0rc1`](https://pypi.org/project/h-sandbox/0.1.0rc1/),
+**Developer preview:** [`h-sandbox==0.1.0rc2`](https://pypi.org/project/h-sandbox/0.1.0rc2/),
 imported as `harakiri`. This is an independently versioned preview, not a stable
-release. See the [release record](release-notes/python-agents-preview.md) for
+release. See the [release record](release-notes/0.5.0-rc.14.md) for
 registry qualification and the separate independent-adoption milestone.
 
 ## Start with one task
@@ -10,7 +10,7 @@ registry qualification and the separate independent-adoption milestone.
 Python 3.11 or newer is required. In an activated virtual environment:
 
 ```sh
-python -m pip install "h-sandbox==0.1.0rc1"
+python -m pip install "h-sandbox==0.1.0rc2"
 export HARAKIRI_API_URL=https://your-harakiri-api.example.com
 export HARAKIRI_TEMPLATE=your-installed-template
 # Supply HARAKIRI_API_KEY through private application configuration.
@@ -152,18 +152,24 @@ application logging of attached output, causes or file contents still needs care
 ## Supported Surface
 
 The preview covers discovery, capacity, create/connect/readiness/renew/kill,
-finite/tracked commands, text/binary files, sandbox logs and retained workspaces.
+finite/tracked commands, text/binary files, sandbox logs, retained workspaces and
+protected service routes. Python 0.1.0rc2 adds `sandbox.routes` for exposure,
+HTTP health polling, bounded requests and scoped WebSocket connection headers.
+Generic WebSockets require API rc.14 and a compatible ingress; the caller's
+WebSocket library owns its connection. See the [route contract](routes.md).
 It intentionally does not port every TypeScript method: PTY, SSE, pause/resume,
-snapshots, routes, Git helpers, Vault administration, template builds and usage
+snapshots, Git helpers, Vault administration, template builds and usage
 history methods are not Python preview APIs. Those server features are not being
 removed.
 
-Package/contract checks pass on Python 3.11-3.14. Full native Linux amd64 acceptance
+The original 0.1.0rc1 package/contract checks passed on Python 3.11-3.14. Full native Linux amd64 acceptance
 passed on Python 3.12.3 with the rc.10 chart/web baseline and the separately pinned
 `api-2026-10-02.1` API image, including fresh consumers of the actual TestPyPI and
 production PyPI archives. This does not qualify every server version. Consult the
 [delivery record](release-notes/python-agents-preview.md) for exact hashes,
 dependency versions, deployment evidence and the remaining independent-adoption gate.
+New 0.1.0rc2 delivery evidence belongs to the [rc.14 record](release-notes/0.5.0-rc.14.md),
+not the earlier receipt.
 
 Next: [Python Deep Agents](integrations/deepagents-python.md),
 [technical design](development/python-client-design.md),

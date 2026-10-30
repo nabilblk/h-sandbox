@@ -1,5 +1,5 @@
 // Pin examples to the coordinated candidate; the version is not publication evidence.
-export const publishedSdkVersion = "0.5.0-rc.13";
+export const publishedSdkVersion = "0.5.0-rc.14";
 export const publishedSdkInstall = `npm install --save-exact @h-sandbox/sdk@${publishedSdkVersion}`;
 export const publishedCliInstall = `npm install -g @h-sandbox/cli@${publishedSdkVersion}`;
 

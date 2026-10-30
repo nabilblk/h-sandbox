@@ -1,6 +1,7 @@
 # Protected service transport
 
-Status: source-qualified candidate, not a released OpenWebUI integration.
+Status: developer preview for core rc.14 and optional OpenWebUI adapter 0.1.0-rc.0.
+See the [release record](release-notes/0.5.0-rc.14.md) for publication and delivery status.
 See the [native qualification report](operations/openwebui-source-acceptance.md).
 
 ## Decision
