@@ -35,17 +35,18 @@ export const openwebuiDocs: DocPage = {
       <h2>Availability</h2>
       <aside className="docs-notice">
         <p>
-          <strong>Source candidate, not yet natively qualified.</strong> This integration requires the candidate API,
+          <strong>Source candidate, natively qualified but not released.</strong> This integration requires the candidate API,
           SDK, adapter and template from the same checkout. Core rc.13 does not contain generic application WebSocket
           support; Python 0.1.0rc1 does not contain the new route helpers. There is no published adapter package or
           image to install yet.
         </p>
       </aside>
       <p>
-        The candidate pins OpenWebUI 0.12.4 and Open Terminal 0.14.6. Unit, transport and database tests are separate
-        from real OpenWebUI browser and model qualification. Check the{" "}
-        <a href={`${source}/integrations/openwebui/compatibility.json`}>compatibility record</a>; a missing native
-        receipt is not a supported-version claim.
+        The candidate pins OpenWebUI 0.12.4 and Open Terminal 0.14.6. All 22 native checks passed on Linux amd64,
+        including a real local-model workflow, shell, file previews, user separation and recovery. Read the{" "}
+        <a href={`${source}/docs/operations/openwebui-source-acceptance.md`}>qualification report</a> and{" "}
+        <a href={`${source}/integrations/openwebui/compatibility.json`}>compatibility record</a> for exact source,
+        inspected captures and limits. Independent installation and published-artifact acceptance remain separate gates.
       </p>
       <h2>Responsibilities</h2>
       <p>

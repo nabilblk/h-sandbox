@@ -1,5 +1,5 @@
 {
-  "status": "candidate-not-qualified",
+  "status": "source-qualified-unreleased",
   "openwebui": {
     "version": "0.12.4",
     "source": "33c1978d5bad52a31df75ea55143025dfad18d16",
@@ -37,5 +37,11 @@
   },
   "context": "one personal workspace per OpenWebUI user and adapter instance",
   "deferred": ["per-resource Harakiri user ACLs", "Harakiri command-level audit for Open Terminal", "Office document conversion", "notebooks", "customer OpenShift certification"],
-  "nativeAcceptance": null
+  "nativeAcceptance": {
+    "source": "3c3e914a3d4a8e097ff7141f3035f8cbe17e87aa",
+    "runId": "41008469790-1",
+    "workflowUrl": "https://github.com/nabilblk/h-sandbox/actions/runs/41008469790",
+    "receipt": "docs/operations/evidence/openwebui-41008469790.json",
+    "receiptSha256": "3e48d76701e9cc3c7d366f135a9097ef704a27ae5f43263efc00a13980e3279a"
+  }
 }

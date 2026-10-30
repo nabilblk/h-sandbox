@@ -2,7 +2,9 @@
 
 Open Terminal 0.14.6, Python 3.12, Bash, Git and matplotlib. This is the runtime
 half of the optional [OpenWebUI integration](../../../integrations/openwebui/README.md),
-not a public terminal service. The integration is not yet natively qualified.
+not a public terminal service. The source candidate passed native Linux amd64
+[OpenWebUI qualification](../../../docs/operations/openwebui-source-acceptance.md);
+no template image has been published by this milestone.
 
 Build through the Harakiri CLI using this directory and `harakiri.toml`. The base
 image is digest-pinned and Python dependencies use a hash-locked requirements

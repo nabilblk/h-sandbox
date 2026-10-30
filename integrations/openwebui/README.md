@@ -1,11 +1,14 @@
 # OpenWebUI with Harakiri
 
-**Source candidate, not a released or natively qualified integration.** Build the
+**Source-qualified candidate, not a released integration.** Build the
 API, SDK and adapter from the same checkout. Core 0.5.0-rc.13 does not provide the
 new generic WebSocket transport. Do not install this adapter against rc.13 and
-assume the shell works. Qualification status and upstream pins are recorded in
-[compatibility.json](compatibility.json); a null receipt means no complete passing
-native qualification has been recorded. Failed or partial runs do not qualify the pair.
+assume the shell works. All 22 native gates passed on Linux amd64 in
+[run 41008469790](https://github.com/nabilblk/h-sandbox/actions/runs/41008469790).
+The [qualification report](../../docs/operations/openwebui-source-acceptance.md)
+retains the exact source, receipt, inspected captures and limitations;
+[compatibility.json](compatibility.json) pins upstream identities. This is not
+independent adopter acceptance or proof of published artifact installation.
 
 This optional adapter connects **unmodified OpenWebUI** to Harakiri through its
 native Open Terminal connection. Harakiri manages runtime capacity, lifecycle,
@@ -33,8 +36,8 @@ API is used.
 - Filesystem navigation starts at `/workspace`; this is not a chroot. Sandboxed
   code can read its own Open Terminal service credentials, never the adapter's
   Harakiri control-plane key. Runtime isolation remains the provider's responsibility.
-- Native PDF/PNG/HTML previews and PTY behavior remain qualification gates. Office
-  conversion and notebooks are excluded. Do not enable unsafe preview origins.
+- Native PDF/PNG/HTML previews and PTY behavior passed in the recorded profile.
+  Office conversion and notebooks are excluded. Do not enable unsafe preview origins.
 - HTML reports must be self-contained: embed images as data URLs and use inline
   styles. With OpenWebUI's default SameSite=Lax cookies, an opaque-origin preview
   cannot authenticate relative image/CSS/JS requests. Do not enable
@@ -419,10 +422,12 @@ pnpm --filter @harakiri/openwebui-adapter test:postgres
 pnpm --filter @harakiri/openwebui-adapter test:package
 ```
 
-These are protocol/contract tests, not real OpenWebUI browser evidence. The
+These local commands are protocol/contract tests, not real OpenWebUI browser evidence. The
 [execution plan](../../docs/exec-plans/active/protected-services-openwebui.md)
 lists native, security, recovery and independent self-service acceptance gates.
-Do not change `nativeAcceptance` or label the pair supported without those results.
+Update `nativeAcceptance` only from a complete passing native receipt with verified
+cleanup and inspected captures. Publication and independent self-service acceptance
+remain separate gates; source qualification cannot satisfy them.
 Read the [architecture decision](../../docs/protected-services-design.md) before
 changing credential boundaries or the context mapping.
 The [contributor guide](CONTRIBUTING.md) describes module ownership, the isolated

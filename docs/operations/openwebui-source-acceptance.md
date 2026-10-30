@@ -1,11 +1,11 @@
 # OpenWebUI Source Qualification
 
-**Status: incomplete; not a released integration.** The latest retained run
-passes the real-model workflow and all document previews, but fails mobile SVG
-navigation and adapter-restart checks. All owned cleanup checks passed. The
-responsive test now waits for the actual mobile drawer and always restores the
-desktop viewport; a complete rerun is required. Do not combine partial results
-from different runs into a passing receipt.
+**Status: source-qualified; not a released integration.**
+[Run 41008469790](https://github.com/nabilblk/h-sandbox/actions/runs/41008469790)
+passed all 22 native gates in one run, all eight in-process cleanup checks and
+external cluster/private-material cleanup. Desktop and mobile captures were
+inspected. Independent adopter acceptance and published-artifact qualification
+remain open. Earlier failed runs are retained below, not combined into this result.
 
 This report covers the optional adapter for unmodified OpenWebUI and generic
 Harakiri protected HTTP/WebSocket services. It is not customer OpenShift
@@ -27,6 +27,25 @@ the runtime through Harakiri's public APIs and the provider gateway, never pod
 addresses or Kubernetes exec.
 
 ## Retained Evidence
+
+- Qualified branch source: `d353053b5f545151f6226056fef44e06bdce6bad`;
+  actual tested PR merge checkout: `3c3e914a3d4a8e097ff7141f3035f8cbe17e87aa`.
+- [Complete sanitized receipt](evidence/openwebui-41008469790.json), SHA-256
+  `3e48d76701e9cc3c7d366f135a9097ef704a27ae5f43263efc00a13980e3279a`.
+- Inspected [desktop report](evidence/openwebui-41008469790-desktop.png)
+  (1440x1000) and [mobile SVG preview](evidence/openwebui-41008469790-mobile.png)
+  (390x844). The embedded chart fits its 350px HTML viewport; the mobile preview
+  stays within the viewport. No uncaught browser JavaScript error was observed.
+- The receipt records exact OpenWebUI/Open Terminal identities, model digest and
+  sampling settings, prompt hash and five runner-local image-config digests.
+  These are not published registry manifests, signatures or release provenance.
+- One real chat submission produced CSV, JSON and PNG with two native tool calls
+  and zero observed tool failures. The report was independently checked against
+  `{"North":17,"South":7,"total":24}`. The harness supplied no Python implementation,
+  replacement model artifacts or replayed model responses. One successful workflow
+  is not a model reliability benchmark or deterministic-output guarantee.
+
+### Earlier Failed Runs
 
 - [Run 41006611568](https://github.com/nabilblk/h-sandbox/actions/runs/41006611568):
   branch source `5fb516afdd103088762dcdf7bc1e20138a409e60`, merge checkout
@@ -74,11 +93,11 @@ After independently verifying the results, the harness renders labeled PDF/HTML
 fixtures and uploads them through the actual OpenWebUI file browser. Their native
 previews, byte integrity, embedded-chart identity and viewport fit remain required.
 This tests document handling, not model PDF/HTML authorship. The previous failed
-runs remain recorded; the revised scenario requires its own complete native run.
+runs remain recorded; the complete passing receipt above covers this revised scenario.
 
 ## Exercised Boundaries
 
-Run 41001219049 passed native administrator setup, finite cold start, shell
+Run 41008469790 passed native administrator setup, finite cold start, shell
 input/ANSI/resize/interrupt/reconnection, text editing, binary SHA-256 round trip,
 oversize rejection, user separation, quota denial and adapter restart. It also
 passed active-grant revocation, explicit operator grant recovery on the same
@@ -99,13 +118,13 @@ asset URL is introduced to make a preview work.
 
 ## Security Inventory
 
-The two separate image audit jobs for run 41001219049 passed the gate of zero
+The two separate image audit jobs for run 41008469790 passed the gate of zero
 **fixable** high/critical findings. Their inventories still contain:
 
 | Image | Total findings | Unfixed high/critical | Inventory SHA-256 |
 | --- | ---: | ---: | --- |
-| Adapter | 244 | 57 | `895d0c88be721fe2707c9209cfe1332c73f04951b7c0a3be383def81cbc9bf53` |
-| Open Terminal template | 430 | 80 | `809d4f92d3513e53cd2decf25a0f42c363772aed50323a9cb695e739375817b1` |
+| Adapter | 244 | 57 | `a0da57f6c100c6788143b8d9434cdcc9806394ef2cfffe3bf80dcca67989c2e0` |
+| Open Terminal template | 430 | 80 | `bf1b90a544c93a4c6cc8a308b83bfff82b56a1645e8a2e6c968fe46d4ef14453` |
 
 These inventories describe separately built scan candidates, not byte-identical
 runtime images or a complete audit of OpenWebUI/Ollama. Passing the gate is not a
@@ -115,7 +134,6 @@ for 14 days; a release must retain its own exact-image inventory.
 
 ## Remaining Gates
 
-- Complete native qualification and inspect the actual desktop/mobile captures.
 - Have an independent operator follow the guide in a fresh environment. The
   [handoff checklist](../../integrations/openwebui/README.md#independent-self-service-handoff)
   specifies the evidence; maintainer-run CI does not replace it.

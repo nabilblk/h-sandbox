@@ -2,7 +2,7 @@
 
 **Created**: 2026-10-28
 **Author**: Codex with project maintainer
-**Status**: In progress; implementation and isolated native qualification, no deployment authorized
+**Status**: Source-qualified; independent self-service and authorized delivery remain open
 **Priority**: P1
 **Estimated effort**: Multi-session; estimate after protocol and ownership qualification
 
@@ -28,9 +28,10 @@ adapter tenant separation or safe handling of untrusted previews.
 
 Baseline inspected: `20c96ce`, following the
 [rc.13 Workbench delivery](../../release-notes/0.5.0-rc.13-delivery.md).
-Implementation is on branch `feat/protected-sandbox-services`, draft PR #78.
+Implementation is on branch `feat/protected-sandbox-services`, PR #78.
 The maintainer authorized isolated GitHub-hosted native acceptance on October 29;
-that qualification is running. No publication or lab deployment has been performed.
+all 22 native gates and owned cleanup passed in run 41008469790 on October 30.
+No publication or lab deployment has been performed.
 Do not change the running k0s lab, host processes,
 customer OpenShift installation, BackgroundAgent, Brain or `docs/cot`.
 
@@ -60,9 +61,9 @@ Terminal, a model server or the adapter.
       application health checks and explicit persistent-storage behavior.
 - [ ] A real, distributable adapter connects unmodified OpenWebUI to Harakiri
       through public APIs; its ownership and support boundary are documented.
-- [ ] Actual OpenWebUI browser acceptance proves the chat, shell, file browser,
+- [x] Actual OpenWebUI browser acceptance proves the chat, shell, file browser,
       upload/download and document-preview use case described by the colleague.
-- [ ] A real model-driven workflow passes without requiring a paid model service;
+- [x] A real model-driven workflow passes without requiring a paid model service;
       fixture tests and real-model evidence are reported separately.
 - [x] Recovery, concurrent requests, quota exhaustion and access denial are
       tested without automatic replay of uncertain execution.
@@ -131,7 +132,7 @@ inside that organization.
 ## Phases
 
 ### Phase 1: Protocol And Ownership Qualification
-**Status**: Complete; compatibility remains a candidate until native qualification
+**Status**: Complete; exact upstream pair qualified on sources in run 41008469790
 - [x] Resolve adapter ownership: the maintainer requested a Harakiri reference
       adapter for standard OpenWebUI because the colleague's POC is inaccessible.
 - [x] Pin OpenWebUI/Open Terminal source commits and image/package digests after
@@ -216,7 +217,7 @@ Exit: a minimal TS/Python example starts an application, waits for its health,
 uses a protected endpoint and cleans up without framework-specific core methods.
 
 ### Phase 4: Template And Real Adapter Integration
-**Status**: Implemented as a source-built candidate; final model/preview qualification remains in Phase 5
+**Status**: Complete as a source-built candidate; native model/preview qualification passed, publication pending
 - [x] Build a pinned, non-privileged Open Terminal template with dependencies baked
       in, correct writable directories, deterministic startup and a health probe.
       No Docker socket, unnecessary capabilities or runtime package bootstrap.
@@ -248,7 +249,7 @@ Exit: unmodified, pinned OpenWebUI uses the real adapter and a real Harakiri
 runtime for the reference workflow. This is not yet a release claim.
 
 ### Phase 5: OpenWebUI Acceptance And Review
-**Status**: In Progress; isolated GitHub acceptance authorized on 2026-10-29
+**Status**: Complete for source candidate d353053; all 22 native gates and cleanup passed in run 41008469790
 - [x] Keep unit/contract tests, browser fixtures, real transport tests and native
       OpenWebUI acceptance separate, with explicit evidence for each level.
 - [x] Prepare disposable native-runner infrastructure, bounded test resources,
@@ -257,12 +258,12 @@ runtime for the reference workflow. This is not yet a release claim.
 - [x] Install the pinned Harakiri, provider, OpenWebUI, model and adapter artifacts
       in that isolated environment. Browser interactions must use the native
       Open Terminal integration, not a custom frontend or direct API substitute.
-- [ ] Execute every required scenario in the acceptance matrix below. Inspect
+- [x] Execute every required scenario in the acceptance matrix below. Inspect
       desktop/mobile screenshots and browser errors; do not infer preview safety
       or visual correctness from a successful HTTP response.
 - [x] Review source for correctness/security and independently for public API,
       modularity/readability and examples. Resolve findings with focused regressions.
-- [ ] Record exact revisions/digests, platform, versions, test results, known
+- [x] Record exact revisions/digests, platform, versions, test results, known
       limits and owned cleanup. Do not publish credentials, user documents or
       full sensitive request/response bodies as CI artifacts.
 
@@ -292,7 +293,7 @@ model/version and observed tool calls. A mocked model, API-only test, successful
 chat-to-artifact criterion. No automated replay that hides a failed model run.
 
 ### Phase 6: Self-Service Documentation
-**Status**: In Progress; public, SDK, adapter and operator candidate documentation drafted
+**Status**: Documentation implemented and browser-checked; independent operator handoff remains open
 - [x] Public concept/reference: explain protected sandbox services, service versus
       runtime readiness, credentials, protocols, limits, TTL and persistent files.
       Extend the existing Routes narrative instead of duplicating concepts.
@@ -409,6 +410,24 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
   not included in this profile. The native negative check remains required.
 
 ## Completion Notes
+
+- Native [run 41008469790](https://github.com/nabilblk/h-sandbox/actions/runs/41008469790)
+  passed all 22 gates, all eight in-process cleanup checks and external cleanup.
+  Source `d353053b5f545151f6226056fef44e06bdce6bad` was tested as PR merge
+  `3c3e914a3d4a8e097ff7141f3035f8cbe17e87aa` on isolated Linux amd64.
+  One real-model submission used two native tools with no observed tool failure;
+  exact totals, generated PNG and separately labeled PDF/HTML renderer fixtures
+  passed independent checks. Desktop/mobile screenshots were inspected and are
+  retained with the sanitized receipt in the
+  [qualification report](../../operations/openwebui-source-acceptance.md).
+  Compatibility metadata and public/operator/technical documentation now state
+  source-qualified, unreleased. The mobile synchronization regressions and all
+  33 native harness/ownership tests pass. Independent self-service and explicitly
+  authorized publication/deployment remain open; do not archive this plan yet.
+  The updated public guide passes all 122 web tests, TypeScript validation,
+  production build and link checks. Browser inspection at 1440x1000 and 390x844
+  found no page/prompt overflow or JavaScript errors. The owned preview server
+  and browser were closed after inspection.
 
 - Run [41006611568](https://github.com/nabilblk/h-sandbox/actions/runs/41006611568)
   passed 20/22 checks with all owned cleanup passing. The revised real-model

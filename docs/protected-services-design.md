@@ -1,6 +1,7 @@
 # Protected service transport
 
-Status: implementation candidate, not a released OpenWebUI integration.
+Status: source-qualified candidate, not a released OpenWebUI integration.
+See the [native qualification report](operations/openwebui-source-acceptance.md).
 
 ## Decision
 
@@ -53,8 +54,9 @@ their preview frames; an adapter that removes these headers owns that risk.
 
 ## OpenWebUI protocol candidate
 
-Research versions: OpenWebUI `v0.12.4`, Open Terminal `v0.14.6`. These versions
-are not yet an accepted or security-qualified pairing.
+Tested versions: OpenWebUI `v0.12.4`, Open Terminal `v0.14.6`. The recorded
+Linux amd64 source candidate passed all native gates. This is not independent
+security certification, adopter acceptance or qualification of published artifacts.
 
 The first supported connection model is an administrator-configured Open
 Terminal connection, proxied by the OpenWebUI backend. The adapter authenticates
@@ -108,7 +110,8 @@ Reference model: Ollama `qwen3.5:4b-q4_K_M`, digest
 with the dedicated local inference image
 `ollama/ollama:0.40.13@sha256:b2f0122c476bc9fe7ce679d8bb4bd555351e25e2554eefb156f61cb0a89cf429`.
 Use bounded CPU/memory and native OpenWebUI tool calls, not a synthetic model.
-This identity is a test candidate, not evidence that the new workflow passed.
+The retained native receipt records a passing workflow with this identity;
+the model pin alone is not evidence of correctness or future reliability.
 The earlier shared Qwen 3 4B profile repeatedly produced invalid report scripts;
 the OpenWebUI candidate now has its own recorded inference profile. Existing
 TypeScript/Python acceptance model pins are unchanged. The model's

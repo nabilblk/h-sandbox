@@ -29,9 +29,11 @@ rejection and trusted relative paths. See the
 
 **New source candidate:** incremental service HTTP, generic application
 WebSockets and Python route helpers described below are not delivered by rc.13
-or Python 0.1.0rc1. Use matching source builds for evaluation; native provider and
-OpenWebUI qualification remains open. Existing native Harakiri PTY is a different
-protocol and does not establish application WebSocket support.
+or Python 0.1.0rc1. Use matching source builds for evaluation. The generic transport
+passed the [native OpenWebUI workflow](operations/openwebui-source-acceptance.md)
+through the provider gateway on Linux amd64; this is not a published release or
+qualification of every ingress. Existing native Harakiri PTY is a different protocol
+and does not establish application WebSocket support.
 
 The `tokenRoutes` entry in `/v1/runtime/capabilities` reports route-exposure
 availability, not an end-to-end WebSocket ingress check. A deployment proxy may
