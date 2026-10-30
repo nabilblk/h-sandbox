@@ -294,7 +294,7 @@ see the [transport limits](../../docs/routes.md).
 
 Defaults: 15-minute runtime TTL, 4-hour maximum session age. Actual mutations or
 shell input can renew at most every 30 seconds. Health checks, file listings,
-output polling and automatic terminal ping/resize frames do not renew. A socket closes after 60 seconds without frames;
+automatic working-directory synchronization, output polling and terminal ping/resize frames do not renew. A socket closes after 60 seconds without frames;
 reconnect explicitly. A connected browser alone is not a perpetual lease.
 Process/port polling and reconnecting an old PTY never allocate a runtime. They
 return `409 sandbox_session_inactive` when the previous runtime has ended.

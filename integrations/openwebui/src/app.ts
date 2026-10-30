@@ -10,6 +10,8 @@ import { attachTerminal } from "./terminal.js";
 const sessionUse = (method: string, path: string): SessionUse => {
   if (method === "OPTIONS") return "observe";
   const pathname = decodeURIComponent(path.split("?", 1)[0]);
+  // FileNav sets cwd automatically after listing, including on window focus.
+  if (method === "POST" && pathname === "/files/cwd") return "open";
   const readOnly = ["GET", "HEAD", "OPTIONS"].includes(method);
   const opensWorkspace = /^\/(?:files|skills|proxy)(?:\/|$)/.test(pathname);
   const startsProcess = method === "POST" && /^\/(?:execute|api\/terminals)\/?$/.test(pathname);

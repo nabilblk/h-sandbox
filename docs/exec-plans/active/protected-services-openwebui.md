@@ -424,6 +424,8 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 - Runtime age now starts at the API's accepted sandbox creation timestamp, not
   at an earlier empty binding or quota wait. Idempotent recovery retains the
   original timestamp; a regression covers an old binding followed by first use.
+  Native FileNav's automatic POST of its current directory is treated as opening
+  files, not lease-renewing activity; preflight also cannot allocate a runtime.
 - The next harness preserves a failed real-model gate while continuing independent
   transport/recovery checks after stopping the model through the native UI. It
   neither retries the prompt nor seeds substitute artifacts. Fixed exception

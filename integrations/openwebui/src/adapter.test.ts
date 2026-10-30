@@ -141,6 +141,8 @@ test("passive polling and stale process actions cannot provision a replacement",
       ["DELETE", "/execute/old", "interact"],
       ["DELETE", "/api/terminals/old", "interact"],
       ["GET", "/files/list?directory=/workspace", "open"],
+      ["POST", "/files/cwd", "open"],
+      ["OPTIONS", "/files/list", "observe"],
       ["POST", "/execute", "mutate"],
       ["POST", "/api/terminals", "mutate"]
     ] as const;
