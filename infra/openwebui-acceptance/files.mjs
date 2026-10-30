@@ -39,15 +39,21 @@ export async function liveFiles(page, client, template) {
   await upload(page, { name: "live.txt", mimeType: "text/plain", buffer: Buffer.from("Original text\n") });
   await files.locator("[data-file-row]").getByText("live.txt", { exact: true }).click();
   check((await downloadSelected(page)).toString() === "Original text\n", "Native text upload differs");
+  console.log("OpenWebUI live file: wait for text preview, then edit");
   const edit = files.getByRole("button", { name: "Edit", exact: true });
-  if (await edit.isVisible()) await edit.click();
+  // Download and preview use different requests. A completed download does not
+  // mean the asynchronously loaded text has mounted its Edit control yet.
+  await edit.click();
   const editor = files.locator('textarea:visible:not(.xterm-helper-textarea), .cm-content[contenteditable="true"]:visible').first();
   await editor.fill("Changed in OpenWebUI\n");
   await files.getByRole("button", { name: "Save", exact: true }).click();
+  await edit.waitFor();
+  console.log("OpenWebUI live file: saved in UI, verifying stored bytes and fresh preview");
   const sandbox = await runtime(client, template);
   await until("Independent native edit verification", async () =>
     (await client.files.read(sandbox.id, "/workspace/demo/live.txt")).content === "Changed in OpenWebUI\n");
   await refreshFiles(page);
+  await files.getByText("Changed in OpenWebUI", { exact: true }).waitFor();
   check((await downloadSelected(page)).toString() === "Changed in OpenWebUI\n", "Preview serves stale bytes after edit");
   return { textRoundTrip: true, nativeEdit: true, freshPreview: true };
 }

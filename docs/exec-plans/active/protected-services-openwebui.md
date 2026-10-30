@@ -411,6 +411,15 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ## Completion Notes
 
+- Diagnostic run 41015173974 passed 21/22 gates and all cleanup, including the
+  SVG/mobile/restart/browser-error gates that failed in the previous run. It exposed
+  a separate text-edit test race: an immediate `isVisible()` check skipped Edit
+  while the preview was still loading. The native upload/download and preview are
+  different requests. A regression fails with the old condition and passes when
+  Edit is awaited, UI save completion precedes refresh, and refreshed text is
+  explicitly observed. All 37 harness/ownership tests pass. Native revalidation
+  remains required; the previous uncaught browser errors are not declared fixed.
+
 - Revalidation run 41012642644 passed 19/22 gates, all cleanup and all six other
   workflows. The exact terminal observer now passes revocation/recovery, but the
   SVG scenario times out before mobile navigation, followed by restart timeout

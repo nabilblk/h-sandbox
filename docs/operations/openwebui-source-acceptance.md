@@ -47,6 +47,17 @@ addresses or Kubernetes exec.
 
 ### Failed Runs And Harness Corrections
 
+- [Run 41015173974](https://github.com/nabilblk/h-sandbox/actions/runs/41015173974)
+  tested diagnostic commit `3d26c1a58b53a1672ffee92f99d7a48999be7d5f` as merge
+  `cbf5e3e0428a5b178218730a849b941b34205057`. Its
+  [receipt](evidence/openwebui-41015173974.json) records 21/22 gates and complete
+  cleanup. SVG/mobile, restart, revocation and the browser-error gate passed; the
+  earlier two browser errors were not reproduced. Text editing timed out. The
+  test incorrectly treated an Edit button not yet visible during asynchronous
+  preview loading as an absent optional control. A failing-then-passing regression
+  now requires waiting for Edit and for UI save completion before refresh, and
+  checks refreshed visible content as well as downloaded bytes. This correction
+  still requires native revalidation; it does not explain away the earlier errors.
 - [Run 41012642644](https://github.com/nabilblk/h-sandbox/actions/runs/41012642644)
   tested branch `f578e3a6983785603f016ccadef28206738dbb10` as merge
   `8559ecbe3cd00c0f3f06b040024556bc9dfa0030`. Its
