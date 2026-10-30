@@ -155,8 +155,20 @@ partial full release, preserve its evidence and use a new candidate version,
 rather than rerunning over existing artifacts. Never move a release tag.
 
 Template releases run on reviewed `main` changes/manual dispatch, smoke each
-architecture, publish run-scoped tags and join their manifests. They do not
-promote Harakiri template aliases. The maintained OpenSandbox chart publisher
+architecture, publish run-scoped tags and join their manifests. A manual run
+can select one catalog entry without rebuilding unrelated templates:
+
+```bash
+gh workflow run template-release.yml --ref main -f template=open-terminal
+```
+
+The selector is validated before enabling publication credentials; unknown or
+empty names fail closed. Push-triggered runs and manual `template=all` retain
+the full catalog. A failed unrelated template is not considered qualified by
+a successful targeted run. For a fresh candidate, dispatch again so both
+architectures have the same new run-scoped tag; do not rerun only failed jobs
+and mix tags from different run attempts. These runs do not promote Harakiri
+template aliases. The maintained OpenSandbox chart publisher
 compares existing content and refuses changes without a version bump.
 Publication is not permission to modify a live installation.
 

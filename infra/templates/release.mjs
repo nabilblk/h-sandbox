@@ -6,6 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 export const catalog = JSON.parse(readFileSync(join(root, 'infra/templates/catalog.json'), 'utf8')).templates;
+export function releaseMatrix(selection = 'all') {
+  if (selection === 'all') return catalog;
+  const template = catalog.find(({ name }) => name === selection);
+  assert.ok(template, 'Choose an existing catalog template or all');
+  return [template];
+}
 export function releaseInput(env) {
   const template = catalog.find((item) => item.name === env.TEMPLATE_NAME);
   assert.ok(template, 'Choose an existing catalog TEMPLATE_NAME');
@@ -23,7 +29,7 @@ export function releaseInput(env) {
 }
 
 function main() {
-  if (process.argv[2] === 'matrix') { console.log(JSON.stringify(catalog)); return; }
+  if (process.argv[2] === 'matrix') { console.log(JSON.stringify(releaseMatrix(process.env.TEMPLATE_SELECTION))); return; }
   const input = releaseInput(process.env);
   const run = (args, timeout = 15 * 60_000) => execFileSync('docker', args, { stdio: 'inherit', timeout });
   const context = join(root, 'examples/templates', input.name);
