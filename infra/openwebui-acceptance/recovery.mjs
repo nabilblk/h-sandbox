@@ -2,6 +2,7 @@ import { check, until } from "../acceptance/context.mjs";
 import assert from "node:assert/strict";
 import { adapterOrigin, webOrigin, ownedDocker } from "./stack.mjs";
 import { signup, selectTerminal, refreshFiles } from "./browser.mjs";
+import { observeCreatedTerminal } from "./terminal-observer.mjs";
 
 export async function runtime(client, template) {
   const all = (await client.listSandboxes()).sandboxes.filter(item => item.template === template && item.status !== "terminated");
@@ -123,47 +124,33 @@ export async function revokeAndRecover(ctx, client, template, page, admin) {
   const expand = dock.getByRole("button", { name: "Expand terminal", exact: true });
   if (await expand.isVisible()) await expand.click();
   const terminal = dock.getByRole("button", { name: "Open terminal", exact: true });
-  let output = "", connected = false;
-  const socketOpened = page.waitForEvent("websocket", socket => {
-    if (!new URL(socket.url()).pathname.includes("/api/v1/terminals/harakiri/api/terminals/")) return false;
-    socket.on("framereceived", ({ payload }) => {
-      if (Buffer.isBuffer(payload)) output = (output + payload.toString()).slice(-8192);
-    });
-    socket.on("framesent", ({ payload }) => {
-      try { connected ||= JSON.parse(String(payload)).type === "resize"; } catch { /* Binary PTY input. */ }
-    });
-    return true;
-  });
-  const [socket] = await Promise.all([
-    socketOpened,
-    (async () => {
-      if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
-      if (await expand.isVisible()) await expand.click();
-      if (await terminal.isVisible()) await terminal.click();
-    })()
-  ]);
-  await until("Native shell connected", () => connected, 45000);
-  // A reattached PTY may have no pending output. Exercise it instead of waiting
-  // for a spontaneous prompt; the command echo cannot satisfy this marker.
-  await dock.locator('.xterm-helper-textarea:visible').focus();
-  await page.keyboard.insertText("printf 'REVOCATION_%s\\n' READY");
-  await page.keyboard.press("Enter");
-  await until("Native terminal ready before revocation", () => output.includes("REVOCATION_READY"), 45000);
-  let closed = false;
-  socket.on("close", () => { closed = true; });
-  await client.routes.delete(before.id, 8000);
-  console.log("OpenWebUI recovery: grant revoked, waiting for socket closure");
-  await until("Revoked native terminal disconnected", () => closed, 15000);
-  const denied = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace");
-  check(!denied.ok, "Revoked grant accepted a fresh native request");
-  console.log("OpenWebUI recovery: HTTP denied, resetting grant through operator command");
-  const inspect = JSON.parse(ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "inspect", "--user-id", admin.id]));
-  check(typeof inspect.generation === "string", "Operator generation missing");
-  ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "reset-grant", "--user-id", admin.id, "--expect-generation", inspect.generation]);
-  console.log("OpenWebUI recovery: operator reset completed, reopening native files");
-  const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace/demo");
-  check(recovered.ok, "Operator reset did not recover native file access");
-  check((await runtime(client, template)).id === before.id, "Grant recovery replaced runtime");
-  await refreshFiles(page);
-  return { revokedSocketClosed: true, revokedHttpDenied: true, operatorGrantRecovered: true, sameRuntime: true };
+  if (!(await terminal.isVisible())) await dock.getByRole("button", { name: "Close terminal", exact: true }).click();
+  if (await expand.isVisible()) await expand.click();
+  const observed = await observeCreatedTerminal(page, () => terminal.click());
+  try {
+    // A reattached PTY may have no pending output. Exercise it instead of waiting
+    // for a spontaneous prompt; the command echo cannot satisfy this marker.
+    await dock.locator('.xterm-helper-textarea:visible').focus();
+    await page.keyboard.insertText("printf 'REVOCATION_%s\\n' READY");
+    await page.keyboard.press("Enter");
+    await until("Native terminal ready before revocation", () => {
+      check(!observed.state.closed, "Created native terminal closed before readiness");
+      return observed.state.output.includes("REVOCATION_READY");
+    }, 45000);
+    await client.routes.delete(before.id, 8000);
+    console.log("OpenWebUI recovery: grant revoked, waiting for socket closure");
+    await until("Revoked native terminal disconnected", () => observed.state.closed, 15000);
+    const denied = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace");
+    check(!denied.ok, "Revoked grant accepted a fresh native request");
+    console.log("OpenWebUI recovery: HTTP denied, resetting grant through operator command");
+    const inspect = JSON.parse(ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "inspect", "--user-id", admin.id]));
+    check(typeof inspect.generation === "string", "Operator generation missing");
+    ownedDocker(ctx, "adapter", ["exec"], ["node", "integrations/openwebui/dist/operator.js", "reset-grant", "--user-id", admin.id, "--expect-generation", inspect.generation]);
+    console.log("OpenWebUI recovery: operator reset completed, reopening native files");
+    const recovered = await webuiRequest(admin, "terminals/harakiri/files/list?directory=/workspace/demo");
+    check(recovered.ok, "Operator reset did not recover native file access");
+    check((await runtime(client, template)).id === before.id, "Grant recovery replaced runtime");
+    await refreshFiles(page);
+    return { revokedSocketClosed: true, revokedHttpDenied: true, operatorGrantRecovered: true, sameRuntime: true };
+  } finally { observed.dispose(); }
 }

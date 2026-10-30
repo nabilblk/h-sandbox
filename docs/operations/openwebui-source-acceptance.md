@@ -45,8 +45,20 @@ addresses or Kubernetes exec.
   replacement model artifacts or replayed model responses. One successful workflow
   is not a model reliability benchmark or deterministic-output guarantee.
 
-### Earlier Failed Runs
+### Failed Runs And Harness Corrections
 
+- [Run 41010130131](https://github.com/nabilblk/h-sandbox/actions/runs/41010130131)
+  revalidated documentation commit `11c235d4a34d46b51f24cacb191c37d86b8a1115`
+  as merge `953f6dd76d23b025529080b5568e0de097f92215`. Its
+  [receipt](evidence/openwebui-41010130131.json) records 21 passes, a pre-revocation
+  shell-observation timeout and complete cleanup. Real model execution, previews,
+  mobile navigation and adapter restart passed. Source review and a deterministic
+  event-order regression exposed a test race: the observer could select a late
+  socket from a dismissed shell rather than the shell receiving input. The test
+  now correlates a newly initiated native creation request, its returned session
+  ID and that exact WebSocket. It does not retry commands or bypass the readiness
+  marker. Production transport code is unchanged. This failed run is not a passing
+  revalidation; check the PR's current CI for subsequent results.
 - [Run 41006611568](https://github.com/nabilblk/h-sandbox/actions/runs/41006611568):
   branch source `5fb516afdd103088762dcdf7bc1e20138a409e60`, merge checkout
   `b4a3fecbf6d314bdb280bd52d903d66783914894`. Its

@@ -26,6 +26,8 @@ const checks = new Set([
   "Real model response completed: deadline exceeded", "Native shell output: deadline exceeded",
   "Native shell connected: deadline exceeded", "Native resize frame sent: deadline exceeded",
   "Native terminal ready before revocation: deadline exceeded",
+  "Native terminal creation failed", "Native terminal identity missing",
+  "Created native terminal connected: deadline exceeded", "Created native terminal closed before readiness",
   "Native remote terminal resize: deadline exceeded", "Native shell interrupt: deadline exceeded",
   "Native shell reconnected: deadline exceeded", "Native reconnect output: deadline exceeded",
   "Native foreground command started: deadline exceeded", "Native JSON preview rendered: deadline exceeded",

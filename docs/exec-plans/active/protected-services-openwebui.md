@@ -411,6 +411,16 @@ The ACL/audit exclusions remain explicit product deferrals. Candidate limitation
 
 ## Completion Notes
 
+- Revalidation run 41010130131 passed 21/22 gates and all cleanup, but timed out
+  observing shell readiness before revocation. All other workflows on `11c235d`
+  passed. The native observer could capture an older shell's late socket instead
+  of the newly created session. A deterministic out-of-order event regression
+  reproduces that distinction; the harness now correlates the new native POST,
+  returned terminal ID and exact WebSocket, with listener cleanup on failure.
+  The failed receipt remains in the qualification report. No production adapter,
+  API, SDK, prompt or model change was needed. This is a harness correction, not
+  evidence of another successful native run; current PR checks show revalidation.
+
 - Native [run 41008469790](https://github.com/nabilblk/h-sandbox/actions/runs/41008469790)
   passed all 22 gates, all eight in-process cleanup checks and external cleanup.
   Source `d353053b5f545151f6226056fef44e06bdce6bad` was tested as PR merge
