@@ -45,7 +45,7 @@ APIs rather than CRI-O. These are explicit exclusions, not permission workaround
 - [x] Enforce restrictions for create, restore, pause, snapshots, egress and Vault.
 
 ### Phase 2: Helm And Operator Handoff
-**Status**: Complete (local; CI wired, not dispatched)
+**Status**: Complete (local and required CI)
 - [x] Add declarative OpenShift Routes, private CA mounts and safe writable paths.
 - [x] Produce a standalone restricted configuration with runtime pod template.
 - [x] Separate runtime CRD/RBAC approval from namespace installation.
@@ -53,7 +53,7 @@ APIs rather than CRI-O. These are explicit exclusions, not permission workaround
 - [x] Exercise generated configurations in CI without cluster mutation.
 
 ### Phase 3: Documentation And UX
-**Status**: Complete (local source and browser verification; not deployed)
+**Status**: Complete (source, CI, public deployment and browser verification)
 - [x] Add OpenShift to Self-hosting navigation and machine-readable docs.
 - [x] Document exact dependency contracts and published/source version boundaries.
 - [x] Explain excluded capabilities without implying weaker substitutes.
@@ -90,8 +90,9 @@ of one must remain visible rather than becoming a passing support claim.
 Local implementation and review completed on 2026-11-06. Delivered the pure
 configuration generator, read-only preflight, owned-resource SDK smoke,
 restricted Helm/Route/CA configuration, fail-closed deployment capability policy,
-public documentation page and native qualification checklist. No dependency,
-package version or upstream runtime chart was changed.
+public documentation page and native qualification checklist. The initial local
+implementation did not change package or runtime chart versions; the subsequent
+authorized release is tracked below.
 
 ### Local Verification
 
@@ -111,9 +112,9 @@ package version or upstream runtime chart was changed.
 
 Browser verification used a loopback-only documentation preview with API/OIDC
 origins pointed at an unused local port. Configuration tests render charts
-offline; preflight tests inject a fake command runner. No cluster preflight,
-database integration test or live runtime smoke was executed. CI was updated but
-not dispatched.
+offline; preflight tests inject a fake command runner. That initial local phase
+did not execute cluster preflight or live runtime acceptance. The authorized
+delivery subsequently ran CI and disposable-runner checks, recorded below.
 
 ### Remaining Gates
 
@@ -122,14 +123,12 @@ not dispatched.
    arbitrary UID, browser and runtime workflows, network denial and cleanup.
 2. Resolve any native findings without relaxing SCC, silently enabling excluded
    features or widening the declared security boundary.
-3. Obtain approval for commit/merge and coordinated artifact publication. The
-   published `0.5.0-rc.14` API/chart do not include this profile's new policy guard.
-   Update the documentation's source-candidate status only after release and
-   qualification evidence exists.
+3. Retain the release receipt and use the matching rc.15 API/chart for client
+   qualification. The rc.14 API/chart do not include the new policy guard.
 
-No deployment, publication or cluster changes were performed. k0s, client
-clusters, tunnels and unrelated working-tree content were left untouched. This
-plan remains active; local passing tests are not a native support claim.
+Before the delivery authorization below, no deployment, publication or cluster
+changes were performed. This plan remains active: passing local and k0s tests
+are not native OpenShift qualification.
 
 ## Delivery Follow-Up: 2026-11-06
 
@@ -141,12 +140,26 @@ mutation of an unknown client cluster or a claim of native OpenShift acceptance.
       framework packages and runtime chart versions unchanged.
 - [x] Update the operator guide to pinned chart archives and a tagged kit, with
       a release receipt and isolated-client-test boundary.
-- [ ] Commit, push, pass required CI and merge through the protected branch.
-- [ ] Publish and anonymously verify matching preview artifacts.
-- [ ] Back up and upgrade only the lab's four application deployments with
+- [x] Commit, push, pass required CI and merge through the protected branch.
+      PR #83 merged as `d00a794f72dfa94cd345cae7ecdbfda7dd49f917` after CI
+      `42135352288` passed. Immutable tag: `v0.5.0-rc.15`.
+- [x] Publish and anonymously verify matching preview artifacts.
+      Harbor run `42136158076` and npm run `42136160482` passed; `next` is rc.15,
+      stable `latest` is unchanged. Exact digests are in the delivery receipt.
+- [x] Back up and upgrade only the lab's four application deployments with
       preserved public origins, Secrets, PVCs and provider configuration.
-- [ ] Verify public documentation, changelog, API health and OIDC redirect;
+      Helm revision 51 -> 52; verified 310 protected resources, 7 PVCs and
+      13 unrelated pods unchanged. Owned RBAC release labels changed, not rules.
+- [x] Verify public documentation, changelog, API health and OIDC redirect;
       record exact artifact and rollout evidence in the delivery receipt.
+      Desktop/mobile screenshots inspected. Two transient 502 samples recovered
+      automatically. Login reached the public identity host, not localhost.
+
+The native amd64 Workbench source-candidate run `42135352063` passed all 11
+gates with owned cleanup. The optional Open Terminal image audit still reports
+an APT vulnerability; that image was not published or included in this baseline.
+See [the complete delivery receipt](../../release-notes/0.5.0-rc.15-delivery.md)
+for verification boundaries and remaining independent checks.
 
 Native OpenShift acceptance remains pending after delivery. This plan stays
 active until the qualification checklist has observed results.
