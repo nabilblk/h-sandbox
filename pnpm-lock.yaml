@@ -247,6 +247,9 @@ importers:
       '@langchain/langgraph-checkpoint-postgres':
         specifier: 1.0.5
         version: 1.0.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(@langchain/langgraph-checkpoint@1.1.5(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0)))
+      '@langchain/langgraph-sdk':
+        specifier: 1.11.2
+        version: 1.11.2(@langchain/core@1.2.12(@opentelemetry/api@1.9.1)(ws@8.21.0))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@types/pg':
         specifier: 8.20.0
         version: 8.20.0
