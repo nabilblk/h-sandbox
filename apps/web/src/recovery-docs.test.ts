@@ -9,11 +9,11 @@ import { documentationAssets, renderDocMarkdown } from "./docs-export.js";
 import { recoveryCommands, recoveryDocs } from "./recovery-docs.js";
 
 test("recovery is discoverable after installation and through operator search", () => {
-  assert.deepEqual(docGroups.find(group => group.title === "Self-hosting")?.pages.slice(0, 2), ["install-kubernetes", "backup-recovery"]);
+  assert.deepEqual(docGroups.find(group => group.title === "Self-hosting")?.pages.slice(0, 3), ["install-kubernetes", "install-openshift", "backup-recovery"]);
   for (const query of ["backup", "wrapping key", "provider interruption", "restore PostgreSQL", "RTO RPO"]) {
     assert.ok(searchDocPages(docPages, query).some(page => page.id === "backup-recovery"), query);
   }
-  for (const id of ["install-kubernetes", "overview", "developer-preview", "vision-architecture"]) {
+  for (const id of ["install-kubernetes", "install-openshift", "overview", "developer-preview", "vision-architecture"]) {
     assert.match(renderToStaticMarkup(docPages.find(page => page.id === id)!.body), /href="#docs\/backup-recovery"/, id);
   }
 });
@@ -73,7 +73,7 @@ test("published binary compatibility claims match the immutable RC.10 receipt", 
 test("entry points agree on the current candidate without rewriting release history", () => {
   for (const id of ["overview", "quickstart", "vision-architecture", "developer-preview"]) {
     const markdown = renderDocMarkdown(docPages.find(page => page.id === id)!);
-    assert.match(markdown, /0\.5\.0-rc\.14/, id);
+    assert.match(markdown, /0\.5\.0-rc\.15/, id);
     assert.doesNotMatch(markdown, /(?:current|recorded) Developer Preview is (?:\*\*)?0\.5\.0-rc\.8/i);
     assert.doesNotMatch(markdown, /@h-sandbox\/(?:sdk|cli)@0\.5\.0-rc\.8/);
     assert.match(markdown, /0\.4\.0/);

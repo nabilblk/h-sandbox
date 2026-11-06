@@ -3,6 +3,7 @@ import { CodeBlock } from "./components/docs-code";
 import { visionDocs } from "./vision-docs";
 import { previewDocs } from "./preview-docs";
 import { kubernetesInstallDocs } from "./kubernetes-install-docs";
+import { openshiftInstallDocs } from "./openshift-install-docs";
 import { recoveryDocs } from "./recovery-docs";
 import { capacityDocs } from "./capacity-docs";
 import { usageObservationsDocs, usageTutorialDocs, operatorMonitoringDocs } from "./usage-observations-docs";
@@ -57,6 +58,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 export const docPages: DocPage[] = [
   previewDocs,
   kubernetesInstallDocs,
+  openshiftInstallDocs,
   recoveryDocs,
   capacityDocs,
   usageObservationsDocs,

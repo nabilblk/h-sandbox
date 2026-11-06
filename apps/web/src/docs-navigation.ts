@@ -4,7 +4,7 @@ import { Children, isValidElement, type ReactNode } from "react";
 // Ordering is editorial, independent of where a page's content is maintained.
 export const docGroups = [
   { title: "Getting started", pages: ["overview", "developer-preview", "ui-product-tour", "quickstart", "vision-architecture", "sdk-cli", "typescript-sdk", "python-sdk"] },
-  { title: "Self-hosting", pages: ["install-kubernetes", "backup-recovery", "operator-monitoring"] },
+  { title: "Self-hosting", pages: ["install-kubernetes", "install-openshift", "backup-recovery", "operator-monitoring"] },
   { title: "Concepts", pages: ["execution-capacity", "usage-observations", "workspaces", "authorization", "security-model"] },
   { title: "Sandbox guides", pages: ["sandbox-workbench", "create-sandbox", "sandbox-lifecycle", "sandbox-processes", "filesystem-artifacts", "routes", "outbound-access", "credential-vault"] },
   { title: "Integrations", pages: ["deepagents", "deepagents-python", "openwebui"] },

@@ -5,6 +5,7 @@ import { CapacityError, releaseSandboxCapacity } from "./organization-capacity.j
 import { acknowledgeRuntimeEffect, beginRuntimeEffect, finishRuntimeEffect, lockEffectSandbox, markRuntimeEffectDispatched, markRuntimeEffectUncertain, type RuntimeEffect } from "./sandbox-runtime-effects.js";
 import { completeSandboxOperation, type SandboxOperation } from "./sandbox-operations.js";
 import { normalizeRuntimeState } from "./sandbox-lease.js";
+import { requireRuntimeCreate } from "../providers/runtime/deployment-policy.js";
 
 export type ProvisionedRuntime = { effect: RuntimeEffect; provider: RuntimeCreateSandboxResult };
 
@@ -22,6 +23,7 @@ export const provisionSandboxRuntime = async (
   let provider: RuntimeCreateSandboxResult | undefined;
   try {
     const prepared = await input();
+    requireRuntimeCreate(dependencies.runtimeProvider, prepared);
     await markRuntimeEffectDispatched(effect, dependencies.query);
     dispatched = true;
     provider = await dependencies.runtimeProvider.create({ ...prepared, metadata: {

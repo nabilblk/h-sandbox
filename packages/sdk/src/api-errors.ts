@@ -13,6 +13,7 @@ export const sandboxRuntimeApiErrorCodes = [
   "sandbox_route_limit_exceeded",
   "organization_route_limit_exceeded",
   "runtime_command_unsupported",
+  "runtime_feature_unavailable",
   "runtime_command_unavailable",
   "runtime_terminal_unsupported",
   "runtime_terminal_unavailable",
@@ -103,6 +104,7 @@ export const sandboxRuntimeApiErrorCodes = [
 export type SandboxRuntimeApiErrorCode = typeof sandboxRuntimeApiErrorCodes[number];
 
 export const unsupportedCapabilityApiErrorCodes = [
+  "runtime_feature_unavailable",
   "runtime_command_unsupported",
   "runtime_terminal_unsupported",
   "runtime_file_operation_unsupported",

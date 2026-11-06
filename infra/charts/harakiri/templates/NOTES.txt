@@ -16,7 +16,16 @@ Components:
 Check rollout:
   kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "harakiri.fullname" . }}-api
 
-{{- if not .Values.ingress.enabled }}
+{{- if .Values.openshift.routes.enabled }}
+
+OpenShift Routes (edge TLS, ingress-controller certificate):
+{{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config }}
+  Web: {{ get $cfg "PUBLIC_WEB_URL" }}
+  API: {{ get $cfg "PUBLIC_API_URL" }}
+
+Verify the assigned SCC and complete the first-sandbox acceptance checklist.
+Pod readiness alone does not qualify this deployment profile.
+{{- else if not .Values.ingress.enabled }}
 
 No ingress configured. Reach the dashboard / API with port-forward:
   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "harakiri.fullname" . }}-web 8080:{{ .Values.web.service.port }}

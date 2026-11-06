@@ -1,0 +1,21 @@
+{
+  "namespace": "harakiri",
+  "webOrigin": "https://sandbox.apps.example.test",
+  "apiOrigin": "https://sandbox-api.apps.example.test",
+  "authOrigin": "https://auth.apps.example.test",
+  "realm": "harakiri",
+  "registry": "registry.example.test",
+  "project": "harakiri",
+  "apiDigest": "REPLACE_WITH_RC15_API_IMAGE_DIGEST",
+  "webDigest": "REPLACE_WITH_RC15_WEB_IMAGE_DIGEST",
+  "serverImage": "registry.example.test/harakiri/opensandbox-server:v0.2.3@REPLACE_WITH_DIGEST",
+  "controllerImage": "registry.example.test/harakiri/opensandbox-controller:v0.2.0@REPLACE_WITH_DIGEST",
+  "gatewayImage": "registry.example.test/harakiri/opensandbox-ingress:v1.0.10@REPLACE_WITH_DIGEST",
+  "execdImage": "registry.example.test/harakiri/opensandbox-execd:v1.1.0@REPLACE_WITH_DIGEST",
+  "imagePullSecret": "registry-pull",
+  "apiSecret": "harakiri-api",
+  "runtimeSecret": "opensandbox-api-key",
+  "gatewaySecret": "opensandbox-gateway-signing",
+  "trustBundle": "",
+  "sandboxEgressCIDRs": []
+}

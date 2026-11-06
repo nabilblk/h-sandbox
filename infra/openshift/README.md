@@ -4,6 +4,9 @@
 > installation contract. They create/grant elevated SCCs and must not be used
 > where the platform prohibits that. Start with the
 > [standalone OpenShift prerequisites](../../docs/install-openshift.md).
+> The new [standalone configuration kit](standalone/README.md) is local-only
+> configuration generation with a restricted profile and an explicit native
+> validation gate. It does not call this legacy installer.
 > Customer composition has moved out; see the
 > [separation notice](../../docs/customer-deployment-separation.md).
 

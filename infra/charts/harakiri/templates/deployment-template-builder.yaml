@@ -16,6 +16,9 @@ spec:
     metadata:
       labels:
         {{- include "harakiri.selectorLabels" . | nindent 8 }}
+        {{- if .Values.openshift.restricted }}
+        harakiri.io/role: control-plane
+        {{- end }}
         app.kubernetes.io/component: template-builder
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
@@ -24,6 +27,9 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "harakiri.serviceAccountName" . }}
+      {{- if kindIs "bool" .Values.serviceAccount.automountServiceAccountToken }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- end }}
       {{- with (include "harakiri.imagePullSecrets" .) }}
       {{- . | nindent 6 }}
       {{- end }}
@@ -46,10 +52,18 @@ spec:
                 name: {{ include "harakiri.configMapName" . }}
             - secretRef:
                 name: {{ include "harakiri.secretName" . }}
+          {{- if or .Values.temporaryStorage.enabled .Values.trustBundle.configMapName }}
+          volumeMounts:
+            {{- include "harakiri.operatorMounts" . | nindent 12 }}
+          {{- end }}
           {{- with .Values.templateBuilder.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+      {{- if or .Values.temporaryStorage.enabled .Values.trustBundle.configMapName }}
+      volumes:
+        {{- include "harakiri.operatorVolumes" . | nindent 8 }}
+      {{- end }}
       {{- with .Values.templateBuilder.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

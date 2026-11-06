@@ -1,0 +1,48 @@
+{{- if .Values.openshift.restricted -}}
+{{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config -}}
+{{- if not (kindIs "bool" .Values.serviceAccount.automountServiceAccountToken) -}}
+{{- fail "Restricted OpenShift requires serviceAccount.automountServiceAccountToken explicitly false" -}}
+{{- end -}}
+{{- if or .Values.registry.enabled .Values.rbac.create .Values.rbac.prepullClusterRole .Values.credentialVault.externalSecrets.kubernetes.enabled .Values.serviceAccount.automountServiceAccountToken -}}
+{{- fail "Restricted OpenShift requires registry, control-plane Kubernetes RBAC, external Secret reads and service-account token automount disabled" -}}
+{{- end -}}
+{{- if or .Values.secret.create (not .Values.secret.existingSecret) .Values.harborPullSecret.create -}}
+{{- fail "Restricted OpenShift requires operator-owned existing Secrets" -}}
+{{- end -}}
+{{- if or (not .Values.securityContext.runAsNonRoot) .Values.securityContext.allowPrivilegeEscalation .Values.securityContext.privileged (not .Values.securityContext.readOnlyRootFilesystem) (not .Values.temporaryStorage.enabled) -}}
+{{- fail "Restricted OpenShift requires non-root, no escalation, read-only root filesystems and temporaryStorage.enabled" -}}
+{{- end -}}
+{{- if or (hasKey .Values.securityContext "runAsUser") (hasKey .Values.securityContext "runAsGroup") (hasKey .Values.podSecurityContext "runAsUser") (hasKey .Values.podSecurityContext "runAsGroup") (hasKey .Values.podSecurityContext "fsGroup") -}}
+{{- fail "Let OpenShift assign UID, GID and fsGroup; do not pin them in the restricted profile" -}}
+{{- end -}}
+{{- if and .Values.securityContext.seccompProfile (ne .Values.securityContext.seccompProfile.type "RuntimeDefault") -}}
+{{- fail "Container seccomp must not override RuntimeDefault in the restricted profile" -}}
+{{- end -}}
+{{- if or .Values.podSecurityContext.sysctls (and .Values.securityContext.procMount (ne .Values.securityContext.procMount "Default")) -}}
+{{- fail "Restricted OpenShift does not accept sysctl or proc mount overrides" -}}
+{{- end -}}
+{{- if or (not .Values.image.api.digest) (not .Values.image.web.digest) -}}
+{{- fail "Restricted OpenShift requires reviewed API and web image digests" -}}
+{{- end -}}
+{{- if or (ne .Values.podSecurityContext.seccompProfile.type "RuntimeDefault") (not (has "ALL" .Values.securityContext.capabilities.drop)) .Values.securityContext.capabilities.add -}}
+{{- fail "Restricted OpenShift requires RuntimeDefault seccomp and ALL capabilities dropped without additions" -}}
+{{- end -}}
+{{- range $key, $expected := dict "HARAKIRI_RUNTIME_PROVIDER" "opensandbox" "AUTH_DEV_ALLOW" "0" "SEED_ON_BOOT" "0" "OPEN_SANDBOX_ALLOW_FALLBACK" "0" "OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY" "0" "TEMPLATE_DOCKERFILE_BUILDER" "disabled" "TEMPLATE_RUNTIME_PULL_PREFLIGHT_ENABLED" "0" "TEMPLATE_IMAGE_PREPULL_ENABLED" "0" "TEMPLATE_RETENTION_DELETE_BUILDER_JOBS" "0" "PERSISTENT_WORKSPACES_ENABLED" "0" "SANDBOX_ROUTE_DEFAULT_ACCESS_MODE" "token" "SANDBOX_ROUTE_LOCAL_FALLBACK_URL" "" -}}
+{{- if ne (toString (get $cfg $key)) $expected }}{{ fail (printf "Restricted OpenShift requires %s=%s" $key $expected) }}{{ end -}}
+{{- end -}}
+{{- if and (hasKey $cfg "EXTERNAL_SECRET_KUBERNETES_ENABLED") (ne (toString (get $cfg "EXTERNAL_SECRET_KUBERNETES_ENABLED")) "0") -}}
+{{- fail "Restricted OpenShift does not permit a configuration override enabling Kubernetes Secret reads" -}}
+{{- end -}}
+{{- $disabled := splitList "," (get $cfg "RUNTIME_DISABLED_FEATURES") -}}
+{{- range $feature := list "egress" "credential-vault" "snapshots" "pause-resume" -}}
+{{- if not (has $feature $disabled) }}{{ fail (printf "Restricted OpenShift must disable runtime feature %s" $feature) }}{{ end -}}
+{{- end -}}
+{{- range $key := list "PUBLIC_WEB_URL" "PUBLIC_API_URL" "PUBLIC_KEYCLOAK_URL" -}}
+{{- $value := get $cfg $key -}}
+{{- if or (not (regexMatch "^https://[a-z0-9.-]+$" $value)) (regexMatch "(?i)(localhost|127\\.|\\.example\\.com$)" $value) }}{{ fail (printf "%s must be an explicit public HTTPS origin, not a development fallback" $key) }}{{ end -}}
+{{- end -}}
+{{- $issuer := printf "%s/realms/%s" (get $cfg "PUBLIC_KEYCLOAK_URL") (get $cfg "PUBLIC_KEYCLOAK_REALM") -}}
+{{- if or (ne (get $cfg "KEYCLOAK_ISSUER") $issuer) (ne (get $cfg "KEYCLOAK_ISSUER_ALLOWLIST") $issuer) (ne (get $cfg "KEYCLOAK_AUDIENCE") "harakiri-api") -}}
+{{- fail "Restricted OpenShift requires one consistent public issuer and harakiri-api audience" -}}
+{{- end -}}
+{{- end -}}

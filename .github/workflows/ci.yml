@@ -309,17 +309,8 @@ jobs:
             --set secret.data.DATABASE_URL=postgres://ci \
             --set credentialVault.encryption.keyringSecret.name=harakiri-vault-keyring > /dev/null
 
-      - name: Render restricted OpenShift profile
-        run: |
-          rendered="$(mktemp)"
-          helm template harakiri infra/charts/harakiri -n harakiri-security \
-            -f infra/openshift/values-openshift.yaml \
-            --set secret.data.DATABASE_URL=postgres://ci > "${rendered}"
-          grep -q 'OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY: "0"' "${rendered}"
-          if grep -q 'kind: SecurityContextConstraints' "${rendered}"; then
-            echo "restricted profile must not create or modify an SCC" >&2
-            exit 1
-          fi
+      - name: Restricted OpenShift configuration contracts (not native qualification)
+        run: node --test infra/openshift/standalone/*.test.mjs
 
       - name: Render OpenSandbox chart values
         run: |
