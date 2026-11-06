@@ -81,13 +81,51 @@ Fully-qualified image references. Tag falls back to the chart appVersion so a
 `helm install` without overrides pulls the image built for this chart version.
 */}}
 {{- define "harakiri.image.api" -}}
+{{- if .Values.image.api.digest -}}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.image.api.digest) }}{{ fail "image.api.digest must be a sha256 digest" }}{{ end -}}
+{{- printf "%s/%s/%s@%s" .Values.image.registry .Values.image.repository .Values.image.api.name .Values.image.api.digest -}}
+{{- else -}}
 {{- $tag := .Values.image.api.tag | default .Chart.AppVersion -}}
 {{- printf "%s/%s/%s:%s" .Values.image.registry .Values.image.repository .Values.image.api.name $tag -}}
 {{- end -}}
+{{- end -}}
 
 {{- define "harakiri.image.web" -}}
+{{- if .Values.image.web.digest -}}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.image.web.digest) }}{{ fail "image.web.digest must be a sha256 digest" }}{{ end -}}
+{{- printf "%s/%s/%s@%s" .Values.image.registry .Values.image.repository .Values.image.web.name .Values.image.web.digest -}}
+{{- else -}}
 {{- $tag := .Values.image.web.tag | default .Chart.AppVersion -}}
 {{- printf "%s/%s/%s:%s" .Values.image.registry .Values.image.repository .Values.image.web.name $tag -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "harakiri.operatorMounts" -}}
+{{- if .Values.temporaryStorage.enabled }}
+- name: temporary
+  mountPath: /tmp
+{{- end }}
+{{- if .Values.trustBundle.configMapName }}
+- name: trust-bundle
+  mountPath: /var/run/harakiri-trust
+  readOnly: true
+{{- end }}
+{{- end -}}
+
+{{- define "harakiri.operatorVolumes" -}}
+{{- if .Values.temporaryStorage.enabled }}
+- name: temporary
+  emptyDir:
+    sizeLimit: {{ .Values.temporaryStorage.sizeLimit | quote }}
+{{- end }}
+{{- if .Values.trustBundle.configMapName }}
+- name: trust-bundle
+  configMap:
+    name: {{ .Values.trustBundle.configMapName | quote }}
+    items:
+      - key: {{ required "trustBundle.key is required" .Values.trustBundle.key | quote }}
+        path: ca-bundle.crt
+{{- end }}
 {{- end -}}
 
 {{/*

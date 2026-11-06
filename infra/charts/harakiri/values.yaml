@@ -15,9 +15,11 @@ image:
   api:
     name: harakiri-api
     tag: ""                       # "" => Chart.appVersion
+    digest: ""                    # Optional sha256 digest; takes precedence over tag.
   web:
     name: harakiri-web
     tag: ""                       # "" => Chart.appVersion
+    digest: ""
 
 # -- Pre-existing imagePullSecrets to attach to every pod.
 imagePullSecrets: []
@@ -38,6 +40,8 @@ serviceAccount:
   create: true
   name: ""
   annotations: {}
+  # null preserves the ServiceAccount/cluster default; restricted profiles set false.
+  automountServiceAccountToken: null
 
 rbac:
   # Role: manage template-builder Jobs + read their pods/logs in this namespace.
@@ -186,6 +190,25 @@ registry:
 # tighten in production (see infra/charts/harakiri/README.md).
 podSecurityContext: {}
 securityContext: {}
+
+# Writable scratch for read-only container filesystems. No persistent data lives here.
+temporaryStorage:
+  enabled: false
+  sizeLimit: 256Mi
+
+# Additional PEM roots for outbound Node TLS, not an insecure TLS bypass.
+# Registry image-pull trust is configured separately by the platform administrator.
+trustBundle:
+  configMapName: ""
+  key: ca-bundle.crt
+
+openshift:
+  restricted: false
+  routes:
+    enabled: false
+    annotations:
+      haproxy.router.openshift.io/timeout: 5m
+      haproxy.router.openshift.io/timeout-tunnel: 1h
 
 # ---------------------------------------------------------------------------
 # Non-secret configuration -> ConfigMap `*-config` (mounted via envFrom).

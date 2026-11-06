@@ -17,6 +17,9 @@ spec:
     metadata:
       labels:
         {{- include "harakiri.selectorLabels" . | nindent 8 }}
+        {{- if .Values.openshift.restricted }}
+        harakiri.io/role: control-plane
+        {{- end }}
         app.kubernetes.io/component: scheduler
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
@@ -25,6 +28,9 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "harakiri.serviceAccountName" . }}
+      {{- if kindIs "bool" .Values.serviceAccount.automountServiceAccountToken }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- end }}
       {{- with (include "harakiri.imagePullSecrets" .) }}
       {{- . | nindent 6 }}
       {{- end }}
@@ -58,24 +64,30 @@ spec:
                   name: {{ .Values.metrics.tokenSecret.name | quote }}
                   key: {{ .Values.metrics.tokenSecret.key | quote }}
           {{- end }}
-          {{- if .Values.credentialVault.encryption.keyringSecret.name }}
+          {{- if or .Values.credentialVault.encryption.keyringSecret.name .Values.temporaryStorage.enabled .Values.trustBundle.configMapName }}
           volumeMounts:
+            {{- include "harakiri.operatorMounts" . | nindent 12 }}
+            {{- if .Values.credentialVault.encryption.keyringSecret.name }}
             - name: credential-vault-keyring
               mountPath: /var/run/secrets/harakiri-vault
               readOnly: true
+            {{- end }}
           {{- end }}
           {{- with .Values.scheduler.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- if .Values.credentialVault.encryption.keyringSecret.name }}
+      {{- if or .Values.credentialVault.encryption.keyringSecret.name .Values.temporaryStorage.enabled .Values.trustBundle.configMapName }}
       volumes:
+        {{- include "harakiri.operatorVolumes" . | nindent 8 }}
+        {{- if .Values.credentialVault.encryption.keyringSecret.name }}
         - name: credential-vault-keyring
           secret:
             secretName: {{ .Values.credentialVault.encryption.keyringSecret.name | quote }}
             items:
               - key: {{ .Values.credentialVault.encryption.keyringSecret.key | quote }}
                 path: {{ .Values.credentialVault.encryption.keyringSecret.key | quote }}
+        {{- end }}
       {{- end }}
       {{- with .Values.scheduler.nodeSelector }}
       nodeSelector:

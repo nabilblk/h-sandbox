@@ -10,6 +10,7 @@ import type {
 import type { WebSocket } from "ws";
 import type { RegistryImageAuth } from "../../registry-credentials.js";
 import type { RuntimeTemplate } from "../../templates.js";
+import type { RuntimeFeature } from "./deployment-policy.js";
 
 export type RuntimeProviderKind = "opensandbox" | "dev" | string;
 
@@ -336,6 +337,7 @@ export type RuntimeProviderCapabilities = {
 
 export interface RuntimeProvider {
   readonly kind: RuntimeProviderKind;
+  readonly disabledFeatures?: readonly RuntimeFeature[];
   readonly capabilities: RuntimeProviderCapabilities;
   /** Read-only execution-service health, not lifecycle or application readiness. */
   isReady?(ref: RuntimeSandboxRef, signal: AbortSignal): Promise<boolean>;

@@ -44,7 +44,9 @@ test("documentation pins match the core manifests and SDK archive version", () =
 test("current install guidance pins the candidate with deliberate per-page exceptions", () => {
   const assets = documentationAssets();
   // Historical installation evidence and the independently versioned adapter's exact SDK peer.
-  const pageVersions: Record<string, string> = { "install-kubernetes": "0.5.0-rc.10", deepagents: "0.5.0-rc.12" };
+  const pageVersions: Record<string, string> = {
+    "install-kubernetes": "0.5.0-rc.10", deepagents: "0.5.0-rc.12", openwebui: "0.5.0-rc.14"
+  };
   for (const id of ["quickstart", "sdk-cli", "hands-on-tutorials", "workspace-reference"]) {
     assert.ok(assets.get(`docs/${id}.md`)!.includes(publishedSdkInstall), id);
   }

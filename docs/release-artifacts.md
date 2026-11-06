@@ -17,9 +17,12 @@ Harakiri surface:
 
 The source chart tracks the coordinated release version. The release workflow
 validates and sets chart `version` and `appVersion` from the reviewed source.
-See the [rc.12 release notes](release-notes/0.5.0-rc.12.md) and
-[verified delivery receipt](release-notes/0.5.0-rc.12-delivery.md) for the current
-preview's npm packages, multi-architecture images, charts and local rollout.
+See the [rc.15 release notes](release-notes/0.5.0-rc.15.md) and
+[delivery receipt](release-notes/0.5.0-rc.15-delivery.md) for the OpenShift
+client-test preview's publication and lab deployment status. Native OpenShift
+qualification is separate and still pending. The
+[rc.14 receipt](release-notes/0.5.0-rc.14-delivery.md) retains the previous
+verified distribution baseline.
 The [rc.11 receipt](release-notes/0.5.0-rc.11-delivery.md) retains earlier evidence.
 
 ## Harakiri-Owned Artifacts

@@ -1,4 +1,7 @@
 {{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config -}}
+{{- if .Values.trustBundle.configMapName -}}
+{{- $_ := set $cfg "NODE_EXTRA_CA_CERTS" "/var/run/harakiri-trust/ca-bundle.crt" -}}
+{{- end -}}
 {{- if or (not (regexMatch "^[0-9]+$" (toString .Values.usage.retentionDays))) (lt (int .Values.usage.retentionDays) 1) (gt (int .Values.usage.retentionDays) 30) -}}
 {{- fail "usage.retentionDays must be an integer between 1 and 30" -}}
 {{- end -}}

@@ -5,6 +5,19 @@ import type { GoToRoute } from "./types";
 
 const entries = [
   {
+    id: "2026-11-06-v0-5-0-rc-15",
+    version: "v0.5.0-rc.15 (candidate)",
+    date: "November 6, 2026",
+    title: "Standalone OpenShift onboarding",
+    items: [
+      "Prepare a standalone restricted installation with reviewed Helm values, digest-pinned images, edge-TLS Routes, private CA roots and explicit network policies. Generation is offline; it does not install dependencies or change SCCs.",
+      "Add a read-only preflight and an opt-in SDK smoke that records its owned sandbox, checks non-root execution and a 1 MiB binary round trip, and confirms termination. The public guide separates platform prerequisites, namespace operations and native acceptance.",
+      "Make operator-disabled runtime capabilities visible and reject new effects before dispatch, including queued provisioning. The restricted profile excludes mutable domain egress, runtime Vault injection, pause/resume, snapshots, persistent workspaces and in-cluster Dockerfile builds. Existing unrestricted deployments retain their defaults.",
+      "Coordinate API, web and chart rc.15 with SDK/CLI candidates on npm next; stable latest remains unchanged. No database migration or optional integration release is included. Preserve existing operator values, public OIDC origins, keys and storage during upgrade.",
+      "Native OpenShift validation is pending. This is an isolated client-test preview, not OpenShift certification or production qualification. Publication and lab deployment evidence are recorded separately in the release receipt."
+    ]
+  },
+  {
     id: "2026-10-30-v0-5-0-rc-14",
     version: "v0.5.0-rc.14 (candidate)",
     date: "October 30, 2026",

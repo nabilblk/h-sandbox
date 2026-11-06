@@ -16570,6 +16570,7 @@
           "sandbox_route_limit_exceeded",
           "organization_route_limit_exceeded",
           "runtime_command_unsupported",
+          "runtime_feature_unavailable",
           "runtime_command_unavailable",
           "runtime_terminal_unsupported",
           "runtime_terminal_unavailable",

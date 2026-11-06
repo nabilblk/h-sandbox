@@ -48,6 +48,7 @@ import type {
   RuntimeSandboxRef
 } from "../providers/runtime/provider.js";
 import { RuntimeUnsupportedError } from "../providers/runtime/provider.js";
+import { deploymentCapability, requireRuntimeFeature, runtimeFeatureReason } from "../providers/runtime/deployment-policy.js";
 import type { WebSocket } from "ws";
 import { query as defaultQuery } from "../db.js";
 import { claimSandboxOperationById, completeSandboxOperation, enqueueSandboxOperation, failSandboxOperation } from "./sandbox-operations.js";
@@ -370,7 +371,7 @@ export const getRuntimeCapabilities = (runtimeProvider: RuntimeProvider): Runtim
       capabilitySummary("credentialVaultSanitizedRead", credentialVaultSanitizedRead.state, credentialVaultSanitizedRead.reason, false, "opensandbox_provider", "OpenSandbox Credential Vault sanitized metadata API"),
       capabilitySummary("logs", logs.state, logs.reason, true, "opensandbox_provider", "OpenSandbox diagnostics logs endpoint"),
       capabilitySummary("metrics", metrics.state, metrics.reason, true, "opensandbox_spec", "OpenSandbox execd metrics API")
-    ]
+    ].map((capability) => deploymentCapability(runtimeProvider, capability))
   };
 };
 
@@ -1528,6 +1529,9 @@ export const getSandboxEgress = async (
   const row = result.rows[0];
   if (!row) return { kind: "not_found" };
   let summary = storedEgressSummary(row);
+  if (dependencies.runtimeProvider.disabledFeatures?.includes("egress")) {
+    return { kind: "ok", egress: { ...summary, providerStatus: providerUnavailable(runtimeFeatureReason("egress")) } };
+  }
   if (row.status !== "terminated" && row.opensandboxId && dependencies.runtimeProvider.getEgressPolicy) {
     try {
       const provider = await dependencies.runtimeProvider.getEgressPolicy(runtimeRef(dependencies.runtimeProvider, row.opensandboxId));
@@ -1573,6 +1577,7 @@ export const updateSandboxEgress = async (
   },
   dependencies: { query?: Query; runtimeProvider: RuntimeProvider; recordEvent: SandboxEventRecorder; recordAudit: Audit }
 ): Promise<UpdateSandboxEgressResult> => {
+  requireRuntimeFeature(dependencies.runtimeProvider, "egress");
   const query = dependencies.query ?? defaultQuery;
   const result = await query<SandboxEgressRow>(`${sandboxEgressSelect} WHERE id = $1 AND organization_id = $2`, [
     input.sandboxId,

@@ -16,6 +16,9 @@ spec:
     metadata:
       labels:
         {{- include "harakiri.selectorLabels" . | nindent 8 }}
+        {{- if .Values.openshift.restricted }}
+        harakiri.io/role: control-plane
+        {{- end }}
         app.kubernetes.io/component: web
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
@@ -25,6 +28,9 @@ spec:
         {{- end }}
     spec:
       serviceAccountName: {{ include "harakiri.serviceAccountName" . }}
+      {{- if kindIs "bool" .Values.serviceAccount.automountServiceAccountToken }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- end }}
       {{- with (include "harakiri.imagePullSecrets" .) }}
       {{- . | nindent 6 }}
       {{- end }}
@@ -52,6 +58,10 @@ spec:
             - name: http
               containerPort: {{ .Values.web.containerPort }}
           volumeMounts:
+            {{- if .Values.temporaryStorage.enabled }}
+            - name: temporary
+              mountPath: /tmp
+            {{- end }}
             - name: web-runtime
               mountPath: /usr/share/nginx/html/config.js
               subPath: config.js
@@ -69,6 +79,11 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       volumes:
+        {{- if .Values.temporaryStorage.enabled }}
+        - name: temporary
+          emptyDir:
+            sizeLimit: {{ .Values.temporaryStorage.sizeLimit | quote }}
+        {{- end }}
         - name: web-runtime
           configMap:
             name: {{ include "harakiri.fullname" . }}-web-runtime

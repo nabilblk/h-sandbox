@@ -37,6 +37,7 @@
     "deepagents": "1.14.0",
     "@langchain/core": "1.2.12",
     "@langchain/langgraph": "1.4.17",
+    "@langchain/langgraph-sdk": "1.11.2",
     "@langchain/langgraph-checkpoint-postgres": "1.0.5",
     "@types/pg": "8.20.0",
     "langchain": "1.5.11",

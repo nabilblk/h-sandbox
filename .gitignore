@@ -23,6 +23,7 @@ apps/web/public/docs/
 apps/web/public/llms.txt
 apps/web/public/llms-full.txt
 infra/preview/.private/
+infra/openshift/standalone/.private/
 .venv/
 __pycache__/
 *.py[cod]

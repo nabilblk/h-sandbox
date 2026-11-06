@@ -54,6 +54,7 @@ import {
 import type { DecryptWorkspaceCredentialSecret } from "./workspace-credential-secrets.js";
 import { redactText } from "../redaction.js";
 import { prepareRuntimeWorkspace, validateWorkspaceAttachment, WorkspaceError } from "./persistent-workspaces.js";
+import { requireRuntimeFeature, requireRuntimeNetworkPolicy } from "../providers/runtime/deployment-policy.js";
 import { renewSandboxLease, SandboxLeaseError } from "./sandbox-lease.js";
 import { createIntentFingerprint, findAcceptedCreate, lockCreateAdmission } from "./sandbox-admission.js";
 import { reserveSandboxCapacity, releaseSandboxCapacity } from "./organization-capacity.js";
@@ -727,6 +728,9 @@ export const createSandbox = async (
   const createCredentials = input.credentials ?? [];
   const credentialMappings = input.credentialMappings ?? [];
   const credentialCount = createCredentials.length + credentialMappings.length;
+  if (input.snapshotId) requireRuntimeFeature(dependencies.runtimeProvider, "snapshots");
+  if (credentialCount) requireRuntimeFeature(dependencies.runtimeProvider, "credential-vault");
+  if (input.egress && input.egress.mode !== "open") requireRuntimeFeature(dependencies.runtimeProvider, "egress");
   const syncError = createCredentialSyncError(input);
   if (syncError) return { kind: "credential_vault_create_requires_sync", message: syncError };
   if (credentialCount && !dependencies.runtimeProvider.applyCredentialVault) {
@@ -770,12 +774,14 @@ export const createSandbox = async (
   catch { return { kind: "template_image_digest_unresolved", template: templateRef, message: "Unable to resolve the template image digest." }; }
 
   const basePolicy = input.egress ?? template.egressPolicy ?? defaultEgressPolicyInput;
+  if (basePolicy.mode !== "open") requireRuntimeFeature(dependencies.runtimeProvider, "egress");
   if (credentialCount && basePolicy.mode === "blocked") return { kind: "credential_vault_invalid_binding", message: "create-time credentials cannot be used with blocked outbound access" };
   const initialEgress = await validateEgressPolicyForOrganization({ organizationId: input.organizationId, policy: basePolicy }, query);
   if (initialEgress.kind === "invalid_policy") return { kind: "egress_policy_invalid", message: initialEgress.message };
   if (initialEgress.kind === "preset_not_allowed") return { kind: "egress_preset_not_allowed", preset: initialEgress.preset };
   if (initialEgress.kind === "custom_domains_disabled") return { kind: "egress_custom_domains_disabled" };
   if (initialEgress.kind === "rule_limit_exceeded") return { kind: "egress_rule_limit_exceeded", limit: initialEgress.limit };
+  requireRuntimeNetworkPolicy(dependencies.runtimeProvider, runtimeEgressPolicyFromSummary(initialEgress.summary));
   if (input.workspaceId) {
     if (input.snapshotId) throw new WorkspaceError("workspace_snapshot_conflict", 400, "Workspace attachment cannot be combined with snapshot restore");
   }

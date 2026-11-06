@@ -463,8 +463,8 @@ const NetworkPane = ({ sandbox }: { sandbox: SandboxSummary }) => {
         {egressError ? <div className="network-error">{egressError}</div> : null}
         {egress && !policyEnforced ? (
           <div className="network-warning">
-            Policy enforcement is unavailable for this sandbox. Access tests still run from inside the sandbox, but policy changes require the OpenSandbox egress endpoint to be available.
-            {provider?.error ? <span>{provider.error}</span> : null}
+            {provider?.error ?? "Outbound policy enforcement is unavailable for this sandbox's deployment or runtime."}
+            <span>Access tests run inside the sandbox. They do not enable policy enforcement.</span>
           </div>
         ) : null}
         <div className="egress-grid">

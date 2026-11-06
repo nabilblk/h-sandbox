@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { parseDisabledRuntimeFeatures } from "./providers/runtime/deployment-policy.js";
 
 const loadDotEnv = () => {
   const candidates = Array.from(new Set([resolve(process.cwd(), ".env"), resolve(process.cwd(), "../..", ".env")]));
@@ -88,6 +89,7 @@ export const config = {
   openSandboxAllowFallback: process.env.OPEN_SANDBOX_ALLOW_FALLBACK !== "0",
   openSandboxSendOpenNetworkPolicy: process.env.OPEN_SANDBOX_SEND_OPEN_NETWORK_POLICY !== "0",
   runtimeProvider: process.env.HARAKIRI_RUNTIME_PROVIDER ?? process.env.RUNTIME_PROVIDER ?? "opensandbox",
+  runtimeDisabledFeatures: parseDisabledRuntimeFeatures(process.env.RUNTIME_DISABLED_FEATURES),
   persistentWorkspacesEnabled: process.env.PERSISTENT_WORKSPACES_ENABLED === "1",
   workspaceStorageClass: process.env.WORKSPACE_STORAGE_CLASS || null,
   workspaceSizeGiB: Number(process.env.WORKSPACE_SIZE_GIB ?? 10),

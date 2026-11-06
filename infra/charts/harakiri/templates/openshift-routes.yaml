@@ -1,0 +1,31 @@
+{{- if .Values.openshift.routes.enabled -}}
+{{- if .Values.ingress.enabled }}{{ fail "Choose OpenShift Routes or Ingress, not both" }}{{ end -}}
+{{- if not (.Capabilities.APIVersions.Has "route.openshift.io/v1/Route") }}{{ fail "OpenShift Route API required; use --api-versions route.openshift.io/v1/Route for an offline render" }}{{ end -}}
+{{- $cfg := merge (deepCopy .Values.extraConfig) .Values.config -}}
+{{- range $component, $originKey := dict "web" "PUBLIC_WEB_URL" "api" "PUBLIC_API_URL" }}
+{{- $origin := get $cfg $originKey -}}
+{{- if not (regexMatch "^https://[a-z0-9]([a-z0-9.-]*[a-z0-9])?$" $origin) }}{{ fail (printf "%s must be an HTTPS origin without a path or port for OpenShift Routes" $originKey) }}{{ end -}}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "harakiri.fullname" $ }}-{{ $component }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" $ | nindent 4 }}
+  {{- with $.Values.openshift.routes.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  host: {{ (urlParse $origin).host | quote }}
+  to:
+    kind: Service
+    name: {{ include "harakiri.fullname" $ }}-{{ $component }}
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}
+{{- end }}

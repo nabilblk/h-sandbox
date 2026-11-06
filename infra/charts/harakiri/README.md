@@ -23,6 +23,29 @@ published Helm charts, browser sign-in and a model-free native SDK check.
 The [reference profile](../../preview/README.md) supplies tested operator inputs;
 do not install raw development defaults on a public cluster.
 
+For restricted OpenShift, use the [standalone OpenShift guide](../../../docs/install-openshift.md)
+and [configuration kit](../../openshift/standalone/README.md). The rc.15 client-test preview
+adds declarative edge-TLS Routes, image digest pins, `/tmp` scratch, private CA
+mounts and fail-closed deployment capability restrictions. Native OpenShift
+qualification is pending; do not combine its values with older published images.
+
+`openshift.restricted=true` validates the restricted contract at render time.
+`openshift.routes.enabled=true` requires the Route API and excludes Ingress.
+For offline rendering add `--api-versions route.openshift.io/v1/Route`.
+`temporaryStorage.enabled` mounts an emptyDir at `/tmp`; `trustBundle.configMapName`
+mounts PEM roots for `NODE_EXTRA_CA_CERTS`. Neither changes cluster node registry
+trust. Optional `image.api.digest` and `image.web.digest` override tags. Defaults
+for existing non-OpenShift releases remain unchanged.
+
+The API's provider-neutral `RUNTIME_DISABLED_FEATURES` accepts comma-separated
+`egress`, `credential-vault`, `snapshots` and `pause-resume`. Unknown values fail
+startup; disabling egress also disables Vault injection. Discovery reports an
+operator-policy reason. Create/restore and policy writes fail with HTTP 501
+`runtime_feature_unavailable`; existing lifecycle/Vault endpoints retain their
+unsupported-capability contracts. Both initial admission and queued provisioning
+are checked. Read-only inspection and cleanup remain available. This restriction
+is not a cluster firewall; apply the reviewed network policies separately.
+
 The recorded candidate is `0.5.0-rc.8`, paired with the
 [public-launch image overlay](../../../docs/release-notes/0.5.0-rc.8-public-values.yaml).
 Anonymous reads of those published Harbor artifacts require no registry login.

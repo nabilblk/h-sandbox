@@ -262,7 +262,7 @@ test("docs search, reading progression and section links preserve navigation", a
 });
 
 test("recovery is an operator guide with matching downloads and guarded commands", async ({ page, request }) => {
-  await page.goto("/#docs/install-kubernetes");
+  await page.goto("/#docs/install-openshift");
   await page.getByRole("navigation", { name: "Reading progression" }).getByRole("link", { name: /Next/ }).click();
   await expect(page).toHaveURL(/#docs\/backup-recovery$/);
   await expect(page.getByRole("heading", { name: "Backup and recovery", exact: true })).toBeVisible();
@@ -276,6 +276,32 @@ test("recovery is an operator guide with matching downloads and guarded commands
   await page.getByLabel("Browse docs").selectOption("overview");
   await page.getByLabel("Browse docs").selectOption("backup-recovery");
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+});
+
+test("OpenShift onboarding is discoverable, copyable and fits desktop and mobile", async ({ page, context, request }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/#docs/install-kubernetes");
+  await page.getByRole("navigation", { name: "Reading progression" }).getByRole("link", { name: /Next/ }).click();
+  await expect(page).toHaveURL(/#docs\/install-openshift$/);
+  await expect(page.getByRole("heading", { name: "Install on OpenShift", exact: true })).toBeVisible();
+  await expect(page.locator("article")).toContainText("Native OpenShift validation is pending");
+  const markdown = await (await request.get("/docs/install-openshift.md")).text();
+  for (const block of await page.locator("article .doc-code").all()) {
+    const source = await block.locator("pre code").textContent();
+    await block.getByRole("button", { name: "Copy Shell code", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(source);
+    expect(markdown).toContain(source!);
+  }
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.screenshot({ path: `test-results/openshift-docs-${width}.png` });
+  }
+  await page.getByLabel("Browse docs").selectOption("overview");
+  await page.getByLabel("Browse docs").selectOption("install-openshift");
+  await page.goto("/#docs/install-openshift?section=prove-the-first-sandbox");
+  await expect(page.locator("#prove-the-first-sandbox")).toBeFocused();
 });
 
 test("language selection stays consistent and copy preserves exact code", async ({ page, context }) => {
