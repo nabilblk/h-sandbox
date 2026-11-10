@@ -4,6 +4,8 @@ Status: unreleased source candidate, 2026-11-10. Do not enable this on a custome
 cluster or infer production readiness from render tests. Existing published
 rc.15 images/packages do not contain these changes. No current deployment was
 changed. Restricted OpenShift is explicitly blocked until native qualification.
+The maintainer deferred that qualification on 2026-11-10; it is not part of the
+current test run and is not an implicit compatibility claim.
 
 **Distribution gate failed:** the 2026-11-10 Grype audit of the pinned amd64
 images found high/critical dependency advisories in both Victoria images.
@@ -191,8 +193,45 @@ one recovery set. Never restore the tenant mapping independently over unrelated
 storage: numeric tenant IDs are security boundaries. Retained content may also
 exist in backups. Revocation does not retract already accepted queue records.
 
-**Unqualified operations:** coordinated backup/restore, rollback across storage
-versions, timed physical reclamation, secure erasure/replay fencing, capacity
+### Cold Recovery Contract
+
+The isolated acceptance harness passed the following **same-version** recovery
+path on Linux/amd64 in [GitHub run 42821918562](https://github.com/nabilblk/h-sandbox/actions/runs/42821918562).
+The [sanitized receipt](evidence/agent-observability-recovery-2026-11-10.json) records
+fresh telemetry volumes and retained browser investigation. The image-security
+gate still blocks production use. This is not an authorization to delete existing
+volumes, nor a cross-version recovery recipe.
+
+1. Stop accepting new work. Confirm there are no active runtimes, attached
+   workspaces or template builds. Disable capture for every organization and
+   revoke outstanding ingestion grants before stopping API/scheduler/build writers
+   and the identity service.
+2. Stop the Collector before storage. Preserve its persistent queue together with
+   both telemetry stores. A quiesced checkpoint avoids mixing a database mapping
+   from one recovery point with signals or queue records from another.
+3. Keep both application and identity database backups, all three telemetry
+   volume archives, encryption/configuration Secrets, exact image/chart identity
+   and a manifest in one encrypted, access-controlled backup set. Validate every
+   checksum before changing a destination. A checksum detects accidental mixing
+   or corruption; it is not an authenticity signature. File permissions are not
+   encryption.
+4. Restore the databases and telemetry volumes to empty replacement storage.
+   Verify the organization-to-numeric-tenant mapping against the same manifest,
+   including its identity sequence. Preserve revoked grants and disabled capture.
+   Never merge an old tenant map into unrelated retained storage.
+5. Start storage, then the Collector, then identity and application services.
+   Verify the original account/organization, unchanged capacity, rejected old
+   ingestion credentials and retained span/log reads through the public API and UI.
+   Re-enable capture only as a separate explicit operator action.
+
+The test uses generated, private, short-lived archives on a disposable runner;
+none is uploaded as an artifact. It does not test a production encryption service,
+CSI snapshot portability, cross-version data formats, queued deletion replay or
+physical erasure from storage/backups. Its detached-volume operator pods are not
+sandbox execution and do not add Kubernetes-exec permissions to the application.
+
+**Unqualified operations:** online/HA or cross-version recovery, rollback across
+storage versions, timed physical reclamation, secure erasure/replay fencing, capacity
 sizing and restricted OpenShift. Do not improvise a production recovery procedure
 from these component tests. Keep the feature disabled where those guarantees are
 required. External OTLP forwarding is component-qualified, not a second required
@@ -203,5 +242,6 @@ authentication compatibility require an operator acceptance test.
 
 Follow [the isolated qualification guide](../../infra/observability/README.md).
 It never uses a cluster, existing database or live model credentials. Helm tests
-only render. Browser tests use labelled fixtures. Real sandbox-backed agent
-investigation and native install/recovery acceptance remain separate gates.
+only render. Its browser tests use labelled fixtures. The separate hosted native
+job uses an actual fresh cluster, commands, OIDC browser and cold recovery. Real
+sandbox-backed model-agent investigation remains a separate gate.

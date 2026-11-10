@@ -18,7 +18,8 @@ async function visible(label, read, accept, timeoutMs = 90_000) {
 
 export async function exerciseNative({ apiUrl, apiKey, template, runId, producerSource }, gate, infrastructure) {
   const client = new HarakiriClient({ apiUrl, apiKey, requestTimeoutMs: 30_000 });
-  let sandbox, recording;
+  let sandbox, recording, recoveryExporter;
+  let terminated = false;
   const diagnostics = [];
   try {
     sandbox = await client.sandboxes.create({ template, name: `telemetry-${runId}`, ttlSeconds: 1800, wait: false });
@@ -97,7 +98,11 @@ export async function exerciseNative({ apiUrl, apiKey, template, runId, producer
     });
 
     await gate("retained-after-termination", async () => {
+      const sentinel = await client.agentRuns.create({ name: "Recovery revocation sentinel", sandboxId: sandbox.id });
+      const recoveryGrant = await client.agentRuns.grant(sentinel.run.id, sandbox.id);
+      recoveryExporter = recoveryGrant.exporterOptions("traces");
       await sandbox.kill({ wait: true, timeoutMs: 180_000 });
+      terminated = true;
       assert.equal((await client.agentRuns.spans(recording.id, window(recording))).records.length, 3);
       assert.equal((await client.agentRuns.logs(recording.id, { ...window(recording), includeContent: true })).records.length, 2);
     });
@@ -114,9 +119,13 @@ export async function exerciseNative({ apiUrl, apiKey, template, runId, producer
       assert.ok(logs.records.some((item) => item.content.body.includes("Synthetic validation failed")));
       assert.ok(logs.records.some((item) => item.content.body.includes("verified")));
       assert.equal((await client.agentRuns.get(recording.id)).run.reportedOutcome, "succeeded");
+      const response = await fetch(recoveryExporter.url, { method: "POST", headers: { ...recoveryExporter.headers, "content-type": "application/json" },
+        body: JSON.stringify({ resourceSpans: [] }), signal: AbortSignal.timeout(10_000) });
+      assert.equal(response.status, 401, "The old ingestion grant must not work after recovery");
+      await response.body?.cancel();
       await infrastructure.browser(recording.id);
     });
   } finally {
-    if (sandbox) await sandbox.kill({ wait: true, timeoutMs: 180_000 });
+    if (sandbox && !terminated) await sandbox.kill({ wait: true, timeoutMs: 180_000 });
   }
 }

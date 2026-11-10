@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { recoveryFiles, telemetryComponents, verifyRecoverySet } from "./recovery-contracts.mjs";
+import { coldRecovery } from "./recovery.mjs";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const files = Object.fromEntries(recoveryFiles.map(name => [name, Buffer.from(`synthetic-${name}`)]));
@@ -36,4 +37,15 @@ test("recovery cannot select an unrelated volume or omit tenant mapping evidence
     assert.throws(() => verifyRecoverySet(copy, name => files[name], identity), /volume identity/);
   }
   assert.throws(() => verifyRecoverySet({ ...manifest, tenantMappingSha256: "" }, name => files[name], identity), /identity/);
+  for (const value of ["", undefined, "---", "a".repeat(39)]) {
+    assert.throws(() => verifyRecoverySet({ ...manifest, source: value }, name => files[name], { ...identity, source: value }), /identity/);
+  }
+  assert.throws(() => verifyRecoverySet({ ...manifest, recoveryPoint: "yesterday" }, name => files[name], identity), /identity/);
+});
+
+test("cold recovery rejects an unowned cluster before API, database or filesystem access", async () => {
+  const error = new Error("unowned cluster");
+  await assert.rejects(coldRecovery({ guard() { throw error; } }, {
+    get client() { assert.fail("No client call before cluster ownership"); }
+  }), cause => cause === error);
 });

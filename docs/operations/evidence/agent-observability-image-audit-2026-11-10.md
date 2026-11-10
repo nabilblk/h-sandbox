@@ -37,11 +37,13 @@ node infra/observability/scan-images.mjs --platform linux/arm64 \
 
 The script exits nonzero for high/critical matches and retains full JSON plus a
 sanitized receipt, database metadata, scanner version, platform and image digests.
-Local report files are ignored artifacts, not credentials. The prepared manual
-CI workflow audits both architectures and uploads results even on failure. It
-has not been dispatched; preparing CI is not evidence of remote execution.
+Local report files are ignored artifacts, not credentials. The CI workflow audits
+both architectures and uploads results even on failure. The same findings were
+confirmed on GitHub in [run 42820096337](https://github.com/nabilblk/h-sandbox/actions/runs/42820096337);
+its functional jobs passed while both image-security jobs failed.
 
-Use patched upstream digests when available, or make an explicit reviewed
-maintenance decision before building any replacement. Re-run the image audit,
+**Maintainer decision, 2026-11-10:** wait for patched upstream images. Do not
+maintain custom replacement builds and do not waive the high/critical gate.
+Use patched upstream digests when available. Re-run the image audit,
 Collector/storage qualification and upgrade/recovery tests for changed images.
 Until then keep the candidate disabled in production and the execution plan open.

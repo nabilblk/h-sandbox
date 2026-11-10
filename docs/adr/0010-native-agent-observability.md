@@ -154,6 +154,12 @@ and GHSA-j39g-cqwj-9xvf (MongoDB dependency). Those receivers/exporters/auth
 extensions are not enabled in this profile. Image/dependency inventory and
 release-time advisory scanning remain mandatory before distribution.
 
+On 2026-11-10, Grype scans of the pinned amd64 and arm64 images failed the
+high/critical gate for both Victoria components. The maintainer chose to wait
+for patched upstream releases, not maintain a vendor fork or apply an exception.
+This decision blocks distribution, not isolated functional development. See the
+[audit evidence and remediation gate](../operations/evidence/agent-observability-image-audit-2026-11-10.md).
+
 ## Sources
 
 - [Collector request context and persistent queues](https://github.com/open-telemetry/opentelemetry-collector/blob/v0.165.0/exporter/exporterhelper/README.md)

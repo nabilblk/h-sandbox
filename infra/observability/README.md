@@ -214,8 +214,10 @@ screenshots are uploaded.
 
 Do not run the native script on a workstation or remove its ownership checks.
 Its model-free producer is not an LLM agent. The earlier eleven-gate receipts
-prove same-PVC restart only, not the new twelve-gate cold-recovery path. The new
-gate must pass on GitHub before cold recovery is qualified. Neither path proves
+prove same-PVC restart only. The twelve-gate path, including cold recovery, passed
+in [GitHub run 42821918562](https://github.com/nabilblk/h-sandbox/actions/runs/42821918562);
+see its [sanitized receipt](../../docs/operations/evidence/agent-observability-recovery-2026-11-10.json).
+Neither path proves
 secure erasure, replay fencing after deletion, cross-version rollback or restricted
 OpenShift. The broader plan and image-security gate remain open.
 

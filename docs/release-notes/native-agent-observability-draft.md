@@ -3,7 +3,7 @@
 This is a source-change inventory, not an announcement or deployment receipt.
 No version/tag promotion, package publication or live deployment is implied.
 
-Implemented locally:
+Implemented in the source candidate:
 
 - Organization Agent runs and Workbench Runs with a trace tree/waterfall,
   correlated logs, privacy-aware inspector, filters, bounded follow and deep links.
@@ -45,7 +45,7 @@ and Python Deep Agents 0.7.21 with maintained OpenInference instrumentation.
 
 Local evidence includes fourteen real-component gates, including the built SDK
 through actual API-key authentication, persisted grants and both storage services.
-Twelve browser scenarios exercise the viewer with labelled adversarial fixtures,
+Thirteen browser scenarios exercise the viewer with labelled adversarial fixtures,
 including computed text contrast, keyboard control, desktop/mobile layouts,
 collapsed-parent reveal, privacy-aware log search and exact content copying.
 The local authenticated preview was checked with actual subprocess stderr and
@@ -54,16 +54,23 @@ made five generations, recovered from a failed report validation, and retained
 all 25 callback-created spans. Metadata-only capture was checked independently.
 See [real-model evidence](../operations/evidence/agent-observability-real-llm-2026-11-09.md).
 Installed npm/Python distributions exercise the new APIs without introducing
-tracing dependencies into the core SDKs. These are not sandbox-backed model runs
-or native installation evidence.
+tracing dependencies into the core SDKs. Separate disposable GitHub runs passed
+eleven native Linux/amd64 gates: actual sandbox command failure/repair, browser
+investigation, in-sandbox OTLP export, outage isolation, retained reads, same-PVC
+restart and cleanup. A subsequent twelve-gate run also passed coordinated cold
+recovery of both databases and all three telemetry volumes onto fresh storage,
+followed by retained browser investigation. They are not sandbox-backed model runs
+or proof of deletion replay/physical erasure. See the
+[recovery receipt](../operations/evidence/agent-observability-recovery-2026-11-10.json).
 
 Not yet release-qualified: automatic framework setup and command correlation,
 real sandbox-backed/agent-in-sandbox workflows,
 signal-history pagination, complete per-run delivery/loss accounting, native external
-export, physical erasure/recovery, measured production sizing and native restricted
+export, physical erasure and cross-version recovery, measured production sizing and native restricted
 OpenShift. The completed image inventory **fails** the security gate on both
 architectures: VictoriaLogs has 11 high/critical matches; VictoriaTraces has one
-high match. Patched artifacts are required, not an implicit audit exception.
+high match. The maintainer chose to wait for patched upstream artifacts;
+no custom vendor build or audit exception is planned.
 See the [audit decision](../operations/evidence/agent-observability-image-audit-2026-11-10.md).
 These remain explicit gates
 in the [active plan](../exec-plans/active/native-agent-observability.md).

@@ -6,7 +6,10 @@ import { ownershipLabel } from "../../acceptance/safety.mjs";
 import { componentReplicas } from "./install.mjs";
 import { recoveryFiles, telemetryComponents, verifyRecoverySet } from "./recovery-contracts.mjs";
 
-const mapping = ctx => query(ctx, "SELECT COALESCE(json_agg(t ORDER BY organization_id)::text,'[]') FROM (SELECT organization_id,tenant_id FROM observability_policies) t;");
+const mapping = (ctx, database = "preview-postgres") => query(ctx, `SELECT json_build_object(
+  'tenants', (SELECT COALESCE(json_agg(t ORDER BY organization_id),'[]') FROM (SELECT organization_id,tenant_id FROM observability_policies) t),
+  'sequence', (SELECT row_to_json(s) FROM (SELECT last_value,is_called FROM observability_policies_tenant_id_seq) s)
+);`, database);
 const podName = "acceptance-telemetry-archive";
 
 function archive(ctx, command, options = {}) {
@@ -21,7 +24,7 @@ async function mountVolume(ctx, claim, image, readOnly) {
   const pvc = get(ctx, "pvc", claim);
   const affinity = pvc.spec.volumeName ? get(ctx, "pv", pvc.spec.volumeName).spec.nodeAffinity : null;
   applyOwned(ctx, { apiVersion: "v1", kind: "Pod", metadata: { name: podName, namespace: platformNamespace }, spec: {
-    automountServiceAccountToken: false, restartPolicy: "Never",
+    automountServiceAccountToken: false, restartPolicy: "Never", terminationGracePeriodSeconds: 5,
     securityContext: { runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001,
       seccompProfile: { type: "RuntimeDefault" } },
     ...(affinity ? { affinity: { nodeAffinity: { requiredDuringSchedulingIgnoredDuringExecution: affinity.required } } } : {}),
@@ -54,8 +57,12 @@ export async function coldRecovery(ctx, operator) {
   ctx.guard();
   console.log("Telemetry recovery: revoke capture and stop owned writers");
   check((await operator.client.capacity()).capacity.inUse === 0, "Recovery requires no live runtimes");
+  check(query(ctx, "SELECT count(*) FROM persistent_workspaces WHERE attached_sandbox_id IS NOT NULL;") === "0",
+    "Recovery requires no attached workspaces");
   const jobs = JSON.parse(ctx.k(["-n", platformNamespace, "get", "jobs", "-o", "json"]));
   check(jobs.items.every(job => !job.status.active), "Recovery requires no active template jobs");
+  check(Number(query(ctx, "SELECT count(*) FROM telemetry_grants WHERE revoked_at IS NULL;")) > 0,
+    "Recovery requires a sentinel grant to exercise revocation");
   await operator.request("/v1/observability/policy", "PATCH", { enabled: false, allowContent: true });
   check(query(ctx, "SELECT count(*) FROM telemetry_grants WHERE revoked_at IS NULL;") === "0", "Outstanding grants were not revoked before recovery");
   await operator.logout();
@@ -86,8 +93,7 @@ export async function coldRecovery(ctx, operator) {
 
   console.log("Telemetry recovery: verify the complete set and restore fresh PostgreSQL storage");
   const database = restoreDatabases(ctx);
-  const restoredMapping = query(ctx, "SELECT COALESCE(json_agg(t ORDER BY organization_id)::text,'[]') FROM (SELECT organization_id,tenant_id FROM observability_policies) t;", database);
-  check(sha256(restoredMapping) === manifest.tenantMappingSha256, "Restored tenant mapping differs from the recovery set");
+  check(sha256(mapping(ctx, database)) === manifest.tenantMappingSha256, "Restored tenant mapping or sequence differs from the recovery set");
   check(query(ctx, "SELECT count(*) FROM telemetry_grants WHERE revoked_at IS NULL;", database) === "0", "Recovery resurrected ingestion grants");
   await replicas(ctx, ["preview-postgres"], 0);
   console.log("Telemetry recovery: replace only the three owned telemetry PVCs");

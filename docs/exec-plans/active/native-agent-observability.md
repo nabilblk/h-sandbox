@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-09
 **Author**: Codex with product direction from the maintainer
-**Status**: In Progress - optional recording helpers and external OTLP fan-out locally verified; automatic agent capture and operational acceptance incomplete; image audit blocks release
+**Status**: In Progress - optional helpers, fan-out and native model-free sandbox checks verified; automatic agent capture and operational acceptance incomplete; awaiting patched upstream images for release
 **Priority**: Unassigned; milestone approved, relative backlog priority not reassessed
 **Estimated effort**: Multi-week, cross-stack work; re-estimate after the qualification spike
 **Baseline**: `c83253746f3b767782f644b36bed582f404acbc7`
@@ -378,8 +378,10 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   query read times; neither attests complete instrumentation or durable delivery.
 - [x] Test fresh migrations, revoked principals/grants, stopped-sandbox final
   flush, retained reads, missing storage, timeouts and overload in private tests.
-- [ ] Qualify coordinated database/storage recovery and native sandbox lifecycle
-  without execution-state side effects.
+- [x] Qualify same-version cold database/storage recovery and native sandbox
+  lifecycle without execution-state side effects. Run 42821918562 restored both
+  databases and three fresh telemetry PVCs with preserved tenant mapping/identity,
+  revoked grants, disabled capture and zero held execution slots.
 
 ### Phase 3: Capture and developer experience
 **Status**: In Progress - installed optional providers/lifecycle pass; automatic framework and native sandbox capture remain unqualified
@@ -438,7 +440,7 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
 - [ ] Repeat the browser investigation against a real sandbox-backed agent run.
 
 ### Phase 5: Optional deployment and operational controls
-**Status**: In Progress - native Kubernetes installation and restart verified; cold recovery and restricted OpenShift remain open
+**Status**: In Progress - native Kubernetes installation, restart and cold recovery verified; operational limits and restricted OpenShift remain open
 - [x] Add opt-in chart composition for Collector + logs/traces storage,
   with pinned artifacts, resource requests/limits, PVC/StorageClass inputs, Secrets,
   readiness probes and explicit NetworkPolicy. Core installation stays unchanged.
@@ -453,6 +455,8 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
 - [ ] Qualify arbitrary UID, writable paths and namespace-local permissions on
   restricted OpenShift. No SCC mutation, hostPath, privileged agent or required
   node-level DaemonSet. Native OpenShift evidence remains a separate gate.
+  Maintainer explicitly deferred this validation on 2026-11-10; do not test an
+  OpenShift cluster now and do not advertise support before later qualification.
 - [x] Implement optional external OTLP fan-out with Secret-based authentication,
   HTTPS-only Helm endpoints and explicit egress. Both signals and privacy are
   verified with an independent receiver; the viewer still requires Victoria.
@@ -477,6 +481,11 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   restart and credential/resource cleanup. Eleven gates passed in GitHub run
   42817109758, repeated in 42818677310. This is not full agent or coordinated
   backup-recovery evidence.
+- [x] Qualify same-version cold restoration of both databases, both telemetry
+  stores and Collector queue onto fresh storage. Twelve native gates passed in
+  run 42821918562 with post-recovery desktop/mobile browser investigation and
+  owned cleanup. Physical erasure, deletion replay and cross-version recovery
+  remain separate, unqualified contracts.
 - [ ] Verify signed-in browser permissions and complete public onboarding from
   clean published/candidate package installation, not workspace-only dependencies.
 - [x] Request authorization before pushing acceptance branches or using hosted
@@ -711,7 +720,7 @@ retained reads and same-PVC storage restarts. Those checks do not substitute for
 real-agent evidence or coordinated backup recovery. The independent image audit
 remains a failing release gate, not a suppressed or waived finding.
 
-The isolated OpenShift question remains unanswered. The existing k0s and
+The maintainer explicitly deferred OpenShift validation on 2026-11-10. The existing k0s and
 customer clusters have not been used or modified. No package publication or
 deployment to the running lab is authorized.
 
@@ -749,8 +758,20 @@ deployment to the running lab is authorized.
   disable capture/revoke grants, stop writers, archive both databases plus all
   three telemetry volumes as one checksummed set, and restore into fresh PVCs.
   It verifies tenant mappings, identity, revoked grants and retained investigation.
-  Unit guards pass; native execution is still pending. This is same-version cold
-  recovery, not cross-version rollback or physical erasure after buffered replay.
+  Native execution passed in [run 42821918562](https://github.com/nabilblk/h-sandbox/actions/runs/42821918562),
+  including owned cleanup. The [recovery receipt](../../operations/evidence/agent-observability-recovery-2026-11-10.json)
+  is separate from the earlier restart-only receipt. Desktop/mobile screenshots
+  were visually inspected after restoration. This is same-version cold recovery,
+  not cross-version rollback or physical erasure after buffered replay.
+  A follow-up strengthens the test with a previously unrevoked credential and
+  identity-sequence comparison, pending another hosted run.
+- Maintainer decision on 2026-11-10: wait for patched upstream Victoria images.
+  No custom vendor build, vulnerability exception, merge, publication or lab
+  deployment is authorized by that decision. Functional work can continue on
+  disposable infrastructure; distribution remains blocked.
+- Maintainer decision on 2026-11-10: leave native OpenShift validation pending
+  for later. The chart's restricted-profile refusal remains in place; no cluster
+  access or test is requested for this continuation.
 
 ### Viewer usability revision
 
