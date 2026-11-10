@@ -7,6 +7,7 @@ const agentEnvironment = { LANGSMITH_TRACING: "false", LANGCHAIN_TRACING_V2: "fa
 const source = name => fs.readFileSync(new URL(name, import.meta.url));
 
 async function qualifySignals(client, run, result) {
+  console.log("Real-agent check: query model and tool spans");
   check(result.verified && result.generations >= 2, "The real agent did not complete its tool workflow");
   const window = { from: run.createdAt, to: new Date().toISOString(), includeContent: true, limit: 1000 };
   const spans = await until("Real model and tool telemetry", async () => {
@@ -25,6 +26,7 @@ async function qualifySignals(client, run, result) {
     const snapshot = await client.agentRuns.logs(run.runId, window);
     return snapshot.records.some(log => log.content.body?.includes('"verified": true')) ? snapshot : false;
   }, 90_000);
+  console.log("Real-agent check: authorized content and validator output received");
   const hidden = await client.agentRuns.spans(run.runId, { ...window, includeContent: false });
   check(hidden.records.every(span => Object.keys(span.content.attributes).length === 0), "Metadata reads exposed model content");
   return { runId: run.runId, ...result, spans: spans.records.length, logs: logs.records.length, modelStepId: models[0].id };
@@ -45,6 +47,7 @@ export async function exerciseAgents(ctx, client, sandbox, apiKey, gate, browser
           cwd: ctx.consumer, env: { PATH: process.env.PATH, HOME: process.env.HOME, ...agentEnvironment }, timeout: 420_000
         });
         const result = ctx.read(resultName);
+        console.log("Real-agent check: host inference and sandbox validation completed");
         const signals = await qualifySignals(client, result, result);
         evidence.workflows.push({ topology: "host-agent-sandbox-tools", ...signals });
         await browser(result.runId, signals.modelStepId);

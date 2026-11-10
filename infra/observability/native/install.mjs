@@ -34,11 +34,11 @@ export async function installCandidate(ctx) {
   ctx.execute("npm", ["install", "--prefix", ctx.consumer, "--ignore-scripts", "--no-audit", "--no-fund",
     "--registry=https://registry.npmjs.org", "--save-exact", ...peers], "Install optional telemetry peers", { env });
   for (const name of ["host-agent.ts", "sandbox-agent.ts"]) fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
-  for (const name of ["orders-agent.ts", "local-model.ts"]) {
+  for (const name of ["orders-agent.ts", "local-model.ts", "host-workflow.ts", "first-agent.ts", "verify-orders.py"]) {
     fs.copyFileSync(new URL(`../../../examples/agent-observability/${name}`, import.meta.url), path.join(ctx.consumer, name));
   }
   ctx.execute(process.execPath, [path.join(ctx.consumer, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict",
-    "--skipLibCheck", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "host-agent.ts", "sandbox-agent.ts"],
+    "--skipLibCheck", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "host-agent.ts", "sandbox-agent.ts", "first-agent.ts"],
   "Typecheck installed real-agent recipes", { cwd: ctx.consumer, env });
   const fixture = path.join(ctx.consumer, "telemetry-native.mjs");
   fs.copyFileSync(new URL("./workflows.mjs", import.meta.url), fixture);

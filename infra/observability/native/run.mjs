@@ -4,7 +4,7 @@ import { install } from "../../acceptance/install.mjs";
 import { operatorSession } from "../../acceptance/browser.mjs";
 import { importAcceptanceTemplate } from "../../acceptance/first-task.mjs";
 import { finishReceipt, publicFailure } from "../../acceptance/receipt.mjs";
-import { configuredComplete, gateReceipt, nativeGates } from "./contracts.mjs";
+import { configuredComplete, diagnosticLocation, gateReceipt, nativeGates } from "./contracts.mjs";
 import { componentReplicas, installCandidate } from "./install.mjs";
 import { coldRecovery } from "./recovery.mjs";
 import { exerciseAgents } from "./agents.mjs";
@@ -114,7 +114,7 @@ try {
   receipt.status = "configured_gates_passed";
 } catch (error) {
   ctx.save("telemetry-native-failure.json", { gate: activeGate, message: error.message, stack: error.stack });
-  receipt.results.push({ name: activeGate, status: "failed", failure: publicFailure(error) });
+  receipt.results.push({ name: activeGate, status: "failed", failure: { ...publicFailure(error), ...diagnosticLocation(error) } });
   receipt.status = "failed";
   process.exitCode = 1;
   console.error(`Observability acceptance failed: ${activeGate}`);

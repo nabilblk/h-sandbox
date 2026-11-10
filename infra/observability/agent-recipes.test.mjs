@@ -28,11 +28,11 @@ test("actual SDK tarball consumers typecheck and execute the real-agent recipes"
     for (const name of ["host-agent.ts", "sandbox-agent.ts", "recipe.test.ts"]) {
       fs.copyFileSync(new URL(`./native/${name}`, import.meta.url), path.join(directory, name));
     }
-    for (const name of ["orders-agent.ts", "local-model.ts"]) {
+    for (const name of ["orders-agent.ts", "local-model.ts", "host-workflow.ts", "first-agent.ts", "verify-orders.py"]) {
       fs.copyFileSync(path.join(root, "examples/agent-observability", name), path.join(directory, name));
     }
     execute(process.execPath, ["node_modules/typescript/bin/tsc", "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2022",
-      "--module", "NodeNext", "--moduleResolution", "NodeNext", "host-agent.ts", "sandbox-agent.ts", "recipe.test.ts"]);
+      "--module", "NodeNext", "--moduleResolution", "NodeNext", "host-agent.ts", "sandbox-agent.ts", "first-agent.ts", "recipe.test.ts"]);
     execute(process.execPath, ["--import", "tsx", "--test", "recipe.test.ts"]);
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });

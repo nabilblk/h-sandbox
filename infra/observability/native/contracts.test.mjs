@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { configuredComplete, gateReceipt, nativeGates } from "./contracts.mjs";
+import { configuredComplete, diagnosticLocation, gateReceipt, nativeGates } from "./contracts.mjs";
 
 test("native telemetry receipt requires every configured gate exactly once", () => {
   const receipts = nativeGates.map((name) => gateReceipt(name, 12.5));
@@ -11,4 +11,12 @@ test("native telemetry receipt requires every configured gate exactly once", () 
   assert.throws(() => gateReceipt("private-token", 1));
   assert.throws(() => gateReceipt(nativeGates[0], Infinity));
   assert.deepEqual(receipts[0], { name: "published-installation", elapsedMs: 13, status: "passed" });
+});
+
+test("failure diagnostics retain only known code locations and network codes", () => {
+  const error = new TypeError("PRIVATE_TOKEN", { cause: { code: "ECONNREFUSED" } });
+  error.stack = "TypeError: PRIVATE_TOKEN\n    at run (file:///private/root/infra/observability/native/agents.mjs:42:9)\n    at https://user:PRIVATE_TOKEN@example.test/handler:1:2";
+  assert.deepEqual(diagnosticLocation(error), { sources: ["agents.mjs:42:9"], transportCode: "ECONNREFUSED" });
+  assert.deepEqual(diagnosticLocation({ cause: { code: "PRIVATE_TOKEN" }, stack: "PRIVATE_TOKEN" }), {});
+  assert.deepEqual(diagnosticLocation(null), {});
 });

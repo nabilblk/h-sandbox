@@ -1,10 +1,11 @@
-# First Recorded Command
+# Agent Observability Recipes
 
 **Unreleased source candidate**, not present in npm rc.15 or PyPI 0.1.0rc2.
-This is an executable smoke recipe for the public helpers, not an LLM agent or
-proof of automatic framework instrumentation. Native sandbox execution of these
-recipes is still an acceptance gate; installed-package tests cover their imports,
-types, lifecycle, privacy and OTLP export separately.
+Start with a recorded command, then investigate a real model agent with sandbox
+tools. The command recipe is model-free. The agent recipe uses actual Ollama
+inference and maintained OpenInference instrumentation. Installed-package tests
+cover imports, types and callbacks; the native receipt separately establishes
+which workflows have passed against a real sandbox.
 
 ## Prepare
 
@@ -100,6 +101,53 @@ See [the technical contract](../../docs/observability.md) and
 [operator fan-out instructions](../../docs/operations/agent-observability.md).
 
 ## Real Agent Qualification
+
+### Run the Agent Yourself
+
+Use the same candidate SDK and optional OTel dependencies as above. In a clean
+consumer directory, include `first-agent.ts`, `host-workflow.ts`, `orders-agent.ts`,
+`local-model.ts` and `verify-orders.py` from this directory. The sandbox must have
+Python 3 and a writable working directory; the model runs on your trusted host,
+not in the sandbox. The example writes `orders.json`, `report.json` and
+`verify-orders.py`, so use a disposable sandbox, not a retained project workspace.
+
+```sh
+npm install --save-exact langchain@1.5.11 @langchain/core@1.2.12 \
+  @langchain/ollama@1.3.0 @arizeai/openinference-instrumentation-langchain@4.1.5
+ollama pull qwen3:4b-instruct
+export LANGCHAIN_CALLBACKS_BACKGROUND=false
+export LANGSMITH_TRACING=false
+export LANGCHAIN_TRACING_V2=false
+npx tsx first-agent.ts
+```
+
+Set `HARAKIRI_API_URL`, `HARAKIRI_API_KEY` and `HARAKIRI_SANDBOX_ID` as described
+above. Ollama defaults to `http://127.0.0.1:11434`; override `OLLAMA_URL` and
+`OLLAMA_MODEL` only for a model service you intend to use. This workflow sends
+only a synthetic three-order ledger, not your source repository. CPU inference
+can take several minutes. No paid model provider or model API key is required.
+
+The default is metadata-only. With all three content gates satisfied (operator,
+organization and `runs:content` permission), opt in before the invocation:
+
+```sh
+HARAKIRI_CAPTURE=content npx tsx first-agent.ts
+```
+
+The result must be two paid orders, 3500 cents revenue and one refunded order.
+A Python process in the sandbox independently recomputes it from the saved ledger.
+Inspect the printed run ID in **Agent runs**: select a model step for token usage,
+then **Sensitive content > Content** for **Framework input** and **Framework
+output**. Select **Observe sandbox command > Logs** for the validator's actual
+output. These are separately recorded command spans, not automatically inferred
+children of framework tool spans. Stop the borrowed sandbox after your review;
+the run remains readable until its retention deadline.
+
+Do not run this manual-instrumentation recipe inside your existing instrumented
+application. Use a dedicated short-lived process. It does not add automatic
+tracing to arbitrary agents, nor replace an application's Langfuse setup.
+
+### What Acceptance Verifies
 
 `orders-agent.ts` is the shared application workflow for a real LangChain agent.
 It accepts a model and two tools: read a synthetic ledger, then persist and validate

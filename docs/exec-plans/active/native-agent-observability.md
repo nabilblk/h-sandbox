@@ -684,6 +684,14 @@ labels them as framework payloads rather than inventing canonical message roles.
 SDK, Python, query and Collector contract tests cover that distinction; native
 browser acceptance now opens both payloads from a real model step.
 
+The public `first-agent.ts` entry point now shares `host-workflow.ts` with native
+acceptance: it borrows a disposable Python-capable sandbox, invokes a local model,
+executes the verifier through the SDK and leaves a retained run. Installed-tarball
+typechecks and callback tests pass; source public docs explain metadata defaults,
+content opt-in, single-process instrumentation and the missing automatic tool-to-
+command parent relationship. This is not a replacement for the remaining Python,
+Deep Agents lifecycle, CLI capture and history/retention work.
+
 The maintainer asked why work stopped while implementation remained. Recovery
 qualification was a checkpoint, not completion. Work resumes independently of
 the upstream image-release blocker and explicitly deferred OpenShift validation.
