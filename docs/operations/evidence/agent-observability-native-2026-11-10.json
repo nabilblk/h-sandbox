@@ -1,0 +1,109 @@
+{
+  "status": "configured_gates_passed",
+  "source": "3a8c5c2b9048ba4f5fa6e5f88d5423e289eaf92f",
+  "runId": "42817109758-1",
+  "startedAt": "2026-11-10T12:37:17.807Z",
+  "results": [
+    {
+      "name": "published-installation",
+      "elapsedMs": 144598,
+      "status": "passed"
+    },
+    {
+      "name": "source-candidate",
+      "elapsedMs": 117824,
+      "status": "passed"
+    },
+    {
+      "name": "oidc-policy",
+      "elapsedMs": 4244,
+      "status": "passed"
+    },
+    {
+      "name": "template-import",
+      "elapsedMs": 22900,
+      "status": "passed"
+    },
+    {
+      "name": "native-command-retry",
+      "elapsedMs": 5347,
+      "status": "passed"
+    },
+    {
+      "name": "native-browser-investigation",
+      "elapsedMs": 389,
+      "status": "passed"
+    },
+    {
+      "name": "collector-outage-execution",
+      "elapsedMs": 13050,
+      "status": "passed"
+    },
+    {
+      "name": "sandbox-otlp-producer",
+      "elapsedMs": 14892,
+      "status": "passed"
+    },
+    {
+      "name": "retained-after-termination",
+      "elapsedMs": 193,
+      "status": "passed"
+    },
+    {
+      "name": "storage-restart",
+      "elapsedMs": 26471,
+      "status": "passed"
+    },
+    {
+      "name": "key-revocation",
+      "elapsedMs": 13,
+      "status": "passed"
+    }
+  ],
+  "boundary": "Model-free native sandbox qualification; same-PVC restart, not coordinated backup recovery or OpenShift. Image audit is a separate release gate.",
+  "candidate": {
+    "source": "3a8c5c2b9048ba4f5fa6e5f88d5423e289eaf92f",
+    "images": {
+      "api": {
+        "reference": "localhost/harakiri/harakiri-api:workbench-42817109758-1",
+        "imageConfigDigest": "sha256:f89b796fc2b9c8cd9b77d37f64e0d0db46abb87146fa982c728998505809e9cf"
+      },
+      "web": {
+        "reference": "localhost/harakiri/harakiri-web:workbench-42817109758-1",
+        "imageConfigDigest": "sha256:b8ea3befad64e8b2daa0f010579ad9a7e9f1f008135df4195778f99532d3a338"
+      }
+    },
+    "tarballSha256": "0d9468bebbe8794d33c5265b9ca3d8705abdf66fc2216025ea68624fedfab286",
+    "published": false
+  },
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "capacity",
+        "status": "passed"
+      },
+      {
+        "name": "telemetryKey",
+        "status": "passed"
+      },
+      {
+        "name": "operatorKey",
+        "status": "passed"
+      },
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-11-10T12:43:41.220Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

@@ -12,5 +12,6 @@ export function gateReceipt(name, elapsedMs) {
 }
 
 export function configuredComplete(results) {
-  return nativeGates.every((name) => results.filter((item) => item.name === name && item.status === "passed").length === 1);
+  return results.length === nativeGates.length
+    && nativeGates.every((name) => results.filter((item) => item.name === name && item.status === "passed").length === 1);
 }

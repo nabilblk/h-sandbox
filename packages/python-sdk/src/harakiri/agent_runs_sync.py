@@ -48,14 +48,10 @@ class AgentRuns:
         *,
         request_timeout: float | None = None,
     ) -> AgentRunsResponse:
-        return self._bridge.call(
-            self._resource.list, filters, request_timeout=request_timeout
-        )
+        return self._bridge.call(self._resource.list, filters, request_timeout=request_timeout)
 
     def get(self, run_id: str, *, request_timeout: float | None = None) -> AgentRun:
-        return self._bridge.call(
-            self._resource.get, run_id, request_timeout=request_timeout
-        )
+        return self._bridge.call(self._resource.get, run_id, request_timeout=request_timeout)
 
     def close(
         self,

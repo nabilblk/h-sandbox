@@ -28,9 +28,7 @@ class AsyncAgentRuns:
     def __init__(self, transport: Transport) -> None:
         self._transport = transport
 
-    async def policy(
-        self, *, request_timeout: float | None = None
-    ) -> ObservabilityPolicy:
+    async def policy(self, *, request_timeout: float | None = None) -> ObservabilityPolicy:
         return await self._transport.request(
             "GET",
             "/v1/observability/policy",
@@ -65,15 +63,11 @@ class AsyncAgentRuns:
             "GET",
             "/v1/agent-runs",
             AgentRunsResponse,
-            params=(filters or AgentRunFilter()).model_dump(
-                by_alias=True, exclude_none=True
-            ),
+            params=(filters or AgentRunFilter()).model_dump(by_alias=True, exclude_none=True),
             request_timeout=request_timeout,
         )
 
-    async def get(
-        self, run_id: str, *, request_timeout: float | None = None
-    ) -> AgentRun:
+    async def get(self, run_id: str, *, request_timeout: float | None = None) -> AgentRun:
         result = await self._transport.request(
             "GET",
             run_path(run_id),

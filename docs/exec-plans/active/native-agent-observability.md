@@ -471,6 +471,11 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   receipt after owned-resource cleanup, including exact image digests and host
   environment. Generated credentials and payloads are excluded.
 - [ ] Record native agent run/trace references and the complete acceptance matrix.
+- [x] Qualify native model-free sandbox commands and an in-sandbox OTLP producer
+  on a disposable Linux/amd64 runner, with real OIDC/browser investigation,
+  Collector outage isolation, retained reads after termination, same-PVC storage
+  restart and credential/resource cleanup. Eleven gates passed in GitHub run
+  42817109758. This is not full agent or coordinated backup-recovery evidence.
 - [ ] Verify signed-in browser permissions and complete public onboarding from
   clean published/candidate package installation, not workspace-only dependencies.
 - [x] Request authorization before pushing acceptance branches or using hosted
@@ -708,6 +713,25 @@ remains a failing release gate, not a suppressed or waived finding.
 The isolated OpenShift question remains unanswered. The existing k0s and
 customer clusters have not been used or modified. No package publication or
 deployment to the running lab is authorized.
+
+#### Isolated PR checkpoint
+
+- Draft [PR #85](https://github.com/nabilblk/h-sandbox/pull/85) contains the
+  candidate. The first source commit is `6a1eb790dd4c251f96990c7165bbbbe392e5a71f`.
+- [GitHub run 42817109758](https://github.com/nabilblk/h-sandbox/actions/runs/42817109758)
+  passed the component/browser job and native sandbox job. The
+  [native receipt](../../operations/evidence/agent-observability-native-2026-11-10.json)
+  records the tested PR merge SHA, imported image identities, packed SDK digest,
+  eleven gates and confirmed owned cleanup. Both image audits failed; the overall
+  workflow is correctly red, not a successful release qualification.
+- Local rechecks passed: 121 SDK tests, installed TypeScript package/declarations,
+  122 Python SDK/adapter tests, strict typing and Python 3.11 wheel/sdist consumers.
+  The publishable-source scan found no secrets. Unrelated `docs/cot/` is excluded.
+- CI exposed Python formatting drift and an incomplete authorization reference.
+  Corrected the three Python files and documented all new scopes in Git/public
+  source docs. The ten authorization browser checks pass locally after correction.
+- The broader PR also detects an existing Open-Terminal image audit finding,
+  separate from the Victoria images. No audit gate was weakened or waived.
 
 ### Viewer usability revision
 

@@ -172,16 +172,12 @@ class TelemetryGrant(Model):
             or parsed.query
             or parsed.fragment
         ):
-            raise ValueError(
-                "Telemetry requires an HTTP(S) API URL without credentials"
-            )
+            raise ValueError("Telemetry requires an HTTP(S) API URL without credentials")
         result = self.model_copy()
         result._api_url = api_url.rstrip("/")
         return result
 
-    def exporter_options(
-        self, signal: Literal["traces", "logs"]
-    ) -> TelemetryExporterOptions:
+    def exporter_options(self, signal: Literal["traces", "logs"]) -> TelemetryExporterOptions:
         if signal not in {"traces", "logs"}:
             raise ValueError("Unsupported telemetry signal")
         if not self._api_url:

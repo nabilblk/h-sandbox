@@ -138,10 +138,11 @@ records separately executed Qwen workflows and authenticated browser inspection;
 these are not part of the default, model-free component command.
 `HARAKIRI_QUALIFICATION_RECEIPT` optionally writes a sanitized JSON receipt after
 successful owned-resource cleanup; use an absolute path to avoid pnpm's working
-directory changing the destination. The manually dispatched
-`observability-qualification.yml` workflow runs these checks on a disposable
-GitHub runner; it has no publishing or cluster credentials. Preparing that
-workflow does not mean it has been dispatched or passed remotely.
+directory changing the destination. `observability-qualification.yml` runs on
+matching pull requests or manual dispatch. It has read-only repository access,
+no publishing credentials and no access to an existing cluster. The component
+and browser job passed in [GitHub run 42817109758](https://github.com/nabilblk/h-sandbox/actions/runs/42817109758);
+its separate image audits failed, as expected from the documented findings.
 
 The TS instrumentation is intentionally private. Background callbacks must be
 disabled before setup; the default callback queue lost tenant async context in
@@ -179,7 +180,7 @@ node infra/observability/scan-images.mjs --platform linux/arm64 \
 ```
 
 Use an empty distribution directory: packaging checks reject mixed historical
-artifacts rather than deleting them. Grype must be installed locally; the manual
+artifacts rather than deleting them. Grype must be installed locally; the
 CI workflow pins and checksum-verifies its scanner. The image check exits nonzero
 on high/critical findings and preserves a receipt and full JSON inventory.
 
@@ -188,6 +189,28 @@ Victoria images have unresolved high/critical dependency findings. See the
 [audit decision](../../docs/operations/evidence/agent-observability-image-audit-2026-11-10.md).
 Do not turn a passing functional run into a release claim or add an unreviewed
 exception. Component tests use disposable private resources, not production data.
+
+## Native Sandbox Qualification
+
+The workflow's `native-sandbox` job is distinct from component qualification. It
+uses `infra/acceptance` to create a fresh, owned Linux/amd64 cluster on a disposable
+GitHub-hosted runner, install published baseline artifacts, then build/import the
+exact source API and web images and install a packed candidate SDK. It never
+pushes an image or publishes a package.
+
+`native/run.mjs` exercises actual sandbox commands, a failed-command/repair trace,
+signed-in browser investigation, execution while the Collector is unavailable,
+official OTLP production inside the sandbox, retained reads after termination,
+same-PVC storage restarts and key revocation. Sandbox operations go through the
+public API; operator fault injection is restricted to the three owned telemetry
+StatefulSets. Raw command failures, tokens and kubeconfig remain private and are
+removed during cleanup. Only an allowlisted gate receipt and synthetic-data
+screenshots are uploaded.
+
+Do not run the native script on a workstation or remove its ownership checks.
+Its model-free producer is not an LLM agent; restart recovery is not coordinated
+database/storage backup recovery. The broader plan remains open until those
+separate requirements and the image-security gate are satisfied.
 
 See [the architecture decision](../../docs/adr/0010-native-agent-observability.md)
 and [the active execution plan](../../docs/exec-plans/active/native-agent-observability.md).

@@ -39,6 +39,9 @@ async function investigate(runId) {
   await page.screenshot({ path: "telemetry-native-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Native run viewer overflows mobile viewport");
+  const mobileLog = page.getByRole("tabpanel").getByText("Synthetic validation failed", { exact: false });
+  await mobileLog.scrollIntoViewIfNeeded();
+  check(await mobileLog.isVisible(), "Correlated log is not visible in the mobile inspector");
   await page.screenshot({ path: "telemetry-native-mobile.png", fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
