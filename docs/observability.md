@@ -135,6 +135,16 @@ Manual ESM instrumentation has no public unpatch method, so the recipe is
 process-lifetime test infrastructure and refuses an existing instrumentor. It is
 not a public drop-in helper. Python's instrumentor restores its patch in finally.
 
+The [public real-agent recipe](../examples/agent-observability/README.md#run-the-agent-yourself)
+uses the same maintained instrumentation and host workflow as native acceptance.
+Its local model reads a synthetic ledger through sandbox tools, writes a report
+and runs an independent Python verifier. OpenInference `input.value` and
+`output.value` are opt-in, bounded content at the producer, Collector and reader;
+they never become ordinary metadata. The recipe deliberately uses one dedicated
+process per invocation and refuses existing instrumentation. Automatic framework
+tool-to-command parent propagation is not implemented; the command observation
+has its own truthful trace rather than a fabricated tool parent.
+
 An additional private `LangChainTrace` recipe uses callbacks explicitly supplied
 to one invocation, without installing an instrumentor or global provider. It
 captures text chat and tool calls, with content disabled unless explicitly

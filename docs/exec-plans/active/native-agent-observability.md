@@ -580,6 +580,7 @@ repository's existing locked Python test/package workflow, not a global install.
 | 2026-11-09 | Require explicit preview acknowledgement; refuse restricted OpenShift | Local rendering/non-root containers cannot prove customer-cluster compatibility | Advertising a supported profile without native acceptance |
 | 2026-11-10 | Optional SDK subpath and Python extra for run lifecycle/OTel setup | Keep existing distributions and core imports lightweight; explicit provider ownership preserves application tracing | A new package requiring another publishing bootstrap; implicit global initialization |
 | 2026-11-09 | Exercise persisted API authorization separately from the protocol fixture | A test-only grant store does not validate real tenant/principal lifecycle | Treating Collector round trips as full application acceptance |
+| 2026-11-10 | Use maintained LangChain/OpenInference for the first in-sandbox real-model recipe | The plan allows an instrumented alternative; do not infer OpenCode model spans from console output or intercept its TLS | Promise unsupported OpenCode model coverage; promote the private callback tracer into the public SDK |
 
 Remaining engineering gates, not promises: actual sandbox-backed framework and
 in-sandbox execution, automatic framework/CLI context, grant renewal for long jobs,

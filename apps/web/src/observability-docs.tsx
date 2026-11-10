@@ -20,7 +20,7 @@ export const observabilityDocs: DocPage = {
     <ol>
       <li>Have an operator install the candidate logs/traces profile with matching source-built API/web images and migration <code>041_agent_observability.sql</code>. Read the <a href="https://github.com/nabilblk/h-sandbox/blob/main/docs/operations/agent-observability.md">operator guide</a> before enabling it.</li>
       <li>As an organization administrator, open Agent runs, then Capture policy. Enable telemetry. Leave content capture disabled for the first test.</li>
-      <li>Create a dedicated API key with <code>runs:read</code>, <code>runs:write</code> and <code>sandboxes:write</code>. Add execution permissions only when the application needs them. Existing keys are not silently upgraded.</li>
+      <li>Create a dedicated API key with <code>runs:read</code>, <code>runs:write</code>, <code>sandboxes:read</code> and <code>sandboxes:write</code> for these sandbox-backed recipes. Opted-in payload investigation additionally requires <code>runs:content</code>. Existing keys are not silently upgraded.</li>
       <li>Select an existing running sandbox in your organization. The examples below create telemetry metadata, not a sandbox.</li>
     </ol>
     <h2>Create a run</h2>
