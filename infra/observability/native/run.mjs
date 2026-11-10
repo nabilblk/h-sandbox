@@ -7,13 +7,14 @@ import { finishReceipt, publicFailure } from "../../acceptance/receipt.mjs";
 import { configuredComplete, gateReceipt, nativeGates } from "./contracts.mjs";
 import { componentReplicas, installCandidate } from "./install.mjs";
 import { coldRecovery } from "./recovery.mjs";
+import { exerciseAgents } from "./agents.mjs";
 
 process.umask(0o077);
 const ctx = context();
 ctx.guard();
 const receipt = { status: "running", source: process.env.GITHUB_SHA, runId: ctx.identity.id,
   startedAt: new Date().toISOString(), results: [],
-  boundary: "Model-free native sandbox qualification and same-version cold recovery onto fresh storage; not real-agent, physical-erasure or OpenShift evidence. Image audit is a separate release gate." };
+  boundary: "Native sandbox and real local-model workflows, plus same-version cold recovery onto fresh storage. Not physical-erasure or OpenShift evidence. Image audit is a separate release gate." };
 const publish = () => fs.writeFileSync("standalone-acceptance-report.json", `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
 let activeGate, operator, candidate, template, telemetryKey;
 
@@ -57,6 +58,20 @@ async function revoke(key) {
   key.revoked = true;
 }
 
+async function investigateAgent(runId, stepId) {
+  const { page } = operator;
+  await page.goto(`${origins.web}/#dashboard/runs?run=${encodeURIComponent(runId)}&step=${encodeURIComponent(stepId)}`);
+  await page.getByRole("heading", { name: "Real LangChain agent with sandbox tools", exact: true }).waitFor();
+  await page.getByRole("checkbox", { name: "Sensitive content", exact: true }).check();
+  await page.getByRole("button", { name: "Tree", exact: true }).click();
+  await page.getByRole("region", { name: "Generation details", exact: true }).waitFor();
+  await page.screenshot({ path: "telemetry-real-agent-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Real-agent viewer overflows mobile viewport");
+  await page.screenshot({ path: "telemetry-real-agent-mobile.png", fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+}
+
 try {
   publish();
   await gate("published-installation", () => install(ctx));
@@ -80,6 +95,7 @@ try {
   await exerciseNative({ apiUrl: origins.api, apiKey: telemetryKey.token, template, runId: ctx.identity.id,
     producerSource: fs.readFileSync(new URL("./producer.py", import.meta.url), "utf8") }, gate, {
     browser: investigate,
+    agents: async (client, sandbox) => { receipt.agents = await exerciseAgents(ctx, client, sandbox, telemetryKey.token, gate, investigateAgent); },
     collector: (enabled) => componentReplicas(ctx, "collector", Number(enabled)),
     recover: async () => { receipt.recovery = await coldRecovery(ctx, operator); },
     restart: async () => {

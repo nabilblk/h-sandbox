@@ -673,6 +673,23 @@ or real-model/sandbox acceptance receipt.
 
 ## Completion Notes
 
+### Resumed Implementation: Real Framework Workflows
+
+The maintainer asked why work stopped while implementation remained. Recovery
+qualification was a checkpoint, not completion. Work resumes independently of
+the upstream image-release blocker and explicitly deferred OpenShift validation.
+
+- Added a maintained-OpenInference LangChain recipe shared by host-agent/remote-tool
+  and in-sandbox-agent acceptance. The local installed-tarball test typechecks the
+  consumers and exercises the actual framework with scripted decisions; it passes.
+- Added native scenarios using digest-pinned local inference and actual sandbox
+  file/command operations. Native evidence is pending; no real-agent success is
+  claimed yet. Synthetic order reports are independently validated, and telemetry
+  checks require actual model usage, tool spans, logs and privacy-filtered reads.
+- The upstream ESM patch is documented as process-lifetime. This is not a reusable
+  custom callback tracer, a global OTel provider replacement or a claim of SDK/CLI
+  context propagation. Those remaining tasks stay open.
+
 ### Completion Work Checkpoint: 2026-11-10
 
 This checkpoint is **not completion** and does not reduce the approved scope.

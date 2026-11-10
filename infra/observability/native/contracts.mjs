@@ -1,7 +1,8 @@
 export const nativeGates = Object.freeze([
   "published-installation", "source-candidate", "oidc-policy", "template-import",
   "native-command-retry", "native-browser-investigation", "collector-outage-execution",
-  "sandbox-otlp-producer", "retained-after-termination", "storage-restart", "coordinated-cold-recovery", "key-revocation"
+  "sandbox-otlp-producer", "local-model-start", "real-agent-host-tools", "real-agent-in-sandbox",
+  "retained-after-termination", "storage-restart", "coordinated-cold-recovery", "key-revocation"
 ]);
 
 export function gateReceipt(name, elapsedMs) {

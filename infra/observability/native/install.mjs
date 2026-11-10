@@ -25,10 +25,21 @@ export async function installCandidate(ctx) {
   const manifest = JSON.parse(fs.readFileSync(new URL("../../../packages/sdk/package.json", import.meta.url)));
   const peers = Object.keys(manifest.peerDependencies).filter((name) => name.startsWith("@opentelemetry/"))
     .map((name) => `${name}@${manifest.devDependencies[name]}`);
+  const framework = JSON.parse(fs.readFileSync(new URL("../frameworks/package.json", import.meta.url)));
+  for (const name of ["@langchain/core", "@langchain/ollama", "langchain", "@arizeai/openinference-instrumentation-langchain", "tsx", "typescript", "@types/node"]) {
+    peers.push(`${name}@${framework.devDependencies[name]}`);
+  }
   const env = { ...process.env, NPM_CONFIG_USERCONFIG: ctx.file("npmrc"), NPM_CONFIG_GLOBALCONFIG: ctx.file("npmrc-global") };
   delete env.NPM_TOKEN; delete env.NODE_AUTH_TOKEN;
   ctx.execute("npm", ["install", "--prefix", ctx.consumer, "--ignore-scripts", "--no-audit", "--no-fund",
-    "--registry=https://registry.npmjs.org", ...peers], "Install optional telemetry peers", { env });
+    "--registry=https://registry.npmjs.org", "--save-exact", ...peers], "Install optional telemetry peers", { env });
+  for (const name of ["host-agent.ts", "sandbox-agent.ts"]) fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
+  for (const name of ["orders-agent.ts", "local-model.ts"]) {
+    fs.copyFileSync(new URL(`../../../examples/agent-observability/${name}`, import.meta.url), path.join(ctx.consumer, name));
+  }
+  ctx.execute(process.execPath, [path.join(ctx.consumer, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict",
+    "--skipLibCheck", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "host-agent.ts", "sandbox-agent.ts"],
+  "Typecheck installed real-agent recipes", { cwd: ctx.consumer, env });
   const fixture = path.join(ctx.consumer, "telemetry-native.mjs");
   fs.copyFileSync(new URL("./workflows.mjs", import.meta.url), fixture);
   return { source: candidate.source, images: candidate.images, tarballSha256: sdk.tarballSha256,

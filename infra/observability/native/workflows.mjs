@@ -97,6 +97,8 @@ export async function exerciseNative({ apiUrl, apiKey, template, runId, producer
       }
     });
 
+    await infrastructure.agents(client, sandbox);
+
     await gate("retained-after-termination", async () => {
       const sentinel = await client.agentRuns.create({ name: "Recovery revocation sentinel", sandboxId: sandbox.id });
       const recoveryGrant = await client.agentRuns.grant(sentinel.run.id, sandbox.id);

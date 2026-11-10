@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "infra/observability/**"
+      - "examples/agent-observability/**"
       - "infra/charts/harakiri/**"
       - "apps/api/**"
       - "apps/web/**"
@@ -43,6 +44,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm --filter @harakiri/shared build
           node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/observability/native/*.test.mjs
+          node --test infra/observability/agent-recipes.test.mjs
       - name: Bootstrap only a fresh GitHub-hosted native amd64 cluster
         timeout-minutes: 10
         run: node infra/acceptance/bootstrap.mjs
@@ -60,6 +62,8 @@ jobs:
             standalone-acceptance-report.json
             telemetry-native-desktop.png
             telemetry-native-mobile.png
+            telemetry-real-agent-desktop.png
+            telemetry-real-agent-mobile.png
           retention-days: 14
           if-no-files-found: warn
 

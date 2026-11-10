@@ -98,3 +98,42 @@ procedure, not a claim that local fixture tests executed it.
 
 See [the technical contract](../../docs/observability.md) and
 [operator fan-out instructions](../../docs/operations/agent-observability.md).
+
+## Real Agent Qualification
+
+`orders-agent.ts` is the shared application workflow for a real LangChain agent.
+It accepts a model and two tools: read a synthetic ledger, then persist and validate
+the computed report. `local-model.ts` configures local Ollama inference without a
+paid provider. `verify-orders.py` independently checks the saved report against
+the source records; model-generated prose is not the acceptance criterion.
+
+Model and tool spans come from maintained OpenInference instrumentation, not a
+Harakiri reimplementation of framework callbacks. Content still passes through
+the run-scoped SDK privacy processor before queuing and through server-side policy.
+This recipe uses one invocation per process. The upstream manual ESM patch is
+process-wide and `disable()` does not uninstall it. Do not add it to an already
+instrumented Langfuse/OpenInference process; reuse that application's tracing
+configuration instead. `LANGCHAIN_CALLBACKS_BACKGROUND=false` is required.
+
+The native acceptance harness exercises the same workflow in two placements:
+
+1. The model loop runs on the disposable runner. Its tools use the installed
+   Harakiri SDK to read/write sandbox files and execute the independent validator.
+2. The model loop and tools run inside a real sandbox. Only its short-lived,
+   write-only ingestion grant enters the workload, not the platform API key.
+
+Both use a digest-pinned local model on that isolated runner. They assert actual
+tool execution, model-reported token counts, parent/child framework spans, opt-in
+content, validator output and metadata-only reads. The command observer is a
+separate explicitly recorded span; this recipe does not claim automatic parent
+propagation from a framework tool into the SDK command.
+
+Run the installed-package recipe check locally without a model or cluster:
+
+```sh
+node --test infra/observability/agent-recipes.test.mjs
+```
+
+That test uses scripted model decisions and proves packaging and callbacks only.
+The GitHub native job runs actual inference. Until a matching-source native receipt
+passes, these new real-agent scenarios remain **unqualified**, not release evidence.
