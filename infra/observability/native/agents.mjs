@@ -1,10 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { check, origins, until } from "../../acceptance/context.mjs";
 import { withModel, pinnedModel } from "./model.mjs";
 
 const agentEnvironment = { LANGSMITH_TRACING: "false", LANGCHAIN_TRACING_V2: "false", LANGCHAIN_CALLBACKS_BACKGROUND: "false" };
 const source = name => fs.readFileSync(new URL(name, import.meta.url));
+const execute = promisify(execFile);
 
 async function qualifySignals(client, run, result) {
   console.log("Real-agent check: query model and tool spans");
@@ -43,9 +46,16 @@ export async function exerciseAgents(ctx, client, sandbox, apiKey, gate, browser
       ctx.save(configName, { apiUrl: origins.api, apiKey, sandboxId: sandbox.id, modelUrl: model.localUrl,
         model: model.name, resultPath: ctx.file(resultName) });
       try {
-        ctx.execute(process.execPath, ["--import", "tsx", "host-agent.ts", ctx.file(configName)], "Real host agent with sandbox tools", {
-          cwd: ctx.consumer, env: { PATH: process.env.PATH, HOME: process.env.HOME, ...agentEnvironment }, timeout: 420_000
-        });
+        // Keep SDK connections and the signed-in browser responsive during inference.
+        try {
+          await execute(process.execPath, ["--import", "tsx", "host-agent.ts", ctx.file(configName)], {
+            cwd: ctx.consumer, env: { PATH: process.env.PATH, HOME: process.env.HOME, ...agentEnvironment },
+            timeout: 420_000, maxBuffer: 1024 * 1024
+          });
+        } catch (error) {
+          ctx.save("telemetry-host-failure.json", { code: error.code, stdout: error.stdout, stderr: error.stderr });
+          check(false, "Real host agent with sandbox tools failed; private command evidence retained");
+        }
         const result = ctx.read(resultName);
         console.log("Real-agent check: host inference and sandbox validation completed");
         const signals = await qualifySignals(client, result, result);
