@@ -28,3 +28,19 @@ export function diagnosticLocation(error) {
   const code = error?.cause?.code;
   return { ...(sources.length ? { sources } : {}), ...(codes.has(code) ? { transportCode: code } : {}) };
 }
+
+export function workloadDiagnostics(pods) {
+  const reasons = new Set(["OOMKilled", "Error", "Completed", "ContainerCannotRun", "CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull"]);
+  const state = value => value ? { ...(reasons.has(value.reason) ? { reason: value.reason } : {}),
+    ...(Number.isInteger(value.exitCode) ? { exitCode: value.exitCode } : {}) } : undefined;
+  return (Array.isArray(pods?.items) ? pods.items : []).slice(0, 32).map(pod => ({
+    phase: ["Pending", "Running", "Succeeded", "Failed", "Unknown"].includes(pod.status?.phase) ? pod.status.phase : "Unknown",
+    containers: (pod.status?.containerStatuses ?? []).slice(0, 8).map(container => ({
+      name: ["api", "web", "model", "keycloak", "postgresql", "collector", "logs", "traces"].includes(container.name) ? container.name : "other",
+      ready: container.ready === true,
+      restarts: Number.isSafeInteger(container.restartCount) ? container.restartCount : 0,
+      lastTermination: state(container.lastState?.terminated),
+      current: state(container.state?.terminated ?? container.state?.waiting)
+    }))
+  }));
+}

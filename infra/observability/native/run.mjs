@@ -1,10 +1,11 @@
 import fs from "node:fs";
+import { totalmem, freemem } from "node:os";
 import { context, check, origins, until } from "../../acceptance/context.mjs";
 import { install } from "../../acceptance/install.mjs";
 import { operatorSession } from "../../acceptance/browser.mjs";
 import { importAcceptanceTemplate } from "../../acceptance/first-task.mjs";
 import { finishReceipt, publicFailure } from "../../acceptance/receipt.mjs";
-import { configuredComplete, diagnosticLocation, gateReceipt, nativeGates } from "./contracts.mjs";
+import { configuredComplete, diagnosticLocation, gateReceipt, nativeGates, workloadDiagnostics } from "./contracts.mjs";
 import { componentReplicas, installCandidate } from "./install.mjs";
 import { coldRecovery } from "./recovery.mjs";
 import { exerciseAgents } from "./agents.mjs";
@@ -114,6 +115,9 @@ try {
   receipt.status = "configured_gates_passed";
 } catch (error) {
   ctx.save("telemetry-native-failure.json", { gate: activeGate, message: error.message, stack: error.stack });
+  receipt.hostMemory = { totalBytes: totalmem(), freeBytes: freemem() };
+  try { receipt.workloads = workloadDiagnostics(JSON.parse(ctx.k(["-n", "harakiri-preview", "get", "pods", "-o", "json"]))); }
+  catch { receipt.workloadDiagnostics = "unavailable"; }
   receipt.results.push({ name: activeGate, status: "failed", failure: { ...publicFailure(error), ...diagnosticLocation(error) } });
   receipt.status = "failed";
   process.exitCode = 1;
