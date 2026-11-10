@@ -53,6 +53,7 @@ async function emit(stack, tenant, encoding, capture = "metadata", ageSeconds = 
       startTime: [started, 123456789],
       attributes: { "gen_ai.operation.name": "execute_tool", "gen_ai.tool.name": "shell",
         "gen_ai.input.messages": canary, "gen_ai.system_instructions": canary, "gen_ai.tool.definitions": canary,
+        "input.value": canary, "output.value": canary,
         "api_key": canary, "harakiri.command.id": "cmd_qualification", ...attributes },
       links: [{ context: { traceId, spanId: "234567890abcdef1", traceFlags: 1 }, attributes: { secret: canary } }]
     }, parent);
@@ -203,6 +204,8 @@ try {
       return records.length ? records : false;
     });
     assert.ok(JSON.stringify(records).includes(canary));
+    assert.equal(records[0]["span_attr:input.value"], canary);
+    assert.equal(records[0]["span_attr:output.value"], canary);
     assert.ok(JSON.stringify(records).includes("234567890abcdef1"));
     const logs = await until("structured log content", async () => {
       const records = await query(stack, "logs", 105);
@@ -218,6 +221,7 @@ try {
   await gate("llm-content-bound-and-generation-metadata", async () => {
     await emit(stack, 119, "protobuf", "content", 0, {
       "gen_ai.operation.name": "chat", "gen_ai.input.messages": "x".repeat(40_000),
+      "input.value": "y".repeat(40_000), "output.value": "z".repeat(40_000),
       "gen_ai.request.temperature": 0, "gen_ai.response.finish_reasons": '["stop"]',
       "gen_ai.usage.cache_read.input_tokens": 0, "harakiri.llm.first_token_ms": 125.5
     });
@@ -226,6 +230,8 @@ try {
       return records.length ? records : false;
     });
     assert.equal(records[0]["span_attr:gen_ai.input.messages"].length, 32768);
+    assert.equal(records[0]["span_attr:input.value"].length, 32768);
+    assert.equal(records[0]["span_attr:output.value"].length, 32768);
     assert.equal(String(records[0]["span_attr:harakiri.content.truncated"]), "true");
     assert.equal(String(records[0]["span_attr:gen_ai.usage.cache_read.input_tokens"]), "0");
     assert.equal(records[0]["span_attr:gen_ai.response.finish_reasons"], '["stop"]');

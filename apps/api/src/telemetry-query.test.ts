@@ -98,6 +98,20 @@ test("duplicate delivery and conflicting IDs are deterministic across order", ()
   assert.equal(repeated.issues.includes("conflicting_span"), false, "Hidden content must not influence reader-visible conflict information");
 });
 
+test("OpenInference input/output stay bounded and require both capture and read permission", () => {
+  const raw = row({ "span_attr:input.value": "PRIVATE input", "span_attr:output.value": "PRIVATE output" });
+  assert.equal(JSON.stringify(normalizeSpans([raw], query)).includes("PRIVATE"), false);
+  assert.equal(JSON.stringify(normalizeSpans([{ ...raw, "resource_attr:harakiri.capture": "metadata" }],
+    { ...query, includeContent: true })).includes("PRIVATE"), false);
+  const shown = normalizeSpans([raw], { ...query, includeContent: true }).records[0];
+  assert.equal(shown.content.attributes["input.value"], "PRIVATE input");
+  assert.equal(shown.content.attributes["output.value"], "PRIVATE output");
+  assert.equal(shown.attributes["input.value"], undefined);
+  const large = normalizeSpans([row({ "span_attr:input.value": "x".repeat(40000) })], { ...query, includeContent: true });
+  assert.equal(large.records[0].content.attributes["input.value"].length, 32768);
+  assert.ok(large.issues.includes("truncated_record"));
+});
+
 test("missing parents and cyclic input cannot hang tree construction", () => {
   const second = "234567890abcdef1", third = "34567890abcdef12";
   const result = normalizeSpans([

@@ -18,7 +18,8 @@ const contentLabels: Record<string, string> = {
   "gen_ai.output.messages": "Output messages",
   "gen_ai.tool.call.arguments": "Tool arguments",
   "gen_ai.tool.call.result": "Tool result",
-  "gen_ai.system_instructions": "System instructions", "gen_ai.tool.definitions": "Available tools"
+  "gen_ai.system_instructions": "System instructions", "gen_ai.tool.definitions": "Available tools",
+  "input.value": "Framework input", "output.value": "Framework output"
 };
 
 export function TraceInspector({ span, spans, tab, runId, window, includeContent, following, onSelect, onReveal, canReveal }: {

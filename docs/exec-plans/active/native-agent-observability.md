@@ -675,6 +675,15 @@ or real-model/sandbox acceptance receipt.
 
 ### Resumed Implementation: Real Framework Workflows
 
+The first real-agent qualification exposed an interoperability gap: OpenInference
+uses `input.value` / `output.value`, which were absent from the producer, Collector
+and authorized-reader content allowlists. These fields are now opt-in content
+at every boundary, bounded before producer batching and again at ingress/read.
+They remain excluded from metadata-only runs and unauthorized reads. The viewer
+labels them as framework payloads rather than inventing canonical message roles.
+SDK, Python, query and Collector contract tests cover that distinction; native
+browser acceptance now opens both payloads from a real model step.
+
 The maintainer asked why work stopped while implementation remained. Recovery
 qualification was a checkpoint, not completion. Work resumes independently of
 the upstream image-release blocker and explicitly deferred OpenShift validation.

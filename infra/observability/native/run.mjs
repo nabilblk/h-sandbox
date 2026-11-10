@@ -65,6 +65,12 @@ async function investigateAgent(runId, stepId) {
   await page.getByRole("checkbox", { name: "Sensitive content", exact: true }).check();
   await page.getByRole("button", { name: "Tree", exact: true }).click();
   await page.getByRole("region", { name: "Generation details", exact: true }).waitFor();
+  await page.getByRole("tab", { name: "Content", exact: true }).click();
+  for (const label of ["Framework input", "Framework output"]) {
+    const payload = page.getByRole("region", { name: label, exact: true });
+    await payload.waitFor();
+    check((await payload.locator("code").innerText()).trim().length > 0, `Real-agent ${label} is empty`);
+  }
   await page.screenshot({ path: "telemetry-real-agent-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Real-agent viewer overflows mobile viewport");

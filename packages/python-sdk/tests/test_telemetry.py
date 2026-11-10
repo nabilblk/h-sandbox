@@ -186,6 +186,8 @@ def test_privacy_precedes_queue_without_mutating_the_existing_application_proces
             attributes={
                 "gen_ai.usage.input_tokens": 23,
                 "gen_ai.input.messages": "PRIVATE_PROMPT",
+                "input.value": "PRIVATE_FRAMEWORK_INPUT",
+                "output.value": "PRIVATE_FRAMEWORK_OUTPUT",
                 "api.key": "PRIVATE_KEY",
             },
         )
@@ -197,6 +199,10 @@ def test_privacy_precedes_queue_without_mutating_the_existing_application_proces
         assert "api.key" not in safe.attributes
         assert safe.attributes["gen_ai.usage.input_tokens"] == 23
         assert ("gen_ai.input.messages" in safe.attributes) == (capture == "content")
+        for key in ("input.value", "output.value"):
+            assert (key in safe.attributes) == (capture == "content")
+            if capture == "content":
+                assert safe.attributes[key] == original.attributes[key]
         assert bool(safe.events) == (capture == "content")
         assert bool(safe.status.description) == (capture == "content")
         assert safe.context.trace_id == original.context.trace_id

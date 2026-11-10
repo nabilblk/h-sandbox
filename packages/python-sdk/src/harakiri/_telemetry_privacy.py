@@ -47,6 +47,8 @@ CONTENT_ATTRIBUTES = frozenset(
         "gen_ai.tool.call.result",
         "gen_ai.system_instructions",
         "gen_ai.tool.definitions",
+        "input.value",
+        "output.value",
     }
 )
 

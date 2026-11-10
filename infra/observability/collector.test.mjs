@@ -46,6 +46,20 @@ test("private ingress requires authentication, includes metadata, and bounds pay
   ]);
 });
 
+test("OpenInference payloads are accepted only by the content capture allowlist", () => {
+  const privacy = collectorConfig(destinations).processors["transform/privacy"];
+  for (const [target, statements] of [["span", privacy.trace_statements[0].statements], ["log", privacy.log_statements[0].statements]]) {
+    const allow = statements.filter(statement => statement.startsWith(`keep_keys(${target}.attributes,`));
+    assert.equal(allow.length, 2);
+    for (const field of ["input.value", "output.value"]) {
+      assert.ok(allow[0].includes(`"${field}"`));
+      assert.ok(!allow[1].includes(`"${field}"`));
+      assert.ok(statements.some(statement => statement.includes(`Len(${target}.attributes["${field}"]) > 32768`)));
+    }
+    assert.ok(allow[1].includes('x-harakiri-capture'));
+  }
+});
+
 test("destinations cannot smuggle authentication or arbitrary URL protocols", () => {
   for (const url of ["file:///tmp/data", "ftp://logs", "http://user:password@logs", "http://logs?token=secret", "http://logs#fragment"]) {
     assert.throws(() => collectorConfig({ ...destinations, logsEndpoint: url }));

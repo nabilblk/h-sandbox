@@ -13,7 +13,8 @@ const metadataKeys = [
   "gen_ai.tool.name", "error.type", "harakiri.command.id", "harakiri.step.kind", "harakiri.attempt",
   "openinference.span.kind", "llm.model_name", "llm.token_count.prompt", "llm.token_count.completion", "tool.name"
 ];
-const contentKeys = ["gen_ai.input.messages", "gen_ai.output.messages", "gen_ai.tool.call.arguments", "gen_ai.tool.call.result", "gen_ai.system_instructions", "gen_ai.tool.definitions"];
+const contentKeys = ["gen_ai.input.messages", "gen_ai.output.messages", "gen_ai.tool.call.arguments", "gen_ai.tool.call.result",
+  "gen_ai.system_instructions", "gen_ai.tool.definitions", "input.value", "output.value"];
 const validId = (value: string | undefined, length: number) => !!value && new RegExp(`^[0-9a-f]{${length}}$`).test(value) && !/^0+$/.test(value);
 const nano = (value: string | undefined) => value && /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= 9_223_372_036_854_775_807n ? value : null;
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value, (_key, item: unknown) =>
