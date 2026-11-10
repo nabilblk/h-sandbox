@@ -475,7 +475,8 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   on a disposable Linux/amd64 runner, with real OIDC/browser investigation,
   Collector outage isolation, retained reads after termination, same-PVC storage
   restart and credential/resource cleanup. Eleven gates passed in GitHub run
-  42817109758. This is not full agent or coordinated backup-recovery evidence.
+  42817109758, repeated in 42818677310. This is not full agent or coordinated
+  backup-recovery evidence.
 - [ ] Verify signed-in browser permissions and complete public onboarding from
   clean published/candidate package installation, not workspace-only dependencies.
 - [x] Request authorization before pushing acceptance branches or using hosted
@@ -719,10 +720,13 @@ deployment to the running lab is authorized.
 - Draft [PR #85](https://github.com/nabilblk/h-sandbox/pull/85) contains the
   candidate. The first source commit is `6a1eb790dd4c251f96990c7165bbbbe392e5a71f`.
 - [GitHub run 42817109758](https://github.com/nabilblk/h-sandbox/actions/runs/42817109758)
-  passed the component/browser job and native sandbox job. The
+  passed the component/browser job and native sandbox job. Both passed again in
+  [run 42818677310](https://github.com/nabilblk/h-sandbox/actions/runs/42818677310),
+  including explicit scrolling to the correlated log on mobile. The latest
   [native receipt](../../operations/evidence/agent-observability-native-2026-11-10.json)
   records the tested PR merge SHA, imported image identities, packed SDK digest,
-  eleven gates and confirmed owned cleanup. Both image audits failed; the overall
+  eleven gates and confirmed owned cleanup. Desktop/mobile screenshots were
+  visually inspected. Both image audits failed; the overall
   workflow is correctly red, not a successful release qualification.
 - Local rechecks passed: 121 SDK tests, installed TypeScript package/declarations,
   122 Python SDK/adapter tests, strict typing and Python 3.11 wheel/sdist consumers.
@@ -732,6 +736,11 @@ deployment to the running lab is authorized.
   source docs. The ten authorization browser checks pass locally after correction.
 - The broader PR also detects an existing Open-Terminal image audit finding,
   separate from the Victoria images. No audit gate was weakened or waived.
+- Hosted Python contracts pass on 3.11 through 3.14 after formatting correction.
+  The macOS consumer job was cancelled before execution because GitHub retired
+  macOS 14 runners. Its matrix now selects the supported `macos-15` Arm64 runner
+  per [GitHub's available images](https://github.com/actions/runner-images#available-images).
+  This changes only the disposable test host, not the Python support floor.
 
 ### Viewer usability revision
 

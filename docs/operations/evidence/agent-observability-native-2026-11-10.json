@@ -1,76 +1,76 @@
 {
   "status": "configured_gates_passed",
-  "source": "3a8c5c2b9048ba4f5fa6e5f88d5423e289eaf92f",
-  "runId": "42817109758-1",
-  "startedAt": "2026-11-10T12:37:17.807Z",
+  "source": "c79b6c6ca6090c8e3d157514ac336558e0e06b94",
+  "runId": "42818677310-1",
+  "startedAt": "2026-11-10T12:47:51.819Z",
   "results": [
     {
       "name": "published-installation",
-      "elapsedMs": 144598,
+      "elapsedMs": 140563,
       "status": "passed"
     },
     {
       "name": "source-candidate",
-      "elapsedMs": 117824,
+      "elapsedMs": 112663,
       "status": "passed"
     },
     {
       "name": "oidc-policy",
-      "elapsedMs": 4244,
+      "elapsedMs": 2744,
       "status": "passed"
     },
     {
       "name": "template-import",
-      "elapsedMs": 22900,
+      "elapsedMs": 21262,
       "status": "passed"
     },
     {
       "name": "native-command-retry",
-      "elapsedMs": 5347,
+      "elapsedMs": 5336,
       "status": "passed"
     },
     {
       "name": "native-browser-investigation",
-      "elapsedMs": 389,
+      "elapsedMs": 450,
       "status": "passed"
     },
     {
       "name": "collector-outage-execution",
-      "elapsedMs": 13050,
+      "elapsedMs": 12331,
       "status": "passed"
     },
     {
       "name": "sandbox-otlp-producer",
-      "elapsedMs": 14892,
+      "elapsedMs": 15008,
       "status": "passed"
     },
     {
       "name": "retained-after-termination",
-      "elapsedMs": 193,
+      "elapsedMs": 126,
       "status": "passed"
     },
     {
       "name": "storage-restart",
-      "elapsedMs": 26471,
+      "elapsedMs": 25427,
       "status": "passed"
     },
     {
       "name": "key-revocation",
-      "elapsedMs": 13,
+      "elapsedMs": 12,
       "status": "passed"
     }
   ],
   "boundary": "Model-free native sandbox qualification; same-PVC restart, not coordinated backup recovery or OpenShift. Image audit is a separate release gate.",
   "candidate": {
-    "source": "3a8c5c2b9048ba4f5fa6e5f88d5423e289eaf92f",
+    "source": "c79b6c6ca6090c8e3d157514ac336558e0e06b94",
     "images": {
       "api": {
-        "reference": "localhost/harakiri/harakiri-api:workbench-42817109758-1",
-        "imageConfigDigest": "sha256:f89b796fc2b9c8cd9b77d37f64e0d0db46abb87146fa982c728998505809e9cf"
+        "reference": "localhost/harakiri/harakiri-api:workbench-42818677310-1",
+        "imageConfigDigest": "sha256:d9ceee8cea865da05a3439428c0a3f69f729747d002528fe19a0ad2909b9f927"
       },
       "web": {
-        "reference": "localhost/harakiri/harakiri-web:workbench-42817109758-1",
-        "imageConfigDigest": "sha256:b8ea3befad64e8b2daa0f010579ad9a7e9f1f008135df4195778f99532d3a338"
+        "reference": "localhost/harakiri/harakiri-web:workbench-42818677310-1",
+        "imageConfigDigest": "sha256:bb4397ca9cc479d67e13339c46ff99bf6965a657a944b9d8d12fc6dbbc3194fa"
       }
     },
     "tarballSha256": "0d9468bebbe8794d33c5265b9ca3d8705abdf66fc2216025ea68624fedfab286",
@@ -101,7 +101,7 @@
       }
     ]
   },
-  "completedAt": "2026-11-10T12:43:41.220Z",
+  "completedAt": "2026-11-10T12:53:52.935Z",
   "cleanup": {
     "status": "passed",
     "privateMaterialRemoved": true
