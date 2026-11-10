@@ -8,6 +8,19 @@ Read the public [SDK guide](https://sb.harakiri.io/#docs/sdk-cli) and
 [error guidance](https://sb.harakiri.io/#docs/errors-troubleshooting).
 Repository contributors can also read [the integration contract](../../docs/sdk.md).
 
+## Agent Observability Source Candidate
+
+Unreleased: `client.agentRuns` provides typed policy, run creation/list/detail/
+closure, bounded spans/logs, short-lived grants and revocation. These methods
+require the matching candidate API, migration 041 and explicit operator/org
+enablement; they are not in the published rc.15 SDK. Core imports do not install
+OTel or global instrumentation. The optional `@h-sandbox/sdk/telemetry` subpath
+adds explicit run lifecycle, bounded flush and command observation with official
+exporters. Install its optional peers only when using that subpath. See the
+[first-trace recipe](../../examples/agent-observability/README.md) and
+[the contract and limits](../../docs/observability.md)
+before adopting this source candidate. Automatic framework capture remains a gate.
+
 ## Task-Oriented TypeScript API
 
 Version **0.5.0-rc.12** extends the task-oriented API with bounded request controls.

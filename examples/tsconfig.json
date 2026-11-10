@@ -5,10 +5,12 @@
     "baseUrl": ".",
     "noEmit": true,
     "paths": {
-      "@h-sandbox/sdk": ["../packages/sdk/src/index.ts"]
+      "@h-sandbox/sdk": ["../packages/sdk/src/index.ts"],
+      "@h-sandbox/sdk/telemetry": ["../packages/sdk/src/telemetry.ts"]
     }
   },
   "include": [
+    "agent-observability/first-trace.ts",
     "sdk-execution-capacity/index.ts",
     "sdk-typescript-quickstart/index.ts",
     "sdk-sandbox-object/index.ts",

@@ -1,5 +1,6 @@
 import type { Route } from "./routes/types";
 import { workbenchLocation } from "./workbench";
+import { runLocation } from "./observability";
 
 export const isDocsRoute = (route: string): route is "docs" | `docs/${string}` =>
   route === "docs" || /^docs\/[a-z0-9-]+(?:\?section=[a-z0-9-]+)?$/.test(route);
@@ -14,6 +15,7 @@ export const isRoute = (route: string): route is Route =>
   isSandboxDetailRoute(route) ||
   route === "dashboard/templates" ||
   route === "dashboard/workspaces" ||
+  runLocation(route) !== null ||
   route === "dashboard/vault" ||
   route === "dashboard/members" ||
   route === "dashboard/metrics" ||

@@ -9,6 +9,7 @@ import httpx
 
 from ._config import ClientConfig
 from ._transport import Transport
+from .agent_runs import AsyncAgentRuns
 from .resources import AsyncCapacity, AsyncRuntime, AsyncTemplates, AsyncWorkspaces
 from .sandboxes import AsyncSandboxes
 
@@ -35,6 +36,7 @@ class AsyncHarakiriClient:
         self.workspaces = AsyncWorkspaces(self._transport)
         self.runtime = AsyncRuntime(self._transport)
         self.capacity = AsyncCapacity(self._transport)
+        self.agent_runs = AsyncAgentRuns(self._transport)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AsyncHarakiriClient:

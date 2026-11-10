@@ -5,7 +5,7 @@ import { Children, isValidElement, type ReactNode } from "react";
 export const docGroups = [
   { title: "Getting started", pages: ["overview", "developer-preview", "ui-product-tour", "quickstart", "vision-architecture", "sdk-cli", "typescript-sdk", "python-sdk"] },
   { title: "Self-hosting", pages: ["install-kubernetes", "install-openshift", "backup-recovery", "operator-monitoring"] },
-  { title: "Concepts", pages: ["execution-capacity", "usage-observations", "workspaces", "authorization", "security-model"] },
+  { title: "Concepts", pages: ["execution-capacity", "usage-observations", "agent-observability", "workspaces", "authorization", "security-model"] },
   { title: "Sandbox guides", pages: ["sandbox-workbench", "create-sandbox", "sandbox-lifecycle", "sandbox-processes", "filesystem-artifacts", "routes", "outbound-access", "credential-vault"] },
   { title: "Integrations", pages: ["deepagents", "deepagents-python", "openwebui"] },
   { title: "Templates", pages: ["custom-templates", "template-builds", "sdk-usage", "opencode-template", "open-agents-template", "template-troubleshooting"] },

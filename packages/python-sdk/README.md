@@ -8,6 +8,15 @@ for publication status, exact artifacts and native qualification evidence.
 The SDK talks only to the Harakiri API. It does not require Node, Kubernetes
 credentials, a runtime-provider SDK or an agent framework.
 
+Unreleased source candidate: synchronous and asynchronous `client.agent_runs`
+expose typed run control, bounded telemetry reads and short-lived exporter grants.
+They are not present in PyPI `0.1.0rc2`; matching candidate API and explicit
+operator/org enablement are required. Core imports do not install OpenTelemetry.
+The optional `h-sandbox[telemetry]` extra provides explicit sync/async run lifecycle,
+bounded cleanup and command recording through `harakiri.telemetry`, without
+global instrumentation. See the [first-trace recipe](../../examples/agent-observability/README.md)
+and [technical contract](../../docs/observability.md).
+
 Version-pinned PyPI installation:
 
 ```sh

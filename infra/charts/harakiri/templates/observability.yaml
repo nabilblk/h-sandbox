@@ -1,0 +1,228 @@
+{{- if .Values.observability.enabled }}
+{{- if not .Values.observability.acknowledgePreview }}
+{{- fail "observability requires acknowledgePreview=true: source-candidate profile, not production-qualified" }}
+{{- end }}
+{{- if .Values.openshift.restricted }}
+{{- fail "observability is not yet qualified on restricted OpenShift; keep it disabled until native acceptance" }}
+{{- end }}
+{{- $settings := .Values.observability }}
+{{- $secret := required "observability.collectorTokenSecret.name is required" $settings.collectorTokenSecret.name }}
+{{- $secretKey := required "observability.collectorTokenSecret.key is required" $settings.collectorTokenSecret.key }}
+{{- if or (not (regexMatch "^[0-9]+$" (toString $settings.retentionDays))) (lt (int $settings.retentionDays) 1) (gt (int $settings.retentionDays) 30) }}
+{{- fail "observability.retentionDays must be an integer between 1 and 30" }}
+{{- end }}
+{{- $name := include "harakiri.observabilityName" . }}
+{{- $images := merge (deepCopy $settings.images) (.Files.Get "files/observability-images.json" | fromJson) }}
+{{- $configObject := .Files.Get "files/observability-collector.json" | replace "HARAKIRI_OBSERVABILITY" $name | fromJson }}
+{{- if $settings.externalExport.enabled }}
+{{- $endpoint := required "observability.externalExport.endpoint is required" $settings.externalExport.endpoint }}
+{{- $url := urlParse $endpoint }}
+{{- if or (ne $url.scheme "https") (empty $url.host) (not (empty $url.userinfo)) (not (empty $url.query)) (not (empty $url.fragment)) }}
+{{- fail "observability external export requires HTTPS without credentials, query or fragment" }}
+{{- end }}
+{{- $_ := required "observability.externalExport.authorizationSecret.name is required" $settings.externalExport.authorizationSecret.name }}
+{{- $_ := required "observability.externalExport.authorizationSecret.key is required" $settings.externalExport.authorizationSecret.key }}
+{{- if empty $settings.externalExport.egress }}{{ fail "observability.externalExport.egress must explicitly allow the destination" }}{{ end }}
+{{- $external := deepCopy (index $configObject.exporters "otlp_http/traces") }}
+{{- $_ := unset $external "auth" }}
+{{- $_ := set $external "endpoint" $endpoint }}
+{{- $_ := set $external "headers" (dict "Authorization" "${env:HARAKIRI_EXTERNAL_OTLP_AUTHORIZATION}") }}
+{{- $_ := set $configObject.exporters "otlp_http/external" $external }}
+{{- range $signal := list "traces" "logs" }}
+{{- $pipeline := index $configObject.service.pipelines $signal }}
+{{- $_ := set $pipeline "exporters" (append $pipeline.exporters "otlp_http/external") }}
+{{- end }}
+{{- end }}
+{{- $config := $configObject | toPrettyJson }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-collector
+  namespace: {{ .Release.Namespace }}
+data:
+  config.json: |
+    {{- $config | nindent 4 }}
+{{- range $component, $image := $images }}
+{{- if not (has $component (list "collector" "logs" "traces")) }}{{ fail "unknown observability image component" }}{{ end }}
+{{- if not (regexMatch "@sha256:[a-f0-9]{64}$" $image) }}{{ fail "observability images must be digest-pinned" }}{{ end }}
+{{- $collector := eq $component "collector" }}
+{{- $port := ternary 4318 (ternary 9428 10428 (eq $component "logs")) $collector }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-{{ $component }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/component: observe-{{ $component }}
+  ports:
+    - name: http
+      port: {{ $port }}
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}-{{ $component }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "harakiri.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: observe-{{ $component }}
+spec:
+  serviceName: {{ $name }}-{{ $component }}
+  replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: observe-{{ $component }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: observe-{{ $component }}
+      annotations:
+        checksum/collector: {{ $config | sha256sum }}
+    spec:
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: false
+      {{- with (include "harakiri.imagePullSecrets" $) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ $component }}
+          image: {{ $image | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          args:
+            {{- if $collector }}
+            - --config=/etc/otelcol/config.json
+            {{- else }}
+            - -storageDataPath=/state
+            - -retentionPeriod={{ $settings.retentionDays }}d
+            - -memory.allowedBytes=134217728
+            - -loggerLevel=ERROR
+            - -inmemoryDataFlushInterval=1s
+            {{- if eq $component "traces" }}
+            - -insert.indexFlushInterval=1s
+            - -search.latencyOffset=3s
+            {{- end }}
+            {{- end }}
+          {{- if $collector }}
+          env:
+            - name: HARAKIRI_COLLECTOR_TOKEN
+              valueFrom:
+                secretKeyRef: { name: {{ $secret | quote }}, key: {{ $secretKey | quote }} }
+            {{- if $settings.externalExport.enabled }}
+            - name: HARAKIRI_EXTERNAL_OTLP_AUTHORIZATION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $settings.externalExport.authorizationSecret.name | quote }}
+                  key: {{ $settings.externalExport.authorizationSecret.key | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - { name: http, containerPort: {{ $port }} }
+            {{- if $collector }}
+            - { name: health, containerPort: 13133 }
+            - { name: metrics, containerPort: 8888 }
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: {{ ternary "/" "/health" $collector | quote }}, port: {{ ternary "health" "http" $collector }} }
+            periodSeconds: 5
+          startupProbe:
+            httpGet: { path: {{ ternary "/" "/health" $collector | quote }}, port: {{ ternary "health" "http" $collector }} }
+            periodSeconds: 5
+            failureThreshold: 60
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 256Mi }
+          volumeMounts:
+            - { name: state, mountPath: {{ ternary "/var/lib/otelcol" "/state" $collector | quote }} }
+            - { name: temporary, mountPath: /tmp }
+            {{- if $collector }}
+            - { name: config, mountPath: /etc/otelcol, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: temporary
+          emptyDir: { sizeLimit: 16Mi }
+        {{- if $collector }}
+        - name: config
+          configMap: { name: {{ $name }}-collector }
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if $settings.storageClass }}
+        storageClassName: {{ $settings.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ ternary $settings.queueSize (ternary $settings.logsSize $settings.tracesSize (eq $component "logs")) $collector | quote }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-{{ $component }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/component: observe-{{ $component }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ $.Release.Name }}
+              app.kubernetes.io/component: api
+        {{- if not $collector }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ $.Release.Name }}
+              app.kubernetes.io/component: observe-collector
+        {{- end }}
+      ports: [{ protocol: TCP, port: {{ $port }} }]
+  {{- if $collector }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ $.Release.Name }}
+            matchExpressions:
+              - { key: app.kubernetes.io/component, operator: In, values: [observe-logs, observe-traces] }
+      ports: [{ protocol: TCP, port: 9428 }, { protocol: TCP, port: 10428 }]
+    - ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]
+    {{- if $settings.externalExport.enabled }}
+    {{- toYaml $settings.externalExport.egress | nindent 4 }}
+    {{- end }}
+  {{- else }}
+  egress: []
+  {{- end }}
+{{- end }}
+{{- end }}

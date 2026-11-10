@@ -7,6 +7,8 @@ import { CapacityError } from "./services/organization-capacity.js";
 import { UsageHistoryError } from "./services/usage-history.js";
 import { operatorMetrics } from "./operator-metrics.js";
 import { RuntimeFeatureUnavailableError } from "./providers/runtime/deployment-policy.js";
+import { ObservabilityControlError } from "./services/observability/control-model.js";
+import { TelemetryQueryError } from "./services/observability/victoria.js";
 
 const issuePath = (path: PropertyKey[]) => path.map(String).join(".");
 
@@ -17,6 +19,10 @@ const issueMessage = (issue: ZodError["issues"][number]) => {
 
 export const registerApiErrorHandler = (app: FastifyInstance) => {
   app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof ObservabilityControlError || error instanceof TelemetryQueryError) {
+      if (error.statusCode === 429 || error.statusCode === 503) reply.header("Retry-After", "1");
+      return reply.code(error.statusCode).send(apiErrorResponse(error.code));
+    }
     if (error instanceof RuntimeFeatureUnavailableError) return reply.code(error.statusCode).send(apiErrorResponse(error.code, { message: error.message, feature: error.feature }));
     if (error instanceof UsageHistoryError) return reply.code(error.statusCode).send(apiErrorResponse(error.code, { message: error.message }));
     if (error instanceof CapacityError) {

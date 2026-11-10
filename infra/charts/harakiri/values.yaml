@@ -67,6 +67,33 @@ usage:
   observerEnabled: true
   retentionDays: 30
 
+# Experimental source-candidate profile. Requires matching API/web builds and
+# migration 041; not available in the currently published chart or images.
+observability:
+  enabled: false
+  acknowledgePreview: false
+  allowContent: false
+  retentionDays: 7
+  collectorTokenSecret:
+    name: ""
+    key: token
+  storageClass: ""  # empty uses the cluster's default provisioner
+  # Candidate capacity, not a production sizing guarantee. PVCs survive uninstall.
+  queueSize: 1Gi
+  logsSize: 10Gi
+  tracesSize: 10Gi
+  # Optional mirrored refs must retain digest pinning. Defaults live in files/.
+  images: {}
+  # Optional sanitized OTLP fan-out. This does not replace the native query stores.
+  externalExport:
+    enabled: false
+    endpoint: ""  # HTTPS base URL; exporter appends /v1/traces and /v1/logs
+    authorizationSecret:
+      name: ""
+      key: authorization
+    # Explicit NetworkPolicy rules to the operator-owned collector/Vector gateway.
+    egress: []
+
 credentialVault:
   encryption:
     # New workspace credentials use envelope encryption with this wrapping-key

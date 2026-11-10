@@ -28,17 +28,41 @@ try {
   writeFileSync(join(directory, "request.test.ts"), readFileSync(join(sdk, "src/request.test.ts"), "utf8")
     .replace('from "./index.js"', 'from "@h-sandbox/sdk"'));
   writeFileSync(join(directory, "api.ts"), readFileSync(join(sdk, "type-tests/api.ts")));
-  for (const fixture of ["large-artifact.mjs", "opencode-recipe.mjs"]) {
+  for (const fixture of ["large-artifact.mjs", "opencode-recipe.mjs", "agent-observability.mjs"]) {
     writeFileSync(join(directory, fixture), readFileSync(join(sdk, "fixtures", fixture)));
   }
   writeFileSync(join(directory, "opencode-headless.ts"), readFileSync(join(root, "examples/sdk-opencode-headless/index.ts")));
   run(consumerNode, ["--version"], directory);
   run(consumerNode, ["--import", pathToFileURL(require.resolve("tsx")).href, "--test", "installed.test.ts", "request.test.ts"], directory);
   run(consumerNode, ["opencode-recipe.mjs", pathToFileURL(require.resolve("tsx")).href], directory);
+  run(consumerNode, ["agent-observability.mjs"], directory);
+  run(consumerNode, ["--input-type=module", "-e", `
+    import assert from 'node:assert/strict';
+    import { HarakiriClient } from '@h-sandbox/sdk';
+    assert.equal(typeof HarakiriClient, 'function');
+    assert.throws(() => import.meta.resolve('@opentelemetry/sdk-trace'), { code: 'ERR_MODULE_NOT_FOUND' });
+  `], directory);
   run(consumerNode, ["--max-old-space-size=128", "large-artifact.mjs"], directory);
   run(consumerNode, [resolve(root, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "NodeNext", "--typeRoots", resolve(root, "node_modules/@types"), "api.ts"], directory);
   console.log("Installed SDK: runtime contracts, public ESM imports and declaration compatibility passed.");
+
+  // Core consumers do not install OTel. Qualify the optional public subpath separately.
+  const manifest = JSON.parse(readFileSync(join(sdk, "package.json"), "utf8"));
+  const telemetryDependencies = Object.keys(manifest.peerDependencies)
+    .filter((name) => name.startsWith("@opentelemetry/"))
+    .map((name) => `${name}@${manifest.devDependencies[name]}`);
+  run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org", ...telemetryDependencies], directory);
+  const telemetryTests = readFileSync(join(sdk, "src/telemetry.test.ts"), "utf8")
+    .replaceAll('from "./index.js"', 'from "@h-sandbox/sdk"')
+    .replaceAll('from "./protocol.js"', 'from "@h-sandbox/sdk"')
+    .replaceAll('from "./telemetry.js"', 'from "@h-sandbox/sdk/telemetry"');
+  writeFileSync(join(directory, "telemetry.test.ts"), telemetryTests);
+  run(consumerNode, ["--import", pathToFileURL(require.resolve("tsx")).href, "--test", "telemetry.test.ts"], directory);
+  writeFileSync(join(directory, "telemetry.ts"), readFileSync(join(sdk, "type-tests/telemetry.ts")));
+  run(consumerNode, [resolve(root, "node_modules/typescript/bin/tsc"), "--noEmit", "--strict", "--skipLibCheck", "--target", "ES2022",
+    "--module", "NodeNext", "--typeRoots", resolve(root, "node_modules/@types"), "telemetry.ts"], directory);
+  console.log("Installed SDK: optional telemetry lifecycle, privacy, exporter and declarations passed.");
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }

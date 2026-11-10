@@ -3,7 +3,7 @@ import test from "node:test";
 import Fastify from "fastify";
 import type { FastifyRequest } from "fastify";
 import { generateKeyPair, SignJWT } from "jose";
-import { apiKeyScopes, defaultApiKeyScopes } from "@harakiri/shared";
+import { apiKeyScopes, allowedApiKeyScopes, defaultApiKeyScopes } from "@harakiri/shared";
 import { authorizeRequest, hasScope, permits, routePermission } from "./authorization.js";
 import { createAuthHandler, revalidatePrincipal, streamAuthValid, verifyAccessToken } from "./auth.js";
 import type { AuthContext } from "./auth-context.js";
@@ -116,7 +116,7 @@ test("key identity never borrows a user; creator demotion, expiry and org change
   assert.equal(principal?.userId, null);
   assert.equal(principal?.actorLabel, "api-key:key");
   assert.ok(principal && hasScope(principal, "credentials:manage"));
-  assert.deepEqual((await read({ creatorRole: "member" }))?.scopes, defaultApiKeyScopes);
+  assert.deepEqual((await read({ creatorRole: "member" }))?.scopes, allowedApiKeyScopes("member"));
   assert.deepEqual((await read({ legacy: true, creatorRole: null, expiresAt: null }))?.scopes, defaultApiKeyScopes);
   for (const patch of [{ creatorRole: null }, { organizationId: "other" }, { expiresAt: null }, { expiresAt: new Date(0) }]) assert.equal(await read(patch), null);
   assert.equal(await revalidatePrincipal(user, async () => result()), null);

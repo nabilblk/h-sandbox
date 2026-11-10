@@ -1,5 +1,6 @@
 export const sandboxStatuses = ["pending", "running", "idle", "pausing", "paused", "resuming", "error", "terminated"] as const;
 export type { WorkspaceSummary, WorkspacePolicy, CreateWorkspaceBody, WorkspacesResponse, WorkspaceResponse } from "./workspaces.js";
+export type * from "./observability.js";
 export type { SandboxCommandEvent } from "./command-events.js";
 export type { UsageHistoryOptions, UsageHistoryResolution, UsageHistoryResponse, UsageHistoryBucket, UsageCoverageStatus, UsageTimeRange, UsageOperationCounts, UsageOutcomeCounts } from "./usage-history.js";
 export type SandboxStatus = typeof sandboxStatuses[number];

@@ -1,8 +1,8 @@
-import { apiErrorResponse, defaultApiKeyScopes, type ApiKeyScope } from "@harakiri/shared";
+import { apiErrorResponse, allowedApiKeyScopes, type ApiKeyScope } from "@harakiri/shared";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuthContext } from "./auth-context.js";
 
-export type RoutePermission = { scopes?: ApiKeyScope[]; humanOnly?: boolean; adminOnly?: boolean };
+export type RoutePermission = { scopes?: ApiKeyScope[]; humanOnly?: boolean; adminOnly?: boolean; credential?: "telemetry" };
 const permissions = new Map<string, RoutePermission>();
 const add = (method: string, paths: string[], permission: RoutePermission) => {
   for (const path of paths) permissions.set(`${method} ${path}`, permission);
@@ -18,6 +18,12 @@ add("GET", ["/v1/org/members"], { humanOnly: true, adminOnly: true });
 add("POST", ["/v1/org/members", "/v1/org/invitations", "/v1/org/invitations/:id/resend", "/v1/org/invitations/:id/cancel"], { humanOnly: true, adminOnly: true });
 add("DELETE", ["/v1/org/members/:id"], { humanOnly: true, adminOnly: true });
 add("GET", ["/v1/audit-events"], { scopes: ["audit:read"] });
+add("GET", ["/v1/observability/policy", "/v1/agent-runs", "/v1/agent-runs/:runId", "/v1/agent-runs/:runId/spans", "/v1/agent-runs/:runId/logs"], { scopes: ["runs:read"] });
+add("PATCH", ["/v1/observability/policy"], { humanOnly: true, adminOnly: true });
+add("POST", ["/v1/agent-runs", "/v1/agent-runs/:runId/grants"], { scopes: ["runs:write", "sandboxes:write"] });
+add("POST", ["/v1/agent-runs/:runId/close"], { scopes: ["runs:write"] });
+add("DELETE", ["/v1/agent-runs/:runId/grants/:grantId"], { scopes: ["runs:write"] });
+add("POST", ["/v1/telemetry/traces", "/v1/telemetry/logs"], { credential: "telemetry" });
 
 add("GET", ["/v1/templates", "/v1/templates/:id", "/v1/templates/:id/versions", "/v1/template-builds", "/v1/template-builds/:id", "/v1/template-builds/:id/logs"], { scopes: ["templates:read"] });
 add("POST", ["/v1/templates", "/v1/templates/:id/builds", "/v1/templates/:id/promote", "/v1/templates/:id/archive", "/v1/template-builds/:id/context", "/v1/template-builds/:id/cancel", "/v1/template-builds/:id/retry"], { scopes: ["templates:write"] });
@@ -55,12 +61,13 @@ add("DELETE", ["/v1/sandboxes/:id/credentials/:attachmentId"], { scopes: ["sandb
 export const routePermission = (method: string, path: string | undefined) => permissions.get(`${method === "HEAD" ? "GET" : method} ${path}`);
 
 export const hasScope = (auth: AuthContext, scope: ApiKeyScope) => {
-  if (auth.authType !== "api_key") return auth.role === "admin" || (auth.role === "member" && defaultApiKeyScopes.includes(scope));
+  if (auth.authType !== "api_key") return allowedApiKeyScopes(auth.role ?? "").includes(scope);
   return auth.scopes.includes(scope) || (scope === "credentials:use" && auth.scopes.includes("credentials:manage"));
 };
 
 export const permits = (auth: AuthContext, permission: RoutePermission | undefined) => {
   if (!permission) return false;
+  if (permission.credential) return false;
   if (auth.authType === "api_key" && (permission.humanOnly || permission.adminOnly)) return false;
   if (auth.authType !== "api_key" && auth.role !== "admin" && auth.role !== "member") return false;
   if (permission.adminOnly && auth.role !== "admin") return false;

@@ -1,0 +1,15 @@
+[project]
+name = "harakiri-observability-qualification"
+version = "0.0.0"
+requires-python = ">=3.11"
+dependencies = [
+  "opentelemetry-sdk==1.45.2",
+  "opentelemetry-exporter-otlp-proto-http==1.45.2",
+  "openinference-instrumentation-langchain==0.1.82",
+  "deepagents==0.7.21",
+  "langchain-core==1.6.6",
+  "langgraph==1.2.12",
+]
+
+[tool.uv]
+package = false
