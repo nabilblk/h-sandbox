@@ -201,16 +201,23 @@ pushes an image or publishes a package.
 `native/run.mjs` exercises actual sandbox commands, a failed-command/repair trace,
 signed-in browser investigation, execution while the Collector is unavailable,
 official OTLP production inside the sandbox, retained reads after termination,
-same-PVC storage restarts and key revocation. Sandbox operations go through the
-public API; operator fault injection is restricted to the three owned telemetry
-StatefulSets. Raw command failures, tokens and kubeconfig remain private and are
+same-PVC storage restarts and key revocation. A separate cold-recovery gate stops
+owned writers, disables capture/revokes grants, backs up both databases and all
+three telemetry volumes as one checksummed set, then restores onto fresh storage.
+It reuses the standalone recovery helpers and verifies tenant mapping, browser
+identity, disabled capture and retained span/log evidence before cleanup.
+Sandbox operations go through the public API; operator fault injection is limited
+to the generated installation and its detached storage, never a workload shell.
+Raw archives, command failures, tokens and kubeconfig remain private and are
 removed during cleanup. Only an allowlisted gate receipt and synthetic-data
 screenshots are uploaded.
 
 Do not run the native script on a workstation or remove its ownership checks.
-Its model-free producer is not an LLM agent; restart recovery is not coordinated
-database/storage backup recovery. The broader plan remains open until those
-separate requirements and the image-security gate are satisfied.
+Its model-free producer is not an LLM agent. The earlier eleven-gate receipts
+prove same-PVC restart only, not the new twelve-gate cold-recovery path. The new
+gate must pass on GitHub before cold recovery is qualified. Neither path proves
+secure erasure, replay fencing after deletion, cross-version rollback or restricted
+OpenShift. The broader plan and image-security gate remain open.
 
 See [the architecture decision](../../docs/adr/0010-native-agent-observability.md)
 and [the active execution plan](../../docs/exec-plans/active/native-agent-observability.md).

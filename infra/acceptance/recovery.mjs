@@ -17,7 +17,7 @@ function archiveOperation(ctx, name, args, options = {}) {
   return ctx.k(["-n", runtimeNamespace, "exec", ...(options.input ? ["-i"] : []), name, "--", ...args], { ...options, label: "Detached operator volume archive" });
 }
 
-function restoreDatabases(ctx) {
+export function restoreDatabases(ctx) {
   const name = "acceptance-recovered-postgres";
   const source = get(ctx, "deployment", "preview-postgres");
   const spec = structuredClone(source.spec);
@@ -60,7 +60,7 @@ async function restoreVolume(ctx, backup) {
   removeVolumePod(ctx, "acceptance-volume-write");
 }
 
-function configureRestoredDatabases(ctx, deployment) {
+export function configureRestoredDatabases(ctx, deployment) {
   const secrets = ctx.read("secrets.json");
   const api = secrets.items.find(item => item.metadata.name === "preview-api");
   const database = new URL(api.stringData.DATABASE_URL);

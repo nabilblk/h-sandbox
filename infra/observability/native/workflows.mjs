@@ -106,6 +106,16 @@ export async function exerciseNative({ apiUrl, apiKey, template, runId, producer
       await visible("retained restart", () => client.agentRuns.spans(recording.id, window(recording)), (value) => value.records.length === 3);
       assert.equal((await client.agentRuns.logs(recording.id, { ...window(recording), includeContent: true })).records.length, 2);
     });
+    await gate("coordinated-cold-recovery", async () => {
+      await infrastructure.recover();
+      await visible("restored traces", () => client.agentRuns.spans(recording.id, window(recording)), (value) => value.records.length === 3);
+      const logs = await visible("restored logs", () => client.agentRuns.logs(recording.id, { ...window(recording), includeContent: true }),
+        (value) => value.records.length === 2);
+      assert.ok(logs.records.some((item) => item.content.body.includes("Synthetic validation failed")));
+      assert.ok(logs.records.some((item) => item.content.body.includes("verified")));
+      assert.equal((await client.agentRuns.get(recording.id)).run.reportedOutcome, "succeeded");
+      await infrastructure.browser(recording.id);
+    });
   } finally {
     if (sandbox) await sandbox.kill({ wait: true, timeoutMs: 180_000 });
   }

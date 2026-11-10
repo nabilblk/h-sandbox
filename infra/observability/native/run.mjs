@@ -6,13 +6,14 @@ import { importAcceptanceTemplate } from "../../acceptance/first-task.mjs";
 import { finishReceipt, publicFailure } from "../../acceptance/receipt.mjs";
 import { configuredComplete, gateReceipt, nativeGates } from "./contracts.mjs";
 import { componentReplicas, installCandidate } from "./install.mjs";
+import { coldRecovery } from "./recovery.mjs";
 
 process.umask(0o077);
 const ctx = context();
 ctx.guard();
 const receipt = { status: "running", source: process.env.GITHUB_SHA, runId: ctx.identity.id,
   startedAt: new Date().toISOString(), results: [],
-  boundary: "Model-free native sandbox qualification; same-PVC restart, not coordinated backup recovery or OpenShift. Image audit is a separate release gate." };
+  boundary: "Model-free native sandbox qualification and same-version cold recovery onto fresh storage; not real-agent, physical-erasure or OpenShift evidence. Image audit is a separate release gate." };
 const publish = () => fs.writeFileSync("standalone-acceptance-report.json", `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
 let activeGate, operator, candidate, template, telemetryKey;
 
@@ -80,6 +81,7 @@ try {
     producerSource: fs.readFileSync(new URL("./producer.py", import.meta.url), "utf8") }, gate, {
     browser: investigate,
     collector: (enabled) => componentReplicas(ctx, "collector", Number(enabled)),
+    recover: async () => { receipt.recovery = await coldRecovery(ctx, operator); },
     restart: async () => {
       for (const component of ["collector", "logs", "traces"]) await componentReplicas(ctx, component, 0);
       for (const component of ["logs", "traces", "collector"]) await componentReplicas(ctx, component, 1);

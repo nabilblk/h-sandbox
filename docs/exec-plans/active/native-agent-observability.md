@@ -438,7 +438,7 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
 - [ ] Repeat the browser investigation against a real sandbox-backed agent run.
 
 ### Phase 5: Optional deployment and operational controls
-**Status**: In Progress - rendered candidate only; native installation remains unqualified
+**Status**: In Progress - native Kubernetes installation and restart verified; cold recovery and restricted OpenShift remain open
 - [x] Add opt-in chart composition for Collector + logs/traces storage,
   with pinned artifacts, resource requests/limits, PVC/StorageClass inputs, Secrets,
   readiness probes and explicit NetworkPolicy. Core installation stays unchanged.
@@ -741,6 +741,16 @@ deployment to the running lab is authorized.
   macOS 14 runners. Its matrix now selects the supported `macos-15` Arm64 runner
   per [GitHub's available images](https://github.com/actions/runner-images#available-images).
   This changes only the disposable test host, not the Python support floor.
+- The macOS 15 and Windows consumer jobs passed in run 42820096324. Broad CI
+  passed on retry without changing the existing usage-performance threshold;
+  the first attempt exceeded its relative admission-latency budget. The third
+  native observability job again passed all eleven gates in run 42820096337.
+- Added a twelfth, separately named cold-recovery gate for the next hosted run:
+  disable capture/revoke grants, stop writers, archive both databases plus all
+  three telemetry volumes as one checksummed set, and restore into fresh PVCs.
+  It verifies tenant mappings, identity, revoked grants and retained investigation.
+  Unit guards pass; native execution is still pending. This is same-version cold
+  recovery, not cross-version rollback or physical erasure after buffered replay.
 
 ### Viewer usability revision
 
