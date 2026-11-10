@@ -51,3 +51,22 @@ test("scanner creates private evidence directories in a minimal checkout", () =>
     }
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("observability prose exception does not hide credentials or apply to other files", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "harakiri-scanner-prose-"));
+  try {
+    const relative = "examples/agent-observability/README.md";
+    const prose = `model-reported token counts, ${["parent", "child"].join("/")} framework spans`;
+    fs.mkdirSync(path.dirname(path.join(dir, relative)), { recursive: true });
+    fs.writeFileSync(path.join(dir, relative), `${prose}\napi_key = ${randomBytes(32).toString("hex")}\n`);
+    fs.writeFileSync(path.join(dir, "unexpected.md"), prose);
+    const report = path.join(dir, "findings.json");
+    const result = spawnSync("gitleaks", ["dir", dir, "--config", path.join(root, ".gitleaks.toml"), "--redact=100", "--no-banner", "--report-format=json", "--report-path", report], { encoding: "utf8" });
+    assert.equal(result.status, 1);
+    const findings = JSON.parse(fs.readFileSync(report, "utf8"));
+    assert.equal(findings.length, 2);
+    assert.ok(findings.some(finding => finding.File.endsWith(relative) && finding.StartLine === 2));
+    assert.ok(findings.some(finding => finding.File.endsWith("unexpected.md")));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

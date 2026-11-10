@@ -27,6 +27,11 @@ keywords = ["hk_live_", "hk_test_"]
 [[rules]]
 id = "generic-api-key"
   [[rules.allowlists]]
+  description = "Literal parent/child prose in the observability recipe, not a token value"
+  condition = "AND"
+  paths = ['''(^|/)examples/agent-observability/README\.md$''']
+  regexes = ['''^parent/child$''']
+  [[rules.allowlists]]
   description = "Route identifier, not an authentication credential"
   condition = "AND"
   paths = ['''(^|/)(apps/api/src/route-targets\.test\.ts|packages/cli/src/command\.test\.ts)$''']

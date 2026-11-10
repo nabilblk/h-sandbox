@@ -701,9 +701,12 @@ the upstream image-release blocker and explicitly deferred OpenShift validation.
   and in-sandbox-agent acceptance. The local installed-tarball test typechecks the
   consumers and exercises the actual framework with scripted decisions; it passes.
 - Added native scenarios using digest-pinned local inference and actual sandbox
-  file/command operations. Native evidence is pending; no real-agent success is
-  claimed yet. Synthetic order reports are independently validated, and telemetry
-  checks require actual model usage, tool spans, logs and privacy-filtered reads.
+  file/command operations. Run 42924969454 passed the host-agent workflow and its
+  desktop/mobile investigation. The in-sandbox agent also completed inference,
+  independent validation and authorized signal reads, but its final credential-file
+  cleanup failed with 404. The harness now removes the absolute path returned by
+  the write, rather than passing a working-directory-relative path to the legacy
+  remove method. A full successful native receipt is still required.
 - The upstream ESM patch is documented as process-lifetime. This is not a reusable
   custom callback tracer, a global OTel provider replacement or a claim of SDK/CLI
   context propagation. Those remaining tasks stay open.

@@ -68,6 +68,7 @@ export async function exerciseAgents(ctx, client, sandbox, apiKey, gate, browser
       const { run } = await client.agentRuns.create({ name: "Real LangChain agent inside sandbox", sandboxId: sandbox.id, capture: "content" });
       const grant = await client.agentRuns.grant(run.id, sandbox.id);
       let outcome = "failed";
+      let grantPath;
       try {
         const archive = fs.readdirSync(ctx.identity.directory).find(name => /^h-sandbox-sdk-.*\.tgz$/.test(name));
         check(archive, "Source SDK tarball missing");
@@ -84,8 +85,9 @@ export async function exerciseAgents(ctx, client, sandbox, apiKey, gate, browser
         }
         await sandbox.run("npm install --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org", { check: true, timeoutMs: 180_000 });
         const token = grant.exporterOptions("traces").headers.Authorization.slice("Bearer ".length);
-        await sandbox.files.write(".telemetry-agent.json", JSON.stringify({ model: model.name, modelUrl: model.remoteUrl,
+        const grantFile = await sandbox.files.write(".telemetry-agent.json", JSON.stringify({ model: model.name, modelUrl: model.remoteUrl,
           apiUrl: "http://harakiri-api.harakiri-preview.svc.cluster.local:8080", grant: { ...grant.toJSON(), token } }), { mode: "0600" });
+        grantPath = grantFile.path;
         const command = await sandbox.processes.start({ command: "node --import tsx sandbox-agent.ts", env: agentEnvironment, timeoutMs: 420_000, detached: true });
         await command.wait({ timeoutMs: 450_000 });
         const result = JSON.parse(await sandbox.files.readText("agent-result.json"));
@@ -93,7 +95,7 @@ export async function exerciseAgents(ctx, client, sandbox, apiKey, gate, browser
         evidence.workflows.push({ topology: "agent-inside-sandbox", commandId: command.id, ...signals });
         outcome = "succeeded";
       } finally {
-        try { await sandbox.files.remove(".telemetry-agent.json"); }
+        try { if (grantPath) await sandbox.files.remove(grantPath); }
         finally {
           try { await client.agentRuns.close(run.id, outcome); }
           finally { await client.agentRuns.revokeGrant(run.id, grant.id); }
