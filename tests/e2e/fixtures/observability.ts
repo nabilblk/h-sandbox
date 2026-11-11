@@ -31,7 +31,7 @@ export async function setupObservability(page: Page) {
   const policy: ObservabilityPolicy = { available: true, enabled: true, allowContent: true, retentionDays: 7,
     canConfigure: true, canReadContent: true, operatorAllowsContent: true };
   const state = { run, policy, spans: Array.from({ length: 8 }, (_, index) => spanFixture(index)), logsStatus: 200, spansStatus: 200,
-    requests: [] as string[], logCount: 3,
+    requests: [] as string[], logCount: 3, frameworkPayload: false,
     input: '<script>window.traceAttack=true</script><img src=x onerror="alert(1)">', output: "" };
   await page.route("**/v1/observability/policy", (route) => {
     if (route.request().method() === "PATCH") Object.assign(state.policy, route.request().postDataJSON());
@@ -44,8 +44,8 @@ export async function setupObservability(page: Page) {
       readAt: "2026-11-09T12:00:12.000Z", consistency: "eventual", rejectedRecords: 0, issues: [], partial: false };
     if (url.pathname.endsWith("/spans")) return route.fulfill({ status: state.spansStatus, json: state.spansStatus === 200
       ? { ...snapshot, scannedRecords: state.spans.length, records: state.spans.map((span) => ({ ...span,
-        content: content ? { ...span.content, state: "available", attributes: { "gen_ai.input.messages": state.input,
-          ...(state.output ? { "gen_ai.output.messages": state.output } : {}) } } : span.content })) }
+        content: content ? { ...span.content, state: "available", attributes: { [state.frameworkPayload ? "input.value" : "gen_ai.input.messages"]: state.input,
+          ...(state.output ? { [state.frameworkPayload ? "output.value" : "gen_ai.output.messages"]: state.output } : {}) } } : span.content })) }
       : { error: "forbidden", message: "Telemetry access denied." } });
     if (url.pathname.endsWith("/logs")) {
       const records: TelemetryLog[] = Array.from({ length: Math.min(500, state.logCount) }, (_, index) => ({

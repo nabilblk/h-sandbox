@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { check, origins, until } from "../../acceptance/context.mjs";
 import { withModel, pinnedModel } from "./model.mjs";
+import { agentFailure, AgentAcceptanceError } from "./agent-failure.ts";
 
 const agentEnvironment = { LANGSMITH_TRACING: "false", LANGCHAIN_TRACING_V2: "false", LANGCHAIN_CALLBACKS_BACKGROUND: "false" };
 const source = name => fs.readFileSync(new URL(name, import.meta.url));
@@ -54,7 +55,8 @@ export async function exerciseAgents(ctx, client, sandbox, apiKey, gate, browser
           });
         } catch (error) {
           ctx.save("telemetry-host-failure.json", { code: error.code, stdout: error.stdout, stderr: error.stderr });
-          check(false, "Real host agent with sandbox tools failed; private command evidence retained");
+          const detail = fs.existsSync(ctx.file(resultName)) ? ctx.read(resultName).failure : error;
+          throw new AgentAcceptanceError(agentFailure(detail));
         }
         const result = ctx.read(resultName);
         console.log("Real-agent check: host inference and sandbox validation completed");

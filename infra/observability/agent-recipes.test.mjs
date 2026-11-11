@@ -25,9 +25,10 @@ test("actual SDK tarball consumers typecheck and execute the real-agent recipes"
     dependencies["@h-sandbox/sdk"] = `file:./${archive}`;
     fs.writeFileSync(path.join(directory, "package.json"), JSON.stringify({ private: true, type: "module", dependencies }));
     execute("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org"]);
-    for (const name of ["host-agent.ts", "sandbox-agent.ts", "recipe.test.ts"]) {
+    for (const name of ["host-agent.ts", "sandbox-agent.ts", "agent-failure.ts", "recipe.test.ts"]) {
       fs.copyFileSync(new URL(`./native/${name}`, import.meta.url), path.join(directory, name));
     }
+    fs.copyFileSync(path.join(root, "apps/web/src/trace-messages.ts"), path.join(directory, "trace-messages.ts"));
     for (const name of ["orders-agent.ts", "local-model.ts", "host-workflow.ts", "first-agent.ts", "verify-orders.py"]) {
       fs.copyFileSync(path.join(root, "examples/agent-observability", name), path.join(directory, name));
     }

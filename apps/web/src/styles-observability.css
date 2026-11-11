@@ -25,7 +25,7 @@
 .run-id code { font: 11px var(--font-mono); color: var(--runs-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .run-id .runs-icon { width: 24px; height: 24px; }
 .telemetry-copy { display: inline-flex; align-items: center; position: relative; flex-shrink: 0; }
-.telemetry-copy-status { position: absolute; right: 32px; white-space: nowrap; font-size: 11px; background: #fff; color: #245a4c; }
+.telemetry-copy-status { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .telemetry-copy-status:empty { display: none; }
 
 /* Discovery is a scan-friendly table, not a row of dashboard cards. */

@@ -33,7 +33,7 @@ export async function installCandidate(ctx) {
   delete env.NPM_TOKEN; delete env.NODE_AUTH_TOKEN;
   ctx.execute("npm", ["install", "--prefix", ctx.consumer, "--ignore-scripts", "--no-audit", "--no-fund",
     "--registry=https://registry.npmjs.org", "--save-exact", ...peers], "Install optional telemetry peers", { env });
-  for (const name of ["host-agent.ts", "sandbox-agent.ts"]) fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
+  for (const name of ["host-agent.ts", "sandbox-agent.ts", "agent-failure.ts"]) fs.copyFileSync(new URL(name, import.meta.url), path.join(ctx.consumer, name));
   for (const name of ["orders-agent.ts", "local-model.ts", "host-workflow.ts", "first-agent.ts", "verify-orders.py"]) {
     fs.copyFileSync(new URL(`../../../examples/agent-observability/${name}`, import.meta.url), path.join(ctx.consumer, name));
   }

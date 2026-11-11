@@ -681,9 +681,17 @@ uses `input.value` / `output.value`, which were absent from the producer, Collec
 and authorized-reader content allowlists. These fields are now opt-in content
 at every boundary, bounded before producer batching and again at ingress/read.
 They remain excluded from metadata-only runs and unauthorized reads. The viewer
-labels them as framework payloads rather than inventing canonical message roles.
+recognizes the pinned JS instrumentor's serialized message classes and preserves
+their explicit roles, text and tool calls. Unknown/truncated forms and multiple
+prompt batches remain raw; no class is instantiated or conversation inferred.
 SDK, Python, query and Collector contract tests cover that distinction; native
 browser acceptance now opens both payloads from a real model step.
+
+The installed recipe test verifies the message parser against actual maintained
+instrumentor output. Fourteen local browser tests pass, including raw-value copy,
+hostile text, privacy toggling and desktop/mobile layout. Pipeline qualification
+now waits for all expected model/tool evidence, not merely the root span becoming
+queryable first; the exact two-model/one-tool fixture contract stays enforced.
 
 The public `first-agent.ts` entry point now shares `host-workflow.ts` with native
 acceptance: it borrows a disposable Python-capable sandbox, invokes a local model,

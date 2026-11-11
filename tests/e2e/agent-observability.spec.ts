@@ -203,6 +203,48 @@ test("framework exceptions open their evidence, not an assumed application log",
   await expect(page.getByLabel("Sensitive content", { exact: true })).not.toBeChecked();
 });
 
+test("OpenInference model payloads render messages without losing the original JSON", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const state = await setupObservability(page);
+  state.frameworkPayload = true;
+  const message = (type: string, kwargs: object) => ({ lc: 1, type: "constructor", id: ["langchain_core", "messages", type], kwargs });
+  state.input = JSON.stringify({ messages: [[message("SystemMessage", { content: "Read the ledger." }),
+    message("HumanMessage", { content: "<script>window.traceAttack=true</script>" })]] });
+  state.output = JSON.stringify({ generations: [[{ message: message("AIMessage", { content: "",
+    tool_calls: [{ id: "call_framework", name: "read_orders", args: {} }] }) }]] });
+  await page.goto(runUrl);
+  await page.getByRole("treeitem", { name: /Plan the repair/ }).click();
+  await page.getByRole("tab", { name: "Content", exact: true }).click();
+  await page.getByRole("button", { name: "Reveal content", exact: true }).click();
+  const input = page.getByRole("region", { name: "Framework input", exact: true });
+  await expect(input.locator(".llm-role")).toHaveText(["system", "user"]);
+  await expect(input).toContainText("<script>window.traceAttack=true</script>");
+  const output = page.getByRole("region", { name: "Framework output", exact: true });
+  await expect(output.locator(".llm-role")).toHaveText("assistant");
+  await expect(output).toContainText("read_orders");
+  await input.getByRole("button", { name: "JSON", exact: true }).click();
+  await expect(input.locator("pre")).toHaveText(JSON.stringify(JSON.parse(state.input), null, 2));
+  const copy = input.getByRole("button", { name: "Copy Framework input", exact: true });
+  const copyWidth = (await copy.boundingBox())!.width;
+  await copy.click();
+  await expect(copy).toHaveAttribute("title", "Copied");
+  expect((await copy.boundingBox())!.width).toBe(copyWidth);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(state.input);
+  expect(await page.evaluate(() => "traceAttack" in window)).toBe(false);
+  await input.getByRole("button", { name: "Messages", exact: true }).click();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: `/tmp/harakiri-framework-messages-${width}.png`, fullPage: true });
+  }
+  await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new Error("Clipboard unavailable"); }; });
+  await copy.click();
+  await expect(copy).toHaveAttribute("title", "Copy failed");
+  expect((await copy.boundingBox())!.width).toBe(copyWidth);
+  await page.getByLabel("Sensitive content", { exact: true }).uncheck();
+  await expect(page.getByRole("tabpanel")).not.toContainText("read_orders");
+});
+
 test("content opt-in is explicit, hostile payloads stay inert, denied refresh removes old content", async ({ page }) => {
   const state = await setupObservability(page);
   await page.goto(runUrl);

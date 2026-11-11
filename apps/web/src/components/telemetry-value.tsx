@@ -25,7 +25,7 @@ export function CopyTelemetry({ value, label }: { value: string; label: string }
     catch { setResult("Copy failed"); }
   };
   return <span className="telemetry-copy">
-    <button type="button" className="btn btn-ghost runs-icon" aria-label={`Copy ${label}`} title={`Copy ${label}`} onClick={() => void copy()}><Icon name={result === "Copied" ? "check" : "copy"} size={13} /></button>
+    <button type="button" className="btn btn-ghost runs-icon" aria-label={`Copy ${label}`} title={result || `Copy ${label}`} onClick={() => void copy()}><Icon name={result === "Copied" ? "check" : result === "Copy failed" ? "x" : "copy"} size={13} /></button>
     <span role="status" className="telemetry-copy-status">{result}</span>
   </span>;
 }

@@ -63,6 +63,8 @@ export function TraceInspector({ span, spans, tab, runId, window, includeContent
       {span.content.statusMessage ? <TelemetryValue label="Reported message" value={span.content.statusMessage} /> : null}
       {Object.entries(span.content.attributes).map(([key, value]) => key === "gen_ai.input.messages" || key === "gen_ai.output.messages"
         ? <MessagePayload key={`${span.id}:${key}`} label={contentLabels[key]} value={value} spans={spans.filter((item) => item.traceId === span.traceId)} onSelect={onSelect} />
+        : stepKind(span) === "model" && (key === "input.value" || key === "output.value")
+        ? <MessagePayload key={`${span.id}:${key}`} label={contentLabels[key]} value={value} format={key === "input.value" ? "langchain-input" : "langchain-output"} spans={spans.filter((item) => item.traceId === span.traceId)} onSelect={onSelect} />
         : <TelemetryValue key={key} label={contentLabels[key] ?? key} value={value} />)}
       {!span.content.statusMessage && !Object.keys(span.content.attributes).length ? <div className="runs-empty"><Icon name="file" size={22} /><h3>No input or output reported</h3><p>This step has no captured payload. Its application logs may contain separate output.</p></div> : null}
       {span.content.events.length ? <section><h4>Events <span className="runs-muted">{span.content.events.length}</span></h4>{span.content.events.map((event, index) => <TelemetryValue key={index} label={event.name} value={JSON.stringify(event.attributes)} />)}</section> : null}

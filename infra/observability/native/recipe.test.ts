@@ -7,6 +7,7 @@ import { TracerProvider, SimpleSpanProcessor, InMemorySpanExporter } from "@open
 import { LoggerProvider } from "@opentelemetry/sdk-logs";
 import type { RunTelemetry } from "@h-sandbox/sdk/telemetry";
 import { expectedReport, orders, runOrdersAgent } from "./orders-agent.js";
+import { traceMessages } from "./trace-messages.js";
 
 class ScriptedModel extends BaseChatModel {
   constructor(private readonly decisions: AIMessage[]) { super({}); }
@@ -43,6 +44,13 @@ test("installed public recipe traces actual framework callbacks without replacin
     const spans = exporter.getFinishedSpans();
     assert.equal(spans.filter(span => span.attributes["openinference.span.kind"] === "LLM").length, 3);
     assert.equal(spans.filter(span => span.attributes["openinference.span.kind"] === "TOOL").length, 2);
+    const models = spans.filter(span => span.attributes["openinference.span.kind"] === "LLM");
+    for (const span of models) {
+      const input = traceMessages(String(span.attributes["input.value"]), "langchain-input");
+      const output = traceMessages(String(span.attributes["output.value"]), "langchain-output");
+      assert.ok(input?.some(message => message.role === "user"), "Actual instrumentor input must render as messages");
+      assert.ok(output?.some(message => message.role === "assistant"), "Actual instrumentor output must render as messages");
+    }
     assert.equal(new Set(spans.map(span => span.spanContext().traceId)).size, 1);
     await assert.rejects(runOrdersAgent({ model, telemetry, readOrders: async () => "", submitReport: async () => "" }), /already instrumented/);
   } finally { await provider.shutdown(); await logs.shutdown(); }

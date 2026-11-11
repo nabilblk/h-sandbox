@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { TelemetrySpan } from "@harakiri/shared";
-import { generationFacts, traceMessages, type MessagePart } from "../llm-observability";
+import { generationFacts, traceMessages, type MessageFormat, type MessagePart } from "../llm-observability";
 import { CopyTelemetry, TelemetryValue } from "./telemetry-value";
 import { Icon } from "./icon";
 
@@ -42,9 +42,9 @@ function Part({ part, spans, onSelect }: { part: MessagePart; spans: TelemetrySp
   </div>;
 }
 
-export function MessagePayload({ label, value, spans, onSelect }: { label: string; value: string; spans: TelemetrySpan[]; onSelect: (id: string) => void }) {
+export function MessagePayload({ label, value, format = "messages", spans, onSelect }: { label: string; value: string; format?: MessageFormat; spans: TelemetrySpan[]; onSelect: (id: string) => void }) {
   const [raw, setRaw] = useState(false);
-  const messages = useMemo(() => traceMessages(value), [value]);
+  const messages = useMemo(() => traceMessages(value, format), [value, format]);
   return <section className="llm-messages" aria-label={label}>
     <header className="llm-messages-heading"><h3>{label}</h3><span>{messages ? `${messages.length} ${messages.length === 1 ? "message" : "messages"}` : "Raw payload"}</span>
       {messages ? <div className="trace-view-switch" role="group" aria-label={`${label} display`}><button aria-pressed={!raw} onClick={() => setRaw(false)}>Messages</button><button aria-pressed={raw} onClick={() => setRaw(true)}>JSON</button></div> : null}

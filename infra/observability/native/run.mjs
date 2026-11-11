@@ -9,6 +9,7 @@ import { configuredComplete, diagnosticLocation, gateReceipt, nativeGates, workl
 import { componentReplicas, installCandidate } from "./install.mjs";
 import { coldRecovery } from "./recovery.mjs";
 import { exerciseAgents } from "./agents.mjs";
+import { AgentAcceptanceError } from "./agent-failure.ts";
 
 process.umask(0o077);
 const ctx = context();
@@ -70,7 +71,10 @@ async function investigateAgent(runId, stepId) {
   for (const label of ["Framework input", "Framework output"]) {
     const payload = page.getByRole("region", { name: label, exact: true });
     await payload.waitFor();
+    check(await payload.locator(".llm-role").count() > 0, `Real-agent ${label} has no readable messages`);
+    await payload.getByRole("button", { name: "JSON", exact: true }).click();
     check((await payload.locator("code").innerText()).trim().length > 0, `Real-agent ${label} is empty`);
+    await payload.getByRole("button", { name: "Messages", exact: true }).click();
   }
   await page.screenshot({ path: "telemetry-real-agent-desktop.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -119,6 +123,7 @@ try {
   try { receipt.workloads = workloadDiagnostics(JSON.parse(ctx.k(["-n", "harakiri-preview", "get", "pods", "-o", "json"]))); }
   catch { receipt.workloadDiagnostics = "unavailable"; }
   receipt.results.push({ name: activeGate, status: "failed", failure: { ...publicFailure(error), ...diagnosticLocation(error) } });
+  if (error instanceof AgentAcceptanceError) receipt.agentFailure = error.detail;
   receipt.status = "failed";
   process.exitCode = 1;
   console.error(`Observability acceptance failed: ${activeGate}`);

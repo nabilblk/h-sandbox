@@ -22,6 +22,11 @@ Implemented in the source candidate:
   with explicit clipping markers. Metadata-only capture still removes content
   before durable queues. Framework exceptions open their evidence rather than
   assuming an application log exists.
+- Maintained OpenInference `input.value`/`output.value` support at producer,
+  Collector and authorized reader boundaries. Known LangChain model payloads
+  render as readable messages/tool calls, with exact raw JSON and conservative
+  fallback for unsupported or truncated structures. Copy feedback no longer
+  overlaps adjacent view controls.
 - Separate short-lived ingestion credentials, policy/permission checks, atomic
   request/byte quotas, normalized queries and PostgreSQL migration 041.
 - TypeScript and async/sync Python control/query APIs without new core tracing
@@ -45,7 +50,7 @@ and Python Deep Agents 0.7.21 with maintained OpenInference instrumentation.
 
 Local evidence includes fourteen real-component gates, including the built SDK
 through actual API-key authentication, persisted grants and both storage services.
-Thirteen browser scenarios exercise the viewer with labelled adversarial fixtures,
+Fourteen browser scenarios exercise the viewer with labelled adversarial fixtures,
 including computed text contrast, keyboard control, desktop/mobile layouts,
 collapsed-parent reveal, privacy-aware log search and exact content copying.
 The local authenticated preview was checked with actual subprocess stderr and

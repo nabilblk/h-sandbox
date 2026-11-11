@@ -16,6 +16,7 @@ import { isolatedStack, until } from "./docker.mjs";
 import { qualificationGateway } from "./gateway.mjs";
 import { createVictoriaTelemetryStore } from "../../apps/api/src/services/observability/victoria.ts";
 import { privatePostgres } from "./postgres-cluster.mjs";
+import { frameworkSnapshotReady } from "./framework-signals.mjs";
 
 const canary = "SECRET_CANARY_MUST_NOT_PERSIST";
 const traceId = "1234567890abcdef1234567890abcdef";
@@ -332,7 +333,7 @@ try {
       const result = await until(`Deep Agents tenant ${tenant}`, async () => {
         const result = await store.spans({ tenantId: tenant, organizationId: `org_${tenant}`, runId: `run_${tenant}`,
           includeContent: false, limit: 1000, from: new Date(Date.now() - 60_000).toISOString(), to: new Date().toISOString() });
-        return result.records.some((span) => span.name === `qualification-tenant-${index}`) ? result : false;
+        return frameworkSnapshotReady(result, `qualification-tenant-${index}`) ? result : false;
       });
       assert.equal(result.partial, false);
       assert.ok(result.records.some((span) => span.attributes["openinference.span.kind"] === "LLM"));
@@ -353,7 +354,7 @@ try {
       const result = await until(`Python Deep Agents tenant ${tenant}`, async () => {
         const result = await store.spans({ tenantId: tenant, organizationId: `org_${tenant}`, runId: `run_${tenant}`,
           includeContent: false, limit: 1000, from: new Date(Date.now() - 60_000).toISOString(), to: new Date().toISOString() });
-        return result.records.some((span) => span.name === `qualification-python-${marker}`) ? result : false;
+        return frameworkSnapshotReady(result, `qualification-python-${marker}`) ? result : false;
       });
       assert.equal(result.partial, false);
       assert.ok(result.records.some((span) => span.attributes["openinference.span.kind"] === "LLM"));

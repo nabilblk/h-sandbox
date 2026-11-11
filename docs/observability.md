@@ -17,7 +17,7 @@ instrumentation or a completed operational qualification.
 | `apps/api/src/routes/agent-runs.ts` | Authorized product queries/control; no raw query passthrough |
 | `apps/api/src/routes/telemetry-ingestion.ts` | Separate write-only authentication before body parsing |
 | `apps/web/src/routes/agent-runs.tsx` | Shared dashboard/Workbench investigation surface |
-| `apps/web/src/llm-observability.ts` | Bounded text/tool-message parsing and reported generation usage semantics |
+| `apps/web/src/trace-messages.ts` and `llm-observability.ts` | Bounded text/tool-message parsing and reported generation usage semantics |
 | `apps/web/src/components/llm-inspector.tsx` | Generation facts, role-labelled conversation, exact raw fallback and tool drill-down |
 | `infra/observability` | Locked protocol, framework and render-only qualification |
 | `packages/sdk/src/telemetry` | Optional explicit OTel providers, run cleanup and command observation |
@@ -144,6 +144,14 @@ they never become ordinary metadata. The recipe deliberately uses one dedicated
 process per invocation and refuses existing instrumentation. Automatic framework
 tool-to-command parent propagation is not implemented; the command observation
 has its own truthful trace rather than a fabricated tool parent.
+
+The viewer recognizes the pinned JS instrumentor's LangChain message envelopes
+on model spans. It maps explicit serialized message types to roles without loading
+classes or evaluating payloads, and retains tool-call identity and arguments.
+Unknown classes, malformed/clipped content and multiple prompt batches use the raw
+view; no conversation is inferred. Exact original JSON remains copyable. The clean
+installed recipe test feeds actual instrumentor output through this parser, and
+browser tests cover privacy, hostile text, raw-value copy and mobile layout.
 
 An additional private `LangChainTrace` recipe uses callbacks explicitly supplied
 to one invocation, without installing an instrumentor or global provider. It
