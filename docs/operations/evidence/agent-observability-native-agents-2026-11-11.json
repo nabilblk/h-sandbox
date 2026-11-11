@@ -1,0 +1,191 @@
+{
+  "status": "configured_gates_passed",
+  "source": "f11d4d7269419d12a83f42e60af6bdfd0752ece8",
+  "runId": "42928816151-1",
+  "startedAt": "2026-11-11T00:14:47.774Z",
+  "results": [
+    {
+      "name": "published-installation",
+      "elapsedMs": 121812,
+      "status": "passed"
+    },
+    {
+      "name": "source-candidate",
+      "elapsedMs": 122746,
+      "status": "passed"
+    },
+    {
+      "name": "oidc-policy",
+      "elapsedMs": 4275,
+      "status": "passed"
+    },
+    {
+      "name": "template-import",
+      "elapsedMs": 25332,
+      "status": "passed"
+    },
+    {
+      "name": "native-command-retry",
+      "elapsedMs": 5266,
+      "status": "passed"
+    },
+    {
+      "name": "native-browser-investigation",
+      "elapsedMs": 407,
+      "status": "passed"
+    },
+    {
+      "name": "collector-outage-execution",
+      "elapsedMs": 14117,
+      "status": "passed"
+    },
+    {
+      "name": "sandbox-otlp-producer",
+      "elapsedMs": 16342,
+      "status": "passed"
+    },
+    {
+      "name": "local-model-start",
+      "elapsedMs": 58168,
+      "status": "passed"
+    },
+    {
+      "name": "real-agent-host-tools",
+      "elapsedMs": 64791,
+      "status": "passed"
+    },
+    {
+      "name": "real-agent-in-sandbox",
+      "elapsedMs": 100418,
+      "status": "passed"
+    },
+    {
+      "name": "retained-after-termination",
+      "elapsedMs": 248,
+      "status": "passed"
+    },
+    {
+      "name": "storage-restart",
+      "elapsedMs": 25315,
+      "status": "passed"
+    },
+    {
+      "name": "coordinated-cold-recovery",
+      "elapsedMs": 178422,
+      "status": "passed"
+    },
+    {
+      "name": "key-revocation",
+      "elapsedMs": 10,
+      "status": "passed"
+    }
+  ],
+  "boundary": "Native sandbox and real local-model workflows, plus same-version cold recovery onto fresh storage. Not physical-erasure or OpenShift evidence. Image audit is a separate release gate.",
+  "candidate": {
+    "source": "f11d4d7269419d12a83f42e60af6bdfd0752ece8",
+    "images": {
+      "api": {
+        "reference": "localhost/harakiri/harakiri-api:workbench-42928816151-1",
+        "imageConfigDigest": "sha256:f1bd4d8b4958eaaf3d45732c1bac90764cc3cf4d29bd090a59f8fb719d78f000"
+      },
+      "web": {
+        "reference": "localhost/harakiri/harakiri-web:workbench-42928816151-1",
+        "imageConfigDigest": "sha256:3ca2781a996e57b66bc7279bfb4125dba7eba6fd0c353d9200375e05b002eb8d"
+      }
+    },
+    "tarballSha256": "7e3c4f33d365403a598775b3503e48e791df1c8b14a802ad05408bc7a3c21b82",
+    "published": false
+  },
+  "agents": {
+    "model": {
+      "image": "ollama/ollama:0.34.3@sha256:7ab595e4ead391f6818c7215297781282babe0701f6d9a9f8862ac591360a58b",
+      "name": "qwen3:4b-instruct",
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0"
+    },
+    "workflows": [
+      {
+        "topology": "host-agent-sandbox-tools",
+        "runId": "run_daca3bca7a5b1bda0188d7cb097baf4b",
+        "createdAt": "2026-11-11T00:21:23.160Z",
+        "verified": true,
+        "report": {
+          "paid_orders": 2,
+          "revenue_cents": 3500,
+          "refunded_orders": 1
+        },
+        "calls": [
+          "read_orders",
+          "submit_report",
+          "submit_report"
+        ],
+        "generations": 4,
+        "inputTokens": 1864,
+        "outputTokens": 291,
+        "spans": 21,
+        "logs": 2,
+        "modelStepId": "81e28cafbbf58ca93b554c0251fa3fa2:11e99374a5d2e693"
+      },
+      {
+        "topology": "agent-inside-sandbox",
+        "commandId": "cmd_awJ0CQSipXig",
+        "runId": "run_a8f45125a8307dc43c57218b1bf10ba6",
+        "verified": true,
+        "report": {
+          "paid_orders": 2,
+          "revenue_cents": 3500,
+          "refunded_orders": 1
+        },
+        "calls": [
+          "read_orders",
+          "submit_report",
+          "submit_report",
+          "submit_report"
+        ],
+        "generations": 5,
+        "inputTokens": 3077,
+        "outputTokens": 539,
+        "spans": 24,
+        "logs": 1,
+        "modelStepId": "61e15bb98b79d32d0c5ee5cd5de805b5:6ce8bb3f0ad77d66"
+      }
+    ]
+  },
+  "recovery": {
+    "databaseRestored": true,
+    "newTelemetryVolumes": 3,
+    "tenantMappingPreserved": true,
+    "grantsRemainRevoked": true,
+    "captureRemainsDisabled": true,
+    "identityPreserved": true
+  },
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "capacity",
+        "status": "passed"
+      },
+      {
+        "name": "telemetryKey",
+        "status": "passed"
+      },
+      {
+        "name": "operatorKey",
+        "status": "passed"
+      },
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-11-11T00:27:42.263Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

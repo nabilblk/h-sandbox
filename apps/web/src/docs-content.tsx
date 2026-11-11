@@ -17,6 +17,7 @@ import { workspaceReferenceDocs } from "./workspace-reference-docs";
 import { workspaceOperationsDocs } from "./workspace-operations-docs";
 import { uiProductTourDocs } from "./ui-product-tour-docs";
 import { workbenchDocs } from "./workbench-docs";
+import { observabilityDocs } from "./observability-docs";
 import { typescriptSdkDocs } from "./typescript-sdk-docs";
 import { deepagentsDocs } from "./deepagents-docs";
 import { openwebuiDocs } from "./openwebui-docs";
@@ -56,6 +57,7 @@ const TutorialCheck = ({ children }: { children: React.ReactNode }) => (
 );
 
 export const docPages: DocPage[] = [
+  observabilityDocs,
   previewDocs,
   kubernetesInstallDocs,
   openshiftInstallDocs,

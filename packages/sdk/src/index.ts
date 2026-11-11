@@ -4,6 +4,9 @@ import { clientOptionsFromEnv, type EnvironmentClientOptions } from "./environme
 import { HarakiriProcess } from "./process.js";
 import { HarakiriRoute } from "./route.js";
 import { HarakiriWorkspace } from "./workspace.js";
+import { createAgentRuns } from "./agent-runs.js";
+export { HarakiriTelemetryGrant } from "./agent-runs.js";
+export type * from "./observability-types.js";
 import { createSandboxFiles } from "./files.js";
 import { requestJson, defaultRequestTimeoutMs, validateRequestTimeout, type RequestOptions } from "./request.js";
 export { HarakiriRequestTimeoutError, type RequestOptions } from "./request.js";
@@ -1500,6 +1503,8 @@ export class HarakiriClient {
       }
     }, { ...options, requestTimeoutMs: options.requestTimeoutMs ?? this.requestTimeoutMs }, createHarakiriApiError);
   }
+
+  readonly agentRuns = createAgentRuns(<T>(path: string, init?: RequestInit, options?: RequestOptions) => this.request<T>(path, init, options), () => this.apiUrl);
 
   readonly workspaces = {
     list: (options: RequestOptions = {}) => this.request<WorkspacesResponse>("/v1/workspaces", {}, options),

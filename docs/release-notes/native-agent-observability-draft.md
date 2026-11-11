@@ -1,0 +1,96 @@
+# Native Agent Observability: Unreleased Candidate
+
+This is a source-change inventory, not an announcement or deployment receipt.
+No version/tag promotion, package publication or live deployment is implied.
+
+Implemented in the source candidate:
+
+- Organization Agent runs and Workbench Runs with a trace tree/waterfall,
+  correlated logs, privacy-aware inspector, filters, bounded follow and deep links.
+  Explicit UTC ranges are preserved in shared investigations; keyboard navigation
+  and resizable panes work without pointer-only controls.
+- A compact investigation layout with root-first selection, tree/timeline modes,
+  direct error-to-log navigation, persistent selected-step context and sequential
+  step controls. Logs have bounded local search/severity filters; captured JSON
+  has syntax highlighting and exact-value copying. Capture policy and unknown
+  model evidence remain accessible without dominating the investigation.
+- Model-call filtering, generation parameters/finish reasons, reported token
+  details and first-text-token delay when observed. Role-labelled conversations
+  show tool requests with links to matching tool execution. Raw JSON remains
+  available; token subsets are not double-counted and cost is not invented.
+- Opted-in framework error messages and bounded 32,768-character LLM payloads
+  with explicit clipping markers. Metadata-only capture still removes content
+  before durable queues. Framework exceptions open their evidence rather than
+  assuming an application log exists.
+- Maintained OpenInference `input.value`/`output.value` support at producer,
+  Collector and authorized reader boundaries. Known LangChain model payloads
+  render as readable messages/tool calls, with exact raw JSON and conservative
+  fallback for unsupported or truncated structures. Copy feedback no longer
+  overlaps adjacent view controls.
+- Separate short-lived ingestion credentials, policy/permission checks, atomic
+  request/byte quotas, normalized queries and PostgreSQL migration 041.
+- TypeScript and async/sync Python control/query APIs without new core tracing
+  dependencies or global provider initialization.
+- Optional TypeScript telemetry subpath and Python extra for explicit run/grant
+  lifecycle, official exporters and command observation. Owned cleanup is bounded;
+  borrowed providers and original command recovery failures are preserved.
+  Metadata minimization precedes the producer queue. Large-message and in-flight
+  flush regressions have focused tests. These helpers do not automatically patch
+  a framework or instrument arbitrary processes.
+- Optional post-filter OTLP forwarding with separate bounded queues, Secret-based
+  authentication and explicit Helm egress. The native viewer still uses Victoria;
+  Vector-specific configuration and native networking remain unqualified.
+- Opt-in candidate Collector/Victoria Helm composition with private services,
+  retained PVCs, digest-pinned images and namespace NetworkPolicies.
+- Source-candidate concept, API/SDK, operator and maintainer documentation.
+
+Compatibility qualification pins Collector 0.165.0, VictoriaLogs 1.53.0 and
+VictoriaTraces 0.13.0. The internal framework spike uses TS Deep Agents 1.14.0
+and Python Deep Agents 0.7.21 with maintained OpenInference instrumentation.
+
+Local evidence includes fourteen real-component gates, including the built SDK
+through actual API-key authentication, persisted grants and both storage services.
+Fourteen browser scenarios exercise the viewer with labelled adversarial fixtures,
+including computed text contrast, keyboard control, desktop/mobile layouts,
+collapsed-parent reveal, privacy-aware log search and exact content copying.
+The local authenticated preview was checked with actual subprocess stderr and
+two real Qwen/LangChain workflows using controlled tools. Each model workflow
+made five generations, recovered from a failed report validation, and retained
+all 25 callback-created spans. Metadata-only capture was checked independently.
+See [real-model evidence](../operations/evidence/agent-observability-real-llm-2026-11-09.md).
+Installed npm/Python distributions exercise the new APIs without introducing
+tracing dependencies into the core SDKs. Separate disposable GitHub runs passed
+eleven native Linux/amd64 gates: actual sandbox command failure/repair, browser
+investigation, in-sandbox OTLP export, outage isolation, retained reads, same-PVC
+restart and cleanup. A subsequent twelve-gate run also passed coordinated cold
+recovery of both databases and all three telemetry volumes onto fresh storage,
+followed by retained browser investigation. They are not sandbox-backed model runs
+or proof of deletion replay/physical erasure. See the
+[recovery receipt](../operations/evidence/agent-observability-recovery-2026-11-10.json).
+
+The subsequent [fifteen-gate native run](https://github.com/nabilblk/h-sandbox/actions/runs/42928816151)
+passed both real LangChain placements: a host agent using sandbox tools and an agent
+fully inside a sandbox. A digest-pinned local Qwen model generated the actual tool
+calls; independent Python verification checked each saved report. The host run
+retained four generations and three tool attempts; the in-sandbox run retained five
+generations and four attempts. The browser rendered actual instrumentor payloads
+as messages/tool calls on desktop and mobile. Retained reads, fresh-storage cold
+recovery and removal of owned credentials/resources passed in the same run.
+See the [source-bound receipt](../operations/evidence/agent-observability-native-agents-2026-11-11.json).
+This is one complete qualifying run, not proof of every agent/failure scenario.
+
+Not yet release-qualified: automatic framework setup and command correlation,
+Python/Deep Agents native workflows and existing-instrumentation coexistence,
+signal-history pagination, complete per-run delivery/loss accounting, native external
+export, physical erasure and cross-version recovery, measured production sizing and native restricted
+OpenShift. The completed image inventory **fails** the security gate on both
+architectures: VictoriaLogs has 11 high/critical matches; VictoriaTraces has one
+high match. The maintainer chose to wait for patched upstream artifacts;
+no custom vendor build or audit exception is planned.
+See the [audit decision](../operations/evidence/agent-observability-image-audit-2026-11-10.md).
+These remain explicit gates
+in the [active plan](../exec-plans/active/native-agent-observability.md).
+
+Metadata is the default; opted-in content is not guaranteed secret-free.
+Workload-reported telemetry is diagnostic evidence, not a compliance audit or
+access to hidden model reasoning. No stable-release availability is claimed.

@@ -10,6 +10,7 @@ import {
   type SandboxRouteSummary,
   type SandboxSnapshotSummary,
   type SandboxSummary,
+  type TelemetryWindow,
   type TestSandboxEgressResponse
 } from "@harakiri/shared";
 import { api } from "../api";
@@ -25,6 +26,7 @@ import { SandboxFilesPane } from "./sandbox-files";
 import { SandboxLogsPane } from "./sandbox-logs";
 import { SandboxMetricsPane } from "./sandbox-metrics";
 import { SandboxOverviewPane } from "./sandbox-overview";
+import { AgentRunsRoute } from "./agent-runs";
 import { workbenchLocation, workbenchRoute, type WorkbenchTab } from "../workbench";
 
 const SandboxTerminalPane = lazy(() => import("./sandbox-terminal"));
@@ -49,14 +51,17 @@ export const SandboxDetailRoute = ({ id, route = "", go, openSandbox }: SandboxD
   return (
     <div className="detail">
       <SandboxSidebar selectedId={id} selectedSandbox={selectedSandbox?.id === id ? selectedSandbox : null} go={go} />
-      <SandboxDetailContent key={id} id={id} go={go} openSandbox={openSandbox} tab={tab} commandId={location?.command} onTabChange={(next) => { setTab(next); go(workbenchRoute(id, next)); }} onSandboxChange={setSelectedSandbox} />
+      <SandboxDetailContent key={id} id={id} go={go} openSandbox={openSandbox} tab={tab} commandId={location?.command} runId={location?.run} stepId={location?.step} readWindow={location?.window} onTabChange={(next) => { setTab(next); go(workbenchRoute(id, next)); }} onSandboxChange={setSelectedSandbox} />
     </div>
   );
 };
 
-const SandboxDetailContent = ({ id, go, openSandbox, tab, commandId, onTabChange, onSandboxChange }: SandboxDetailProps & {
+const SandboxDetailContent = ({ id, go, openSandbox, tab, commandId, runId, stepId, readWindow, onTabChange, onSandboxChange }: SandboxDetailProps & {
   tab: WorkbenchTab;
   commandId?: string;
+  runId?: string;
+  stepId?: string;
+  readWindow?: TelemetryWindow;
   onTabChange: (tab: WorkbenchTab) => void;
   onSandboxChange: (sandbox: SandboxSummary) => void;
 }) => {
@@ -151,7 +156,7 @@ const SandboxDetailContent = ({ id, go, openSandbox, tab, commandId, onTabChange
         {settling ? <div role="status" className="workspace-notice">{sandbox.capacityPhase === "releasing" ? "Stop requested. Waiting for the runtime to disappear." : "The runtime outcome is being verified. Capacity remains accounted for."}</div> : null}
         <CapacitySummary state={capacity} />
         <div className="detail-tabs">
-          {([["overview", "Overview", "box"], ["terminal", "Terminal", "terminal"], ["commands", "Commands", "play"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]] as const).map(([k, label, icon]) => (
+          {([["overview", "Overview", "box"], ["terminal", "Terminal", "terminal"], ["commands", "Commands", "play"], ["files", "Filesystem", "file"], ["logs", "Logs", "logs"], ["runs", "Runs", "chart"], ["metrics", "Metrics", "chart"], ["network", "Network", "globe"], ["vault", "Vault", "lock"], ["snapshots", "Snapshots", "snapshot"]] as const).map(([k, label, icon]) => (
             <button key={k} className={`detail-tab ${tab === k ? "active" : ""}`} onClick={() => onTabChange(k)}>
               <Icon name={icon} size={12} /> {label}
             </button>
@@ -163,6 +168,7 @@ const SandboxDetailContent = ({ id, go, openSandbox, tab, commandId, onTabChange
           {tab === "commands" ? <SandboxCommandsPane key={`${sandbox.id}:${commandId ?? ""}`} sandbox={sandbox} initialCommandId={commandId} /> : null}
           {tab === "files" ? <SandboxFilesPane sandbox={sandbox} /> : null}
           {tab === "logs" ? <SandboxLogsPane id={sandbox.id} /> : null}
+          {tab === "runs" ? <AgentRunsRoute key={sandbox.id} sandboxId={sandbox.id} runId={runId} stepId={stepId} readWindow={readWindow} go={go} /> : null}
           {tab === "metrics" ? <SandboxMetricsPane id={sandbox.id} /> : null}
           {tab === "network" ? <NetworkPane sandbox={sandbox} /> : null}
           {tab === "vault" ? <SandboxVaultPane sandbox={sandbox} canViewAudit={canViewCredentialAudit} /> : null}

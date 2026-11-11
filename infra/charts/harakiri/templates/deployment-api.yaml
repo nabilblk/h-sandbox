@@ -56,13 +56,34 @@ spec:
             - name: metrics
               containerPort: {{ .Values.metrics.port }}
             {{- end }}
-          {{- if .Values.metrics.enabled }}
+          {{- if or .Values.metrics.enabled .Values.observability.enabled }}
           env:
+            {{- if .Values.observability.enabled }}
+            - name: OBSERVABILITY_ENABLED
+              value: "1"
+            - name: OBSERVABILITY_ALLOW_CONTENT
+              value: {{ ternary "1" "0" .Values.observability.allowContent | quote }}
+            - name: OBSERVABILITY_RETENTION_DAYS
+              value: {{ .Values.observability.retentionDays | quote }}
+            - name: OBSERVABILITY_COLLECTOR_URL
+              value: http://{{ include "harakiri.observabilityName" . }}-collector:4318
+            - name: OBSERVABILITY_LOGS_URL
+              value: http://{{ include "harakiri.observabilityName" . }}-logs:9428
+            - name: OBSERVABILITY_TRACES_URL
+              value: http://{{ include "harakiri.observabilityName" . }}-traces:10428
+            - name: OBSERVABILITY_COLLECTOR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.observability.collectorTokenSecret.name | quote }}
+                  key: {{ .Values.observability.collectorTokenSecret.key | quote }}
+            {{- end }}
+            {{- if .Values.metrics.enabled }}
             - name: OPERATOR_METRICS_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.metrics.tokenSecret.name | quote }}
                   key: {{ .Values.metrics.tokenSecret.key | quote }}
+            {{- end }}
           {{- end }}
           envFrom:
             - configMapRef:

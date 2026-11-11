@@ -1,0 +1,67 @@
+{
+  "kind": "collector-qualification",
+  "status": "passed",
+  "startedAt": "2026-11-09T16:23:25.423Z",
+  "finishedAt": "2026-11-09T16:23:58.988Z",
+  "environment": {
+    "node": "v26.0.0",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "images": {
+    "collector": "otel/opentelemetry-collector-contrib:0.165.0@sha256:e40d61f10c9a617cca1ffd1be4d7e2b3a4b0f0001798ff07e58cabe82e618cea",
+    "logs": "victoriametrics/victoria-logs:v1.53.0@sha256:251121fa882af99b95ba0c230a4a2f412ea602d2698c64a96c58dc9842bb755d",
+    "traces": "victoriametrics/victoria-traces:v0.13.0@sha256:3018df8f99429d7d3029167ab9f70848bf0a778c31c49dff16c86c7e34759fbd"
+  },
+  "evidence": [
+    {
+      "name": "unauthenticated-ingress-rejected",
+      "elapsedMs": 12
+    },
+    {
+      "name": "official-json-and-protobuf-exporters",
+      "elapsedMs": 2888
+    },
+    {
+      "name": "privacy-before-durable-queue-and-crash-recovery",
+      "elapsedMs": 5080
+    },
+    {
+      "name": "explicit-content-capture",
+      "elapsedMs": 2866
+    },
+    {
+      "name": "official-python-protobuf-exporter",
+      "elapsedMs": 3240
+    },
+    {
+      "name": "tenant-scoped-asynchronous-deletion",
+      "elapsedMs": 1243
+    },
+    {
+      "name": "retention-rejects-expired-data",
+      "elapsedMs": 1038
+    },
+    {
+      "name": "duplicate-and-late-delivery-characterized",
+      "elapsedMs": 1635
+    },
+    {
+      "name": "normalized-query-isolation-and-privacy",
+      "elapsedMs": 16
+    },
+    {
+      "name": "typescript-deepagents-scoped-instrumentation",
+      "elapsedMs": 4235
+    },
+    {
+      "name": "python-deepagents-scoped-instrumentation",
+      "elapsedMs": 4154
+    },
+    {
+      "name": "persisted-public-api-round-trip",
+      "elapsedMs": 5447
+    }
+  ],
+  "ownedResourcesRemoved": true
+}

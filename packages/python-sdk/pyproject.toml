@@ -18,6 +18,9 @@ classifiers = [
   "Typing :: Typed",
 ]
 
+[project.optional-dependencies]
+telemetry = ["opentelemetry-sdk>=1.45.2,<2", "opentelemetry-exporter-otlp-proto-http>=1.45.2,<2"]
+
 [project.urls]
 Homepage = "https://sb.harakiri.io"
 Documentation = "https://sb.harakiri.io/#docs/python-sdk"

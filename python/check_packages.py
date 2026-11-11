@@ -121,6 +121,7 @@ def main() -> None:
                     (
                         "import sys, pathlib, importlib.metadata as m; import harakiri; "
                         "assert 'deepagents' not in sys.modules; "
+                        "assert 'opentelemetry.sdk' not in sys.modules; "
                         "assert pathlib.Path(harakiri.__file__).parent"
                         ".joinpath('py.typed').is_file(); "
                         "assert m.version('h-sandbox') == harakiri.__version__; "
@@ -133,6 +134,21 @@ def main() -> None:
             )
             run([str(python), str(ROOT / "python" / "memory_artifact.py")], cwd=consumer, env=env)
             run([str(python), str(ROOT / "python" / "routes_consumer.py")], cwd=consumer, env=env)
+            run(
+                [str(python), str(ROOT / "python" / "observability_consumer.py")],
+                cwd=consumer,
+                env=env,
+            )
+            run(
+                [*installer, "--index-url", "https://pypi.org/simple", f"{core}[telemetry]"],
+                cwd=consumer,
+                env=env,
+            )
+            run(
+                [str(python), str(ROOT / "python" / "telemetry_consumer.py")],
+                cwd=consumer,
+                env=env,
+            )
             run(
                 [
                     *installer,

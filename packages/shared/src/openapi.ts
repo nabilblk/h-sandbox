@@ -1,5 +1,6 @@
 import { sandboxRuntimeApiErrorCodes } from "./api-errors.js";
 import { apiKeyScopes } from "./authorization.js";
+import { observabilityPaths, observabilitySchemas } from "./observability-openapi.js";
 
 type JsonSchema = Record<string, unknown>;
 
@@ -129,6 +130,7 @@ const credentialIdPath = parameter("id", "path", string);
 const attachmentIdPath = parameter("attachmentId", "path", string);
 
 const schemas: Record<string, JsonSchema> = {
+  ...observabilitySchemas,
   WorkspaceSummary: objectSchema({
     id: string, name: string, sizeGiB: integer, mountPath: { const: "/workspace" },
     status: { type: "string", enum: ["available", "attached", "releasing", "recovery_required", "archived"] },
@@ -1554,6 +1556,7 @@ export const openApiDocument = {
     { name: "Organization Settings" }
   ],
   paths: {
+    ...observabilityPaths,
     "/health": {
       get: { tags: ["System"], summary: "Health check", operationId: "getHealth", security: [], responses: ok("Health status", ref("HealthResponse")) }
     },
@@ -1938,6 +1941,12 @@ export const openApiDocument = {
   },
   components: {
     securitySchemes: {
+      telemetryGrant: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "htg_",
+        description: "Short-lived write-only telemetry grant, not an API key or OIDC access token."
+      },
       routeToken: {
         type: "apiKey",
         in: "header",

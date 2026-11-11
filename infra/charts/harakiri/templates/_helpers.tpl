@@ -65,6 +65,10 @@ ConfigMap name.
 {{- printf "%s-config" (include "harakiri.fullname" .) -}}
 {{- end -}}
 
+{{- define "harakiri.observabilityName" -}}
+{{- printf "%s-observe" (include "harakiri.fullname" . | trunc 40 | trimSuffix "-") -}}
+{{- end -}}
+
 {{/*
 Secret name: use an existing Secret when provided, otherwise the rendered one.
 */}}

@@ -1616,7 +1616,7 @@ export type ApiKeySummary = {
 
 export type ApiKeyScope = "sandboxes:read" | "sandboxes:write" | "templates:read" | "templates:write" |
   "workspaces:read" | "workspaces:write" | "credentials:use" | "credentials:manage" |
-  "registry:manage" | "audit:read" | "org:read";
+  "registry:manage" | "audit:read" | "org:read" | "runs:read" | "runs:write" | "runs:content";
 
 export type ApiKeysResponse = {
   keys: ApiKeySummary[];

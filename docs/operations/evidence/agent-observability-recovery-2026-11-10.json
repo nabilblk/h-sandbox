@@ -1,0 +1,122 @@
+{
+  "status": "configured_gates_passed",
+  "source": "d7c3f368ae7f85dc684c663654b55637cd6dcc14",
+  "runId": "42821918562-1",
+  "startedAt": "2026-11-10T13:10:12.358Z",
+  "results": [
+    {
+      "name": "published-installation",
+      "elapsedMs": 141351,
+      "status": "passed"
+    },
+    {
+      "name": "source-candidate",
+      "elapsedMs": 119723,
+      "status": "passed"
+    },
+    {
+      "name": "oidc-policy",
+      "elapsedMs": 2754,
+      "status": "passed"
+    },
+    {
+      "name": "template-import",
+      "elapsedMs": 40503,
+      "status": "passed"
+    },
+    {
+      "name": "native-command-retry",
+      "elapsedMs": 5317,
+      "status": "passed"
+    },
+    {
+      "name": "native-browser-investigation",
+      "elapsedMs": 468,
+      "status": "passed"
+    },
+    {
+      "name": "collector-outage-execution",
+      "elapsedMs": 12928,
+      "status": "passed"
+    },
+    {
+      "name": "sandbox-otlp-producer",
+      "elapsedMs": 15317,
+      "status": "passed"
+    },
+    {
+      "name": "retained-after-termination",
+      "elapsedMs": 158,
+      "status": "passed"
+    },
+    {
+      "name": "storage-restart",
+      "elapsedMs": 27102,
+      "status": "passed"
+    },
+    {
+      "name": "coordinated-cold-recovery",
+      "elapsedMs": 338344,
+      "status": "passed"
+    },
+    {
+      "name": "key-revocation",
+      "elapsedMs": 10,
+      "status": "passed"
+    }
+  ],
+  "boundary": "Model-free native sandbox qualification and same-version cold recovery onto fresh storage; not real-agent, physical-erasure or OpenShift evidence. Image audit is a separate release gate.",
+  "candidate": {
+    "source": "d7c3f368ae7f85dc684c663654b55637cd6dcc14",
+    "images": {
+      "api": {
+        "reference": "localhost/harakiri/harakiri-api:workbench-42821918562-1",
+        "imageConfigDigest": "sha256:ba8ef7cbf8a0f7cdb02c0d2a9bf6fbf002219df1c40f1ee7b6c84bb06a6687da"
+      },
+      "web": {
+        "reference": "localhost/harakiri/harakiri-web:workbench-42821918562-1",
+        "imageConfigDigest": "sha256:82ea696b22ae8fc0789feb44ca08ee1c706300abe7a913debebc502100a3aeea"
+      }
+    },
+    "tarballSha256": "0d9468bebbe8794d33c5265b9ca3d8705abdf66fc2216025ea68624fedfab286",
+    "published": false
+  },
+  "recovery": {
+    "databaseRestored": true,
+    "newTelemetryVolumes": 3,
+    "tenantMappingPreserved": true,
+    "grantsRemainRevoked": true,
+    "captureRemainsDisabled": true,
+    "identityPreserved": true
+  },
+  "runnerProcesses": {
+    "status": "passed",
+    "checks": [
+      {
+        "name": "capacity",
+        "status": "passed"
+      },
+      {
+        "name": "telemetryKey",
+        "status": "passed"
+      },
+      {
+        "name": "operatorKey",
+        "status": "passed"
+      },
+      {
+        "name": "browser",
+        "status": "passed"
+      },
+      {
+        "name": "portForwards",
+        "status": "passed"
+      }
+    ]
+  },
+  "completedAt": "2026-11-10T13:22:22.601Z",
+  "cleanup": {
+    "status": "passed",
+    "privateMaterialRemoved": true
+  }
+}

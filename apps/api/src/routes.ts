@@ -3,7 +3,7 @@ import { apiErrorResponse } from "@harakiri/shared";
 import websocket from "@fastify/websocket";
 import { recordAuditEvent } from "./audit.js";
 import { requireAuth } from "./auth.js";
-import { authorizeRequest } from "./authorization.js";
+import { authorizeRequest, routePermission } from "./authorization.js";
 import { query as defaultQuery, type Transaction } from "./db.js";
 import { keycloakAdminClient, type KeycloakAdminClient } from "./providers/auth/keycloak-admin.js";
 import { runtimeProvider as defaultRuntimeProvider, type RuntimeProvider } from "./providers/runtime/index.js";
@@ -31,6 +31,9 @@ import { registerCommandEventRoutes } from "./routes/command-events.js";
 import type { Query } from "./services/query.js";
 import { recordSandboxEvent as createSandboxEventRecorder } from "./services/sandbox-events.js";
 import { terminalAttachTicketQueryParam } from "./services/terminal-attach-tickets.js";
+import { registerAgentRunRoutes } from "./routes/agent-runs.js";
+import { registerTelemetryIngestionRoutes } from "./routes/telemetry-ingestion.js";
+import { createObservabilityServices, type ObservabilityServices } from "./services/observability/services.js";
 
 const defaultAudit = async (organizationId: string, actorUserId: string | null, actorLabel: string, action: string, targetType: string, targetId?: string, metadata = {}) =>
   recordAuditEvent({ organizationId, actorUserId, actorLabel, action, targetType, targetId, metadata });
@@ -52,6 +55,7 @@ export type RouteDependencies = {
   keycloakAdmin?: KeycloakAdminClient;
   externalSecretResolvers?: ExternalSecretResolverRegistry;
   dynamicCredentialIssuers?: DynamicCredentialIssuerRegistry;
+  observability?: ObservabilityServices | null;
 };
 
 export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDependencies = {}) => {
@@ -67,6 +71,9 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
     const path = request.url.split("?")[0] ?? request.url;
     if (request.method === "OPTIONS" || publicRoutePaths.has(path) || request.routeOptions.url === "/v1/route-proxy/:routeKey" || request.routeOptions.url === "/v1/route-proxy/:routeKey/*") return;
     if (request.method === "GET" && request.routeOptions.url === "/v1/sandboxes/:id/terminal/attach" && isTicketAuthenticatedTerminalAttach(request.url)) return;
+    // The scoped ingestion router authenticates write-only grants in onRequest,
+    // before its raw body parser. Application keys/JWTs cannot authorize it.
+    if (routePermission(request.method, request.routeOptions.url)?.credential === "telemetry") return;
     await authHandler(request, reply);
     if (reply.sent) return;
     if (!request.auth) return reply.code(401).send(apiErrorResponse("unauthorized"));
@@ -108,5 +115,9 @@ export const registerRoutes = async (app: FastifyInstance, dependencies: RouteDe
   await registerWorkspaceRoutes(app, { query, runtimeProvider, recordAudit: audit });
   await registerCommandEventRoutes(app, { query, runtimeProvider });
   await registerOrgSettingsRoutes(app, { query, recordAudit: audit });
+  const observability = dependencies.observability === undefined ? createObservabilityServices(dependencies.transaction) : dependencies.observability;
+  if (observability) app.addHook("onClose", async () => observability.close());
+  await registerAgentRunRoutes(app, observability);
+  await registerTelemetryIngestionRoutes(app, observability);
 
 };

@@ -15,6 +15,8 @@ import type { GoToRoute, Route } from "./types";
 import { UsageRoute } from "./usage";
 import { VaultRoute } from "./vault";
 import { WorkspacesRoute } from "./workspaces";
+import { AgentRunsRoute } from "./agent-runs";
+import { runLocation } from "../observability";
 
 type DashboardCapabilityNav = Pick<
   CurrentAccountResponse["capabilities"],
@@ -23,6 +25,7 @@ type DashboardCapabilityNav = Pick<
 
 export const dashboardNavItems = (capabilities: DashboardCapabilityNav) => [
   ["dashboard/sandboxes", "Sandboxes", "box"],
+  ["dashboard/runs", "Agent runs", "chart"],
   ["dashboard/templates", "Templates", "folder"],
   ["dashboard/workspaces", "Workspaces", "file"],
   ...(capabilities.canManageCredentialSecrets ? [["dashboard/vault", "Vault", "lock"]] : []),
@@ -45,7 +48,9 @@ export const DashboardShellRoute = ({
   profile?: UserProfile | null;
   onSignOut: () => void;
 }) => {
-  const sub = route.split("/")[1] ?? "sandboxes";
+  const pathname = route.split("?")[0];
+  const sub = pathname.split("/")[1] ?? "sandboxes";
+  const run = runLocation(route);
   const [account, setAccount] = useState<CurrentAccountResponse | null>(null);
   useEffect(() => { api.me().then(setAccount).catch(() => undefined); }, []);
   const org = account?.organization ?? defaultWorkspace(profile);
@@ -60,7 +65,7 @@ export const DashboardShellRoute = ({
         <div className="org-switcher static"><div className="org-ava">{orgInitial}</div><div style={{ flex: 1 }}><div className="org-name">{org.slug}</div><div className="org-plan">Organization</div></div></div>
         <nav className="side-nav">
           {navItems.map(([key, label, icon]) => (
-            <a key={key} className={`side-link ${route === key ? "active" : ""}`} onClick={() => go(key as Route)}><Icon name={icon} size={14} /><span>{label}</span></a>
+            <a key={key} href={`#${key}`} className={`side-link ${pathname === key ? "active" : ""}`} onClick={(event) => { if (!event.metaKey && !event.ctrlKey) { event.preventDefault(); go(key as Route); } }}><Icon name={icon} size={14} /><span>{label}</span></a>
           ))}
         </nav>
         <div className="side-foot"><button className="btn btn-ghost" onClick={() => go("docs")}><Icon name="book" size={14} />Documentation</button></div>
@@ -70,6 +75,7 @@ export const DashboardShellRoute = ({
         {sub === "sandboxes" ? <SandboxesRoute openSandbox={openSandbox} canManage={account?.capabilities.canManageSettings === true} /> : null}
         {sub === "templates" ? <TemplatesRoute openSandbox={openSandbox} /> : null}
         {sub === "workspaces" ? <WorkspacesRoute openSandbox={openSandbox} /> : null}
+        {sub === "runs" ? <AgentRunsRoute runId={run?.run} stepId={run?.step} readWindow={run?.window} go={go} /> : null}
         {sub === "vault" && account && !canManageCredentialSecrets ? <div className="dash-page"><div className="card access-denied"><div className="card-h">Access denied</div><p>Credential Vault management is available to organization admins.</p><button className="btn" onClick={() => go("dashboard/sandboxes")}>Back to sandboxes</button></div></div> : null}
         {sub === "vault" && canManageCredentialSecrets ? <VaultRoute /> : null}
         {sub === "metrics" ? <UsageRoute /> : null}

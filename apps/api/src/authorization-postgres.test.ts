@@ -5,7 +5,7 @@ import { readdir, readFile } from "node:fs/promises";
 import pg from "pg";
 import Fastify from "fastify";
 import type { JWTPayload } from "jose";
-import { apiKeyScopes, defaultApiKeyScopes } from "@harakiri/shared";
+import { apiKeyScopes, allowedApiKeyScopes, defaultApiKeyScopes } from "@harakiri/shared";
 import { createAuthHandler } from "./auth.js";
 import { createApiKeyRecord, listApiKeys, revokeApiKey } from "./services/api-keys.js";
 import { readApiKeyPrincipal } from "./services/api-key-principals.js";
@@ -116,7 +116,7 @@ test("PostgreSQL authorization migration, tenant isolation, ownership and ticket
 
     const ceiling = await createApiKeyRecord({ ...adminActor, name: "ceiling", scopes: [...apiKeyScopes] }, { query });
     await query("UPDATE memberships SET role='member' WHERE user_id=$1 AND organization_id=$2", [admin, org]);
-    assert.deepEqual((await readApiKeyPrincipal({ id: ceiling.key.id }, query))?.scopes, defaultApiKeyScopes);
+    assert.deepEqual((await readApiKeyPrincipal({ id: ceiling.key.id }, query))?.scopes, allowedApiKeyScopes("member"));
     await query("DELETE FROM memberships WHERE user_id=$1 AND organization_id=$2", [admin, org]);
     assert.equal(await readApiKeyPrincipal({ id: ceiling.key.id }, query), null);
     await query("UPDATE api_keys SET expires_at=now()-interval '1 second' WHERE id=$1", [owned.key.id]);

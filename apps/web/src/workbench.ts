@@ -1,6 +1,7 @@
 import type { SandboxLogEntry, SandboxRuntimeMetadata } from "@harakiri/shared";
+import { telemetryWindowFromParams, validRunId, validStepId } from "./observability";
 
-export const workbenchTabs = ["overview", "terminal", "commands", "files", "logs", "metrics", "network", "vault", "snapshots"] as const;
+export const workbenchTabs = ["overview", "terminal", "commands", "files", "logs", "runs", "metrics", "network", "vault", "snapshots"] as const;
 export type WorkbenchTab = typeof workbenchTabs[number];
 export const isWorkbenchTab = (value: string): value is WorkbenchTab => workbenchTabs.some((tab) => tab === value);
 
@@ -10,11 +11,16 @@ export function workbenchLocation(route: string) {
   const params = new URLSearchParams(search);
   const tab = params.get("tab");
   const command = params.get("command");
-  if ([...params.keys()].some((key) => !["tab", "command"].includes(key)) ||
+  const run = params.get("run"), step = params.get("step");
+  const window = telemetryWindowFromParams(params);
+  if (window === null || [...params.keys()].some((key) => !["tab", "command", "run", "step", "from", "to"].includes(key)) ||
       params.getAll("tab").length > 1 || params.getAll("command").length > 1 ||
+      params.getAll("run").length > 1 || params.getAll("step").length > 1 ||
+      (run !== null && (tab !== "runs" || !validRunId(run))) ||
+      (step !== null && (tab !== "runs" || !run || !validStepId(step))) ||
       (tab !== null && !isWorkbenchTab(tab)) ||
       (command !== null && (tab !== "commands" || !/^[\w.-]{1,256}$/.test(command)))) return null;
-  return { tab: tab as WorkbenchTab | null, command: command ?? undefined };
+  return { tab: tab as WorkbenchTab | null, command: command ?? undefined, ...(tab === "runs" ? { run: run ?? undefined, step: step ?? undefined, window } : {}) };
 }
 
 export function workbenchRoute(id: string, tab: WorkbenchTab, command?: string): `dashboard/sandboxes/${string}` {

@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry.d.ts",
+      "import": "./dist/telemetry.js"
     }
   },
   "publishConfig": {
@@ -53,7 +57,29 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/exporter-logs-otlp-proto": "0.223.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "0.223.0",
+    "@opentelemetry/resources": "2.12.0",
+    "@opentelemetry/sdk-logs": "0.223.0",
+    "@opentelemetry/sdk-trace": "2.12.0",
     "tsx": "^4.23.13"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-logs-otlp-proto": "^0.223.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.223.0",
+    "@opentelemetry/resources": "^2.12.0",
+    "@opentelemetry/sdk-logs": "^0.223.0",
+    "@opentelemetry/sdk-trace": "^2.12.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/api": { "optional": true },
+    "@opentelemetry/exporter-logs-otlp-proto": { "optional": true },
+    "@opentelemetry/exporter-trace-otlp-proto": { "optional": true },
+    "@opentelemetry/resources": { "optional": true },
+    "@opentelemetry/sdk-logs": { "optional": true },
+    "@opentelemetry/sdk-trace": { "optional": true }
   },
   "dependencies": {
     "eventsource-parser": "^3.1.1"

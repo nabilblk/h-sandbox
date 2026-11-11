@@ -23,12 +23,16 @@ export const authorizationDocs: DocPage = {
       <div><dt><code>registry:manage</code></dt><dd>Admin-granted registry credential management.</dd></div>
       <div><dt><code>audit:read</code></dt><dd>Admin-granted organization audit access.</dd></div>
       <div><dt><code>org:read</code></dt><dd>Read organization settings and usage.</dd></div>
+      <div><dt><code>runs:read</code></dt><dd>Candidate: read run metadata, traces, logs and capture policy without sensitive content.</dd></div>
+      <div><dt><code>runs:write</code></dt><dd>Candidate: create and close runs or manage short-lived telemetry grants. Creation and grant issuance also require sandbox-write access.</dd></div>
+      <div><dt><code>runs:content</code></dt><dd>Candidate, admin-granted: opt into recording and reading sensitive model/tool content, in addition to the relevant run scopes.</dd></div>
     </dl>
+    <p>The three run scopes belong to the unreleased <a href="#docs/agent-observability">agent observability candidate</a>, which requires migration 041 and an operator-enabled backend. They are not added to default or existing keys. Only a human admin can configure capture policy. Content capture additionally needs operator and organization opt-in. Telemetry ingestion accepts a short-lived, run/sandbox-bound write grant, never a general API key.</p>
     <p>Most SDK/CLI workflows need read and write together because they poll after mutation. Creating a workspace-backed sandbox additionally needs <code>workspaces:write</code>; attaching a credential or a template credential mapping also needs <code>credentials:use</code>. Credential-management includes credential-use, but other write scopes do not imply read scopes.</p>
     <p>No key scope grants member administration, settings writes, access to <code>/me</code>, or the ability to list, create or revoke API keys. These operations require a human OIDC access token. Source sharing, tenant ownership, runtime capability checks and template policy still apply.</p>
     <h2>Create a key</h2>
     <ol><li>Sign in and open <strong>API keys</strong>. Select <strong>Create key</strong>.</li><li>Name the caller, such as <code>ci-artifact-reader</code>. Select only its required permissions and expiry.</li><li>Store the one-time value in the caller's secret store. The list never reveals it again.</li></ol>
-    <p>The default runtime profile includes sandbox, template and workspace read/write, shared credential use and organization reads. It excludes Vault administration, registry management and audit reads. New keys expire in 90 days by default, with an API maximum of 365 days.</p>
+    <p>The default runtime profile includes sandbox, template and workspace read/write, shared credential use and organization reads. It excludes Vault administration, registry management, audit reads and run telemetry scopes. New keys expire in 90 days by default, with an API maximum of 365 days.</p>
     <p>For human-authenticated provisioning, send this body to <code>POST /v1/api-keys</code>. The omitted expiry uses 90 days:</p>
     <CodeBlock language="json" filename="read-only-key.json">{JSON.stringify({ name: "ci-artifact-reader", scopes: ["sandboxes:read"] }, null, 2)}</CodeBlock>
     <p>Members can list and revoke only their own keys; admins can manage all organization keys. Existing SDK/CLI runtime calls continue to authenticate with <code>x-api-key</code>. The SDK's <code>listApiKeys()</code> is a human-authenticated administrative operation.</p>

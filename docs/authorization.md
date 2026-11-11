@@ -52,6 +52,28 @@ Template visibility, source sharing, runtime capability checks and tenant
 ownership checks still apply after the route permission check. Unknown routes
 and unknown roles fail closed. A scope is not a bypass of those policies.
 
+### Observability Candidate Permissions
+
+These additional scopes are **unreleased source-candidate functionality**. They
+require migration 041 and the optional operator-enabled observability backend;
+they were not part of the 0.5.0-rc.4 authorization release.
+
+| Operation | Human member | Human admin | API key |
+| --- | --- | --- | --- |
+| Read runs, trace/log metadata and capture policy | Yes | Yes | Explicit `runs:read` |
+| Create runs and issue bound telemetry grants | Yes | Yes | `runs:write` and `sandboxes:write` |
+| Close runs or revoke grants | Yes | Yes | Explicit `runs:write` |
+| Capture or read sensitive content | No | Yes, with the relevant run permissions | Admin-granted `runs:content`, with the relevant run scopes |
+| Configure capture policy | No | Yes | Never |
+
+Content capture also requires operator and organization opt-in. Run scopes are
+not included in default or existing API keys. They authorize run control and
+queries, not direct ingestion: an exporter uses a short-lived write grant bound
+to its organization, run and sandbox. That grant cannot read telemetry or execute
+commands. Grant validation rechecks the issuing principal; revocation or loss of
+its required permissions invalidates subsequent writes. Already accepted data
+is not erased by key revocation. See [agent observability](observability.md).
+
 ## Create and Rotate
 
 In **API keys**, choose Create key, provide a meaningful name, choose permissions

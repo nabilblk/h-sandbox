@@ -1,0 +1,168 @@
+name: Isolated agent observability qualification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "infra/observability/**"
+      - "examples/agent-observability/**"
+      - "infra/charts/harakiri/**"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "packages/sdk/**"
+      - "packages/python-sdk/**"
+      - "packages/shared/**"
+      - "db/migrations/**"
+      - "tests/e2e/agent-observability.spec.ts"
+      - ".github/workflows/observability-qualification.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: observability-qualification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native-sandbox:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v3.17.3
+      - name: Install locked source tools and validate harness contracts
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm --filter @harakiri/shared build
+          node --test infra/acceptance/safety.test.mjs infra/acceptance/browser-session.test.mjs infra/observability/native/*.test.mjs
+          node --test infra/observability/agent-recipes.test.mjs
+      - name: Bootstrap only a fresh GitHub-hosted native amd64 cluster
+        timeout-minutes: 10
+        run: node infra/acceptance/bootstrap.mjs
+      - name: Qualify source images and installed SDK against real sandbox execution
+        timeout-minutes: 60
+        run: node infra/observability/native/run.mjs
+      - name: Clean only owned resources and credentials
+        if: always()
+        run: node infra/acceptance/cleanup.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: observability-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            standalone-acceptance-report.json
+            telemetry-native-desktop.png
+            telemetry-native-mobile.png
+            telemetry-real-agent-desktop.png
+            telemetry-real-agent-mobile.png
+          retention-days: 14
+          if-no-files-found: warn
+
+  image-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+      - name: Install checksum-verified Grype without a Docker socket
+        run: |
+          mkdir -p "$RUNNER_TEMP/grype"
+          cd "$RUNNER_TEMP/grype"
+          curl --fail --location --retry 2 --max-time 120 -o grype.tar.gz https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_linux_amd64.tar.gz
+          printf '%s  grype.tar.gz\n' '1d444c5e7360471815f7158f71935fcecc68a3c417d85c7344f770854300bba2' | sha256sum --check -
+          tar -xzf grype.tar.gz grype
+          echo "$RUNNER_TEMP/grype" >> "$GITHUB_PATH"
+      - name: Fail on high or critical findings in the exact pinned images
+        env:
+          AUDIT_PLATFORM: linux/${{ matrix.architecture }}
+        run: node infra/observability/scan-images.mjs --platform "$AUDIT_PLATFORM"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: observability-image-audit-${{ matrix.architecture }}-${{ github.run_id }}
+          path: docs/artifacts/observability-image-audit/
+          retention-days: 14
+          if-no-files-found: warn
+
+  qualification:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v3.17.3
+      - name: Install qualification tools
+        run: |
+          corepack enable
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-16
+          echo '/usr/lib/postgresql/16/bin' >> "$GITHUB_PATH"
+      - name: Install locked source and private qualification dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --dir infra/observability install --frozen-lockfile
+          pnpm --dir infra/observability/frameworks install --frozen-lockfile
+          uv sync --project infra/observability --locked
+          uv sync --project python --locked
+          pnpm --filter @harakiri/shared build
+          pnpm --filter @h-sandbox/sdk build
+      - name: Check new dependencies and pipeline contracts
+        run: |
+          pnpm --dir infra/observability audit --audit-level high
+          pnpm --dir infra/observability/frameworks audit --audit-level high
+          pnpm --dir infra/observability test
+          pnpm --dir infra/observability/frameworks typecheck
+          pnpm --dir infra/observability/frameworks test
+          node infra/observability/postgres.mjs
+          uv run --project python pytest -c python/pyproject.toml infra/observability/chart_test.py
+      - name: Qualify actual Collector and storage with persisted API authorization
+        env:
+          HARAKIRI_QUALIFICATION_RECEIPT: ${{ github.workspace }}/docs/artifacts/observability-receipt.json
+        run: pnpm --dir infra/observability qualify
+      - name: Exercise native viewer against labelled adversarial fixtures
+        env:
+          HARAKIRI_E2E_MANAGED_SERVER: "1"
+          HARAKIRI_E2E_WEB_PORT: "15227"
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test tests/e2e/agent-observability.spec.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: observability-qualification-${{ github.run_id }}
+          path: |
+            docs/artifacts/observability-receipt.json
+            docs/artifacts/playwright-report/
+          retention-days: 14
+          if-no-files-found: warn
+      - name: State the qualification boundary
+        if: always()
+        run: |
+          echo 'This job uses disposable databases and Docker components. It does not publish, deploy to a cluster, contact a model provider, or prove sandbox-backed instrumentation or OpenShift compatibility.' >> "$GITHUB_STEP_SUMMARY"

@@ -37,6 +37,16 @@ export async function checkPublicTypes(sandbox: HarakiriSandbox) {
   await sandbox.kill({ wait: true, timeoutMs: 1000 });
   await sandbox.waitForTermination({ signal: AbortSignal.abort() });
   await client.sandboxes.list({ status: "running", q: "example", limit: 5 });
+  const { run } = await client.agentRuns.create({ name: "Trace fixture", sandboxId: sandbox.id });
+  const grant = await client.agentRuns.grant(run.id, sandbox.id);
+  const exporter: { url: string; headers: Record<string, string> } = grant.exporterOptions("traces");
+  const snapshot = await client.agentRuns.spans(run.id, { from: run.createdAt, to: new Date().toISOString() });
+  const exactNanoseconds: string = snapshot.records[0].startTimeUnixNano;
+  // @ts-expect-error Grant tokens require explicit exporter configuration, not property access.
+  grant.token;
+  // @ts-expect-error Content opt-in is boolean, not the truthiness of a query string.
+  await client.agentRuns.logs(run.id, { from: run.createdAt, to: run.createdAt, includeContent: "false" });
+  void exporter; void exactNanoseconds;
   // @ts-expect-error String overload returns a direct result, not a response envelope.
   result.result;
   // @ts-expect-error Existing object calls still return an envelope.

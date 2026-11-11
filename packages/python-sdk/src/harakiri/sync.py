@@ -11,6 +11,7 @@ import httpx
 
 from ._config import ClientConfig
 from ._sync import Bridge
+from .agent_runs_sync import AgentRuns
 from .client import AsyncHarakiriClient
 from .errors import CommandCallbackError
 from .files import AsyncFiles
@@ -400,6 +401,7 @@ class HarakiriClient:
         self.sandboxes = Sandboxes(self._bridge, self._async.sandboxes)
         self.templates = Templates(self._bridge, self._async.templates)
         self.workspaces = Workspaces(self._bridge, self._async.workspaces)
+        self.agent_runs = AgentRuns(self._bridge, self._async.agent_runs)
         self.runtime = Runtime(self._bridge, self._async.runtime)
         self.capacity = OrganizationCapacity(self._bridge, self._async.capacity)
 

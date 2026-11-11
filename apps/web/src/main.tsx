@@ -32,6 +32,7 @@ import "./styles-workspaces.css";
 import "./styles-capacity.css";
 import "./styles-usage.css";
 import "./styles-workbench.css";
+import "./styles-observability.css";
 
 const pendingPublicRouteKey = "harakiri_pending_public_route";
 
