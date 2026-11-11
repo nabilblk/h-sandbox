@@ -171,10 +171,19 @@ uses the built TypeScript SDK, actual API-key authentication and persisted grant
 through Collector and both storage services, including the public lifecycle helper.
 Neither check starts a sandbox.
 
-Global OTel providers are not replaced in either fixture. Host-plus-sandbox trace
-continuity, automatic command output capture, OpenCode instrumentation, installed
-agent recipes and compatibility with existing customer instrumentation still
-need dedicated acceptance. Do not infer these from model/tool callback tests.
+Global OTel providers are not replaced in either fixture. A separate
+[native receipt](operations/evidence/agent-observability-native-agents-2026-11-11.json)
+records the installed TypeScript recipe using actual local-model inference with
+sandbox tools and a second agent running entirely inside the sandbox. All fifteen
+configured gates passed in GitHub run 42928816151, including authenticated browser
+investigation, retained reads, cold recovery and private credential cleanup.
+The receipt identifies the tested source; it is not a package publication.
+
+Automatic tool-to-command parent propagation, framework/CLI output capture,
+Python/Deep Agents native recipes and coexistence with existing customer
+instrumentation still need dedicated acceptance. OpenCode model instrumentation
+is not claimed. Do not generalize the qualified dedicated-process LangChain
+recipe to arbitrary agents or a reusable global instrumentation helper.
 
 ## Operational Boundaries
 

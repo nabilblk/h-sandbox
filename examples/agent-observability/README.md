@@ -183,5 +183,11 @@ node --test infra/observability/agent-recipes.test.mjs
 ```
 
 That test uses scripted model decisions and proves packaging and callbacks only.
-The GitHub native job runs actual inference. Until a matching-source native receipt
-passes, these new real-agent scenarios remain **unqualified**, not release evidence.
+The GitHub native job runs actual inference. The
+[2026-11-11 receipt](../../docs/operations/evidence/agent-observability-native-agents-2026-11-11.json)
+records fifteen passed native checks, including both real-agent placements,
+browser investigation, cold recovery and cleanup. Its source is the PR test merge
+of branch commit `39e809e` into base `c832537`, not a released package. The run IDs
+are evidence references from a deleted disposable environment, not links into the
+public lab. This qualification does not complete automatic framework integration,
+Python native agent recipes or the security and operational release gates.

@@ -243,5 +243,9 @@ authentication compatibility require an operator acceptance test.
 Follow [the isolated qualification guide](../../infra/observability/README.md).
 It never uses a cluster, existing database or live model credentials. Helm tests
 only render. Its browser tests use labelled fixtures. The separate hosted native
-job uses an actual fresh cluster, commands, OIDC browser and cold recovery. Real
-sandbox-backed model-agent investigation remains a separate gate.
+job uses an actual fresh cluster, commands, OIDC browser and cold recovery. The
+[2026-11-11 native receipt](evidence/agent-observability-native-agents-2026-11-11.json)
+additionally qualifies the dedicated-process TypeScript/LangChain agent in both
+host-plus-sandbox and fully in-sandbox placements with actual local-model inference.
+All fifteen configured gates and private cleanup pass. Automatic framework capture,
+Python native recipes and the unqualified operations above remain separate gates.

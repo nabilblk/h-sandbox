@@ -1,6 +1,7 @@
 const names = new Set([
   "AbortError", "TimeoutError", "TypeError", "AssertionError", "GraphRecursionError",
-  "HarakiriApiError", "HarakiriCommandFailedError", "HarakiriWaitTimeoutError", "AggregateError"
+  "HarakiriApiError", "HarakiriCommandEndedError", "HarakiriCommandObservationError",
+  "HarakiriRunError", "HarakiriWaitTimeoutError", "AggregateError"
 ]);
 const codes = new Set(["ECONNREFUSED", "ECONNRESET", "EPIPE", "ETIMEDOUT", "UND_ERR_SOCKET", "UND_ERR_CONNECT_TIMEOUT"]);
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" ? value as Record<string, unknown> : {};

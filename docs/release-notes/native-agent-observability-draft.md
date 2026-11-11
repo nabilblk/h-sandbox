@@ -68,8 +68,19 @@ followed by retained browser investigation. They are not sandbox-backed model ru
 or proof of deletion replay/physical erasure. See the
 [recovery receipt](../operations/evidence/agent-observability-recovery-2026-11-10.json).
 
+The subsequent [fifteen-gate native run](https://github.com/nabilblk/h-sandbox/actions/runs/42928816151)
+passed both real LangChain placements: a host agent using sandbox tools and an agent
+fully inside a sandbox. A digest-pinned local Qwen model generated the actual tool
+calls; independent Python verification checked each saved report. The host run
+retained four generations and three tool attempts; the in-sandbox run retained five
+generations and four attempts. The browser rendered actual instrumentor payloads
+as messages/tool calls on desktop and mobile. Retained reads, fresh-storage cold
+recovery and removal of owned credentials/resources passed in the same run.
+See the [source-bound receipt](../operations/evidence/agent-observability-native-agents-2026-11-11.json).
+This is one complete qualifying run, not proof of every agent/failure scenario.
+
 Not yet release-qualified: automatic framework setup and command correlation,
-real sandbox-backed/agent-in-sandbox workflows,
+Python/Deep Agents native workflows and existing-instrumentation coexistence,
 signal-history pagination, complete per-run delivery/loss accounting, native external
 export, physical erasure and cross-version recovery, measured production sizing and native restricted
 OpenShift. The completed image inventory **fails** the security gate on both

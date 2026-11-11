@@ -2,7 +2,7 @@
 
 **Created**: 2026-11-09
 **Author**: Codex with product direction from the maintainer
-**Status**: In Progress - optional helpers, fan-out and native model-free sandbox checks verified; automatic agent capture and operational acceptance incomplete; awaiting patched upstream images for release
+**Status**: In Progress - optional helpers, real LangChain agents in both sandbox topologies, viewer and cold recovery verified; automatic capture and operational acceptance incomplete; awaiting patched upstream images for release
 **Priority**: Unassigned; milestone approved, relative backlog priority not reassessed
 **Estimated effort**: Multi-week, cross-stack work; re-estimate after the qualification spike
 **Baseline**: `c83253746f3b767782f644b36bed582f404acbc7`
@@ -292,7 +292,9 @@ retention expired; sandbox terminated; empty search; malformed/orphaned span.
   collector YAML, wiring storage credentials or changing every tool call.
 - [ ] A real nested agent/tool/model workflow can be investigated from run to
   failing step to command/log evidence, including its retry and recovery.
-- [ ] Host-plus-sandbox and agent-in-sandbox topologies both have qualified evidence.
+- [x] Host-plus-sandbox and agent-in-sandbox topologies both have qualified evidence
+  for the dedicated-process LangChain recipe. Deep Agents lifecycle integration
+  and automatic tool-to-command parent propagation remain separate gates.
 - [ ] UI distinguishes signal absence/loss from success and shows unknown usage.
 - [ ] Queries remain useful after sandbox termination for the configured retention.
 - [ ] Cross-tenant ingestion/query/export, forged run bindings and unauthorized
@@ -344,7 +346,10 @@ retention expired; sandbox terminated; empty search; malformed/orphaned span.
   deletion/replay/backup coordination before claiming complete erasure.
 - [x] Qualify maintained OpenInference instrumentation against real TS/Python
   Deep Agents callbacks with deterministic models and two concurrent tenants.
-- [ ] Qualify sandbox-backed framework execution and the in-sandbox/OpenCode recipe.
+- [x] Qualify the dedicated-process LangChain recipe with sandbox-backed tools and
+  an agent fully inside the sandbox. Both passed in run 42928816151; OpenCode is
+  not the selected instrumented recipe and has no model-capture claim.
+- [ ] Qualify the planned TypeScript/Python Deep Agents sandbox-backed recipes.
 - [x] Define schema versioning for evolving OTel GenAI conventions and safe handling
   of unknown attributes. Freeze run/outcome/coverage semantics and API permissions.
 - [x] Record qualified ingestion decisions and upstream findings in ADR 0010 and
@@ -414,7 +419,7 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   unchanged globals. Add first-recorded-command recipes with native limits visible.
 
 ### Phase 4: Native Runs and Workbench experience
-**Status**: In Progress
+**Status**: Complete - candidate viewer, including real sandbox-backed agent investigation
 - [x] Build a local interactive UI fixture against frozen contracts, with nested,
   concurrent, long-running, failed/retried and partial traces. Label fixture data;
   never use it as a production fallback or claim it is live acceptance evidence.
@@ -437,7 +442,9 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   justify it. A fixture is not a backend throughput benchmark.
 - [x] Connect the production viewer to real authorized APIs. Synthetic transport
   is intercepted only by explicitly labelled browser tests, never a live fallback.
-- [ ] Repeat the browser investigation against a real sandbox-backed agent run.
+- [x] Repeat the browser investigation against a real sandbox-backed agent run.
+  Run 42928816151 verifies actual OpenInference messages, tool calls, logs and
+  metadata-only reads; authenticated desktop/mobile screenshots were inspected.
 
 ### Phase 5: Optional deployment and operational controls
 **Status**: In Progress - native Kubernetes installation, restart and cold recovery verified; operational limits and restricted OpenShift remain open
@@ -466,7 +473,7 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
   including buffer replay, backup handling and lagging indexes.
 
 ### Phase 6: End-to-end, failure and security acceptance
-**Status**: In Progress - local component and browser acceptance, not live agent acceptance
+**Status**: In Progress - native LangChain workflows and recovery pass; broader integration/operational matrix remains open
 - [ ] Run the matrix below against real pinned Collector/Victoria components.
 - [ ] Run deterministic model-independent checks on every change; separately run
   real model-backed Deep Agents and in-sandbox agent workflows. A free model may
@@ -474,7 +481,10 @@ select a qualified in-sandbox instrumented agent recipe; do not invent traces.
 - [x] Make the twelve-gate real-component harness emit an optional sanitized
   receipt after owned-resource cleanup, including exact image digests and host
   environment. Generated credentials and payloads are excluded.
-- [ ] Record native agent run/trace references and the complete acceptance matrix.
+- [x] Record native LangChain run/trace references, actual model usage and cleanup
+  in the [15-gate receipt](../../operations/evidence/agent-observability-native-agents-2026-11-11.json).
+- [ ] Complete the remaining framework, interruption, retention and deployment
+  scenarios in the acceptance matrix; one native pass is not the entire matrix.
 - [x] Qualify native model-free sandbox commands and an in-sandbox OTLP producer
   on a disposable Linux/amd64 runner, with real OIDC/browser investigation,
   Collector outage isolation, retained reads after termination, same-PVC storage
@@ -714,10 +724,41 @@ the upstream image-release blocker and explicitly deferred OpenShift validation.
   independent validation and authorized signal reads, but its final credential-file
   cleanup failed with 404. The harness now removes the absolute path returned by
   the write, rather than passing a working-directory-relative path to the legacy
-  remove method. A full successful native receipt is still required.
+  remove method. The subsequent 15-gate run 42928816151 passed both placements,
+  retained reads, storage restart, fresh-storage cold recovery and private cleanup.
+  Its source is GitHub's test merge `f11d4d7269419d12a83f42e60af6bdfd0752ece8`
+  (base `c832537`, branch `39e809e`), not a published release or a merge to main.
 - The upstream ESM patch is documented as process-lifetime. This is not a reusable
   custom callback tracer, a global OTel provider replacement or a claim of SDK/CLI
   context propagation. Those remaining tasks stay open.
+
+### Verified Native Evidence: 2026-11-11
+
+The [immutable workflow run](https://github.com/nabilblk/h-sandbox/actions/runs/42928816151)
+passed native sandbox acceptance and component/authorization/browser qualification.
+The workflow remains red because its two architecture-specific image audits fail.
+The [sanitized receipt](../../operations/evidence/agent-observability-native-agents-2026-11-11.json)
+contains all 15 passed gates, image/SDK identities, actual model/command/run IDs,
+fresh-volume recovery and removal of owned credentials and resources. Those run
+IDs belong to the deleted isolated test environment, not the public lab.
+
+Host-agent inference produced four model calls, three tool attempts, 21 observed
+spans and independently verified output. The in-sandbox agent produced five model
+calls, four tool attempts and 24 spans. Failed attempts were retained, not replaced
+with a synthetic successful trace. Exact token counts match the model responses.
+Earlier incomplete runs remain failed attempts; this is one complete qualifying
+execution, not a claim that intermittent failures have all been diagnosed.
+
+Internal work still outstanding is automatic framework/CLI capture and authorized
+command parent propagation, Python/Deep Agents native recipes and low-configuration
+launching, complete-history pagination/export, instrumentation coexistence,
+retention/deletion/replay and upgrade/sizing/external-egress qualification.
+None of that work is blocked by the deferred OpenShift validation or the decision
+to wait for upstream images. The plan stays active; no scope reduction is implied.
+
+Upstream releases were rechecked on 2026-11-11: [VictoriaLogs 1.53.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.53.0)
+and [VictoriaTraces 0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
+remain the latest published releases. Do not waive the high/critical image gate.
 
 ### Completion Work Checkpoint: 2026-11-10
 

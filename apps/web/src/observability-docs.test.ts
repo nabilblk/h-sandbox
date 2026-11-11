@@ -39,6 +39,23 @@ test("optional recording and external export document ownership and unresolved s
   ]) assert.ok(markdown.includes(contract), `Missing optional recording boundary: ${contract}`);
 });
 
+test("native agent claims point to completed source evidence without implying a release", () => {
+  const receipt = JSON.parse(readFileSync(new URL(
+    "../../../docs/operations/evidence/agent-observability-native-agents-2026-11-11.json", import.meta.url
+  ), "utf8"));
+  assert.equal(receipt.status, "configured_gates_passed");
+  assert.equal(receipt.results.length, 15);
+  assert.ok(receipt.results.every((gate: { status: string }) => gate.status === "passed"));
+  assert.equal(receipt.candidate.published, false);
+  assert.deepEqual(receipt.cleanup, { status: "passed", privateMaterialRemoved: true });
+  assert.deepEqual(receipt.agents.workflows.map((workflow: { topology: string }) => workflow.topology),
+    ["host-agent-sandbox-tools", "agent-inside-sandbox"]);
+  const markdown = documentationAssets().get("docs/agent-observability.md")!;
+  assert.ok(markdown.includes("https://github.com/nabilblk/h-sandbox/actions/runs/42928816151"));
+  assert.ok(markdown.includes("Python/Deep Agents native workflows"));
+  assert.ok(markdown.includes("Do not enable this candidate in production"));
+});
+
 test("operator token recipe produces a secret accepted by the internal ingress", () => {
   const operator = readFileSync(new URL("../../../docs/operations/agent-observability.md", import.meta.url), "utf8");
   assert.ok(operator.includes("openssl rand -hex 32 | tr -d '\\n' > .private/collector-token"));

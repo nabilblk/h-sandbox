@@ -12,3 +12,10 @@ test("agent failure receipts include classification, never messages or payloads"
   assert.deepEqual(agentFailure(agentFailure(error)), agentFailure(error));
   assert.deepEqual(agentFailure(null), { name: "Error", sources: [] });
 });
+
+test("actual SDK execution errors retain only their type", () => {
+  for (const name of ["HarakiriCommandEndedError", "HarakiriCommandObservationError", "HarakiriRunError"]) {
+    const failure = agentFailure({ name, message: "PRIVATE_COMMAND", status: "failed", stdout: "PRIVATE_OUTPUT" });
+    assert.deepEqual(failure, { name, sources: [] });
+  }
+});

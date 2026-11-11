@@ -113,15 +113,15 @@ The controlled profile reduces VictoriaTraces' default 20-second index flush and
 flushes. That improves interactive visibility but increases I/O. The receipt
 reports elapsed checks, **not a production latency or throughput guarantee**.
 
-## Still Not Qualified
+## Component Evidence Limits
 
-No real sandbox-backed execution, quota fairness under load,
+The component command alone does not qualify real sandbox-backed execution, quota fairness under load,
 signal pagination, OpenShift installation,
 backup restoration, secure erasure of backups, or production sizing is implied.
 Retention rejection of an old record is not proof of timed physical reclamation.
 Local non-root containers are not native restricted-OpenShift evidence.
 
-The twelve browser fixture tests are separate: 1,000 spans, a bounded 500-row read of a
+The fourteen browser fixture tests are separate: 1,000 spans, a bounded 500-row read of a
 10,000-log dataset, desktop/tablet/mobile, text contrast, keyboard/resize, root-first
 selection, collapsed-parent reveal, error navigation, searchable logs, exact copy,
 formatted JSON, role-labelled conversations, tool drill-down, token accounting,
@@ -211,6 +211,23 @@ to the generated installation and its detached storage, never a workload shell.
 Raw archives, command failures, tokens and kubeconfig remain private and are
 removed during cleanup. Only an allowlisted gate receipt and synthetic-data
 screenshots are uploaded.
+
+The real-agent stages use the maintained OpenInference recipe from
+`examples/agent-observability` and a digest-pinned Ollama/Qwen model on the owned
+runner. One model loop runs on the host with SDK-backed sandbox tools; another
+runs entirely inside a sandbox with only a write-only telemetry grant. Both read
+a synthetic ledger, generate a report and execute an independent Python verifier.
+Model token counts, model/tool parentage, actual validator output, content privacy
+and host-workflow browser investigation are checked. The temporary grant file is
+removed using the exact absolute path acknowledged by the file API.
+
+All fifteen configured native gates passed in
+[run 42928816151](https://github.com/nabilblk/h-sandbox/actions/runs/42928816151).
+The [receipt](../../docs/operations/evidence/agent-observability-native-agents-2026-11-11.json)
+records source test merge `f11d4d7` (branch `39e809e`, base `c832537`), actual model
+usage and both run references, cold recovery and successful private cleanup.
+Failed earlier attempts remain failed; this is one complete qualifying run,
+not a broad framework compatibility or uninterrupted-delivery guarantee.
 
 Do not run the native script on a workstation or remove its ownership checks.
 Its model-free producer is not an LLM agent. The earlier eleven-gate receipts
