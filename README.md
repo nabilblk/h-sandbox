@@ -102,6 +102,9 @@ See [runnable examples](examples/demo/agent-workflows),
 - API: Fastify `/v1` control-plane API plus `/openapi.json`.
 - CLI: installable `harakiri` executable.
 - SDK: TypeScript client package for the same API.
+- Agent skills: [`harakiri-deploy`](skills/harakiri-deploy/SKILL.md) and
+  [`harakiri-sandbox`](skills/harakiri-sandbox/SKILL.md) teach coding agents
+  to install Harakiri and to run work in sandboxes. See [skills/](skills/README.md).
 
 All public interface contracts should stay aligned through
 `packages/shared` and the generated OpenAPI document in `docs/openapi.json`.

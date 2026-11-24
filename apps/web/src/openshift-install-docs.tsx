@@ -67,6 +67,7 @@ export const openshiftInstallDocs: DocPage = {
     <p><strong>Client-test preview: 0.5.0-rc.15. Native OpenShift validation is pending.</strong> Local API and Helm contract tests are not SCC admission or runtime evidence. Use matching rc.15 API/web images and chart; rc.14 does not include the restriction guard. Check the <a href={receipt}>delivery receipt</a> for verified publication before installing. Qualify on an isolated target before a production rollout.</p>
     <p><a href={`${source}/docs/install-openshift.md`}>Complete operator runbook</a> | <a href={`${kit}/README.md`}>Configuration kit</a> | <a href={`${source}/docs/openshift-qualification.md`}>Native acceptance checklist</a></p>
     <p>Use an isolated, explicitly approved target. Nothing here requires changing a default SCC or touching another cluster. PostgreSQL and Keycloak are operator-managed prerequisites, not silently installed dependencies.</p>
+    <p>A coding agent can work through this guide with the <a href="#docs/agent-skills">harakiri-deploy skill</a>. It separates platform-administrator steps from namespace operations and never changes SCCs. Native qualification still requires observed results.</p>
 
     <h2>Choose the restricted profile</h2>
     <table className="docs-data-table"><caption>Restricted deployment capabilities</caption><thead><tr><th scope="col">Surface</th><th scope="col">Baseline</th></tr></thead><tbody>
