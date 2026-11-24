@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const roots = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "docs", "packages/cli/README.md", "packages/sdk/README.md"];
+const roots = ["README.md", "CONTRIBUTING.md", "SECURITY.md", "docs", "packages/cli/README.md", "packages/sdk/README.md", "skills"];
 const ignoredDirectories = new Set(["artifacts", "node_modules"]);
 
 const markdownFiles = async (path) => {
